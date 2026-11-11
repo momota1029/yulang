@@ -1574,3 +1574,7 @@ import Yulang.GeneralSourceStateExamples
 import Yulang.GeneralNormalizedObservation
 import Yulang.GeneralSourceK2
 import Yulang.GeneralSourceK2Examples
+import Yulang.GeneralDeclarationPatterns
+import Yulang.GeneralDeclarations
+import Yulang.GeneralDeclarationDemands
+import Yulang.GeneralDeclarationExamples

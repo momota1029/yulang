@@ -932,3 +932,478 @@ primary constructed the bounded derivations. A separate read-only reviewer
 challenged the semantics and reviewed the final gate changes and this note.
 No prover agent ran. The reviewer ran `git diff --check`, not independent Lean
 builds; the build and audit results above are the primary's checks.
+
+
+## Item 1
+
+2026-11-12, declaration carrier, declaration-only certification, and child demand
+emission. The owner reassigned this lane in I-18. During this task the owner
+resolved the generated-binder question: generated associated binders are
+**output-only**, and only unnamed child arguments enter the Paterson conditions.
+That decision is implemented concretely, with no remaining sugar-accounting
+parameter.
+
+Authority: [spec section 6.3](../../spec/06-roles.md), the
+[approved draft and addenda](2026-11-08-b4-main-statement-draft.md), and the new
+“回答” section of
+[the associated-sugar question](../questions/2026-11-10-cycle70-associated-sugar-checking.md).
+The worktree's older spec/question text was not edited. The updated answer was
+read with the read-only command
+`git -C /home/momota1029/rust/yulang show origin/integration/m1-final:notes/questions/2026-11-10-cycle70-associated-sugar-checking.md`;
+the owner identified its integration commit as `400cb091a`. No fetch or ref update
+was performed. The earlier note's open sugar-accounting status is superseded by
+this decision.
+
+### Delivered interface and its limits
+
+New modules:
+
+- [GeneralDeclarationPatterns.lean](../../lean/Yulang/GeneralDeclarationPatterns.lean)
+  (`P`): resolved finite pattern trees, normalization, counts, and capture stability.
+- [GeneralDeclarations.lean](../../lean/Yulang/GeneralDeclarations.lean) (`D`): full
+  declaration/registry carriers, `DeclarationChecked`, `Checked`, output-only
+  checks, and capture-relative associated determination.
+- [GeneralDeclarationDemands.lean](../../lean/Yulang/GeneralDeclarationDemands.lean)
+  (`G`): interval captures, explicit allocations/materialization requests, and
+  lossless child `GeneralSourceState.Demand` emission.
+- [GeneralDeclarationExamples.lean](../../lean/Yulang/GeneralDeclarationExamples.lean):
+  accepted/rejected spec examples using these same carriers.
+
+`D.Registry` contains a constructor catalogue, the existing `Roles.RoleDecls`,
+and the complete declaration list. `D.CheckedRegistry` packages it with a proof
+of `D.Checked`. This is a concrete declaration **certificate component**, not
+a complete executable source validator and not a completed B4 boundary field.
+In particular, full source/Common normalization adequacy and the link from
+source matching to associated determination remain unproved. No fragment's
+classifier or scalar registry is substituted for those obligations.
+
+`P.Pattern` has variables, arbitrary-arity resolved constructor applications,
+record fields/tails, variants, and joins. The constructor catalogue retains
+name and type/row/lower/upper parameter layout, so nominal and interval shapes
+are not erased into unary placeholders. Constructor validation currently checks
+arity, not all type/row/variance kinds. Parsing, elaboration, nominal variance
+checking, and the interpretation of catalogue names remain separate obligations.
+Applications do not unfold named bodies.
+
+A `D.Declaration` keeps its source identity, role, original head patterns, all
+where clauses, own associated definitions, and generated-binder provenance.
+`normalHead` exposes the computed normalized head while keeping the original
+spelling for provenance and lexical scope checks. Every `D.Clause` keeps its
+own identity, role, complete unnamed arguments, and complete list of named
+`D.Equation`s. Equations have their own identities and arbitrary pattern RHSs.
+Identical clause contents are not deduplicated. Registry declaration identities,
+clause identities within a declaration, and equation identities within their
+owner must be distinct. This is a storage invariant, not global role coherence.
+Repeated imports/visibility still need an adapter to this definition registry.
+
+### Rules checked, with authority
+
+| Rule | Concrete definition / evidence | Authority and scope |
+| --- | --- | --- |
+| Normalize invisible fields before counting | `P.normalize`, `P.hide`, `hidden_field_removed` | Spec 6.3 hidden-field paragraph; visibility resets inside payloads and unknown tail variables remain. |
+| Group same tags before counting | `P.variantRow`, `P.merge`, existing `Variants.Merged.normalize`, sorted tag reconstruction, `duplicate_variant_removed`, `nonadjacent_tag_grouped` | Spec 6.3 same-tag paragraph, also the existing tag-unique row operation. Whole rows are grouped, including separated tag occurrences. |
+| Smaller children and occurrence bounds | `P.Smaller`, `P.checkSmaller`, `checkSmaller_exact`; `DeclarationChecked.paterson` | Spec 6.3 numbered conditions. Both sides are normalized first. Only `Clause.arguments` enters the child count. Uses `CheckedRoles.checkCondition_exact` directly. |
+| Preserve descent after capture | `P.StableSmaller`; `DeclarationChecked.captureStable`; `late_merge_rejected` | Spec 6.3 paragraph rejecting capture-induced loss of strict descent. Quantifies every finite capture; no resolver success is assumed. |
+| Avoid inflated partial counts | `CountsCovered`, `ConservativeSmaller`, `NormalizationDeferred` | Conservative implementation coverage. Residual joins defer certification; the head lower bound does not count an arbitrary record tail as guaranteed structure. These extra gates are not new language rejection reasons. |
+| Generated binders are output-only | `Declaration.OutputOnly`, `output_input_rejected` | Owner answer of 2026-11-12. Generated names cannot occur in the impl's unnamed head or any child's unnamed input, even in syntactically hidden fields. They may occur in own associated RHSs and child named equations. |
+| Generated variables have a producer | `Declaration.Produced` | Each binder points to a real clause/equation whose RHS is that variable. Merely listing an arbitrary output name cannot make it determined. |
+| Variables are scoped | `Declaration.Scoped` | Normalized child input variables come from normalized head captures; own associated RHSs and named equations may additionally use the produced output-only binders. Ordinary where-only variables remain excluded. |
+| Associated names and defaults | `Declaration.Signature`, `Clause.Signature` | Existing `Roles.RoleDecls`: correct unnamed arity, every supplied name declared, every own required name explicitly defined or defaulted. Merely validating supplied names is not completeness. |
+| Associated determination through children | `SatisfiesOutputs`, `outputs_determined`, `capture_determines_associated` | Spec 6.3 named outputs are determined from unnamed inputs. The theorem is relative to actual captured-binding agreement and a fixed functional local output interpretation; source/dictionary discharge is still missing. |
+
+The output-only decision counts neither own associated definitions nor child
+named equations in the Paterson comparison. It does not assign generated
+variables artificial size zero: their allowed occurrences live outside the
+unnamed argument lists that are counted. Every child, including one introduced
+by associated-RHS sugar, still has a strictly smaller unnamed input list.
+The same output binder can be shared by several child named equations, which
+remain simultaneous constraints.
+
+`StableSmaller` is an independent mathematical requirement, not a finite
+procedure for arbitrary patterns. `CheckedRoles` supplies the exact finite
+size/occurrence subcheck. `CommonRoleStablePaterson.check_sound` was surveyed;
+its Form grammar is int/pair/tick/join, so it was not installed as the general
+check. Likewise `CommonRoleNormalizedDeclarations` and
+`CommonRoleHeadDetermination` are restricted record-pattern components. Their
+contracts informed the separation here, but their restricted checkers do not
+validate arbitrary constructor applications. `unary_descent` proves a general
+constructor schema directly, for every finite captured payload.
+
+### Normalization coverage is not full semantic adequacy
+
+The new pattern pass removes record shadows and groups complete variant rows.
+It contracts equal payloads; remaining unequal payload joins retain their
+structure. It does not invent pair/nominal variance coalescing or claim complete
+Common equivalence. A residual join makes `CountsCovered` false. Consequently a
+multi-tag row may be represented and normalized while declaration certification
+still waits for broader count coverage.
+
+`ConservativeSmaller` additionally replaces residual joins and record tails in
+its head lower bound by a one-node constant. It can decline valid declarations:
+for example a known multi-field record may have a useful tail that this bound
+discards. `deferred_not_certified` records that such a declaration is not yet
+certified. Neither this theorem nor generic `¬DeclarationChecked` alone says
+that the language rejects it. The rejected examples below have the specific
+approved output-only or nondecrease reason.
+
+A general theorem connecting these bounds to **all** Common canonicalization
+is not proved. Nor is there a full interpretation theorem for arbitrary
+constructor-catalogue applications. This is why the field table labels Checked
+a certificate component with source/Common adequacy still missing. An accepted
+certificate is not yet a whole-language soundness theorem.
+
+The first version of the local merge draft only grouped immediate variant
+operands. Independent review found the separated-tag counterexample
+`(tick int | other str) | tick int`. The implementation now flattens and groups
+the whole row with the existing operation; `nonadjacent_tag_grouped` proves that
+regression. This was corrected before final checks.
+
+### Associated determination and its remaining bridge
+
+`CapturesAgree d first last` says that two actual captures agree on every
+surviving head variable. It does **not** quantify arbitrary substitutions merely
+making the head Common-equivalent. This matters for the approved merged-variable
+rule: the whole merged payload is captured into both variables, rather than
+split into arbitrary preimages.
+
+`Associated` is a fixed local interpretation of role input lists and named
+outputs. `SatisfiesOutputs` requires every child named equation to hold in that
+interpretation. If two captures agree on the head bindings, `Scoped` makes all
+child input lists equal. A produced output-only binder then receives equal
+values from its producing child equation. `outputs_determined` proves that step;
+`capture_determines_associated` extends it to every own normalized associated RHS
+using structural substitution congruence.
+
+This is **capture-relative determination**. It does not prove the source
+matcher's binding agreement from equal input intervals, prove functionality of
+selected child dictionaries, or impose global coherence on visible impls.
+The later source/dictionary model must discharge those premises. Defaults are
+retained in `Roles.RoleDecls`; this module validates their availability but does
+not build default dictionaries or instantiate their bodies into source state.
+
+### Child demands and identity preservation
+
+`G.Capture.inputs` supplies centerless lower/upper source pairs. Its `outputs`
+map supplies ordinary identities reserved for generated output binders; no
+freshness or injectivity is silently assumed. `G.Allocation` supplies identities
+for compound input and output expressions.
+
+`childDemand` substitutes a directly captured input variable's interval without
+choosing either endpoint as a centre. A generated variable in a named equation
+uses its reserved ordinary output identity. Other RHSs receive an allocated
+materialization target; neither lower nor upper endpoint is
+arbitrarily selected as that target.
+
+`emit` retains the capture, invocation/declaration/clause identities, the actual
+item-2 `Demand`, every input materialization request, and every named equation's
+identity/RHS/target. `emitAll` produces one emission per original clause,
+including bare clauses with zero equations. `emitAll_identities` proves exact
+list preservation of qualified identities, and `emitAll_length` proves no
+clause disappears. `child_outputs_exact` proves exact named-obligation membership.
+`child_linked` proves linkage to an existing state when the emitted identities
+are present there.
+
+Identity linkage alone is not materialization correctness. The retained input
+and output requests must be realized as ordinary/interval constraints by item 3.
+No general `Pattern`-to-Common/nominal materializer, fresh-source allocator, or
+candidate filtering is supplied here. In particular, allocating a compound
+pattern's endpoints is not evidence that those endpoints denote the pattern.
+
+### Spec examples proved
+
+- `display_checked`: `impl Display (list 'a) where Display 'a` is certified.
+  The size/occurrence and capture-stability proof uses `unary_descent`, quantified
+  over every finite captured payload.
+- `wrap_checked`: the approved Wrap/Container declaration is certified
+  **unconditionally**, after the owner's output-only decision.
+- `registry_checked`: the actual registry containing Display and Wrap is Checked.
+- `wrap_child_keeps_item`: invocation 9 of declaration 2 emits clause 20 as
+  Container, preserves captured input interval `(100,101)`, and emits the item
+  output target 200 with equation identity 21 and RHS binder 1. The allocated
+  fallback target 400 and argument `(300,301)` do not replace those captures.
+- `output_used_as_input_rejected`: `Show (box 'a)` with `Container('a,item='b)`
+  followed by unnamed `Show 'b` is not Checked specifically because binder `'b`
+  is output-only.
+- `hidden_padding_rejected`: duplicating a hidden record field does not make an
+  equal normalized child smaller.
+- `capture_merge_rejected`: the spec's pair-payload late-merge example loses
+  strict decrease at the explicit `a := int` capture and is not Checked.
+  `capture_merge_signature` confirms its two-argument role signature is valid;
+  rejection is not explained by an unrelated arity error.
+- `nonadjacent_tag_grouped`: separated duplicate tags normalize to the same row.
+
+### Field table after Item 1
+
+`D`, `P`, and `G` are the module aliases above; `S` is `GeneralSourceState` and
+`K` is `GeneralSourceK2`. All new checking and emission definitions are independent
+of resolution and executor output.
+
+| Field | Status / concrete definition | Remaining obligation |
+| --- | --- | --- |
+| `Vocabulary.Registry` | **DEFINED general finite carrier:** `D.Registry`, `D.CheckedRegistry` | Parser/elaborator/visibility production, catalogue interpretation, and complete checking remain open. |
+| `Vocabulary.State` | **DEFINED checked component:** `S.State`, `GeneralNormalizedObservation.Snapshot` | Full source materialization/normalization and nominal integration remain missing. |
+| `Vocabulary.Demand` | **DEFINED:** `S.Demand`; `G.childDemand`, `G.emitAll` supply where children | Realize retained materialization requests before classification. |
+| `Vocabulary.Model` | **DEFINED Common component:** `S.Assignment` | General nominal/source interpretation remains missing. |
+| `Checked` | **DEFINED declaration certificate component:** `D.Checked`, `D.DeclarationChecked` | Full source/Common adequacy, general bound soundness, finite complete validation, and dictionary-relative determination discharge **MISSING**. |
+| `Models` | **DEFINED checked-state component:** `S.Models` | No complete registry/dictionary model supplied. |
+| `Step` | **MISSING** | No saturation transition. |
+| `Stable` | **MISSING** | No sibling/EOF fixpoint judgment. |
+| `Generated` | **MISSING as the full boundary field** | `G.emitAll` is a defined where-emission component; selected candidate provenance and ordinary realization remain item 3/4. |
+| `RootPending` | **DEFINED partial snapshot component:** `K.RootPending` | `G.needed` supplies conservative all-input deferral, not a proved minimal applicability set. |
+| `RootK2` | **DEFINED partial normalized component:** `K.RootK2` | Earlier normalization/source adequacy gaps remain. |
+| `CandidateK2` | **MISSING** | Actual surviving candidate inspections must produce it. |
+| `InspectionPending` | **MISSING as a complete field** | `K.RootInspectionUnknown` and `D.NormalizationDeferred` are distinct partial deferral conditions. |
+| `Survivor` | **MISSING** | No candidate matching or interval filtering. |
+| `Evidence` | **MISSING** | No source-indexed general dictionary model. |
+| `Reorders` | **MISSING** | Identities are retained for this future relation; no full relation defined here. |
+| `DictionaryEquivalent` | **MISSING** | No general dictionary observation equivalence. |
+| `Executor.run` | **MISSING** | No executor introduced. |
+
+No field is silently filled by a scalar, settled or unary classifier. This work
+provides useful concrete carriers and certificates for item 3, but it does not
+close Item 1's full source-adequacy obligations or instantiate `generalBoundary`.
+No B4 bridge field is claimed complete.
+
+### Needed: lazy implementation and remaining owner question
+
+The draft's addendum 3 fixes Index with a rigid second argument: it waits rather
+than inferring that argument from a lone implementation. Heads alone do not yet
+specify a unique minimal applicability set in every case. Taking only the union
+of rigid head positions would also produce an empty set for an empty registry,
+incorrectly allowing unresolved goals past the pending-priority gate.
+
+`G.needed` currently includes **every unnamed role argument**, derived from
+`Roles.RoleDecls.arity`, regardless of candidate count. `every_input_needed` and
+`unknown_input_pending` prove that an unresolved input remains pending. Named
+associated outputs are not added to that set. This is the conservative deferred
+implementation, not a claim that every input is semantically necessary.
+
+Question, lazy option first:
+
+```yulang
+impl Keep int 'a:
+    // no where clauses
+my use(k) = 1.keep k
+// receiver is int; k's lower head is unresolved
+```
+
+1. Continue waiting for all unnamed lower heads, including the unconstrained
+   nonreceiver wildcard position. This is the implementation retained here.
+2. Permit inspection when a proved applicability dependency analysis says that
+   wildcard position can be captured without inspecting its head. Receiver
+   readiness, repeated-variable interval constraints, and empty registries must
+   still obey the approved pending rules.
+
+The example is schematic, not a parser fixture. No owner choice between these
+acceptance scopes is inferred here; the conservative pending result keeps it
+open. A minimal head-derived Needed set and its sufficiency proof remain missing.
+The generated-binder policy, in contrast, is settled and has no such parameter.
+
+### Handoff and assessment
+
+Item 3 can now consume declaration/obligation/equation IDs, full named and
+unnamed clause data, generated-binder producers, `normalHead`, the certified
+Paterson and output-only facts, and `emitAll` with its exact identity/obligation
+preservation theorems. It must provide actual capture from the shared interval
+graph, materialization of all retained requests, source linkage/freshness,
+survivor propagation, and candidate inspection. Dictionary work must supply the
+local functionality used by `Associated`, without introducing global coherence.
+
+Not verified: parser production, type/row kind correctness, full normalization
+meaning/minimality, nominal variance coalescing, full Common lower-bound
+soundness, complete finite declaration validation, source head-equivalence
+recovery, actual dictionary functionality, default-body materialization,
+minimal Needed, fresh allocation, survivor correctness, saturation, or B4.
+
+Assessment: the concrete registry and child interface now share item-2 demand
+identities and preserve all associated equations. This is progress toward one
+general instance. The old fragment theorems alone still do not supply that
+instance. The remaining source/Common adequacy gaps are substantive; naming a
+certificate `Checked` does not turn them into completed proofs.
+
+### Item-1 theorem statements
+
+The following are the full public signatures from the four modules. Implicit
+parameters are universally quantified with the types inferred in the source;
+namespace openings are as in each module. The private Wrap signature helper is
+not a separate public theorem.
+
+`Yulang.GeneralDeclarationPatterns`:
+
+```lean
+theorem checkSmaller_exact (head child : List Pattern) :
+    checkSmaller head child = true ↔ Smaller head child
+
+theorem subst_congr (pattern : Pattern) (first last : Nat → Pattern)
+      (agree : ∀ name ∈ pattern.variables, first name = last name) :
+      pattern.subst first = pattern.subst last
+
+theorem substArgs_congr (arguments : List Pattern) (first last : Nat → Pattern)
+      (agree : ∀ name ∈ variablesArgs arguments, first name = last name) :
+      substArgs first arguments = substArgs last arguments
+
+theorem hide_idempotent (label : Nat) (pattern : Pattern) :
+    hide label (hide label pattern) = hide label pattern
+
+theorem hidden_field_removed (label : Nat) (payload hidden tail : Pattern) :
+    normalize (.record label payload (.record label hidden tail)) =
+      normalize (.record label payload tail)
+
+theorem duplicate_variant_removed (tag : Nat) (payload : Pattern) :
+    normalize (.join (.variant tag payload) (.variant tag payload)) = normalize (.variant tag payload)
+
+theorem unary_descent (constructor name : Nat) :
+    StableSmaller [.app constructor [.var name]] [.var name]
+```
+
+`Yulang.GeneralDeclarations`:
+
+```lean
+theorem deferred_not_certified (declaration : Declaration) (deferred : NormalizationDeferred declaration) :
+    ¬ DeclarationChecked constructors roles declaration
+
+theorem checked_child_descent (checked : DeclarationChecked constructors roles declaration)
+    (clause : Clause) (present : clause ∈ declaration.requirements) (capture : Nat → Pattern) :
+    Smaller (substArgs capture declaration.head) (substArgs capture clause.arguments)
+
+theorem output_input_rejected (declaration : Declaration) (clause : Clause)
+    (present : clause ∈ declaration.requirements) (name : Nat)
+    (output : name ∈ declaration.outputNames) (input : name ∈ variablesArgs clause.arguments) :
+    ¬ DeclarationChecked constructors roles declaration
+
+theorem late_merge_rejected (declaration : Declaration) (clause : Clause)
+    (present : clause ∈ declaration.requirements) (capture : Nat → Pattern)
+    (noDecrease : ¬ Roles.argsSize (counted (substArgs capture clause.arguments)) <
+      Roles.argsSize (counted (substArgs capture declaration.head))) :
+    ¬ DeclarationChecked constructors roles declaration
+
+theorem outputs_determined (checked : DeclarationChecked constructors roles declaration)
+    (associated : Associated) (first last : Nat → Pattern)
+    (head : CapturesAgree declaration first last)
+    (firstOutputs : SatisfiesOutputs associated declaration first)
+    (lastOutputs : SatisfiesOutputs associated declaration last) :
+    ∀ name ∈ declaration.outputNames, first name = last name
+
+theorem capture_determines_associated (checked : DeclarationChecked constructors roles declaration)
+    (associated : Associated) (first last : Nat → Pattern)
+    (head : CapturesAgree declaration first last)
+    (firstOutputs : SatisfiesOutputs associated declaration first)
+    (lastOutputs : SatisfiesOutputs associated declaration last)
+    (equation : Equation) (present : equation ∈ declaration.associated) :
+    (normalize equation.rhs).subst first = (normalize equation.rhs).subst last
+```
+
+`Yulang.GeneralDeclarationDemands`:
+
+```lean
+theorem emitAll_identities (invocation : Nat) (declaration : Declaration)
+    (valid : declaration.Signature roles) (capture : Capture)
+    (allocate : (clause : Clause) → Allocation roles clause) :
+    (emitAll invocation declaration valid capture allocate).map
+      (fun result => (result.invocation, result.declaration, result.clause)) =
+        declaration.requirements.map (fun clause => (invocation, declaration.id, clause.id))
+
+theorem emitAll_length (invocation : Nat) (declaration : Declaration)
+    (valid : declaration.Signature roles) (capture : Capture)
+    (allocate : (clause : Clause) → Allocation roles clause) :
+    (emitAll invocation declaration valid capture allocate).length = declaration.requirements.length
+
+theorem child_outputs_exact (declaration : Declaration) (clause : Clause)
+    (valid : clause.Signature roles) (capture : Capture) (allocation : Allocation roles clause)
+    (output : Output) :
+    output ∈ (childDemand declaration clause valid capture allocation).outputs ↔
+      ∃ equation ∈ clause.outputs, output =
+        ⟨equation.name, outputTarget declaration capture allocation.outputs equation⟩
+
+theorem generated_output_target (declaration : Declaration) (capture : Capture) (allocate : Nat → Nat)
+    (equation : Equation) (name : Nat) (generated : name ∈ declaration.outputNames)
+    (rhs : equation.rhs = .var name) :
+    outputTarget declaration capture allocate equation = capture.outputs name
+
+theorem child_linked (state : GeneralSourceState.State) (declaration : Declaration) (clause : Clause)
+    (valid : clause.Signature roles) (capture : Capture) (allocation : Allocation roles clause)
+    (arguments : ∀ index, ∃ pair ∈ state.intervals,
+      (state.source pair.1, state.source pair.2) =
+        (childDemand declaration clause valid capture allocation).arguments index)
+    (outputs : ∀ equation ∈ clause.outputs, ∃ slot,
+      state.source slot = outputTarget declaration capture allocation.outputs equation) :
+    GeneralSourceState.Linked state (childDemand declaration clause valid capture allocation)
+
+theorem every_input_needed (demand : Demand roles) (index : Fin (roles demand.role).arity) :
+    needed roles demand index
+
+theorem unknown_input_pending (state : GeneralSourceState.State) (demand : Demand roles)
+    (index : Fin (roles demand.role).arity)
+    (unknown : ¬ GeneralSourceState.Known state (demand.arguments index).1) :
+    GeneralSourceState.RootPending state demand (needed roles demand)
+```
+
+`Yulang.GeneralDeclarationExamples`:
+
+```lean
+theorem display_checked : DeclarationChecked constructors roles display
+
+theorem wrap_checked : DeclarationChecked constructors roles wrap
+
+theorem registry_checked : Checked registry
+
+theorem output_used_as_input_rejected :
+    ¬ DeclarationChecked constructors roles showOutput
+
+theorem hidden_padding_rejected :
+    ¬ DeclarationChecked constructors roles shadowDeclaration
+
+theorem capture_merge_signature : lateDeclaration.Signature roles
+
+theorem capture_merge_rejected :
+    ¬ DeclarationChecked constructors roles lateDeclaration
+
+theorem wrap_child_keeps_item :
+    let child := emit 9 wrap containerChild (wrap_checked.signature.2.2.2 containerChild (by simp))
+      wrapCapture wrapAllocation
+    child.invocation = 9 ∧ child.declaration = 2 ∧ child.clause = 20 ∧
+      child.demand.role = 2 ∧
+      child.demand.arguments ⟨0, by simp [child, emit, childDemand, roles, outputRole]⟩ = (100, 101) ∧
+      child.demand.outputs = [⟨1, 200⟩] ∧
+      child.outputs = [⟨21, 1, .var 1, 200⟩]
+
+theorem nonadjacent_tag_grouped :
+    normalize (.join (.join (.variant 7 (.app 2 [])) (.variant 8 (.app 3 [])))
+      (.variant 7 (.app 2 []))) =
+    normalize (.join (.variant 7 (.app 2 [])) (.variant 8 (.app 3 [])))
+```
+
+
+### Item-1 checks
+
+Final commands, run from `lean/`:
+
+| Exact command | Exit code |
+| --- | --- |
+| `lake build Yulang.GeneralDeclarationPatterns Yulang.GeneralDeclarations Yulang.GeneralDeclarationDemands Yulang.GeneralDeclarationExamples > /tmp/astra-declarations-focused.log 2>&1` | 0 |
+| `lake build Yulang > /tmp/astra-declarations-umbrella.log 2>&1` | 0 |
+| `lake env lean Audit.lean > /tmp/astra-declarations-audit.log 2>&1` | 0 |
+
+The focused build completed 426 jobs; the umbrella build completed 1332 jobs.
+All 29 public theorem entries are present in the completed audit. The full
+dependency whitelist contains only `propext`, `Classical.choice`, and `Quot.sound`.
+The new modules contain none of the excluded tokens. Existing `Yulang.lean` and
+`Audit.lean` contents are unchanged byte prefixes; only four imports and 29 audit
+lines were appended. `git diff --check`, local note links, and audit/signature
+coverage checks pass. No spec, plan, lake configuration, existing theorem body,
+or git reference was modified.
+
+Early focused builds exited 1 while resolving nested-tree equality, reserved
+identifiers, finite-index elaboration and proof simplification. The separated-tag
+regression initially exposed row ordering; the final grouping sorts tags and its
+proof uses the library's sort simplification lemmas. These changes were confined
+to the new files. A temporary executable probe was used only to inspect the row
+values; the final regression is proved by Lean simplification and audited.
+
+The `yulang-proofs` skill was applied. No configured prover role/launch surface
+was available; the primary constructed these bounded derivations and a separate
+read-only reviewer checked the design, implementation and final note. The
+reviewer ran `git diff --check`, not independent Lean builds. No prover agent ran.
+The review's two final documentation corrections (a let-containing theorem
+signature and an overstated allocation-distinctness phrase) were applied before
+completion.
