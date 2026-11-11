@@ -176,3 +176,13 @@ root出力のcoverage以外にも、同じstate/frameで次を分けて示す必
 
 従って次回も「EmissionsReadyのroot出力制限だけを外せば接続完了」と扱わない。
 上記は残りの契約を読んだ分解であり、新しいSurvivor反例や一般driver定理を証明した主張ではない。
+
+## 公開済み報告のreadback（23:16UTC）
+
+3報告をca1013ded899e622bf84e19a49f028a85f15dc5aへ公開し、tree
+ce51b8219ca041c336108c818a3afc91f06732f4の**2459 tracked files全件一致**を確認した。
+再取得した定理報告本文もlocalと完全一致、100型blockを含む。source以後の差分は3報告と
+heartbeatの4pathだけ。公開後diff-only gateとgit diff --checkもexit0。
+
+このreadback記録を最後に追記し、最終report treeと解放時刻・全体所要時間は、直後の
+completed heartbeatに記録する。検証と成果公開は約50分のサイクル内で完了し、55分上限を守る。

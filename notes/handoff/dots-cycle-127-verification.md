@@ -313,3 +313,12 @@ ok: Audit.lean only appended (plus top import lines)
 verify-lean: PASS (diff checks only, NO build)
 exit 0
 ```
+
+## 公開後の完全readback（23:16UTC）
+
+report commit ca1013ded899e622bf84e19a49f028a85f15dc5a、tree
+ce51b8219ca041c336108c818a3afc91f06732f4の2459 tracked filesを全件照合。
+path/mode/type/blob SHAが完全一致、truncated=false。再取得した定理報告のblobは
+e0da442dc7a9b0ff331b5a11eff1ded9ec0c7e37で本文も完全一致、100個の完全type blockあり。
+公開後の最終diff-only gate（local ac676c90d）とgit diff --checkはともにexit0。
+この追記後の最終treeとcompleted heartbeatも、解放前に確認する。
