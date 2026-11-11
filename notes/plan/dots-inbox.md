@@ -217,3 +217,14 @@ Astra の棚卸し（`notes/design/2026-11-11-astra-general-boundary.md`、`lean
 
 - Astra 担当: 項目 2（状態と需要）。2026-11-11 開始。
 - Astra 担当: 項目 1（宣言の入れ物と検査）も Astra に移す（2026-11-12、dot のサイクル 119 が止まっていて、項目 3 が項目 1 を待つため）。dot は I-17 のあと、項目 5（辞書: `Evidence`、`Reorders`、`DictionaryEquivalent`）の定義から始めること。項目 1・2 の定義（`GeneralSourceState`、`GeneralSourceK2` と、Astra がこれから足す宣言のモジュール）を部品として使ってよい。
+
+## I-19: `B4TargetV2` の `Local` に、検査の保留を足す（監督役のレビュー, 2026-11-12）
+
+サイクル 119 の `B4TargetV2` は I-17 を正しく反映している（拒否の 3 理由を `¬ RootPending` で守る、結果は診断ツリー、4 分類は `Completed` だけ）。ただし、一つ穴が残っている: `SafeKnown` は `¬ InspectionPending` を要求するのに、`Local` / `Classify` には「下界の頭は分かっているが、候補の検査が終わっていない」ときの規則がない。そのため、`¬ RootPending ∧ InspectionPending` で K2 も候補ゼロも成り立たない需要（安定した状態でも起こりうる。最終の保留）には、どの `Local` も当てはまらず、`Exact`（実行版のツリー ↔ `Resolves`）が成り立たない。Astra の棚卸し（`notes/design/2026-11-11-astra-general-boundary.md`「Why the frozen target …」の最後の段落）も同じ点を指摘している。
+
+直し方（新しい意味論の選択ではなく、承認済み草稿の順序をそのまま写す。草稿: K2 は曖昧より先、selected/ambiguous は「K2 の拒否がなく、未解決の検査もなく」）:
+1. 新しいモジュール（例: `B4TargetV3.lean`。V2 は消さない）で、`Local` と `Classify` に `inspectionPending` 規則を足す: `¬ RootPending → InspectionPending → ¬ RootK2 → ¬ CandidateK2 → Local … .pending`（結果は同じ `.pending`。区別が要るならツリーの葉に理由を持たせてよいが、4 分類では pending）。
+2. 候補ゼロの拒否（理由 iii）と `InspectionPending` が重ならないことを、`SourceBoundary` に足す仮定ではなく、**新しい `RejectReason` の定義側**で守る（理由 iii を `¬ InspectionPending` でも守る）。K2 の 2 理由は守らない（K2 は検査の保留より先）。
+3. `Local` の関数性（各需要について高々一つの frontier）と、**全域性の補題**（`SourceBoundary` の各述語が排中律で決まるとき、どの需要にも少なくとも一つの `Local` が当てはまる）を証明する。全域性は、V2 の回帰（空ソースの重なり、子の拒否）に加えて、「検査の保留」の回帰例で確かめる。
+4. `B4SkeletonV2` の合成も新しい target へ移す。報告の「未証明フィールド k/m」はこの新しい構造体で数える。
+これは I-18 の項目 5 より先にやる（1 サイクルの最初の部分目標の大きさ）。
