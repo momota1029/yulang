@@ -1560,3 +1560,11 @@ import Yulang.B4Skeleton
 import Yulang.CommonRoleSettledRootClassification
 import Yulang.CommonRoleScalarDictionaryModels
 import Yulang.CommonRoleSettledVisibleOrder
+
+import Yulang.CommonRoleScalarRegistry
+
+import Yulang.CommonRoleScalarExpressionRegistry
+
+import Yulang.CommonRoleSaturatedScalarRegistry
+
+import Yulang.CommonRoleScalarTargetObstruction

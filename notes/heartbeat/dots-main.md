@@ -1,9 +1,10 @@
 cycle: 118
-status: running
+status: completed
 started: 2026-11-11T13:23:04Z
-updated: 2026-11-11T13:32:00Z
-elapsed_min: 8.93
-activity: Recover checked source proofs; reduce B4Bridges.frontierLocal/evidenceNode with arbitrary scalar registries, independent classification and all-model dictionaries.
+updated: 2026-11-11T14:11:06Z
+elapsed_min: 48.04
+activity: Four scalar source-to-dictionary subgoals complete, 51 new theorems; nine focused modules passed 529 jobs and trust-zero, 119 audit declarations allowed; code CI passed.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 5d8314d71
-resume_hint: Cycle117 released ownership and confirmed no GitHub mutation was invoked. Recovery delta has 14 proof/doc files; stale heartbeat is replaced here. Scratch scalar registry proof compiles at /tmp/yulang118/CommonRoleScalarRegistry.lean. Publish Git blobs then one atomic tree/commit/ref update to avoid oversized tree payload. General B4 remains 12/12 open.
+last_local_commit: e4168b25a
+report: notes/handoff/dots-cycle-118.md
+resume_hint: Fetch integration afresh and obey STOP. I-17 makes B4TargetV2 plus revised bridges and functional classification the next first goal. Preserve recovered14 files and four new proof modules. Old bridges12/12 remain; new target count not yet defined. Checked code ad4abbb3cec877fe712479ab366840bc3cb5954d. No uncertain mutation remains.

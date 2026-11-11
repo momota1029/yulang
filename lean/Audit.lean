@@ -8930,3 +8930,62 @@ run_cmd do
 #print axioms Yulang.CommonRoleSettledVisibleOrder.resolve_permutation
 #print axioms Yulang.CommonRoleSettledVisibleOrder.legacy_classification_permutation
 #print axioms Yulang.CommonRoleSettledVisibleOrder.rejection_permutation
+
+-- Cycle118: independent ordinary scalar registry and all-model dictionaries.
+#print axioms Yulang.CommonRoleScalarRegistry.wellFormed
+#print axioms Yulang.CommonRoleScalarRegistry.leaf
+#print axioms Yulang.CommonRoleScalarRegistry.matches_entry
+#print axioms Yulang.CommonRoleScalarRegistry.candidate_exact
+#print axioms Yulang.CommonRoleScalarRegistry.unique_exact
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_selected
+#print axioms Yulang.CommonRoleScalarRegistry.resolve_leaf
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_rejected
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_ambiguous
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_exact
+#print axioms Yulang.CommonRoleScalarRegistry.materialize_exact
+#print axioms Yulang.CommonRoleScalarRegistry.run_exact
+#print axioms Yulang.CommonRoleScalarRegistry.scalar_term_injective
+#print axioms Yulang.CommonRoleScalarRegistry.run_all_models
+#print axioms Yulang.CommonRoleScalarRegistry.successful_dictionary_exact
+#print axioms Yulang.CommonRoleScalarRegistry.run_visible_set
+#print axioms Yulang.CommonRoleScalarRegistry.run_permutation
+#print axioms Yulang.CommonRoleScalarRegistry.run_duplicate
+#print axioms Yulang.CommonRoleScalarRegistry.empty_pending
+#print axioms Yulang.CommonRoleScalarRegistry.inconsistent_unavailable
+#print axioms Yulang.CommonRoleScalarRegistry.run_recorded
+#print axioms Yulang.CommonRoleScalarRegistry.known_empty_rejected
+#print axioms Yulang.CommonRoleScalarRegistry.recorded_singleton_selected
+#print axioms Yulang.CommonRoleScalarRegistry.recorded_overlap_ambiguous
+
+-- Cycle118: original annotated expression registry entry.
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_exact
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_exists_iff
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.initial_models
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_all_models
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.successful_dictionary_exact
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_visible_set
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.never_pending
+
+-- Cycle118: computed named associated closure to scalar registry.
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.lookup_sound
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.lookup_exists
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.known_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.classify_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_all_models
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_visible_set
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.known_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.classify_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.domain_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_input_congr
+
+-- Cycle118: inhabited source witness for old B4 target overlap.
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_checked
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_has_model
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_pending
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_survivors
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_target_double_classification
+#print axioms Yulang.CommonRoleScalarTargetObstruction.actual_source_pending
+#print axioms Yulang.CommonRoleScalarTargetObstruction.steps_unchanged
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_target_impossible
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_bridges_impossible

@@ -1,0 +1,300 @@
+Cycle118 focused validation only. Lean4.35.0. No full Audit or full project build.
+
+=== final-focused; exit=0 ===
+Build completed successfully (529 jobs).
+
+=== final-sources; exit=0 ===
+BEGIN Yulang.B4Skeleton
+PASS Yulang.B4Skeleton exit=0
+BEGIN Yulang.CommonRoleRawStructuralSource
+PASS Yulang.CommonRoleRawStructuralSource exit=0
+BEGIN Yulang.CommonRoleSaturatedScalarRegistry
+PASS Yulang.CommonRoleSaturatedScalarRegistry exit=0
+BEGIN Yulang.CommonRoleScalarDictionaryModels
+PASS Yulang.CommonRoleScalarDictionaryModels exit=0
+BEGIN Yulang.CommonRoleScalarExpressionRegistry
+PASS Yulang.CommonRoleScalarExpressionRegistry exit=0
+BEGIN Yulang.CommonRoleScalarRegistry
+PASS Yulang.CommonRoleScalarRegistry exit=0
+BEGIN Yulang.CommonRoleScalarTargetObstruction
+PASS Yulang.CommonRoleScalarTargetObstruction exit=0
+BEGIN Yulang.CommonRoleSettledRootClassification
+PASS Yulang.CommonRoleSettledRootClassification exit=0
+BEGIN Yulang.CommonRoleSettledVisibleOrder
+PASS Yulang.CommonRoleSettledVisibleOrder exit=0
+
+=== final-audit; exit=0 ===
+'Yulang.CommonRoleRawStructuralSource.check_template_exact' does not depend on any axioms
+'Yulang.CommonRoleRawStructuralSource.check_occurrence_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.check_program_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.erase_scoped' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.check_occurrence_accepts' depends on axioms: [propext]
+'Yulang.CommonRoleRawStructuralSource.check_program_accepts' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.step_exact' depends on axioms: [propext]
+'Yulang.CommonRoleRawStructuralSource.derives_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.models_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.check_accepts' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.run_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleRawStructuralSource.run_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.B4Skeleton.completed_summary' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.completed_summaries' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.completed_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.completed_child' depends on axioms: [propext]
+'Yulang.B4Skeleton.rejected_child_has_no_completed_readback' depends on axioms: [propext]
+'Yulang.B4Skeleton.target_unchanged' depends on axioms: [propext]
+'Yulang.B4Skeleton.tree_classifies' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.children_classify' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.render_resolves' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.renders_resolve' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.render_completed' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.renders_completed' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.classify_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.classify_tree_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.steps_models' does not depend on any axioms
+'Yulang.B4Skeleton.dictionary_evidence' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.dictionaries_evidence' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.resolves_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.resolves_children_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.b4_of_bridges' depends on axioms: [propext, Quot.sound]
+'Yulang.B4Skeleton.pending_rejection_obstruction' does not depend on any axioms
+'Yulang.B4Skeleton.pending_empty_survivors_obstruction' depends on axioms: [propext]
+'Yulang.B4Skeleton.bridges_obstructed_by_pending_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.local_rejected_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.resolve_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.rejected_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.rejected_ne_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.absent_not_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.all_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.selected_retains_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.selected_child_rejection_retained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.candidate_k2_priority' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.local_pending_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.local_ambiguous_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.pending_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.ambiguous_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.selected_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledRootClassification.total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarDictionaryModels.wellFormed' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarDictionaryModels.matches_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarDictionaryModels.unique' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarDictionaryModels.elaborate_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarDictionaryModels.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarDictionaryModels.run_all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarDictionaryModels.successful_dictionary_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.CommonRoleScalarDictionaryModels.empty_pending' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledVisibleOrder.scan_filterMap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledVisibleOrder.scan_permutation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledVisibleOrder.summarize_permutation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledVisibleOrder.frontier_permutation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledVisibleOrder.local_permutation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledVisibleOrder.resolve_permutation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSettledVisibleOrder.legacy_classification_permutation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.CommonRoleSettledVisibleOrder.rejection_permutation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.wellFormed' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.leaf' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.matches_entry' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.candidate_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.unique_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.elaborate_selected' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.resolve_leaf' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.elaborate_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.elaborate_ambiguous' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.elaborate_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.materialize_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.scalar_term_injective' depends on axioms: [propext]
+'Yulang.CommonRoleScalarRegistry.run_all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.successful_dictionary_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.run_visible_set' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.run_permutation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.run_duplicate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.empty_pending' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.inconsistent_unavailable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.run_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.known_empty_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.recorded_singleton_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarRegistry.recorded_overlap_ambiguous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarExpressionRegistry.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarExpressionRegistry.run_exists_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarExpressionRegistry.initial_models' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarExpressionRegistry.run_all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarExpressionRegistry.successful_dictionary_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.CommonRoleScalarExpressionRegistry.run_visible_set' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarExpressionRegistry.never_pending' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.lookup_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.lookup_exists' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.known_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.classify_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.run_all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.run_visible_set' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.known_input_congr' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.classify_input_congr' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.domain_input_congr' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleSaturatedScalarRegistry.run_input_congr' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.empty_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.empty_has_model' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.empty_pending' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.empty_survivors' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.old_target_double_classification' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.actual_source_pending' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.steps_unchanged' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.old_target_impossible' depends on axioms: [propext, Quot.sound]
+'Yulang.CommonRoleScalarTargetObstruction.old_bridges_impossible' depends on axioms: [propext, Quot.sound]
+
+=== final-diff-gate; exit=0 ===
+verify-lean: yulang @ e4168b25a (base origin/integration/m1-final)
+ok: no removed lines in lean/ since origin/integration/m1-final
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+
+=== Focused audit input ===
+import Yulang.B4Skeleton
+import Yulang.CommonRoleRawStructuralSource
+import Yulang.CommonRoleSaturatedScalarRegistry
+import Yulang.CommonRoleScalarDictionaryModels
+import Yulang.CommonRoleScalarExpressionRegistry
+import Yulang.CommonRoleScalarRegistry
+import Yulang.CommonRoleScalarTargetObstruction
+import Yulang.CommonRoleSettledRootClassification
+import Yulang.CommonRoleSettledVisibleOrder
+#print axioms Yulang.CommonRoleRawStructuralSource.check_template_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.check_occurrence_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.check_program_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.erase_scoped
+#print axioms Yulang.CommonRoleRawStructuralSource.check_occurrence_accepts
+#print axioms Yulang.CommonRoleRawStructuralSource.check_program_accepts
+#print axioms Yulang.CommonRoleRawStructuralSource.step_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.derives_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.models_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.check_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.check_accepts
+#print axioms Yulang.CommonRoleRawStructuralSource.run_exact
+#print axioms Yulang.CommonRoleRawStructuralSource.run_origin
+#print axioms Yulang.CommonRoleRawStructuralSource.run_models
+#print axioms Yulang.B4Skeleton.completed_summary
+#print axioms Yulang.B4Skeleton.completed_summaries
+#print axioms Yulang.B4Skeleton.completed_unique
+#print axioms Yulang.B4Skeleton.completed_child
+#print axioms Yulang.B4Skeleton.rejected_child_has_no_completed_readback
+#print axioms Yulang.B4Skeleton.target_unchanged
+#print axioms Yulang.B4Skeleton.tree_classifies
+#print axioms Yulang.B4Skeleton.children_classify
+#print axioms Yulang.B4Skeleton.render_resolves
+#print axioms Yulang.B4Skeleton.renders_resolve
+#print axioms Yulang.B4Skeleton.render_completed
+#print axioms Yulang.B4Skeleton.renders_completed
+#print axioms Yulang.B4Skeleton.classify_tree
+#print axioms Yulang.B4Skeleton.classify_tree_iff
+#print axioms Yulang.B4Skeleton.steps_models
+#print axioms Yulang.B4Skeleton.dictionary_evidence
+#print axioms Yulang.B4Skeleton.dictionaries_evidence
+#print axioms Yulang.B4Skeleton.resolves_transport
+#print axioms Yulang.B4Skeleton.resolves_children_transport
+#print axioms Yulang.B4Skeleton.b4_of_bridges
+#print axioms Yulang.B4Skeleton.pending_rejection_obstruction
+#print axioms Yulang.B4Skeleton.pending_empty_survivors_obstruction
+#print axioms Yulang.B4Skeleton.bridges_obstructed_by_pending_empty
+#print axioms Yulang.CommonRoleSettledRootClassification.local_rejected_iff
+#print axioms Yulang.CommonRoleSettledRootClassification.resolve_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.rejected_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.rejected_ne_selected
+#print axioms Yulang.CommonRoleSettledRootClassification.absent_not_rejected
+#print axioms Yulang.CommonRoleSettledRootClassification.all_children
+#print axioms Yulang.CommonRoleSettledRootClassification.selected_retains_children
+#print axioms Yulang.CommonRoleSettledRootClassification.selected_child_rejection_retained
+#print axioms Yulang.CommonRoleSettledRootClassification.candidate_k2_priority
+#print axioms Yulang.CommonRoleSettledRootClassification.local_pending_iff
+#print axioms Yulang.CommonRoleSettledRootClassification.local_ambiguous_iff
+#print axioms Yulang.CommonRoleSettledRootClassification.pending_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.ambiguous_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.selected_exact
+#print axioms Yulang.CommonRoleSettledRootClassification.total
+#print axioms Yulang.CommonRoleScalarDictionaryModels.wellFormed
+#print axioms Yulang.CommonRoleScalarDictionaryModels.matches_exact
+#print axioms Yulang.CommonRoleScalarDictionaryModels.unique
+#print axioms Yulang.CommonRoleScalarDictionaryModels.elaborate_exact
+#print axioms Yulang.CommonRoleScalarDictionaryModels.run_exact
+#print axioms Yulang.CommonRoleScalarDictionaryModels.run_all_models
+#print axioms Yulang.CommonRoleScalarDictionaryModels.successful_dictionary_exact
+#print axioms Yulang.CommonRoleScalarDictionaryModels.empty_pending
+#print axioms Yulang.CommonRoleSettledVisibleOrder.scan_filterMap
+#print axioms Yulang.CommonRoleSettledVisibleOrder.scan_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.summarize_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.frontier_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.local_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.resolve_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.legacy_classification_permutation
+#print axioms Yulang.CommonRoleSettledVisibleOrder.rejection_permutation
+#print axioms Yulang.CommonRoleScalarRegistry.wellFormed
+#print axioms Yulang.CommonRoleScalarRegistry.leaf
+#print axioms Yulang.CommonRoleScalarRegistry.matches_entry
+#print axioms Yulang.CommonRoleScalarRegistry.candidate_exact
+#print axioms Yulang.CommonRoleScalarRegistry.unique_exact
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_selected
+#print axioms Yulang.CommonRoleScalarRegistry.resolve_leaf
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_rejected
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_ambiguous
+#print axioms Yulang.CommonRoleScalarRegistry.elaborate_exact
+#print axioms Yulang.CommonRoleScalarRegistry.materialize_exact
+#print axioms Yulang.CommonRoleScalarRegistry.run_exact
+#print axioms Yulang.CommonRoleScalarRegistry.scalar_term_injective
+#print axioms Yulang.CommonRoleScalarRegistry.run_all_models
+#print axioms Yulang.CommonRoleScalarRegistry.successful_dictionary_exact
+#print axioms Yulang.CommonRoleScalarRegistry.run_visible_set
+#print axioms Yulang.CommonRoleScalarRegistry.run_permutation
+#print axioms Yulang.CommonRoleScalarRegistry.run_duplicate
+#print axioms Yulang.CommonRoleScalarRegistry.empty_pending
+#print axioms Yulang.CommonRoleScalarRegistry.inconsistent_unavailable
+#print axioms Yulang.CommonRoleScalarRegistry.run_recorded
+#print axioms Yulang.CommonRoleScalarRegistry.known_empty_rejected
+#print axioms Yulang.CommonRoleScalarRegistry.recorded_singleton_selected
+#print axioms Yulang.CommonRoleScalarRegistry.recorded_overlap_ambiguous
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_exact
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_exists_iff
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.initial_models
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_all_models
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.successful_dictionary_exact
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.run_visible_set
+#print axioms Yulang.CommonRoleScalarExpressionRegistry.never_pending
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.lookup_sound
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.lookup_exists
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.known_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.classify_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_exact
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_all_models
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_visible_set
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.known_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.classify_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.domain_input_congr
+#print axioms Yulang.CommonRoleSaturatedScalarRegistry.run_input_congr
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_checked
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_has_model
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_pending
+#print axioms Yulang.CommonRoleScalarTargetObstruction.empty_survivors
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_target_double_classification
+#print axioms Yulang.CommonRoleScalarTargetObstruction.actual_source_pending
+#print axioms Yulang.CommonRoleScalarTargetObstruction.steps_unchanged
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_target_impossible
+#print axioms Yulang.CommonRoleScalarTargetObstruction.old_bridges_impossible

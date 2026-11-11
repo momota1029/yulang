@@ -4474,3 +4474,42 @@ ordinary model. General B4 and where-order dictionary equivalence remain open.
 `CommonRoleSettledVisibleOrder` proves equality of the full diagnostic trees
 under permutations of visible declarations, preserving selected declaration
 identity, every child, and incomplete results. It does not permute where lists.
+
+## Cycle118: ordinary-state scalar registries
+
+`CommonRoleScalarRegistry` takes arbitrary finite visible int/str leaf declarations
+and an arbitrary ordinary state. Independent source-membership candidates and
+paired-atom knownness give all four adapter outcomes exactly, including the
+actual selected dictionary. Successful dictionaries are sound for every input
+Common model. Visible-set equality preserves exact outcomes and dictionary
+payloads, covering permutation and duplicate enumeration. Unsupported scalar
+materialization remains adapter pending; inconsistent states are unavailable.
+Where children, general K2, associated equations, and general B4 are not claimed.
+
+`CommonRoleScalarExpressionRegistry` removes the caller-supplied ordinary state
+and receiver slot for closed literal/variable/let expressions with explicit
+int/str annotations. Its source entry computes validation and paired bounds,
+then the real solver and dictionary elaborator. Exact classification is stated
+using independent original-expression evaluation and declaration-origin matching.
+Every returned dictionary is sound for every declarative expression model
+satisfying the annotation. Unsupported syntax remains an adapter boundary.
+
+`CommonRoleSaturatedScalarRegistry` classifies an original source name after the
+existing named ordinary/associated closure computes its shared state. Allocation,
+root lookup, consistency and materialization are internal. Exactness uses original
+named derivations; every selected leaf dictionary holds in all original source
+models. Visible-set changes and ordinary-input reorder/duplication preserve the
+literal outcome and dictionary despite changed allocation. Existing associated
+environment checks remain inputs; general materialization and B4 remain open.
+
+`CommonRoleScalarTargetObstruction` supplies a real model-inhabited empty source
+registry/state witness for the old B4 target's pending/rejected overlap. The
+actual scalar adapter returns pending. No executor satisfying genuine state
+reachability can satisfy that old target on this explicit leaf adapter. This
+refutes the old formal instantiation, not intended language B4. The knownness
+guard and lossless-tree alignment need supervisor review; existing targets and
+language rules are unchanged.
+
+The saturated scalar adapter keeps its final visible scalar entries separate
+from the associated-declaration environment. Their agreement as one language
+source registry and parser/module visibility are still unconnected boundaries.

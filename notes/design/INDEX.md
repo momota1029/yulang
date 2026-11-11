@@ -322,3 +322,11 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle111: independent named structural derivations](2026-11-11-cycle111-named-derivations.md) — Draft implementation, source-name allocation/readback and ordinary solver exactness.
 - [Ordinary-state scalar registry bridge](2026-11-11-cycle114-scalar-registry.md) — Draft. Independent four-way fragment classification, actual declaration identities, and all-model dictionary evidence; general B4 remains open.
+
+- [Cycle118 scalar registry exactness and all-model dictionaries](2026-11-11-cycle118-scalar-registry.md) (Draft).
+
+- [Cycle118 annotated expressions to scalar registry dictionaries](2026-11-11-cycle118-expression-registry.md) (Draft).
+
+- [Cycle118 source saturation to scalar registry classification](2026-11-11-cycle118-saturated-registry.md) (Draft).
+
+- [Cycle118 concrete source witness for old B4 target overlap](2026-11-11-cycle118-target-obstruction.md) (Draft, supervisor review).
