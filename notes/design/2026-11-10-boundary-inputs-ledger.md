@@ -1600,3 +1600,11 @@ Cycle103のextraは両端点から集めた名前を重複除去する。元の�
   ranges over every name valuation. Scope-resolved binding names and explicit
   scalar annotations remain the declared fragment boundary; non-scalar/effectful
   expressions, parser linkage and general source scoping are still open.
+
+- `CommonRoleStructuralOrdinaryMaterialization`: actual ordinary atoms and the
+  existing ambient slot map determine closed structural payloads, rather than
+  limiting replacement to int. Detector exactness requires one distinct syntax
+  payload among explicit upper/lower bounds. It is not complete for semantic
+  entailment. All-model preservation and graph reflection quantify every state
+  assignment; no model is an execution input. Slot/source maps remain external,
+  and general fresh-child allocation and future-state finite closure remain open.

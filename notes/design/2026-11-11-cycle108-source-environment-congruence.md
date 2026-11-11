@@ -77,3 +77,21 @@ expression-derived evidence, structural materialization and the existing typed
 Dictionary. All model statements quantify arbitrary name valuations, not just
 an existential successful solver witness. Ordinary consistency and role success
 remain separate observations.
+
+## Fourth subgoal: structural ordinary evidence, beyond int replacement
+
+The expression bridge is checked and published at `5392aa93`. The next direct B4
+materialization subgoal recognizes closed existing Form syntax in actual paired
+ordinary bounds: int, pair, join and tick at arbitrary finite depth. The scanner
+uses only state atoms, not visible implementations or a chosen model. A variable
+is replaced only if the distinct syntactic closed payloads form a singleton;
+otherwise it remains unchanged. This is a deliberately conservative executable
+adapter, not completeness for semantic entailment or a language rejection rule.
+
+Prove: every decoded form is closed and has exactly the input term's meaning;
+every detected payload has upper/lower ordinary evidence and agrees with the
+slot in every model; recursively materializing any Form preserves its meaning
+in every state model. Idempotence follows from closed replacements, not from a
+saturation argument. Syntactically different but equivalent payloads deliberately
+remain unresolved. Original atoms and slots remain intact. No claim of a finite
+source-derived bound across future arbitrary structural states is made.

@@ -4387,3 +4387,13 @@ independent expression Derives characterizes every returned full dictionary.
 Binding-only names are retained, so contradictory repeated names cannot vanish
 merely because no role clause mentions them. Unsupported expressions are outside
 this explicitly restricted fragment, not final language rejections.
+
+`CommonRoleStructuralOrdinaryMaterialization` reads paired ordinary bounds for
+closed int/pair/union/tick Forms at arbitrary depth. It replaces a variable only
+when all recorded structural payloads are syntactically the same, independent
+of atom order and duplicates. Every state model preserves the original Form
+meaning. Actual generated graph models reflect this meaning and the independent
+regenerated frontier. This is deliberately incomplete for semantic entailment:
+distinct but equivalent payloads remain unresolved. One-state idempotence is
+not saturation termination, and future arbitrary states have no derived finite
+source bound here.
