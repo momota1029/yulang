@@ -9321,3 +9321,10 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryPlanLookupExamples.missing_key
 #print axioms Yulang.GeneralDictionaryPlanLookupExamples.wrong_role
 #print axioms Yulang.GeneralDictionaryPlanLookupExamples.reversed_lookup
+
+-- Actual checked declaration plans and recorded shared-state evidence.
+#print axioms Yulang.GeneralDictionaryPlannedEvidence.planned_children_functional
+#print axioms Yulang.GeneralDictionaryPlannedEvidence.lookup_node_stored
+#print axioms Yulang.GeneralDictionaryPlannedEvidence.lookup_node_all_models
+#print axioms Yulang.GeneralDictionaryPlannedEvidence.planned_unique_readback
+#print axioms Yulang.GeneralDictionaryPlannedEvidence.planned_reordered_uniform

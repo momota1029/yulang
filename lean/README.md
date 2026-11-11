@@ -4576,3 +4576,8 @@ capture/allocation frame. GeneralDictionaryPlanLookup is an executable exact
 lookup of those independent plans and is invariant under registry/where order.
 Plan is not Survivor: matching, feasibility, frame construction, freshness and
 declaration-to-equation semantics remain unproved general-source obligations.
+
+GeneralDictionaryPlannedEvidence couples actual executable declaration-plan
+lookup to stored all-model equation evidence. Same-key child determinism is
+derived from checked IDs and the fixed frame; the declaration-to-term relation
+remains explicit and unimplemented, and is not substituted with role satisfaction.

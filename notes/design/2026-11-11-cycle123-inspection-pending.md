@@ -124,3 +124,14 @@ The precise nonempty-survivor inspection-pending hole is additionally verified:
 V2 has no Local derivation at that stable fixture, whereas V3 has exactly the
 pending tree. Inspection-complete emptiness still rejects. The I-19 case repair
 is complete; unrestricted abstract totality is still disproved as documented.
+
+## Final coupling: actual plan lookup and stored equation evidence
+
+Replace the arbitrary package child relation with the actual checked-registry
+Plan. Keep only the declaration-to-term relation explicit, indexed by occurrence,
+key and Located terms. Same-key child determinism then follows from the actual
+registry, without an extra arbitrary Packages determinism hypothesis. A node
+whose executable lookup returns the complete children, whose located atoms are
+Recorded, and whose children carry stored evidence has equation evidence in
+every shared-state model. This closes that adapter, not declaration-term adequacy,
+head matching, candidate selection, frame derivation or general role Evidence.
