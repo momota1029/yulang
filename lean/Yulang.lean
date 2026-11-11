@@ -1615,3 +1615,8 @@ import Yulang.GeneralDictionaryEmissionPlanExamples
 import Yulang.GeneralDictionaryPlanLookup
 import Yulang.GeneralDictionaryPlanLookupExamples
 import Yulang.GeneralDictionaryPlannedEvidence
+
+-- Exact dictionary recording and declaration RHS provenance.
+import Yulang.GeneralDictionaryEquationRecording
+import Yulang.GeneralDictionaryAssociatedProvenance
+import Yulang.GeneralDictionaryAssociatedProvenanceExamples

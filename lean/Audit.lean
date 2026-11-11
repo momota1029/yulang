@@ -1,3 +1,6 @@
+import Yulang.GeneralDictionaryAssociatedProvenanceExamples
+import Yulang.GeneralDictionaryEquationRecording
+import Yulang.GeneralDictionaryAssociatedProvenance
 import Yulang.CommonRoleRawStructuralSource
 import Yulang.CommonRoleStructuralRenaming
 import Yulang.CommonRoleNamedStructuralDerivations
@@ -9328,3 +9331,28 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryPlannedEvidence.lookup_node_all_models
 #print axioms Yulang.GeneralDictionaryPlannedEvidence.planned_unique_readback
 #print axioms Yulang.GeneralDictionaryPlannedEvidence.planned_reordered_uniform
+
+-- Cycle124 recording and provenance.
+#print axioms Yulang.GeneralDictionaryEquationRecording.append_models
+#print axioms Yulang.GeneralDictionaryEquationRecording.append_refines
+#print axioms Yulang.GeneralDictionaryEquationRecording.atoms_exact
+#print axioms Yulang.GeneralDictionaryEquationRecording.record_recorded
+#print axioms Yulang.GeneralDictionaryEquationRecording.record_models
+#print axioms Yulang.GeneralDictionaryEquationRecording.record_satisfiable
+#print axioms Yulang.GeneralDictionaryEquationRecording.record_conservative
+#print axioms Yulang.GeneralDictionaryEquationRecording.relocation_equations
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.lookup_exact
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.declared_covered
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.supplies_unique
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.lookup_reorders
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.supplies_reorders
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_length
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_sources
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_at
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_complete
+#print axioms Yulang.GeneralDictionaryAssociatedProvenance.outputs_reorders
+
+#print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.explicit_wins
+#print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.positional_default
+#print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.undeclared_absent
+#print axioms Yulang.GeneralDictionaryAssociatedProvenanceExamples.repeated_name_distinct_targets
