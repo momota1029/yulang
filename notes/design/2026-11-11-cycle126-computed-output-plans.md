@@ -75,3 +75,26 @@ Failure defers the entire tree; no child is discarded. Successful preparation
 should yield Built from a recursive head-only certificate, not from manually
 provided child success/output certificates. Keys, tree shape and source frames
 remain explicit: this is not search or general saturation.
+
+## Capture realization and remaining head input
+
+`Realizes` specifies the capture facts still owed by head matching: each input
+value lies between its captured endpoint values and each output value equals
+its captured source. The normalized variable RHS then agrees with its computed
+source term for every realization. Recording relates every root target to that
+RHS variable value, without assuming head matching or model existence.
+
+The final supported head-materialization step may compute head terms only for
+normalized plain variables whose captured endpoints have identical source IDs.
+HeadlessInputs has only lower/upper/target fields; a successful head builder must
+refer to each actual positional declaration head and return existing Inputs.
+Compound/nominal heads remain deferred, and input-range applicability still
+comes from actual stored inequalities. This is not general candidate inspection.
+
+The final head builder is exact for its independent positional relation and
+validated against the terminal fixture. Whole Recipe still receives Inputs;
+automatically composing HeadlessInputs through registry lookup and the full
+recipe remains next work. The mid-cycle upstream addendum4 requires every
+unnamed lower head to be known before role resolution. None of these term
+materializers performs role resolution or weakens that pending guard. Astra now
+owns item3 as well as1/2; all candidate judgments stay untouched.

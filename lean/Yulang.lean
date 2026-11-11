@@ -1660,3 +1660,13 @@ import Yulang.GeneralDictionaryVariableMaterialization
 import Yulang.GeneralDictionaryVariableOrder
 
 import Yulang.GeneralDictionaryTerminalFixture
+
+import Yulang.GeneralDictionaryVariablePreparation
+
+import Yulang.GeneralDictionaryPreparationExamples
+
+import Yulang.GeneralDictionaryVariableRealization
+
+import Yulang.GeneralDictionaryVariableHeads
+
+import Yulang.GeneralDictionaryHeadExamples

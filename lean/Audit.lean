@@ -1,3 +1,8 @@
+import Yulang.GeneralDictionaryVariableHeads
+import Yulang.GeneralDictionaryHeadExamples
+import Yulang.GeneralDictionaryVariablePreparation
+import Yulang.GeneralDictionaryPreparationExamples
+import Yulang.GeneralDictionaryVariableRealization
 import Yulang.GeneralDictionaryTerminalFixture
 import Yulang.GeneralDictionaryVariableTerms
 import Yulang.GeneralDictionaryVariableCompatibility
@@ -9595,3 +9600,41 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryTerminalFixture.tree_built
 #print axioms Yulang.GeneralDictionaryTerminalFixture.uniform_completion
 #print axioms Yulang.GeneralDictionaryTerminalFixture.all_model_root_child_input
+
+-- Cycle126 GeneralDictionaryVariablePreparation.
+#print axioms Yulang.GeneralDictionaryVariablePreparation.prepare_node_exact
+#print axioms Yulang.GeneralDictionaryVariablePreparation.prepare_root
+#print axioms Yulang.GeneralDictionaryVariablePreparation.prepare_built
+#print axioms Yulang.GeneralDictionaryVariablePreparation.prepare_uniform
+
+-- Cycle126 GeneralDictionaryPreparationExamples.
+#print axioms Yulang.GeneralDictionaryPreparationExamples.child_prepares
+#print axioms Yulang.GeneralDictionaryPreparationExamples.tree_prepares
+#print axioms Yulang.GeneralDictionaryPreparationExamples.missing_child_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.extra_child_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.wrong_identity_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.missing_key_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.unequal_leaf_defers
+#print axioms Yulang.GeneralDictionaryPreparationExamples.recipe_heads
+#print axioms Yulang.GeneralDictionaryPreparationExamples.prepared_built
+
+-- Cycle126 GeneralDictionaryVariableRealization.
+#print axioms Yulang.GeneralDictionaryVariableRealization.singleton_value
+#print axioms Yulang.GeneralDictionaryVariableRealization.denotes_realization
+#print axioms Yulang.GeneralDictionaryVariableRealization.built_output_realization
+
+-- Cycle126 GeneralDictionaryVariableHeads.
+#print axioms Yulang.GeneralDictionaryVariableHeads.compileAt_exact
+#print axioms Yulang.GeneralDictionaryVariableHeads.build_head_denotes
+#print axioms Yulang.GeneralDictionaryVariableHeads.build_preserves
+#print axioms Yulang.GeneralDictionaryVariableHeads.build_exact
+#print axioms Yulang.GeneralDictionaryVariableHeads.denotesAt_realization
+
+-- Cycle126 GeneralDictionaryHeadExamples.
+#print axioms Yulang.GeneralDictionaryHeadExamples.leaf_positional_compiles
+#print axioms Yulang.GeneralDictionaryHeadExamples.leaf_head_denotes
+#print axioms Yulang.GeneralDictionaryHeadExamples.leaf_head_builds
+#print axioms Yulang.GeneralDictionaryHeadExamples.leaf_concrete_head
+#print axioms Yulang.GeneralDictionaryHeadExamples.nominal_root_defers
+#print axioms Yulang.GeneralDictionaryHeadExamples.unequal_leaf_defers
+#print axioms Yulang.GeneralDictionaryHeadExamples.absent_source_defers
