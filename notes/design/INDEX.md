@@ -309,3 +309,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle103: named ordinary constraints compute allocation and state](2026-11-10-cycle103-named-ordinary-inputs.md) (Draft implementation contract).
 
 - [Cycle104: checked grouped clauses and named ordinary input](2026-11-11-cycle104-checked-mixed-source.md) (Draft, 2026-11-11). Independent source-model exactness through the actual mixed closure; full B4 remains open.
+
+- [Cycle105: computed evidence discharges retained source roles](2026-11-11-cycle105-evidence-role-discharge.md) — 有限sourceの実mixed evidenceから全role義務へ接続。caller head mapを除去。ordinary整合性とrole dischargeを分離し、B4全体の未達を維持。

@@ -4308,3 +4308,28 @@ lowering or parser adequacy. Scope-resolved names, finite clauses, ordinary
 inequalities and declaration registries remain inputs. Dynamic where children,
 general state-changing termination, final four-way classification and canonical
 dictionary observations remain open. All five B4 packages remain incomplete.
+
+
+## Cycle105: retained roles consume computed mixed evidence
+
+`CommonRoleEvidenceDischarge.run_success_iff` closes the finite bridge from the
+actual mixed closure to every retained source role. For arbitrary finite checked
+source syntax and a declaration-well-formed registry, outer `some (true,true)` is
+equivalent to fragment validity, independent ordinary Models, and for every
+original clause an independently derived scalar receiver plus declarative
+structural role discharge. No caller head map, State, slot map, successful check,
+fuel or role-success premise is required. Bare clauses are preserved even when
+they introduce no allocated slot.
+
+The two Booleans are separate observations: ordinary consistency and
+evidence-backed role discharge. Neither false is assigned a language-visible
+classification. Ground templates also require receiver evidence in this finite
+adapter; bool/unit evidence is retained ordinarily but the existing int/str
+encoder cannot discharge it. Direct pairs and reciprocal edges, not arbitrary
+ordinary entailment, drive closure. `run_congr` covers whole-clause and ordinary
+constraint membership equivalence, not changes inside a clause's equation list.
+
+Scope-resolved grouped clauses, named ordinary inequalities and registries remain
+inputs. Parser/expression lowering, dynamically generated children, general
+state-changing saturation, four-way classification and canonical dictionary
+observations remain open. All five B4 packages remain incomplete.
