@@ -17,3 +17,13 @@ parent is recorded, its Int leaf is unrecorded, and the theorem reconstructs
 Evidence for the current classified dictionary in every final journal model.
 This does not prove mixed coverage for all reachable stable programs, general
 V5, or executor termination.
+
+## Final finite-spine variant
+
+`GeneralDictionarySpineCoverage` replaces the linear one-level leaf alternative
+by `HasSpineLeaf`: an actual finite chain of recorded unary point wrappers and
+an arbitrary-arity interval-valued linear nominal leaf. The depth is structural
+and unbounded, not a numeric cutoff. `of_mixed` preserves previous certificates;
+`recursive_fixture` applies the final dictionary theorem to the actual success.
+Branching nested heads, nonpoint wrapper arguments, repeated innermost binders,
+row parameters and nonterminal unrecorded nodes are not covered by this leaf rule.
