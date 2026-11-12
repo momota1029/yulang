@@ -395,3 +395,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [dots-cycle151-stable-two-alias-dictionary](dots-cycle151-stable-two-alias-dictionary.md) — partial theorem/regression, not unrestricted V5.
 - [dots-cycle151-disjoint-output-alias-residual](dots-cycle151-disjoint-output-alias-residual.md) — partial theorem/regression, not unrestricted V5.
 - [dots-cycle151-observed-named-output](dots-cycle151-observed-named-output.md) — partial theorem/regression, not unrestricted V5.
+- [Item 4i downstream output support](2026-11-13-general-nominal-downstream-support.md) — Partial implementation; independent support guard, snapshot-depth proof, and remaining termination obligations.
+- [Item 4i downstream module guide](2026-11-13-general-nominal-downstream-module-guide.md) — Additive guard, boundary, regressions, order contract, and audit.
