@@ -54,6 +54,10 @@ Full Lean-checked implicit quantifiers and hypotheses follow. Helper/scoped regr
 
 `source_int`, `journal_equal`, `actual_step_of_novel`, `next_models`, `next_evidence`, `next_reachable_of_novel`, `not_stable_of_novel`, `next_sourceformed_of_novel`, `next_inhabited`, `actual_step`, `not_stable`, `next_sourceformed`, `next_reachable`, `classified_but_not_saturated`
 
+## GeneralDictionaryOutputMergeFeedbackClassification
+
+`next_root_branch`, `next_child_branch`, `next_parent_instance`, `next_child_instance`, `acyclic`, `parent_prepared`, `child_prepared`, `parent_survivor`, `child_survivor`, `parent_selected`, `child_selected`, `supported_parent_selected`, `supported_child_selected`, `classified`, `reachable_classified_full_dictionary`
+
 ## GeneralDictionaryOutputMergeJointModels
 
 `branch_of_instance`, `root_linked`, `root_branch`, `child_branch`, `root_alias_identity`, `root_joint`, `child_joint`, `inhabited_joint_and_universal_evidence`
@@ -1151,6 +1155,98 @@ Yulang.GeneralDictionaryOutputMergeFeedback.classified_but_not_saturated : Yulan
                     Yulang.GeneralDictionaryOutputMergeFeedback.next.current.context m
                     Yulang.GeneralNominalExamples.displayRoot
                     Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.next_root_branch : ∀
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current m →
+    Yulang.GeneralNominalJointCandidates.BranchAt Yulang.GeneralDictionaryOutputMergeSuccess.registry
+      Yulang.GeneralDictionaryOutputMergeFeedback.next.current Yulang.GeneralNominalExamples.displayRoot 1 m
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.next_child_branch : ∀
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current m →
+    ∀ (n : Nat),
+      Eq.{1} n 10 ∨ Eq.{1} n 11 →
+        Yulang.GeneralNominalJointCandidates.BranchAt Yulang.GeneralDictionaryOutputMergeSuccess.registry
+          Yulang.GeneralDictionaryOutputMergeFeedback.next.current (Yulang.GeneralDictionaryOutputMergeSuccess.child n)
+          7 m
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.next_parent_instance : Yulang.GeneralDictionaryRecursiveEvidence.Instance
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry
+  Yulang.GeneralDictionaryOutputMergeFeedbackClassification.nextContext Yulang.GeneralNominalExamples.model
+  Yulang.GeneralNominalExamples.displayRoot 1
+  (List.cons.{0} (Yulang.GeneralDictionaryOutputMergeSuccess.child 10)
+    (List.cons.{0} (Yulang.GeneralDictionaryOutputMergeSuccess.child 11) List.nil.{0}))
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.next_child_instance : ∀ (n : Nat),
+  Eq.{1} n 10 ∨ Eq.{1} n 11 →
+    Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionaryOutputMergeSuccess.registry
+      Yulang.GeneralDictionaryOutputMergeFeedbackClassification.nextContext Yulang.GeneralNominalExamples.model
+      (Yulang.GeneralDictionaryOutputMergeSuccess.child n) 7 List.nil.{0}
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.acyclic : ∀ (source : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralDictionaryOutputMergeFeedback.next.current source
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.parent_prepared : Yulang.GeneralNominalRecursiveCandidates.Prepared
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry
+  Yulang.GeneralDictionaryOutputMergeFeedbackClassification.nextContext Yulang.GeneralNominalExamples.displayRoot
+  Yulang.GeneralDictionaryOutputMergeSuccess.declaration Yulang.GeneralDictionaryOutputMergeSuccess.checked
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.child_prepared : ∀ (n : Nat),
+  Eq.{1} n 10 ∨ Eq.{1} n 11 →
+    Yulang.GeneralNominalRecursiveCandidates.Prepared Yulang.GeneralDictionaryOutputMergeSuccess.registry
+      Yulang.GeneralDictionaryOutputMergeFeedbackClassification.nextContext
+      (Yulang.GeneralDictionaryOutputMergeSuccess.child n) Yulang.GeneralDictionaryOutputMergeSuccess.terminal
+      Yulang.GeneralDictionaryOutputMergeSuccess.terminal_checked
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.parent_survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry
+  Yulang.GeneralDictionaryOutputMergeFeedbackClassification.nextContext Yulang.GeneralNominalExamples.displayRoot 1
+  (List.cons.{0} (Yulang.GeneralDictionaryOutputMergeSuccess.child 10)
+    (List.cons.{0} (Yulang.GeneralDictionaryOutputMergeSuccess.child 11) List.nil.{0}))
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.child_survivor : ∀ (n : Nat),
+  Eq.{1} n 10 ∨ Eq.{1} n 11 →
+    Yulang.GeneralNominalRecursiveCandidates.Survivor Yulang.GeneralDictionaryOutputMergeSuccess.registry
+      Yulang.GeneralDictionaryOutputMergeFeedbackClassification.nextContext
+      (Yulang.GeneralDictionaryOutputMergeSuccess.child n) 7 List.nil.{0}
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.parent_selected : Yulang.GeneralNominalFeedbackK2.Local
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralDictionaryOutputMergeFeedback.next.current
+  Yulang.GeneralNominalExamples.displayRoot
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 1
+    (List.cons.{0} (Yulang.GeneralDictionaryOutputMergeSuccess.child 10)
+      (List.cons.{0} (Yulang.GeneralDictionaryOutputMergeSuccess.child 11) List.nil.{0})))
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.child_selected : ∀ (n : Nat),
+  Eq.{1} n 10 ∨ Eq.{1} n 11 →
+    Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralDictionaryOutputMergeSuccess.registry
+      Yulang.GeneralDictionaryOutputMergeFeedback.next.current (Yulang.GeneralDictionaryOutputMergeSuccess.child n)
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 7 List.nil.{0})
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.supported_parent_selected : Yulang.GeneralNominalSupportBoundary.Local
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralDictionaryOutputMergeFeedback.next
+  Yulang.GeneralNominalExamples.displayRoot
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 1
+    (List.cons.{0} (Yulang.GeneralDictionaryOutputMergeSuccess.child 10)
+      (List.cons.{0} (Yulang.GeneralDictionaryOutputMergeSuccess.child 11) List.nil.{0})))
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.supported_child_selected : ∀ (n : Nat),
+  Eq.{1} n 10 ∨ Eq.{1} n 11 →
+    Yulang.GeneralNominalSupportBoundary.Local Yulang.GeneralDictionaryOutputMergeSuccess.registry
+      Yulang.GeneralDictionaryOutputMergeFeedback.next (Yulang.GeneralDictionaryOutputMergeSuccess.child n)
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 7 List.nil.{0})
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.classified : Yulang.B4TargetV3.Classify.{0}
+  (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+    (Yulang.GeneralNominalSupportBoundary.boundary Yulang.GeneralDeclarationExamples.roles))
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralDictionaryOutputMergeFeedback.next
+  Yulang.GeneralNominalExamples.displayRoot
+  (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload)
+Yulang.GeneralDictionaryOutputMergeFeedbackClassification.reachable_classified_full_dictionary : Yulang.B4TargetV5.Reachable.{0}
+    (Yulang.GeneralNominalSupportBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralDictionaryOutputMergeFeedback.next ∧
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current
+      Yulang.GeneralNominalExamples.model ∧
+    Yulang.B4TargetV3.Classify.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+          (Yulang.GeneralNominalSupportBoundary.boundary Yulang.GeneralDeclarationExamples.roles))
+        Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralDictionaryOutputMergeFeedback.next
+        Yulang.GeneralNominalExamples.displayRoot
+        (Yulang.CommonRoleOutermostResolver.Result.selected
+          Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload) ∧
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current m →
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryOutputMergeSuccess.registry
+            Yulang.GeneralDictionaryOutputMergeFeedbackClassification.nextContext m
+            Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload
 Yulang.GeneralDictionaryOutputMergeJointModels.branch_of_instance : ∀
   (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) (key : Nat)
   (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles))

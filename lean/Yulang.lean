@@ -2032,3 +2032,4 @@ import Yulang.GeneralDictionaryOutputMergeExactPayload
 import Yulang.GeneralDictionaryOutputMergeClassification
 import Yulang.GeneralDictionaryOutputMergeFeedback
 import Yulang.GeneralDictionaryOutputMergeRawModel
+import Yulang.GeneralDictionaryOutputMergeFeedbackClassification

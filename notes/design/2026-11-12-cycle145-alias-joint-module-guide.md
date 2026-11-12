@@ -105,3 +105,10 @@ proves the classified merge endpoint is NOT Stable, and reaches a next state
 with exactly the same complete journal model set and full root Evidence at every
 model. The next state's Stable property is not asserted. This is not a V5
 counterexample; it separates successful dictionary construction from saturation.
+
+`OutputMergeFeedbackClassification` closes actual support Local/Classify at the
+new equated state as well. Branches are transported with the proved equality,
+source membership is checked, and DecisionGuards/K2 exclusions are reconstructed.
+Thus the same reachable next state has the complete operational Classify tree
+and full Evidence at every journal model. Stability of that next state remains
+outside this result.
