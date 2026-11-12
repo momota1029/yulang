@@ -1,3 +1,10 @@
+import Yulang.GeneralDictionaryAliasMixedLocality
+import Yulang.GeneralDictionaryAliasRecordedLocality
+import Yulang.GeneralDictionaryBranchLeaf
+import Yulang.GeneralNominalBranchExample
+import Yulang.GeneralNominalBranchFacts
+import Yulang.GeneralNominalBranchProjection
+import Yulang.GeneralDictionaryBranchCoverage
 import Yulang.GeneralDictionaryNamedLocalityExample
 import Yulang.GeneralDictionaryNamedLocality
 import Yulang.GeneralDictionaryBranchOrdinaryCoverage
@@ -25,3 +32,38 @@ import Yulang.GeneralDictionaryFiniteJournalJointExample
 #print axioms Yulang.GeneralDictionaryNamedLocalityExample.child_named
 #print axioms Yulang.GeneralDictionaryNamedLocalityExample.actual_trace
 #print axioms Yulang.GeneralDictionaryNamedLocalityExample.every_model_joint
+#print axioms Yulang.GeneralDictionaryAliasMixedLocality.leaf_branch
+#print axioms Yulang.GeneralDictionaryAliasMixedLocality.covered_of_recorded
+#print axioms Yulang.GeneralDictionaryAliasMixedLocality.covered_joint
+#print axioms Yulang.GeneralDictionaryAliasMixedLocality.early_ordinary_joint
+#print axioms Yulang.GeneralDictionaryAliasRecordedLocality.covered_of_locality
+#print axioms Yulang.GeneralDictionaryAliasRecordedLocality.related_branch
+#print axioms Yulang.GeneralDictionaryAliasRecordedLocality.covered_joint
+#print axioms Yulang.GeneralDictionaryAliasRecordedLocality.early_ordinary_joint
+#print axioms Yulang.GeneralDictionaryBranchLeaf.branch_models
+#print axioms Yulang.GeneralDictionaryBranchLeaf.ready
+#print axioms Yulang.GeneralDictionaryBranchLeaf.instance_of_shape
+#print axioms Yulang.GeneralDictionaryBranchLeaf.selected_leaf
+#print axioms Yulang.GeneralDictionaryBranchLeaf.selected_of_coverage
+#print axioms Yulang.GeneralNominalBranchExample.state_models
+#print axioms Yulang.GeneralNominalBranchExample.checked
+#print axioms Yulang.GeneralNominalBranchExample.actual_branch
+#print axioms Yulang.GeneralNominalBranchExample.not_unary_spine
+#print axioms Yulang.GeneralNominalBranchExample.inhabited_branch
+#print axioms Yulang.GeneralNominalBranchFacts.report_exact
+#print axioms Yulang.GeneralNominalBranchFacts.private_models
+#print axioms Yulang.GeneralNominalBranchProjection.point_argument_matches
+#print axioms Yulang.GeneralNominalBranchProjection.append_projection
+#print axioms Yulang.GeneralNominalBranchProjection.spine_capture_name
+#print axioms Yulang.GeneralNominalBranchProjection.inspect_fork
+#print axioms Yulang.GeneralNominalBranchProjection.fork_projection
+#print axioms Yulang.GeneralNominalBranchProjection.fork_finished
+#print axioms Yulang.GeneralNominalBranchProjection.fork_bindings
+#print axioms Yulang.GeneralNominalBranchProjection.fork_checked
+#print axioms Yulang.GeneralDictionaryBranchCoverage.selected_instance
+#print axioms Yulang.GeneralDictionaryBranchCoverage.dictionary_evidence
+#print axioms Yulang.GeneralDictionaryBranchCoverage.dictionaries_evidence
+#print axioms Yulang.GeneralDictionaryBranchCoverage.of_spine
+#print axioms Yulang.GeneralDictionaryBranchCoverage.recursive_fixture
+#print axioms Yulang.GeneralDictionaryBranchCoverage.of_trace
+#print axioms Yulang.GeneralDictionaryBranchCoverage.initial_dictionary_evidence
