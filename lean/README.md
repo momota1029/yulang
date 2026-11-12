@@ -4693,3 +4693,13 @@ with repeated output obligations and full nominal evidence, while remaining
 RootPending. Eighteen modules and the final public theorem count are inventoried
 in `notes/handoff/dots-cycle-129-theorems.md`. General B4 V3 remains 12/12 unfilled;
 no source allocator, candidate Survivor or driver-order equivalence is claimed.
+
+## Cycle130: recursive candidate dictionary adapters
+
+`GeneralDictionaryRecursiveReadback` derives source frames from the recursive
+inspection report, including repeated capture merges, and reconstructs the exact
+full source tree from raw payloads. Candidate derivability remains an input.
+`GeneralDictionaryRecursivePreparation` retains that tree through the existing
+partial supported-variable compiler and proves its declaration evidence in all
+models of the explicitly recorded transaction state. This is not validity in
+all models of the original state and does not fill V3 evidenceNode.

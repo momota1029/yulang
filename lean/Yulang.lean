@@ -1724,6 +1724,21 @@ import Yulang.GeneralNominalK2Coverage
 import Yulang.GeneralNominalLocalBoundary
 import Yulang.GeneralNominalIntervalExamples
 import Yulang.GeneralNominalEmissionOrigins
+
+import Yulang.GeneralNominalCaptureMerges
+import Yulang.GeneralNominalMaterialization
+import Yulang.GeneralNominalMixedCandidateExample
+import Yulang.GeneralNominalMixedExamples
+import Yulang.GeneralNominalMixedRecurrence
+import Yulang.GeneralNominalNonpointInspectionExamples
+import Yulang.GeneralNominalRecursiveBoundary
+import Yulang.GeneralNominalRecursiveCandidates
+import Yulang.GeneralNominalRecursiveExamples
+import Yulang.GeneralNominalRecursiveInspection
+import Yulang.GeneralNominalRecursivePropagation
+import Yulang.GeneralNominalRecursiveRegressions
+import Yulang.GeneralNominalStructuralProjectionLaws
+import Yulang.GeneralNominalUnaryCaptureFacts
 import Yulang.GeneralDictionaryNominalCandidateOrder
 import Yulang.GeneralDictionaryNominalSlotTransport
 import Yulang.GeneralDictionaryTypeCoverage
@@ -1744,3 +1759,7 @@ import Yulang.GeneralDictionarySlotFreshnessTransportExamples
 import Yulang.GeneralDictionarySlotViewBoundaryExamples
 
 import Yulang.GeneralDictionaryFreshSlotPreparationExamples
+
+import Yulang.GeneralDictionaryRecursiveReadback
+
+import Yulang.GeneralDictionaryRecursivePreparation

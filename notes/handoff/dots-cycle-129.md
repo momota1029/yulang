@@ -26,7 +26,7 @@
 ## 復元・範囲・残る前提
 
 - integrationを`a97bf63ffc3b2f207a978dc5a6721b90ec8158c7`へ取り直し、standing orders/inboxを全文確認。ACTIVE、cycle128 completed/released、前writerと重複なし。upstreamの追加Astra成果を取り込み、公開済みcycle128終盤追記も保持した。crash復旧や未公開source喪失はない。
-- 既存Lean実装を変更せず、新moduleとYulang/Audit/READMEの追記のみ。spec/plan/lake、Astra項目1/2/3、一般Step/I-20需要併合（終盤I-21でAstra担当）には触れていない。全体build/Audit/AxiomGateはlocalでは実行しない。
+- 既存Lean実装を変更せず、新moduleとYulang/Audit/READMEの追記のみ。spec/plan/lake、Astra項目1/2/3、未割当一般Step/I-20需要併合には触れていない。全体build/Audit/AxiomGateはlocalでは実行しない。
 - Transportはtarget snapshotを構成せず、追加source IDの型付き起源/権限、sourceからの生成を保証しない。元のnormalized viewを新stateが保つことも仮定/結論に入れていない。モデル同値をcandidate/readiness同値として扱わない。
 - source成功移送は同じglobal Framesに限る。異なるContext間のcomputedFrames同値、異なるdriver順の最終state同値は未達。元のfailureは新slotで成功へ変わりうる。
 - 変数head/RHSの現在のcompiler制限、captured endpointの同じID条件、root output/readiness/freshness/coverage guardを弱めていない。nominal/compound/default RHSの一般compilerや実candidate森林の生成は未完成。
@@ -37,7 +37,7 @@
 | --- | --- | --- |
 | Checked | 一般certificate定義あり | Astra所有。complete checker境界維持。 |
 | Models | 一般full nominal state定義あり | 構文Transportと全dictionary batchで任意full assignmentの同値。一般source更新ではない。 |
-| Step | MISSING | 開始時は担当未割当。終盤I-21でAstra担当へ。今回未着手。 |
+| Step | MISSING | 一般進行とI-20需要併合。担当未割当。 |
 | Stable | MISSING | EOFと兄弟fixpoint。 |
 | Generated | 一般emission/Plan部品あり | 実source/driver生成は未接続。 |
 | RootPending | 一般partial定義あり | Astra既存定義。view間のRootPendingが異なる実反例を追加。 |
@@ -81,11 +81,3 @@ work/dots-auditを取得し、ROLE-MORE-001–008と文書の境界を読み直�
 3. nominal/compound/default RHSと非singleton captureについて、独立source意味を先に定義し、既存guardを維持してcompiler範囲を拡大する。
 
 開始・終盤とも空き37GiB。既存cacheのコピー/削除なし。使用量上限は不明。
-
-## 終盤の新upstream・I-21（次サイクルの最優先）
-
-01:12 UTCの再fetchでintegration `a5e2eecf619b7237fb545faea6fa7e5a52cb0ce9`を確認。I-21はAstraへ項目4（Step/Stable/Generated/I-20）、dotへ新`GeneralNominalRecursiveCandidates.Survivor`に対する`Evidence`とV3 `evidenceNode`を割り当てた。前節の暫定的な次候補より、この新指示を優先する。
-
-新`recursiveFields`は一般nominal carrier上の9項目を持ち、RemainingはStep/Stable/Generated/Evidenceの4つ。新しい言語全体の網羅性はなお部分的。今回のSourceBoundary表と検証済みsourceは開始時a97bf63のsnapshotについての記録であり、終盤の新14modulesを無検証で混ぜてはいない。一般B4は12/12未充填のまま。
-
-新Survivorは実BranchModelsの存在を含む一方、evidenceNodeは元stateの全Modelsについて要求する。次の最初の監査はこの量化の接続とprojection/反復capture/output義務。存在するbranch modelを任意modelの代用にせず、独立したsource Evidenceを定義してから具体境界のnode結合を証明する。詳細をdesign末尾に残した。今回新sourceは変更せず、次サイクル開始時に新integrationを統合する。

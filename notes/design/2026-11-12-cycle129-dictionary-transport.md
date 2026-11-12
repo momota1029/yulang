@@ -106,29 +106,3 @@ agreement from two actual candidate contexts, normalizing views, constructing a
 target snapshot or proving driver-order invariance remain separate obligations
 owned by their respective source/candidate work. The concrete view counterexample
 rules out obtaining that agreement from model equivalence alone.
-
-## Late upstream I-21 supersedes the provisional next-task order
-
-At01:12 UTC the final read-only fetch found integration
-`a5e2eecf619b7237fb545faea6fa7e5a52cb0ce9`, after the source/CI freeze at the
-start-of-cycle base`a97bf63ffc3b2f207a978dc5a6721b90ec8158c7`. The new inbox
-assigns Step/Stable/Generated/I-20 to Astra and Evidence/evidenceNode to dot.
-Next cycle must integrate that head first and target
-`GeneralNominalLocalBoundary.recursiveFields` and
-`GeneralNominalRecursiveCandidates.Survivor`, not start the provisional frame
-locality chain as an independent priority. The present125 theorems do not close
-that new concrete boundary's evidenceNode.
-
-The actual new interfaces were inspected read-only. `BranchModels` conjoins
-private-state Models, ProjectionModels and generated materialization Models;
-`Prepared`/`Survivor` contain existential Consistent plus readiness, metadata,
-Linked, Fresh and exact children. `branch_interval_sound` consumes BranchModels
-for one particular assignment. In contrast, V3 EvidenceNode quantifies over
-EVERY model satisfying the boundary's original Models field. Therefore the first
-connection audit must not substitute an existential branch witness for that
-arbitrary model. Establish which branch/capture/output facts follow for each
-model, or explicitly identify the source-update invariant still required. Define
-source Evidence independently from successful execution, then prove the node
-composition; do not make the target true by defining Evidence as its derivation.
-No impossibility or semantics change is claimed here. No new Astra definitions
-were edited or pulled into the frozen verified source during closeout.
