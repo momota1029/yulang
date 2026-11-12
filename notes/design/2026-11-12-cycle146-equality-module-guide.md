@@ -158,3 +158,29 @@ may use those premises, or another proof may bypass Joint. Calling the
 unconditional stable-selected→Joint implication “minimal” would overstate
 what has been established. The current theorem `reachable_joint_evidence`
 still takes Joint explicitly alongside those model/child premises.
+
+## Final general refinements
+
+- `EqualityOrder.completed_raw_iff`: after equality completion, registered-source
+  RawEqual is EXACTLY the original journal's semantic Equal. Therefore two
+  completed equality-only paths agree on those observations, regardless of
+  redundant equations/order. This is not state equality or V5 canonical order.
+- `EqualityLinearCompletion`: complete the tail first; connect a head to one
+  semantically equal tail representative if needed; transitivity handles all
+  other members. At most one actual equality Step per entry, and the first
+  representative costs zero. The final `complete_sources_spanning_bound` gives
+  **at most max(N-1,0) actual Steps**, strengthening the earlier N² bound, where
+  N is source-list length including duplicates. Models/Joint and full Evidence
+  at original journal assignments are retained by the returned Equates
+  certificate. This remains classical existential scheduling, not a procedure
+  for deciding entailment or a bound for all inference rules.
+- `VariableMergeSequence`: one recorded historical packet, with an event-specific
+  parent-binder mapping allowed, discharges every output atom of a finite list
+  of covered variable-request merges. Existing fold/event-set lemmas then give
+  all initial Models and full same-assignment Evidence invariance. Event order
+  and duplicates do not matter. Joint preservation and actual Step guards are
+  NOT inferred.
+
+The refined same-model parent-branch obligation and its exact V5 premises are
+recorded separately in `2026-11-12-cycle146-same-model-residual.md`. It is still
+UNPROVED and need not prove the stronger unconditional JointAtSelected first.
