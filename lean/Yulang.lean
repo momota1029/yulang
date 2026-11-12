@@ -2083,3 +2083,7 @@ import Yulang.GeneralNominalSharedJournalFacts
 import Yulang.GeneralNominalSharedMaterializationFacts
 import Yulang.GeneralNominalMergeCongruence
 import Yulang.GeneralNominalSharedHistoricalBranch
+
+import Yulang.GeneralNominalFiniteAssociatedFacts
+import Yulang.GeneralNominalSharedJournalPaths
+import Yulang.GeneralDictionaryInstallationOrigin
