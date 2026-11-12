@@ -98,3 +98,63 @@ all-assignment Models equivalence follows. The witness values are int,
 not a concrete nominal-valued example. The journal is manually assembled:
 SourceFormed/reachability is NOT claimed. General variable-merge theorem
 still has no scalar type restriction.
+
+## Third checkpoint: actual Stable endpoint, not just Evidence
+
+The SAME Fin4 `refreshed` now has every rule closed:
+
+- `OutputMergeRefreshClassification`: actual support Local selections and
+  full three-node Classify, not an assumed classification premise.
+- `OutputMergeInstallClosure`: arbitrary enabled packet at any Generated
+  focus is semantically Committed. Generated is exactly root or either child;
+  a physically missing child packet does not imply installation is novel.
+- `OutputMergeSiteClosure`: every Generated focus is already present, and all
+  SameInputs sites are already Alias. Enqueue and merge novelty both fail.
+- `OutputMergeContextComplete`: every raw context model satisfies the historical
+  packet and all site obligations. Thus every semantic Equal is RawEqual.
+- `OutputMergeObservationClosure`: the only nominal descriptor is point-valued,
+  so descriptor reobservation cannot improve it.
+- `OutputMergeRefreshClosure`: any source other than 0,1,output10,output11 can
+  be changed from int to str while retaining a genuine journal model. An
+  exact Refresh cannot make that source Known in both models. The four
+  constrained sources are already Known. No all-sources-Known premise is used.
+- `OutputMergeStabilityResidual` enumerates the unchanged support At rules;
+  `OutputMergeStable.stable_classified_dictionary` discharges the last refresh
+  residual and proves actual Reachable, inhabited, Stable, Classify and full
+  current-context recursive Evidence for EVERY final model at ONE fixed state.
+
+An independent reader checked the full constructor coverage and re-ran the
+Stable module with `--trust=0`. The earlier checkpoints' statements that final
+Stable/Classify were not yet asserted are now superseded for THIS fixture.
+The arbitrary-registry V5 bridge count is still 6 proved / 8 open.
+
+## General completeness preservation, with its exact restriction
+
+`GeneralDictionaryContextCompletePreservation` proves ContextComplete is
+preserved by every administrative update, including refresh/reobservation,
+and by the actual merge function. Merge need not preserve the old model set:
+its new raw equations supply precisely the new obligations.
+`OrdinaryEndpoints` restricts an ACTUAL support Step with an additional
+administrative-or-merge endpoint description, and the finite trace theorem
+preserves completeness from an explicitly complete START. It does not
+identify a particular constructor proof and does not assume the desired
+endpoint completeness. Installation is not covered, and prior actual
+reachable-incomplete-installation counterexamples remain valid.
+
+## Exact general residual after the concrete success
+
+For arbitrary reachable Stable selected focus, derive Joint in that SAME
+journal: matching packet keys over its alias class, and a SINGLE journal
+model realizing BranchAt simultaneously for every related site. Existing
+`reachable_joint_evidence` handles the subsequent source Evidence reasoning.
+Separate existential branch witnesses, concrete three-site enumeration,
+scalar output facts or the present ContextComplete fixture do not prove this
+general bridge. No general V5 evidenceNode claim is upgraded.
+
+The Joint route above is a **sufficient remaining bridge**, not a proof that
+Joint is logically necessary for V5 EvidenceNode. V5's EvidenceNode also
+supplies a particular journal model and child Evidence; a weaker Joint lemma
+may use those premises, or another proof may bypass Joint. Calling the
+unconditional stable-selected→Joint implication “minimal” would overstate
+what has been established. The current theorem `reachable_joint_evidence`
+still takes Joint explicitly alongside those model/child premises.
