@@ -56,4 +56,27 @@ theorem generated_models_after_trace {roles : Roles.RoleDecls}
       (generated after.current.context.state after.current.context.interpretation requests) model :=
   generated_models _ _ _ ((observed_trace registry root before after path requests).mpr observed)
     declaration capture report model valid
+/-- Variable-only where inputs leave named root requests intact at the final
+state. Captures and actual child generation are not erased; only materialization
+requests are reduced using the separately proved VariableClauses condition. -/
+theorem actual_requests_models_after_trace {roles : Roles.RoleDecls}
+    (registry : GeneralDeclarations.Registry) (root : GeneralSourceDictionaries.Occurrence roles)
+    (before after : GeneralNominalSupport.Tracked roles)
+    (path : B4Target.Steps (GeneralDictionarySupportOrdinaryExecution.Step registry root) before after)
+    (declaration : GeneralDeclarations.Declaration)
+    (checked : GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+    (captures : GeneralNominalAllocation.Bindings)
+    (variables : GeneralDictionaryVariableRequirements.VariableClauses declaration)
+    (observed : Observed before.current.context.state before.current.context.interpretation
+      (rootRequests declaration root))
+    (capture : GeneralDeclarationDemands.Capture)
+    (report : GeneralNominalRecursiveInspection.Report after.current.context.state)
+    (model : GeneralNominalCommonBridge.Assignment)
+    (valid : GeneralNominalState.Models after.current.context.state model) :
+    Models after.current.context.state declaration capture report
+      (generated after.current.context.state after.current.context.interpretation
+        (requests after.current.context.state registry root declaration checked captures)) model := by
+  rw [requests_root _ _ _ _ _ _ variables]
+  exact generated_models_after_trace registry root before after path _ observed
+    declaration capture report model valid
 end Yulang.GeneralDictionaryObservedRequestTransport

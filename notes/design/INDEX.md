@@ -401,3 +401,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle152 observed recursive evidence](2026-11-12-cycle152-observed-recursive-evidence.md) — conditional soundness.
 - [Cycle152 observed initial example](2026-11-12-cycle152-observed-initial.md) — actual InitialSource.
 - [Cycle152 observed request transport](2026-11-12-cycle152-observed-request-transport.md) — ordinary-only trace.
+
+- [Cycle152 named output complete example](2026-11-12-cycle152-observed-complete.md) — exact stated scope.
+- [Cycle152 alias installation obstruction](2026-11-12-cycle152-alias-install-obstruction.md) — necessary condition only.
+- [Cycle152 module guide](dots-cycle152-module-guide.md).
