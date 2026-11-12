@@ -257,3 +257,4 @@ spec 6 の K2 の決定に追記した: 根（または head の非変数 patter
 - 新しい `#print axioms` の行は、**新しい小さなファイル** `lean/Audit/<名前>.lean` に書く（例: `lean/Audit/Cycle136.lean`。1 ファイルは数十 KB 以下を目安に。必要な `import` を先頭に書く）。既存の `lean/Audit/*.lean` も追記のみ。
 - `tools/verify-lean.sh` はこの形に対応済み（`Audit.lean` と `lean/Audit/*.lean` を全部実行し、公理を検査する。新しいファイルとして `lean/Audit/*.lean` を許可）。
 - サイクル 131〜135 で手元に溜まっている監査の行も、`Audit.lean` に足さず、`lean/Audit/` の新しいファイルに移してから公開すること。`Yulang.lean` も大きいので（約 1,800 行）、公開が通らなければ同じ理由を疑い、報告に書くこと（監督役が分割を検討する）。
+- I-24 追記（2026-11-12）: `lean/README.md`（約 560 KB）も同じ理由で凍結する。モジュールの説明の追加は、`notes/design/<日付>-<内容>-module-guide.md` のような新しい小さなファイルに書く（サイクル 136 のやり方のまま）。`Yulang.lean` への import の追記は小さいので続けてよいが、公開が止まったら同じ理由を疑うこと。
