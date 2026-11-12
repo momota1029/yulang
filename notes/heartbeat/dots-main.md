@@ -1,10 +1,10 @@
 cycle: 149
 status: running
 started: 2026-11-12T20:26:46Z
-updated: 2026-11-12T20:36:20Z
-elapsed_min: 9.6
-activity: EvidenceNode residual narrowed by actual installation provenance, recorded equality paths and finite associated-output materialization; first 3-module checkpoint published
+updated: 2026-11-12T20:46:00Z
+elapsed_min: 19.2
+activity: General EvidenceNode subclasses now include finite nonterminal where outputs, actual ordinary trace replay, and structural unrecorded leaves; mixed recursive dictionary proof validated
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: e6cffd4cb
+last_local_commit: da9ac5480
 report: notes/handoff/dots-cycle-149.md
-resume_hint: Published 879f1eaf exact tree with 28 audited theorems. Integrating finite path-connected outputs and arbitrary-key ordinary replay; focused recursive dictionary proof building in cache/cycle149/covered-build.log. Deadline21:21:46UTC; no full build.
+resume_hint: First checkpoint879f1eaf Core/Lean CI success. Second checkpoint integration underway; cache/cycle149 contains focused builds/audits. General V5 remains8/14 unresolved. Actual stable selected unrecorded leaf disproves universal packet coverage but not V5. Deadline21:21:46UTC.
