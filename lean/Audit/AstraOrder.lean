@@ -1,0 +1,52 @@
+import Yulang.GeneralNominalRegistryOrder
+import Yulang.GeneralNominalCandidateReordering
+import Yulang.GeneralNominalLocalReordering
+import Yulang.GeneralDictionaryCanonicalLocalOrder
+import Yulang.GeneralDictionaryFinalOrderObstruction
+
+#print axioms Yulang.GeneralNominalRegistryOrder.keys_membership
+#print axioms Yulang.GeneralNominalRegistryOrder.fresh
+#print axioms Yulang.GeneralNominalRegistryOrder.metadata
+#print axioms Yulang.GeneralNominalRegistryOrder.private_models
+#print axioms Yulang.GeneralNominalRegistryOrder.generated
+#print axioms Yulang.GeneralNominalRegistryOrder.branch_models
+#print axioms Yulang.GeneralNominalRegistryOrder.request_ready
+#print axioms Yulang.GeneralNominalRegistryOrder.children
+#print axioms Yulang.GeneralNominalRegistryOrder.prepared
+#print axioms Yulang.GeneralNominalRegistryOrder.failed
+#print axioms Yulang.GeneralNominalRegistryOrder.head_ready
+#print axioms Yulang.GeneralNominalCandidateReordering.checked_declaration
+#print axioms Yulang.GeneralNominalCandidateReordering.survivor_forward
+#print axioms Yulang.GeneralNominalCandidateReordering.survivor
+#print axioms Yulang.GeneralNominalCandidateReordering.inspection_pending_forward
+#print axioms Yulang.GeneralNominalCandidateReordering.inspection_pending
+#print axioms Yulang.GeneralNominalCandidateReordering.inspection_witness
+#print axioms Yulang.GeneralNominalCandidateReordering.recursive_candidateK2
+#print axioms Yulang.GeneralNominalCandidateReordering.cycle_candidateK2
+#print axioms Yulang.GeneralNominalCandidateReordering.cycle_inspection_pending
+#print axioms Yulang.GeneralNominalCandidateReordering.feedback_candidateK2
+#print axioms Yulang.GeneralNominalLocalReordering.local_forward
+#print axioms Yulang.GeneralNominalLocalReordering.local_iff
+#print axioms Yulang.GeneralNominalLocalReordering.boundary_local
+#print axioms Yulang.GeneralNominalLocalReordering.resolves
+#print axioms Yulang.GeneralNominalLocalReordering.child
+#print axioms Yulang.GeneralNominalLocalReordering.whereAccessible_iff
+#print axioms Yulang.GeneralNominalLocalReordering.reachable_local_order
+#print axioms Yulang.GeneralNominalLocalReordering.canonicalLocalOrder_of_returned_state_equality
+#print axioms Yulang.GeneralNominalLocalReordering.whereAccessible_of_readback
+#print axioms Yulang.GeneralDictionaryCanonicalLocalOrder.remaining_field
+#print axioms Yulang.GeneralDictionaryCanonicalLocalOrder.exact_factorization
+#print axioms Yulang.GeneralDictionaryCanonicalLocalOrder.of_returned_state_equality
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.reorders
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.first_checked
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.last_checked
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.initial_source
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.first_reachable
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.last_reachable
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.input_pending
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.pending_local
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.rejected_local
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.first_returned
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.last_returned
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.not_canonicalLocalOrder
+#print axioms Yulang.GeneralDictionaryFinalOrderObstruction.not_all_executors
