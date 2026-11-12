@@ -405,3 +405,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle152 named output complete example](2026-11-12-cycle152-observed-complete.md) — exact stated scope.
 - [Cycle152 alias installation obstruction](2026-11-12-cycle152-alias-install-obstruction.md) — necessary condition only.
 - [Cycle152 module guide](dots-cycle152-module-guide.md).
+
+- [Cycle152 closed observed requests](2026-11-12-cycle152-closed-observed-requests.md) — conditional non-scalar materialization.

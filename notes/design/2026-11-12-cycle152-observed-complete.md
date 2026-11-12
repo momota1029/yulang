@@ -26,10 +26,26 @@ same arbitrary final model, and bundles Reachable, an inhabited final journal,
 nonempty parent output, one actual child and full Evidence. These are auxiliary
 soundness facts, not execution completeness, principality or a general bridge.
 
-At this checkpoint there is **no claim of Stable for the installed state** and
-no general V5 evidenceNode closure. A further stability proof would need to
-exclude every enqueue/install/merge/refresh/equate/reobserve update. Merely
-having selected and installed the root does not establish this.
+The later `ObservedCompleteClosure` and `ObservedCompleteStable` now exclude
+every enqueue/install/merge/refresh/equate/reobserve update and prove actual
+Stable at the reached state. Cross root/child merge is impossible by different
+roles, all further installations are semantically committed, and fresh source
+observations are excluded with explicit separating models. `PointClosed` handles
+reobserve. This is not an inference from mere root selection.
+
+`ObservedCompleteClassification` independently constructs final Prepared,
+Survivor, unique Local and source-supported decisions for parent and child;
+actual B4 Classify is the successful two-node tree. Its final bundle combines
+Reachable, inhabited Models, Stable, Classify, nonempty named output, one child,
+and Evidence in all final models.
+
+`ObservedCompleteCoverage` proves the actual ordinary trace and the recursive
+ObservedStableCoverage obligations; no such inputs are assumed for the fixture.
+The parent uses historical packet membership (including its named output),
+while the unrecorded scalar child uses structural coverage and a proved
+singleton alias class. Thus this instantiation does NOT establish unrecorded
+named-output coverage in arbitrary states. General V5 remains 8/14 open.
+All targets are already observed scalar slots, not fresh or non-scalar outputs.
 
 Yulang2 x-oracle X13-X16 was consulted for identity/interval context only;
 this exact named-output recursive program has not been run on Yulang2.
