@@ -1,11 +1,9 @@
-cycle: 139
-status: completed
-started: 2026-11-12T10:27:19Z
-updated: 2026-11-12T10:56:00Z
-elapsed_min: 28.7
-deadline: 2026-11-12T11:22:19Z
-activity: I25 V5 target and reachable skeleton; six laws proved, eight OPEN; 61 trust-zero declarations and focused678jobs PASS. All20 source/note files byte-verified.
+cycle: 140
+status: running
+started: 2026-11-12T11:27:19Z
+updated: 2026-11-12T11:40:30Z
+elapsed_min: 13.2
+activity: 18 declarations verified; publishing packet-free reachable Evidence and Joint registry invariance
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: d36788439
-report: notes/handoff/dots-cycle-139.md
-resume_hint: Source814a1c018598b61919c7e8173f9ba9b5eeae870e. Read fresh inbox. General evidence OPEN; stable-selected-to-Covered formally false even reachable; not V5 counterexample. No active writer.
+last_local_commit: b08ebc485
+resume_hint: Previous139 completed. Fresh integration b08ebc485. No previous writer. Audit/README frozen, small audit shards only.
