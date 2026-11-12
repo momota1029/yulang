@@ -1938,3 +1938,10 @@ import Yulang.GeneralNominalCanonicalOutputFork
 import Yulang.GeneralNominalCanonicalOutputForkClassification
 import Yulang.GeneralNominalCanonicalCompletionObstruction
 import Yulang.GeneralNominalReobservationMergeDiamond
+
+import Yulang.GeneralDictionaryKeyedRevision
+import Yulang.GeneralDictionaryKeyedJournalTree
+
+import Yulang.GeneralDictionaryCurrentRevisionObstruction
+
+import Yulang.GeneralDictionaryNonemptyRevisionExample
