@@ -1,7 +1,7 @@
 import Yulang.GeneralDictionaryCurrentJournal
 
 /-! A real installation and descriptor-changing refresh exercise the journal
-invariant. The original packet context is NOT an ordinary extension of the final
+invariant. The final context is NOT an ordinary Extension of the original packet
 context; its generated child's nominal descriptor changed. No complete parent
 dictionary is asserted, since that child is rejected by K2. -/
 namespace Yulang.GeneralDictionaryCurrentJournalExamples

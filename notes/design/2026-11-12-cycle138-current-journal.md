@@ -3,8 +3,9 @@
 Status: proof plan, 2026-11-12. Target: reduce B4 V4 evidenceNode residual.
 
 Cycle137 transports an old packet only when a separate ordinary Extension connects
-its original context to a chosen start state. That does not cover a packet after
-multiple alternating installations and descriptor refreshes. We instead induct on
+its original context to a chosen start state. Its trace_instance already supports mixed tails once an old Instance is supplied.
+The missing uniform statement is for every final journal member without separately
+locating its installation/prefix. We instead induct on
 actual `GeneralDictionaryFinishedTrace.Step` traces from an empty initial journal.
 
 Invariant: for every recorded packet and every model of the current journal, its

@@ -1873,3 +1873,6 @@ import Yulang.GeneralDictionaryFinishedInspection
 import Yulang.GeneralDictionaryFinishedEvidence
 import Yulang.GeneralDictionaryFinishedTrace
 import Yulang.GeneralDictionaryFinishedInspectionExamples
+
+import Yulang.GeneralDictionaryJournalTree
+import Yulang.GeneralDictionaryModeledJointGap
