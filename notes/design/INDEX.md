@@ -379,3 +379,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [dots-cycle150-general-evidence-residual](dots-cycle150-general-evidence-residual.md) — partial structural proof/review; general V5 remains8/14 unresolved.
 - [dots-cycle150-named-locality](dots-cycle150-named-locality.md) — partial structural proof/review; general V5 remains8/14 unresolved.
 - [dots-cycle150-ordinary-structural-coverage](dots-cycle150-ordinary-structural-coverage.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+
+- [2026-11-13 Termination proof plan](2026-11-13-termination-proof-plan.md) — Item 4h; finite-signature measure, lemma ledger, and the unresolved sibling-output counterexecution analysis.
