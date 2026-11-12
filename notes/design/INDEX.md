@@ -369,3 +369,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Item 4f nominal support module guide](2026-11-12-general-nominal-support-module-guide.md) — Partial; provenance-retaining guarded expansion, with termination still open.
 
 - [2026-11-12 General nominal guarded installation order](2026-11-12-general-nominal-support-order-module-guide.md) — Item 4g administrative accessibility and the remaining installation-order obligation.
+
+- [2026-11-13 Termination proof plan](2026-11-13-termination-proof-plan.md) — Item 4h; finite-signature measure, lemma ledger, and the unresolved sibling-output counterexecution analysis.
