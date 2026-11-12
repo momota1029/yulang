@@ -1,0 +1,25 @@
+import Yulang.GeneralDictionaryTerminalRefresh
+
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.output_int
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.source_known
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.source_unknown
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.actual_refresh
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.exact_models
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.formed
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.inhabited
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.context_complete
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.no_known_distinct
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.varying_original
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.varying_model
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.refresh_large_unknown
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.current_query
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.current_schema
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.every_current_branch
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.installs_committed
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.generated_only_root
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.stable
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.current_instance
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.current_evidence
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.completed
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.refines
+#print axioms Yulang.GeneralDictionaryTerminalRefresh.certificate

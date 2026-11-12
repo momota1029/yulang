@@ -29,6 +29,7 @@ is false, but this does not refute a SourceFormed-restricted obligation or
 the language. Any interface repair requires the appropriate owner; this
 cycle does not weaken the target or replace evidence/stability.
 
-Verification: all 12 public declarations passed direct Lean and `--trust=0`
-with only standard propext/Classical.choice/Quot.sound dependencies. Combined
-parent build and audit-shard registration remain separate verification steps.
+Verification: all 13 public declarations (including the executor/frontier-independent
+`no_bridges` corollary) passed the combined focused build and small audit shard
+with `--trust=0`, using only standard propext/Classical.choice/Quot.sound.
+Full repository build and frozen monolithic Audit were not run.

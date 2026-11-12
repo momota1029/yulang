@@ -1880,3 +1880,4 @@ import Yulang.GeneralDictionaryRefreshGap
 import Yulang.GeneralDictionarySourceChoiceVisibility
 import Yulang.GeneralDictionaryJournalTreeExamples
 import Yulang.GeneralDictionaryJournalTreeFormation
+import Yulang.GeneralDictionaryTerminalRefresh
