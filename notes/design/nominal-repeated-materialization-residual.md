@@ -69,3 +69,58 @@ theorems passed. Dependencies are only `propext`, `Classical.choice`, and
 `Quot.sound`. No `sorry`, new axiom, or `native_decide`; no existing semantics,
 V5 target, aggregate Audit, or frozen README was changed. This is not a full
 package build or general V5 completion claim.
+
+## Additional cycle148 result: point-to-point merge transport
+
+`GeneralNominalRepeatedMergeTransport.merges_iff` proves that the binary
+repeated-binder allocation equations are invariant under equivalent endpoint
+denotations, even if interval source numbers and the registry differ. The
+allocation seed, invocation, declaration, and binder are fixed. This is proved
+using join/meet congruence and the actual allocation definitions, not by assuming
+equality of the entire generated atom lists.
+
+`point_bounds_equivalent` obtains the endpoint equivalences from old and current
+point descriptors of the same nominal source/name and the same model. Both
+snapshots constrain one and the same actual observation. Thus equality of
+endpoint denotations is a consequence, not an extra assumption, in this family.
+
+`merges_after_steps` combines these facts with an earlier recorded packet and an
+actual finite support-transition path. It derives CURRENT merge equations when:
+
+- the earlier and current reports inspect one repeated binary nominal head;
+- the declaration has exactly that input binder;
+- both old and current parameter intervals are point-valued;
+- the nominal source/name and allocation seed agree.
+
+The endpoint source IDs may change; the context/registry need not be identical.
+No current merge equation, Joint, Installable, or BranchModels is assumed.
+Together with `same_after_steps` and the first section's materialization theorem,
+this closes both repeated-head residuals for this covered point-to-point family.
+The theorem applies to actual paths including descriptor reobservation; it does
+not require that this particular head is the one whose precision improved.
+
+This does not solve the nonpoint-to-point case. Fitting an actual value inside
+an old interval does not make the old union-lower/intersection-upper bounds
+equal to that value. Replacing those bounds with point bounds can change the
+required denotation of an existing allocation origin. General selected-branch
+coverage also remains open.
+
+Focused build of `GeneralNominalRepeatedMergeTransport` passed (628 dependency
+jobs; one new module built). All six added theorems passed `--trust=0` and axiom
+audit; only the standard `propext`, `Classical.choice`, `Quot.sound` occur.
+
+## Integrated fragment theorem
+
+`GeneralNominalRepeatedHistoricalBranch.branch_after_steps` packages the results
+as a current `BranchModels` theorem at the caller's SAME assignment. The
+hypotheses are an actual support path, an earlier journal packet, the repeated
+binary inspection shapes, point old/current parameter bounds, fixed nominal
+source/name and allocation seed, and a checked terminal declaration returning
+the same head at its source. The current journal model is the only semantic
+model premise. There is no assumed SameParameters, merge equation,
+materialization predicate, current BranchModels, Joint, or Installable.
+
+Focused build passed (629 dependency jobs; one new module built), and its
+`--trust=0` axiom audit lists only `propext`, `Classical.choice`, `Quot.sound`.
+This closes the precisely stated covered point-to-point fragment, not general
+SameModelBranchAtSelected or any additional general V5 obligation.
