@@ -351,3 +351,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle128 next bridges: typed slot coverage and computed-frame order](2026-11-12-cycle128-next-bridges.md) — Proposed decomposition; no new proof or implementation claim.
 
 - [Cycle129 dictionary order and typed transport](2026-11-12-cycle129-dictionary-transport.md) — Draft, item5; preserves fixed-context boundaries.
+
+- [Cycle130 recursive source evidence](2026-11-12-cycle130-recursive-evidence.md) — Draft, I-21; per-model equations, exact readback and the original-state universal-model boundary.

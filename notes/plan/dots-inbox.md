@@ -244,3 +244,8 @@ Astra の項目 3d で、`SourceBoundary` の 13 項目のうち 9 つが一般�
 ## I-22: K2 を「循環の上にある根」に広げる（ユーザー決定 2026-11-12）
 
 spec 6 の K2 の決定に追記した: 根（または head の非変数 pattern が調べる位置）が、型のグラフの循環の上にあれば K2。循環は名前つきの型の引数を通ってよい（body は開かない）。`len (nest 0)`（μ ≈ list μ）は拒否、`len [loop 1]` は通る。Astra が項目 4 の続きとして実装する（`RootK2`・`CandidateK2` の修正と、停止の証明）。dot の `Evidence` 側は、K2 で拒否された需要に辞書を作らないことだけ確かめればよい。
+
+## I-23: `evidenceNode` を安定した状態に限る（監督役, 2026-11-12）
+
+サイクル 130 の阻害（全 state 橋の形式的阻害）は、骨格の分け方の問題だと判断する: V3 の `EvidenceNode` は**任意の** state について「選ばれた head と子の証拠 ⇒ 親の証拠」を全モデルで要求するが、選択の条件（分岐の制約、出力の等式）はまだ state に書き込まれていないので、元のモデルの中に反する モデルがある。主定理の (4)（`DictionarySound`）が要求するのは、実行版の**最終状態**（`(e.run r s d).1`）についてだけで、その状態は `closure` で root と生成された全需要について `Stable` になる。
+直し方（新しいモジュール、V3 は消さない）: `B4SkeletonV4` で、`evidenceNode` の前提に `b.Stable r s d`（と、子についての `Stable`、または「選択が state に記録済み」を表す述語）を足し、`b4_of_bridges` が通ることを示す（`DictionarySound` の証明で、最終状態の root と子が `closure` により `Stable` であることを使う）。そのうえで、Astra の `Step` / `Stable`（`GeneralNominalSaturationSteps`。安定なら選ばれた packet が `Committed` で、その制約が全モデルで成り立つ）と、サイクル 130 の「記録による修復条件」をつないで、具体的な境界について `evidenceNode`（V4 版）を証明することを目標にする。Astra のモジュールの定義は変えない。
