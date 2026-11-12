@@ -7117,3 +7117,1019 @@ readback obstruction and the canonical-site provenance defect identify concrete
 producer obligations that a global termination proof must handle. No new owner
 semantic decision is needed for those defects; the existing interval, same-input,
 and K2 decisions already determine the required behavior.
+
+## Item 4d — provenance, journal feedback, and the R obstruction (2026-11-12)
+
+The prioritized finite feedback obstruction is now proved on the old relation,
+and its continuation is blocked on an additive journal-aware relation. A real
+checked, SourceFormed, satisfiable two-step example installs the R packet and
+refreshes its emitted child's lower root into a K2 rejection. **General B4
+termination is still open.** Administrative termination is derived, but the
+installation descent certificate and unconditional where accessibility are not.
+No infinite trace of the old relation is claimed.
+
+### Authority and unchanged interfaces
+
+The definitions follow [spec §6.3](../../spec/06-roles.md) (same-input demands,
+associated outputs, unnamed-input Paterson checking), its 2026-11-12 root-on-cycle
+K2 decision, and the [draft addenda 1–4](2026-11-08-b4-main-statement-draft.md).
+The owner's current clarification says that installed packets, materialized
+outputs, and merges are solver information and therefore must affect K2 and
+same-input recognition. No new language choice is made or requested.
+
+All existing Lean implementation lines remain intact, including the old
+`Emitted.canonical`, Step, Stable, Committed, and dictionary-facing Survivor.
+The new boundary is `GeneralNominalFeedbackBoundary.boundary roles evidence`.
+It shares the old general Registry, nominal journal State, Occurrence demands,
+Assignment, allocation, and full where-child lists. Evidence is still supplied
+as a parameter. `survivor_unchanged` states the exact old Survivor correspondence.
+
+This uses the permitted **separate emission and transition variant**. It is not
+claimed to be a relational superset of the old Step: retaining every old update
+would retain any bad old continuation too. Installation effects are model-equivalent;
+installation eligibility is strengthened by journal-aware K2 and merging.
+There is no execution bisimulation or executor in this change.
+
+### Provenance and same-input recognition
+
+`GeneralNominalFeedbackSites.OriginAt` records the actual declaration clause,
+its signature, the emitted child identity, the input position, and a matching
+variable capture in the real inspection report. `childOrigin` selects a retained
+origin from this finite source provenance; `childSite` preserves it even when
+its interval endpoints differ. The existing repeated-capture correspondence
+proves that this actual value fits the emitted merged interval. The selected
+origin is not an arbitrary value fitting that interval, and no centre or searched
+type substitution is introduced. If no retained variable origin exists, the
+existing conservative point-site fallback remains.
+
+`emitted` contains exactly the old `packet.children`, including named equations,
+with their identities and order. The new Step fixes this producer; the general
+`Emission.sound` certificate alone does not authorize arbitrary emissions.
+`install_models` states the exact conjunction of old journal Models and the
+packet's conditions; `install_equivalent` identifies it with the old canonical
+installation's model set. The old and new journals can have different provenance
+annotations while retaining the same demand identities and semantic conditions.
+
+`recover` additionally fills a missing origin only if the **same interval's**
+lower and upper endpoints are equivalent in every journal model. It then uses
+the lower endpoint's actual source identity. Existing origins are retained.
+`recover_sound` proves the result's SiteHolds condition. Equality of two broad
+intervals or a shared bound is insufficient. `SameInputs` applies the existing
+all-input observation equivalence to the recovered sites, using full journal
+Models. Named outputs are not input positions compared by SameInputs; their entailed
+consequences may contribute to journal equality.
+
+The generic merge theorem preserves models satisfying both recovered sites'
+DictionaryOutputs under the same congruent associated interpretation. This
+retains the existing Evidence-side interpretation premise; it does not invent
+a proof that arbitrary independently supplied dictionaries share that meaning.
+The existing `capture_determines_associated` bridge remains the declaration-side
+basis for that interface.
+
+Regressions prove both that the Item 4c nonpoint self-recognition defect is
+repaired and that two **distinct occurrence identities** with nonpoint inputs
+perform a real new merge. Its associated output targets become equal, and a
+concrete model of the merged state proves the example is nonvacuous.
+
+### Journal observations, K2, and feedback transitions
+
+`GeneralNominalFeedbackK2` defines a graph over the finite list of source
+identities of the context:
+
+- Structural edges use the checked normalized view, transporting their endpoints
+  by journal-entailed equality. Hidden-field removal remains the existing
+  normalization's responsibility.
+- Nominal edges require an observation of an **actual explicit argument** and
+  its equality to the destination in every full journal model. They can use
+  associated-output/materialization information absent from raw context Models.
+  Nominal bodies never supply edges.
+- Equality transports a constructor edge; equality alone is never an edge.
+- New semantic recurrence requires a real journal model. Inconsistent stores
+  cannot create a new cycle by vacuous universal entailment.
+
+The new RootK2 and CandidateK2 extend the old cycle predicates. Candidate K2
+uses actual positions inspected by non-variable patterns; variables introduce
+no inspection. Both keep the readiness gates. Local retains V3's priorities:
+pending first, either K2 reason before inspection pending/ambiguity, and empty
+candidate rejection guarded by completed inspection. New nominal edges have
+explicit observation soundness and model-restriction lemmas.
+
+The new Step includes origin-preserving installation, journal-aware merging,
+the existing certified head-refresh contract, and `equate`. The latter adds
+ordinary source equality already entailed by the journal, only when it is not
+yet entailed by raw context Models. It preserves journal Models exactly and
+makes the equality available to the raw context. No redundant spelling of an
+already entailed equality earns a step. A new installation must satisfy both
+the old full eligibility condition and the new Local/MergesClosed conditions.
+Unknown roots cannot be installed merely because a candidate is unique.
+
+Stable is closure under these new updates over every Generated occurrence.
+`stable_committed` proves commitment for every **Installable** generated packet;
+it does not drop joint eligibility and claim commitment for every raw selected
+candidate. `stable_equality_feedback` proves that stable journals expose every
+entailed equality between supported source identities to raw Models.
+
+**Coverage limit:** journal Argument is an independent semantic observation
+relation, not a total normalization algorithm. Structural materialization
+without a checked normalized structural view, arbitrary missing head production,
+compound child provenance, and complete joint local classification remain open.
+The following concrete refresh is constructed; the general producer of all
+required normalized snapshots is not. These limitations are not replaced by
+false rejection or by a fragment classifier.
+
+### The old finite obstruction and the blocked new continuation
+
+The real declaration is checked by the general checker:
+
+```yulang
+impl R (list 'a) where R('a, out = 'a):
+    type out = list 'a
+```
+
+There are no output-only binders in this declaration. The unnamed child input
+is strictly smaller than the head; the associated equation uses an input binder.
+The four-slot source has list descriptors at slots 0/1, parameter endpoints 2/3,
+and the ordinary equation `2 ≈ 3`. Its root is `R` on `(0,0)` requesting `out = 2`.
+The where child uses the nonpoint interval `(2,3)` and a fresh named output target.
+
+`FeedbackObstruction.old_step` proves an actual old CycleSteps installation.
+`old_formed` proves reachability from InitialSource; `checked` checks the registry.
+The regular nominal model `μ ≈ list μ` satisfies the packet and installed journal.
+The actual generated materialization schema has the source-2 list test and the
+associated variable uses; `packet_self_argument` derives source 2's actual
+nominal self-edge from those constraints and the ordinary endpoint equation.
+
+Yet the old private context has a different, finite model: slots 0/1 are
+`list int`, and slots 2/3 and fresh identities are `int`. That model violates the
+packet's source-2 nominal test. Hence `old_context_incomplete` proves that raw
+context Models omit real installed information. `old_child_pending` confirms
+that the old child's lower head is still unresolved. This is a reachable finite
+feedback obstruction, **not** an infinite old trace or a proof that every old
+scheduler diverges. The old relation can also choose a sufficiently informative
+refresh. Its installation guard does not require `ContextComplete`.
+
+`FeedbackRefresh.self_equation` proves `source 2 ≈ list(source 2)` in every packet
+model. Its actual `refresh_certificate` retains the old nonpoint descriptors and
+adds the entailed descriptor at slot 2 with argument `(2,2)`. The certificate
+proves Refines, unchanged source support/interpretation, and exact preservation
+of all journal models. It yields a real new refresh Step and a raw DirectCycle.
+
+`FeedbackRegressions.two_steps_reject_child` combines the new initial installation
+and refresh: Checked, SourceFormed, the two-step path, a journal model, and the
+child's new Local rejection are proved together. The child is rejected for its
+own reached root cycle; no failed child is folded into a parent rejection.
+
+The general `FeedbackSteps.self_argument_blocks_trace` is stronger than merely
+exhibiting that refresh: once a journal entails a self-argument at source x,
+**no packet with unnamed lower endpoint x can be installed after any finite
+new-Step trace**. Entailment persists by model inclusion. A purported enabled
+installation supplies its own model witness and readiness, which force RootK2
+and contradict its new Local selection. `FeedbackObstruction.chain_blocked`
+specializes this to the emitted R child. Thus another child installation cannot
+escape by choosing a weak refresh. The theorem does not assert a scheduling
+fairness property or that every trace takes the displayed refresh.
+
+### Progress proved, and exact remaining obligations
+
+Every new update adds a persistent fact: a site, packet condition, child edge,
+alias, known head, or raw source equality. `FeedbackProgress` proves both journal
+model inclusion and raw-context model inclusion, so equality facts persist.
+It supplies `accessible_of_finite_basis` for the new relation, retaining the
+finite-basis premise explicitly.
+
+`FeedbackAdministrative.accessible` is stronger in its domain: accessibility of
+**all merge/refresh/equality-only sequences** is derived for every starting
+journal without a supplied basis. The computed support is the starting source
+IDs plus registered output targets. The computed facts are Known entries,
+alias pairs of registered sites, and equality pairs of those supported IDs.
+No administrative step changes the site list. Model inclusion preserves facts,
+and each update makes a previously false fact true. Duplicated ordinary atoms
+therefore cannot reset this measure. Candidate installations remain in the full
+Step and may introduce fresh identities beyond this support.
+
+`FeedbackDescent` proves recorded child provenance and registration of every
+Generated demand on SourceFormed traces. Consequently enqueue cannot be the
+next update there. It reduces full progress to this exact sufficient contract:
+
+```lean
+structure InstallationDescent (registry : Registry) (root : Occurrence roles) where
+  rank : State roles → Nat
+  administrative : ∀ before after, SourceFormed registry root before →
+    GeneralNominalFeedbackAdministrative.Update registry before after →
+    rank after ≤ rank before
+  installation : ∀ before, SourceFormed registry root before → ∀ packet : Packet roles,
+    Installable registry before packet → ¬ Committed before packet →
+    rank (GeneralNominalFeedbackSites.install before packet
+      (GeneralNominalFeedbackSites.emitted packet)) < rank before
+```
+
+`accessible_of_installation_descent` proves full Step accessibility from this
+contract and SourceFormed, using nested induction on rank and the independently
+proved administrative accessibility. **No construction of InstallationDescent
+from Checked and source data is supplied.** It must account for the entire
+pending work of conjunction children, invariant nonpoint captures, source
+allocation, and restrictions caused by later information. The old endpoint-exact
+readback interpretation remains invalid; its Item 4c obstruction was not removed
+by fixing feedback. A derived well-founded installation measure can replace this
+sufficient natural-number contract if necessary.
+
+For unconditional where accessibility, the sufficient missing correspondence
+is a source-derived rank on occurrences with strict decrease on
+`CommonRoleOutermostResolver.Child (GeneralNominalFeedbackK2.Local registry state)`
+for Checked, SourceFormed states (or an equivalent derived accessibility proof).
+The implemented `whereAccessible_of_readback` still takes the old Readback as a
+premise and transports selected nodes to the old relation. Neither a rank nor
+Readback is inserted into SourceFormed. SourceFormed continues to mean initial
+finite certified source data followed by actual new Steps, with Checked separate.
+
+These are formation-qualified goals. The current boundary's State type is still
+the unrestricted shared journal carrier; promoting a formation-qualified progress
+result to V3's all-state field would additionally require an appropriate
+initial-state restriction or an all-state proof. No such promotion is claimed.
+
+### Twelve V3 bridge fields for the new boundary
+
+This count is specifically for
+`GeneralNominalFeedbackBoundary.boundary roles evidence`, for arbitrary Evidence,
+and `GeneralNominalFeedbackBoundary.frontiers roles evidence`. The frontiers
+remain a noncomputable classical choice of the independent Local judgment.
+
+| V3 field | Status |
+|---|---|
+| progress | **OPEN**. `progress_of_installation_descent` has the explicit unconstructed descent premise and SourceFormed. |
+| execution | **OPEN**. No executor. |
+| halted | **OPEN**. No executor final-state bridge. |
+| closure | **PROVED**, exact field: `FeedbackBoundary.closure`. |
+| stepModels | **PROVED**, exact field: `FeedbackBoundary.stepModels`. |
+| frontierLocal | **PROVED**, exact field: `FeedbackBoundary.frontierLocal`. |
+| localIdentity | **PROVED**, exact field: `FeedbackBoundary.localIdentity`. |
+| whereAccessible | **OPEN**. Extra Readback premise remains. |
+| treeExecution | **OPEN**. No execution/tree correspondence. |
+| canonicalLocalOrder | **OPEN**. No final-state order-independence proof. |
+| dictionaryRefl | **PROVED**, exact field: `FeedbackBoundary.dictionaryRefl`. |
+| evidenceNode | **OPEN in this package**. Evidence is supplied; the other prover owns its V4 integration. |
+
+Thus **5/12 exact field statements, 7/12 open**. Conditional progress and
+conditional where accessibility are not counted as closed fields. The formal
+assembly is not a completed whole-language B4 boundary.
+
+### Thirteen-field source ledger
+
+All fields are independent of an executor; no narrow carrier replaces a general
+field. “Defined” retains the source-coverage qualifications above.
+
+| SourceBoundary field | Definition / status in the new boundary |
+|---|---|
+| Checked | Existing general Checked plus role agreement, inherited by `FeedbackK2.fields`. |
+| Models | `GeneralNominalSaturationState.Models`, unchanged full journal relation. |
+| Step | `GeneralNominalFeedbackSteps.Step`; additive model-equivalent installation effects, new provenance and feedback guards. General termination **MISSING**. |
+| Stable | `GeneralNominalFeedbackSteps.Stable`; closure for all Generated demands. Eligible packets committed; supported equality feedback complete at stability. General normalized-source saturation correspondence **MISSING**. |
+| Generated | `GeneralNominalSaturationState.Generated`, unchanged. Registration proved on new SourceFormed traces. |
+| RootPending | Existing `GeneralNominalState.RootPending` on raw normalized context; general entailed-head producer **MISSING**. |
+| RootK2 | `GeneralNominalFeedbackK2.RootK2`; old certificates plus journal-derived cycles. Complete structural observation production **MISSING**. |
+| CandidateK2 | `GeneralNominalFeedbackK2.CandidateK2`; journal cycles at actual inspected positions. Same production qualification. |
+| InspectionPending | Existing cycle-aware InspectionPending, inherited. Complete joint classification/observation coverage **MISSING**. |
+| Survivor | Existing `GeneralNominalRecursiveCandidates.Survivor`, unchanged; exact boundary correspondence proved. |
+| Evidence | Explicit `GeneralNominalFeedbackBoundary.Evidence roles` parameter; concrete integration **MISSING here**. |
+| Reorders | Existing `GeneralRegistryReordering.Reorders`. |
+| DictionaryEquivalent | Existing `GeneralDictionaryPayloadOrder.Equivalent`; exact boundary reflexivity proved. |
+
+### Full new public theorem statements
+
+The following are Lean's elaborated signatures. Extra hypotheses are retained;
+conditional progress is not represented as an unconditional source theorem.
+
+```lean
+@Yulang.GeneralNominalFeedbackAdministrative.as_update : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackAdministrative.Update registry before after →
+    ∃ focus, Yulang.GeneralNominalFeedbackSteps.At registry before focus after
+@Yulang.GeneralNominalFeedbackAdministrative.sites_unchanged : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackAdministrative.Update registry before after → after.sites = before.sites
+@Yulang.GeneralNominalFeedbackAdministrative.sources_bounded : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackAdministrative.Update registry before after →
+    Yulang.GeneralNominalState.sources after.context.state ⊆ Yulang.GeneralNominalAdministrativeProgress.support before
+@Yulang.GeneralNominalFeedbackAdministrative.supported_update : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry}
+  (start before after : Yulang.GeneralNominalSaturationState.State roles),
+  before.sites = start.sites →
+    Yulang.GeneralNominalState.sources before.context.state ⊆
+        Yulang.GeneralNominalAdministrativeProgress.support start →
+      Yulang.GeneralNominalFeedbackAdministrative.Update registry before after →
+        after.sites = start.sites ∧
+          Yulang.GeneralNominalState.sources after.context.state ⊆
+              Yulang.GeneralNominalAdministrativeProgress.support start ∧
+            ∃ fact,
+              fact ∈ Yulang.GeneralNominalFeedbackAdministrative.facts start ∧
+                ¬Yulang.GeneralNominalFeedbackProgress.Holds before fact ∧
+                  Yulang.GeneralNominalFeedbackProgress.Holds after fact
+@Yulang.GeneralNominalFeedbackAdministrative.accessible : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (start : Yulang.GeneralNominalSaturationState.State roles),
+  Acc (fun next current => Yulang.GeneralNominalFeedbackAdministrative.Update registry current next) start
+Yulang.GeneralNominalFeedbackBoundary.local_correspondence : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles) (registry : Yulang.GeneralDeclarations.Registry)
+  (state : Yulang.GeneralNominalSaturationState.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (frontier : Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.B4TargetV3.Local (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence) registry state root frontier ↔
+    Yulang.GeneralNominalFeedbackK2.Local registry state root frontier
+Yulang.GeneralNominalFeedbackBoundary.localIdentity : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles)
+  (registry : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry)
+  (state : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State),
+  (Yulang.GeneralNominalFeedbackBoundary.frontiers roles evidence registry state).Local =
+    Yulang.B4TargetV3.Local (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence) registry state
+Yulang.GeneralNominalFeedbackBoundary.frontierLocal : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles)
+  (registry : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Checked registry →
+    ∀ (state : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+      (root : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand)
+      (frontier :
+        Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+      (Yulang.GeneralNominalFeedbackBoundary.frontiers roles evidence registry state).frontier root = frontier ↔
+        Yulang.B4TargetV3.Local (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence) registry state root
+          frontier
+Yulang.GeneralNominalFeedbackBoundary.stepModels : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles)
+  (registry : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Checked registry →
+    ∀ (root : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand)
+      (before after : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State),
+      (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Step registry root before after →
+        ∀ (model : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Model),
+          (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Models after model →
+            (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Models before model
+Yulang.GeneralNominalFeedbackBoundary.closure : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles)
+  (registry : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Checked registry →
+    ∀ (state : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+      (root : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+      (∀ (after : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State),
+          ¬(Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Step registry root state after) →
+        (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Stable registry state root ∧
+          ∀ (child : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+            (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Generated registry state root child →
+              (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Stable registry state child
+Yulang.GeneralNominalFeedbackBoundary.dictionaryRefl : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary),
+  (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).DictionaryEquivalent dictionary dictionary
+Yulang.GeneralNominalFeedbackBoundary.whereAccessible_of_readback : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles) (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (readback : Yulang.GeneralNominalCycleReadback.Readback roles registry state.context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Acc
+        (Yulang.CommonRoleOutermostResolver.Child
+          (Yulang.B4TargetV3.Local (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence) registry state))
+        root
+Yulang.GeneralNominalFeedbackBoundary.step_preserves_formation : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root before →
+    (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Step registry root before after →
+      Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root after
+Yulang.GeneralNominalFeedbackBoundary.models_trace : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.B4Target.Steps ((Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Step registry root) before
+      after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Models after model →
+        (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Models before model
+Yulang.GeneralNominalFeedbackBoundary.progress_of_installation_descent : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (descent : Yulang.GeneralNominalFeedbackDescent.InstallationDescent registry root)
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state →
+    Acc
+      (fun next current =>
+        (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Step registry root current next)
+      state
+Yulang.GeneralNominalFeedbackBoundary.survivor_unchanged : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles) (registry : Yulang.GeneralDeclarations.Registry)
+  (state : Yulang.GeneralNominalSaturationState.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (key : Nat) (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence).Survivor registry state root key children ↔
+    Yulang.GeneralNominalRecursiveCandidates.Survivor registry state.context root key children
+@Yulang.GeneralNominalFeedbackDescent.edges_update : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalSaturationInvariants.EdgesRecorded before →
+    Yulang.GeneralNominalFeedbackSteps.At registry before focus after →
+      Yulang.GeneralNominalSaturationInvariants.EdgesRecorded after
+@Yulang.GeneralNominalFeedbackDescent.formed_journal : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state →
+    Yulang.GeneralNominalSaturationInvariants.EdgesRecorded state ∧ ∃ site, site ∈ state.sites ∧ site.occurrence = root
+@Yulang.GeneralNominalFeedbackDescent.generated_registered : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root child : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state →
+    Yulang.GeneralNominalSaturationState.Generated state root child →
+      ∃ site, site ∈ state.sites ∧ site.occurrence = child
+@Yulang.GeneralNominalFeedbackDescent.formed_step_cases : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root before →
+    Yulang.GeneralNominalFeedbackSteps.Step registry root before after →
+      Yulang.GeneralNominalFeedbackAdministrative.Update registry before after ∨
+        ∃ packet,
+          Yulang.GeneralNominalFeedbackSteps.Installable registry before packet ∧
+            ¬Yulang.GeneralNominalFeedbackSteps.Committed before packet ∧
+              after =
+                Yulang.GeneralNominalFeedbackSites.install before packet
+                  (Yulang.GeneralNominalFeedbackSites.emitted packet)
+@Yulang.GeneralNominalFeedbackDescent.accessible_of_installation_descent : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (descent : Yulang.GeneralNominalFeedbackDescent.InstallationDescent registry root)
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state →
+    Acc (fun next current => Yulang.GeneralNominalFeedbackSteps.Step registry root current next) state
+@Yulang.GeneralNominalFeedbackK2.root_ready : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackK2.RootK2 state root →
+    ¬Yulang.GeneralNominalState.RootPending state.context.state root.demand
+@Yulang.GeneralNominalFeedbackK2.candidate_ready : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackK2.CandidateK2 registry state root →
+    ¬Yulang.GeneralNominalState.RootPending state.context.state root.demand
+@Yulang.GeneralNominalFeedbackK2.root_rejected : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalFeedbackK2.RootK2 state root →
+    Yulang.GeneralNominalFeedbackK2.Local registry state root Yulang.CommonRoleOutermostResolver.Frontier.rejected
+@Yulang.GeneralNominalFeedbackK2.candidate_rejected : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalFeedbackK2.CandidateK2 registry state root →
+    Yulang.GeneralNominalFeedbackK2.Local registry state root Yulang.CommonRoleOutermostResolver.Frontier.rejected
+@Yulang.GeneralNominalFeedbackK2.selected_legacy : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : (Yulang.GeneralNominalCycleBoundary.vocabulary roles).Demand} {key : Nat}
+  {children : List (Yulang.GeneralNominalCycleBoundary.vocabulary roles).Demand},
+  Yulang.GeneralNominalFeedbackK2.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children) →
+    Yulang.GeneralNominalCycleK2.Local registry state.context root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children)
+@Yulang.GeneralNominalFeedbackK2.local_total : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      ∃ frontier, Yulang.GeneralNominalFeedbackK2.Local registry state root frontier
+@Yulang.GeneralNominalFeedbackK2.local_functional : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : (Yulang.GeneralNominalCycleBoundary.vocabulary roles).Demand}
+  {first last :
+    Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralNominalCycleBoundary.vocabulary roles).Demand},
+  Yulang.GeneralNominalFeedbackK2.Local registry state root first →
+    Yulang.GeneralNominalFeedbackK2.Local registry state root last → first = last
+@Yulang.GeneralNominalFeedbackK2.equal_refl : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (source : Nat),
+  Yulang.GeneralNominalFeedbackK2.Equal state source source
+@Yulang.GeneralNominalFeedbackK2.equal_trans : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {first middle last : Nat},
+  Yulang.GeneralNominalFeedbackK2.Equal state first middle →
+    Yulang.GeneralNominalFeedbackK2.Equal state middle last → Yulang.GeneralNominalFeedbackK2.Equal state first last
+@Yulang.GeneralNominalFeedbackK2.actual_argument : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (parent child : Fin state.context.state.base.slots),
+  Yulang.GeneralNominalMixedRecurrence.ActualArgument state.context.state parent child →
+    Yulang.GeneralNominalFeedbackK2.Argument state (state.context.state.base.source parent)
+      (state.context.state.base.source child)
+@Yulang.GeneralNominalFeedbackK2.argument_equal_target : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {first middle last : Nat},
+  Yulang.GeneralNominalFeedbackK2.Argument state first middle →
+    Yulang.GeneralNominalFeedbackK2.Equal state middle last → Yulang.GeneralNominalFeedbackK2.Argument state first last
+@Yulang.GeneralNominalFeedbackK2.endpoint_argument : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (parent lower upper : Fin state.context.state.base.slots)
+  (descriptor : Yulang.GeneralNominalState.Descriptor state.context.state.base.slots),
+  state.context.state.nominals parent = some descriptor →
+    ∀ (index : Nat),
+      descriptor.arguments[index]? = some (Yulang.GeneralNominalState.Parameter.type (lower, upper)) →
+        Yulang.GeneralNominalFeedbackK2.Equal state (state.context.state.base.source lower)
+            (state.context.state.base.source upper) →
+          Yulang.GeneralNominalFeedbackK2.Argument state (state.context.state.base.source parent)
+            (state.context.state.base.source lower)
+@Yulang.GeneralNominalFeedbackK2.self_argument_cycle : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (source : Nat),
+  source ∈ Yulang.GeneralNominalState.sources state.context.state →
+    Yulang.GeneralNominalFeedbackK2.Argument state source source →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models state model → Yulang.GeneralNominalFeedbackK2.RecursAt state source
+@Yulang.GeneralNominalFeedbackK2.root_self_argument : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalState.Linked state.context.state root.demand →
+    ¬Yulang.GeneralNominalState.RootPending state.context.state root.demand →
+      ∀ (index : Fin (roles root.demand.role).arity),
+        Yulang.GeneralNominalFeedbackK2.Argument state (root.demand.arguments index).fst
+            (root.demand.arguments index).fst →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state model → Yulang.GeneralNominalFeedbackK2.RootK2 state root
+@Yulang.GeneralNominalFeedbackK2.argument_sound : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {first last : Nat},
+  Yulang.GeneralNominalFeedbackK2.Argument state first last →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models state model →
+        ∃ name index actual,
+          Yulang.GeneralNominalProjections.Observes model
+              ((Yulang.GeneralNominalProjections.Ref.source first).argument name index) (Sum.inl actual) ∧
+            Yulang.CommonNominalFullCarrier.Equivalent actual (model last).fst
+@Yulang.GeneralNominalFeedbackK2.argument_model_restriction : ∀ {roles : Yulang.Roles.RoleDecls} {first last : Nat}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after model →
+        Yulang.GeneralNominalSaturationState.Models before model) →
+    Yulang.GeneralNominalFeedbackK2.Argument before first last →
+      Yulang.GeneralNominalFeedbackK2.Argument after first last
+Yulang.GeneralNominalFeedbackObstruction.declaration_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalFeedbackObstruction.declaration
+Yulang.GeneralNominalFeedbackObstruction.checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralNominalFeedbackObstruction.registry
+Yulang.GeneralNominalFeedbackObstruction.report_exact : Yulang.GeneralNominalRecursiveCandidates.report
+    Yulang.GeneralNominalFeedbackObstruction.context Yulang.GeneralNominalFeedbackObstruction.declaration [(0, 0)] =
+  Yulang.GeneralNominalUnaryCaptureFacts.captured Yulang.GeneralNominalFeedbackObstruction.source 0 0 0 (2, 3)
+Yulang.GeneralNominalFeedbackObstruction.children_exact : Yulang.GeneralNominalFeedbackObstruction.packet.children =
+  [Yulang.GeneralNominalFeedbackObstruction.child]
+Yulang.GeneralNominalFeedbackObstruction.schema_exact : Yulang.GeneralNominalRecursiveCandidates.generated
+    Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.context
+    Yulang.GeneralNominalFeedbackObstruction.root Yulang.GeneralNominalFeedbackObstruction.declaration
+    Yulang.GeneralNominalFeedbackObstruction.declaration_checked [(0, 0)] =
+  {
+    variables :=
+      [{ name := 0, origin := (Yulang.GeneralNominalRecursiveInspection.Origin.source 2).nominal 0 0,
+          mode := Yulang.GeneralNominalMaterialization.Mode.actual },
+        { name := 0,
+          origin :=
+            Yulang.GeneralNominalRecursiveInspection.Origin.source Yulang.GeneralNominalFeedbackObstruction.output,
+          mode := Yulang.GeneralNominalMaterialization.Mode.actual }],
+    tests :=
+      [(Yulang.GeneralNominalRecursiveInspection.Origin.source 2,
+          Yulang.GeneralNominalRecursiveInspection.Test.nominal 0 1)] }
+Yulang.GeneralNominalFeedbackObstruction.source_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralNominalFeedbackObstruction.source Yulang.GeneralNominalFeedbackObstruction.model
+Yulang.GeneralNominalFeedbackObstruction.packet_models : Yulang.GeneralNominalFeedbackObstruction.packet.Holds
+  Yulang.GeneralNominalFeedbackObstruction.model
+Yulang.GeneralNominalFeedbackObstruction.old_installed_models : Yulang.GeneralNominalSaturationState.Models
+  Yulang.GeneralNominalFeedbackObstruction.oldInstalled Yulang.GeneralNominalFeedbackObstruction.model
+Yulang.GeneralNominalFeedbackObstruction.installed_models : Yulang.GeneralNominalSaturationState.Models
+  Yulang.GeneralNominalFeedbackObstruction.installed Yulang.GeneralNominalFeedbackObstruction.model
+Yulang.GeneralNominalFeedbackObstruction.journal_endpoints : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalFeedbackObstruction.packet.Holds m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 2).fst (m 3).fst
+Yulang.GeneralNominalFeedbackObstruction.packet_self_argument : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalFeedbackObstruction.packet.Holds m →
+    ∃ actual,
+      Yulang.GeneralNominalProjections.Observes m ((Yulang.GeneralNominalProjections.Ref.source 2).argument 0 0)
+          (Sum.inl actual) ∧
+        Yulang.CommonNominalFullCarrier.Equivalent actual (m 2).fst
+Yulang.GeneralNominalFeedbackObstruction.old_journal_self_argument : Yulang.GeneralNominalFeedbackK2.Argument
+  Yulang.GeneralNominalFeedbackObstruction.oldInstalled 2 2
+Yulang.GeneralNominalFeedbackObstruction.journal_self_argument : Yulang.GeneralNominalFeedbackK2.Argument
+  Yulang.GeneralNominalFeedbackObstruction.installed 2 2
+Yulang.GeneralNominalFeedbackObstruction.chain_blocked : ∀
+  (after : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  Yulang.B4Target.Steps
+      (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalFeedbackObstruction.registry
+        Yulang.GeneralNominalFeedbackObstruction.root)
+      Yulang.GeneralNominalFeedbackObstruction.installed after →
+    ∀ (next : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles),
+      next.site.occurrence = Yulang.GeneralNominalFeedbackObstruction.child →
+        ¬Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalFeedbackObstruction.registry after next
+Yulang.GeneralNominalFeedbackObstruction.finite_source_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralNominalFeedbackObstruction.source Yulang.GeneralNominalFeedbackObstruction.finiteModel
+Yulang.GeneralNominalFeedbackObstruction.finite_private_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralNominalFeedbackObstruction.packet.privateContext.state
+  Yulang.GeneralNominalFeedbackObstruction.finiteModel
+Yulang.GeneralNominalFeedbackObstruction.finite_not_packet : ¬Yulang.GeneralNominalFeedbackObstruction.packet.Holds
+    Yulang.GeneralNominalFeedbackObstruction.finiteModel
+Yulang.GeneralNominalFeedbackObstruction.old_context_incomplete : ¬Yulang.GeneralNominalSaturationState.ContextComplete
+    Yulang.GeneralNominalFeedbackObstruction.oldInstalled
+Yulang.GeneralNominalFeedbackObstruction.source_acyclic : ∀
+  (slot : Fin Yulang.GeneralNominalFeedbackObstruction.source.base.slots),
+  ¬Yulang.GeneralNominalCycleK2.Cycle Yulang.GeneralNominalFeedbackObstruction.source slot
+Yulang.GeneralNominalFeedbackObstruction.prepared : Yulang.GeneralNominalRecursiveCandidates.Prepared
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.context
+  Yulang.GeneralNominalFeedbackObstruction.root Yulang.GeneralNominalFeedbackObstruction.declaration
+  Yulang.GeneralNominalFeedbackObstruction.declaration_checked
+Yulang.GeneralNominalFeedbackObstruction.survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.context
+  Yulang.GeneralNominalFeedbackObstruction.root 2 [Yulang.GeneralNominalFeedbackObstruction.child]
+Yulang.GeneralNominalFeedbackObstruction.old_selected : Yulang.GeneralNominalCycleK2.Local
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.context
+  Yulang.GeneralNominalFeedbackObstruction.root
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected 2 [Yulang.GeneralNominalFeedbackObstruction.child])
+Yulang.GeneralNominalFeedbackObstruction.old_enabled : Yulang.GeneralNominalCycleSteps.Installable
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.initialState
+  Yulang.GeneralNominalFeedbackObstruction.packet
+Yulang.GeneralNominalFeedbackObstruction.old_step : Yulang.GeneralNominalCycleSteps.Step
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.root
+  Yulang.GeneralNominalFeedbackObstruction.initialState Yulang.GeneralNominalFeedbackObstruction.oldInstalled
+Yulang.GeneralNominalFeedbackObstruction.initial_source : Yulang.GeneralNominalSourceFormation.InitialSource
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.context
+  Yulang.GeneralNominalFeedbackObstruction.root
+Yulang.GeneralNominalFeedbackObstruction.old_formed : Yulang.GeneralNominalSourceFormation.SourceFormed
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.root
+  Yulang.GeneralNominalFeedbackObstruction.oldInstalled
+Yulang.GeneralNominalFeedbackObstruction.old_child_pending : Yulang.GeneralNominalState.RootPending
+  Yulang.GeneralNominalFeedbackObstruction.oldInstalled.context.state
+  Yulang.GeneralNominalFeedbackObstruction.child.demand
+@Yulang.GeneralNominalFeedbackProgress.at_extends : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSaturationState.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackSteps.At registry before focus after →
+    Yulang.GeneralNominalFeedbackProgress.Extends before after
+@Yulang.GeneralNominalFeedbackProgress.monotone : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackProgress.Extends before after →
+    ∀ (fact : Yulang.GeneralNominalFeedbackProgress.Fact roles),
+      Yulang.GeneralNominalFeedbackProgress.Holds before fact → Yulang.GeneralNominalFeedbackProgress.Holds after fact
+@Yulang.GeneralNominalFeedbackProgress.fresh_fact : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackSteps.Step registry root before after →
+    ∃ fact,
+      ¬Yulang.GeneralNominalFeedbackProgress.Holds before fact ∧ Yulang.GeneralNominalFeedbackProgress.Holds after fact
+@Yulang.GeneralNominalFeedbackProgress.remaining_decreases : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles}
+  (facts : List (Yulang.GeneralNominalFeedbackProgress.Fact roles)),
+  Yulang.GeneralNominalFeedbackProgress.Extends before after →
+    ∀ (fact : Yulang.GeneralNominalFeedbackProgress.Fact roles),
+      fact ∈ facts →
+        ¬Yulang.GeneralNominalFeedbackProgress.Holds before fact →
+          Yulang.GeneralNominalFeedbackProgress.Holds after fact →
+            Yulang.GeneralNominalFeedbackProgress.remaining facts after <
+              Yulang.GeneralNominalFeedbackProgress.remaining facts before
+@Yulang.GeneralNominalFeedbackProgress.accessible_of_finite_basis : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start : Yulang.GeneralNominalSaturationState.State roles}
+  (basis : Yulang.GeneralNominalFeedbackProgress.FiniteBasis registry root start),
+  Acc (fun next current => Yulang.GeneralNominalFeedbackSteps.Step registry root current next) start
+Yulang.GeneralNominalFeedbackRefresh.self_equation : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalFeedbackObstruction.packet.Holds m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 2).fst (Yulang.CommonNominalFullCarrier.nominal 0 [Sum.inl (m 2).fst])
+Yulang.GeneralNominalFeedbackRefresh.child_known : Yulang.GeneralNominalState.Known
+  Yulang.GeneralNominalFeedbackRefresh.refreshedState 2
+Yulang.GeneralNominalFeedbackRefresh.refresh_step : Yulang.GeneralNominalFeedbackSteps.Step
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.root
+  Yulang.GeneralNominalFeedbackObstruction.installed Yulang.GeneralNominalFeedbackRefresh.refreshed
+Yulang.GeneralNominalFeedbackRefresh.refresh_models : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalFeedbackRefresh.refreshed m ↔
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalFeedbackObstruction.installed m
+Yulang.GeneralNominalFeedbackRefresh.child_linked : Yulang.GeneralNominalState.Linked
+  Yulang.GeneralNominalFeedbackRefresh.refreshedState Yulang.GeneralNominalFeedbackObstruction.child.demand
+Yulang.GeneralNominalFeedbackRefresh.child_raw_K2 : Yulang.GeneralNominalCycleK2.RootK2
+  Yulang.GeneralNominalFeedbackRefresh.refreshedState Yulang.GeneralNominalFeedbackObstruction.child.demand
+Yulang.GeneralNominalFeedbackRefresh.child_rejected : Yulang.GeneralNominalFeedbackK2.Local
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackRefresh.refreshed
+  Yulang.GeneralNominalFeedbackObstruction.child Yulang.CommonRoleOutermostResolver.Frontier.rejected
+Yulang.GeneralNominalFeedbackRefresh.child_never_expanded : ∀
+  (next : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles),
+  next.site.occurrence = Yulang.GeneralNominalFeedbackObstruction.child →
+    ¬Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalFeedbackObstruction.registry
+        Yulang.GeneralNominalFeedbackRefresh.refreshed next
+Yulang.GeneralNominalFeedbackRegressions.initial_acyclic : ∀ (source : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralNominalFeedbackObstruction.initialState source
+Yulang.GeneralNominalFeedbackRegressions.selected : Yulang.GeneralNominalFeedbackK2.Local
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.initialState
+  Yulang.GeneralNominalFeedbackObstruction.root
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected 2 [Yulang.GeneralNominalFeedbackObstruction.child])
+Yulang.GeneralNominalFeedbackRegressions.enabled : Yulang.GeneralNominalFeedbackSteps.Installable
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.initialState
+  Yulang.GeneralNominalFeedbackObstruction.packet
+Yulang.GeneralNominalFeedbackRegressions.install_step : Yulang.GeneralNominalFeedbackSteps.Step
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.root
+  Yulang.GeneralNominalFeedbackObstruction.initialState Yulang.GeneralNominalFeedbackObstruction.installed
+Yulang.GeneralNominalFeedbackRegressions.formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackObstruction.root
+  Yulang.GeneralNominalFeedbackObstruction.installed
+Yulang.GeneralNominalFeedbackRegressions.two_steps_reject_child : Yulang.GeneralDeclarations.Checked
+    Yulang.GeneralNominalFeedbackObstruction.registry ∧
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralNominalFeedbackObstruction.registry
+      Yulang.GeneralNominalFeedbackObstruction.root Yulang.GeneralNominalFeedbackRefresh.refreshed ∧
+    Yulang.B4Target.Steps
+        (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalFeedbackObstruction.registry
+          Yulang.GeneralNominalFeedbackObstruction.root)
+        Yulang.GeneralNominalFeedbackObstruction.initialState Yulang.GeneralNominalFeedbackRefresh.refreshed ∧
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalFeedbackRefresh.refreshed
+          Yulang.GeneralNominalFeedbackObstruction.model ∧
+        Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralNominalFeedbackObstruction.registry
+          Yulang.GeneralNominalFeedbackRefresh.refreshed Yulang.GeneralNominalFeedbackObstruction.child
+          Yulang.CommonRoleOutermostResolver.Frontier.rejected
+Yulang.GeneralNominalFeedbackRegressions.child_origin : Yulang.GeneralNominalFeedbackSites.OriginAt
+  Yulang.GeneralNominalFeedbackObstruction.packet Yulang.GeneralNominalFeedbackObstruction.child 0
+  ((Yulang.GeneralNominalRecursiveInspection.Origin.source 0).nominal 0 0)
+Yulang.GeneralNominalFeedbackRegressions.nonpoint_origin_retained : (Yulang.GeneralNominalFeedbackObstruction.child.demand.arguments
+        ⟨0, Yulang.GeneralNominalFeedbackRegressions.nonpoint_origin_retained._proof_1⟩).fst ≠
+    (Yulang.GeneralNominalFeedbackObstruction.child.demand.arguments
+        ⟨0, Yulang.GeneralNominalFeedbackRegressions.nonpoint_origin_retained._proof_1⟩).snd ∧
+  ∃ origin,
+    (Yulang.GeneralNominalFeedbackSites.childSite Yulang.GeneralNominalFeedbackObstruction.packet
+              Yulang.GeneralNominalFeedbackObstruction.child).inputs[0]? =
+        some (some origin) ∧
+      Yulang.GeneralNominalFeedbackSites.OriginAt Yulang.GeneralNominalFeedbackObstruction.packet
+        Yulang.GeneralNominalFeedbackObstruction.child 0 origin
+@Yulang.GeneralNominalFeedbackRegressions.recovered_point_inputs : ∀ {roles' : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles')
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles'),
+  (∀ (index : Fin (roles' root.demand.role).arity),
+      Yulang.GeneralNominalFeedbackSites.EndpointEqual state (root.demand.arguments index)) →
+    (Yulang.GeneralNominalFeedbackSites.recover state (Yulang.GeneralNominalDemandMerging.pointSite root)).inputs =
+      List.ofFn fun index =>
+        some (Yulang.GeneralNominalRecursiveInspection.Origin.source (root.demand.arguments index).fst)
+@Yulang.GeneralNominalFeedbackRegressions.recovered_point_self : ∀ {roles' : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles')
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles'),
+  (∀ (index : Fin (roles' root.demand.role).arity),
+      Yulang.GeneralNominalFeedbackSites.EndpointEqual state (root.demand.arguments index)) →
+    Yulang.GeneralNominalFeedbackSites.SameInputs state (Yulang.GeneralNominalDemandMerging.pointSite root)
+      (Yulang.GeneralNominalDemandMerging.pointSite root)
+Yulang.GeneralNominalFeedbackRegressions.equal_nonpoint_now_recognized : Yulang.GeneralNominalFeedbackSites.SameInputs
+  (Yulang.GeneralNominalSaturationState.initial Yulang.GeneralNominalCanonicalSiteObstruction.context
+    Yulang.GeneralNominalCanonicalSiteObstruction.root)
+  (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalCanonicalSiteObstruction.root)
+  (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalCanonicalSiteObstruction.root)
+Yulang.GeneralNominalFeedbackRegressions.distinct_nonpoint_inputs_same : Yulang.GeneralNominalFeedbackSites.SameInputs
+  Yulang.GeneralNominalFeedbackRegressions.mergeState
+  (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalFeedbackRegressions.mergeFirst)
+  (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalFeedbackRegressions.mergeLast)
+Yulang.GeneralNominalFeedbackRegressions.distinct_nonpoint_merge_step : Yulang.GeneralNominalFeedbackSteps.Step
+  Yulang.GeneralNominalFeedbackObstruction.registry Yulang.GeneralNominalFeedbackRegressions.mergeFirst
+  Yulang.GeneralNominalFeedbackRegressions.mergeState
+  (Yulang.GeneralNominalSaturationState.merge Yulang.GeneralNominalFeedbackRegressions.mergeState
+    (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalFeedbackRegressions.mergeFirst)
+    (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalFeedbackRegressions.mergeLast))
+Yulang.GeneralNominalFeedbackRegressions.distinct_nonpoint_output_equation : ∀
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models
+      (Yulang.GeneralNominalSaturationState.merge Yulang.GeneralNominalFeedbackRegressions.mergeState
+        (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalFeedbackRegressions.mergeFirst)
+        (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalFeedbackRegressions.mergeLast))
+      m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 2).fst (m 3).fst
+Yulang.GeneralNominalFeedbackRegressions.distinct_nonpoint_merge_has_model : Yulang.GeneralNominalSaturationState.Models
+  (Yulang.GeneralNominalSaturationState.merge Yulang.GeneralNominalFeedbackRegressions.mergeState
+    (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalFeedbackRegressions.mergeFirst)
+    (Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalFeedbackRegressions.mergeLast))
+  Yulang.GeneralNominalFeedbackObstruction.finiteModel
+@Yulang.GeneralNominalFeedbackSites.origin_sound : ∀ {roles : Yulang.Roles.RoleDecls}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) (index : Fin (roles child.demand.role).arity)
+  (origin : Yulang.GeneralNominalRecursiveInspection.Origin),
+  Yulang.GeneralNominalFeedbackSites.OriginAt packet child (↑index) origin →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      packet.Holds model →
+        (∃ actual, Yulang.GeneralNominalRecursiveInspection.Observes model origin actual) ∧
+          ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+            Yulang.GeneralNominalRecursiveInspection.Observes model origin actual →
+              Yulang.GeneralNominalCaptureMerges.Fits model (child.demand.arguments index) actual
+@Yulang.GeneralNominalFeedbackSites.child_retains_origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) (index : Fin (roles child.demand.role).arity),
+  (∃ origin, Yulang.GeneralNominalFeedbackSites.OriginAt packet child (↑index) origin) →
+    ∃ origin,
+      (Yulang.GeneralNominalFeedbackSites.childSite packet child).inputs[↑index]? = some (some origin) ∧
+        Yulang.GeneralNominalFeedbackSites.OriginAt packet child (↑index) origin
+@Yulang.GeneralNominalFeedbackSites.child_sound : ∀ {roles : Yulang.Roles.RoleDecls}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  packet.Holds model →
+    Yulang.GeneralNominalSaturationState.SiteHolds (Yulang.GeneralNominalFeedbackSites.childSite packet child) model
+@Yulang.GeneralNominalFeedbackSites.install_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (emission : Yulang.GeneralNominalFeedbackSites.Emission packet),
+  packet.context = state.context →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalFeedbackSites.install state packet emission)
+          model ↔
+        Yulang.GeneralNominalSaturationState.Models state model ∧ packet.Holds model
+@Yulang.GeneralNominalFeedbackSites.install_equivalent : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (emission : Yulang.GeneralNominalFeedbackSites.Emission packet),
+  packet.context = state.context →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalFeedbackSites.install state packet emission)
+          model ↔
+        Yulang.GeneralNominalSaturationState.Models
+          (Yulang.GeneralNominalSaturationState.install state packet
+            (Yulang.GeneralNominalSaturationState.pointEmitted packet))
+          model
+@Yulang.GeneralNominalFeedbackSites.recover_sound : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (site : Yulang.GeneralNominalDemandMerging.Site roles)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models state model →
+    Yulang.GeneralNominalSaturationState.SiteHolds site model →
+      Yulang.GeneralNominalSaturationState.SiteHolds (Yulang.GeneralNominalFeedbackSites.recover state site) model
+@Yulang.GeneralNominalFeedbackSites.merge_dictionary_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (first last : Yulang.GeneralNominalDemandMerging.Site roles),
+  Yulang.GeneralNominalFeedbackSites.SameInputs state first last →
+    ∀ (meaning : Yulang.GeneralNominalDemandMerging.AssociatedMeaning)
+      (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models state model →
+        Yulang.GeneralNominalDemandMerging.DictionaryOutputs meaning model
+            (Yulang.GeneralNominalFeedbackSites.recover state first) →
+          Yulang.GeneralNominalDemandMerging.DictionaryOutputs meaning model
+              (Yulang.GeneralNominalFeedbackSites.recover state last) →
+            Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalSaturationState.merge state first last)
+              model
+@Yulang.GeneralNominalFeedbackSteps.equate_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (first last : Nat),
+  Yulang.GeneralNominalFeedbackK2.Equal state first last →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalFeedbackSteps.equate state first last) model ↔
+        Yulang.GeneralNominalSaturationState.Models state model
+@Yulang.GeneralNominalFeedbackSteps.equate_feedback : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (first last : Nat),
+  Yulang.GeneralNominalFeedbackSteps.RawEqual (Yulang.GeneralNominalFeedbackSteps.equate state first last) first last
+@Yulang.GeneralNominalFeedbackSteps.at_models : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {before : Yulang.GeneralNominalSaturationState.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackSteps.At registry before focus after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after model → Yulang.GeneralNominalSaturationState.Models before model
+@Yulang.GeneralNominalFeedbackSteps.step_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackSteps.Step registry root before after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after model → Yulang.GeneralNominalSaturationState.Models before model
+@Yulang.GeneralNominalFeedbackSteps.steps_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalFeedbackSteps.Step registry root) before after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after model → Yulang.GeneralNominalSaturationState.Models before model
+@Yulang.GeneralNominalFeedbackSteps.installed_committed : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+  Yulang.GeneralNominalFeedbackSteps.Committed
+    (Yulang.GeneralNominalFeedbackSites.install state packet (Yulang.GeneralNominalFeedbackSites.emitted packet)) packet
+@Yulang.GeneralNominalFeedbackSteps.installed_children : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  child ∈ packet.children →
+    Yulang.GeneralNominalSaturationState.Generated
+      (Yulang.GeneralNominalFeedbackSites.install state packet (Yulang.GeneralNominalFeedbackSites.emitted packet))
+      packet.site.occurrence child
+@Yulang.GeneralNominalFeedbackSteps.rootK2_never_installed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {packet : Yulang.GeneralNominalSaturationState.Packet roles},
+  Yulang.GeneralNominalFeedbackK2.RootK2 state packet.site.occurrence →
+    ¬Yulang.GeneralNominalFeedbackSteps.Installable registry state packet
+@Yulang.GeneralNominalFeedbackSteps.candidateK2_never_installed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {packet : Yulang.GeneralNominalSaturationState.Packet roles},
+  Yulang.GeneralNominalFeedbackK2.CandidateK2 registry state packet.site.occurrence →
+    ¬Yulang.GeneralNominalFeedbackSteps.Installable registry state packet
+@Yulang.GeneralNominalFeedbackSteps.pending_never_installed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {packet : Yulang.GeneralNominalSaturationState.Packet roles},
+  Yulang.GeneralNominalState.RootPending state.context.state packet.site.occurrence.demand →
+    ¬Yulang.GeneralNominalFeedbackSteps.Installable registry state packet
+@Yulang.GeneralNominalFeedbackSteps.halted_stable : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  (∀ (after : Yulang.GeneralNominalSaturationState.State roles),
+      ¬Yulang.GeneralNominalFeedbackSteps.Step registry root state after) →
+    Yulang.GeneralNominalFeedbackSteps.Stable registry state root
+@Yulang.GeneralNominalFeedbackSteps.stable_halted : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackSteps.Stable registry state root →
+    ∀ (after : Yulang.GeneralNominalSaturationState.State roles),
+      ¬Yulang.GeneralNominalFeedbackSteps.Step registry root state after
+@Yulang.GeneralNominalFeedbackSteps.stable_generated : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root child : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackSteps.Stable registry state root →
+    Yulang.GeneralNominalSaturationState.Generated state root child →
+      Yulang.GeneralNominalFeedbackSteps.Stable registry state child
+@Yulang.GeneralNominalFeedbackSteps.closure : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  (∀ (after : Yulang.GeneralNominalSaturationState.State roles),
+      ¬Yulang.GeneralNominalFeedbackSteps.Step registry root state after) →
+    Yulang.GeneralNominalFeedbackSteps.Stable registry state root ∧
+      ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Yulang.GeneralNominalSaturationState.Generated state root child →
+          Yulang.GeneralNominalFeedbackSteps.Stable registry state child
+@Yulang.GeneralNominalFeedbackSteps.stable_committed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackSteps.Stable registry state root →
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      Yulang.GeneralNominalSaturationState.Generated state root packet.site.occurrence →
+        Yulang.GeneralNominalFeedbackSteps.Installable registry state packet →
+          Yulang.GeneralNominalFeedbackSteps.Committed state packet
+@Yulang.GeneralNominalFeedbackSteps.stable_equality_feedback : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackSteps.Stable registry state root →
+    ∀ (first last : Nat),
+      first ∈ Yulang.GeneralNominalState.sources state.context.state →
+        last ∈ Yulang.GeneralNominalState.sources state.context.state →
+          Yulang.GeneralNominalFeedbackK2.Equal state first last →
+            Yulang.GeneralNominalFeedbackSteps.RawEqual state first last
+@Yulang.GeneralNominalFeedbackSteps.stable_merges : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSaturationState.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackSteps.Stable registry state root →
+    ∀ (first last : Yulang.GeneralNominalDemandMerging.Site roles),
+      first ∈ state.sites →
+        last ∈ state.sites →
+          Yulang.GeneralNominalSaturationState.Generated state root first.occurrence →
+            Yulang.GeneralNominalFeedbackSites.SameInputs state first last →
+              Yulang.GeneralNominalSaturationState.Alias state first.occurrence.identity last.occurrence.identity
+@Yulang.GeneralNominalFeedbackSteps.step_preserves : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root before →
+    Yulang.GeneralNominalFeedbackSteps.Step registry root before after →
+      Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root after
+@Yulang.GeneralNominalFeedbackSteps.self_argument_blocks_trace : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} (source : Nat),
+  Yulang.GeneralNominalFeedbackK2.Argument before source source →
+    Yulang.B4Target.Steps (Yulang.GeneralNominalFeedbackSteps.Step registry root) before after →
+      ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+        (index : Fin (roles packet.site.occurrence.demand.role).arity),
+        (packet.site.occurrence.demand.arguments index).fst = source →
+          ¬Yulang.GeneralNominalFeedbackSteps.Installable registry after packet
+```
+
+### Files, checks, and remaining scope
+
+Added modules:
+
+- [GeneralNominalFeedbackAdministrative.lean](../../lean/Yulang/GeneralNominalFeedbackAdministrative.lean)
+- [GeneralNominalFeedbackBoundary.lean](../../lean/Yulang/GeneralNominalFeedbackBoundary.lean)
+- [GeneralNominalFeedbackDescent.lean](../../lean/Yulang/GeneralNominalFeedbackDescent.lean)
+- [GeneralNominalFeedbackK2.lean](../../lean/Yulang/GeneralNominalFeedbackK2.lean)
+- [GeneralNominalFeedbackObstruction.lean](../../lean/Yulang/GeneralNominalFeedbackObstruction.lean)
+- [GeneralNominalFeedbackProgress.lean](../../lean/Yulang/GeneralNominalFeedbackProgress.lean)
+- [GeneralNominalFeedbackRefresh.lean](../../lean/Yulang/GeneralNominalFeedbackRefresh.lean)
+- [GeneralNominalFeedbackRegressions.lean](../../lean/Yulang/GeneralNominalFeedbackRegressions.lean)
+- [GeneralNominalFeedbackSites.lean](../../lean/Yulang/GeneralNominalFeedbackSites.lean)
+- [GeneralNominalFeedbackSteps.lean](../../lean/Yulang/GeneralNominalFeedbackSteps.lean)
+
+Existing changes are append-only: ten imports in `lean/Yulang.lean`, 118 public
+theorem dependency-print entries in `lean/Audit.lean`, and this Item 4d section.
+No existing implementation definition, spec, plan, lake configuration, commit,
+push, or git reference was changed.
+
+Final commands from `lean/`, all with exit code **0**:
+
+```sh
+lake build Yulang.GeneralNominalFeedbackAdministrative Yulang.GeneralNominalFeedbackBoundary Yulang.GeneralNominalFeedbackDescent Yulang.GeneralNominalFeedbackK2 Yulang.GeneralNominalFeedbackObstruction Yulang.GeneralNominalFeedbackProgress Yulang.GeneralNominalFeedbackRefresh Yulang.GeneralNominalFeedbackRegressions Yulang.GeneralNominalFeedbackSites Yulang.GeneralNominalFeedbackSteps > /tmp/astra-feedback-focused.log 2>&1
+lake build Yulang > /tmp/astra-feedback-umbrella.log 2>&1
+lake env lean Audit.lean > /tmp/astra-feedback-audit.log 2>&1
+```
+
+The focused build completed 623 jobs; the umbrella build completed 1530 jobs.
+The audit contained 9853 dependency records. All 118 new public theorems occurred
+exactly once, with no unexpected foundations or error diagnostics; the reported
+foundations were limited to `propext`, `Classical.choice`, and `Quot.sound`.
+The theorem-signature extraction also exited 0. Append-only/path checks, the
+restricted-token scan of added source and this section, and `git diff --check`
+were run. No broad build is represented as evidence of the missing mathematical
+installation bound.
+
+The [yulang-proofs skill](/home/momota1029/.codex/skills/yulang-proofs/SKILL.md)
+was used. There is no registered prover role/configuration in this checkout or
+callable role in the collaboration schema. The primary constructed bounded
+proofs directly, with a separate read-only reviewer; no prover agent ran.
+Independent review found no theorem-level defect in the new source contracts,
+finite obstruction, refresh, administrative bound, conditional descent, or
+five-field count. The reviewer did not run an independent build.
+
+Not proved: an infinite old Step trace; inevitable refresh scheduling; a total
+producer of journal-normalized structural and nominal snapshots; complete
+compound/nonpoint provenance; complete joint local classification; a source
+construction of InstallationDescent or another global installation bound;
+unconditional where accessibility; an inference implementation's InitialSource
+producer; an executor; final-state order independence; or the B4 statement.
+The new boundary remains a mathematical assembly for certified partial source
+relations, with Evidence explicit, not a certification of whole-language coverage.
+
+The work is converging on the general instance in a concrete way: actual
+associated-output constraints now have a proved path to observed K2, and real
+nonpoint child origins survive emission. The old raw/journal discrepancy is
+proved on a reachable state and its proposed continuation is blocked by the new
+rule. Further fragment proofs would not discharge the remaining obligation:
+the next proof needs an interval-sensitive global installation measure and
+complete source feedback/provenance, rather than more point-pattern examples.
