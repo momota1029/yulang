@@ -353,3 +353,15 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle129 dictionary order and typed transport](2026-11-12-cycle129-dictionary-transport.md) — Draft, item5; preserves fixed-context boundaries.
 
 - [Cycle130 recursive source evidence](2026-11-12-cycle130-recursive-evidence.md) — Draft, I-21; per-model equations, exact readback and the original-state universal-model boundary.
+
+- [Cycle131 stable-state skeleton](2026-11-12-b4-stable-evidence-skeleton.md) — Draft, I-23; target-preserving V4 with explicit generation bridge.
+- [Cycle131 dictionary policy](2026-11-12-cycle131-dictionary-policy.md) — Draft; K2 guards for completed source trees.
+
+- [Committed evidence and journal obligations](2026-11-12-cycle131-committed-evidence.md)
+- [Stale journal choice obstruction](2026-11-12-b4-journal-choice-obstruction.md)
+
+- [Feedback journal source Evidence](2026-11-12-cycle133-feedback-source-evidence.md): source-formed recorded packets, explicit current-selection residual.
+
+- [Cycle136 ordinary source-evidence transport](2026-11-12-cycle136-ordinary-evidence-transport.md) (Draft).
+
+- [Cycles131–136 dictionary module guide](2026-11-12-cycle131-136-module-guide.md)

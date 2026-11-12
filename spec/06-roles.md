@@ -352,6 +352,9 @@ enum app_err:
   `'a` のように再帰型を変数で捕まえるだけの照合（`Len (list μ)`）は通る。理由: 根の規則だけでは、再帰型を `pair` などの中に残したまま、互いに同値でない goal を無限に作る registry が作れ、解決の停止が停止問題と同じ難しさになる（Lean: `CommonRoleReachedRootObstruction.reached_root_registry_undecidable`）。
   **拒否と曖昧性の優先順位（確定, 2026-11-08, ユーザーの決定）: 拒否が先。** goal に当たる impl の候補のうち、どれか一つでも「名前の無い構造的な再帰型の constructor を調べる」必要があるなら、他の安全な候補がいくつあっても、「再帰型のため解決できない」と拒否する。安全な候補が 2 つ以上あっても、1 つだけでも、曖昧性や選択より先に拒否する。impl の宣言の順に依存せず、調べる候補を避けて選ぶこともしない。
   例: `impl Check ({box: 'a})`（変数で受ける）と `impl Check ({box: {next: 'b}})`（中身を見る）が同時に見えるとき、`check {box: loop 0}`（`loop 0` の型は再帰型 μ = {next: μ}）は、前者が当たるだけでは通らず、後者のために拒否される。
+  **決定（2026-11-12, ユーザー）: 循環の上にある根も K2。** 再帰型の判定は、型のグラフで「根（または head の非変数 pattern が調べる位置）が**循環の上にある**か」で行う。循環は名前つきの型（`list` など）の**引数**を通ってもよい。名前つきの型の中身（body）は開かない（名前で終わる再帰型は今までどおり対象外）。
+  例: `my nest(n) = [nest n]` の結果の型は μ ≈ list μ で、根そのものが循環の上にある。`display (nest 0)` も `len (nest 0)` も「再帰型のため解決できない」と拒否する（`impl Len (list 'a)` に where がなくても）。一方 `len [loop 1]` の型 `list ν` は、根の `list` から ν の循環に入るだけで、根は循環の上にないので通る（上の決定のまま）。
+  理由: 根の頭が名前つきの型だと、「無名の構造的な型」だけを見る規則では `Display μ` → `Display μ` と同じ需要に戻り続け、解決が止まらない（Lean: `GeneralNominalProgressObstruction`）。
   K2 は、これで **確定**。B4 の修正 statement は「goal の型・行から構造的な再帰型を除いた有限木」を前提に書き直す（`notes/questions/2026-11-07-b4-regular-resolution-decidability.md`）。
 
 （I1〜I6 は反映済み。J4 で cast の有効範囲を確定。）

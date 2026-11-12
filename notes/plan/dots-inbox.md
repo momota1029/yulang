@@ -240,3 +240,20 @@ Astra の項目 3d で、`SourceBoundary` の 13 項目のうち 9 つが一般�
 - **Astra 担当: 項目 4（`Step`、`Stable`、`Generated`）**。I-20（同じ入力の需要をまとめる）もこの中で入れる。dot は手を出さない。
 - **dot 担当: 項目 5 の仕上げ = `Evidence`**。サイクル 122〜128 の辞書の部品（レシピ、読み戻し、記録、frame）を、Astra の新しい `GeneralNominalRecursiveCandidates.Survivor`（分岐の条件、projection、繰り返しの捕捉の frame）に対する一般の `Evidence` として定義し、V3 骨格の `evidenceNode` フィールドを、この具体的な境界について**証明する**ことを目標にする。これが `B4Bridges` の最初の 1 本になる。Astra のモジュールの定義は変えず、使うだけにする。
 報告の「未証明フィールド k/m」は、引き続き V3 の構造体で数え、閉じたフィールドがあれば、どの具体的な境界についてかを書くこと。
+
+## I-22: K2 を「循環の上にある根」に広げる（ユーザー決定 2026-11-12）
+
+spec 6 の K2 の決定に追記した: 根（または head の非変数 pattern が調べる位置）が、型のグラフの循環の上にあれば K2。循環は名前つきの型の引数を通ってよい（body は開かない）。`len (nest 0)`（μ ≈ list μ）は拒否、`len [loop 1]` は通る。Astra が項目 4 の続きとして実装する（`RootK2`・`CandidateK2` の修正と、停止の証明）。dot の `Evidence` 側は、K2 で拒否された需要に辞書を作らないことだけ確かめればよい。
+
+## I-23: `evidenceNode` を安定した状態に限る（監督役, 2026-11-12）
+
+サイクル 130 の阻害（全 state 橋の形式的阻害）は、骨格の分け方の問題だと判断する: V3 の `EvidenceNode` は**任意の** state について「選ばれた head と子の証拠 ⇒ 親の証拠」を全モデルで要求するが、選択の条件（分岐の制約、出力の等式）はまだ state に書き込まれていないので、元のモデルの中に反する モデルがある。主定理の (4)（`DictionarySound`）が要求するのは、実行版の**最終状態**（`(e.run r s d).1`）についてだけで、その状態は `closure` で root と生成された全需要について `Stable` になる。
+直し方（新しいモジュール、V3 は消さない）: `B4SkeletonV4` で、`evidenceNode` の前提に `b.Stable r s d`（と、子についての `Stable`、または「選択が state に記録済み」を表す述語）を足し、`b4_of_bridges` が通ることを示す（`DictionarySound` の証明で、最終状態の root と子が `closure` により `Stable` であることを使う）。そのうえで、Astra の `Step` / `Stable`（`GeneralNominalSaturationSteps`。安定なら選ばれた packet が `Committed` で、その制約が全モデルで成り立つ）と、サイクル 130 の「記録による修復条件」をつないで、具体的な境界について `evidenceNode`（V4 版）を証明することを目標にする。Astra のモジュールの定義は変えない。
+
+## I-24: `Audit.lean` を凍結し、監査の追記は小さな別ファイルへ（監督役, 2026-11-12）
+
+サイクル 131〜136 の公開が止まり続けている原因は、`lean/Audit.lean` が約 690 KB（10,800 行）まで育ち、追記のたびにファイル全体の blob を公開しようとして失敗している（サイクル 135 の「Audit blob の作成が未確認（404）」）ことだと判断する。
+- **今後 `lean/Audit.lean` には何も追記しない**（凍結）。
+- 新しい `#print axioms` の行は、**新しい小さなファイル** `lean/Audit/<名前>.lean` に書く（例: `lean/Audit/Cycle136.lean`。1 ファイルは数十 KB 以下を目安に。必要な `import` を先頭に書く）。既存の `lean/Audit/*.lean` も追記のみ。
+- `tools/verify-lean.sh` はこの形に対応済み（`Audit.lean` と `lean/Audit/*.lean` を全部実行し、公理を検査する。新しいファイルとして `lean/Audit/*.lean` を許可）。
+- サイクル 131〜135 で手元に溜まっている監査の行も、`Audit.lean` に足さず、`lean/Audit/` の新しいファイルに移してから公開すること。`Yulang.lean` も大きいので（約 1,800 行）、公開が通らなければ同じ理由を疑い、報告に書くこと（監督役が分割を検討する）。
