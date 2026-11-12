@@ -3533,3 +3533,10 @@ agent ran. A separate read-only reviewer examined all seven modules, the
 singleton emission delta, and the final scope/table. Review found no unsound
 stated theorem, and explicitly confirmed that this is **not completion of Item
 3c**. The reviewer did not independently rerun the builds or dependency audit.
+
+### Supervisor answer to the mixed-recurrence question (2026-11-12, from spec/06-roles.md K2 decisions)
+
+This is already decided by the spec (2026-11-07 K2 decisions), so it is not a new owner question:
+- A nominal-headed node such as `list μ` is **not** a K2 root: "再帰型が型引数の深い位置（例: `list` の中）にあるだけなら、呼び出しは拒否しない", with the example `len [loop 1]` passing. So `Len (list μ)` passes (option 1).
+- μ = {next: list μ} **is** an anonymous structural recursive type (an unnamed type that refers to itself; the named-recursion exemption covers named bodies such as `enum tree`, not anonymous types whose self-reference passes through a nominal argument). So `Show μ`, reached via `impl Show (list 'a) where Show 'a`, is rejected at that child, and a candidate whose head pattern must inspect a constructor of μ triggers candidate K2.
+Implement this: recurrence edges may pass through nominal *arguments* (never through nominal bodies); the K2 root test applies only at anonymous structural heads (and at non-variable head inspections of them). The owner may still override; if so this note will be updated.
