@@ -29,9 +29,13 @@ theorem parent_branch_at (m : GeneralNominalCommonBridge.Assignment) (valid : Mo
   branch_at displayRoot 1 [displayChild] supported_parent_selected m (parent_instance m valid)
 
 theorem leaf_branch_at (m : GeneralNominalCommonBridge.Assignment) (valid : Models finish.current m) :
-    BranchAt registry finish.current displayChild 3 m :=
-  branch_at displayChild 3 [] supported_leaf_selected m
-    ((GeneralDictionaryRecursiveEvidence.evidence_leaf_iff registry current m displayChild 3).mp (final_leaf_evidence m valid))
+    BranchAt registry finish.current displayChild 3 m := by
+  have source := ((GeneralNominalFeedbackSites.install_models start.current packet
+    (GeneralNominalFeedbackSites.emitted packet) rfl m).mp valid).1.1
+  have currentInstance := GeneralDictionaryOrdinaryTrace.instance_extension registry (context true)
+    current (GeneralDictionaryOrdinaryTrace.packet_extension packet) m valid.1
+    displayChild 3 [] (leaf_instance m source)
+  exact branch_at displayChild 3 [] supported_leaf_selected m currentInstance
 
 private theorem alias_equal {first last : Nat} (related : Alias finish.current first last) : first = last := by
   induction related with

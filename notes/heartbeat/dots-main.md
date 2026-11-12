@@ -1,9 +1,9 @@
 cycle: 144
 status: running
 started: 2026-11-12T15:26:06Z
-updated: 2026-11-12T15:43:55.336393+00:00
-elapsed_min: 17.8
-activity: 10 modules / 50 public theorems verified; actual stable recursive extraction and exact payload; focused748 PASS
+updated: 2026-11-12T15:50:32.281962+00:00
+elapsed_min: 24.4
+activity: 12 modules / 80 public theorems; focused750 and trust0 PASS; actual alias merge and one-step stable trace
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: cf857c050
-resume_hint: Publish concrete closure and pure local success iff; continue concrete Joint and merge regression. General V5 still6/14. Hard stop16:21:06Z.
+last_local_commit: 9ba2d9985
+resume_hint: Verified sources plus draft report now published; actual merged-child failure diagnostic under investigation. General8/14 open; end16:21:06Z.

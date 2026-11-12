@@ -1993,3 +1993,7 @@ import Yulang.GeneralDictionarySupportRecursiveClosure
 import Yulang.GeneralDictionarySupportRecursiveJoint
 
 import Yulang.GeneralDictionarySupportReadbackRegression
+
+import Yulang.GeneralDictionaryEarlyMergeExample
+
+import Yulang.GeneralDictionarySupportRecursiveTrace

@@ -93,3 +93,19 @@ unproved premise: its Acc proof directly uses the two selected Local shapes,
 not the already constructed Classify derivation. Extraction returns Classify
 and all-final-model Evidence; only afterwards classification functionality
 identifies the resulting payload as `.node 1 [.node 3 []]`.
+
+## Exact trace shape and nontrivial early merge
+
+`SupportRecursiveTrace` strengthens the concrete completion: any actual Step
+from its initial source reaches exactly the exhibited finish (support proof
+choices do not change install output); no Step leaves finish. Hence every finite
+trace ends at start or finish, and Stable endpoint iff finish. This is a fixed
+fixture, not a general progress/canonical-order field.
+
+`EarlyMergeExample` supplies the missing instantiated positive example. A checked
+Display(List Int) declaration has two equal where inputs with distinct clause
+IDs. A real source-guarded parent installation emits two different child IDs,
+then the real support merge identifies their same inputs. The final journal has
+a parent packet and a nonempty alias ledger, and a concrete model and Coherent
+are proved. Both merged child classes were uncommitted. No claim about merging
+two already-recorded classes, stable completion, or general Joint is made.

@@ -1,3 +1,5 @@
+import Yulang.GeneralDictionarySupportRecursiveTrace
+import Yulang.GeneralDictionaryEarlyMergeExample
 import Yulang.GeneralDictionarySupportReadbackRegression
 import Yulang.GeneralDictionarySupportRecursiveJoint
 import Yulang.GeneralDictionarySupportRecursiveClosure
@@ -100,3 +102,63 @@ import Yulang.GeneralDictionaryEarlyMergeRegression
 #print axioms Yulang.GeneralDictionarySupportReadbackRegression.extracted
 
 #print axioms Yulang.GeneralDictionarySupportReadbackRegression.extracted_exact
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.checked
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.registry_checked
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.all_source_decisions
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.query
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.schema
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.branch
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.prepared
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.survivor
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.selected
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.children_exact
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.enabled
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.packet_guard
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.novel
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.source
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.before_scheduled
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.before_model
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.site_present
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.inputs_same
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.actual_early_merge
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.finish_model
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.actual_path
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.reachable
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.inhabited_early_merge
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.initial_packet_unique
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.initial_no_administrative
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.first_step_unique
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.finish_no_step
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.trace_endpoints
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.initial_not_stable
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.stable_endpoint_iff
