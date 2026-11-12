@@ -1,9 +1,9 @@
-cycle: 141
-status: completed
-started: 2026-11-12T12:27:19Z
-updated: 2026-11-12T12:43:00Z
-elapsed_min: 15.7
-activity: 30 declarations verified; actual replacement empty-journal Evidence and guarded nonempty Current
-last_local_commit: ae10e33f6
-resume_hint: General V5 Evidence remains open; report guard not discharged. Read fresh integration and inbox. No pending source or active builds.
-report: notes/handoff/dots-cycle-141.md
+cycle: 142
+status: running
+started: 2026-11-12T13:27:19Z
+updated: 2026-11-12T13:31:00Z
+elapsed_min: 3.7
+activity: I25 evidence bridges; reread new lazy output-cycle specification and Astra completion obstruction
+workspace: /workspace/scratch/1d0b4aaa3394/yulang
+last_local_commit: none
+resume_hint: Read fresh integration and cycle141. No other writer. Keep frozen Audit/README unchanged.
