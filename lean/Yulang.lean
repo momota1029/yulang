@@ -1902,3 +1902,8 @@ import Yulang.B4TargetV5Compatibility
 import Yulang.GeneralDictionaryReachableEvidenceUnrecorded
 
 import Yulang.GeneralDictionaryModelLoss
+import Yulang.GeneralNominalRegistryOrder
+import Yulang.GeneralNominalCandidateReordering
+import Yulang.GeneralNominalLocalReordering
+import Yulang.GeneralDictionaryCanonicalLocalOrder
+import Yulang.GeneralDictionaryFinalOrderObstruction

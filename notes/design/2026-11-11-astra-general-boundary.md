@@ -8778,3 +8778,633 @@ termination gap remains substantive: additional isolated fragment termination
 proofs would not connect StableSmaller to output-driven growth across updates.
 The next useful result is either the missing common-trace realization or a
 source dependency argument that blocks it under an explicitly approved policy.
+
+## Item 5a — canonical local order on the feedback boundary
+
+### Result and exact target
+
+The independent Local judgment is now proved invariant under the permitted
+visible-declaration and where-clause permutations **at the same full feedback
+state**. Selection preserves the identical canonical list of emitted source
+obligations, not merely a permutation of implementation keys. The result covers
+all general candidates, pending inspection, journal-aware K2, ambiguity, and
+rejection. It is not a scalar or settled-fragment theorem.
+
+The exact `canonicalLocalOrder` field remains open. It compares two different
+executor-returned states, not the reachable state supplied to both runs. No
+concrete executor or final-state agreement theorem was supplied by this task or
+by the current concrete boundary. The new exact factorization isolates that
+remaining premise without changing the field. The V5 bridge count remains
+**6/14**, not 7/14.
+
+Let `B := GeneralDictionaryReachableBoundary.boundary roles`; its underlying
+source boundary is exactly `GeneralDictionaryFeedbackEvidence.boundary roles`.
+`GeneralDictionaryCanonicalLocalOrder.CanonicalLocalOrder roles e` is the
+following existing field, copied literally:
+
+```lean
+∀ r r', B.Checked r → B.Checked r' → B.Reorders r r' → ∀ s root,
+  B4TargetV5.Reachable B r root s → B4TargetV5.Reachable B r' root s → ∀ d f,
+  B4TargetV3.Local B.toSourceBoundary r (e.run r s root).1 d f ↔
+    B4TargetV3.Local B.toSourceBoundary r' (e.run r' s root).1 d f
+```
+
+The theorem `remaining_field` consumes precisely
+`GeneralDictionaryReachableObligations.Remaining roles e` and projects this
+property, checking that the new name denotes the actual field. It does not fill
+that field.
+
+### Shared-state proof and source fidelity
+
+The new proof chain is:
+
+1. `GeneralNominalRegistryOrder` transports allocation-key membership and
+   freshness. Reservation lists may have a different order; only their
+   membership matters. A candidate's frame and fresh source IDs do not depend on
+   the visible declaration enumeration.
+2. The same module transports exact materialization schemas and the actual
+   `BranchModels` at the **same assignment**, reusing
+   `GeneralDictionaryRecursiveSemanticOrder`. It preserves `Prepared`, `Failed`,
+   and `HeadReady`. This does not replace interval propagation with a different
+   model or candidate predicate.
+3. `children` reuses `GeneralDictionaryEmissionPlans.children_reorders`, backed
+   by `GeneralCanonicalChildOrder.canonicalEmit_reorders`. Clauses are ordered
+   by their existing unique source IDs. Every clause, associated-output
+   equation, occurrence identity, and repeated-capture binding is retained.
+   No raw-child-order counterexample exists for this emitter.
+4. `GeneralNominalCandidateReordering` transports the actual Survivor relation,
+   pending inspection, and cycle predicates. Its `inspection_witness` preserves
+   the exact positions inspected by a non-variable pattern; it does not change
+   which cycles count as K2. Journal predicates remain attached to the same
+   full state.
+5. `GeneralNominalLocalReordering.boundary_local` transports all Local rules,
+   including their guards. Root pending still precedes rejection; empty
+   candidates still require absence of inspection pending; K2 is not gated by
+   inspection pending. The theorem requires only `Reorders first last` and
+   `first.roles = roles`, not reachability or a registry-wide Checked premise.
+   `reachable_local_order` specializes it to exactly the V5 shared-input domain.
+6. `resolves` transports the identical full diagnostic tree using
+   `B4Skeleton.resolves_transport`. It retains unsuccessful child results and
+   does not fold their parent into a root rejection. `child` preserves the exact
+   Child relation; `whereAccessible_iff` transports existing accessibility.
+
+This follows spec §6.3's conjunctive, sibling-order-independent where clauses
+and the main draft's clause (3). Pending and diagnostic-tree fidelity follow
+the draft addenda 1–4. The K2 inspection positions and priority follow spec
+§6.3/K2, including the 2026-11-12 cycle decision. The existing
+`GeneralRegistryReordering.Reorders` preserves constructor and role catalogues,
+declaration IDs, clause IDs, heads, output binders and associated definitions;
+it does not license renaming or choosing a preferred implementation. The
+existing `GeneralDictionaryPayloadOrder.Equivalent` is unchanged. Because the
+canonical source child lists here are equal, a weaker payload-only permutation
+relation is unnecessary for Local transport.
+
+### Minimal faithful separation of the remaining order obligation
+
+`GeneralDictionaryCanonicalLocalOrder.FinalStateAgreement roles e` retains
+all the field's premises and all demand/frontier quantifiers. Its conclusion is:
+
+```lean
+B4TargetV3.Local B.toSourceBoundary r' (e.run r s root).1 d f ↔
+  B4TargetV3.Local B.toSourceBoundary r' (e.run r' s root).1 d f
+```
+
+Both sides now use `r'`. The proved theorem is exactly:
+
+```lean
+CanonicalLocalOrder roles e ↔ FinalStateAgreement roles e
+```
+
+Thus the minimal separation is the proved same-state canonical Local law plus
+agreement of the final classifications. Replacing the existing field by the
+same-state law alone would lose an obligation of B4 clause (3). No target or
+Remaining definition was changed. Equality of the two returned states is a
+sufficient stronger premise, proved by `of_returned_state_equality`; it is not
+asserted to be necessary. Different administrative journals may still classify
+identically, which is why the exact factorization uses Local equivalence.
+
+The formal obstruction uses the existing checked general nominal example
+registry and its reversed visible order. A shared empty-journal initial state
+has an unresolved input head and is proved reachable under both registries.
+The deliberately unconstrained executor tests the first declaration ID and
+returns that pending state for one order and the existing nominal-cycle state
+for the other. Independent Local classifies the latter as rejected by K2. Local
+functionality makes the canonicalLocalOrder equivalence impossible at the
+pending frontier.
+
+`not_canonicalLocalOrder` proves failure for this particular executor;
+`not_all_executors` refutes universal quantification over arbitrary executors.
+The counterexample claims neither execution/halting correctness nor final-tree
+correctness. In particular it is **not** a counterexample to confluence of a
+faithful saturating implementation. It demonstrates why Checked, Reorders and
+shared input Reachable alone do not imply the exact requested field. A faithful
+executor and a final-state agreement/confluence argument remain to be built.
+This is a proof-interface gap, not a new language semantics question.
+
+### Reachable-root where accessibility
+
+The added theorem `GeneralNominalLocalReordering.whereAccessible_of_readback`
+has the exact V5 root-domain conclusion:
+
+```lean
+Acc (CommonRoleOutermostResolver.Child
+  (B4TargetV3.Local B.toSourceBoundary registry state)) root
+```
+
+Its premises are Checked registry, Reachable registry root state, and the
+explicit additional witness:
+
+```lean
+GeneralNominalCycleReadback.Readback roles registry state.context
+```
+
+This reuses the existing checked Paterson argument through the feedback-to-cycle
+selection bridge. Readback labels lower/upper arguments with finite Patterns
+and connects every selected child to the corresponding checked declaration,
+clause identity, capture, and substituted labels. Its producer for every
+reachable state, and semantic adequacy of those labels, are still missing.
+Reachable does not discharge that witness in this development. Therefore
+`whereAccessible` is not counted as a new V5 field. No progress/descent work or
+associated-output-growth policy was resumed.
+
+### Boundary field inventory and V5 count
+
+The following are the **unchanged existing definitions** used by this proof.
+“Defined” describes the field's actual implementation, not completion of all
+its B4 laws. No field is supplied by a fragment or by an executor's result.
+Vocabulary remains Registry = `GeneralDeclarations.Registry`, State =
+`GeneralNominalSaturationState.State roles`, Demand =
+`GeneralSourceDictionaries.Occurrence roles`, Model =
+`GeneralNominalCommonBridge.Assignment`.
+
+| SourceBoundary field | Concrete definition in the current boundary | Item 5a status |
+| --- | --- | --- |
+| Checked | `registry.roles = roles ∧ GeneralDeclarations.Checked registry` | Defined; individual checks transport with identities. |
+| Models | `GeneralNominalSaturationState.Models` | Defined; fixed-assignment private/branch Models transport proved. |
+| Step | `GeneralNominalFeedbackSteps.Step` | Defined, unchanged; general progress open. |
+| Stable | `GeneralNominalFeedbackSteps.Stable` | Defined, unchanged. |
+| Generated | `GeneralNominalSaturationState.Generated` | Defined, unchanged; exact generated-children bridge open. |
+| RootPending | `GeneralNominalState.RootPending state.context.state root.demand` | Defined, registry independent at a fixed state. |
+| RootK2 | `GeneralNominalFeedbackK2.RootK2 state root` | Defined, registry independent at a fixed state. |
+| CandidateK2 | `GeneralNominalFeedbackK2.CandidateK2 registry state root` | Defined; exact reorder equivalence proved. |
+| InspectionPending | `GeneralNominalCycleK2.InspectionPending registry state.context root` | Defined; exact reorder equivalence proved. |
+| Survivor | `GeneralNominalRecursiveCandidates.Survivor registry state.context root` | Defined; key and canonical children preserved exactly. |
+| Evidence | `GeneralDictionaryFeedbackEvidence.evidence roles` | Defined using `GeneralDictionaryRecursiveEvidence.Evidence`; no new evidence-node law claimed. |
+| Reorders | `GeneralRegistryReordering.Reorders` | Defined; only permitted identity-preserving permutations used. |
+| DictionaryEquivalent | `GeneralDictionaryPayloadOrder.Equivalent` | Defined, unchanged. |
+
+V5 additionally uses `GeneralDictionaryInitialSource.Initial` and its existing
+`reachable_iff_sourceFormed` correspondence. The six proved V5 fields remain
+`closure`, `stepModels`, `frontierLocal`, `localIdentity`, `dictionaryRefl`, and
+`initialReorders`. The exact eight open fields remain `progress`, `execution`,
+`halted`, `whereAccessible`, `treeExecution`, `canonicalLocalOrder`,
+`evidenceNode`, and `generatedChildren`. The new same-state result and the
+conditional exact-field result do not change that count.
+
+### Files, checks, and limitations
+
+Added five Lean modules:
+
+- `lean/Yulang/GeneralNominalRegistryOrder.lean`
+- `lean/Yulang/GeneralNominalCandidateReordering.lean`
+- `lean/Yulang/GeneralNominalLocalReordering.lean`
+- `lean/Yulang/GeneralDictionaryCanonicalLocalOrder.lean`
+- `lean/Yulang/GeneralDictionaryFinalOrderObstruction.lean`
+
+Added `lean/Audit/AstraOrder.lean` with its own imports and 46 public-theorem
+print entries, and the small
+[module guide](2026-11-12-astra-order-module-guide.md). Appended five imports to
+`lean/Yulang.lean` and this section to the design note. The frozen
+`lean/Audit.lean` and `lean/README.md`, all pre-existing Lean definitions, spec,
+plans, and configuration were left unchanged. No commit, push, or git reference
+change was made.
+
+Final commands from `lean/`, all exited **0**:
+
+```sh
+lake build Yulang.GeneralNominalRegistryOrder Yulang.GeneralNominalCandidateReordering Yulang.GeneralNominalLocalReordering Yulang.GeneralDictionaryCanonicalLocalOrder Yulang.GeneralDictionaryFinalOrderObstruction > /tmp/astra-order-focused.log 2>&1
+lake build Yulang > /tmp/astra-order-umbrella.log 2>&1
+lake env lean Audit/AstraOrder.lean > /tmp/astra-order-audit.log 2>&1
+```
+
+Focused build: 669 jobs. Umbrella build: 1602 jobs. All 46 new public theorems
+appear exactly once in the new audit; their dependencies are contained in
+`{propext, Classical.choice, Quot.sound}`. Full signature extraction with
+`lake env lean --stdin` exited 0. The append-only/path check, restricted-token
+scan, and `git diff --check` passed. Intermediate proof iterations included
+compiler errors that were corrected before these final checks.
+
+The [yulang-proofs skill](/home/momota1029/.codex/skills/yulang-proofs/SKILL.md)
+was used. The registered prover role was unavailable in this checkout and
+callable tool schema; no prover agent ran. The primary constructed the bounded
+proofs. A separate read-only reviewer checked all five modules, the final
+three tree/child/accessibility corollaries, and the exact scope of the field
+factorization and counterexample. That reviewer independently checked the
+compiled types and dependencies of the three principal theorems with
+`lake env lean --stdin` (exit 0), but did not rebuild independently.
+
+Not verified/proved: execution or halting of a concrete executor; saturation
+confluence or final-state Local agreement; general Readback or reachable-root
+accessibility without it; progress; journal-to-joint-classification completeness;
+the remaining evidence/generated-children bridges; inference-to-InitialSource
+production; surface parsing of the obstruction fixture; full B4. The full
+`tools/verify-lean.sh` was not run; the requested focused, umbrella, and new-part
+audit checks were run instead. The pending owner question about recursive
+associated-output growth is unchanged.
+
+This work connects the general definitions directly: the same Survivor,
+projection/interval BranchModels, journal-aware K2, canonical source children,
+and concrete V5 boundary are used throughout. It is evidence of convergence
+beyond fragment-specific order proofs. The remaining final-state agreement
+cannot be replaced by more same-state examples: it requires reasoning about
+the actual executions and their resulting information.
+
+### Full new public theorem statements
+
+The following is Lean's elaborated output for all 46 public theorem types,
+with implicit parameters exposed. The definitions of CanonicalLocalOrder and
+FinalStateAgreement are given above; the obstruction fixture and deliberately
+unconstrained executor are in `GeneralDictionaryFinalOrderObstruction.lean`.
+
+```text
+@Yulang.GeneralNominalRegistryOrder.keys_membership : ∀ {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    ∀ (root : Nat) (key : Yulang.GeneralNominalAllocation.Origin),
+      key ∈ Yulang.GeneralNominalAllocation.keys first root ↔ key ∈ Yulang.GeneralNominalAllocation.keys last root
+@Yulang.GeneralNominalRegistryOrder.fresh : ∀ {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    ∀ (state : Yulang.GeneralNominalState.State) (root : Nat),
+      Yulang.GeneralNominalAllocation.Fresh state first root ↔ Yulang.GeneralNominalAllocation.Fresh state last root
+@Yulang.GeneralNominalRegistryOrder.metadata : ∀ {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context),
+      Yulang.GeneralNominalRecursiveCandidates.Metadata first context ↔
+        Yulang.GeneralNominalRecursiveCandidates.Metadata last context
+@Yulang.GeneralNominalRegistryOrder.private_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state))
+      (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models
+          (Yulang.GeneralNominalRecursiveCandidates.privateState first context root a bounds) model ↔
+        Yulang.GeneralNominalState.Models
+          (Yulang.GeneralNominalRecursiveCandidates.privateState last context root b bounds) model
+@Yulang.GeneralNominalRegistryOrder.generated : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+        ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+          (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+          (ac : Yulang.GeneralDeclarations.DeclarationChecked first.constructors roles a)
+          (bc : Yulang.GeneralDeclarations.DeclarationChecked last.constructors roles b)
+          (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+          Yulang.GeneralNominalRecursiveCandidates.generated first context root a ac bounds =
+            Yulang.GeneralNominalRecursiveCandidates.generated last context root b bc bounds
+@Yulang.GeneralNominalRegistryOrder.branch_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+        ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+          (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+          (ac : Yulang.GeneralDeclarations.DeclarationChecked first.constructors roles a)
+          (bc : Yulang.GeneralDeclarations.DeclarationChecked last.constructors roles b)
+          (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state))
+          (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalRecursiveCandidates.BranchModels first context root a ac bounds model ↔
+            Yulang.GeneralNominalRecursiveCandidates.BranchModels last context root b bc bounds model
+@Yulang.GeneralNominalRegistryOrder.request_ready : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+        ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+          (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+          (ac : Yulang.GeneralDeclarations.DeclarationChecked first.constructors roles a)
+          (bc : Yulang.GeneralDeclarations.DeclarationChecked last.constructors roles b)
+          (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+          Yulang.GeneralNominalRecursiveCandidates.RequestReady first context root a ac bounds ↔
+            Yulang.GeneralNominalRecursiveCandidates.RequestReady last context root b bc bounds
+@Yulang.GeneralNominalRegistryOrder.children : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+      ∀ (state : Yulang.GeneralNominalState.State) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+        (ac : Yulang.GeneralDeclarations.DeclarationChecked first.constructors roles a)
+        (bc : Yulang.GeneralDeclarations.DeclarationChecked last.constructors roles b)
+        (bindings : Yulang.GeneralNominalAllocation.Bindings),
+        Yulang.GeneralNominalAllocation.children state first root a ac bindings =
+          Yulang.GeneralNominalAllocation.children state last root b bc bindings
+@Yulang.GeneralNominalRegistryOrder.prepared : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+        ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+          (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+          (ac : Yulang.GeneralDeclarations.DeclarationChecked first.constructors roles a)
+          (bc : Yulang.GeneralDeclarations.DeclarationChecked last.constructors roles b),
+          Yulang.GeneralNominalRecursiveCandidates.Prepared first context root a ac ↔
+            Yulang.GeneralNominalRecursiveCandidates.Prepared last context root b bc
+@Yulang.GeneralNominalRegistryOrder.failed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+        ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+          (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+          (ac : Yulang.GeneralDeclarations.DeclarationChecked first.constructors roles a)
+          (bc : Yulang.GeneralDeclarations.DeclarationChecked last.constructors roles b),
+          Yulang.GeneralNominalRecursiveCandidates.Failed first context root a ac ↔
+            Yulang.GeneralNominalRecursiveCandidates.Failed last context root b bc
+@Yulang.GeneralNominalRegistryOrder.head_ready : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+      ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Yulang.GeneralNominalRecursiveCandidates.HeadReady first context root a ↔
+          Yulang.GeneralNominalRecursiveCandidates.HeadReady last context root b
+@Yulang.GeneralNominalCandidateReordering.checked_declaration : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry} {a b : Yulang.GeneralDeclarations.Declaration},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    Yulang.GeneralRegistryReordering.DeclarationReorders a b →
+      Yulang.GeneralDeclarations.DeclarationChecked first.constructors roles a →
+        Yulang.GeneralDeclarations.DeclarationChecked last.constructors roles b
+@Yulang.GeneralNominalCandidateReordering.survivor_forward : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+        (emitted : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+        Yulang.GeneralNominalRecursiveCandidates.Survivor first context root key emitted →
+          Yulang.GeneralNominalRecursiveCandidates.Survivor last context root key emitted
+@Yulang.GeneralNominalCandidateReordering.survivor : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+        (emitted : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+        Yulang.GeneralNominalRecursiveCandidates.Survivor first context root key emitted ↔
+          Yulang.GeneralNominalRecursiveCandidates.Survivor last context root key emitted
+@Yulang.GeneralNominalCandidateReordering.inspection_pending_forward : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Yulang.GeneralNominalRecursiveCandidates.InspectionPending first context root →
+          Yulang.GeneralNominalRecursiveCandidates.InspectionPending last context root
+@Yulang.GeneralNominalCandidateReordering.inspection_pending : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Yulang.GeneralNominalRecursiveCandidates.InspectionPending first context root ↔
+          Yulang.GeneralNominalRecursiveCandidates.InspectionPending last context root
+@Yulang.GeneralNominalCandidateReordering.inspection_witness : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (property : Yulang.GeneralNominalInspection.Bounds context.state → Prop),
+      (∃ a,
+          a ∈ first.declarations ∧
+            ∃ _ac,
+              a.role = root.demand.role ∧
+                Yulang.GeneralNominalRecursiveCandidates.HeadReady first context root a ∧
+                  ∃ bounds,
+                    Yulang.GeneralNominalRecursiveCandidates.arguments context root = some bounds ∧
+                      ∃ visited,
+                        visited ∈ (Yulang.GeneralNominalRecursiveCandidates.report context a bounds).inspected ∧
+                          property visited) ↔
+        ∃ b,
+          b ∈ last.declarations ∧
+            ∃ _bc,
+              b.role = root.demand.role ∧
+                Yulang.GeneralNominalRecursiveCandidates.HeadReady last context root b ∧
+                  ∃ bounds,
+                    Yulang.GeneralNominalRecursiveCandidates.arguments context root = some bounds ∧
+                      ∃ visited,
+                        visited ∈ (Yulang.GeneralNominalRecursiveCandidates.report context b bounds).inspected ∧
+                          property visited
+@Yulang.GeneralNominalCandidateReordering.recursive_candidateK2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.GeneralNominalRecursiveCandidates.CandidateK2 first context root ↔
+        Yulang.GeneralNominalRecursiveCandidates.CandidateK2 last context root
+@Yulang.GeneralNominalCandidateReordering.cycle_candidateK2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.GeneralNominalCycleK2.CandidateK2 first context root ↔
+        Yulang.GeneralNominalCycleK2.CandidateK2 last context root
+@Yulang.GeneralNominalCandidateReordering.cycle_inspection_pending : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Yulang.GeneralNominalCycleK2.InspectionPending first context root ↔
+          Yulang.GeneralNominalCycleK2.InspectionPending last context root
+@Yulang.GeneralNominalCandidateReordering.feedback_candidateK2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.GeneralNominalFeedbackK2.CandidateK2 first state root ↔
+        Yulang.GeneralNominalFeedbackK2.CandidateK2 last state root
+@Yulang.GeneralNominalLocalReordering.local_forward : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+        (frontier : Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+        Yulang.GeneralNominalFeedbackK2.Local first state root frontier →
+          Yulang.GeneralNominalFeedbackK2.Local last state root frontier
+@Yulang.GeneralNominalLocalReordering.local_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+        (frontier : Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+        Yulang.GeneralNominalFeedbackK2.Local first state root frontier ↔
+          Yulang.GeneralNominalFeedbackK2.Local last state root frontier
+@Yulang.GeneralNominalLocalReordering.boundary_local : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+        (frontier : Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+        Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) first state root frontier ↔
+          Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) last state root frontier
+@Yulang.GeneralNominalLocalReordering.resolves : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (tree : Yulang.CommonRoleOutermostResolver.Tree),
+        Yulang.CommonRoleOutermostResolver.Resolves
+            (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) first state) root tree ↔
+          Yulang.CommonRoleOutermostResolver.Resolves
+            (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) last state) root tree
+@Yulang.GeneralNominalLocalReordering.child : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+        (descendant parent : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Yulang.CommonRoleOutermostResolver.Child
+            (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) first state) descendant
+            parent ↔
+          Yulang.CommonRoleOutermostResolver.Child
+            (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) last state) descendant
+            parent
+@Yulang.GeneralNominalLocalReordering.whereAccessible_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    first.roles = roles →
+      ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+        (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Acc
+            (Yulang.CommonRoleOutermostResolver.Child
+              (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) first state))
+            root ↔
+          Acc
+            (Yulang.CommonRoleOutermostResolver.Child
+              (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) last state))
+            root
+Yulang.GeneralNominalLocalReordering.reachable_local_order : ∀ (roles : Yulang.Roles.RoleDecls)
+  (first last : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked first →
+    (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked last →
+      (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Reorders first last →
+        ∀ (state : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+          (root : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+          Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) first root state →
+            Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) last root state →
+              ∀ (demand : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand)
+                (frontier :
+                  Yulang.CommonRoleOutermostResolver.Frontier
+                    (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+                Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryReachableBoundary.boundary roles).toSourceBoundary
+                    first state demand frontier ↔
+                  Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryReachableBoundary.boundary roles).toSourceBoundary
+                    last state demand frontier
+Yulang.GeneralNominalLocalReordering.canonicalLocalOrder_of_returned_state_equality : ∀ (roles : Yulang.Roles.RoleDecls)
+  (executor : Yulang.B4TargetV3.Executor (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles)),
+  (∀ (first last : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+      (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked first →
+        (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked last →
+          (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Reorders first last →
+            ∀ (state : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+              (root : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+              Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) first root state →
+                Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) last root state →
+                  (executor.run first state root).fst = (executor.run last state root).fst) →
+    ∀ (first last : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+      (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked first →
+        (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked last →
+          (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Reorders first last →
+            ∀ (state : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+              (root : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+              Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) first root state →
+                Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) last root state →
+                  ∀ (demand : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand)
+                    (frontier :
+                      Yulang.CommonRoleOutermostResolver.Frontier
+                        (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+                    Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryReachableBoundary.boundary roles).toSourceBoundary
+                        first (executor.run first state root).fst demand frontier ↔
+                      Yulang.B4TargetV3.Local
+                        (Yulang.GeneralDictionaryReachableBoundary.boundary roles).toSourceBoundary last
+                        (executor.run last state root).fst demand frontier
+Yulang.GeneralNominalLocalReordering.whereAccessible_of_readback : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) registry root state →
+        ∀ (readback : Yulang.GeneralNominalCycleReadback.Readback roles registry state.context),
+          Acc
+            (Yulang.CommonRoleOutermostResolver.Child
+              (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryReachableBoundary.boundary roles).toSourceBoundary
+                registry state))
+            root
+Yulang.GeneralDictionaryCanonicalLocalOrder.remaining_field : ∀ (roles : Yulang.Roles.RoleDecls)
+  (e : Yulang.B4TargetV3.Executor (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles)),
+  Yulang.GeneralDictionaryReachableObligations.Remaining roles e →
+    Yulang.GeneralDictionaryCanonicalLocalOrder.CanonicalLocalOrder roles e
+Yulang.GeneralDictionaryCanonicalLocalOrder.exact_factorization : ∀ (roles : Yulang.Roles.RoleDecls)
+  (e : Yulang.B4TargetV3.Executor (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles)),
+  Yulang.GeneralDictionaryCanonicalLocalOrder.CanonicalLocalOrder roles e ↔
+    Yulang.GeneralDictionaryCanonicalLocalOrder.FinalStateAgreement roles e
+Yulang.GeneralDictionaryCanonicalLocalOrder.of_returned_state_equality : ∀ (roles : Yulang.Roles.RoleDecls)
+  (e : Yulang.B4TargetV3.Executor (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles)),
+  (∀ (r r' : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+      (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked r →
+        (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked r' →
+          (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Reorders r r' →
+            ∀ (s : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+              (root : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+              Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) r root s →
+                Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) r' root s →
+                  (e.run r s root).fst = (e.run r' s root).fst) →
+    Yulang.GeneralDictionaryCanonicalLocalOrder.CanonicalLocalOrder roles e
+Yulang.GeneralDictionaryFinalOrderObstruction.reorders : Yulang.GeneralRegistryReordering.Reorders
+  Yulang.GeneralDictionaryFinalOrderObstruction.first Yulang.GeneralDictionaryFinalOrderObstruction.last
+Yulang.GeneralDictionaryFinalOrderObstruction.first_checked : (Yulang.GeneralDictionaryReachableBoundary.boundary
+      Yulang.GeneralDeclarationExamples.roles).Checked
+  Yulang.GeneralDictionaryFinalOrderObstruction.first
+Yulang.GeneralDictionaryFinalOrderObstruction.last_checked : (Yulang.GeneralDictionaryReachableBoundary.boundary
+      Yulang.GeneralDeclarationExamples.roles).Checked
+  Yulang.GeneralDictionaryFinalOrderObstruction.last
+Yulang.GeneralDictionaryFinalOrderObstruction.initial_source : Yulang.GeneralNominalSourceFormation.InitialSource
+  Yulang.GeneralDictionaryFinalOrderObstruction.first Yulang.GeneralDictionaryFinalOrderObstruction.pendingContext
+  Yulang.GeneralDictionaryFinalOrderObstruction.root
+Yulang.GeneralDictionaryFinalOrderObstruction.first_reachable : Yulang.B4TargetV5.Reachable
+  (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralDictionaryFinalOrderObstruction.first Yulang.GeneralDictionaryFinalOrderObstruction.root
+  Yulang.GeneralDictionaryFinalOrderObstruction.input
+Yulang.GeneralDictionaryFinalOrderObstruction.last_reachable : Yulang.B4TargetV5.Reachable
+  (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralDictionaryFinalOrderObstruction.last Yulang.GeneralDictionaryFinalOrderObstruction.root
+  Yulang.GeneralDictionaryFinalOrderObstruction.input
+Yulang.GeneralDictionaryFinalOrderObstruction.input_pending : Yulang.GeneralNominalState.RootPending
+  Yulang.GeneralDictionaryFinalOrderObstruction.pendingSource Yulang.GeneralDictionaryFinalOrderObstruction.root.demand
+Yulang.GeneralDictionaryFinalOrderObstruction.pending_local : Yulang.B4TargetV3.Local
+  (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+  Yulang.GeneralDictionaryFinalOrderObstruction.first Yulang.GeneralDictionaryFinalOrderObstruction.input
+  Yulang.GeneralDictionaryFinalOrderObstruction.root Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.GeneralDictionaryFinalOrderObstruction.rejected_local : Yulang.B4TargetV3.Local
+  (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+  Yulang.GeneralDictionaryFinalOrderObstruction.last Yulang.GeneralDictionaryFinalOrderObstruction.cyclic
+  Yulang.GeneralDictionaryFinalOrderObstruction.root Yulang.CommonRoleOutermostResolver.Frontier.rejected
+Yulang.GeneralDictionaryFinalOrderObstruction.first_returned : (Yulang.GeneralDictionaryFinalOrderObstruction.executor.run
+      Yulang.GeneralDictionaryFinalOrderObstruction.first Yulang.GeneralDictionaryFinalOrderObstruction.input
+      Yulang.GeneralDictionaryFinalOrderObstruction.root).fst =
+  Yulang.GeneralDictionaryFinalOrderObstruction.input
+Yulang.GeneralDictionaryFinalOrderObstruction.last_returned : (Yulang.GeneralDictionaryFinalOrderObstruction.executor.run
+      Yulang.GeneralDictionaryFinalOrderObstruction.last Yulang.GeneralDictionaryFinalOrderObstruction.input
+      Yulang.GeneralDictionaryFinalOrderObstruction.root).fst =
+  Yulang.GeneralDictionaryFinalOrderObstruction.cyclic
+Yulang.GeneralDictionaryFinalOrderObstruction.not_canonicalLocalOrder : ¬Yulang.GeneralDictionaryCanonicalLocalOrder.CanonicalLocalOrder
+    Yulang.GeneralDeclarationExamples.roles Yulang.GeneralDictionaryFinalOrderObstruction.executor
+Yulang.GeneralDictionaryFinalOrderObstruction.not_all_executors : ¬∀
+    (e :
+      Yulang.B4TargetV3.Executor
+        (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles)),
+    Yulang.GeneralDictionaryCanonicalLocalOrder.CanonicalLocalOrder Yulang.GeneralDeclarationExamples.roles e
+```
