@@ -2011,3 +2011,5 @@ import Yulang.GeneralDictionaryEarlyMergeNoEvidence
 
 import Yulang.GeneralDictionaryAliasJoint
 import Yulang.GeneralDictionaryFailedDiagnosticScope
+import Yulang.GeneralDictionaryJointMerge
+import Yulang.GeneralDictionaryMergeSequence

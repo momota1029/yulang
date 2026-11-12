@@ -1,5 +1,7 @@
 import Yulang.GeneralDictionaryAliasJoint
 import Yulang.GeneralDictionaryFailedDiagnosticScope
+import Yulang.GeneralDictionaryJointMerge
+import Yulang.GeneralDictionaryMergeSequence
 
 #print axioms Yulang.GeneralDictionaryAliasJoint.joint_at_related
 #print axioms Yulang.GeneralDictionaryAliasJoint.joint_alias_iff
@@ -7,3 +9,23 @@ import Yulang.GeneralDictionaryFailedDiagnosticScope
 #print axioms Yulang.GeneralDictionaryFailedDiagnosticScope.no_selected_classification
 #print axioms Yulang.GeneralDictionaryFailedDiagnosticScope.no_children_evidence
 #print axioms Yulang.GeneralDictionaryFailedDiagnosticScope.node_at_failed_snapshot
+#print axioms Yulang.GeneralDictionaryJointMerge.evidence_merge_iff
+#print axioms Yulang.GeneralDictionaryJointMerge.evidence_merge_of_outputs
+#print axioms Yulang.GeneralDictionaryJointMerge.branch_extension
+#print axioms Yulang.GeneralDictionaryJointMerge.branch_extension_back
+#print axioms Yulang.GeneralDictionaryJointMerge.merge_sources
+#print axioms Yulang.GeneralDictionaryJointMerge.branch_merge
+#print axioms Yulang.GeneralDictionaryJointMerge.branch_merge_iff
+#print axioms Yulang.GeneralDictionaryJointMerge.alias_merge_first_iff
+#print axioms Yulang.GeneralDictionaryJointMerge.joint_merge_shared
+#print axioms Yulang.GeneralDictionaryJointMerge.joint_merge_iff
+#print axioms Yulang.GeneralDictionaryJointMerge.joint_merge_of_outputs
+#print axioms Yulang.GeneralDictionaryJointMerge.branch_output_targets
+#print axioms Yulang.GeneralDictionaryJointMerge.joint_merge_registered
+#print axioms Yulang.GeneralDictionaryJointMerge.sourceformed_merge_joint
+#print axioms Yulang.GeneralDictionaryMergeSequence.models_fold
+#print axioms Yulang.GeneralDictionaryMergeSequence.evidence_fold
+#print axioms Yulang.GeneralDictionaryMergeSequence.evidence_at_final_model
+#print axioms Yulang.GeneralDictionaryMergeSequence.event_atoms_iff
+#print axioms Yulang.GeneralDictionaryMergeSequence.models_events_iff
+#print axioms Yulang.GeneralDictionaryMergeSequence.evidence_events_iff
