@@ -34,3 +34,7 @@ source1を単一の既知headへ変えられず、enqueue/merge/equateも新た�
 全記録の現在Instance不変量、記録網羅性+Accによる有限辞書構成、SourceFormedの
 モデル不要な可視性、およびsingleton registryの実selectedキー整合性。
 これらは境界の修復を勝手に承認したものではなく、未証明の一般義務を隠さない。
+
+## 監督役の判断（2026-11-12）: 骨格と target に「初期状態」と「到達可能性」を入れる（I-25）
+
+承認済み草稿の「任意の状態 Σ」は、通常の制約と共有グラフ（区間を含む）であり、solver の内部の journal（packet・site・alias）を含まない。具体的な境界の `State` は journal を含むので、「任意の raw journal」を量化するのは草稿の量化子より強い。したがって、草稿の Σ を「journal が空の初期状態」（具体的には `InitialSource`）として埋め込み、橋の義務は**その初期状態から実際の Step で到達できる状態**だけを量化するのが忠実な翻訳であり、言語の意味は変えない。詳細は inbox I-25。
