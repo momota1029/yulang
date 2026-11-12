@@ -99,3 +99,31 @@ classes. From InitialSource, an empty final alias ledger excludes every merge
 and proves this invariant without Current. A recorded key then determines its
 whole alias class. General merging and the simultaneous branch-model witness
 remain explicit obligations; no global coherence theorem is claimed.
+
+## Nonempty and recursive positive completions
+
+The terminal nonempty example is now present in
+`GeneralDictionarySupportNonemptyExample`: actual guarded installation followed
+by actual scalar refresh, PointClosed excludes additional reobservation, and
+current-context Evidence holds for every final model. A concrete model proves
+nonvacuity. This is a stable nonempty completion, unlike the Current obstruction.
+
+`GeneralDictionarySupportRecursiveExample` reuses the source registry's Display
+key1 and Int key3. One actual guarded parent installation emits the genuine child;
+the child is terminal and no fictitious second installation is invented. The
+complete payload `.node 1 [.node 3 []]` has source-indexed Evidence at one final
+context for EVERY final model, with actual reachability, a nonempty journal, and
+model existence. Stable and Classify are not asserted by this example.
+
+The key-coherence merge residual is now exact: `alias_merge_cases` decomposes
+an alias after one merge into an old alias or a crossing between the two old
+classes. `merge_coherent_iff` proves post-merge Coherent iff old Coherent plus
+key agreement between all packets in those two classes. It does NOT derive that
+cross-key condition from SameInputs or MergeGuard. This precisely identifies the
+remaining key proof at a merge, without smuggling Current into a premise.
+
+The packet-free fork additionally exercises the actual V5 Classify and Resolves
+judgments and the generic Classify-to-Evidence theorem. The recursive nonempty
+Display example remains unclassified and not proved Stable: reserved origins
+require a varying-model family to exclude further certified refresh; root/child
+installable→Committed and cross-site SameInputs exclusion are also outstanding.

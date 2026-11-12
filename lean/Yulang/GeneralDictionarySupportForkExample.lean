@@ -1,4 +1,4 @@
-import Yulang.GeneralDictionarySupportEvidence
+import Yulang.GeneralDictionarySupportTree
 import Yulang.GeneralNominalReobservationExamples
 
 /-! An inhabited stable selected support state obtained by certified refresh.
@@ -101,5 +101,26 @@ theorem inhabited_terminal :
     (refreshed false).current.packets = [] ∧ Models (refreshed false).current model ∧
     GeneralDictionaryRecursiveEvidence.Evidence registry (refreshed false).current.context model root (.node 90 []) :=
   ⟨reachable false,point_stable,point_selected,rfl,after_models false,terminal_evidence⟩
+
+/-- The concrete positive state also satisfies the actual V5 classifier, not
+only the lower-level local frontier. -/
+theorem point_classified : B4TargetV3.Classify (GeneralNominalSupportBoundary.boundary roles).toSourceBoundary
+    registry (refreshed false) root (.selected (.node 90 [])) :=
+  B4TargetV3.tree_classifies (GeneralNominalSupportBoundary.boundary roles).toSourceBoundary registry (refreshed false) (.selected 90 []) root (.selected (.node 90 []))
+    (.selected ((GeneralNominalSupportBoundary.local_correspondence registry (refreshed false)
+      root (.selected 90 [])).mpr point_selected) .nil) (.selected .nil)
+
+theorem point_resolves : CommonRoleOutermostResolver.Resolves
+    (B4TargetV3.Local (GeneralNominalSupportBoundary.boundary roles).toSourceBoundary registry (refreshed false))
+    root (.selected 90 []) :=
+  .selected ((GeneralNominalSupportBoundary.local_correspondence registry (refreshed false)
+    root (.selected 90 [])).mpr point_selected) .nil
+
+/-- Regression through the new recursive Classify-to-Evidence theorem itself. -/
+theorem classified_dictionary_sound (valuation : GeneralNominalCommonBridge.Assignment)
+    (valid : Models (refreshed false).current valuation) :
+    (GeneralNominalSupportBoundary.boundary roles).Evidence registry (refreshed false) valuation root (.node 90 []) :=
+  GeneralDictionarySupportTree.packetFree_dictionary_sound registry (refreshed false) root
+    (reachable false) rfl point_stable (.node 90 []) point_classified valuation valid
 
 end Yulang.GeneralDictionarySupportForkExample

@@ -6,6 +6,7 @@ import Yulang.GeneralDictionarySupportForkExample
 import Yulang.GeneralDictionarySupportInhabitation
 import Yulang.GeneralDictionarySupportJournal
 import Yulang.GeneralDictionarySupportNonemptyExample
+import Yulang.GeneralDictionarySupportRecursiveExample
 import Yulang.GeneralDictionarySupportRevisionObstruction
 import Yulang.GeneralDictionarySupportTree
 
@@ -13,6 +14,10 @@ import Yulang.GeneralDictionarySupportTree
 #print axioms Yulang.GeneralDictionarySupportChoices.install_coherent
 #print axioms Yulang.GeneralDictionarySupportChoices.formed_aliasFree_coherent
 #print axioms Yulang.GeneralDictionarySupportChoices.recorded_class_key
+#print axioms Yulang.GeneralDictionarySupportChoices.alias_merge_cases
+#print axioms Yulang.GeneralDictionarySupportChoices.merge_coherent
+#print axioms Yulang.GeneralDictionarySupportChoices.merge_coherent_iff
+#print axioms Yulang.GeneralDictionarySupportChoices.formed_coherent_of_merge_keys
 #print axioms Yulang.GeneralDictionarySupportCompletionGap.source_decision
 #print axioms Yulang.GeneralDictionarySupportCompletionGap.packet_guard
 #print axioms Yulang.GeneralDictionarySupportCompletionGap.actual_step
@@ -53,6 +58,9 @@ import Yulang.GeneralDictionarySupportTree
 #print axioms Yulang.GeneralDictionarySupportForkExample.point_selected
 #print axioms Yulang.GeneralDictionarySupportForkExample.terminal_evidence
 #print axioms Yulang.GeneralDictionarySupportForkExample.inhabited_terminal
+#print axioms Yulang.GeneralDictionarySupportForkExample.point_classified
+#print axioms Yulang.GeneralDictionarySupportForkExample.point_resolves
+#print axioms Yulang.GeneralDictionarySupportForkExample.classified_dictionary_sound
 #print axioms Yulang.GeneralDictionarySupportInhabitation.raw_no_models
 #print axioms Yulang.GeneralDictionarySupportInhabitation.initial_source
 #print axioms Yulang.GeneralDictionarySupportInhabitation.actual_reachable
@@ -78,6 +86,18 @@ import Yulang.GeneralDictionarySupportTree
 #print axioms Yulang.GeneralDictionarySupportNonemptyExample.current_instance
 #print axioms Yulang.GeneralDictionarySupportNonemptyExample.current_evidence
 #print axioms Yulang.GeneralDictionarySupportNonemptyExample.completed
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.children_exact
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.enabled
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.actual_step
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.initial_source
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.actual_reachable
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.parent_instance
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.leaf_instance
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.final_leaf_evidence
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.final_recursive_evidence
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.nonempty_journal
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.final_inhabited
+#print axioms Yulang.GeneralDictionarySupportRecursiveExample.nonvacuous_recursive_dictionary
 #print axioms Yulang.GeneralDictionarySupportRevisionObstruction.decisions
 #print axioms Yulang.GeneralDictionarySupportRevisionObstruction.packet_guard
 #print axioms Yulang.GeneralDictionarySupportRevisionObstruction.installation

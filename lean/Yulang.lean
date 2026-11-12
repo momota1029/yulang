@@ -1974,3 +1974,5 @@ import Yulang.GeneralDictionarySupportInhabitation
 import Yulang.GeneralDictionarySupportChoices
 
 import Yulang.GeneralDictionarySupportNonemptyExample
+
+import Yulang.GeneralDictionarySupportRecursiveExample
