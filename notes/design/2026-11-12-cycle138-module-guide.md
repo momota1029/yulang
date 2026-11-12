@@ -45,3 +45,14 @@ an owner-approved interface decision, recorded in the cycle138 question note.
   model and current Evidence in all final models. Arbitrary reserved sources
   are handled by variable models, not assumed Known. No final Local selection
   or general resolver completeness follows merely from this conjunction.
+
+- `GeneralDictionaryTerminalClassification`: final actual selected40[], existing
+  boundary Local correspondence and concrete Classify leaf, together with
+  source formation/stability/nonvacuity/uniform evidence. This subsequent module
+  supplies the diagnostic not included in TerminalRefresh.completed.
+
+- `GeneralDictionarySelectedInstanceCoherence`: arbitrary-registry current
+  Instance and actual selection at exactly one occurrence imply identical key
+  and ordered children. Linked/Fresh/readiness are obtained from selection, not
+  extra premises. Recorded variants use the restricted initial trace plus a
+  final model. This is not alias transfer.

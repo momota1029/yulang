@@ -1,114 +1,8 @@
 # Cycle138 exact declaration signatures
 
-Lean4.35.0 #check with full names/universes: 99 declarations = 97 public theorems + 2 proof certificates. All dependent premises retained. This is not 99 completed B4 obligations.
+Lean4.35.0 #check with full names/universes: 113 declarations = 111 public theorems + 2 proof certificates. All dependent premises retained. This is not 113 completed B4 obligations.
 
 ```lean
-Yulang.GeneralDictionarySourceChoiceVisibility.visible {roles : Yulang.Roles.RoleDecls}
-  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
-  (state : Yulang.GeneralNominalSaturationState.State roles)
-  (formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state)
-  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
-  Membership.mem.{0, 0} state.packets packet → Membership.mem.{0, 0} registry.declarations packet.declaration
-Yulang.GeneralDictionarySourceChoiceVisibility.singleton_choice {roles : Yulang.Roles.RoleDecls}
-  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
-  (state : Yulang.GeneralNominalSaturationState.State roles)
-  (formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state)
-  (declaration : Yulang.GeneralDeclarations.Declaration)
-  (singleton : Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}))
-  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
-  Membership.mem.{0, 0} state.packets packet → Eq.{1} packet.declaration declaration
-Yulang.GeneralDictionarySourceChoiceVisibility.singleton_key_coherence {roles : Yulang.Roles.RoleDecls}
-  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
-  (state : Yulang.GeneralNominalSaturationState.State roles)
-  (formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state)
-  (declaration : Yulang.GeneralDeclarations.Declaration)
-  (singleton : Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}))
-  (focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
-  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
-  Membership.mem.{0, 0} state.packets packet →
-    Yulang.GeneralNominalSaturationState.Alias state focus.identity packet.site.occurrence.identity →
-      Eq.{1} packet.declaration.id declaration.id
-Yulang.GeneralDictionarySourceChoiceVisibility.singleton_selected_coherence {roles : Yulang.Roles.RoleDecls}
-  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
-  (state : Yulang.GeneralNominalSaturationState.State roles)
-  (formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state)
-  (declaration : Yulang.GeneralDeclarations.Declaration)
-  (singleton : Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}))
-  (focus : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
-  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
-  (selected :
-    Yulang.GeneralNominalFeedbackK2.Local registry state focus
-      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
-  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
-  Membership.mem.{0, 0} state.packets packet →
-    Yulang.GeneralNominalSaturationState.Alias state focus.identity packet.site.occurrence.identity →
-      Eq.{1} packet.declaration.id key
-Yulang.GeneralDictionaryJournalTreeFormation.initial_source :
-  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryRecursiveObstruction.context Yulang.GeneralDictionaryRecursiveObstruction.root
-Yulang.GeneralDictionaryJournalTreeFormation.formed_before :
-  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryCommittedEvidenceExamples.before
-Yulang.GeneralDictionaryJournalTreeFormation.formed_after :
-  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryJournalTreeExamples.after
-Yulang.GeneralDictionaryJournalTreeFormation.reachable_positive :
-  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
-      Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryJournalTreeExamples.after ∧
-    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after
-        Yulang.GeneralNominalExamples.model ∧
-      ¬Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after
-          Yulang.GeneralDictionaryRecursiveObstruction.badModel
-Yulang.GeneralDictionaryJournalTreeExamples.good_before :
-  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryCommittedEvidenceExamples.before
-    Yulang.GeneralNominalExamples.model
-Yulang.GeneralDictionaryJournalTreeExamples.edge_shape (first last : Nat)
-  (edge : Yulang.GeneralNominalFeedbackK2.Edge Yulang.GeneralDictionaryCommittedEvidenceExamples.before first last) :
-  Eq.{1} first 0 ∧ Eq.{1} last 1
-Yulang.GeneralDictionaryJournalTreeExamples.acyclic (source : Nat) :
-  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralDictionaryCommittedEvidenceExamples.before source
-Yulang.GeneralDictionaryJournalTreeExamples.old_acyclic (slot : Fin 2) :
-  ¬Yulang.GeneralNominalCycleK2.RecursAt Yulang.GeneralDictionaryRecursiveObstruction.context.state slot
-Yulang.GeneralDictionaryJournalTreeExamples.selected :
-  Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryCommittedEvidenceExamples.before Yulang.GeneralDictionaryRecursiveObstruction.root
-    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 40 List.nil.{0})
-Yulang.GeneralDictionaryJournalTreeExamples.enabled :
-  Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryCommittedEvidenceExamples.before Yulang.GeneralDictionaryCommittedEvidenceExamples.packet
-Yulang.GeneralDictionaryJournalTreeExamples.feedback_step :
-  Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryCommittedEvidenceExamples.before
-    Yulang.GeneralDictionaryJournalTreeExamples.after
-Yulang.GeneralDictionaryJournalTreeExamples.finished_step :
-  Yulang.GeneralDictionaryFinishedTrace.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryCommittedEvidenceExamples.before
-    Yulang.GeneralDictionaryJournalTreeExamples.after
-Yulang.GeneralDictionaryJournalTreeExamples.no_child
-  (child parent : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) :
-  ¬Yulang.GeneralDictionaryJournalTree.Child Yulang.GeneralDictionaryJournalTreeExamples.after child parent
-Yulang.GeneralDictionaryJournalTreeExamples.covered :
-  Yulang.GeneralDictionaryJournalTree.Covered Yulang.GeneralDictionaryJournalTreeExamples.after
-    Yulang.GeneralDictionaryRecursiveObstruction.root
-Yulang.GeneralDictionaryJournalTreeExamples.accessible :
-  Acc.{1} (Yulang.GeneralDictionaryJournalTree.Child Yulang.GeneralDictionaryJournalTreeExamples.after)
-    Yulang.GeneralDictionaryRecursiveObstruction.root
-Yulang.GeneralDictionaryJournalTreeExamples.good_after :
-  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after
-    Yulang.GeneralNominalExamples.model
-Yulang.GeneralDictionaryJournalTreeExamples.bad_excluded :
-  ¬Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after
-      Yulang.GeneralDictionaryRecursiveObstruction.badModel
-Yulang.GeneralDictionaryJournalTreeExamples.uniform_dictionary :
-  Exists.{1} fun tree =>
-    Eq.{1} tree.root Yulang.GeneralDictionaryRecursiveObstruction.root ∧
-      Yulang.GeneralSourceDictionaries.Evidence
-          (Yulang.GeneralDictionaryJournalTree.Recorded Yulang.GeneralDictionaryJournalTreeExamples.after) tree ∧
-        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
-          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after model →
-            Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryRecursiveObstruction.registry
-              Yulang.GeneralDictionaryJournalTreeExamples.after.context model
-              Yulang.GeneralDictionaryRecursiveObstruction.root (Yulang.GeneralSourceDictionaries.erase tree)
 Yulang.GeneralDictionaryCurrentJournal.initial_current {roles : Yulang.Roles.RoleDecls}
   (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
   (root : Yulang.GeneralSourceDictionaries.Occurrence roles) :
@@ -196,121 +90,101 @@ Yulang.GeneralDictionaryCurrentJournalExamples.arbitrary_tail
   Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralNominalFeedbackObstruction.registry after.context m
     Yulang.GeneralNominalFeedbackObstruction.root 2
     (List.cons.{0} Yulang.GeneralNominalFeedbackObstruction.child List.nil.{0})
-Yulang.GeneralDictionaryTerminalRefresh.output_int (m : Yulang.GeneralNominalCommonBridge.Assignment)
-  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after m) :
-  Yulang.CommonNominalFullCarrier.Equivalent (Prod.fst.{0, 0} (m 1))
-    (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int)
-Yulang.GeneralDictionaryTerminalRefresh.source_known :
-  Yulang.GeneralNominalState.Known Yulang.GeneralDictionaryTerminalRefresh.nextState 1
-Yulang.GeneralDictionaryTerminalRefresh.source_unknown :
-  ¬Yulang.GeneralNominalState.Known Yulang.GeneralDictionaryJournalTreeExamples.after.context.state 1
-Yulang.GeneralDictionaryTerminalRefresh.actual_refresh :
-  Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
+Yulang.GeneralDictionarySourceChoiceVisibility.visible {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Membership.mem.{0, 0} state.packets packet → Membership.mem.{0, 0} registry.declarations packet.declaration
+Yulang.GeneralDictionarySourceChoiceVisibility.singleton_choice {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (singleton : Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}))
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Membership.mem.{0, 0} state.packets packet → Eq.{1} packet.declaration declaration
+Yulang.GeneralDictionarySourceChoiceVisibility.singleton_key_coherence {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (singleton : Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}))
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Membership.mem.{0, 0} state.packets packet →
+    Yulang.GeneralNominalSaturationState.Alias state focus.identity packet.site.occurrence.identity →
+      Eq.{1} packet.declaration.id declaration.id
+Yulang.GeneralDictionarySourceChoiceVisibility.singleton_selected_coherence {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (singleton : Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}))
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (selected :
+    Yulang.GeneralNominalFeedbackK2.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Membership.mem.{0, 0} state.packets packet →
+    Yulang.GeneralNominalSaturationState.Alias state focus.identity packet.site.occurrence.identity →
+      Eq.{1} packet.declaration.id key
+Yulang.GeneralDictionaryJournalTreeFormation.initial_source :
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.context Yulang.GeneralDictionaryRecursiveObstruction.root
+Yulang.GeneralDictionaryJournalTreeFormation.formed_before :
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryCommittedEvidenceExamples.before
+Yulang.GeneralDictionaryJournalTreeFormation.formed_after :
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
     Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryJournalTreeExamples.after
-    Yulang.GeneralDictionaryTerminalRefresh.refreshed
-Yulang.GeneralDictionaryTerminalRefresh.exact_models (m : Yulang.GeneralNominalCommonBridge.Assignment) :
-  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m ↔
-    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after m
-Yulang.GeneralDictionaryTerminalRefresh.formed :
+Yulang.GeneralDictionaryJournalTreeFormation.reachable_positive :
   Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryTerminalRefresh.refreshed
-Yulang.GeneralDictionaryTerminalRefresh.inhabited :
-  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed
-    Yulang.GeneralNominalExamples.model
-Yulang.GeneralDictionaryTerminalRefresh.context_complete :
-  Yulang.GeneralNominalSaturationState.ContextComplete Yulang.GeneralDictionaryTerminalRefresh.refreshed
-Yulang.GeneralDictionaryTerminalRefresh.no_known_distinct (state : Yulang.GeneralNominalState.State)
-  (first second : Yulang.GeneralNominalCommonBridge.Assignment) (sourceName : Nat)
-  (firstAt :
-    Eq.{1} (Prod.fst.{0, 0} (first sourceName))
-      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int))
-  (secondAt :
-    Eq.{1} (Prod.fst.{0, 0} (second sourceName))
-      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.str))
-  (one : Yulang.GeneralNominalState.Models state first) (two : Yulang.GeneralNominalState.Models state second) :
-  ¬Yulang.GeneralNominalState.Known state sourceName
-Yulang.GeneralDictionaryTerminalRefresh.varying_original (name : Nat) (large : LE.le.{0} 2 name) :
-  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryRecursiveObstruction.context.state
-    (Yulang.GeneralDictionaryTerminalRefresh.varying name)
-Yulang.GeneralDictionaryTerminalRefresh.varying_model (name : Nat) (large : LE.le.{0} 2 name) :
-  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed
-    (Yulang.GeneralDictionaryTerminalRefresh.varying name)
-Yulang.GeneralDictionaryTerminalRefresh.refresh_large_unknown (next : Yulang.GeneralNominalCandidates.Context)
-  (certificate : Yulang.GeneralNominalCycleSteps.Refresh Yulang.GeneralDictionaryTerminalRefresh.refreshed next)
-  (source : Nat) (large : LE.le.{0} 2 source) : ¬Yulang.GeneralNominalState.Known next.state source
-Yulang.GeneralDictionaryTerminalRefresh.current_query :
-  Eq.{1}
-    (Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionaryTerminalRefresh.nextState
-      Yulang.GeneralDictionaryRecursiveObstruction.context.interpretation
-      Yulang.GeneralDictionaryRecursiveObstruction.declaration)
-    (List.cons.{0}
-      (Yulang.GeneralNominalInspection.Query.nominal 0
-        (List.cons.{0} (Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} 0 List.nil.{0})) List.nil.{0}))
-      List.nil.{0})
-Yulang.GeneralDictionaryTerminalRefresh.current_schema :
-  Eq.{1}
-    (Yulang.GeneralNominalRecursiveCandidates.generated Yulang.GeneralDictionaryRecursiveObstruction.registry
-      Yulang.GeneralDictionaryTerminalRefresh.nextContext Yulang.GeneralDictionaryRecursiveObstruction.root
-      Yulang.GeneralDictionaryRecursiveObstruction.declaration
-      Yulang.GeneralDictionaryRecursiveObstruction.declaration_checked
-      (List.cons.{0} (Prod.mk.{0, 0} 0 0) List.nil.{0}))
-    {
-      tests :=
-        List.cons.{0}
-          (Prod.mk.{0, 0} (Yulang.GeneralNominalRecursiveInspection.Origin.source 1)
-            (Yulang.GeneralNominalRecursiveInspection.Test.scalar Yulang.Inference.Base.int))
-          List.nil.{0} }
-Yulang.GeneralDictionaryTerminalRefresh.every_current_branch (m : Yulang.GeneralNominalCommonBridge.Assignment)
-  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m) :
-  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryTerminalRefresh.nextContext Yulang.GeneralDictionaryRecursiveObstruction.root
-    Yulang.GeneralDictionaryRecursiveObstruction.declaration
-    Yulang.GeneralDictionaryRecursiveObstruction.declaration_checked (List.cons.{0} (Prod.mk.{0, 0} 0 0) List.nil.{0}) m
-Yulang.GeneralDictionaryTerminalRefresh.installs_committed
-  (p : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles)
-  (same : Eq.{1} p.site.occurrence Yulang.GeneralDictionaryRecursiveObstruction.root)
-  (enabled :
-    Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralDictionaryRecursiveObstruction.registry
-      Yulang.GeneralDictionaryTerminalRefresh.refreshed p) :
-  Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionaryTerminalRefresh.refreshed p
-Yulang.GeneralDictionaryTerminalRefresh.generated_only_root
-  (child : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)
-  (generated :
-    Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionaryTerminalRefresh.refreshed
-      Yulang.GeneralDictionaryRecursiveObstruction.root child) :
-  Eq.{1} child Yulang.GeneralDictionaryRecursiveObstruction.root
-Yulang.GeneralDictionaryTerminalRefresh.stable :
-  Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryTerminalRefresh.refreshed Yulang.GeneralDictionaryRecursiveObstruction.root
-Yulang.GeneralDictionaryTerminalRefresh.current_instance (m : Yulang.GeneralNominalCommonBridge.Assignment)
-  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m) :
-  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryTerminalRefresh.nextContext m Yulang.GeneralDictionaryRecursiveObstruction.root 40
-    List.nil.{0}
-Yulang.GeneralDictionaryTerminalRefresh.current_evidence (m : Yulang.GeneralNominalCommonBridge.Assignment)
-  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m) :
-  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryRecursiveObstruction.registry
-    Yulang.GeneralDictionaryTerminalRefresh.refreshed.context m Yulang.GeneralDictionaryRecursiveObstruction.root
-    (Yulang.CommonRoleOutermostResolver.Dictionary.node 40 List.nil.{0})
-Yulang.GeneralDictionaryTerminalRefresh.completed :
-  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
-      Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryTerminalRefresh.refreshed ∧
-    Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralDictionaryRecursiveObstruction.registry
-        Yulang.GeneralDictionaryTerminalRefresh.refreshed Yulang.GeneralDictionaryRecursiveObstruction.root ∧
-      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed
-          Yulang.GeneralNominalExamples.model ∧
-        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
-          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m →
-            Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryRecursiveObstruction.registry
-              Yulang.GeneralDictionaryTerminalRefresh.refreshed.context m
-              Yulang.GeneralDictionaryRecursiveObstruction.root
-              (Yulang.CommonRoleOutermostResolver.Dictionary.node 40 List.nil.{0})
-Yulang.GeneralDictionaryTerminalRefresh.refines :
-  Yulang.GeneralNominalRefinements.Refines Yulang.GeneralDictionaryJournalTreeExamples.after.context.state
-    Yulang.GeneralDictionaryTerminalRefresh.nextState
-Yulang.GeneralDictionaryTerminalRefresh.certificate :
-  Yulang.GeneralNominalCycleSteps.Refresh Yulang.GeneralDictionaryJournalTreeExamples.after
-    Yulang.GeneralDictionaryTerminalRefresh.nextContext
+      Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryJournalTreeExamples.after ∧
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after
+        Yulang.GeneralNominalExamples.model ∧
+      ¬Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after
+          Yulang.GeneralDictionaryRecursiveObstruction.badModel
+Yulang.GeneralDictionarySelectedInstanceCoherence.instance_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (key selectedKey : Nat) (children selectedChildren : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (instanceRule : Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.context model root key children)
+  (selected :
+    Yulang.GeneralNominalFeedbackK2.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} selectedKey selectedChildren)) :
+  Eq.{1} key selectedKey ∧ Eq.{1} children selectedChildren
+Yulang.GeneralDictionarySelectedInstanceCoherence.recorded_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (after : Yulang.GeneralNominalSaturationState.State roles)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryFinishedTrace.Step registry root)
+      (Yulang.GeneralNominalSaturationState.initial context root) after)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (recorded : Membership.mem.{0, 0} after.packets packet)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models after model) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (selected :
+    Yulang.GeneralNominalFeedbackK2.Local registry after packet.site.occurrence
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)) :
+  Eq.{1} packet.declaration.id key ∧ Eq.{1} packet.children children
+Yulang.GeneralDictionarySelectedInstanceCoherence.recorded_at_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (after : Yulang.GeneralNominalSaturationState.State roles)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryFinishedTrace.Step registry root)
+      (Yulang.GeneralNominalSaturationState.initial context root) after)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (recorded : Membership.mem.{0, 0} after.packets packet)
+  (same : Eq.{1} packet.site.occurrence focus) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models after model) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (selected :
+    Yulang.GeneralNominalFeedbackK2.Local registry after focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)) :
+  Eq.{1} packet.declaration.id key ∧ Eq.{1} packet.children children
 Yulang.GeneralDictionaryModeledJointGap.stale_checked :
   Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDeclarationExamples.constructors
     Yulang.GeneralDeclarationExamples.roles Yulang.GeneralDictionaryModeledJointGap.stale
@@ -519,4 +393,231 @@ Yulang.GeneralDictionaryRefreshGap.no_bridges
       (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles)) :
   ¬Yulang.B4SkeletonV4.B4Bridges.{0}
       (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles) executor frontiers
+Yulang.GeneralDictionaryTerminalRefresh.output_int (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after m) :
+  Yulang.CommonNominalFullCarrier.Equivalent (Prod.fst.{0, 0} (m 1))
+    (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int)
+Yulang.GeneralDictionaryTerminalRefresh.source_known :
+  Yulang.GeneralNominalState.Known Yulang.GeneralDictionaryTerminalRefresh.nextState 1
+Yulang.GeneralDictionaryTerminalRefresh.source_unknown :
+  ¬Yulang.GeneralNominalState.Known Yulang.GeneralDictionaryJournalTreeExamples.after.context.state 1
+Yulang.GeneralDictionaryTerminalRefresh.actual_refresh :
+  Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryJournalTreeExamples.after
+    Yulang.GeneralDictionaryTerminalRefresh.refreshed
+Yulang.GeneralDictionaryTerminalRefresh.exact_models (m : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m ↔
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after m
+Yulang.GeneralDictionaryTerminalRefresh.formed :
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryTerminalRefresh.refreshed
+Yulang.GeneralDictionaryTerminalRefresh.inhabited :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed
+    Yulang.GeneralNominalExamples.model
+Yulang.GeneralDictionaryTerminalRefresh.context_complete :
+  Yulang.GeneralNominalSaturationState.ContextComplete Yulang.GeneralDictionaryTerminalRefresh.refreshed
+Yulang.GeneralDictionaryTerminalRefresh.no_known_distinct (state : Yulang.GeneralNominalState.State)
+  (first second : Yulang.GeneralNominalCommonBridge.Assignment) (sourceName : Nat)
+  (firstAt :
+    Eq.{1} (Prod.fst.{0, 0} (first sourceName))
+      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int))
+  (secondAt :
+    Eq.{1} (Prod.fst.{0, 0} (second sourceName))
+      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.str))
+  (one : Yulang.GeneralNominalState.Models state first) (two : Yulang.GeneralNominalState.Models state second) :
+  ¬Yulang.GeneralNominalState.Known state sourceName
+Yulang.GeneralDictionaryTerminalRefresh.varying_original (name : Nat) (large : LE.le.{0} 2 name) :
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryRecursiveObstruction.context.state
+    (Yulang.GeneralDictionaryTerminalRefresh.varying name)
+Yulang.GeneralDictionaryTerminalRefresh.varying_model (name : Nat) (large : LE.le.{0} 2 name) :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed
+    (Yulang.GeneralDictionaryTerminalRefresh.varying name)
+Yulang.GeneralDictionaryTerminalRefresh.refresh_large_unknown (next : Yulang.GeneralNominalCandidates.Context)
+  (certificate : Yulang.GeneralNominalCycleSteps.Refresh Yulang.GeneralDictionaryTerminalRefresh.refreshed next)
+  (source : Nat) (large : LE.le.{0} 2 source) : ¬Yulang.GeneralNominalState.Known next.state source
+Yulang.GeneralDictionaryTerminalRefresh.current_query :
+  Eq.{1}
+    (Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionaryTerminalRefresh.nextState
+      Yulang.GeneralDictionaryRecursiveObstruction.context.interpretation
+      Yulang.GeneralDictionaryRecursiveObstruction.declaration)
+    (List.cons.{0}
+      (Yulang.GeneralNominalInspection.Query.nominal 0
+        (List.cons.{0} (Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} 0 List.nil.{0})) List.nil.{0}))
+      List.nil.{0})
+Yulang.GeneralDictionaryTerminalRefresh.current_schema :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.generated Yulang.GeneralDictionaryRecursiveObstruction.registry
+      Yulang.GeneralDictionaryTerminalRefresh.nextContext Yulang.GeneralDictionaryRecursiveObstruction.root
+      Yulang.GeneralDictionaryRecursiveObstruction.declaration
+      Yulang.GeneralDictionaryRecursiveObstruction.declaration_checked
+      (List.cons.{0} (Prod.mk.{0, 0} 0 0) List.nil.{0}))
+    {
+      tests :=
+        List.cons.{0}
+          (Prod.mk.{0, 0} (Yulang.GeneralNominalRecursiveInspection.Origin.source 1)
+            (Yulang.GeneralNominalRecursiveInspection.Test.scalar Yulang.Inference.Base.int))
+          List.nil.{0} }
+Yulang.GeneralDictionaryTerminalRefresh.every_current_branch (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m) :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryTerminalRefresh.nextContext Yulang.GeneralDictionaryRecursiveObstruction.root
+    Yulang.GeneralDictionaryRecursiveObstruction.declaration
+    Yulang.GeneralDictionaryRecursiveObstruction.declaration_checked (List.cons.{0} (Prod.mk.{0, 0} 0 0) List.nil.{0}) m
+Yulang.GeneralDictionaryTerminalRefresh.installs_committed
+  (p : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles)
+  (same : Eq.{1} p.site.occurrence Yulang.GeneralDictionaryRecursiveObstruction.root)
+  (enabled :
+    Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralDictionaryRecursiveObstruction.registry
+      Yulang.GeneralDictionaryTerminalRefresh.refreshed p) :
+  Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionaryTerminalRefresh.refreshed p
+Yulang.GeneralDictionaryTerminalRefresh.generated_only_root
+  (child : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)
+  (generated :
+    Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionaryTerminalRefresh.refreshed
+      Yulang.GeneralDictionaryRecursiveObstruction.root child) :
+  Eq.{1} child Yulang.GeneralDictionaryRecursiveObstruction.root
+Yulang.GeneralDictionaryTerminalRefresh.stable :
+  Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryTerminalRefresh.refreshed Yulang.GeneralDictionaryRecursiveObstruction.root
+Yulang.GeneralDictionaryTerminalRefresh.current_instance (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryTerminalRefresh.nextContext m Yulang.GeneralDictionaryRecursiveObstruction.root 40
+    List.nil.{0}
+Yulang.GeneralDictionaryTerminalRefresh.current_evidence (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryTerminalRefresh.refreshed.context m Yulang.GeneralDictionaryRecursiveObstruction.root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node 40 List.nil.{0})
+Yulang.GeneralDictionaryTerminalRefresh.completed :
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
+      Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryTerminalRefresh.refreshed ∧
+    Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralDictionaryRecursiveObstruction.registry
+        Yulang.GeneralDictionaryTerminalRefresh.refreshed Yulang.GeneralDictionaryRecursiveObstruction.root ∧
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed
+          Yulang.GeneralNominalExamples.model ∧
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryRecursiveObstruction.registry
+              Yulang.GeneralDictionaryTerminalRefresh.refreshed.context m
+              Yulang.GeneralDictionaryRecursiveObstruction.root
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node 40 List.nil.{0})
+Yulang.GeneralDictionaryTerminalRefresh.refines :
+  Yulang.GeneralNominalRefinements.Refines Yulang.GeneralDictionaryJournalTreeExamples.after.context.state
+    Yulang.GeneralDictionaryTerminalRefresh.nextState
+Yulang.GeneralDictionaryTerminalRefresh.certificate :
+  Yulang.GeneralNominalCycleSteps.Refresh Yulang.GeneralDictionaryJournalTreeExamples.after
+    Yulang.GeneralDictionaryTerminalRefresh.nextContext
+Yulang.GeneralDictionaryTerminalClassification.edge_shape (first last : Nat)
+  (edge : Yulang.GeneralNominalFeedbackK2.Edge Yulang.GeneralDictionaryTerminalRefresh.refreshed first last) :
+  Eq.{1} first 0 ∧ Eq.{1} last 1
+Yulang.GeneralDictionaryTerminalClassification.acyclic (source : Nat) :
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralDictionaryTerminalRefresh.refreshed source
+Yulang.GeneralDictionaryTerminalClassification.old_acyclic (slot : Fin 2) :
+  ¬Yulang.GeneralNominalCycleK2.RecursAt Yulang.GeneralDictionaryTerminalRefresh.nextState slot
+Yulang.GeneralDictionaryTerminalClassification.report_calculated :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralDictionaryTerminalRefresh.nextContext
+      Yulang.GeneralDictionaryRecursiveObstruction.declaration (List.cons.{0} (Prod.mk.{0, 0} 0 0) List.nil.{0}))
+    (Yulang.GeneralNominalUnaryCaptureFacts.captured Yulang.GeneralDictionaryTerminalRefresh.nextState 0 0 0
+      (Prod.mk.{0, 0} 1 1))
+Yulang.GeneralDictionaryTerminalClassification.prepared :
+  Yulang.GeneralNominalRecursiveCandidates.Prepared Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryTerminalRefresh.nextContext Yulang.GeneralDictionaryRecursiveObstruction.root
+    Yulang.GeneralDictionaryRecursiveObstruction.declaration
+    Yulang.GeneralDictionaryRecursiveObstruction.declaration_checked
+Yulang.GeneralDictionaryTerminalClassification.survivor :
+  Yulang.GeneralNominalRecursiveCandidates.Survivor Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryTerminalRefresh.nextContext Yulang.GeneralDictionaryRecursiveObstruction.root 40
+    List.nil.{0}
+Yulang.GeneralDictionaryTerminalClassification.selected :
+  Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryTerminalRefresh.refreshed Yulang.GeneralDictionaryRecursiveObstruction.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 40 List.nil.{0})
+Yulang.GeneralDictionaryTerminalClassification.resolved :
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
+      Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryTerminalRefresh.refreshed ∧
+    Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralDictionaryRecursiveObstruction.registry
+        Yulang.GeneralDictionaryTerminalRefresh.refreshed Yulang.GeneralDictionaryRecursiveObstruction.root ∧
+      Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralDictionaryRecursiveObstruction.registry
+          Yulang.GeneralDictionaryTerminalRefresh.refreshed Yulang.GeneralDictionaryRecursiveObstruction.root
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 40 List.nil.{0}) ∧
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed
+            Yulang.GeneralNominalExamples.model ∧
+          ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryTerminalRefresh.refreshed m →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryRecursiveObstruction.registry
+                Yulang.GeneralDictionaryTerminalRefresh.refreshed.context m
+                Yulang.GeneralDictionaryRecursiveObstruction.root
+                (Yulang.CommonRoleOutermostResolver.Dictionary.node 40 List.nil.{0})
+Yulang.GeneralDictionaryTerminalClassification.boundary_local :
+  Yulang.B4TargetV3.Local.{0}
+    (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralDictionaryRecursiveObstruction.registry Yulang.GeneralDictionaryTerminalRefresh.refreshed
+    Yulang.GeneralDictionaryRecursiveObstruction.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 40 List.nil.{0})
+Yulang.GeneralDictionaryTerminalClassification.classified :
+  Yulang.B4TargetV3.Classify.{0}
+    (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralDictionaryRecursiveObstruction.registry Yulang.GeneralDictionaryTerminalRefresh.refreshed
+    Yulang.GeneralDictionaryRecursiveObstruction.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node 40 List.nil.{0}))
+Yulang.GeneralDictionaryTerminalClassification.two_steps :
+  Yulang.B4Target.Steps.{1}
+    (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
+      Yulang.GeneralDictionaryRecursiveObstruction.root)
+    (Yulang.GeneralNominalSaturationState.initial Yulang.GeneralDictionaryRecursiveObstruction.context
+      Yulang.GeneralDictionaryRecursiveObstruction.root)
+    Yulang.GeneralDictionaryTerminalRefresh.refreshed
+Yulang.GeneralDictionaryJournalTreeExamples.good_before :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryCommittedEvidenceExamples.before
+    Yulang.GeneralNominalExamples.model
+Yulang.GeneralDictionaryJournalTreeExamples.edge_shape (first last : Nat)
+  (edge : Yulang.GeneralNominalFeedbackK2.Edge Yulang.GeneralDictionaryCommittedEvidenceExamples.before first last) :
+  Eq.{1} first 0 ∧ Eq.{1} last 1
+Yulang.GeneralDictionaryJournalTreeExamples.acyclic (source : Nat) :
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralDictionaryCommittedEvidenceExamples.before source
+Yulang.GeneralDictionaryJournalTreeExamples.old_acyclic (slot : Fin 2) :
+  ¬Yulang.GeneralNominalCycleK2.RecursAt Yulang.GeneralDictionaryRecursiveObstruction.context.state slot
+Yulang.GeneralDictionaryJournalTreeExamples.selected :
+  Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryCommittedEvidenceExamples.before Yulang.GeneralDictionaryRecursiveObstruction.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 40 List.nil.{0})
+Yulang.GeneralDictionaryJournalTreeExamples.enabled :
+  Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryCommittedEvidenceExamples.before Yulang.GeneralDictionaryCommittedEvidenceExamples.packet
+Yulang.GeneralDictionaryJournalTreeExamples.feedback_step :
+  Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryCommittedEvidenceExamples.before
+    Yulang.GeneralDictionaryJournalTreeExamples.after
+Yulang.GeneralDictionaryJournalTreeExamples.finished_step :
+  Yulang.GeneralDictionaryFinishedTrace.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionaryCommittedEvidenceExamples.before
+    Yulang.GeneralDictionaryJournalTreeExamples.after
+Yulang.GeneralDictionaryJournalTreeExamples.no_child
+  (child parent : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) :
+  ¬Yulang.GeneralDictionaryJournalTree.Child Yulang.GeneralDictionaryJournalTreeExamples.after child parent
+Yulang.GeneralDictionaryJournalTreeExamples.covered :
+  Yulang.GeneralDictionaryJournalTree.Covered Yulang.GeneralDictionaryJournalTreeExamples.after
+    Yulang.GeneralDictionaryRecursiveObstruction.root
+Yulang.GeneralDictionaryJournalTreeExamples.accessible :
+  Acc.{1} (Yulang.GeneralDictionaryJournalTree.Child Yulang.GeneralDictionaryJournalTreeExamples.after)
+    Yulang.GeneralDictionaryRecursiveObstruction.root
+Yulang.GeneralDictionaryJournalTreeExamples.good_after :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after
+    Yulang.GeneralNominalExamples.model
+Yulang.GeneralDictionaryJournalTreeExamples.bad_excluded :
+  ¬Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after
+      Yulang.GeneralDictionaryRecursiveObstruction.badModel
+Yulang.GeneralDictionaryJournalTreeExamples.uniform_dictionary :
+  Exists.{1} fun tree =>
+    Eq.{1} tree.root Yulang.GeneralDictionaryRecursiveObstruction.root ∧
+      Yulang.GeneralSourceDictionaries.Evidence
+          (Yulang.GeneralDictionaryJournalTree.Recorded Yulang.GeneralDictionaryJournalTreeExamples.after) tree ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryJournalTreeExamples.after model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryRecursiveObstruction.registry
+              Yulang.GeneralDictionaryJournalTreeExamples.after.context model
+              Yulang.GeneralDictionaryRecursiveObstruction.root (Yulang.GeneralSourceDictionaries.erase tree)
 ```

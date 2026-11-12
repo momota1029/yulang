@@ -1881,3 +1881,5 @@ import Yulang.GeneralDictionarySourceChoiceVisibility
 import Yulang.GeneralDictionaryJournalTreeExamples
 import Yulang.GeneralDictionaryJournalTreeFormation
 import Yulang.GeneralDictionaryTerminalRefresh
+import Yulang.GeneralDictionaryTerminalClassification
+import Yulang.GeneralDictionarySelectedInstanceCoherence

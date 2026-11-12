@@ -1,4 +1,5 @@
 import Yulang.GeneralDictionaryTerminalRefresh
+import Yulang.GeneralDictionaryTerminalClassification
 
 #print axioms Yulang.GeneralDictionaryTerminalRefresh.output_int
 #print axioms Yulang.GeneralDictionaryTerminalRefresh.source_known
@@ -23,3 +24,14 @@ import Yulang.GeneralDictionaryTerminalRefresh
 #print axioms Yulang.GeneralDictionaryTerminalRefresh.completed
 #print axioms Yulang.GeneralDictionaryTerminalRefresh.refines
 #print axioms Yulang.GeneralDictionaryTerminalRefresh.certificate
+#print axioms Yulang.GeneralDictionaryTerminalClassification.edge_shape
+#print axioms Yulang.GeneralDictionaryTerminalClassification.acyclic
+#print axioms Yulang.GeneralDictionaryTerminalClassification.old_acyclic
+#print axioms Yulang.GeneralDictionaryTerminalClassification.report_calculated
+#print axioms Yulang.GeneralDictionaryTerminalClassification.prepared
+#print axioms Yulang.GeneralDictionaryTerminalClassification.survivor
+#print axioms Yulang.GeneralDictionaryTerminalClassification.selected
+#print axioms Yulang.GeneralDictionaryTerminalClassification.resolved
+#print axioms Yulang.GeneralDictionaryTerminalClassification.boundary_local
+#print axioms Yulang.GeneralDictionaryTerminalClassification.classified
+#print axioms Yulang.GeneralDictionaryTerminalClassification.two_steps

@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionarySelectedInstanceCoherence
 import Yulang.GeneralDictionarySourceChoiceVisibility
 import Yulang.GeneralDictionaryJournalTreeFormation
 
@@ -9,3 +10,6 @@ import Yulang.GeneralDictionaryJournalTreeFormation
 #print axioms Yulang.GeneralDictionaryJournalTreeFormation.formed_before
 #print axioms Yulang.GeneralDictionaryJournalTreeFormation.formed_after
 #print axioms Yulang.GeneralDictionaryJournalTreeFormation.reachable_positive
+#print axioms Yulang.GeneralDictionarySelectedInstanceCoherence.instance_selected
+#print axioms Yulang.GeneralDictionarySelectedInstanceCoherence.recorded_selected
+#print axioms Yulang.GeneralDictionarySelectedInstanceCoherence.recorded_at_selected
