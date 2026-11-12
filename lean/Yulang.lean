@@ -2008,3 +2008,6 @@ import Yulang.GeneralDictionaryDiagnosticTotality
 import Yulang.GeneralDictionaryEarlyMergeClosure
 
 import Yulang.GeneralDictionaryEarlyMergeNoEvidence
+
+import Yulang.GeneralDictionaryAliasJoint
+import Yulang.GeneralDictionaryFailedDiagnosticScope

@@ -1,9 +1,6 @@
 cycle: 145
 status: running
 started: 2026-11-12T16:27:19Z
-updated: 2026-11-12T16:31:00Z
-elapsed_min: 3.7
-activity: V5 evidenceNode/Joint; fresh I25 read, prior144 completed; investigate recorded associated-output merge
-workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: a0e200418
-resume_hint: Read cycle145 cache and current work branch; do not duplicate active writer.
+updated: 2026-11-12T16:35:40.912597+00:00
+activity: Six new AliasJoint and FailedDiagnosticScope theorems verified; associated-output Joint investigation active
+resume_hint: Active cycle145 writer. No duplicate writer. General 8/14 remain open.

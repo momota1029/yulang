@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryAliasJoint
+import Yulang.GeneralDictionaryFailedDiagnosticScope
+
+#print axioms Yulang.GeneralDictionaryAliasJoint.joint_at_related
+#print axioms Yulang.GeneralDictionaryAliasJoint.joint_alias_iff
+#print axioms Yulang.GeneralDictionaryAliasJoint.representative_instance
+#print axioms Yulang.GeneralDictionaryFailedDiagnosticScope.no_selected_classification
+#print axioms Yulang.GeneralDictionaryFailedDiagnosticScope.no_children_evidence
+#print axioms Yulang.GeneralDictionaryFailedDiagnosticScope.node_at_failed_snapshot
