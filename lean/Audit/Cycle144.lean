@@ -1,3 +1,10 @@
+import Yulang.GeneralDictionarySupportReadbackRegression
+import Yulang.GeneralDictionarySupportRecursiveJoint
+import Yulang.GeneralDictionarySupportRecursiveClosure
+import Yulang.GeneralDictionaryLocalReadbackExact
+import Yulang.GeneralDictionarySupportRecursiveClassification
+import Yulang.GeneralDictionaryEarlyMergeBoundary
+import Yulang.GeneralDictionaryLocalReadback
 import Yulang.GeneralDictionarySupportReadback
 import Yulang.GeneralDictionaryEarlyMergeChoices
 import Yulang.GeneralDictionaryEarlyMergeRegression
@@ -11,3 +18,85 @@ import Yulang.GeneralDictionaryEarlyMergeRegression
 #print axioms Yulang.GeneralDictionaryEarlyMergeChoices.recorded_choices
 #print axioms Yulang.GeneralDictionaryEarlyMergeRegression.scheduled
 #print axioms Yulang.GeneralDictionaryEarlyMergeRegression.coherent_not_current
+
+#print axioms Yulang.GeneralDictionaryLocalReadback.classified_exists
+
+#print axioms Yulang.GeneralDictionaryLocalReadback.support_dictionary
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeBoundary.packetFree_no_merge
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeBoundary.initial_install_merge
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.current_model
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.acyclic
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.parent_selected
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.leaf_selected
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.supported_parent_selected
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.supported_leaf_selected
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.classified
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.reachable_classified_dictionary
+
+#print axioms Yulang.GeneralDictionaryLocalReadbackExact.classified_accessible
+
+#print axioms Yulang.GeneralDictionaryLocalReadbackExact.children_accessible
+
+#print axioms Yulang.GeneralDictionaryLocalReadbackExact.closure_selected
+
+#print axioms Yulang.GeneralDictionaryLocalReadbackExact.success_iff
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.varying_source
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.varying_model
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.refresh_large_unknown
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.context_complete
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.point_closed
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.sites_exact
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.edges_exact
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.generated_cases
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.sameInputs_no_cross
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.merges_closed
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.installs_committed
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.feedback_stable
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.stable
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.resolves
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.completed
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.models_of_source
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.parent_branch_at
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.leaf_branch_at
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.parent_joint
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.leaf_joint
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.generated_selected_joint
+
+#print axioms Yulang.GeneralDictionarySupportReadbackRegression.accessible
+
+#print axioms Yulang.GeneralDictionarySupportReadbackRegression.generated_selected
+
+#print axioms Yulang.GeneralDictionarySupportReadbackRegression.extracted
+
+#print axioms Yulang.GeneralDictionarySupportReadbackRegression.extracted_exact
