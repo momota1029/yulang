@@ -4660,3 +4660,23 @@ slots, with exact source-membership coverage and completeness from Linked.
 and finite child shape; source positions and all term vectors are computed.
 Its all-model source-evidence theorem leaves frames/captures/allocation and
 chosen keys explicit. Missing source identities defer instead of allocating.
+
+Cycle128 adds exact reconstruction of complete source obligation trees from raw
+selected-key dictionaries. The checked registry computes every descendant
+occurrence; missing and extra children defer. Localization and preparation
+preserve the complete source tree, connecting the original raw payload to one
+fixed actual-source witness in every model of the recorded batch. Fixed-input
+registry reordering preserves the full optional result. Captures, allocation,
+root and selected-key payload remain inputs; readiness and general B4 are open.
+
+Cycle128's dictionary equations and independent declaration Instance also use
+arbitrary full nominal assignments. A real nominal73 fixture supplies one joint
+model. The dictionary-only full-state transaction retains descriptors, source
+ownership and all old model obligations, while recording every head/RHS equation.
+The compiler's pattern range is still variables; nominal values in captured
+sources do not constitute general nominal head/RHS materialization.
+
+The nominal-candidate dictionary adapter computes Frames from the actual checked
+registry and existing inspection reports. Given per-node Survivor evidence at
+one fixed Context, it reconstructs the unique complete source witness of a raw
+payload. It does not construct that recursive evidence or propagate child states.
