@@ -371,3 +371,58 @@ All17 modules were compared with actual public theorem declarations, Audit regis
 ```
 
 Existing Lean modifications are restricted to appended registrations/documentation in Audit.lean, Yulang.lean and README.md. All17 implementation modules are new.
+
+## Baseline and late integration update
+
+All recorded diff-only gates resolved origin/integration/m1-final to6e1e848418e9e85e53d585b0a5fc2ec633e2791f at their run time. A later final fetch found07152a05496ecc1f69ed7bf769bd44db02141e46, containing this published cycle and additional Astra work. Inbox/standing orders are unchanged/ACTIVE. The late additional work was not locally integrated or reverified during shutdown; do not attribute the above local tests to that later integration tree.
+
+The report publication e4735542a4f2a9c6951d2fdef7cef4c5c4e57c16 was read back over all2489 tracked files with zero differences and truncated=false. Its four report/design files were fetched individually and matched expected blob SHAs; all98 inventory entries were present.
+
+## Reserved-only membership is insufficient
+
+Command: `cd lean && timeout 90s lake env lean --trust=0 ../cache/yulang128/ReservedSlotGapProbe.lean`.
+Exit: 0. Output: empty (no diagnostics). Four anonymous examples are not counted among the98 public theorem inventory. An initial staging version needed an explicit arity index; only the final program below is the verified result.
+
+```lean
+import Yulang.GeneralNominalExamples
+import Yulang.GeneralDictionaryHeadlessLocations
+
+namespace ReservedSlotGapProbe
+open Yulang
+open GeneralDeclarationExamples (roles)
+open GeneralNominalExamples (state model state_models)
+
+abbrev s := GeneralNominalState.extend (state true) [1000] []
+abbrev demand : GeneralSourceState.Demand roles :=
+  ⟨0, fun _ => (1000,1000), [], by intro _ member; cases member⟩
+
+example : GeneralNominalState.Linked s demand := by
+  constructor
+  · intro index
+    constructor <;> simp [s, GeneralNominalState.sources, GeneralNominalState.extend]
+  · intro output member
+    cases member
+
+example : ¬ GeneralDictionaryHeadlessLocations.Available s.base demand := by
+  intro available
+  obtain ⟨slot, source⟩ := available.1 ⟨0, by decide⟩
+  have bound := slot.isLt
+  change slot.val < 2 at bound
+  change slot.val = 1000 at source
+  omega
+
+example : GeneralDictionaryHeadlessLocations.locate s.base demand = none := by
+  apply (GeneralDictionaryHeadlessLocations.locate_none_iff s.base demand).mpr
+  intro available
+  obtain ⟨slot, source⟩ := available.1 ⟨0, by decide⟩
+  have bound := slot.isLt
+  change slot.val < 2 at bound
+  change slot.val = 1000 at source
+  omega
+
+example : GeneralNominalState.Models s model := by
+  apply (GeneralNominalState.extend_models (state true) [1000] [] model).mpr
+  exact ⟨state_models true, PresenceNormalForm.all_nil _ _⟩
+
+end ReservedSlotGapProbe
+```
