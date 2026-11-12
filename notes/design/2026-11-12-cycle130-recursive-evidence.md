@@ -23,3 +23,7 @@ No Evidence definition may be simply classifier/candidate derivability, nor disc
 ## Specification and Yulang2 check
 
 Authority: spec/06-roles.md §6.3, associated output equations, conjunction of where children, finalization after sibling updates stabilize. Read existing audit ROLE-MORE-001–008 in `work/dots-audit:notes/audit/y2-claims-role-boundaries-cycle-2.md`; old advertised-where behavior is not imported. No new Yulang2 execution or new language decision is claimed.
+
+## Proved obstruction and required interface review
+
+The checked terminal fixture has a safe unique candidate and an original model which satisfies private head/projection constraints but violates its explicit associated output equation. The generic theorem rules out the current all-state EvidenceNode for any Evidence retaining that necessary source output law. Step/Stable/Generated alone cannot fix the quantified field: EvidenceNode has no stability premise. This does not refute final-state dictionary soundness. The narrow source-evidence definition is an inspection-mediated semantic certificate with the existing partial translation guards, not unrestricted Pattern-denotation completeness. The review question records the recommended final-state scope without changing any existing interface.
