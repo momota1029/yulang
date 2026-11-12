@@ -385,3 +385,9 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [dots-cycle150-module-guide](dots-cycle150-module-guide.md) — partial structural proof/review; general V5 remains8/14 unresolved.
 - [dots-cycle150-recursive-binary-tree](dots-cycle150-recursive-binary-tree.md) — partial structural proof/review; general V5 remains8/14 unresolved.
 - [dots-cycle150-tree-coverage](dots-cycle150-tree-coverage.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+
+## Cycle151 variable where Evidence (partial)
+
+- [dots-cycle151-unrecorded-alias-joint](dots-cycle151-unrecorded-alias-joint.md) — partial soundness, general V5 remains8/14unresolved.
+- [dots-cycle151-variable-nonterminal-evidence](dots-cycle151-variable-nonterminal-evidence.md) — partial soundness, general V5 remains8/14unresolved.
+- [dots-cycle151-variable-where-coverage](dots-cycle151-variable-where-coverage.md) — partial soundness, general V5 remains8/14unresolved.
