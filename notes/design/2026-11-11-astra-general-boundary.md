@@ -11805,3 +11805,11 @@ the selected `item = int` constraint and decrease Models?
 2. Retain same-model equality, but stop at an observation-complete intermediate
    rather than claim full Stable. The checked old-halted domain cannot satisfy
    both properties under the current relation, as proved above.
+
+### Owner answer to the Item 4e recursive associated-output growth question (2026-11-12)
+
+Option 1 (lazy): defer expansion of a where-child whose needed input head is supported only by provisional associated-output equations inside its own unresolved dependency cycle; keep those equations for ordinary constraints, same-input merging and K2; resume when support arrives from outside the cycle (source constraints or discharged demands); final pending at the stable end of file. No declaration-time rejection. Recorded in spec/06-roles.md §6.3 and draft addendum 5.
+
+### Supervisor answer to the Item 5d clarification (2026-11-12)
+
+Yes: model equality is required only for observation completion (refresh/reobservation/descriptor replacement). Full stabilization may decrease Models (installation adds the selected candidate's constraints), as V5 already permits; the earlier "every old-halted state extends to a new-Stable state with the same models" request was too strong and is withdrawn.
