@@ -347,3 +347,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle127 headless dictionary recipes](2026-11-11-cycle127-headless-dictionaries.md) — Draft actual-head and whole-tree evidence bridge, item5.
 
 - [Cycle128: raw dictionary source reconstruction](2026-11-12-cycle128-payload-reconstruction.md) — Draft implementation contract for I-18 item5; exact raw-payload/readback fidelity and all-model evidence composition.
+
+- [Cycle128 next bridges: typed slot coverage and computed-frame order](2026-11-12-cycle128-next-bridges.md) — Proposed decomposition; no new proof or implementation claim.
