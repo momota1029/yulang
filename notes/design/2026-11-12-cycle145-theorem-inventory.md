@@ -50,9 +50,17 @@ Full Lean-checked implicit quantifiers and hypotheses follow. Helper/scoped regr
 
 `child_instance_shape`, `parent_instance_shape`, `child_payload_exact`, `root_payload_exact`, `evidence_iff_exact`
 
+## GeneralDictionaryOutputMergeFeedback
+
+`source_int`, `journal_equal`, `actual_step_of_novel`, `next_models`, `next_evidence`, `next_reachable_of_novel`, `not_stable_of_novel`, `next_sourceformed_of_novel`, `next_inhabited`, `actual_step`, `not_stable`, `next_sourceformed`, `next_reachable`, `classified_but_not_saturated`
+
 ## GeneralDictionaryOutputMergeJointModels
 
 `branch_of_instance`, `root_linked`, `root_branch`, `child_branch`, `root_alias_identity`, `root_joint`, `child_joint`, `inhabited_joint_and_universal_evidence`
+
+## GeneralDictionaryOutputMergeRawModel
+
+`output_above_one`, `at_zero`, `at_one`, `at_left`, `at_right`, `source_model`, `raw_model`, `not_output_one`, `not_raw_equal`
 
 ## GeneralDictionaryOutputMergeReachable
 
@@ -1061,6 +1069,88 @@ Yulang.GeneralDictionaryOutputMergeExactPayload.evidence_iff_exact : ∀
       Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryOutputMergeSuccess.registry
           Yulang.GeneralDictionaryOutputMergeSuccess.current m Yulang.GeneralNominalExamples.displayRoot payload ↔
         Eq.{1} payload Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload
+Yulang.GeneralDictionaryOutputMergeFeedback.source_int : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeSuccess.finish.current m →
+    Yulang.CommonNominalFullCarrier.Equivalent (Prod.fst.{0, 0} (m 1))
+      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int)
+Yulang.GeneralDictionaryOutputMergeFeedback.journal_equal : Yulang.GeneralNominalFeedbackK2.Equal
+  Yulang.GeneralDictionaryOutputMergeSuccess.finish.current (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 10)
+  1
+Yulang.GeneralDictionaryOutputMergeFeedback.actual_step_of_novel : ¬Yulang.GeneralNominalFeedbackSteps.RawEqual
+      Yulang.GeneralDictionaryOutputMergeSuccess.finish.current
+      (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 10) 1 →
+  Yulang.GeneralNominalSupportSteps.Step Yulang.GeneralDictionaryOutputMergeSuccess.registry
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionaryOutputMergeSuccess.finish
+    Yulang.GeneralDictionaryOutputMergeFeedback.next
+Yulang.GeneralDictionaryOutputMergeFeedback.next_models : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current m ↔
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeSuccess.finish.current m
+Yulang.GeneralDictionaryOutputMergeFeedback.next_evidence : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current m →
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryOutputMergeSuccess.registry
+      Yulang.GeneralDictionaryOutputMergeFeedback.next.current.context m Yulang.GeneralNominalExamples.displayRoot
+      Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload
+Yulang.GeneralDictionaryOutputMergeFeedback.next_reachable_of_novel : ¬Yulang.GeneralNominalFeedbackSteps.RawEqual
+      Yulang.GeneralDictionaryOutputMergeSuccess.finish.current
+      (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 10) 1 →
+  Yulang.B4TargetV5.Reachable.{0}
+    (Yulang.GeneralNominalSupportBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralDictionaryOutputMergeFeedback.next
+Yulang.GeneralDictionaryOutputMergeFeedback.not_stable_of_novel : ¬Yulang.GeneralNominalFeedbackSteps.RawEqual
+      Yulang.GeneralDictionaryOutputMergeSuccess.finish.current
+      (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 10) 1 →
+  ¬Yulang.GeneralNominalSupportSteps.Stable Yulang.GeneralDictionaryOutputMergeSuccess.registry
+      Yulang.GeneralDictionaryOutputMergeSuccess.finish Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralDictionaryOutputMergeFeedback.next_sourceformed_of_novel : ¬Yulang.GeneralNominalFeedbackSteps.RawEqual
+      Yulang.GeneralDictionaryOutputMergeSuccess.finish.current
+      (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 10) 1 →
+  Yulang.GeneralNominalSupportSteps.SourceFormed Yulang.GeneralDictionaryOutputMergeSuccess.registry
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionaryOutputMergeFeedback.next
+Yulang.GeneralDictionaryOutputMergeFeedback.next_inhabited : Yulang.GeneralNominalSaturationState.Models
+  Yulang.GeneralDictionaryOutputMergeFeedback.next.current Yulang.GeneralNominalExamples.model
+Yulang.GeneralDictionaryOutputMergeFeedback.actual_step : Yulang.GeneralNominalSupportSteps.Step
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralNominalExamples.displayRoot
+  Yulang.GeneralDictionaryOutputMergeSuccess.finish Yulang.GeneralDictionaryOutputMergeFeedback.next
+Yulang.GeneralDictionaryOutputMergeFeedback.not_stable : ¬Yulang.GeneralNominalSupportSteps.Stable
+    Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralDictionaryOutputMergeSuccess.finish
+    Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralDictionaryOutputMergeFeedback.next_sourceformed : Yulang.GeneralNominalSupportSteps.SourceFormed
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralNominalExamples.displayRoot
+  Yulang.GeneralDictionaryOutputMergeFeedback.next
+Yulang.GeneralDictionaryOutputMergeFeedback.next_reachable : Yulang.B4TargetV5.Reachable.{0}
+  (Yulang.GeneralNominalSupportBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralNominalExamples.displayRoot
+  Yulang.GeneralDictionaryOutputMergeFeedback.next
+Yulang.GeneralDictionaryOutputMergeFeedback.classified_but_not_saturated : Yulang.B4TargetV3.Classify.{0}
+    (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+      (Yulang.GeneralNominalSupportBoundary.boundary Yulang.GeneralDeclarationExamples.roles))
+    Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralDictionaryOutputMergeSuccess.finish
+    Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload) ∧
+  ¬Yulang.GeneralNominalSupportSteps.Stable Yulang.GeneralDictionaryOutputMergeSuccess.registry
+        Yulang.GeneralDictionaryOutputMergeSuccess.finish Yulang.GeneralNominalExamples.displayRoot ∧
+    Yulang.GeneralNominalSupportSteps.Step Yulang.GeneralDictionaryOutputMergeSuccess.registry
+        Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionaryOutputMergeSuccess.finish
+        Yulang.GeneralDictionaryOutputMergeFeedback.next ∧
+      Yulang.GeneralNominalSupportSteps.SourceFormed Yulang.GeneralDictionaryOutputMergeSuccess.registry
+          Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionaryOutputMergeFeedback.next ∧
+        Yulang.B4TargetV5.Reachable.{0}
+            (Yulang.GeneralNominalSupportBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+            Yulang.GeneralDictionaryOutputMergeSuccess.registry Yulang.GeneralNominalExamples.displayRoot
+            Yulang.GeneralDictionaryOutputMergeFeedback.next ∧
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current
+              Yulang.GeneralNominalExamples.model ∧
+            (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current m ↔
+                  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeSuccess.finish.current
+                    m) ∧
+              ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryOutputMergeFeedback.next.current m →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryOutputMergeSuccess.registry
+                    Yulang.GeneralDictionaryOutputMergeFeedback.next.current.context m
+                    Yulang.GeneralNominalExamples.displayRoot
+                    Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload
 Yulang.GeneralDictionaryOutputMergeJointModels.branch_of_instance : ∀
   (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) (key : Nat)
   (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles))
@@ -1109,6 +1199,30 @@ Yulang.GeneralDictionaryOutputMergeJointModels.inhabited_joint_and_universal_evi
           Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryOutputMergeSuccess.registry
             Yulang.GeneralDictionaryOutputMergeSuccess.current m Yulang.GeneralNominalExamples.displayRoot
             Yulang.GeneralDictionaryOutputMergeRootEvidence.rootPayload
+Yulang.GeneralDictionaryOutputMergeRawModel.output_above_one : ∀ (n : Nat),
+  LT.lt.{0} 1 (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget n)
+Yulang.GeneralDictionaryOutputMergeRawModel.at_zero : Eq.{1} (Yulang.GeneralDictionaryOutputMergeRawModel.badModel 0)
+  (Yulang.GeneralNominalExamples.model 0)
+Yulang.GeneralDictionaryOutputMergeRawModel.at_one : Eq.{1} (Yulang.GeneralDictionaryOutputMergeRawModel.badModel 1)
+  (Yulang.GeneralNominalExamples.model 1)
+Yulang.GeneralDictionaryOutputMergeRawModel.at_left : Eq.{1}
+  (Yulang.GeneralDictionaryOutputMergeRawModel.badModel (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 10))
+  (Prod.mk.{0, 0} (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.str) Yulang.Common.rowEmpty)
+Yulang.GeneralDictionaryOutputMergeRawModel.at_right : Eq.{1}
+  (Yulang.GeneralDictionaryOutputMergeRawModel.badModel (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 11))
+  (Prod.mk.{0, 0} (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.str) Yulang.Common.rowEmpty)
+Yulang.GeneralDictionaryOutputMergeRawModel.source_model : Yulang.GeneralNominalState.Models
+  (Yulang.GeneralNominalExamples.state true) Yulang.GeneralDictionaryOutputMergeRawModel.badModel
+Yulang.GeneralDictionaryOutputMergeRawModel.raw_model : Yulang.GeneralNominalState.Models
+  Yulang.GeneralDictionaryOutputMergeSuccess.current.state Yulang.GeneralDictionaryOutputMergeRawModel.badModel
+Yulang.GeneralDictionaryOutputMergeRawModel.not_output_one : ¬Yulang.CommonNominalFullCarrier.Equivalent
+    (Prod.fst.{0, 0}
+      (Yulang.GeneralDictionaryOutputMergeRawModel.badModel
+        (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 10)))
+    (Prod.fst.{0, 0} (Yulang.GeneralDictionaryOutputMergeRawModel.badModel 1))
+Yulang.GeneralDictionaryOutputMergeRawModel.not_raw_equal : ¬Yulang.GeneralNominalFeedbackSteps.RawEqual
+    Yulang.GeneralDictionaryOutputMergeSuccess.finish.current
+    (Yulang.GeneralDictionaryOutputMergeSuccess.outputTarget 10) 1
 Yulang.GeneralDictionaryOutputMergeReachable.checked : Yulang.GeneralDeclarations.DeclarationChecked
   Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
   Yulang.GeneralDictionaryOutputMergeReachable.declaration

@@ -94,3 +94,14 @@ model-height arguments exclude K2. `OutputMergeExactPayload` proves that every
 full Evidence at the root has exactly the ordered payload
 `node 1 [node 7 [], node 7 []]`, and every final model validates it. This is a
 specific fixture readback/uniqueness result, not general principality.
+
+## Successful classification is not saturation
+
+`OutputMergeRawModel` exhibits a raw-context model with BOTH output targets=str
+while source1=int. Historical packet models forbid it, but the ordinary raw
+constraints do not. Hence the packet-induced equality outputTarget10=1 is new
+raw feedback. `OutputMergeFeedback` constructs the actual administrative equate,
+proves the classified merge endpoint is NOT Stable, and reaches a next state
+with exactly the same complete journal model set and full root Evidence at every
+model. The next state's Stable property is not asserted. This is not a V5
+counterexample; it separates successful dictionary construction from saturation.

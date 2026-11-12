@@ -2030,3 +2030,5 @@ import Yulang.GeneralDictionaryOutputMergeAllModels
 import Yulang.GeneralDictionaryOutputMergeJointModels
 import Yulang.GeneralDictionaryOutputMergeExactPayload
 import Yulang.GeneralDictionaryOutputMergeClassification
+import Yulang.GeneralDictionaryOutputMergeFeedback
+import Yulang.GeneralDictionaryOutputMergeRawModel
