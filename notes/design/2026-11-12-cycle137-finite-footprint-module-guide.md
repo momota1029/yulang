@@ -68,3 +68,32 @@ Next focused proof candidates:
    finite witness using only the selected key at each observed node; it also
    derives this from actual refinement and occupied selected footprints, and
    proves the guard invariant under DictionaryEquivalent.
+
+## Later in the same cycle: no footprint guard for finished inspections
+
+`GeneralDictionaryFinishedInspection.inspect_finished` and `inspectMany_finished`
+now prove arbitrary recursive query/list preservation directly from old Finished,
+actual same-carrier Refines and unchanged normalized view. The previous footprint
+and occupancy conditions are no longer needed for this case. Scalar success has
+an absent nominal descriptor; bodiesOpaque prevents adding one at a visible scalar
+head. Nominal success supplies the already-populated endpoints retained by Refines.
+Structural queries use fixed-view children and recursive Finished decomposition.
+
+`GeneralDictionaryFinishedEvidence` lifts this to report, Instance and complete
+source dictionary Evidence. Source Instance already contains Finished, so its
+transport theorem has no extra Finished/report/footprint/occupancy premise.
+SourceFormed recorded packets get the same current-context conclusion after a
+certified refresh. `GeneralDictionaryFinishedTrace` handles finite actual mixed
+ordinary/refresh traces with fixed-carrier/fixed-view refresh certificates and
+actual Steps. Its relation no longer depends on the dictionary node or key.
+
+A nested nominal/scalar nonpoint regression has an actual model and Finished
+inspection while its descriptor footprint is NOT fully occupied. It demonstrates
+that the general theorem is strictly more useful than the occupancy adapter.
+The real descriptor-changing feedback refresh also satisfies the new trace and
+retains the parent without a preservation guard. Its rejected child is unchanged
+as a limitation on constructing a complete dictionary.
+
+Still open: changing normalized views or source carriers; stable-selection to
+compatible-recorded-packet coverage; the eight unresolved V4 fields. This closes
+the fixed-view finished-inspection subproblem, not evidenceNode itself.
