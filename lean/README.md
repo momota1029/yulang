@@ -4693,3 +4693,38 @@ with repeated output obligations and full nominal evidence, while remaining
 RootPending. Eighteen modules and the final public theorem count are inventoried
 in `notes/handoff/dots-cycle-129-theorems.md`. General B4 V3 remains 12/12 unfilled;
 no source allocator, candidate Survivor or driver-order equivalence is claimed.
+
+## Cycle130: recursive candidate dictionary adapters
+
+`GeneralDictionaryRecursiveReadback` derives source frames from the recursive
+inspection report, including repeated capture merges, and reconstructs the exact
+full source tree from raw payloads. Candidate derivability remains an input.
+`GeneralDictionaryRecursivePreparation` retains that tree through the existing
+partial supported-variable compiler and proves its declaration evidence in all
+models of the explicitly recorded transaction state. This is not validity in
+all models of the original state and does not fill V3 evidenceNode.
+
+`GeneralDictionaryRecursiveEvidence` defines a model-indexed source-instance
+certificate with actual declaration, full child emission, recursive branch
+equations and readiness guards, independent of candidate selection or execution.
+It is inspection-mediated and retains partial translation coverage. The generic
+`GeneralDictionaryRecursiveObstruction.no_evidenceNode_of_output_sound` shows
+that the current V3 all-state node field is false for any evidence respecting
+the fixture's explicit associated output. Completing Step alone does not fix
+that field's missing final-state scope. General B4 remains unproved, 12/12 fields
+unfilled. `GeneralDictionaryRecursiveEvidenceReadback` reconstructs one exact
+source tree independent of which supplied model validates that same payload.
+
+The final source-instance certificate retains constructor Metadata coherence.
+`GeneralDictionaryRecursiveEvidenceFacts` exposes exact branch constraints and
+proves observed values fit repeated nonpoint captures and their variable children.
+`GeneralDictionaryRecursiveObstructionEvidence` gives the concrete source
+Evidence counterexample and an exact output-equation criterion.
+`GeneralDictionaryRecursiveRecordingExamples` records that declared equality as
+two ordinary subtype atoms: the refined full models are nonempty, strictly
+contained in the original models, and exactly the models of the fixed leaf's
+source Evidence. This does not implement Step or change selection semantics.
+`GeneralDictionaryRecursiveOrder` and `GeneralDictionaryRecursiveSemanticOrder`
+prove fixed-context computed-frame, reconstruction, preparation, branch and
+independent semantic Evidence invariance under checked visible/where reordering.
+The same source witness and the same full assignment are retained.

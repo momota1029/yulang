@@ -1771,6 +1771,25 @@ import Yulang.GeneralNominalSaturationInvariants
 import Yulang.GeneralNominalSaturationProgress
 import Yulang.GeneralNominalSaturationState
 import Yulang.GeneralNominalSaturationSteps
+import Yulang.GeneralDictionaryRecursiveReadback
+
+import Yulang.GeneralDictionaryRecursivePreparation
+
+import Yulang.GeneralDictionaryRecursiveEvidence
+
+import Yulang.GeneralDictionaryRecursiveObstruction
+
+import Yulang.GeneralDictionaryRecursiveEvidenceReadback
+
+import Yulang.GeneralDictionaryRecursiveEvidenceFacts
+
+import Yulang.GeneralDictionaryRecursiveObstructionEvidence
+
+import Yulang.GeneralDictionaryRecursiveOrder
+
+import Yulang.GeneralDictionaryRecursiveRecordingExamples
+
+import Yulang.GeneralDictionaryRecursiveSemanticOrder
 
 import Yulang.GeneralNominalCapturedChildOrigins
 import Yulang.GeneralNominalCycleBoundary
