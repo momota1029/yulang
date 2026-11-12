@@ -368,6 +368,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Item 4f nominal support module guide](2026-11-12-general-nominal-support-module-guide.md) — Partial; provenance-retaining guarded expansion, with termination still open.
 
+- [2026-11-12 General nominal guarded installation order](2026-11-12-general-nominal-support-order-module-guide.md) — Item 4g administrative accessibility and the remaining installation-order obligation.
 ## Cycle150 dictionary Evidence work (2026-11-12, partial)
 
 - [dots-cycle150-alias-mixed-locality](dots-cycle150-alias-mixed-locality.md) — partial structural proof/review; general V5 remains8/14 unresolved.

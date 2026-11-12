@@ -1,0 +1,57 @@
+import Yulang.GeneralNominalReobservationOrder
+import Yulang.GeneralNominalSupportOrder
+import Yulang.GeneralNominalSupportSiblings
+import Yulang.GeneralNominalSupportRankObstruction
+
+#print axioms Yulang.GeneralNominalReobservationOrder.point_sources
+#print axioms Yulang.GeneralNominalReobservationOrder.point_refines
+#print axioms Yulang.GeneralNominalReobservationOrder.point_at
+#print axioms Yulang.GeneralNominalReobservationOrder.as_update
+#print axioms Yulang.GeneralNominalReobservationOrder.monotone
+#print axioms Yulang.GeneralNominalReobservationOrder.supported_update
+#print axioms Yulang.GeneralNominalReobservationOrder.remaining_monotone
+#print axioms Yulang.GeneralNominalReobservationOrder.remaining_decreases
+#print axioms Yulang.GeneralNominalReobservationOrder.accessible
+#print axioms Yulang.GeneralNominalSupportOrder.edges_update
+#print axioms Yulang.GeneralNominalSupportOrder.formed_journal
+#print axioms Yulang.GeneralNominalSupportOrder.generated_registered
+#print axioms Yulang.GeneralNominalSupportOrder.passive_accessible
+#print axioms Yulang.GeneralNominalSupportOrder.formed_step_cases
+#print axioms Yulang.GeneralNominalSupportOrder.accessible
+#print axioms Yulang.GeneralNominalSupportOrder.boundary_progress
+#print axioms Yulang.GeneralNominalSupportOrder.empty_models_accessible
+#print axioms Yulang.GeneralNominalSupportSiblings.p_checked
+#print axioms Yulang.GeneralNominalSupportSiblings.c_checked
+#print axioms Yulang.GeneralNominalSupportSiblings.checked
+#print axioms Yulang.GeneralNominalSupportSiblings.p_query
+#print axioms Yulang.GeneralNominalSupportSiblings.p_report
+#print axioms Yulang.GeneralNominalSupportSiblings.sorted
+#print axioms Yulang.GeneralNominalSupportSiblings.p_schema
+#print axioms Yulang.GeneralNominalSupportSiblings.p_material
+#print axioms Yulang.GeneralNominalSupportSiblings.p_branch
+#print axioms Yulang.GeneralNominalSupportSiblings.metadata
+#print axioms Yulang.GeneralNominalSupportSiblings.initial_source
+#print axioms Yulang.GeneralNominalSupportSiblings.located
+#print axioms Yulang.GeneralNominalSupportSiblings.p_prepared
+#print axioms Yulang.GeneralNominalSupportSiblings.root_ready
+#print axioms Yulang.GeneralNominalSupportSiblings.p_survivor
+#print axioms Yulang.GeneralNominalSupportSiblings.p_only
+#print axioms Yulang.GeneralNominalSupportSiblings.selected_old
+#print axioms Yulang.GeneralNominalSupportSiblings.p_reads
+#print axioms Yulang.GeneralNominalSupportSiblings.decisions
+#print axioms Yulang.GeneralNominalSupportSiblings.p_guard
+#print axioms Yulang.GeneralNominalSupportSiblings.selected
+#print axioms Yulang.GeneralNominalSupportSiblings.p_children
+#print axioms Yulang.GeneralNominalSupportSiblings.enabled
+#print axioms Yulang.GeneralNominalSupportSiblings.first_step
+#print axioms Yulang.GeneralNominalSupportSiblings.first_formed
+#print axioms Yulang.GeneralNominalSupportSiblings.children_generated
+#print axioms Yulang.GeneralNominalSupportSiblings.shared_output
+#print axioms Yulang.GeneralNominalSupportSiblings.child_inputs
+#print axioms Yulang.GeneralNominalSupportRankObstruction.sibling_generated_identity
+#print axioms Yulang.GeneralNominalSupportRankObstruction.siblings_external
+#print axioms Yulang.GeneralNominalSupportRankObstruction.siblings_unresolved
+#print axioms Yulang.GeneralNominalSupportRankObstruction.sibling_heads_source_supported
+#print axioms Yulang.GeneralNominalSupportRankObstruction.sibling_cycle
+#print axioms Yulang.GeneralNominalSupportRankObstruction.permitted_not_accessible
+#print axioms Yulang.GeneralNominalSupportRankObstruction.no_permitted_rank
