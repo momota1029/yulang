@@ -107,8 +107,9 @@ Display(List Int) declaration has two equal where inputs with distinct clause
 IDs. A real source-guarded parent installation emits two different child IDs,
 then the real support merge identifies their same inputs. The final journal has
 a parent packet and a nonempty alias ledger, and a concrete model and Coherent
-are proved. Both merged child classes were uncommitted. No claim about merging
-two already-recorded classes, stable completion, or general Joint is made.
+are proved. Both merged child classes were uncommitted. This module alone makes no claim about merging
+two already-recorded classes, stable completion, or general Joint. The later
+EarlyMergeClosure module below proves concrete Stable for this same finish.
 
 ## Proved support-aware shared-snapshot order
 
@@ -151,3 +152,8 @@ EarlyMergeNoEvidence independently rules out semantic Evidence at both child
 and parent for every valuation/payload: the sole List declaration has unfinished
 inspection at Int children, and source parent evidence retains those children.
 Concrete model existence is proved separately, so this is not empty-model soundness.
+
+The final DiagnosticTotality result is the unconditional exact equivalence:
+finite Resolves exists iff every point in independent selected-child Reach has
+a Local frontier and the root is Acc. The forward direction derives those
+local witnesses from the diagnostic rather than asserting source-wide totality.

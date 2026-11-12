@@ -1,6 +1,6 @@
 # dot cycle144 — 実support再帰辞書の安定完了と有限readback
 
-**一般V5未証明: 8 / 14本。** 本文は作業中記録。最終検証・所要時間は末尾に確定する。
+**一般V5未証明: 8 / 14本。** 18新規modules・126公開定理を検証し、work/dots-mainへ公開。最終検証・所要時間は末尾。
 
 ## 復元と範囲
 
@@ -98,6 +98,8 @@ cycle143の `SupportRecursiveExample.finish` は、List Intに対するDisplay�
 
 ## inbox受け入れ条件との照合
 
+- I-17（結果は診断ツリー、4分類はCompletedだけ）: actual stable failed-child fixtureで、finite ResolvesがあってもCompleted/Classifyへ潰さない具体回帰を追加。一般の新しい断片専用Classifyは定義せず、既存support boundaryをそのまま使用。
+
 - I-21/23（辞書側Evidence）: actual support Reachable/Stableを満たす非空再帰例で、完成payloadの全final-model Evidenceを得た。一般定理はJoint等を明示した条件付きreadbackまでで、一般evidenceNodeは閉じていない。
 - I-25（初期と到達可能性）: positive recursiveとactual mergeの双方がactual Initialからの実Stepで到達。raw arbitrary journalの反例にすり替えていない。I-25一般橋の未証明8本は維持。
 - I-24（凍結監査/README）: 新しい小さなCycle144 auditとmodule-guideを使用。凍結ファイルは変更ゼロ。
@@ -110,22 +112,82 @@ work/dots-auditを再fetchしてX1–X25 oracleを確認。X1はopaque nominal l
 
 ## 次の本来の残差
 
-1. 一般reachable・Stable・selected alias classのJoint。同時モデルを維持しつつ、historical packetの意味論からcurrent BranchAtへ運ぶ。literal Currentは実反例があるので無条件に使わない。
+1. 一般reachable・Stable・selected alias classのJoint。同時モデルを維持しつつ、historical packetの意味論からcurrent BranchAtへ運ぶ。literal Currentは実反例があるので無条件に使わない。既存`OrdinaryTrace.instance_extension`はordinary context Extensionを明示仮定し、全actual refresh/reobserveに自動適用できない。`SelectedInstanceCoherence.instance_selected`も同一occurrenceの照合であり、別alias occurrenceのBranchAt輸送そのものではない。ここを飛ばさない。
 2. 両クラスが既に記録済みのmerge。構造Early条件だけでは覆わない。MergesClosed/SameInputsからcross-key一致を一般に導くか、実条件不足を特定する。
 3. nonempty associated outputsと両alias class記録済みを含む実mergeへ回帰を拡張し、current BranchAtの同時モデルを保存する残差を明示する。今回の空outputs・未記録子mergeの成功を一般ケースへ拡張しない。Astra所有の一般Progress/where accessibility/canonical-orderとは分離する。
 
 意味論を独断で追加していない。新しい言語設計質問はなし。使用量枠は不明。
 
-## 検証と途中公開（最終確定前）
+## 検証と公開
 
-- focused `lake build <Cycle144の15modules> --wfail`: PASS,753jobs（依存キャッシュ込み）。
-- `lake env lean --trust=0 Audit/Cycle144.lean`: PASS,104public theorem、全public宣言との集合一致、漏れ/余分なし。許容公理propext/Classical.choice/Quot.soundのみ。
+- focused `lake build <Cycle144の18modules> --wfail`: PASS,756jobs（依存キャッシュ込み）。
+- 18個のsourceを各々`lake env lean --trust=0 Yulang/<module>.lean`で再検証: 全件PASS（保存済みoleanだけを見て済ませず、実sourceを再elaborate）。
+- `lake env lean --trust=0 Audit/Cycle144.lean`: PASS,126public theorem、全public宣言との集合一致、漏れ/余分なし。許容公理propext/Classical.choice/Quot.soundのみ。
 - `bash tools/verify-lean.sh . origin/integration/m1-final --no-build`: PASS。全体build/fullAuditは実行していない。
-- 独立review: LocalReadbackExact、実mergefixture、支持付きLocal順序、失敗子diagnostic/Accを確認。leaf BranchAtはEvidenceから逆算しない直接source Instance輸送へ修正後に公開。
+- 独立review: LocalReadbackExact、実mergefixture、支持付きLocal順序、失敗子diagnostic/Acc、最終Stable、任意valuationのNoEvidence、診断必要十分条件を確認。leaf BranchAtはEvidenceから逆算しない直接source Instance輸送へ修正後に公開。
 - 初期試行のconstructor引数/型推論エラーは修正し再build済み。未検証のまま通ったとは扱っていない。
 - 中間公開0ca5afcで集約`Yulang.lean`の内容転送が切り詰められ、remote/local tree不一致を検知。直後ca2fc408で完全な元内容＋追記を復元し、fetch後tree完全一致を確認。現行branchの既存imports削除はゼロ。公開成功だけで完了とせず、内容の照合で検出して修復した。
 - 計画/設定/凍結Audit/README/既存Yulang定理は変更していない。
 
-中間source公開: `7d2624d9` (9 public)、`b0c48623` (50 public)、`cd7e3ca4` (80 public)、`ca2fc408` (104 public、修復済み)。
+中間source公開: `7d2624d9` (9 public)、`b0c48623` (50 public)、`cd7e3ca4` (80 public)、`ca2fc408` (104 public、修復済み)、`0bf60124` (108 public)、`3b25c233` (126 public)。
 
-全追加public定理名と前提付き型の索引: [theorem inventory](../design/2026-11-12-cycle144-theorem-inventory.md)。
+全追加public定理名と、Leanによる`#check @`出力の暗黙量化子を展開した前提付き型の索引: [theorem inventory](../design/2026-11-12-cycle144-theorem-inventory.md)。
+
+### 再現コマンド
+
+```sh
+cd lean
+lake build $(sed -n 's/^import //p' Audit/Cycle144.lean) --wfail
+lake env lean --trust=0 Audit/Cycle144.lean
+cd ..
+bash tools/verify-lean.sh . origin/integration/m1-final --no-build
+```
+
+今回の対象は18新規Lean modules、126public theorems。private補助は数えず、全publicとauditの集合一致を照合。公開差分は24ファイル（18modules、集約import、audit、guide、型索引、報告、心拍）。
+
+### no-build差分ゲート出力全文
+
+```text
+verify-lean: . @ 3defd8e05 (base origin/integration/m1-final)
+ok: no removed lines in lean/ since origin/integration/m1-final
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+ok: lean/Audit/AstraCanonicalCompletion.lean only appended (plus top import lines)
+ok: lean/Audit/AstraCanonicalView.lean only appended (plus top import lines)
+ok: lean/Audit/AstraConfluence.lean only appended (plus top import lines)
+ok: lean/Audit/AstraOrder.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle136.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle137.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle137Finished.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle137Followup.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Formation.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Joint.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Refresh.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Terminal.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Tree.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle139.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle139Followup.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle140.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle141.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle141Recorded.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle142.lean only appended (plus top import lines)
+ok: lean/Audit/GeneralNominalSupport.lean only appended (plus top import lines)
+ok: lean/Audit/Recovery131135.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+```
+
+### 心拍・中間公開の実時刻（UTC）
+
+15:26:57開始 / 15:35:14 / 15:44:44 / 15:50:47 / 15:58:39 / 15:59:54内容修復 / 16:05:25 / 16:09:44。各公開はwork/dots-mainのみ、non-force expected-head lease。最終報告確定 2026-11-12T16:16:15.194311+00:00（開始から50.2分）。
+
+最新source公開のtree SHAをローカルHEAD treeと**commit/ref更新前**に比較し、さらにfetch後に完全一致を照合。16:09の全source公開は `3b25c233f50957e1fff9bb6a43bc775f0cceb591`。
+
+## 終了記録
+
+- 最終報告確定: 2026-11-12T16:16:15.194311+00:00、開始から50.2分。55分上限16:21:06Zより前に最終公開・再取得照合を行う。
+- 全sourceは3b25c233で取得後完全tree一致を確認済み。残る最終公開は報告・定理型索引・guide・完了心拍のみ。
+- 稼働中のLean buildなし。全委任作業終了、未公開sourceなし。writerは最終再取得照合の完了時に解放。
+- 18module source直接再検証、126宣言trust0、126宣言の量化子展開型、756job focused build、差分gate、相互reviewすべてPASS。一般8/14は未解決。
