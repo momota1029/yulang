@@ -1,0 +1,37 @@
+import Yulang.B4TargetV5
+import Yulang.B4SkeletonV5
+import Yulang.GeneralDictionaryInitialSource
+import Yulang.GeneralDictionaryReachableBoundary
+import Yulang.GeneralDictionaryReachableRegressions
+import Yulang.GeneralDictionaryReachableEvidenceInitial
+
+#print axioms Yulang.B4TargetV5.reachable_initial
+#print axioms Yulang.B4TargetV5.reachable_step
+#print axioms Yulang.B4TargetV5.reachable_steps
+#print axioms Yulang.B4SkeletonV5.steps_models
+#print axioms Yulang.B4SkeletonV5.b4_of_bridges
+#print axioms Yulang.B4SkeletonV5.completed_of_bridges
+#print axioms Yulang.GeneralDictionaryInitialSource.initial_empty
+#print axioms Yulang.GeneralDictionaryInitialSource.initial_formed
+#print axioms Yulang.GeneralDictionaryInitialSource.source_reorders
+#print axioms Yulang.GeneralDictionaryInitialSource.initial_reorders
+#print axioms Yulang.GeneralDictionaryInitialSource.formed_iff_initial_trace
+#print axioms Yulang.GeneralDictionaryReachableBoundary.reachable_iff_sourceFormed
+#print axioms Yulang.GeneralDictionaryReachableBoundary.initialReorders
+#print axioms Yulang.GeneralDictionaryReachableBoundary.closure
+#print axioms Yulang.GeneralDictionaryReachableBoundary.stepModels
+#print axioms Yulang.GeneralDictionaryReachableBoundary.frontierLocal
+#print axioms Yulang.GeneralDictionaryReachableBoundary.localIdentity
+#print axioms Yulang.GeneralDictionaryReachableBoundary.dictionaryRefl
+#print axioms Yulang.GeneralDictionaryReachableRegressions.raw_not_reachable
+#print axioms Yulang.GeneralDictionaryReachableRegressions.start_initial
+#print axioms Yulang.GeneralDictionaryReachableRegressions.positive_reachable
+#print axioms Yulang.GeneralDictionaryReachableRegressions.positive_classified
+#print axioms Yulang.GeneralDictionaryReachableEvidenceInitial.initial_survivor_joint
+#print axioms Yulang.GeneralDictionaryReachableEvidenceInitial.stable_initial_instance
+#print axioms Yulang.GeneralDictionaryReachableEvidenceInitial.stable_initial_evidence
+#print axioms Yulang.GeneralDictionaryReachableEvidenceInitial.stable_initial_children_nil
+#print axioms Yulang.GeneralDictionaryReachableEvidenceInitial.nonterminal_initial_not_stable
+#print axioms Yulang.GeneralDictionaryReachableEvidenceInitial.stable_initial_terminal_evidence
+#print axioms Yulang.B4SkeletonV5.dictionary_evidence
+#print axioms Yulang.B4SkeletonV5.dictionaries_evidence
