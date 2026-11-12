@@ -2013,3 +2013,9 @@ import Yulang.GeneralDictionaryAliasJoint
 import Yulang.GeneralDictionaryFailedDiagnosticScope
 import Yulang.GeneralDictionaryJointMerge
 import Yulang.GeneralDictionaryMergeSequence
+import Yulang.GeneralDictionaryJointMergeResidual
+import Yulang.GeneralDictionaryJointMergeSequence
+import Yulang.GeneralDictionaryJointMergeExample
+import Yulang.GeneralDictionaryScalarMerge
+import Yulang.GeneralDictionaryScalarMergeExample
+import Yulang.GeneralDictionaryJointMergeEnabled
