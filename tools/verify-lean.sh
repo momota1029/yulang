@@ -17,7 +17,8 @@
 #   7. lake config (lakefile.*, lake-manifest.json, lean-toolchain) unchanged, except the
 #      allowed pattern: new `[[lean_lib]]` blocks are NOT allowed here (report to the owner)
 #   8. new files are only lean/Yulang/*.lean, lean/SpecExamples*.lean or lean/Main*.lean, and each new module is imported
-#   9. Audit.lean: new lines only appended at the end of the file (top `import` lines also allowed)
+#   9. Audit.lean and lean/Audit/*.lean: new lines only appended at the end (top `import` lines also allowed);
+#      new audit parts may be added as lean/Audit/<Name>.lean (Audit.lean grew too large to publish whole)
 #  10. supervisor-owned gate tools/AxiomGate.lean over every non-system module
 #
 # LIMITATION: the build runs the worker's Lean code and uses the worker's lean/.lake. For an untrusted
@@ -45,9 +46,12 @@ if [ "$nobuild" != "--no-build" ]; then
   rc=$?
   if [ $rc -eq 0 ]; then echo "ok: lake build --wfail ($(tail -1 "$log/build.out"))"; else echo "FAIL: lake build exit $rc (see $log/build.out)"; fail=1; fi
 
-  ( cd lean && lake env lean --trust=0 Audit.lean > "$log/audit.out" 2>&1 )
-  rc=$?
-  if [ $rc -eq 0 ]; then echo "ok: Audit.lean exit 0"; else echo "FAIL: Audit exit $rc (see $log/audit.out)"; fail=1; fi
+  : > "$log/audit.out"
+  for af in Audit.lean $(cd lean && ls Audit/*.lean 2>/dev/null | sort); do
+    ( cd lean && lake env lean --trust=0 "$af" >> "$log/audit.out" 2>&1 )
+    rc=$?
+    if [ $rc -eq 0 ]; then echo "ok: $af exit 0"; else echo "FAIL: $af exit $rc (see $log/audit.out)"; fail=1; fi
+  done
 
   # Audit prints long lines wrapped; join then split per declaration.
   tr '\n' ' ' < "$log/audit.out" | grep -oE 'depends on axioms: \[[^]]*\]' > "$log/axiom-lines.txt"
@@ -79,23 +83,24 @@ fi
 
 # 8. new files
 newfiles=$(git diff --diff-filter=A --name-only "$base"..HEAD -- lean)
-badnew=$(echo "$newfiles" | grep -v '^$' | grep -vE '^lean/(Yulang/[A-Za-z0-9_]+|(SpecExamples|Main)[A-Za-z0-9]*)\.lean$')
+badnew=$(echo "$newfiles" | grep -v '^$' | grep -vE '^lean/(Yulang/[A-Za-z0-9_]+|Audit/[A-Za-z0-9_]+|(SpecExamples|Main)[A-Za-z0-9]*)\.lean$')
 if [ -n "$badnew" ]; then echo "FAIL: unexpected new files:"; echo "$badnew"; fail=1; else echo "ok: new files are Yulang modules only"; fi
 for f in $(echo "$newfiles" | grep -E '^lean/Yulang/[A-Za-z0-9_]+\.lean$'); do
   m=$(basename "$f" .lean)
   if ! grep -rqE "^import Yulang\.$m\b" lean --include=*.lean; then echo "FAIL: new module Yulang.$m is not imported anywhere (never built/audited)"; fail=1; fi
 done
 
-# 9. Audit.lean: insertions only at the end
-if git cat-file -e "$base":lean/Audit.lean 2>/dev/null; then
-  n=$(git show "$base":lean/Audit.lean | wc -l)
+# 9. Audit.lean and lean/Audit/*.lean: insertions only at the end (existing files)
+for af in lean/Audit.lean $(git ls-tree -r --name-only "$base" -- lean/Audit | grep -E '\.lean$'); do
+  git cat-file -e "$base":"$af" 2>/dev/null || continue
+  n=$(git show "$base":"$af" | wc -l)
   # Allowed: appending at the end, and inserting `import ...` lines before line 1.
-  badhunks=$(git diff -U0 "$base"..HEAD -- lean/Audit.lean | grep '^@@' | grep -vE "^@@ -$n(,0)? |^@@ -0,0 ")
-  topbad=$(git diff -U0 "$base"..HEAD -- lean/Audit.lean | awk '/^@@ -0,0 /{f=1;next} /^@@/{f=0} f && /^\+/ {print}' | grep -v '^+import ')
-  if [ -n "$badhunks" ]; then echo "FAIL: Audit.lean changed other than by appending at the end:"; echo "$badhunks"; fail=1
-  elif [ -n "$topbad" ]; then echo "FAIL: Audit.lean: lines inserted at the top must be import lines:"; echo "$topbad"; fail=1
-  else echo "ok: Audit.lean only appended (plus top import lines)"; fi
-fi
+  badhunks=$(git diff -U0 "$base"..HEAD -- "$af" | grep '^@@' | grep -vE "^@@ -$n(,0)? |^@@ -0,0 ")
+  topbad=$(git diff -U0 "$base"..HEAD -- "$af" | awk '/^@@ -0,0 /{f=1;next} /^@@/{f=0} f && /^\+/ {print}' | grep -v '^+import ')
+  if [ -n "$badhunks" ]; then echo "FAIL: $af changed other than by appending at the end:"; echo "$badhunks"; fail=1
+  elif [ -n "$topbad" ]; then echo "FAIL: $af: lines inserted at the top must be import lines:"; echo "$topbad"; fail=1
+  else echo "ok: $af only appended (plus top import lines)"; fi
+done
 
 # 10. supervisor-owned gate
 if [ "$nobuild" != "--no-build" ]; then
