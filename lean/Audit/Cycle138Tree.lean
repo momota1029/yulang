@@ -1,0 +1,16 @@
+import Yulang.GeneralDictionaryJournalTreeExamples
+
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.good_before
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.edge_shape
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.acyclic
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.old_acyclic
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.selected
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.enabled
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.feedback_step
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.finished_step
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.no_child
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.covered
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.accessible
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.good_after
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.bad_excluded
+#print axioms Yulang.GeneralDictionaryJournalTreeExamples.uniform_dictionary

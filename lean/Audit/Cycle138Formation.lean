@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionarySourceChoiceVisibility
+import Yulang.GeneralDictionaryJournalTreeFormation
+
+#print axioms Yulang.GeneralDictionarySourceChoiceVisibility.visible
+#print axioms Yulang.GeneralDictionarySourceChoiceVisibility.singleton_choice
+#print axioms Yulang.GeneralDictionarySourceChoiceVisibility.singleton_key_coherence
+#print axioms Yulang.GeneralDictionarySourceChoiceVisibility.singleton_selected_coherence
+#print axioms Yulang.GeneralDictionaryJournalTreeFormation.initial_source
+#print axioms Yulang.GeneralDictionaryJournalTreeFormation.formed_before
+#print axioms Yulang.GeneralDictionaryJournalTreeFormation.formed_after
+#print axioms Yulang.GeneralDictionaryJournalTreeFormation.reachable_positive

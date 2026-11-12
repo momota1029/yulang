@@ -205,4 +205,12 @@ theorem not_sourceFormed : ¬ GeneralNominalFeedbackSteps.SourceFormed registry 
   have same := List.mem_singleton.mp visible
   subst decl
   cases identity
+/-- No executor/frontier choice can supply this unchanged raw-state bridge
+package. This is not a refutation of a differently scoped reachable target. -/
+theorem no_bridges
+    (executor : B4TargetV3.Executor (GeneralNominalFeedbackBoundary.vocabulary roles))
+    (frontiers : B4SkeletonV4.Frontiers (GeneralNominalFeedbackBoundary.vocabulary roles)) :
+    ¬ B4SkeletonV4.B4Bridges (GeneralDictionaryFeedbackEvidence.boundary roles) executor frontiers :=
+  fun bridges => no_evidenceNode bridges.evidenceNode
+
 end Yulang.GeneralDictionaryRefreshGap

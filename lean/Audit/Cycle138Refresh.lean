@@ -12,3 +12,4 @@ import Yulang.GeneralDictionaryRefreshGap
 #print axioms Yulang.GeneralDictionaryRefreshGap.selected
 #print axioms Yulang.GeneralDictionaryRefreshGap.no_evidenceNode
 #print axioms Yulang.GeneralDictionaryRefreshGap.not_sourceFormed
+#print axioms Yulang.GeneralDictionaryRefreshGap.no_bridges

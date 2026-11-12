@@ -1877,3 +1877,6 @@ import Yulang.GeneralDictionaryFinishedInspectionExamples
 import Yulang.GeneralDictionaryJournalTree
 import Yulang.GeneralDictionaryModeledJointGap
 import Yulang.GeneralDictionaryRefreshGap
+import Yulang.GeneralDictionarySourceChoiceVisibility
+import Yulang.GeneralDictionaryJournalTreeExamples
+import Yulang.GeneralDictionaryJournalTreeFormation
