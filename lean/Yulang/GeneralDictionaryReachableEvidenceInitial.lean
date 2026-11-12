@@ -10,6 +10,41 @@ open GeneralNominalFeedbackSteps
 open GeneralNominalRecursiveCandidates
 open GeneralDictionaryReadback (Payload)
 
+/-- Empty-journal equality has no extra semantic information over the raw
+context, so feedback's extra equate transition cannot fire initially. -/
+theorem initial_equal_is_raw (context : Context) (root : Occurrence roles)
+    (first last : Nat)
+    (equal : GeneralNominalFeedbackK2.Equal (initial context root) first last) :
+    RawEqual (initial context root) first last := by
+  intro model valid
+  exact equal model ((initial_models context root model).mpr valid)
+
+/-- For an actual empty journal the stronger feedback transition system
+preserves old cycle stability. The new merge rule has only the one initial site;
+its equality-feedback rule adds no equation not already raw-valid. -/
+theorem initial_feedback_stable (registry : Registry) (context : Context)
+    (root : Occurrence roles)
+    (stable : GeneralNominalCycleSteps.Stable registry (initial context root) root) :
+    Stable registry (initial context root) root := by
+  intro focus generated after action
+  have closed := stable focus generated
+  cases action with
+  | enqueue _ linked absent =>
+    obtain ⟨site,member,same⟩ := closed.1 linked
+    exact absent site member same
+  | install packet enabled novel =>
+    exact novel (closed.2.1 packet rfl enabled.1)
+  | merge first last one two _ novel =>
+    have a := List.mem_singleton.mp one
+    have b := List.mem_singleton.mp two
+    subst first
+    subst last
+    exact novel (.refl _)
+  | refresh _ next certificate source member unknown known =>
+    exact unknown (closed.2.2.2 next certificate source member known)
+  | equate _ first last _ _ equal novel =>
+    exact novel (initial_equal_is_raw context root first last equal)
+
 /-- At the actual initial snapshot, one genuine survivor supplies all Joint
 conditions. Its branch model is also a model of the empty journal. -/
 theorem initial_survivor_joint (registry : Registry) (context : Context)

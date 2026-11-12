@@ -19,12 +19,14 @@ variable {v : Vocabulary.{u}}
 abbrev B4Statement (b : SourceBoundary v) (e : Executor v) : Prop := Statement b e
 abbrev Frontiers := B4Skeleton.Frontiers
 
-/-- Model evidence is required only once the selected parent and all its
-immediate children are stable in this same snapshot. -/
+/-- Model evidence is required only for the saturation root or a genuinely
+generated demand, once parent and immediate children are stable in this same
+reachable snapshot. Unrelated demands impose no obligation. -/
 def EvidenceNode (b : SourceBoundary v) : Prop :=
   ∀ (r : v.Registry), b.Checked r → ∀ (s : v.State) (root : v.Demand), Reachable b r root s → ∀ (model : v.Model),
     b.Models s model → ∀ (d : v.Demand) (key : Nat) (children : List v.Demand)
-      (dictionaries : List Dictionary), b.Stable r s d →
+      (dictionaries : List Dictionary), (d = root ∨ b.Generated r s root d) →
+    b.Stable r s d →
     (∀ child, child ∈ children → b.Stable r s child) →
     SafeKnown b r s d → Unique b r s d key children →
     All₂ (fun child dictionary => b.Evidence r s model child dictionary) children dictionaries →
@@ -61,7 +63,7 @@ mutual
         cases derived with
         | selected safe unique children =>
             have childGenerated := generatedChildren r checked s root d key _ reachable reached stable safe unique
-            exact node r checked s root reachable model models d key _ dictionaries stable
+            exact node r checked s root reachable model models d key _ dictionaries reached stable
               (fun child member => generatedStable child (childGenerated child member)) safe unique
               (dictionaries_evidence b node generatedChildren r checked s root reachable rootStable
                 generatedStable model models _ _
@@ -108,7 +110,7 @@ structure B4Bridges (b : SourceBoundary v) (e : Executor v) (frontiers : Frontie
     (frontiers r s).frontier d = f ↔ Local b r s d f
   localIdentity : ∀ r s root, Reachable b r root s → (frontiers r s).Local = Local b r s
   whereAccessible : ∀ r, b.Checked r → ∀ s root, Reachable b r root s →
-    ∀ d, Acc (Child (Local b r s)) d
+    Acc (Child (Local b r s)) root
   treeExecution : ∀ r (_checked : b.Checked r) s d, Reachable b r d s →
     ∀ (exact : FrontierExact (frontiers r (e.run r s d).1))
     (accessible : Acc (Child (frontiers r (e.run r s d).1).Local) d),
@@ -144,10 +146,10 @@ theorem b4_of_bridges (b : SourceBoundary v) (e : Executor v) (frontiers : Front
     rw [bridges.localIdentity r s root reachable]
     exact bridges.frontierLocal r checked s root reachable d f
   have accessible (r : v.Registry) (checked : b.Checked r) (s : v.State)
-      (root : v.Demand) (reachable : Reachable b r root s) (d : v.Demand) :
-      Acc (Child (frontiers r s).Local) d := by
+      (root : v.Demand) (reachable : Reachable b r root s) :
+      Acc (Child (frontiers r s).Local) root := by
     rw [bridges.localIdentity r s root reachable]
-    exact bridges.whereAccessible r checked s root reachable d
+    exact bridges.whereAccessible r checked s root reachable
   have finalReach (r : v.Registry) (checked : b.Checked r) (s : v.State)
       (d : v.Demand) (reachable : Reachable b r d s) : Reachable b r d (e.run r s d).1 :=
     reachable_steps b reachable (bridges.execution r checked s d reachable)
@@ -156,9 +158,9 @@ theorem b4_of_bridges (b : SourceBoundary v) (e : Executor v) (frontiers : Front
     have reachable := reachable_initial b initial
     have final := finalReach r checked s d reachable
     rw [bridges.treeExecution r checked s d reachable
-      (exact r checked _ d final) (accessible r checked _ d final d)]
+      (exact r checked _ d final) (accessible r checked _ d final)]
     have rule := resolve_tree_exact_of_frontier_exact (frontiers r (e.run r s d).1)
-      (exact r checked _ d final) d (accessible r checked _ d final d) tree
+      (exact r checked _ d final) d (accessible r checked _ d final) tree
     simpa only [bridges.localIdentity r _ d final] using rule
   refine ⟨?_, exactTree, ?_, ?_, ?_⟩
   · intro r checked s d initial
