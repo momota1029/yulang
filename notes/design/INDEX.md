@@ -349,3 +349,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle128: raw dictionary source reconstruction](2026-11-12-cycle128-payload-reconstruction.md) — Draft implementation contract for I-18 item5; exact raw-payload/readback fidelity and all-model evidence composition.
 
 - [Cycle128 next bridges: typed slot coverage and computed-frame order](2026-11-12-cycle128-next-bridges.md) — Proposed decomposition; no new proof or implementation claim.
+
+- [Cycle129 dictionary order and typed transport](2026-11-12-cycle129-dictionary-transport.md) — Draft, item5; preserves fixed-context boundaries.

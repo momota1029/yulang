@@ -4680,3 +4680,5 @@ The nominal-candidate dictionary adapter computes Frames from the actual checked
 registry and existing inspection reports. Given per-node Survivor evidence at
 one fixed Context, it reconstructs the unique complete source witness of a raw
 payload. It does not construct that recursive evidence or propagate child states.
+
+Cycle129 item5 adds computed nominal frame/reconstruction/preparation order invariance at fixed Context and an exact syntactic slot-transport certificate for full nominal Models. The target snapshot and distinct type/row maps remain supplied; no allocator, general Step, full materialization or general B4 completion is claimed.
