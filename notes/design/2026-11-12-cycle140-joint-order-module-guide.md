@@ -26,3 +26,12 @@ implies some packet exists, not that that focus is itself recorded.
 
 This closes the empty-packet part of EvidenceNode. General nonempty journals,
 inductive alias/current-context agreement and all eight V5 residuals stay open.
+
+## Actual equality feedback
+
+`GeneralDictionaryJointEquality.joint_equate` preserves actual Joint when the
+added equality is already valid in every journal model and both endpoints are
+existing sources, exactly as required by real equality feedback. It retains one
+common model across arbitrary alias occurrences, rather than assuming aliases
+have identical occurrence records. This is one transition law, not arbitrary
+refresh/merge/install invariance, nor a proof of the full reachable invariant.

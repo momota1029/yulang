@@ -1910,3 +1910,5 @@ import Yulang.GeneralDictionaryFinalOrderObstruction
 
 import Yulang.GeneralDictionaryJointReordering
 import Yulang.GeneralDictionarySemanticCompletion
+
+import Yulang.GeneralDictionaryJointEquality

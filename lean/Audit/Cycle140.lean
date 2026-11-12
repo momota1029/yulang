@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryJointEquality
 import Yulang.GeneralDictionaryJointReordering
 import Yulang.GeneralDictionarySemanticCompletion
 
@@ -19,3 +20,9 @@ import Yulang.GeneralDictionarySemanticCompletion
 #print axioms Yulang.GeneralDictionarySemanticCompletion.reachable_packetFree_terminal
 #print axioms Yulang.GeneralDictionarySemanticCompletion.nonterminal_has_packet
 #print axioms Yulang.GeneralDictionarySemanticCompletion.reachable_packetFree_evidence
+
+#print axioms Yulang.GeneralDictionaryJointEquality.sources_equate
+#print axioms Yulang.GeneralDictionaryJointEquality.equate_context
+#print axioms Yulang.GeneralDictionaryJointEquality.branch_equate_forward
+#print axioms Yulang.GeneralDictionaryJointEquality.alias_same
+#print axioms Yulang.GeneralDictionaryJointEquality.joint_equate
