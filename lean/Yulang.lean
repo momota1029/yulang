@@ -1,3 +1,5 @@
+import Yulang.GeneralDictionaryCurrentJournal
+import Yulang.GeneralDictionaryCurrentJournalExamples
 import Yulang.GeneralDictionaryCycleEvidence
 import Yulang.GeneralDictionaryCycleEvidenceExamples
 import Yulang.GeneralDictionaryCycleEvidenceGap
@@ -1871,3 +1873,13 @@ import Yulang.GeneralDictionaryFinishedInspection
 import Yulang.GeneralDictionaryFinishedEvidence
 import Yulang.GeneralDictionaryFinishedTrace
 import Yulang.GeneralDictionaryFinishedInspectionExamples
+
+import Yulang.GeneralDictionaryJournalTree
+import Yulang.GeneralDictionaryModeledJointGap
+import Yulang.GeneralDictionaryRefreshGap
+import Yulang.GeneralDictionarySourceChoiceVisibility
+import Yulang.GeneralDictionaryJournalTreeExamples
+import Yulang.GeneralDictionaryJournalTreeFormation
+import Yulang.GeneralDictionaryTerminalRefresh
+import Yulang.GeneralDictionaryTerminalClassification
+import Yulang.GeneralDictionarySelectedInstanceCoherence

@@ -258,3 +258,10 @@ spec 6 の K2 の決定に追記した: 根（または head の非変数 patter
 - `tools/verify-lean.sh` はこの形に対応済み（`Audit.lean` と `lean/Audit/*.lean` を全部実行し、公理を検査する。新しいファイルとして `lean/Audit/*.lean` を許可）。
 - サイクル 131〜135 で手元に溜まっている監査の行も、`Audit.lean` に足さず、`lean/Audit/` の新しいファイルに移してから公開すること。`Yulang.lean` も大きいので（約 1,800 行）、公開が通らなければ同じ理由を疑い、報告に書くこと（監督役が分割を検討する）。
 - I-24 追記（2026-11-12）: `lean/README.md`（約 560 KB）も同じ理由で凍結する。モジュールの説明の追加は、`notes/design/<日付>-<内容>-module-guide.md` のような新しい小さなファイルに書く（サイクル 136 のやり方のまま）。`Yulang.lean` への import の追記は小さいので続けてよいが、公開が止まったら同じ理由を疑うこと。
+
+## I-25: 初期状態と到達可能性を target / 骨格に入れる（監督役, 2026-11-12）
+
+サイクル 138 の `no_evidenceNode`（到達不能な raw journal での反例、`not_sourceFormed` つき）への判断（質問ノート `2026-11-12-cycle138-stable-journal-evidence-scope.md` の末尾）: 草稿の「任意の状態 Σ」は journal を含まない。Σ を journal が空の初期状態として埋め込み、橋は到達可能な状態だけを量化する。
+1. `B4TargetV5`（新しいモジュール。V3/V4 は消さない）: `SourceBoundary` に `Initial : Registry → Demand → State → Prop` を足した構造（または V3 の境界を包む構造）を作り、`Statement` の 5 項は `∀ s, Initial r d s → …` で量化する（それ以外の量化子は V3 と同じ）。docstring に「草稿の Σ = journal が空の初期状態」と書く。
+2. `B4SkeletonV5`: 状態を量化する各フィールド（`progress`・`execution`・`halted`・`closure`・`stepModels`・`frontierLocal`・`whereAccessible`・`completedReadback`/`treeExecution`・`canonicalLocalOrder`・`evidenceNode`）を、`Reachable r d s`（ある初期状態から `Steps (b.Step r d)` で到達）を前提に取る形にし、`b4_of_bridges` を示す。
+3. 具体的な境界では `Initial` = `InitialSource`（空 journal）、`Reachable` ⇒ `SourceFormed` を示し、サイクル 138 の正例（SourceFormed・Stable・現在の Evidence）を、V5 の `evidenceNode` の証明へつなぐ。Astra の 5 本（`closure`・`stepModels`・`frontierLocal`・`localIdentity`・`dictionaryRefl`）も V5 へ移す（前提が弱くなるだけなので、移し替えで通るはず）。
