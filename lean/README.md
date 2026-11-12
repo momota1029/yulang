@@ -4682,3 +4682,5 @@ one fixed Context, it reconstructs the unique complete source witness of a raw
 payload. It does not construct that recursive evidence or propagate child states.
 
 Cycle129 item5 adds computed nominal frame/reconstruction/preparation order invariance at fixed Context and an exact syntactic slot-transport certificate for full nominal Models. The target snapshot and distinct type/row maps remain supplied; no allocator, general Step, full materialization or general B4 completion is claimed.
+
+Cycle129 second checkpoint composes exact slot reindexing through whole finite raw preparation and dictionary recording. The complete source dictionary and full nominal model set are retained; target snapshots and global frames are supplied, success only is monotone. Strict growth, mixed type/row nominal descriptors, repeated outputs/batches and nominal-source registry order have separate regressions.

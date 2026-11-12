@@ -33,3 +33,25 @@ Source authority is spec/06-roles.md §6.3: where conjunction and output equalit
 with all existing readiness/freshness guards retained. Relevant Yulang2 audit
 ROLE-MORE-001/002 confirms candidate-order behavior only in recorded examples;
 ROLE-MORE-003 differs on advertised where clauses and is not imported here.
+
+## Closed composition at the second checkpoint
+
+The fixed-frame source compiler now transports successful variable localization,
+head and RHS construction, checked plans, complete finite recipes and raw payload
+preparation through the syntactic certificate. The returned local packages are
+exactly renamed, while the entire source-indexed dictionary is unchanged. Old
+failure is deliberately not preserved: newly available IDs can make it succeed.
+
+The whole prepared item list is exactly the mapped old list, including duplicate
+items and output requests. Recording that mapped list gives the same full nominal
+Models at every assignment. One unchanged readback witness has actual declaration
+Evidence in every target transaction model; both original and target full snapshot
+Models are retained. No context-changing candidate-frame equality is asserted.
+
+Two strict supplied extensions exercise 1-to-2 and 2-to-3 slots. The latter keeps
+an actual nominal descriptor with both type and row parameters; type77 and row43
+stay distinct and a concrete full nominal assignment satisfies both states.
+A repeated nonempty dictionary batch and a separately evaluated arrow term check
+multiplicity and the separate type/row maps. Independent arbitrary nominal source
+Instance/Evidence also transports under registry order, with computed frames at
+one fixed Context and the same existing binder-value witnesses.
