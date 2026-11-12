@@ -1,9 +1,9 @@
 cycle: 141
-status: running
+status: completed
 started: 2026-11-12T12:27:19Z
-updated: 2026-11-12T12:37:00Z
-elapsed_min: 9.7
-activity: Eight verified reobservation Evidence lemmas; nonempty report-local trace underway
-workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 3a3a0fef6
-resume_hint: New packet-free proof includes actual point revisions; focused711 and audit8 PASS. General nonempty Evidence remains open.
+updated: 2026-11-12T12:46:00Z
+elapsed_min: 18.7
+activity: 30 declarations verified; actual replacement empty-journal Evidence and guarded nonempty Current
+last_local_commit: ae10e33f6
+resume_hint: General V5 Evidence remains open; report guard not discharged. Read fresh integration and inbox. No pending source or active builds.
+report: notes/handoff/dots-cycle-141.md
