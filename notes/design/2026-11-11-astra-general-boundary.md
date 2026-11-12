@@ -12459,3 +12459,384 @@ real guarded transitions and the old output-growth fixture now has a supported
 pending explanation. That is concrete convergence at the transition interface.
 It is not convergence evidence for a completed termination proof until the
 finite provenance/readback and sibling-stabilization bridges above are built.
+
+## Item 4g — guarded installation order: administrative closure and a failed rank construction (2026-11-12)
+
+**Status: unconditional progress is not proved.** The guarded boundary remains
+`GeneralNominalSupportBoundary.boundary roles`; no existing Step, Stable,
+Committed, support, candidate, or evidence definition is changed. This item
+closes the administrative accessibility premise for the actual guarded
+feedback/reobservation relation. It does not construct its installation order,
+prove a necessary cyclic head support, or exhibit a nonterminating Step trace.
+The unconditional V5 bridge count remains **6/14**.
+
+### The measure test and the exact results
+
+The proposed source-denotation measure still fails in its “every journal
+model” form. The already integrated
+`GeneralNominalSupportGrowth.no_modelwise_guarded_rank` applies to a real,
+source-supported first installation: a permitted regular model gives the same
+parent and child denotation. Passing the support guard does not make every
+model finite. K2 tests cycles entailed by the type information, not arbitrary
+additional cycles present in one model. This is a failure of that measure,
+not of guarded accessibility.
+
+A second candidate was to rank all unresolved external producers. That
+relation is not well founded either, even in a very small formed state. The
+new fixture uses the existing general declaration, nominal, packet, and
+emission definitions:
+
+```yulang
+impl Container (list 't):
+    type item = 't
+impl Wrap (list 't) where Container('t, item = 'b):
+    type out = list 'b
+impl P (list 'a)
+    where Container('a, item = 'z), Wrap('a, out = 'z), P('a)
+// Initial demand: P(list(list X)); X's head is unknown.
+```
+
+`Wrap` is exactly `GeneralDeclarationExamples.wrap`. The two added declarations
+pass the full `GeneralDeclarations.DeclarationChecked`, including universal
+capture stability and the output-only check. The binder z appears only in
+named child outputs, and each child has the strictly smaller unnamed pattern a.
+Thus no new declaration rejection can be inferred from this example. This is
+consistent with spec §6.3's normalization, Paterson, and output-only rules.
+
+`GeneralNominalSupportSiblings.first_step` is an actual guarded installation
+from an empty-journal InitialSource, not a supplied transition hypothesis.
+`first_formed`, `children_generated`, `p_children`, `shared_output`, and
+`child_inputs` prove its state formation and exact output. The three children
+have the same unnamed interval `(1,1)` (the source node for list X). Container's
+item and Wrap's out have the same fresh source identity `out`.
+
+After this one installation the Container and Wrap siblings are both generated
+and unresolved. Neither is a generation ancestor of the other, so either
+passes `External` as a producer for the other. `Permitted` explicitly collects
+all such permitted singleton supports between generated unresolved occurrences.
+`sibling_cycle` and `permitted_not_accessible` prove a two-cycle in that
+relation. `no_permitted_rank` rules out ranking it with **any** well-founded
+order, not just a natural-number depth.
+
+**This is an obstruction only to ranking every permitted edge.** It is not an
+obstruction to choosing a useful support explanation. These singleton supports
+are redundant: `sibling_heads_source_supported` proves that all three children's
+heads already have empty support. In this first snapshot the uninstalled
+sibling identities are also absent from the dependency pool; the existing
+restriction operation removes them. Consequently these results do **not** show
+that the actual guard consumes circular output support, or that progress is
+false. Any installation measure must distinguish chosen necessary explanations
+from the union of all admissible dependencies.
+
+### Derived administrative accessibility
+
+`GeneralNominalReobservationOrder` extends the old administrative argument to
+certified descriptor replacement. The finite basis consists of the old Known,
+alias, and ordinary-equality facts, plus `Point source`: an observed nominal
+descriptor with coinciding lower/upper endpoints at that source identity.
+
+The basis is computed from the starting snapshot's finite source list and its
+already registered named output targets. Merge, refresh, and equality feedback
+preserve the site list and keep all sources in this support. Reobservation
+preserves the entire base table. Each update establishes a previously false
+fact. The new point facts survive every actual update: ordinary refinement
+transports them through its source-preserving slot embedding, and descriptor
+replacement explicitly preserves every old point descriptor. Injectivity of
+source identities turns replacement's new slot fact into a new source fact.
+There is no slot-renaming reset, assumed global fact set, or installation bound
+in `accessible`.
+
+`GeneralNominalSupportOrder` proves recorded edges and registered generated
+occurrences for the exact support-tracked SourceFormed predicate. Hence enqueue
+cannot occur in a formed Step. Every such Step is either a `Passive` update
+(projecting to the new bounded administrative relation) or one actual enabled,
+novel, guarded installation. Passive accessibility lifts through the changing
+support ledger; it does not require the ledger itself to stay identical.
+
+`InstallationOrder` now states the precise remaining order obligation for this
+relation. Its measure may have any type and any well-founded relation. Passive
+steps may preserve or strictly decrease its rank; an enabled guarded
+installation at a generated occurrence must strictly decrease it. `accessible`
+and `boundary_progress` prove the reduction without assuming a natural-number
+budget. The order value itself is still a premise, clearly present in both
+statements. Checked and K2 exclusion have not been used to manufacture one.
+
+`empty_models_accessible` proves an additional unconditional case: every formed
+state with no Models has Acc for the full guarded Step. Installable contains a
+model witness, so no installation can occur; model inclusion preserves
+emptiness and the administrative measure handles the remaining updates.
+
+### What still needs proof, and the sibling investigation's limits
+
+The sufficient missing construction is, for every checked registry and root,
+an `InstallationOrder registry root` (or a trace-local order with its own proved
+accessibility reduction). In particular it must select provenance explanations
+that remain bounded across refresh, merge, newly discharged demands, and
+installation, and relate every emitted unnamed interval to the substitutions
+in `DeclarationChecked.captureStable`. Merely putting a rank on all `External`
+edges cannot supply this. Output-only binders must remain excluded from the
+Paterson side, as they are in the checked fixture.
+
+The shared-z fixture provides a concrete next test of the stronger grounding
+claim, but that test is **not completed** here. After the proved P installation,
+the proposed finite continuation is:
+
+1. Install Container(list X,item=out), obtaining out ≈ X and a discharged leaf.
+2. Install Wrap(list X,out=out), obtaining out ≈ list B and a pending child
+   Container(X,item=B).
+3. Install the source-supported P(list X), obtaining a generated P(X).
+4. Certify/observe X ≈ list B and test support for P(X) using the unresolved
+   Wrap sibling and the discharged Container leaf.
+
+Those three further Installable/PacketGuard/Step derivations, their freshness,
+joint-classification and origin obligations, the required refresh, and a proof
+that source/discharged-only support is insufficient have **not** been proved.
+A suggested continuation by pending Container merges is likewise unverified.
+No infinite guarded trace, failure of Acc, or semantic contradiction follows
+from the current artifacts.
+
+If this trace is realizable, the implementation bridge to inspect is the
+whole unresolved obligation dependency: generation/aliases together with
+needed-head support of blocked demands, including provisional equalities
+transferred by pending merges. Alternatives must remain existential; taking
+all alternatives together creates the false cycle already demonstrated here.
+Aliases must be quotiented or treated as equality, not as two strict dependency
+edges. This is a proof/implementation investigation under spec §6.3 and draft
+addendum 5. It is not evidence for a new language restriction. **No new owner
+semantic question is asserted, and no speculative guard replacement is made.**
+
+The existing conditional
+`GeneralNominalSupportBoundary.whereAccessible_of_readback` remains available,
+with its explicit `GeneralNominalCycleReadback.Readback` premise. This item does
+not construct that readback for all reachable states. Progress and
+whereAccessible therefore remain open at their required quantifiers.
+
+### V5 fourteen-field table
+
+Boundary: `GeneralNominalSupportBoundary.boundary roles`. Frontiers and executor
+are the integrated `GeneralNominalSupportBoundary.frontiers` and
+`GeneralNominalSupportExecutor.executor roles progress`.
+
+| Field | Status at the required V5 quantifiers |
+|---|---|
+| progress | OPEN. `GeneralNominalSupportOrder.boundary_progress` requires an InstallationOrder; empty-model and passive accessibility do not discharge this field. |
+| execution | Conditional only on the exact Progress field, via `GeneralNominalSupportExecutor.execution`. |
+| halted | Conditional only on Progress, via `GeneralNominalSupportExecutor.halted`. |
+| closure | Proved: `GeneralNominalSupportBoundary.closure`. |
+| stepModels | Proved: `GeneralNominalSupportBoundary.stepModels`. |
+| frontierLocal | Proved: `GeneralNominalSupportBoundary.frontierLocal`. |
+| localIdentity | Proved: `GeneralNominalSupportBoundary.localIdentity`. |
+| whereAccessible | OPEN. The integrated theorem still requires Readback. |
+| treeExecution | Conditional only on Progress, with the exact/accessibility binders present in the target: `GeneralNominalSupportExecutor.treeExecution`. |
+| canonicalLocalOrder | OPEN for the guarded executor. |
+| dictionaryRefl | Proved: `GeneralNominalSupportBoundary.dictionaryRefl`. |
+| evidenceNode | OPEN for this guarded boundary; no new stable emission/evidence bridge is claimed. |
+| generatedChildren | OPEN for this guarded boundary; stable guarded installation obligations remain. |
+| initialReorders | Proved: `GeneralNominalSupportBoundary.initialReorders`. |
+
+Thus **6/14 unconditional**, with three executor laws conditional only on
+Progress. No extra field is counted for an administrative theorem, a fixture,
+or a conditional reduction. No SourceBoundary field is newly replaced in this
+item; the Item 4f field table still names the concrete thirteen definitions.
+
+### Full new public theorem statements
+
+The signatures below are copied from the new modules. Names and implicit
+variables use the namespaces, opens, and concrete fixture definitions in the
+linked module; all premises are retained. Proof bodies and private helper
+statements are omitted.
+
+`Yulang.GeneralNominalReobservationOrder` — [module](../../lean/Yulang/GeneralNominalReobservationOrder.lean)
+
+```lean
+theorem point_sources (point : Point state source) :
+    source ∈ GeneralNominalState.sources state.context.state
+
+theorem point_refines (refines : GeneralNominalRefinements.Refines before.context.state after.context.state)
+    (point : Point before source) : Point after source
+
+theorem point_at (update : At registry before focus after) (point : Point before source) : Point after source
+
+theorem as_update (update : Update registry before after) : ∃ focus, At registry before focus after
+
+theorem monotone (update : At registry before focus after) (fact : Fact roles) : Holds before fact → Holds after fact
+
+theorem supported_update (start before after : State roles)
+    (sites : before.sites = start.sites)
+    (sources : GeneralNominalState.sources before.context.state ⊆ support start)
+    (update : Update registry before after) :
+    after.sites = start.sites ∧ GeneralNominalState.sources after.context.state ⊆ support start ∧
+      ∃ fact ∈ facts start, ¬ Holds before fact ∧ Holds after fact
+
+theorem remaining_monotone (basis : List (Fact roles)) (update : At registry before focus after) :
+    remaining basis after ≤ remaining basis before
+
+theorem remaining_decreases (basis : List (Fact roles)) (update : At registry before focus after)
+    (fact : Fact roles) (member : fact ∈ basis) (old : ¬ Holds before fact) (now : Holds after fact) :
+    remaining basis after < remaining basis before
+
+theorem accessible (registry : Registry) (start : State roles) :
+    Acc (fun next current => Update registry current next) start
+```
+
+`Yulang.GeneralNominalSupportOrder` — [module](../../lean/Yulang/GeneralNominalSupportOrder.lean)
+
+```lean
+theorem edges_update (recorded : EdgesRecorded before.current)
+    (update : At registry before focus after) : EdgesRecorded after.current
+
+theorem formed_journal (formed : SourceFormed registry root state) :
+    EdgesRecorded state.current ∧ ∃ site ∈ state.current.sites, site.occurrence = root
+
+theorem generated_registered (formed : SourceFormed registry root state)
+    (generated : Generated state.current root child) : ∃ site ∈ state.current.sites, site.occurrence = child
+
+theorem passive_accessible (registry : Registry) (root : Occurrence roles) (state : Tracked roles) :
+    Acc (fun next current => Passive registry root current next) state
+
+theorem formed_step_cases (formed : SourceFormed registry root before) (step : Step registry root before after) :
+    Passive registry root before after ∨
+      ∃ packet : Packet roles, ∃ support,
+        Generated before.current root packet.site.occurrence ∧
+        GeneralNominalFeedbackSteps.Installable registry before.current packet ∧
+        ¬ GeneralNominalFeedbackSteps.Committed before.current packet ∧
+        PacketGuard before packet support ∧ after = GeneralNominalSupportSteps.install before packet support
+
+theorem accessible (order : InstallationOrder registry root)
+    (state : Tracked roles) (formed : SourceFormed registry root state) :
+    Acc (fun next current => Step registry root current next) state
+
+theorem boundary_progress (roles : Roles.RoleDecls) (registry : Registry) (root : Occurrence roles)
+    (order : InstallationOrder registry root) (state : Tracked roles)
+    (reachable : B4TargetV5.Reachable (GeneralNominalSupportBoundary.boundary roles) registry root state) :
+    Acc (fun next current => (GeneralNominalSupportBoundary.boundary roles).Step registry root current next) state
+
+theorem empty_models_accessible (formed : SourceFormed registry root state)
+    (empty : ∀ model, ¬ Models state.current model) :
+    Acc (fun next current => Step registry root current next) state
+```
+
+`Yulang.GeneralNominalSupportSiblings` — [module](../../lean/Yulang/GeneralNominalSupportSiblings.lean)
+
+```lean
+theorem p_checked : DeclarationChecked constructors roles p
+
+theorem c_checked : DeclarationChecked constructors roles c
+
+theorem checked : Checked reg
+
+theorem p_query : GeneralNominalInspection.queries src ctx.interpretation p = [.nominal 0 [.variables [0]]]
+
+theorem p_report : report ctx p bs = captured src 0 0 0 (1,1)
+
+theorem sorted : GeneralCanonicalChildOrder.canonicalRequirements p.requirements = [cp,wp,pp]
+
+theorem p_schema : generated reg ctx root p p_checked bs =
+    ⟨[⟨2,.source out,.actual⟩,⟨2,.source out,.actual⟩],[],false⟩
+
+theorem p_material (model : GeneralNominalCommonBridge.Assignment) :
+    GeneralNominalMaterialization.Models src p
+      (GeneralNominalAllocation.capture src reg root.identity p.id (bindings src (report ctx p bs)))
+      (report ctx p bs) (generated reg ctx root p p_checked bs) model
+
+theorem p_branch (model : GeneralNominalCommonBridge.Assignment)
+    (valid : GeneralNominalState.Models src model) : pk.Holds model
+
+theorem metadata : Metadata reg ctx
+
+theorem initial_source : GeneralNominalSourceFormation.InitialSource reg ctx root
+
+theorem located : arguments ctx root = some bs
+
+theorem p_prepared : Prepared reg ctx root p p_checked
+
+theorem root_ready : ¬ GeneralNominalState.RootPending src root.demand
+
+theorem p_survivor : Survivor reg ctx root p.id pk.children
+
+theorem p_only (d : Declaration) (visible : d ∈ reg.declarations) (role : d.role = root.demand.role) : d=p
+
+theorem selected_old : GeneralNominalFeedbackK2.Local reg start.current root (.selected p.id pk.children)
+
+theorem p_reads : readsMany src (GeneralNominalInspection.queries src ctx.interpretation p) bs = [0]
+
+theorem decisions : DecisionGuard start reg root []
+
+theorem p_guard : PacketGuard start pk []
+
+theorem selected : GeneralNominalSupportBoundary.Local reg start root (.selected p.id pk.children)
+
+theorem p_children : pk.children = [kidC,kidW,kidP]
+
+theorem enabled : GeneralNominalFeedbackSteps.Installable reg start.current pk
+
+theorem first_step : Step reg root start afterP
+
+theorem first_formed : SourceFormed reg root afterP
+
+theorem children_generated : Generated afterP.current root kidC ∧ Generated afterP.current root kidW ∧ Generated afterP.current root kidP
+
+theorem shared_output : kidC.demand.outputs = [⟨1,out⟩] ∧ kidW.demand.outputs = [⟨0,out⟩]
+
+theorem child_inputs :
+    (∀ i, kidC.demand.arguments i = (1,1)) ∧
+    (∀ i, kidW.demand.arguments i = (1,1)) ∧
+    (∀ i, kidP.demand.arguments i = (1,1))
+```
+
+`Yulang.GeneralNominalSupportRankObstruction` — [module](../../lean/Yulang/GeneralNominalSupportRankObstruction.lean)
+
+```lean
+theorem sibling_generated_identity (first last : Occurrence roles) (above : root.identity < first.identity)
+    (reached : Generated afterP.current first last) : last.identity = first.identity
+
+theorem siblings_external : External afterP.current kidC kidW ∧ External afterP.current kidW kidC
+
+theorem siblings_unresolved (focus : Occurrence roles) : ¬ Discharged afterP.current focus
+
+theorem sibling_heads_source_supported : Roots afterP [] kidC ∧ Roots afterP [] kidW ∧ Roots afterP [] kidP
+
+theorem sibling_cycle : Permitted afterP root kidC kidW ∧ Permitted afterP root kidW kidC
+
+theorem permitted_not_accessible : ¬ Acc (Permitted afterP root) kidC
+
+theorem no_permitted_rank {Measure : Type u} (less : Measure → Measure → Prop)
+    (wellFounded : WellFounded less) (rank : Occurrence roles → Measure) :
+    ¬ (∀ producer focus, Permitted afterP root producer focus → less (rank producer) (rank focus))
+```
+
+### Item 4g checks and scope
+
+| Command | Exit code | Result |
+|---|---:|---|
+| `cd lean && lake build Yulang.GeneralNominalSupportOrder Yulang.GeneralNominalSupportRankObstruction` | 0 | Focused closure of all four new modules; 647 jobs. |
+| `cd lean && lake build Yulang` | 0 | Full aggregate build; 1647 jobs. |
+| `cd lean && lake env lean Audit/GeneralNominalSupportOrder.lean > /tmp/yulang-support-order-audit.log` | 0 | 52 public theorem entries; dependencies only propext, Classical.choice, Quot.sound. |
+| `git diff --check` | 0 | No whitespace errors. |
+
+A separate check verified the entire HEAD byte prefix of `lean/Yulang.lean`,
+followed by exactly four new imports; frozen Audit.lean/README.md are unchanged.
+The new proof files contain none of the prohibited proof escapes. No commit,
+push, or git ref update was performed. The full legacy aggregate audit command
+and `tools/verify-lean.sh` were not rerun; the requested new audit part was run.
+
+Files added: the four modules linked above,
+`lean/Audit/GeneralNominalSupportOrder.lean`, and
+`notes/design/2026-11-12-general-nominal-support-order-module-guide.md`.
+Files changed: append-only imports in `lean/Yulang.lean`, this design note, and
+a module-guide entry in `notes/design/INDEX.md`.
+
+Workflow: the configured registered prover role/launch surface was unavailable.
+The primary constructed a bounded derivation and adjudicated separate read-only
+counterexample/probe and review work. No registered prover run is claimed.
+Fresh independent reviews accepted the administrative/order reductions and the
+fixture's deliberately limited rank obstruction. Kernel checks and the
+separate dependency audit are the evidence for the listed theorems.
+
+Assessment: the administrative proof uses the exact general transition relation,
+including descriptor replacement and support-ledger changes, so it removes a
+real prerequisite rather than proving another scalar fragment. The first-step
+fixture also runs on the actual general carrier. These are useful reductions,
+but the decisive installation bound has not advanced to a constructed order.
+Neither a closed termination theorem nor a concrete divergence has been shown;
+Item 4g's primary objective remains unfinished.
