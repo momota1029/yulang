@@ -1,3 +1,5 @@
+import Yulang.GeneralDictionaryEarlyMergeNoEvidence
+import Yulang.GeneralDictionaryEarlyMergeClosure
 import Yulang.GeneralDictionaryDiagnosticTotality
 import Yulang.GeneralDictionaryDiagnosticAccessibility
 import Yulang.GeneralDictionaryEarlyMergeDiagnostics
@@ -217,3 +219,23 @@ import Yulang.GeneralDictionaryEarlyMergeRegression
 #print axioms Yulang.GeneralDictionaryDiagnosticTotality.diagnostic_iff_accessible
 #print axioms Yulang.GeneralDictionaryDiagnosticTotality.closure_local
 #print axioms Yulang.GeneralDictionaryDiagnosticTotality.diagnostic_iff
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.models_of_source
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.varying_model
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.refresh_large_unknown
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.context_complete
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.point_closed
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.sites_exact
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.edges_exact
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.generated_cases
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.sameInputs_no_cross
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.merges_closed
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.installs_committed
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.feedback_stable
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.stable
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.stable_diagnostic_without_classify
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeNoEvidence.child_no_instance
+#print axioms Yulang.GeneralDictionaryEarlyMergeNoEvidence.child_no_evidence
+#print axioms Yulang.GeneralDictionaryEarlyMergeNoEvidence.root_no_evidence
+#print axioms Yulang.GeneralDictionaryEarlyMergeNoEvidence.inhabited_no_evidence

@@ -2004,3 +2004,7 @@ import Yulang.GeneralDictionaryEarlyMergeDiagnostics
 import Yulang.GeneralDictionaryDiagnosticAccessibility
 
 import Yulang.GeneralDictionaryDiagnosticTotality
+
+import Yulang.GeneralDictionaryEarlyMergeClosure
+
+import Yulang.GeneralDictionaryEarlyMergeNoEvidence

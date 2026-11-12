@@ -138,3 +138,16 @@ totality itself (Astra's owned obligation), and does not run an executor.
 Contrast LocalReadbackExact: successful dictionary extraction requires every
 closure node to be selected. The actual merged-child fixture separates these
 criteria: it has a finite diagnostic and Acc, but failed children and no Classify.
+
+## Actual stable failed-child merge diagnostic
+
+EarlyMergeClosure closes every administrative/install/merge/reobserve transition
+for the same inhabited early-merge finish. Generated sites are parent and two
+children; same-input cross root/child is impossible, children are already aliases.
+Final result is Reachable + model + Stable + Acc + no Classify result. This keeps
+the finite failed-child diagnostic, not a successful dictionary or V5 contradiction.
+
+EarlyMergeNoEvidence independently rules out semantic Evidence at both child
+and parent for every valuation/payload: the sole List declaration has unfinished
+inspection at Int children, and source parent evidence retains those children.
+Concrete model existence is proved separately, so this is not empty-model soundness.

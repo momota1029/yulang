@@ -2,6 +2,117 @@
 
 量化子・前提は各Lean宣言の型が正本。以下の抜粋ではmoduleのnamespace/open/variable文脈を省略しているため、暗黙変数の展開はリンク元Leanを参照。本文報告のA〜Dに日本語の主張と適用範囲を記した。private補助はこの一覧に数えない。
 
+## Yulang.GeneralDictionaryEarlyMergeNoEvidence
+
+宣言: `child_no_instance`, `child_no_evidence`, `root_no_evidence`, `inhabited_no_evidence`
+
+```lean
+theorem child_no_instance (n : Nat) (valuation : GeneralNominalCommonBridge.Assignment)
+    (key : Nat) (children : List (GeneralSourceDictionaries.Occurrence GeneralDeclarationExamples.roles)) :
+    ¬ Instance registry finish.current.context valuation (child n) key children
+```
+
+```lean
+theorem child_no_evidence (n : Nat) (valuation : GeneralNominalCommonBridge.Assignment)
+    (payload : GeneralDictionaryReadback.Payload) :
+    ¬ Evidence registry finish.current.context valuation (child n) payload
+```
+
+```lean
+theorem root_no_evidence (valuation : GeneralNominalCommonBridge.Assignment)
+    (payload : GeneralDictionaryReadback.Payload) :
+    ¬ Evidence registry finish.current.context valuation displayRoot payload
+```
+
+```lean
+theorem inhabited_no_evidence :
+    B4TargetV5.Reachable (GeneralNominalSupportBoundary.boundary GeneralDeclarationExamples.roles)
+      registry displayRoot finish ∧
+    GeneralNominalSaturationState.Models finish.current model ∧
+    finish.current.packets ≠ [] ∧ finish.current.aliases ≠ [] ∧
+    ∀ payload, ¬ Evidence registry finish.current.context model displayRoot payload
+```
+
+
+## Yulang.GeneralDictionaryEarlyMergeClosure
+
+宣言: `models_of_source`, `varying_model`, `refresh_large_unknown`, `context_complete`, `point_closed`, `sites_exact`, `edges_exact`, `generated_cases`, `sameInputs_no_cross`, `merges_closed`, `installs_committed`, `feedback_stable`, `stable`, `stable_diagnostic_without_classify`
+
+```lean
+theorem models_of_source (m : GeneralNominalCommonBridge.Assignment)
+    (valid : GeneralNominalState.Models (state true) m) : Models finish.current m
+```
+
+```lean
+theorem varying_model (name : Nat) (large : 2 ≤ name) : Models finish.current (varying name)
+```
+
+```lean
+theorem refresh_large_unknown (next : GeneralNominalCandidates.Context)
+    (certificate : GeneralNominalCycleSteps.Refresh finish.current next) (source : Nat) (large : 2 ≤ source) :
+    ¬ GeneralNominalState.Known next.state source
+```
+
+```lean
+theorem context_complete : ContextComplete finish.current
+```
+
+```lean
+theorem point_closed : GeneralNominalReobservationSteps.PointClosed current.state
+```
+
+```lean
+theorem sites_exact : finish.current.sites = [rootSite,site 10,site 11]
+```
+
+```lean
+theorem edges_exact : finish.current.edges = [(displayRoot,child 10),(displayRoot,child 11)]
+```
+
+```lean
+theorem generated_cases (focus : GeneralSourceDictionaries.Occurrence roles)
+    (generated : Generated finish.current displayRoot focus) :
+    focus = displayRoot ∨ focus = child 10 ∨ focus = child 11
+```
+
+```lean
+theorem sameInputs_no_cross (n : Nat) : ¬ GeneralNominalFeedbackSites.SameInputs finish.current rootSite (site n)
+```
+
+```lean
+theorem merges_closed (first last : GeneralNominalDemandMerging.Site roles)
+    (one : first ∈ finish.current.sites) (two : last ∈ finish.current.sites)
+    (same : GeneralNominalFeedbackSites.SameInputs finish.current first last) :
+    Alias finish.current first.occurrence.identity last.occurrence.identity
+```
+
+```lean
+theorem installs_committed (p : Packet roles)
+    (reached : Generated finish.current displayRoot p.site.occurrence)
+    (enabled : GeneralNominalFeedbackSteps.Installable registry finish.current p) :
+    GeneralNominalFeedbackSteps.Committed finish.current p
+```
+
+```lean
+theorem feedback_stable : GeneralNominalFeedbackSteps.Stable registry finish.current displayRoot
+```
+
+```lean
+theorem stable : GeneralNominalSupportSteps.Stable registry finish displayRoot
+```
+
+```lean
+theorem stable_diagnostic_without_classify :
+    B4TargetV5.Reachable (GeneralNominalSupportBoundary.boundary roles) registry displayRoot finish ∧
+    Models finish.current model ∧
+    GeneralNominalSupportSteps.Stable registry finish displayRoot ∧
+    Acc (CommonRoleOutermostResolver.Child
+      (B4TargetV3.Local (GeneralNominalSupportBoundary.boundary roles).toSourceBoundary registry finish)) displayRoot ∧
+    ∀ outcome, ¬ B4TargetV3.Classify (GeneralNominalSupportBoundary.boundary roles).toSourceBoundary
+      registry finish displayRoot outcome
+```
+
+
 ## Yulang.GeneralDictionaryDiagnosticTotality
 
 宣言: `diagnostic_exists`, `diagnostic_iff_accessible`, `closure_local`, `diagnostic_iff`

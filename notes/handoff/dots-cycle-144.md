@@ -57,11 +57,19 @@ cycle143の `SupportRecursiveExample.finish` は、List Intに対するDisplay�
 
 `EarlyMergeDiagnostics` はCの実merge後、parent selected key1の子2個がそれぞれrejectedになることをsupport込みで確認。`.selected 1 [.rejected,.rejected]` の有限Resolvesが成立する一方、任意outcomeについてparentのClassifyは不存在。親自体をrejectedに潰さず、失敗子を保持する。
 
-`DiagnosticAccessibility` は任意B4 SourceBoundary、任意registry/state/root/treeで、有限Resolvesがあれば独立ChildのAccを導く。成功Classifyを仮定しない。Localの関数性によりterminal失敗leafに隠れたselected childが無いことを証明している。Cの実到達可能・具体モデルあり・journal/alias非空の状態に適用し、**AccでもClassifyが存在しない**正確な例を得た。Stableはこの例で未証明なので、Stable completenessへの反例とは呼ばない。
+`DiagnosticAccessibility` は任意B4 SourceBoundary、任意registry/state/root/treeで、有限Resolvesがあれば独立ChildのAccを導く。成功Classifyを仮定しない。Localの関数性によりterminal失敗leafに隠れたselected childが無いことを証明している。Cの実到達可能・具体モデルあり・journal/alias非空の状態に適用し、**AccでもClassifyが存在しない**正確な例を得た。同じ例のStableも後段のEで証明した。これは失敗子を保持する診断仕様の回帰であり、一般V5不可能性の主張ではない。
 
 `DiagnosticTotality` はさらに任意SourceBoundary/registry/state/rootに対して、有限Resolves存在 iff (独立ChildのReach閉包上で全点Local存在 ∧ Acc Child root)を証明。前向きは診断木とLocal関数性から閉包上の証人を取り、後向きはAcc帰納で失敗葉も保存する。成功dictionaryの必要十分条件と別の定理であり、actual Local全域性自体や実executor停止は証明していない。
 
-独立レビューでも、同一snapshot限定、モデル非空、成功を仮定しない診断、Stable未証明の区別を確認した。
+独立レビューでも、同一snapshot限定、モデル非空、成功を仮定しない診断、診断と成功分類の区別を確認した。
+
+### E. 実merge後の失敗診断もStableまで閉じた
+
+`EarlyMergeClosure` でC/Dの**同じfinish**を対象に、任意source modelをfinal modelへ持ち上げ、予約originを変えるモデル族、ContextComplete、PointClosedを証明。sitesは親と2子、edgesは親→各子、Generatedは3点だけ。親と子のSameInputsはList Int≠Intで排除し、子同士は既存Aliasなのでnovel mergeなし。任意enabled installは親では既存2edgeと全モデルbranchでCommitted、子では現在rejectedと矛盾。予約origin refresh、equate、reobserve、enqueueも排除して**actual SupportSteps.Stable**を得た。
+
+最終`stable_diagnostic_without_classify`は追加仮定なしで、actual Reachable ∧ concrete Models ∧ Stable ∧ independent Child Acc ∧ (∀outcome, ¬ Classify root outcome)。Dの完全診断はparent selectedと2 rejected leavesのまま。Stableでも選択親の失敗子をparent rejectionに潰さない仕様を具体化したもので、診断木を返す一般V5への反例ではない。associated outputsは空というfixture制限は残る。
+
+`EarlyMergeNoEvidence` はこの同じfinishについて、任意valuation・任意payloadの親/子semantic Evidenceも不存在と証明。唯一のList宣言はInt子に対して実inspectionがFinishedでないことをkernel計算で示し、子Instance/Evidenceを否定する。親Evidenceからは完全な2子リストが得られるので先頭子で矛盾。一般のrejected⇒noEvidenceを使わず、実モデル存在と並べている。実到達・Stable・診断あり・成功辞書なしという意味論側の回帰まで得た。
 
 ## 一般境界の状態
 
@@ -88,6 +96,14 @@ cycle143の `SupportRecursiveExample.finish` は、List Intに対するDisplay�
 閉じた6本は`closure, stepModels, frontierLocal, localIdentity, dictionaryRefl, initialReorders`。
 今回の具体的Stable/Joint/trace正例と一般条件付きreadbackも、この8本の一般フィールドの解消には数えない。
 
+## inbox受け入れ条件との照合
+
+- I-21/23（辞書側Evidence）: actual support Reachable/Stableを満たす非空再帰例で、完成payloadの全final-model Evidenceを得た。一般定理はJoint等を明示した条件付きreadbackまでで、一般evidenceNodeは閉じていない。
+- I-25（初期と到達可能性）: positive recursiveとactual mergeの双方がactual Initialからの実Stepで到達。raw arbitrary journalの反例にすり替えていない。I-25一般橋の未証明8本は維持。
+- I-24（凍結監査/README）: 新しい小さなCycle144 auditとmodule-guideを使用。凍結ファイルは変更ゼロ。
+- I-19（Localの全域性）とI-21のStep/Stable/Generated一般定義はAstra担当のまま。DiagnosticTotalityは任意Localが存在するとは主張せず、有限診断の存在条件だけを証明。
+- I-20（merge）: 既存の実merge操作を使用したinhabited回帰と限定scheduleの辞書キー整合性を追加。一般merge規則の定義は変更していない。
+
 ## Yulang2との対応・未検証
 
 work/dots-auditを再fetchしてX1–X25 oracleを確認。X1はopaque nominal list＋where Display宣言check0、wrapper近似で子Display実使用run roots[1]。今回のLean fixtureはこの成功形に対応するが、新spec→旧runtimeのsource adequacyやprovenance-aware support実装一致を証明していない。旧oracleはX2の増大whereも通しており、今回の一般停止証明に流用しない。このサイクルでYulang2の新しいruntime実行はしていない。
@@ -96,7 +112,7 @@ work/dots-auditを再fetchしてX1–X25 oracleを確認。X1はopaque nominal l
 
 1. 一般reachable・Stable・selected alias classのJoint。同時モデルを維持しつつ、historical packetの意味論からcurrent BranchAtへ運ぶ。literal Currentは実反例があるので無条件に使わない。
 2. 両クラスが既に記録済みのmerge。構造Early条件だけでは覆わない。MergesClosed/SameInputsからcross-key一致を一般に導くか、実条件不足を特定する。
-3. `EarlyMergeExample.finish` のStableを検証する。現時点では未証明。必要なexact補題は generated={親,child10,child11}、parent再install Committedとchild install不可能、root-child SameInputs不可能かつ子間Alias済み、ContextComplete/PointClosed/予約origin可変モデルによる全admin更新排除。成立すれば失敗子を保つStable診断の具体回帰になるが、現報告では断言しない。Astra所有の一般Progress/where accessibility/canonical-orderとは分離する。
+3. nonempty associated outputsと両alias class記録済みを含む実mergeへ回帰を拡張し、current BranchAtの同時モデルを保存する残差を明示する。今回の空outputs・未記録子mergeの成功を一般ケースへ拡張しない。Astra所有の一般Progress/where accessibility/canonical-orderとは分離する。
 
 意味論を独断で追加していない。新しい言語設計質問はなし。使用量枠は不明。
 
