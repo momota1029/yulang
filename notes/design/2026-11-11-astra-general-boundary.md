@@ -3540,3 +3540,1021 @@ This is already decided by the spec (2026-11-07 K2 decisions), so it is not a ne
 - A nominal-headed node such as `list μ` is **not** a K2 root: "再帰型が型引数の深い位置（例: `list` の中）にあるだけなら、呼び出しは拒否しない", with the example `len [loop 1]` passing. So `Len (list μ)` passes (option 1).
 - μ = {next: list μ} **is** an anonymous structural recursive type (an unnamed type that refers to itself; the named-recursion exemption covers named bodies such as `enum tree`, not anonymous types whose self-reference passes through a nominal argument). So `Show μ`, reached via `impl Show (list 'a) where Show 'a`, is rejected at that child, and a candidate whose head pattern must inspect a constructor of μ triggers candidate K2.
 Implement this: recurrence edges may pass through nominal *arguments* (never through nominal bodies); the K2 root test applies only at anonymous structural heads (and at non-variable head inspections of them). The owner may still override; if so this note will be updated.
+
+
+## Item 3d — recursive interval inspection and mixed recurrence (2026-11-12)
+
+Status: proved integration of the invariant type-parameter path, repeated
+capture emission, and mixed recurrence on the existing full nominal carrier.
+This is substantial progress on Item 3, **not a claim that the whole-language
+source boundary is complete**. The new predicates are total mathematical
+relations on the existing carriers, but translation and observation coverage
+still have the conservative limitations listed below. Those limitations cannot
+be removed merely by placing the predicates in nine record fields.
+
+### Representation and source meaning
+
+The carrier is still `GeneralNominalState.State`, with the same ordinary atoms,
+source identities, checked normalized snapshot, and full regular nominal
+assignment. `GeneralNominalRecursiveInspection` replaces the old point-only
+inspection path in the new candidate package. `typeArguments` retains arbitrary
+lower/upper identities; it has no endpoint-equality test. Recursive inspection
+follows a finite declaration pattern. A variable captures an interval and does
+not inspect its descendants. Same-name nominal endpoints expose their explicit
+arguments; nominal bodies never supply children. Ordinary self and cross
+constraints remain `lo <= up`, `loA <= upB`, and `loB <= upA`, using the same
+`GeneralNominalAllocation.propagate` and merge identities.
+
+This follows the centerless invariant-interval decision, spec §6.3 and the
+invariance decisions in §6.5. The actual argument in a model is not a new
+source variable or a capture substitution. `Origin` records how to observe that
+argument in the already assigned nominal value. It also records structural
+projections below a nominal parameter. The actual values at repeated occurrences
+must be equivalent, even when their coarse interval bounds are identical. This
+prevents two different actual arguments, such as `int` and `str`, from being
+accepted merely because both lie between bottom and top.
+
+`GeneralNominalRecursivePropagation.Corresponds` links the nominal paths in a
+recursive report to the existing `GeneralNominalProjections.Binding` interface.
+`projection_compatible` proves the old projection conditions under that
+correspondence premise; a total correspondence generator is not proved.
+`branch_compiles` then invokes the existing
+`GeneralNominalProjectionPropagation.compile_sound`. Its result includes both
+the generated ordinary constraints and the retained projection conditions.
+Structural paths use the same source model; the new full-carrier record-payload
+inversion lemmas validate the nested record/list example. The observation-path
+inversion theorem covers a singleton record; it is not a general inversion
+for every canonical shape. This is done without replacing a
+nominal constructor by a record or a tag.
+
+`GeneralNominalCaptureMerges.repeated_child_correspondence` is not restricted to
+a unary or singleton capture. For any nonempty set of occurrences of a declared
+input variable, the computed child's interval contains an actual value iff
+every contributing interval contains that value. The lower endpoint is the
+union of lowers; the upper endpoint is the intersection of uppers. The result
+uses the recorded merge equations and the existing deterministic allocation.
+All where clauses, their associated equations, declaration identities, and
+obligation identities are still emitted by `GeneralDeclarationDemands` through
+`GeneralCanonicalChildOrder.canonicalEmit`. No sibling is resolved here.
+
+`GeneralNominalMaterialization` adds branch constraints for supported compound
+where inputs and named output requests, including the impl's own explicit
+associated definitions. Lower and upper structural expressions use the
+respective capture endpoints; actual nominal arguments use the interval and
+retain occurrence sharing. Output-only binders use their existing source
+identity. These are distinct modes: a structural interval is not collapsed to
+an arbitrary representative. The two endpoint-equation theorems state the
+separate equalities. Associated defaults still have the limitation below.
+
+`BranchModels` includes the ordinary private state, projection constraints, and
+materialization constraints. It implies the original `GeneralNominalState.Models`
+and all captured cross constraints. It is **stronger** than models of
+`privateState` alone. Item 4 must retain these extra conditions when installing
+candidate or child updates. A survivor has a consistent propagated branch;
+this does not assert that every model of the unpropagated source already
+satisfies that candidate's additional constraints.
+
+### Mixed recurrence and the supervisor answer
+
+The earlier question is closed by the supervisor answer immediately above
+this section and spec's K2 decisions at §6.3's discussion of termination:
+`Len (list μ)` may select without inspecting μ; `Show (list μ)` may select and
+emit `Show μ`; the child is rejected at μ. A non-variable pattern that actually
+inspects μ also triggers candidate K2, ahead of ambiguity and independently of
+inspection pending in other candidates. Draft addenda 1–4 still gate all K2
+reasons by readiness of every unnamed root argument.
+
+`GeneralNominalMixedRecurrence.Edge` is either a normalized structural child
+edge or an `ActualArgument` edge. The latter requires, in every source model,
+an observation of an explicit nominal argument equivalent to the target source
+identity. Literal point parameters satisfy this condition, as do endpoints
+proved equivalent in every model. A mere lower or upper bound is not an actual
+recurrence edge. Mixed cycles also require existence of a source model, so an
+inconsistent source cannot manufacture these semantic edges by vacuity.
+`RecursAt` additionally requires a structural head at the reached root; the
+previous normalized structural/alias cycle certificate remains a separate
+sufficient case. Nominal roots are excluded by `nominal_not_recursive`.
+
+This is an independent normalized source-observation recurrence definition,
+not whole-denotation nonfiniteness and not a claim that the original source has
+a complete normal form. `actual_edge_sound` states its projection meaning.
+No executor, classifier return value, or substitution search appears in it.
+The mixed fixture uses `CommonNominalFullGuardedClosure` to construct and prove
+a real model of `μ = {next: list μ}`. Its return edge passes through the explicit
+list argument. No nominal body is present in the fixture or the edge relation.
+
+### Defined-field package and remaining source obligations
+
+All names below are under `Yulang`. The new package is
+`GeneralNominalLocalBoundary.recursiveFields`, defined by reopening that
+namespace in the new `GeneralNominalRecursiveBoundary.lean`; the existing file
+and `generalFields` definition are unchanged, as required by the append-only
+rule. Cycle-127 interfaces, including `EmissionsReady`, remain unchanged.
+There is no automatic replacement or claim of transport of its evidence proofs
+to the new survivor relation.
+
+| SourceBoundary field | Status and Lean definition | Source justification / limit |
+| --- | --- | --- |
+| Checked | DEFINED: `recursiveFields.Checked`, using `GeneralDeclarations.Checked` and registry-role equality | Existing §6.3 static checks, output-only rule, and normalization coverage are preserved. |
+| Models | DEFINED: `GeneralNominalState.Models` | Same full nominal carrier and shared ordinary/normalized identities. `BranchModels` adds candidate conditions and proves projection back to this field. |
+| Step | MISSING | Shared propagation must install the ordinary, projection, and materialization conditions, regenerate observations, and implement the decided same-input demand merge. |
+| Stable | MISSING | Requires the actual shared-state progress relation and stable end-of-file rule. |
+| Generated | MISSING | Deterministic child lists are defined; general installation, normalized observation production, and closure of generated children are not proved. |
+| RootPending | DEFINED: `GeneralNominalState.RootPending` | All unnamed lower heads are needed, per addenda 3–4; named outputs are excluded. |
+| RootK2 | DEFINED on the checked observation carrier: `GeneralNominalMixedRecurrence.RootK2`; source normalization coverage remains partial | Structural reached-root recurrence may pass through actual nominal arguments, never bodies; readiness gate retained. No all-source normalization completeness theorem. |
+| CandidateK2 | DEFINED: `GeneralNominalRecursiveCandidates.CandidateK2`; source coverage remains partial | `HeadReady` requires consistent head/interval/projection checks, independently of RHS materialization. A visited non-variable position has `RecursAt`. Unsupported head translation still defers. |
+| InspectionPending | DEFINED conservative relation: `GeneralNominalRecursiveCandidates.InspectionPending`; full-language coverage remains partial | Ready root and a visible candidate neither prepared nor failed. Genuinely unknown inspected heads defer; implementation coverage gaps also remain pending. It is not yet equivalent to only semantic unknownness. |
+| Survivor | DEFINED: `GeneralNominalRecursiveCandidates.Survivor`; full-language coverage remains partial | Recursive non-point inspection, self/cross checks, actual projection sharing, deterministic repeated-capture frames, supported RHS constraints, and every emitted where child. No child resolution or result-tree folding. |
+| Evidence | MISSING | Existing dictionary recipes are unchanged; the full evidence bridge for the new branch conditions and all source layouts is not proved. |
+| Reorders | DEFINED: `GeneralRegistryReordering.Reorders` | Identity-preserving registry and where-clause reorder relation, unchanged. |
+| DictionaryEquivalent | DEFINED: `GeneralDictionaryPayloadOrder.Equivalent` | Existing dictionary observation relation, unchanged; full Evidence remains separate. |
+
+The four vocabulary types remain `GeneralNominalCandidates.vocabulary roles`:
+`GeneralDeclarations.Registry`, `GeneralNominalCandidates.Context`,
+`GeneralSourceDictionaries.Occurrence roles`, and
+`GeneralNominalCommonBridge.Assignment`. They are general carriers, not the
+example fixtures. `Remaining` still contains exactly `Step`, `Stable`,
+`Generated`, and `Evidence`. `complete (recursiveFields roles) remaining` is a
+conditional assembly of the unchanged `B4Target.SourceBoundary`. A closed
+`generalBoundary`, `Executor.run`, and a general B4 theorem remain missing.
+
+Local functionality and totality are proved for this package, with survivor
+children functional under `Checked`. There is a version with explicit
+decidability premises and a classical existence version. Neither supplies an
+algorithm deciding the full-carrier consistency or normalization problems.
+`recursive_local_extension` identifies this local relation with V3 Local for
+any supplied Remaining. `recursive_candidateK2_rejects` has no inspection-pending
+exclusion premise. Raw Survivor and CandidateK2 may coexist; the V3 priority
+rules determine the local result.
+
+### Regression coverage and exact remaining limits
+
+The new general predicates prove:
+
+- Display on actual `list int` has exactly one survivor, the list declaration,
+  with exactly the original `[Display int]` child and occurrence identity.
+- Wrap survives with the Container child and its item-equation obligation.
+- A nominal variable capture with genuinely different lower/upper denotations
+  survives, using the original full-carrier interval fixture.
+- With lower `int` and upper `top`, a concrete `list int` head survives. A
+  concrete `list str` head is eliminated; with only the list-str declaration
+  visible, the V3 local result is rejected.
+  The source has a proved model, so elimination is not vacuous.
+- An unresolved non-point payload makes a concrete constructor inspection
+  pending. It does not reject or fix the unknown payload.
+- Repeated ordinary captures with incompatible known bounds have no survivors;
+  the coarse actual `list int`/`list str` sharing counterexample remains excluded
+  even when its interval checks alone pass. This particular regression excludes
+  the specified int/str assignment, not every assignment of the unconstrained
+  coarse source.
+- The shadow-tail example is not RootK2; the old loop is RootK2; Index remains
+  root-pending and not RootK2 under the new root definition.
+- The mixed record/list fixture has a model and structural recurrence at μ,
+  but no recurrence at the nominal root `list μ`. Len is locally selected with
+  no children. Show survives with child `Show μ`, and that child's root is K2.
+- A checked head `list {next: 'a}` inspects μ below the nominal argument and
+  satisfies the new CandidateK2 definition. The structural projection into
+  μ is proved exact on the full carrier.
+
+Remaining technical limits are explicit, rather than new owner questions:
+
+1. Existing `GeneralNominalInspection.translate` still defers row patterns,
+   catalogue lower/upper layouts, unsupported variance, arrows, open record
+   tails, and residual patterns. `GeneralNominalState.Parameter` cannot yet
+   encode a lower/upper catalogue entry as a distinct layout kind. The old row
+   interval laws are available, but kind-aware recursive capture and child
+   materialization are still missing. No body traversal or invented variance
+   interpretation is used to fill this gap.
+2. Some known structural shape mismatches remain inspection blockers, rather
+   than a proved compatible projection or elimination. Complete record width
+   matching and all normalized observations need a source completeness proof.
+3. `RootDefined` currently requires an explicit impl-associated definition for
+   a requested root output. Role defaults need a faithful source-pattern
+   elaboration and positional substitution bridge. Their absence defers; it
+   does not reject the candidate.
+4. There is no general equivalence between recursive report generation plus
+   materialization and an independently complete language-wide applicability
+   relation. The interval/projection lemmas are general; the positive examples
+   do not establish that missing completeness theorem.
+5. The subsequent shared state must retain `ProjectionModels` and materialized
+   equations, not just `privateState.ordinary`. Bare variable-child endpoint
+   correspondence is proved for repeated captures; source reachability,
+   saturation, same-input merging, and final dictionary evidence remain Item 4
+   and the evidence bridge. Distinct invocation identities never imply distinct
+   denotations, so the decided demand merge remains possible.
+
+The work is converging toward the shared instance: the new Survivor directly
+uses the previously isolated interval/projection results, the old allocation
+and declaration carriers, and the same full model. It now proves nominal
+positive and mixed-recursive examples through that relation. It would be
+misleading to equate these results, or generic local totality, with closure of
+all general source semantics. The remaining tasks are source adapters and
+completeness/persistence bridges, not more isolated scalar classification tests.
+
+### Full theorem statements for Item 3d
+
+The following inventory is generated from `#check @...` for every new public
+theorem, retaining its premises and quantifiers. The example namespaces contain
+concrete fixtures; the core theorem namespaces remain parametrized by the
+shared carriers. Private proof helpers are covered transitively by the audit.
+
+```lean
+Yulang.GeneralNominalCaptureMerges.lower_exact : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (bounds : List Yulang.GeneralSourceState.Interval),
+  bounds ≠ [] →
+    ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+      Yulang.CommonNominalFullCarrier.Subtype
+          (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model model
+            (Yulang.GeneralNominalAllocation.lower bounds))
+          actual ↔
+        ∀ (pair : Yulang.GeneralSourceState.Interval),
+          pair ∈ bounds → Yulang.CommonNominalFullCarrier.Subtype (model pair.fst).fst actual
+Yulang.GeneralNominalCaptureMerges.upper_exact : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (bounds : List Yulang.GeneralSourceState.Interval),
+  bounds ≠ [] →
+    ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+      Yulang.CommonNominalFullCarrier.Subtype actual
+          (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model model
+            (Yulang.GeneralNominalAllocation.upper bounds)) ↔
+        ∀ (pair : Yulang.GeneralSourceState.Interval),
+          pair ∈ bounds → Yulang.CommonNominalFullCarrier.Subtype actual (model pair.snd).fst
+Yulang.GeneralNominalCaptureMerges.equations_exact : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (source : Nat) (term : Yulang.Core.PresenceGeneration.TyTerm Nat),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.equations source term) ↔
+    Yulang.CommonNominalFullCarrier.Equivalent (model source).fst
+      (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model model term)
+Yulang.GeneralNominalCaptureMerges.capture_interval_exact : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (bindings : Yulang.GeneralNominalAllocation.Bindings)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges state registry invocation declaration bindings) →
+    ∀ (name : Nat),
+      name ∈ declaration.inputNames →
+        Yulang.GeneralNominalAllocation.occurrences bindings name ≠ [] →
+          ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+            Yulang.GeneralNominalCaptureMerges.Fits model
+                ((Yulang.GeneralNominalAllocation.capture state registry invocation declaration.id bindings).inputs
+                  name)
+                actual ↔
+              ∀ (bounds : Yulang.GeneralSourceState.Interval),
+                bounds ∈ Yulang.GeneralNominalAllocation.occurrences bindings name →
+                  Yulang.GeneralNominalCaptureMerges.Fits model bounds actual
+Yulang.GeneralNominalCaptureMerges.propagated_capture_exact : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (bindings : Yulang.GeneralNominalAllocation.Bindings)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models
+      (Yulang.GeneralNominalAllocation.propagate state registry invocation declaration bindings) model →
+    ∀ (name : Nat),
+      name ∈ declaration.inputNames →
+        Yulang.GeneralNominalAllocation.occurrences bindings name ≠ [] →
+          ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+            Yulang.GeneralNominalCaptureMerges.Fits model
+                ((Yulang.GeneralNominalAllocation.capture state registry invocation declaration.id bindings).inputs
+                  name)
+                actual ↔
+              ∀ (bounds : Yulang.GeneralSourceState.Interval),
+                bounds ∈ Yulang.GeneralNominalAllocation.occurrences bindings name →
+                  Yulang.GeneralNominalCaptureMerges.Fits model bounds actual
+@Yulang.GeneralNominalCaptureMerges.repeated_child_correspondence : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (bindings : Yulang.GeneralNominalAllocation.Bindings)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models
+      (Yulang.GeneralNominalAllocation.propagate state registry invocation declaration bindings) model →
+    ∀ (name : Nat),
+      name ∈ declaration.inputNames →
+        Yulang.GeneralNominalAllocation.occurrences bindings name ≠ [] →
+          ∀ (actual : Yulang.CommonNominalFullCarrier.Ty) (clause : Yulang.GeneralDeclarations.Clause)
+            (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause) (index : Fin (roles clause.role).arity),
+            Yulang.GeneralDeclarationPatterns.normalize clause.arguments[↑index] =
+                Yulang.GeneralDeclarationPatterns.Pattern.var name →
+              let child :=
+                Yulang.GeneralDeclarationDemands.childDemand declaration clause valid
+                  (Yulang.GeneralNominalAllocation.capture state registry invocation declaration.id bindings)
+                  (Yulang.GeneralNominalAllocation.allocation state registry invocation declaration.id clause);
+              Yulang.GeneralNominalCaptureMerges.Fits model (child.arguments index) actual ↔
+                ∀ (bounds : Yulang.GeneralSourceState.Interval),
+                  bounds ∈ Yulang.GeneralNominalAllocation.occurrences bindings name →
+                    Yulang.GeneralNominalCaptureMerges.Fits model bounds actual
+Yulang.GeneralNominalMaterialization.empty_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (capture : Yulang.GeneralDeclarationDemands.Capture)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalMaterialization.Models state declaration capture report { } model
+Yulang.GeneralNominalMaterialization.output_variable_equation : ∀ (state : Yulang.GeneralNominalState.State)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (capture : Yulang.GeneralDeclarationDemands.Capture)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (generated : Yulang.GeneralNominalMaterialization.Schema) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalMaterialization.Models state declaration capture report generated model →
+    ∀ (name target : Nat),
+      name ∈ declaration.outputNames →
+        { name := name, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source target,
+              mode := Yulang.GeneralNominalMaterialization.Mode.actual } ∈
+            generated.variables →
+          Yulang.CommonNominalFullCarrier.Equivalent (model target).fst (model (capture.outputs name)).fst
+Yulang.GeneralNominalMaterialization.endpoint_variable_equation : ∀ (state : Yulang.GeneralNominalState.State)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (capture : Yulang.GeneralDeclarationDemands.Capture)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (generated : Yulang.GeneralNominalMaterialization.Schema) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalMaterialization.Models state declaration capture report generated model →
+    ∀ (name target : Nat),
+      ¬name ∈ declaration.outputNames →
+        { name := name, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source target,
+              mode := Yulang.GeneralNominalMaterialization.Mode.lower } ∈
+            generated.variables →
+          Yulang.CommonNominalFullCarrier.Equivalent (model target).fst (model (capture.inputs name).fst).fst
+Yulang.GeneralNominalMaterialization.upper_endpoint_variable_equation : ∀ (state : Yulang.GeneralNominalState.State)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (capture : Yulang.GeneralDeclarationDemands.Capture)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (generated : Yulang.GeneralNominalMaterialization.Schema) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalMaterialization.Models state declaration capture report generated model →
+    ∀ (name target : Nat),
+      ¬name ∈ declaration.outputNames →
+        { name := name, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source target,
+              mode := Yulang.GeneralNominalMaterialization.Mode.upper } ∈
+            generated.variables →
+          Yulang.CommonNominalFullCarrier.Equivalent (model target).fst (model (capture.inputs name).snd).fst
+@Yulang.GeneralNominalMaterialization.named_outputs_retained : ∀ {roles : Yulang.Roles.RoleDecls}
+  (emission : Yulang.GeneralDeclarationDemands.Emission roles)
+  (output : Yulang.GeneralDeclarationDemands.OutputRequest),
+  output ∈ emission.outputs →
+    { pattern := output.pattern, target := output.target, mode := Yulang.GeneralNominalMaterialization.Mode.actual } ∈
+      Yulang.GeneralNominalMaterialization.emissionRequests emission
+Yulang.GeneralNominalMixedCandidateExample.checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalMixedCandidateExample.declaration
+Yulang.GeneralNominalMixedCandidateExample.calculated_report : Yulang.GeneralNominalRecursiveCandidates.report
+    Yulang.GeneralNominalMixedCandidateExample.context Yulang.GeneralNominalMixedCandidateExample.declaration [(1, 1)] =
+  Yulang.GeneralNominalMixedCandidateExample.calculated
+Yulang.GeneralNominalMixedCandidateExample.parameter_observed : Yulang.GeneralNominalRecursiveInspection.Observes
+  Yulang.GeneralNominalMixedExamples.model Yulang.GeneralNominalMixedCandidateExample.parameterOrigin
+  (Yulang.GeneralNominalMixedExamples.value 0)
+Yulang.GeneralNominalMixedCandidateExample.parameter_exact : ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.Observes Yulang.GeneralNominalMixedExamples.model
+      Yulang.GeneralNominalMixedCandidateExample.parameterOrigin actual →
+    Yulang.CommonNominalFullCarrier.Equivalent actual (Yulang.GeneralNominalMixedExamples.value 0)
+Yulang.GeneralNominalMixedCandidateExample.payload_observed : Yulang.GeneralNominalRecursiveInspection.Observes
+  Yulang.GeneralNominalMixedExamples.model Yulang.GeneralNominalMixedCandidateExample.payloadOrigin
+  (Yulang.GeneralNominalMixedExamples.value 1)
+Yulang.GeneralNominalMixedCandidateExample.payload_exact : ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.Observes Yulang.GeneralNominalMixedExamples.model
+      Yulang.GeneralNominalMixedCandidateExample.payloadOrigin actual →
+    Yulang.CommonNominalFullCarrier.Equivalent actual (Yulang.GeneralNominalMixedExamples.value 1)
+Yulang.GeneralNominalMixedCandidateExample.projection_models : Yulang.GeneralNominalRecursiveInspection.ProjectionModels
+  Yulang.GeneralNominalMixedExamples.state Yulang.GeneralNominalMixedCandidateExample.calculated
+  Yulang.GeneralNominalMixedExamples.model
+Yulang.GeneralNominalMixedCandidateExample.private_models : Yulang.GeneralNominalState.Models
+  (Yulang.GeneralNominalRecursiveCandidates.privateState Yulang.GeneralNominalMixedCandidateExample.registry
+    Yulang.GeneralNominalMixedCandidateExample.context Yulang.GeneralNominalMixedExamples.showRoot
+    Yulang.GeneralNominalMixedCandidateExample.declaration [(1, 1)])
+  Yulang.GeneralNominalMixedExamples.model
+Yulang.GeneralNominalMixedCandidateExample.candidate_K2 : Yulang.GeneralNominalRecursiveCandidates.CandidateK2
+  Yulang.GeneralNominalMixedCandidateExample.registry Yulang.GeneralNominalMixedCandidateExample.context
+  Yulang.GeneralNominalMixedExamples.showRoot
+Yulang.GeneralNominalMixedExamples.record_equation : Yulang.CommonNominalFullCarrier.Equivalent
+  (Yulang.GeneralNominalMixedExamples.value 0)
+  (Yulang.CommonNominalFullCarrier.required 7 (Yulang.GeneralNominalMixedExamples.value 1))
+Yulang.GeneralNominalMixedExamples.list_equation : Yulang.CommonNominalFullCarrier.Equivalent
+  (Yulang.GeneralNominalMixedExamples.value 1)
+  (Yulang.CommonNominalFullCarrier.nominal 0 [Sum.inl (Yulang.GeneralNominalMixedExamples.value 0)])
+Yulang.GeneralNominalMixedExamples.state_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralNominalMixedExamples.state Yulang.GeneralNominalMixedExamples.model
+Yulang.GeneralNominalMixedExamples.structural_edge : Yulang.GeneralSourceK2.Child
+  Yulang.GeneralNominalMixedExamples.view 0 1
+Yulang.GeneralNominalMixedExamples.nominal_edge : Yulang.GeneralNominalMixedRecurrence.ActualArgument
+  Yulang.GeneralNominalMixedExamples.state 1 0
+Yulang.GeneralNominalMixedExamples.anonymous_recursive : Yulang.GeneralNominalMixedRecurrence.RecursAt
+  Yulang.GeneralNominalMixedExamples.state 0
+Yulang.GeneralNominalMixedExamples.list_not_recursive : ¬Yulang.GeneralNominalMixedRecurrence.RecursAt
+    Yulang.GeneralNominalMixedExamples.state 1
+Yulang.GeneralNominalMixedExamples.child_K2 : Yulang.GeneralNominalMixedRecurrence.RootK2
+  Yulang.GeneralNominalMixedExamples.state Yulang.GeneralNominalMixedExamples.childDemand
+Yulang.GeneralNominalMixedExamples.list_root_not_K2 : ¬Yulang.GeneralNominalMixedRecurrence.RootK2
+    Yulang.GeneralNominalMixedExamples.state Yulang.GeneralNominalMixedExamples.showRoot.demand
+Yulang.GeneralNominalMixedRecurrence.point_argument_edge : ∀ (state : Yulang.GeneralNominalState.State)
+  (parent child : Fin state.base.slots) (descriptor : Yulang.GeneralNominalState.Descriptor state.base.slots),
+  state.nominals parent = some descriptor →
+    ∀ (index : Nat),
+      descriptor.arguments[index]? = some (Yulang.GeneralNominalState.Parameter.type (child, child)) →
+        Yulang.GeneralNominalMixedRecurrence.ActualArgument state parent child
+Yulang.GeneralNominalMixedRecurrence.equal_endpoint_edge : ∀ (state : Yulang.GeneralNominalState.State)
+  (parent lower upper : Fin state.base.slots) (descriptor : Yulang.GeneralNominalState.Descriptor state.base.slots),
+  state.nominals parent = some descriptor →
+    ∀ (index : Nat),
+      descriptor.arguments[index]? = some (Yulang.GeneralNominalState.Parameter.type (lower, upper)) →
+        (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalState.Models state model →
+              Yulang.CommonNominalFullCarrier.Equivalent (model (state.base.source lower)).fst
+                (model (state.base.source upper)).fst) →
+          Yulang.GeneralNominalMixedRecurrence.ActualArgument state parent lower
+Yulang.GeneralNominalMixedRecurrence.actual_edge_sound : ∀ (state : Yulang.GeneralNominalState.State)
+  (parent child : Fin state.base.slots),
+  Yulang.GeneralNominalMixedRecurrence.ActualArgument state parent child →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models state model →
+        ∃ descriptor,
+          state.nominals parent = some descriptor ∧
+            ∃ index actual,
+              Yulang.GeneralNominalProjections.Observes model
+                  ((Yulang.GeneralNominalProjections.Ref.source (state.base.source parent)).argument
+                    descriptor.declaration.name index)
+                  (Sum.inl actual) ∧
+                Yulang.CommonNominalFullCarrier.Equivalent actual (model (state.base.source child)).fst
+Yulang.GeneralNominalMixedRecurrence.nominal_not_recursive : ∀ (state : Yulang.GeneralNominalState.State)
+  (root : Fin state.base.slots) (descriptor : Yulang.GeneralNominalState.Descriptor state.base.slots),
+  state.nominals root = some descriptor → ¬Yulang.GeneralNominalMixedRecurrence.RecursAt state root
+Yulang.GeneralNominalMixedRecurrence.source_path : ∀ (state : Yulang.GeneralNominalState.State)
+  (first last : Fin state.base.slots),
+  Yulang.GeneralSourceK2.Path state.view first last → Yulang.GeneralNominalMixedRecurrence.Path state first last
+@Yulang.GeneralNominalMixedRecurrence.old_rootK2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (demand : Yulang.GeneralSourceState.Demand roles),
+  Yulang.GeneralNominalK2Coverage.RootK2 state demand → Yulang.GeneralNominalMixedRecurrence.RootK2 state demand
+@Yulang.GeneralNominalMixedRecurrence.pending_excludes_K2 : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (demand : Yulang.GeneralSourceState.Demand roles),
+  Yulang.GeneralNominalState.RootPending state demand → ¬Yulang.GeneralNominalMixedRecurrence.RootK2 state demand
+Yulang.GeneralNominalMixedRecurrence.mixed_cycle_rejects : ∀ (state : Yulang.GeneralNominalState.State)
+  (root nominal : Fin state.base.slots),
+  Yulang.GeneralNominalMixedRecurrence.Structural state root →
+    Yulang.GeneralSourceK2.Child state.view root nominal →
+      Yulang.GeneralNominalMixedRecurrence.ActualArgument state nominal root →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalState.Models state model → Yulang.GeneralNominalMixedRecurrence.RecursAt state root
+Yulang.GeneralNominalNonpointInspectionExamples.int_top : Yulang.CommonNominalFullCarrier.Subtype
+  (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int) Yulang.CommonNominalSyntax.Layer.top
+Yulang.GeneralNominalNonpointInspectionExamples.state_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralNominalNonpointInspectionExamples.state Yulang.GeneralNominalNonpointInspectionExamples.model
+Yulang.GeneralNominalNonpointInspectionExamples.endpoints_different : 2 ≠ 3 ∧
+  (Yulang.GeneralNominalNonpointInspectionExamples.model 2).fst ≠
+    (Yulang.GeneralNominalNonpointInspectionExamples.model 3).fst
+Yulang.GeneralNominalNonpointInspectionExamples.int_report : Yulang.GeneralNominalRecursiveCandidates.report
+    Yulang.GeneralNominalNonpointInspectionExamples.context Yulang.GeneralNominalNonpointInspectionExamples.intDecl
+    [(0, 0)] =
+  Yulang.GeneralNominalNonpointInspectionExamples.calculated
+Yulang.GeneralNominalNonpointInspectionExamples.str_conflicts : (Yulang.GeneralNominalRecursiveCandidates.report
+      Yulang.GeneralNominalNonpointInspectionExamples.context Yulang.GeneralNominalNonpointInspectionExamples.strDecl
+      [(0, 0)]).conflicts =
+  [(2, 3)]
+Yulang.GeneralNominalNonpointInspectionExamples.projected_int : ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.Observes Yulang.GeneralNominalNonpointInspectionExamples.model
+      Yulang.GeneralNominalNonpointInspectionExamples.parameterOrigin actual →
+    Yulang.CommonNominalFullCarrier.Equivalent actual (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+Yulang.GeneralNominalNonpointInspectionExamples.projection_models : Yulang.GeneralNominalRecursiveInspection.ProjectionModels
+  Yulang.GeneralNominalNonpointInspectionExamples.state Yulang.GeneralNominalNonpointInspectionExamples.calculated
+  Yulang.GeneralNominalNonpointInspectionExamples.model
+Yulang.GeneralNominalNonpointInspectionExamples.int_schema : Yulang.GeneralNominalRecursiveCandidates.generated
+    Yulang.GeneralNominalNonpointInspectionExamples.intRegistry Yulang.GeneralNominalNonpointInspectionExamples.context
+    Yulang.GeneralNominalNonpointInspectionExamples.root Yulang.GeneralNominalNonpointInspectionExamples.intDecl
+    Yulang.GeneralNominalRegressions.concrete_checked [(0, 0)] =
+  { }
+Yulang.GeneralNominalNonpointInspectionExamples.int_survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralNominalNonpointInspectionExamples.intRegistry Yulang.GeneralNominalNonpointInspectionExamples.context
+  Yulang.GeneralNominalNonpointInspectionExamples.root 4 []
+Yulang.GeneralNominalNonpointInspectionExamples.no_str_survivors : ∀ (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+  ¬Yulang.GeneralNominalRecursiveCandidates.Survivor Yulang.GeneralNominalNonpointInspectionExamples.strRegistry
+      Yulang.GeneralNominalNonpointInspectionExamples.context Yulang.GeneralNominalNonpointInspectionExamples.root key
+      children
+Yulang.GeneralNominalNonpointInspectionExamples.str_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalNonpointInspectionExamples.strDecl
+Yulang.GeneralNominalNonpointInspectionExamples.str_finished_inspection : (Yulang.GeneralNominalRecursiveCandidates.report
+        Yulang.GeneralNominalNonpointInspectionExamples.context Yulang.GeneralNominalNonpointInspectionExamples.strDecl
+        [(0, 0)]).blocked =
+    [] ∧
+  (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralNominalNonpointInspectionExamples.context
+        Yulang.GeneralNominalNonpointInspectionExamples.strDecl [(0, 0)]).arity =
+    []
+Yulang.GeneralNominalNonpointInspectionExamples.str_failed : Yulang.GeneralNominalRecursiveCandidates.Failed
+  Yulang.GeneralNominalNonpointInspectionExamples.strRegistry Yulang.GeneralNominalNonpointInspectionExamples.context
+  Yulang.GeneralNominalNonpointInspectionExamples.root Yulang.GeneralNominalNonpointInspectionExamples.strDecl
+  Yulang.GeneralNominalNonpointInspectionExamples.str_checked
+Yulang.GeneralNominalNonpointInspectionExamples.str_not_pending : ¬Yulang.GeneralNominalRecursiveCandidates.InspectionPending
+    Yulang.GeneralNominalNonpointInspectionExamples.strRegistry Yulang.GeneralNominalNonpointInspectionExamples.context
+    Yulang.GeneralNominalNonpointInspectionExamples.root
+Yulang.GeneralNominalNonpointInspectionExamples.str_rejected : Yulang.GeneralNominalLocalBoundary.Local
+  (Yulang.GeneralNominalLocalBoundary.recursiveFields Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralNominalNonpointInspectionExamples.strRegistry Yulang.GeneralNominalNonpointInspectionExamples.context
+  Yulang.GeneralNominalNonpointInspectionExamples.root Yulang.CommonRoleOutermostResolver.Frontier.rejected
+Yulang.GeneralNominalLocalBoundary.recursive_survivor_functional : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalLocalBoundary.recursiveFields roles).Checked registry →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.GeneralNominalLocalBoundary.SurvivorChildrenFunctional
+        (Yulang.GeneralNominalLocalBoundary.recursiveFields roles) registry context root
+Yulang.GeneralNominalLocalBoundary.recursive_local_total : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalLocalBoundary.recursiveFields roles).Checked registry →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      ∃ frontier,
+        Yulang.GeneralNominalLocalBoundary.Local (Yulang.GeneralNominalLocalBoundary.recursiveFields roles) registry
+          context root frontier
+Yulang.GeneralNominalLocalBoundary.recursive_local_total_decidable : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalLocalBoundary.recursiveFields roles).Checked registry →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      [Decidable ((Yulang.GeneralNominalLocalBoundary.recursiveFields roles).RootPending registry context root)]
+      [Decidable ((Yulang.GeneralNominalLocalBoundary.recursiveFields roles).RootK2 registry context root)]
+      [Decidable ((Yulang.GeneralNominalLocalBoundary.recursiveFields roles).CandidateK2 registry context root)]
+      [Decidable ((Yulang.GeneralNominalLocalBoundary.recursiveFields roles).InspectionPending registry context root)]
+      [Decidable
+          (∃ key children,
+            (Yulang.GeneralNominalLocalBoundary.recursiveFields roles).Survivor registry context root key children)]
+      [(key : Nat) →
+          Decidable
+            (∃ key' children',
+              (Yulang.GeneralNominalLocalBoundary.recursiveFields roles).Survivor registry context root key' children' ∧
+                key ≠ key')],
+      ∃ frontier,
+        Yulang.GeneralNominalLocalBoundary.Local (Yulang.GeneralNominalLocalBoundary.recursiveFields roles) registry
+          context root frontier
+Yulang.GeneralNominalLocalBoundary.recursive_local_functional : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (first last : Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.GeneralNominalLocalBoundary.Local (Yulang.GeneralNominalLocalBoundary.recursiveFields roles) registry context
+      root first →
+    Yulang.GeneralNominalLocalBoundary.Local (Yulang.GeneralNominalLocalBoundary.recursiveFields roles) registry context
+        root last →
+      first = last
+Yulang.GeneralNominalLocalBoundary.recursive_local_extension : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (remaining : Yulang.GeneralNominalLocalBoundary.Remaining (Yulang.GeneralNominalCandidates.vocabulary roles))
+  (frontier : Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.GeneralNominalLocalBoundary.Local (Yulang.GeneralNominalLocalBoundary.recursiveFields roles) registry context
+      root frontier ↔
+    Yulang.B4TargetV3.Local
+      (Yulang.GeneralNominalLocalBoundary.complete (Yulang.GeneralNominalLocalBoundary.recursiveFields roles) remaining)
+      registry context root frontier
+@Yulang.GeneralNominalLocalBoundary.recursive_candidate_trichotomy : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  ¬Yulang.GeneralNominalState.RootPending context.state root.demand →
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration),
+          declaration.role = root.demand.role →
+            Yulang.GeneralNominalRecursiveCandidates.Failed registry context root declaration checked ∨
+              Yulang.GeneralNominalRecursiveCandidates.Prepared registry context root declaration checked ∨
+                Yulang.GeneralNominalRecursiveCandidates.InspectionPending registry context root
+@Yulang.GeneralNominalLocalBoundary.recursive_failed_not_prepared : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration),
+  Yulang.GeneralNominalRecursiveCandidates.Failed registry context root declaration checked →
+    ¬Yulang.GeneralNominalRecursiveCandidates.Prepared registry context root declaration checked
+Yulang.GeneralNominalLocalBoundary.recursive_candidateK2_rejects : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalRecursiveCandidates.CandidateK2 registry context root →
+    Yulang.GeneralNominalLocalBoundary.Local (Yulang.GeneralNominalLocalBoundary.recursiveFields roles) registry context
+      root Yulang.CommonRoleOutermostResolver.Frontier.rejected
+Yulang.GeneralNominalLocalBoundary.recursive_pending_excludes_candidates : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalState.RootPending context.state root.demand →
+    (∀ (key : Nat) (children : List (Yulang.GeneralNominalCandidates.vocabulary roles).Demand),
+        ¬(Yulang.GeneralNominalLocalBoundary.recursiveFields roles).Survivor registry context root key children) ∧
+      ¬(Yulang.GeneralNominalLocalBoundary.recursiveFields roles).InspectionPending registry context root ∧
+        ¬(Yulang.GeneralNominalLocalBoundary.recursiveFields roles).CandidateK2 registry context root ∧
+          ¬(Yulang.GeneralNominalLocalBoundary.recursiveFields roles).RootK2 registry context root
+@Yulang.GeneralNominalRecursiveCandidates.branch_interval_sound : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked bounds model →
+    Yulang.GeneralNominalState.Models context.state model ∧
+      Yulang.GeneralNominalAllocation.Compatible
+          (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+            (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds))
+          model ∧
+        Yulang.GeneralNominalRecursiveInspection.ProjectionModels context.state
+          (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds) model
+@Yulang.GeneralNominalRecursiveCandidates.branch_child_correspondence : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked bounds model →
+    ∀ (name : Nat),
+      name ∈ declaration.inputNames →
+        Yulang.GeneralNominalAllocation.occurrences
+              (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds))
+              name ≠
+            [] →
+          ∀ (actual : Yulang.CommonNominalFullCarrier.Ty) (clause : Yulang.GeneralDeclarations.Clause)
+            (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause) (index : Fin (roles clause.role).arity),
+            Yulang.GeneralDeclarationPatterns.normalize clause.arguments[↑index] =
+                Yulang.GeneralDeclarationPatterns.Pattern.var name →
+              have captures :=
+                Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                  (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds);
+              let child :=
+                Yulang.GeneralDeclarationDemands.childDemand declaration clause valid
+                  (Yulang.GeneralNominalAllocation.capture context.state registry root.identity declaration.id captures)
+                  (Yulang.GeneralNominalAllocation.allocation context.state registry root.identity declaration.id
+                    clause);
+              Yulang.GeneralNominalCaptureMerges.Fits model (child.arguments index) actual ↔
+                ∀ (interval : Yulang.GeneralSourceState.Interval),
+                  interval ∈ Yulang.GeneralNominalAllocation.occurrences captures name →
+                    Yulang.GeneralNominalCaptureMerges.Fits model interval actual
+@Yulang.GeneralNominalRecursiveCandidates.survivor_children_functional : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+      (first last : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+      Yulang.GeneralNominalRecursiveCandidates.Survivor registry context root key first →
+        Yulang.GeneralNominalRecursiveCandidates.Survivor registry context root key last → first = last
+@Yulang.GeneralNominalRecursiveCandidates.blocked_defers : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  ¬Yulang.GeneralNominalState.RootPending context.state root.demand →
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration →
+          declaration.role = root.demand.role →
+            ∀ (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+              Yulang.GeneralNominalRecursiveCandidates.arguments context root = some bounds →
+                (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds).blocked ≠ [] →
+                  Yulang.GeneralNominalRecursiveCandidates.InspectionPending registry context root
+@Yulang.GeneralNominalRecursiveCandidates.candidateK2_not_root_pending : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalRecursiveCandidates.CandidateK2 registry context root →
+    ¬Yulang.GeneralNominalState.RootPending context.state root.demand
+Yulang.GeneralNominalRecursiveExamples.display_schema : ∀ (registry : Yulang.GeneralDeclarations.Registry)
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  root.demand.outputs = [] →
+    ∀
+      (checked :
+        Yulang.GeneralDeclarations.DeclarationChecked registry.constructors Yulang.GeneralDeclarationExamples.roles
+          Yulang.GeneralDeclarationExamples.display)
+      (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+      Yulang.GeneralNominalRecursiveCandidates.generated registry context root Yulang.GeneralDeclarationExamples.display
+          checked bounds =
+        { }
+Yulang.GeneralNominalRecursiveExamples.display_survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralNominalExamples.registry (Yulang.GeneralNominalExamples.context true)
+  Yulang.GeneralNominalExamples.displayRoot 1 [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralNominalRecursiveExamples.nonpoint_survivor : ∀ (first last : Yulang.Inference.Base),
+  Yulang.GeneralNominalRecursiveCandidates.Survivor Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalRecursiveExamples.nonpointContext Yulang.GeneralNominalRecursiveExamples.nonpointRoot 1
+    Yulang.GeneralNominalRecursiveExamples.nonpointChildren
+Yulang.GeneralNominalRecursiveExamples.mixed_children : Yulang.GeneralNominalAllocation.children
+    Yulang.GeneralNominalMixedExamples.state Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalMixedExamples.showRoot Yulang.GeneralDeclarationExamples.display
+    Yulang.GeneralDeclarationExamples.display_checked [(0, 0, 0)] =
+  [Yulang.GeneralNominalRecursiveExamples.mixedChild]
+Yulang.GeneralNominalRecursiveExamples.show_list_survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalMixedExamples.context
+  Yulang.GeneralNominalMixedExamples.showRoot 1 [Yulang.GeneralNominalRecursiveExamples.mixedChild]
+Yulang.GeneralNominalRecursiveExamples.show_child_K2 : Yulang.GeneralNominalMixedRecurrence.RootK2
+  Yulang.GeneralNominalMixedExamples.state Yulang.GeneralNominalRecursiveExamples.mixedChild.demand
+Yulang.GeneralNominalRecursiveExamples.wrap_schema : Yulang.GeneralNominalRecursiveCandidates.generated
+    Yulang.GeneralNominalExamples.registry (Yulang.GeneralNominalExamples.context true)
+    Yulang.GeneralNominalExamples.wrapRoot Yulang.GeneralDeclarationExamples.wrap
+    Yulang.GeneralDeclarationExamples.wrap_checked [(0, 0)] =
+  {
+    variables :=
+      [{ name := 1,
+          origin := Yulang.GeneralNominalRecursiveInspection.Origin.source Yulang.GeneralNominalExamples.itemTarget,
+          mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+Yulang.GeneralNominalRecursiveExamples.wrap_survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralNominalExamples.registry (Yulang.GeneralNominalExamples.context true)
+  Yulang.GeneralNominalExamples.wrapRoot 2 [Yulang.GeneralNominalExamples.wrapChild]
+Yulang.GeneralNominalRecursiveExamples.len_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalRecursiveExamples.len
+Yulang.GeneralNominalRecursiveExamples.len_schema : Yulang.GeneralNominalRecursiveCandidates.generated
+    Yulang.GeneralNominalRecursiveExamples.lenRegistry Yulang.GeneralNominalMixedExamples.context
+    Yulang.GeneralNominalRecursiveExamples.lenRoot Yulang.GeneralNominalRecursiveExamples.len
+    Yulang.GeneralNominalRecursiveExamples.len_checked [(1, 1)] =
+  { }
+Yulang.GeneralNominalRecursiveExamples.len_list_survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralNominalRecursiveExamples.lenRegistry Yulang.GeneralNominalMixedExamples.context
+  Yulang.GeneralNominalRecursiveExamples.lenRoot 30 []
+Yulang.GeneralNominalRecursiveInspection.embed_observation : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (ref : Yulang.GeneralNominalProjections.Ref) (actual : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalProjections.Observes model ref (Sum.inl actual) →
+    Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalRecursiveInspection.embed ref) actual
+Yulang.GeneralNominalRecursiveInspection.recover_observation : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (ref : Yulang.GeneralNominalProjections.Ref) (actual : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalRecursiveInspection.embed ref) actual →
+    Yulang.GeneralNominalProjections.Observes model ref (Sum.inl actual)
+Yulang.GeneralNominalRecursiveInspection.nominal_observation_unique : ∀
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (ref : Yulang.GeneralNominalProjections.Ref)
+  (first last : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalRecursiveInspection.embed ref) first →
+    Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalRecursiveInspection.embed ref) last →
+      Yulang.CommonNominalFullCarrier.Equivalent first last
+Yulang.GeneralNominalRecursiveInspection.nominal_argument_bounds : ∀ (state : Yulang.GeneralNominalState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models state model →
+    ∀ (slot : Fin state.base.slots) (descriptor : Yulang.GeneralNominalState.Descriptor state.base.slots),
+      state.nominals slot = some descriptor →
+        ∀ (index : Nat) (bounds : Yulang.GeneralNominalInspection.Bounds state),
+          descriptor.arguments[index]? = some (Yulang.GeneralNominalState.Parameter.type bounds) →
+            (∃ actual,
+                Yulang.GeneralNominalRecursiveInspection.Observes model
+                  ((Yulang.GeneralNominalRecursiveInspection.Origin.source (state.base.source slot)).nominal
+                    descriptor.declaration.name index)
+                  actual) ∧
+              ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+                Yulang.GeneralNominalRecursiveInspection.Observes model
+                    ((Yulang.GeneralNominalRecursiveInspection.Origin.source (state.base.source slot)).nominal
+                      descriptor.declaration.name index)
+                    actual →
+                  Yulang.GeneralNominalCaptureMerges.Fits model
+                    (state.base.source bounds.fst, state.base.source bounds.snd) actual
+@Yulang.GeneralNominalRecursiveInspection.nonpoint_type_arguments : ∀ {slots : Nat} (bounds : Fin slots × Fin slots),
+  Yulang.GeneralNominalRecursiveInspection.typeArguments [Yulang.GeneralNominalState.Parameter.type bounds] =
+    some [bounds]
+Yulang.GeneralNominalRecursiveInspection.variable_does_not_inspect : ∀ (state : Yulang.GeneralNominalState.State)
+  (names : List Nat) (bounds : Yulang.GeneralNominalInspection.Bounds state)
+  (origin : Option Yulang.GeneralNominalRecursiveInspection.Origin),
+  (Yulang.GeneralNominalRecursiveInspection.inspect state (Yulang.GeneralNominalInspection.Query.variables names) bounds
+        origin).inspected =
+    []
+Yulang.GeneralNominalRecursiveInspection.unresolved_blocks : ∀ (state : Yulang.GeneralNominalState.State)
+  (expected : Nat) (patterns : List Yulang.GeneralNominalInspection.Query)
+  (bounds : Yulang.GeneralNominalInspection.Bounds state)
+  (origin : Option Yulang.GeneralNominalRecursiveInspection.Origin),
+  state.nominals bounds.fst = none →
+    state.view.heads bounds.fst =
+        Yulang.GeneralNormalizedObservation.Head.deferred Yulang.GeneralNormalizedObservation.Deferred.unresolved →
+      (Yulang.GeneralNominalRecursiveInspection.inspect state
+            (Yulang.GeneralNominalInspection.Query.nominal expected patterns) bounds origin).blocked ≠
+        []
+Yulang.GeneralNominalRecursiveInspection.projected_capture_sound : ∀ (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveInspection.ProjectionModels state report model →
+    ∀ (first last : Yulang.GeneralNominalRecursiveInspection.Capture state),
+      first ∈ report.captures →
+        last ∈ report.captures →
+          first.name = last.name →
+            ∀ (origin : Yulang.GeneralNominalRecursiveInspection.Origin),
+              first.origin = some origin →
+                ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+                  Yulang.GeneralNominalRecursiveInspection.Observes model origin actual →
+                    Yulang.GeneralNominalRecursiveInspection.Fits state model last.bounds actual
+Yulang.GeneralNominalRecursivePropagation.projection_compatible : ∀ (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveInspection.ProjectionModels state report model →
+    ∀ (old : List (Yulang.GeneralNominalProjections.Binding state)),
+      Yulang.GeneralNominalRecursivePropagation.Corresponds state report old →
+        Yulang.GeneralNominalProjections.Compatible state model old
+@Yulang.GeneralNominalRecursivePropagation.branch_compiles : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked bounds model →
+    ∀ (old : List (Yulang.GeneralNominalProjections.Binding context.state)),
+      Yulang.GeneralNominalRecursivePropagation.Corresponds context.state
+          (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds) old →
+        ∃ atoms,
+          Yulang.GeneralNominalProjectionPropagation.compile context.state old = some atoms ∧
+            Yulang.GeneralNominalState.Models (Yulang.GeneralNominalState.extend context.state [] atoms) model ∧
+              Yulang.GeneralNominalProjections.Compatible context.state model old
+@Yulang.GeneralNominalRecursivePropagation.existing_projection_preserved : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked bounds model →
+    ∀ (old : List (Yulang.GeneralNominalProjections.Binding context.state)),
+      Yulang.GeneralNominalRecursivePropagation.Corresponds context.state
+          (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds) old →
+        Yulang.GeneralNominalProjections.Models { source := context.state, bindings := old } model
+Yulang.GeneralNominalRecursiveRegressions.index_pending_not_K2 : Yulang.GeneralNominalState.RootPending
+    Yulang.GeneralNominalRegressions.indexState' Yulang.GeneralSourceStateExamples.indexDemand ∧
+  ¬Yulang.GeneralNominalMixedRecurrence.RootK2 Yulang.GeneralNominalRegressions.indexState'
+      Yulang.GeneralSourceStateExamples.indexDemand
+Yulang.GeneralNominalRecursiveRegressions.shadow_not_K2 : ¬Yulang.GeneralNominalMixedRecurrence.RootK2
+    Yulang.GeneralNominalRegressions.shadowState' Yulang.GeneralSourceStateExamples.loopDemand
+Yulang.GeneralNominalRecursiveRegressions.loop_K2 : Yulang.GeneralNominalMixedRecurrence.RootK2
+  Yulang.GeneralNominalRegressions.loopState' Yulang.GeneralSourceStateExamples.loopDemand
+Yulang.GeneralNominalRecursiveRegressions.unresolved_payload_blocks : (Yulang.GeneralNominalRecursiveCandidates.report
+      (Yulang.GeneralNominalExamples.context false) Yulang.GeneralNominalRegressions.concreteList [(0, 0)]).blocked =
+  [(1, 1)]
+Yulang.GeneralNominalRecursiveRegressions.inspection_pending : Yulang.GeneralNominalRecursiveCandidates.InspectionPending
+  Yulang.GeneralNominalRegressions.concreteRegistry (Yulang.GeneralNominalExamples.context false)
+  Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralNominalRecursiveRegressions.repeated_bindings : Yulang.GeneralNominalRecursiveInspection.bindings
+    Yulang.GeneralNominalRegressions.conflictState
+    (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralNominalRegressions.conflictContext
+      Yulang.GeneralCandidateConflictExamples.repeated [(0, 0), (1, 1)]) =
+  Yulang.GeneralNominalRegressions.conflicting
+Yulang.GeneralNominalRecursiveRegressions.no_conflict_survivors : ∀ (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+  ¬Yulang.GeneralNominalRecursiveCandidates.Survivor Yulang.GeneralCandidateConflictExamples.registry
+      Yulang.GeneralNominalRegressions.conflictContext Yulang.GeneralCandidateConflictExamples.root key children
+Yulang.GeneralNominalRecursiveRegressions.coarse_actual_conflict : ¬Yulang.GeneralNominalRecursiveInspection.ProjectionModels
+    Yulang.GeneralNominalIntervalExamples.source
+    {
+      captures :=
+        [Yulang.GeneralNominalRecursiveRegressions.coarseFirst, Yulang.GeneralNominalRecursiveRegressions.coarseLast] }
+    (Yulang.GeneralNominalIntervalExamples.model Yulang.Inference.Base.int Yulang.Inference.Base.str)
+Yulang.GeneralNominalRecursiveRegressions.len_not_rootK2 : ¬Yulang.GeneralNominalMixedRecurrence.RootK2
+    Yulang.GeneralNominalMixedExamples.state Yulang.GeneralNominalRecursiveExamples.lenRoot.demand
+Yulang.GeneralNominalRecursiveRegressions.int_head_conflicts : (Yulang.GeneralNominalRecursiveCandidates.report
+      (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.intDisplay [(0, 0)]).conflicts =
+  [(0, 0)]
+Yulang.GeneralNominalRecursiveRegressions.display_exactly_one : ∀ (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+  Yulang.GeneralNominalRecursiveCandidates.Survivor Yulang.GeneralNominalExamples.registry
+      (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayRoot key children ↔
+    key = 1 ∧ children = [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralNominalRecursiveRegressions.nonpoint_unresolved_payload_blocks : (Yulang.GeneralNominalRecursiveCandidates.report
+      Yulang.GeneralNominalRecursiveExamples.nonpointContext Yulang.GeneralNominalRegressions.concreteList
+      [(0, 0)]).blocked =
+  [(2, 3)]
+Yulang.GeneralNominalRecursiveRegressions.nonpoint_inspection_pending : Yulang.GeneralNominalRecursiveCandidates.InspectionPending
+  Yulang.GeneralNominalRegressions.concreteRegistry Yulang.GeneralNominalRecursiveExamples.nonpointContext
+  Yulang.GeneralNominalRecursiveExamples.nonpointRoot
+Yulang.GeneralNominalRecursiveRegressions.len_inspected : (Yulang.GeneralNominalRecursiveCandidates.report
+      Yulang.GeneralNominalMixedExamples.context Yulang.GeneralNominalRecursiveExamples.len [(1, 1)]).inspected =
+  [(1, 1)]
+Yulang.GeneralNominalRecursiveRegressions.len_not_candidateK2 : ¬Yulang.GeneralNominalRecursiveCandidates.CandidateK2
+    Yulang.GeneralNominalRecursiveExamples.lenRegistry Yulang.GeneralNominalMixedExamples.context
+    Yulang.GeneralNominalRecursiveExamples.lenRoot
+Yulang.GeneralNominalRecursiveRegressions.len_not_inspection_pending : ¬Yulang.GeneralNominalRecursiveCandidates.InspectionPending
+    Yulang.GeneralNominalRecursiveExamples.lenRegistry Yulang.GeneralNominalMixedExamples.context
+    Yulang.GeneralNominalRecursiveExamples.lenRoot
+Yulang.GeneralNominalRecursiveRegressions.len_selected : Yulang.GeneralNominalLocalBoundary.Local
+  (Yulang.GeneralNominalLocalBoundary.recursiveFields Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralNominalRecursiveExamples.lenRegistry Yulang.GeneralNominalMixedExamples.context
+  Yulang.GeneralNominalRecursiveExamples.lenRoot (Yulang.CommonRoleOutermostResolver.Frontier.selected 30 [])
+Yulang.GeneralNominalStructuralProjectionLaws.finite_record_payload : ∀ (label : Nat)
+  (a b rest tail : Yulang.CommonNominalFullDemand.Ty Yulang.CommonNominalFullCarrier.Row),
+  Yulang.CommonNominalFullDemand.ProducerLe Yulang.Common.rowLe (Yulang.CommonNominalFinite.Ty.record label a rest)
+      (Yulang.CommonNominalFinite.Ty.record label b tail) →
+    Yulang.CommonNominalFullDemand.ProducerLe Yulang.Common.rowLe a b
+Yulang.GeneralNominalStructuralProjectionLaws.record_payload : ∀ (label : Nat)
+  (a b rest tail : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Subtype (Yulang.CommonNominalFullCarrier.record label a rest)
+      (Yulang.CommonNominalFullCarrier.record label b tail) →
+    Yulang.CommonNominalFullCarrier.Subtype a b
+Yulang.GeneralNominalStructuralProjectionLaws.required_equivalent : ∀ (label : Nat)
+  (first last : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent (Yulang.CommonNominalFullCarrier.required label first)
+      (Yulang.CommonNominalFullCarrier.required label last) ↔
+    Yulang.CommonNominalFullCarrier.Equivalent first last
+Yulang.GeneralNominalStructuralProjectionLaws.singleton_shape : ∀ (label : Nat)
+  (payload : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.shapeValue (Yulang.GeneralNormalizedObservation.Shape.record [label])
+      [payload] =
+    Yulang.CommonNominalFullCarrier.required label payload
+Yulang.GeneralNominalStructuralProjectionLaws.record_observation : ∀
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (parent : Yulang.GeneralNominalRecursiveInspection.Origin)
+  (label : Nat) (actual payload : Yulang.CommonNominalFullCarrier.Ty),
+  (∀ (value : Yulang.CommonNominalFullCarrier.Ty),
+      Yulang.GeneralNominalRecursiveInspection.Observes model parent value →
+        Yulang.CommonNominalFullCarrier.Equivalent value (Yulang.CommonNominalFullCarrier.required label payload)) →
+    Yulang.GeneralNominalRecursiveInspection.Observes model
+        (parent.structural (Yulang.GeneralNormalizedObservation.Shape.record [label]) 0) actual →
+      Yulang.CommonNominalFullCarrier.Equivalent actual payload
+Yulang.GeneralNominalUnaryCaptureFacts.report_exact : ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (slot : Fin context.state.base.slots)
+  (descriptor : Yulang.GeneralNominalState.Descriptor context.state.base.slots),
+  context.state.nominals slot = some descriptor →
+    ∀ (binder : Nat) (bounds : Yulang.GeneralNominalInspection.Bounds context.state),
+      descriptor.arguments = [Yulang.GeneralNominalState.Parameter.type bounds] →
+        Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration =
+            [Yulang.GeneralNominalInspection.Query.nominal descriptor.declaration.name
+                [Yulang.GeneralNominalInspection.Query.variables [binder]]] →
+          Yulang.GeneralNominalRecursiveCandidates.report context declaration [(slot, slot)] =
+            Yulang.GeneralNominalUnaryCaptureFacts.captured context.state slot descriptor.declaration.name binder bounds
+Yulang.GeneralNominalUnaryCaptureFacts.projection_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models state model →
+    ∀ (slot : Fin state.base.slots) (descriptor : Yulang.GeneralNominalState.Descriptor state.base.slots),
+      state.nominals slot = some descriptor →
+        ∀ (binder : Nat) (bounds : Yulang.GeneralNominalInspection.Bounds state),
+          descriptor.arguments = [Yulang.GeneralNominalState.Parameter.type bounds] →
+            Yulang.GeneralNominalRecursiveInspection.ProjectionModels state
+              (Yulang.GeneralNominalUnaryCaptureFacts.captured state slot descriptor.declaration.name binder bounds)
+              model
+Yulang.GeneralNominalUnaryCaptureFacts.propagated_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (binder : Nat),
+  declaration.inputNames = [binder] →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models state model →
+        ∀ (bounds : Yulang.GeneralNominalInspection.Bounds state),
+          Yulang.CommonNominalFullCarrier.Subtype (model (state.base.source bounds.fst)).fst
+              (model (state.base.source bounds.snd)).fst →
+            Yulang.GeneralNominalState.Models
+              (Yulang.GeneralNominalAllocation.propagate state registry invocation declaration
+                [(binder, state.base.source bounds.fst, state.base.source bounds.snd)])
+              model
+Yulang.GeneralNominalUnaryCaptureFacts.self_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (slot : Fin state.base.slots) (name binder : Nat) (bounds : Yulang.GeneralNominalInspection.Bounds state)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.CommonNominalFullCarrier.Subtype (model (state.base.source bounds.fst)).fst
+      (model (state.base.source bounds.snd)).fst →
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalRecursiveInspection.selfChecks state
+        (Yulang.GeneralNominalUnaryCaptureFacts.captured state slot name binder bounds))
+Yulang.GeneralNominalUnaryCaptureFacts.initial_fresh : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat),
+  List.foldr max 0 (Yulang.GeneralNominalState.sources state) ≤ state.seed →
+    Yulang.GeneralNominalAllocation.Fresh state registry invocation
+@Yulang.GeneralNominalUnaryCaptureFacts.private_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (slot : Fin context.state.base.slots) (descriptor : Yulang.GeneralNominalState.Descriptor context.state.base.slots),
+  context.state.nominals slot = some descriptor →
+    ∀ (binder : Nat),
+      declaration.inputNames = [binder] →
+        ∀ (bounds : Yulang.GeneralNominalInspection.Bounds context.state),
+          descriptor.arguments = [Yulang.GeneralNominalState.Parameter.type bounds] →
+            Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration =
+                [Yulang.GeneralNominalInspection.Query.nominal descriptor.declaration.name
+                    [Yulang.GeneralNominalInspection.Query.variables [binder]]] →
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalState.Models context.state model →
+                  Yulang.GeneralNominalState.Models
+                      (Yulang.GeneralNominalRecursiveCandidates.privateState registry context root declaration
+                        [(slot, slot)])
+                      model ∧
+                    Yulang.GeneralNominalRecursiveInspection.ProjectionModels context.state
+                      (Yulang.GeneralNominalRecursiveCandidates.report context declaration [(slot, slot)]) model
+```
+
+### Files and verification for Item 3d
+
+New implementation and proof modules:
+
+- [`GeneralNominalCaptureMerges.lean`](../../lean/Yulang/GeneralNominalCaptureMerges.lean)
+- [`GeneralNominalMaterialization.lean`](../../lean/Yulang/GeneralNominalMaterialization.lean)
+- [`GeneralNominalMixedCandidateExample.lean`](../../lean/Yulang/GeneralNominalMixedCandidateExample.lean)
+- [`GeneralNominalMixedExamples.lean`](../../lean/Yulang/GeneralNominalMixedExamples.lean)
+- [`GeneralNominalMixedRecurrence.lean`](../../lean/Yulang/GeneralNominalMixedRecurrence.lean)
+- [`GeneralNominalNonpointInspectionExamples.lean`](../../lean/Yulang/GeneralNominalNonpointInspectionExamples.lean)
+- [`GeneralNominalRecursiveBoundary.lean`](../../lean/Yulang/GeneralNominalRecursiveBoundary.lean)
+- [`GeneralNominalRecursiveCandidates.lean`](../../lean/Yulang/GeneralNominalRecursiveCandidates.lean)
+- [`GeneralNominalRecursiveExamples.lean`](../../lean/Yulang/GeneralNominalRecursiveExamples.lean)
+- [`GeneralNominalRecursiveInspection.lean`](../../lean/Yulang/GeneralNominalRecursiveInspection.lean)
+- [`GeneralNominalRecursivePropagation.lean`](../../lean/Yulang/GeneralNominalRecursivePropagation.lean)
+- [`GeneralNominalRecursiveRegressions.lean`](../../lean/Yulang/GeneralNominalRecursiveRegressions.lean)
+- [`GeneralNominalStructuralProjectionLaws.lean`](../../lean/Yulang/GeneralNominalStructuralProjectionLaws.lean)
+- [`GeneralNominalUnaryCaptureFacts.lean`](../../lean/Yulang/GeneralNominalUnaryCaptureFacts.lean)
+
+Changed existing files: imports appended to `lean/Yulang.lean`; 116 dependency
+print commands appended to `lean/Audit.lean`; this Item 3d section appended to
+`notes/design/2026-11-11-astra-general-boundary.md`. No existing implementation
+module was edited. The earlier sections of this note remain unchanged.
+
+All required commands ran from `lean/`:
+
+| Exact command | Exit code |
+| --- | --- |
+| `lake build Yulang.GeneralNominalCaptureMerges Yulang.GeneralNominalMaterialization Yulang.GeneralNominalMixedCandidateExample Yulang.GeneralNominalMixedExamples Yulang.GeneralNominalMixedRecurrence Yulang.GeneralNominalNonpointInspectionExamples Yulang.GeneralNominalRecursiveBoundary Yulang.GeneralNominalRecursiveCandidates Yulang.GeneralNominalRecursiveExamples Yulang.GeneralNominalRecursiveInspection Yulang.GeneralNominalRecursivePropagation Yulang.GeneralNominalRecursiveRegressions Yulang.GeneralNominalStructuralProjectionLaws Yulang.GeneralNominalUnaryCaptureFacts > /tmp/astra-survivor-focused.log 2>&1` | 0 |
+| `lake build Yulang > /tmp/astra-survivor-umbrella.log 2>&1` | 0 |
+| `lake env lean Audit.lean > /tmp/astra-survivor-audit.log 2>&1` | 0 |
+
+The focused build completed 587 jobs. The umbrella build completed 1460 jobs,
+including the unchanged dictionary/emission modules. The full audit printed
+9288 dependency reports, including all 116 new public theorems exactly once.
+The entire dependency set was `propext`, `Classical.choice`, and `Quot.sound`.
+These totals include existing results. The 116-statement inventory above was
+generated with `lake env lean --stdin` (exit 0) from imports and `#check @...`
+commands, with `format.width` set for readability. Earlier elaboration and
+inventory-command errors were repaired before these final checks.
+
+Append-only byte-prefix checks against HEAD passed for Yulang.lean, Audit.lean,
+and the preexisting design note. New-source forbidden-token/docstring checks,
+allowed-path checks, full theorem/signature/audit coverage, and whitespace
+checks passed. No spec, plan, lake configuration, commit, push, or git reference
+was changed. No Rust/runtime/parser checks were run; this change only adds Lean
+modules and their documentation.
+
+The `yulang-proofs` workflow was used. The skill's older rule-file names are
+absent in this checkout; the current `rules/INDEX.md` and workflow map were
+consulted. No registered `prover` role/configuration was available. The primary
+constructed these bounded derivations; no prover agent ran. A separate read-only
+reviewer inspected the initial eight modules, the corrected materialization
+modes and K2 premises, then all six additions. The reviewer found no defect in
+the stated new theorems and confirmed the scope limitations above. A final read-only review of this section also checked the table and scope;
+its clarification that the non-point rejection uses only the list-str
+declaration has been incorporated. The reviewer did not independently run the
+builds or audit. Whole-language source
+completeness, runtime reachability, the shared-state transition/evidence
+obligations, and the full B4 result were not verified or claimed.
