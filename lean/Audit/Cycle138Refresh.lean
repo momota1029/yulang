@@ -1,0 +1,14 @@
+import Yulang.GeneralDictionaryRefreshGap
+
+#print axioms Yulang.GeneralDictionaryRefreshGap.no_known
+#print axioms Yulang.GeneralDictionaryRefreshGap.good_journal_model
+#print axioms Yulang.GeneralDictionaryRefreshGap.refresh_unknown
+#print axioms Yulang.GeneralDictionaryRefreshGap.generated_only_root
+#print axioms Yulang.GeneralDictionaryRefreshGap.no_install
+#print axioms Yulang.GeneralDictionaryRefreshGap.stable
+#print axioms Yulang.GeneralDictionaryRefreshGap.edge_shape
+#print axioms Yulang.GeneralDictionaryRefreshGap.acyclic
+#print axioms Yulang.GeneralDictionaryRefreshGap.old_acyclic
+#print axioms Yulang.GeneralDictionaryRefreshGap.selected
+#print axioms Yulang.GeneralDictionaryRefreshGap.no_evidenceNode
+#print axioms Yulang.GeneralDictionaryRefreshGap.not_sourceFormed

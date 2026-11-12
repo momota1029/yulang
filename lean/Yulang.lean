@@ -1876,3 +1876,4 @@ import Yulang.GeneralDictionaryFinishedInspectionExamples
 
 import Yulang.GeneralDictionaryJournalTree
 import Yulang.GeneralDictionaryModeledJointGap
+import Yulang.GeneralDictionaryRefreshGap
