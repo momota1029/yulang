@@ -1,3 +1,5 @@
+import Yulang.GeneralDictionaryModelLoss
+import Yulang.GeneralDictionaryReachableEvidenceUnrecorded
 import Yulang.B4TargetV5Compatibility
 import Yulang.GeneralDictionaryReachableEvidenceRecorded
 import Yulang.GeneralDictionaryReachableModelGap
@@ -25,3 +27,19 @@ import Yulang.GeneralDictionaryReachableObligations
 #print axioms Yulang.B4TargetV5Compatibility.restrict_statement
 #print axioms Yulang.B4TargetV5Compatibility.unrestrict_statement
 #print axioms Yulang.B4TargetV5Compatibility.universal_initial_iff
+
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.selected
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.stable
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.initial_source
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.stable_selected_without_record
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.no_recorded_focus
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.terminal_evidence
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.reachable
+#print axioms Yulang.GeneralDictionaryModelLoss.at_loss_is_merge
+#print axioms Yulang.GeneralDictionaryModelLoss.at_inhabited_of_not_merge
+#print axioms Yulang.GeneralDictionaryModelLoss.destructiveMerge_at
+#print axioms Yulang.GeneralDictionaryModelLoss.destructiveMerge_empty
+#print axioms Yulang.GeneralDictionaryModelLoss.trace_loss_has_merge
+
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.not_journal_covered
+#print axioms Yulang.GeneralDictionaryReachableEvidenceUnrecorded.no_stable_selected_coverage

@@ -1898,3 +1898,7 @@ import Yulang.GeneralDictionarySelectedInstanceCoherence
 import Yulang.GeneralDictionaryReachableEvidenceRecorded
 
 import Yulang.B4TargetV5Compatibility
+
+import Yulang.GeneralDictionaryReachableEvidenceUnrecorded
+
+import Yulang.GeneralDictionaryModelLoss

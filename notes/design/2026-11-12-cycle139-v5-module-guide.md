@@ -72,3 +72,25 @@ neither coverage from stability nor arbitrary refresh/alias transport.
 `B4TargetV5Compatibility` proves that V3 Statement restricts to V5, and that if
 Initial is universal V5 is equivalent to V3. These are fidelity implications,
 not concrete B4 solutions and not an assumption that concrete Initial is universal.
+
+## Recording coverage is genuinely false
+
+`GeneralDictionaryReachableEvidenceUnrecorded` builds a valid InitialSource and
+V5-reachable empty journal with actual Stable, actual selected30[], and a real
+model. It has no recorded packet, so the existing JournalTree.Covered premise
+fails. A universal Stable/SourceFormed/selected/inhabited-to-Covered bridge is
+formally refuted. Nevertheless terminal Evidence holds in EVERY journal model.
+Committed can already hold semantically without installing a record. General
+Evidence therefore needs a semantic case as well as the recorded-packet case.
+This is not a V5 evidence counterexample and does not alter the language.
+
+## Precise model-existence gap
+
+`GeneralDictionaryModelLoss` proves that an inhabited actual feedback trace
+can first lose all models only at a merge whose output equations exclude every
+prior model. Enqueue, refresh, equate and enabled install cannot cause that loss.
+The hypothetical certificate retains actual SameInputs and novelty premises.
+No destructive merge on formed states is constructed. InitialSource itself
+has no model-existence field, so inhabited is an explicit premise of this
+analysis, not a newly assumed global invariant. The nonmerge corollary uses
+extensional exclusion of all matching merge-shaped target states.
