@@ -5,7 +5,8 @@ import Yulang.GeneralDictionaryReadback
 # Model-indexed source evidence for the recursive nominal boundary
 
 The local judgment below names a visible, checked source declaration and its
-actual emitted obligations. Its semantic premises are checked in the supplied
+actual emitted obligations. Registry and context constructor interpretations are
+required to agree through Metadata. Its semantic premises are checked in the supplied
 model: the private interval equations, recursive projections, and materialized
 source equations. It does not refer to Survivor, Unique, Classify, or execution.
 
@@ -40,6 +41,7 @@ def Instance (registry : Registry) (context : Context) (model : Assignment) : Lo
           RequestReady registry context root declaration checked bounds ∧
           children = GeneralNominalAllocation.children context.state registry root declaration checked
             (bindings context.state (report context declaration bounds)) ∧
+          GeneralNominalRecursiveCandidates.Metadata registry context ∧
           BranchModels registry context root declaration checked bounds model
 
 /-- Semantic evidence retains an entire source-indexed witness behind the raw
@@ -68,7 +70,7 @@ theorem instance_models (registry : Registry) (context : Context) (model : Assig
     (root : Occurrence roles) (key : Nat) (children : List (Occurrence roles))
     (instanceRule : Instance registry context model root key children) :
     GeneralNominalState.Models context.state model := by
-  obtain ⟨declaration, _, checked, _, _, bounds, _, _, _, _, branch⟩ := instanceRule
+  obtain ⟨declaration, _, checked, _, _, bounds, _, _, _, _, _, branch⟩ := instanceRule
   exact (GeneralNominalRecursiveCandidates.branch_interval_sound registry context root
     declaration checked bounds model branch).1
 
@@ -79,11 +81,11 @@ theorem survivor_instance_exists (registry : Registry) (context : Context)
     (survivor : Survivor registry context root key children) :
     ∃ model, Instance registry context model root key children := by
   obtain ⟨_, declaration, visible, checked, identity, role, bounds, located, prepared, emitted⟩ := survivor
-  obtain ⟨_, _, _, other, found, finished, ready, model, branch⟩ := prepared
+  obtain ⟨metadata, _, _, other, found, finished, ready, model, branch⟩ := prepared
   have same := Option.some.inj (located.symm.trans found)
   subst other
   exact ⟨model, declaration, visible, checked, identity, role, bounds, located,
-    finished, ready, emitted, branch⟩
+    finished, ready, emitted, metadata, branch⟩
 
 /-- Replace only the existential branch witness with an explicitly provided model.
 Registry key uniqueness identifies the same declaration; argument lookup identifies
@@ -105,11 +107,11 @@ theorem survivor_instance_of_branch (registry : Registry) (checked : Checked reg
   subst selected
   have same := Option.some.inj (located.symm.trans found)
   subst other
-  obtain ⟨_, _, _, inner, innerFound, finished, ready, _⟩ := prepared
+  obtain ⟨metadata, _, _, inner, innerFound, finished, ready, _⟩ := prepared
   have same := Option.some.inj (located.symm.trans innerFound)
   subst inner
   exact ⟨declaration, visible, valid, identity, role, bounds, located,
-    finished, ready, emitted, branch⟩
+    finished, ready, emitted, metadata, branch⟩
 
 /-- Every node combines its one-model source instance with evidence for all of
 its emitted children. This is the representation-level adapter, not the missing
