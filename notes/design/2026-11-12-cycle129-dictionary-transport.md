@@ -76,3 +76,33 @@ full nominal model before and after, and satisfies Transport, while Known and
 RootPending differ. Thus view/readiness equivalence cannot be derived from the
 model-preservation certificate alone. The state owner must add an observational
 contract or produce an actual source-state construction before that next bridge.
+
+## Next dictionary-owned bridge: locality of supplied Frames (not proved here)
+
+`Frame` contains `capture`, `allocation` and `identity`, so equality of captures
+alone cannot justify equal canonical child occurrences. A useful next contract
+should record agreement only at nodes of one reconstructed finite dictionary:
+for every node occurrence/root and selected checked declaration, require the same
+capture at its key, the same complete canonical emitted child occurrence list,
+and recursively the same agreement at those children. No premise should mention
+raw preparation success or source Evidence. A first implementation may compare
+all three frame fields at each visited root; then narrow that sufficient contract
+to the used declaration and clause positions without dropping output requests.
+
+Proposed lemma chain (all new work, not counted among the125 theorems):
+1. `reconstruct_frame_local`: for every checked registry, frames F/G, payload P,
+   root R and source tree D, if reconstruct F P R = some D and recursive frame
+   agreement holds on D, then reconstruct G P R = some D.
+2. `prepare_frame_local`: for every fixed source snapshot and the same data,
+   old raw preparation = some T plus frame agreement on T.dictionary implies
+   new raw preparation = some T. Reuse computed endpoint localization unchanged;
+   transport each head/RHS lookup through capture agreement at the selected key.
+3. `prepare_transport_frame_local`: compose (2) with the present syntactic
+   Transport, yielding the exact reindexed tree with an unchanged source
+   dictionary under F/G rather than requiring global Frames equality.
+
+These are dictionary-local congruence goals. Deriving the recursive frame
+agreement from two actual candidate contexts, normalizing views, constructing a
+target snapshot or proving driver-order invariance remain separate obligations
+owned by their respective source/candidate work. The concrete view counterexample
+rules out obtaining that agreement from model equivalence alone.
