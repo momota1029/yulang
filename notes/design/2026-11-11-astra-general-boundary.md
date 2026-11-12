@@ -5427,3 +5427,7 @@ This note does not declare the program legal or illegal, change the K2 rules,
 or treat the independent nominal carrier as proof of source reachability.
 The pending question is the source-domain/observation bridge needed by the
 termination theorem; the owner's same-input merge rule remains settled.
+
+### Owner answer to the source-formation question (2026-11-12): cycle-based K2
+
+The owner chose a clarified observation (close to option 2 of the Item 4 question, and correcting the supervisor's earlier mixed-recurrence answer): K2 is decided on the type graph by whether the **root (or a position a non-variable head pattern inspects) lies on a cycle**. Cycles may pass through nominal *arguments*; nominal bodies stay opaque (named recursion through bodies stays exempt). `nest 0 : μ ≈ list μ` has its root on a cycle, so `display (nest 0)` and `len (nest 0)` are both rejected (even though `impl Len (list 'a)` has no where clause). `len [loop 1] : list ν` has its root off the cycle (it only enters ν's cycle below), so it passes as before. Recorded in spec/06-roles.md (K2 decisions, 2026-11-12). The supervisor's earlier answer ("`list μ` is never a K2 root") is superseded where the `list` node itself lies on a cycle.
