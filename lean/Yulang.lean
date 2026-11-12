@@ -2081,3 +2081,5 @@ import Yulang.GeneralNominalRepeatedMergeTransport
 import Yulang.GeneralNominalSharedCaptureFacts
 import Yulang.GeneralNominalSharedJournalFacts
 import Yulang.GeneralNominalSharedMaterializationFacts
+import Yulang.GeneralNominalMergeCongruence
+import Yulang.GeneralNominalSharedHistoricalBranch

@@ -124,3 +124,25 @@ Focused build passed (629 dependency jobs; one new module built), and its
 `--trust=0` axiom audit lists only `propext`, `Classical.choice`, `Quot.sound`.
 This closes the precisely stated covered point-to-point fragment, not general
 SameModelBranchAtSelected or any additional general V5 obligation.
+
+## Arbitrary finite merge congruence
+
+`GeneralNominalMergeCongruence.merges_iff` removes the binary/single-binder
+restriction from the equation-transport algebra. An ordered `All₂` relation
+requires identical corresponding binder names and equivalent corresponding
+lower/upper endpoint denotations. The theorem preserves the computed merge
+equations under a stable seed/invocation/declaration; registries and interval
+source numbers may differ. All finite lengths, absent declared binders,
+singleton occurrences, and arbitrarily repeated names are covered. No
+injectivity, point bound, or special declaration.inputNames premise is used.
+
+`occurrences_equivalent` proves filtering preserves the paired relation.
+`lower_equivalent`/`upper_equivalent` derive n-ary join/meet denotation equality.
+`mergeAtoms_iff` handles each name's empty/singleton/repeated cases, including
+its actual allocated capture identity. `ofFn_merges_iff` provides a Fin n
+interface for the shared-name inspection family.
+
+Focused build passed (629 dependency jobs, one new module built); all seven new
+theorems passed trust=0 axiom audit with only standard axioms. This algebraic
+transport alone does not establish endpoint equivalence after arbitrary
+nonpoint refinement or journal coverage for newly selected declarations.
