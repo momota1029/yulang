@@ -1,0 +1,159 @@
+# Cycle143: support-aware dictionary evidence
+
+Fresh integration: 6cff680ccafc24ab298e1b890adcb6d7bba15034. I-25 remains active.
+The target is the newly integrated support-aware V5 boundary, not the older
+unguarded feedback/reobservation relation. Definitions remain Astra-owned.
+
+## Modules planned
+
+* `GeneralDictionarySupportEvidence`: recover actual guarded installation from
+  support selection; derive same-model Evidence under explicit jointness;
+  discharge residuals for packet-free Initial/Reachable states.
+* `GeneralDictionarySupportJournal`: preserve each installed packet's Instance
+  at its **stored** inspection context through actual guarded steps, including
+  certified point reobservation. This is not a current-context theorem.
+* `GeneralDictionarySupportRevisionObstruction`: test whether the prior
+  nonempty Current failure is genuinely reachable under the new support guard.
+
+The Current counterexample is not a counterexample to V5 Evidence. In
+particular, historical packet validity and current local selection must not be
+identified. General nonempty reachable Joint/current-context dictionary
+construction remains a separately stated obligation unless proved this cycle.
+
+Validation uses focused Lean builds, a new audit shard (not frozen Audit.lean),
+and the no-build verification gate. No claim of full aggregate rebuild or new
+Yulang2 execution is made.
+
+## Verified reduction and remaining obligation
+
+The implementation obtains `Slice state (dependencyPool state) = Models
+state.current` from actual source formation's `Exact` invariant. The existing
+Astra `MergeGuard` has no `Admissible` clause, so the full finite dependency pool
+is a legal merge support. This proves merge closure from support-stability;
+old feedback stability is not assumed. The selected root's `PacketGuard` is
+constructed separately from its `DecisionGuard`, which does have admissibility.
+
+For a nonempty reachable snapshot, `reachable_joint_evidence` now retains only
+`Joint` and same-final-model child evidence. `Joint` means BOTH:
+1. Every already stored packet aliased to the focus has the selected key.
+2. ONE model satisfies the current journal, the focus branch, and the same-key
+   branch at EVERY aliased site, including all named-output obligations.
+A separate existential branch model for each occurrence is insufficient.
+
+The packet-free actual reachable case discharges this entirely and forces the
+selected child list to be empty. The guarded nonempty Current obstruction
+retains its historical packet Instance in the same modeled final state. This
+shows why historical and literal-current packet semantics must remain distinct,
+not that current V5 Evidence fails. Stable is not proved for that fixture.
+
+Independent read-only review found no hidden old-stability premise or defect.
+The interpretation of the full-pool merge witness relies specifically on the
+current Astra MergeGuard definition and is not claimed for a stronger guard.
+
+## Recursive and whole-target composition
+
+`GeneralDictionarySupportTree` carries generated membership and support-stability
+through a finite selected `Classify` dictionary by size induction. Joint is
+needed only at selected generated nodes of the fixed reachable snapshot. Its
+packet-free specialization has no Joint premise and proves terminal tree shape.
+
+`GeneralDictionarySupportComposition` inserts these dictionary obligations into
+the actual `B4SkeletonV5` fields. It does not assume EvidenceNode as a premise.
+The full V5 statement remains conditional on FOUR named obligations: Progress,
+where-child accessibility, canonical final-local order, and simultaneous Joint
+at stable selected generated occurrences. The existing noncomputable driver
+supplies execution/halted/treeExecution under Progress. Neither these explicit
+hypotheses nor the composition theorem close the general-language theorem.
+
+`GeneralDictionarySupportCompletionGap` rules out another overstrong shortcut:
+actual reachability plus a genuine model does not imply ContextComplete. It
+asserts neither Stable nor final selectedness, and is not a V5 counterexample.
+
+A concrete source-supported repaired refresh-fork example is next: both actual
+paths reach a packet-free stable selected point observation, allowing the new
+unconditional packet-free dictionary theorem to be exercised on real data.
+
+The concrete fork is now verified in `GeneralDictionarySupportForkExample`:
+source-entailed refresh recovers head0, inspection reads exactly `[0,2,3]`, and
+an empty producer support supplies the real DecisionGuard. Wide observation is
+not stable because the certified point revision is enabled. The point state is
+actually reachable, inhabited, stable, selected90[], and has terminal Evidence.
+
+`GeneralDictionarySupportInhabitation` verifies that InitialSource itself has no
+inhabitation requirement: a concrete initial source with ordinary int≤str is
+reachable and has no model. Accordingly the recursive snapshot tree result
+requires Joint only when that snapshot has a model. The whole-target
+GeneratedChildren field is model-free, so the composition's global Joint
+assumption is deliberately not weakened using an unavailable model witness.
+
+Stored declaration visibility is also preserved through all support updates.
+For a singleton registry this removes the key-coherence half of Joint without
+assuming Current; the simultaneous model for all alias branches still remains.
+
+## Journal-key localization
+
+`GeneralDictionarySupportChoices` isolates the key-equality half of Joint from
+context-sensitive observation equality. Actual administrative transitions and
+actual enabled installation preserve pairwise key agreement within alias
+classes. From InitialSource, an empty final alias ledger excludes every merge
+and proves this invariant without Current. A recorded key then determines its
+whole alias class. General merging and the simultaneous branch-model witness
+remain explicit obligations; no global coherence theorem is claimed.
+
+## Nonempty and recursive positive completions
+
+The terminal nonempty example is now present in
+`GeneralDictionarySupportNonemptyExample`: actual guarded installation followed
+by actual scalar refresh, PointClosed excludes additional reobservation, and
+current-context Evidence holds for every final model. A concrete model proves
+nonvacuity. This is a stable nonempty completion, unlike the Current obstruction.
+
+`GeneralDictionarySupportRecursiveExample` reuses the source registry's Display
+key1 and Int key3. One actual guarded parent installation emits the genuine child;
+the child is terminal and no fictitious second installation is invented. The
+complete payload `.node 1 [.node 3 []]` has source-indexed Evidence at one final
+context for EVERY final model, with actual reachability, a nonempty journal, and
+model existence. Stable and Classify are not asserted by this example.
+
+The key-coherence merge residual is now exact: `alias_merge_cases` decomposes
+an alias after one merge into an old alias or a crossing between the two old
+classes. `merge_coherent_iff` proves post-merge Coherent iff old Coherent plus
+key agreement between all packets in those two classes. It does NOT derive that
+cross-key condition from SameInputs or MergeGuard. This precisely identifies the
+remaining key proof at a merge, without smuggling Current into a premise.
+
+The packet-free fork additionally exercises the actual V5 Classify and Resolves
+judgments and the generic Classify-to-Evidence theorem. The recursive nonempty
+Display example remains unclassified and not proved Stable: reserved origins
+require a varying-model family to exclude further certified refresh; root/child
+installable→Committed and cross-site SameInputs exclusion are also outstanding.
+
+## Next exact obligations for the recursive positive fixture (unproved)
+
+The semantic `.node 1 [.node 3 []]` result is already proved. The following
+separate judgments are not consequences of `Instance` or `Evidence`:
+
+1. `finish_pointClosed : PointClosed finish.current.context.state`. The
+   nominal descriptor is still point-valued; establish this by unfolding the
+   extension. It excludes descriptor revision only. The existing
+   `stable_of_pointClosed` also requires old feedback stability and cannot
+   supply the missing refresh/install/merge facts.
+2. `final_parent_selected : SupportBoundary.Local registry finish displayRoot
+   (.selected 1 [displayChild])` and `final_leaf_selected : ... displayChild
+   (.selected 3 [])`. Re-establish current-context Prepared, unique survivors,
+   K2 safety and DecisionGuard after the extension. These two Local facts yield
+   `final_classified` by the two-node tree even before stability is proved.
+3. For stability, establish `generated_cases` (only root or child) and exact
+   stored sites, then `installs_committed` for any installable packet at either
+   generated occurrence. The root edge already exists and the leaf has no
+   emitted children, but arbitrary installable packets still need comparison.
+4. Establish `sameInputs_no_cross` for the root/child sites using an inhabited
+   final model and List Int versus Int, and `final_context_complete` to exclude
+   novel equality updates. Self merges have reflexive alias already.
+5. `no_refresh_reserved`: every certified Refresh from finish must preserve
+   absence of Known at any previously unknown reserved origin. PointClosed
+   does NOT prove this. A varying-model separation family must preserve ALL
+   final source, packet and site constraints while changing each such origin;
+   no such family is established in this cycle.
+
+These are decomposition targets, not new axioms or claimed Lean declarations.

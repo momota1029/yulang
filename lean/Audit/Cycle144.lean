@@ -1,0 +1,241 @@
+import Yulang.GeneralDictionaryEarlyMergeNoEvidence
+import Yulang.GeneralDictionaryEarlyMergeClosure
+import Yulang.GeneralDictionaryDiagnosticTotality
+import Yulang.GeneralDictionaryDiagnosticAccessibility
+import Yulang.GeneralDictionaryEarlyMergeDiagnostics
+import Yulang.GeneralDictionarySupportLocalOrder
+import Yulang.GeneralDictionarySupportRecursiveTrace
+import Yulang.GeneralDictionaryEarlyMergeExample
+import Yulang.GeneralDictionarySupportReadbackRegression
+import Yulang.GeneralDictionarySupportRecursiveJoint
+import Yulang.GeneralDictionarySupportRecursiveClosure
+import Yulang.GeneralDictionaryLocalReadbackExact
+import Yulang.GeneralDictionarySupportRecursiveClassification
+import Yulang.GeneralDictionaryEarlyMergeBoundary
+import Yulang.GeneralDictionaryLocalReadback
+import Yulang.GeneralDictionarySupportReadback
+import Yulang.GeneralDictionaryEarlyMergeChoices
+import Yulang.GeneralDictionaryEarlyMergeRegression
+#print axioms Yulang.GeneralDictionarySupportReadback.classified_exists
+#print axioms Yulang.GeneralDictionarySupportReadback.uniform_dictionary
+#print axioms Yulang.GeneralDictionarySupportReadback.premises_inhabited
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeChoices.merge_coherent
+#print axioms Yulang.GeneralDictionaryEarlyMergeChoices.scheduled_formed
+#print axioms Yulang.GeneralDictionaryEarlyMergeChoices.scheduled_coherent
+#print axioms Yulang.GeneralDictionaryEarlyMergeChoices.recorded_choices
+#print axioms Yulang.GeneralDictionaryEarlyMergeRegression.scheduled
+#print axioms Yulang.GeneralDictionaryEarlyMergeRegression.coherent_not_current
+
+#print axioms Yulang.GeneralDictionaryLocalReadback.classified_exists
+
+#print axioms Yulang.GeneralDictionaryLocalReadback.support_dictionary
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeBoundary.packetFree_no_merge
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeBoundary.initial_install_merge
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.current_model
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.acyclic
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.parent_selected
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.leaf_selected
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.supported_parent_selected
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.supported_leaf_selected
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.classified
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.reachable_classified_dictionary
+
+#print axioms Yulang.GeneralDictionaryLocalReadbackExact.classified_accessible
+
+#print axioms Yulang.GeneralDictionaryLocalReadbackExact.children_accessible
+
+#print axioms Yulang.GeneralDictionaryLocalReadbackExact.closure_selected
+
+#print axioms Yulang.GeneralDictionaryLocalReadbackExact.success_iff
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.varying_source
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.varying_model
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.refresh_large_unknown
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.context_complete
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.point_closed
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.sites_exact
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.edges_exact
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.generated_cases
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.sameInputs_no_cross
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.merges_closed
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.installs_committed
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.feedback_stable
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.stable
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.resolves
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClosure.completed
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveClassification.models_of_source
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.parent_branch_at
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.leaf_branch_at
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.parent_joint
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.leaf_joint
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveJoint.generated_selected_joint
+
+#print axioms Yulang.GeneralDictionarySupportReadbackRegression.accessible
+
+#print axioms Yulang.GeneralDictionarySupportReadbackRegression.generated_selected
+
+#print axioms Yulang.GeneralDictionarySupportReadbackRegression.extracted
+
+#print axioms Yulang.GeneralDictionarySupportReadbackRegression.extracted_exact
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.checked
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.registry_checked
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.all_source_decisions
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.query
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.schema
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.branch
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.prepared
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.survivor
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.selected
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.children_exact
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.enabled
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.packet_guard
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.novel
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.source
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.before_scheduled
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.before_model
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.site_present
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.inputs_same
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.actual_early_merge
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.finish_model
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.actual_path
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.reachable
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeExample.inhabited_early_merge
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.initial_packet_unique
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.initial_no_administrative
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.first_step_unique
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.finish_no_step
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.trace_endpoints
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.initial_not_stable
+
+#print axioms Yulang.GeneralDictionarySupportRecursiveTrace.stable_endpoint_iff
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.inspection
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.decision_guard_forward
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.decision_guard
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.support_pending
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.local_forward
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.local_iff
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.boundary_local
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.resolves
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.child
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.whereAccessible_iff
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.classify
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.parent_instance
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.acyclic
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.parent_selected
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.child_rejected
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.supported_parent
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.supported_child
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.diagnostic
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.child_no_dictionary
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.root_no_classify
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.reachable_diagnostic
+
+#print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.resolved_accessible
+#print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.resolved_children_accessible
+#print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.actual_accessible_without_classify
+
+#print axioms Yulang.GeneralDictionaryDiagnosticTotality.diagnostic_exists
+#print axioms Yulang.GeneralDictionaryDiagnosticTotality.diagnostic_iff_accessible
+#print axioms Yulang.GeneralDictionaryDiagnosticTotality.closure_local
+#print axioms Yulang.GeneralDictionaryDiagnosticTotality.diagnostic_iff
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.models_of_source
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.varying_model
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.refresh_large_unknown
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.context_complete
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.point_closed
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.sites_exact
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.edges_exact
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.generated_cases
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.sameInputs_no_cross
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.merges_closed
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.installs_committed
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.feedback_stable
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.stable
+#print axioms Yulang.GeneralDictionaryEarlyMergeClosure.stable_diagnostic_without_classify
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeNoEvidence.child_no_instance
+#print axioms Yulang.GeneralDictionaryEarlyMergeNoEvidence.child_no_evidence
+#print axioms Yulang.GeneralDictionaryEarlyMergeNoEvidence.root_no_evidence
+#print axioms Yulang.GeneralDictionaryEarlyMergeNoEvidence.inhabited_no_evidence
