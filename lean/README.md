@@ -4680,3 +4680,16 @@ The nominal-candidate dictionary adapter computes Frames from the actual checked
 registry and existing inspection reports. Given per-node Survivor evidence at
 one fixed Context, it reconstructs the unique complete source witness of a raw
 payload. It does not construct that recursive evidence or propagate child states.
+
+Cycle129 item5 adds computed nominal frame/reconstruction/preparation order invariance at fixed Context and an exact syntactic slot-transport certificate for full nominal Models. The target snapshot and distinct type/row maps remain supplied; no allocator, general Step, full materialization or general B4 completion is claimed.
+
+Cycle129 second checkpoint composes exact slot reindexing through whole finite raw preparation and dictionary recording. The complete source dictionary and full nominal model set are retained; target snapshots and global frames are supplied, success only is monotone. Strict growth, mixed type/row nominal descriptors, repeated outputs/batches and nominal-source registry order have separate regressions.
+
+Cycle129 final: five further modules join exact raw preparation through a strict
+mixed nominal extension, conditionally preserve Fresh with CoordinatesBound,
+and exhibit a nonvacuous normalized-view/readiness boundary. An actual newly
+represented reserved ID88 changes raw preparation from none to a complete tree
+with repeated output obligations and full nominal evidence, while remaining
+RootPending. Eighteen modules and the final public theorem count are inventoried
+in `notes/handoff/dots-cycle-129-theorems.md`. General B4 V3 remains 12/12 unfilled;
+no source allocator, candidate Survivor or driver-order equivalence is claimed.
