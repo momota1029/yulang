@@ -2118,3 +2118,6 @@ import Yulang.GeneralNominalStructuralSelectedGraph
 import Yulang.GeneralNominalWhereRequestMembership
 
 import Yulang.GeneralDictionaryFiniteJournalJointExample
+import Yulang.GeneralDictionaryBranchOrdinaryCoverage
+import Yulang.GeneralDictionaryNamedLocality
+import Yulang.GeneralDictionaryNamedLocalityExample

@@ -1,5 +1,27 @@
+import Yulang.GeneralDictionaryNamedLocalityExample
+import Yulang.GeneralDictionaryNamedLocality
+import Yulang.GeneralDictionaryBranchOrdinaryCoverage
 import Yulang.GeneralDictionaryFiniteJournalJointExample
 #print axioms Yulang.GeneralDictionaryFiniteJournalJointExample.alias_eq
 #print axioms Yulang.GeneralDictionaryFiniteJournalJointExample.root_locality
 #print axioms Yulang.GeneralDictionaryFiniteJournalJointExample.root_joint
 #print axioms Yulang.GeneralDictionaryFiniteJournalJointExample.actual_stable_joint
+
+#print axioms Yulang.GeneralDictionaryBranchOrdinaryCoverage.coverage_from_trace
+#print axioms Yulang.GeneralDictionaryBranchOrdinaryCoverage.dictionary_evidence
+#print axioms Yulang.GeneralDictionaryBranchOrdinaryCoverage.forget_growth
+#print axioms Yulang.GeneralDictionaryBranchOrdinaryCoverage.covered_iff
+#print axioms Yulang.GeneralDictionaryBranchOrdinaryCoverage.recursive_fixture
+
+#print axioms Yulang.GeneralDictionaryNamedLocality.at_ordinary
+#print axioms Yulang.GeneralDictionaryNamedLocality.steps_ordinary
+#print axioms Yulang.GeneralDictionaryNamedLocality.at_aliases
+#print axioms Yulang.GeneralDictionaryNamedLocality.at_named
+#print axioms Yulang.GeneralDictionaryNamedLocality.initial_invariants
+#print axioms Yulang.GeneralDictionaryNamedLocality.alias_eq
+#print axioms Yulang.GeneralDictionaryNamedLocality.related_locality
+#print axioms Yulang.GeneralDictionaryNamedLocality.initial_joint
+#print axioms Yulang.GeneralDictionaryNamedLocalityExample.root_named
+#print axioms Yulang.GeneralDictionaryNamedLocalityExample.child_named
+#print axioms Yulang.GeneralDictionaryNamedLocalityExample.actual_trace
+#print axioms Yulang.GeneralDictionaryNamedLocalityExample.every_model_joint
