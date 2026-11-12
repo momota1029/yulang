@@ -150,3 +150,19 @@ GitHub recursive treeの全2485 tracked filesをlocal検証treeとpath/mode/type
   absent lookupを含むbindings等価を先に示す具体的proof routeを記した。未証明である。
 - 新row source mappingやdistinct endpointの同一視を勝手に決めない。一般Stepは別担当の
   未割当項目であり、ここで実装したことにしない。
+
+## 公開後照合と終盤の追加確認
+
+報告commit `e4735542a4f2a9c6951d2fdef7cef4c5c4e57c16` は全2489 tracked filesを
+path/mode/type/blob SHAで再照合し一致した。主報告・98定理の型・検証ログ・次橋設計を
+個別に再取得し、blob SHAと型一覧98件も確認した。その後の追記も同じ方法で照合する。
+
+00:13–00:15には次橋の不足を、既存fixtureにID1000を予約するだけの独立probeで確かめた。
+nominal Linkedと元full modelは成立する一方、base Availableは成立せずlocateはnone。
+4つの匿名例をtrust0で検証した。公開定理98件にはこの一時probeを含めない。
+
+終盤の再取得でintegrationは`07152a05496ecc1f69ed7bf769bd44db02141e46`へ進んだ。
+このcommitは本cycleの公開source/報告と追加のAstra nominal成果を既に含む。
+inbox/standing ordersは6e1e848時点から変更なし、ACTIVE。55分総上限の終了処理中のため、
+追加Astra成果のローカル統合・再検証は次cycleへ送る。今回の成功結果は明記した
+source07cfd9dと検証base6e1e848に限定し、新integration全体のlocal検証成功とはしない。

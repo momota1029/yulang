@@ -70,4 +70,4 @@ Combining computed-frame equality with existing `GeneralDictionaryPayloadReconst
 
 ## Verification status
 
-Read-only design review of the named definitions/theorems; no implementation, theorem checking, new semantics, or shared-checkout edits were performed for this note.
+The proposed extension/reordering lemmas above remain unimplemented and unproved. A separate trust-zero, bounded anonymous-example probe subsequently checked the reserved-ID gap; its full source is in the cycle128 verification report. It reserves ID1000 in the existing nominal fixture, proves nominal Linked and preservation of the existing model, yet proves no base-slot Available and locate=none. This adds no public Lean module and changes no existing semantics.
