@@ -1,0 +1,15 @@
+import Yulang.GeneralDictionaryCurrentJournal
+import Yulang.GeneralDictionaryCurrentJournalExamples
+
+#print axioms Yulang.GeneralDictionaryCurrentJournal.initial_current
+#print axioms Yulang.GeneralDictionaryCurrentJournal.installed_current
+#print axioms Yulang.GeneralDictionaryCurrentJournal.step_current
+#print axioms Yulang.GeneralDictionaryCurrentJournal.trace_current
+#print axioms Yulang.GeneralDictionaryCurrentJournal.initial_trace_current
+#print axioms Yulang.GeneralDictionaryCurrentJournal.recorded_node
+#print axioms Yulang.GeneralDictionaryCurrentJournalExamples.actual_path
+#print axioms Yulang.GeneralDictionaryCurrentJournalExamples.recorded
+#print axioms Yulang.GeneralDictionaryCurrentJournalExamples.current_parent
+#print axioms Yulang.GeneralDictionaryCurrentJournalExamples.no_original_extension
+#print axioms Yulang.GeneralDictionaryCurrentJournalExamples.nonvacuous_beyond_extension
+#print axioms Yulang.GeneralDictionaryCurrentJournalExamples.arbitrary_tail

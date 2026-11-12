@@ -1,3 +1,5 @@
+import Yulang.GeneralDictionaryCurrentJournal
+import Yulang.GeneralDictionaryCurrentJournalExamples
 import Yulang.GeneralDictionaryCycleEvidence
 import Yulang.GeneralDictionaryCycleEvidenceExamples
 import Yulang.GeneralDictionaryCycleEvidenceGap
