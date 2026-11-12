@@ -1699,3 +1699,11 @@ import Yulang.GeneralNominalInspection
 import Yulang.GeneralNominalCandidates
 import Yulang.GeneralNominalExamples
 import Yulang.GeneralNominalRegressions
+
+import Yulang.GeneralNominalIntervalLaws
+import Yulang.GeneralNominalProjections
+import Yulang.GeneralNominalProjectionPropagation
+import Yulang.GeneralNominalK2Coverage
+import Yulang.GeneralNominalLocalBoundary
+import Yulang.GeneralNominalIntervalExamples
+import Yulang.GeneralNominalEmissionOrigins
