@@ -11813,3 +11813,649 @@ Option 1 (lazy): defer expansion of a where-child whose needed input head is sup
 ### Supervisor answer to the Item 5d clarification (2026-11-12)
 
 Yes: model equality is required only for observation completion (refresh/reobservation/descriptor replacement). Full stabilization may decrease Models (installation adds the selected candidate's constraints), as V5 already permits; the earlier "every old-halted state extends to a new-Stable state with the same models" request was too strong and is withdrawn.
+
+
+## Item 4f — retained support and guarded expansion (2026-11-12)
+
+Status: **partial; general termination is not proved**. This section implements
+and checks the first support bridge requested after the owner chose the lazy
+answer. It does not claim B4 clause (1), an unconditional executor, or a fully
+complete implementation of support resumption.
+
+Authority: spec/06-roles.md §6.3, “自分の出力だけを根拠にした展開は保留する”,
+the main-statement draft's addendum 5, and the supervisor answers immediately
+above. Observation completion preserves models. Installation and full
+stabilization may decrease models; no same-model full-stabilization premise is
+used here. Existing Lean definitions, the frozen audit, and the module README
+remain unchanged.
+
+### What the support relation means
+
+`GeneralNominalPacketSupport.packet_exact` separates a packet into its old raw
+context, new `Inputs`, and new `Outputs`. `Inputs` includes the ordinary self,
+cross, and repeated-capture constraints, actual projection constraints, and
+compound unnamed child-input materialization. `Outputs` retains the complete
+named materialization schema, including cross-equations with input uses. This
+intentional overlap preserves the full conjunction. Neither delta contains the
+old raw context's model predicate. Thus a refreshed head cannot enter the
+support kernel simply because a later packet retained that cached context.
+
+`GeneralNominalSupport.Tracked` adds an immutable initial source context and a
+finite fact ledger beside the existing saturation state. It does not replace
+the nominal model carrier. Facts are input deltas, output deltas, and same-input
+merge equations, with finite lists of producing obligations. An output fact
+adds its own producer to the support inherited from the applicability decision.
+A merge adds both dictionary obligations and the support of its input equality.
+
+`Slice state support` uses the original source models and precisely those facts
+whose entire dependency list is contained in `support`. `Entails` is universal
+semantic entailment from that slice; it never reads an executor result.
+`HeadSupported` requires an independently certified normalized head observation
+entailed by the slice. Its head tag must agree with the head being read, but its
+parameter intervals can be broader than the current cached descriptor. This
+allows a source-known nominal head to remain supported after later precision.
+
+For a producer `p` used by a focus `d`, `Generated current p d` is the independent
+where/alias dependency from the producer to the focus. Using p's provisional
+output for d adds the reverse support dependence. `External current d p` holds
+when p has a finite `Discharged` derivation, or there is no such generation
+path. Inherited support lists retain earlier output dependencies transitively;
+a later use cannot erase them by selecting a different packet. `Discharged` is
+an inductive finite tree of installed packets with every emitted child
+discharged (and registered alias transport). It is not `Committed`: installation
+makes a packet committed immediately, while a packet with unresolved children
+has no such finite discharge derivation. The no-leaves theorem makes this
+separation explicit.
+
+Support alternatives are existential. Installations and merges record **all**
+valid supports available at insertion, rather than one chosen witness. The
+finite enumeration is the subset list of the current ledger's dependency pool.
+`slice_restrict` proves that removing irrelevant identities does not change the
+slice; `guard_restrict` and `merge_alternatives_exists` justify completeness of
+this finite enumeration for the insertion-time certificates. Arbitrary witness
+choice therefore does not affect the resulting ledger. This is a per-state
+finiteness result, not a bound on all future installations.
+
+The merge certificate additionally proves endpoint equality under the slice
+for every input whose origin was missing before recovery. Without this
+`RecoverySupported` condition, recovery using full-journal equality could turn
+(L,U) and (L,V) into the same apparent point L, hiding the provisional equations
+that justified L≈U≈V. The real same-input merge and K2 continue using the full
+journal, as required by the owner.
+
+`reads` follows the recursive inspector's actual decisions. Variables add no
+nested reads. A scalar pattern reads only the lower head. A structural pattern
+with a scalar lower mismatch does not require the upper head. Nonpoint nominal
+inspection reads the upper head, and descends into parameters only when both
+outer descriptors pass the corresponding layout checks. `DecisionGuard`
+requires support for every unnamed lower-root head and every head read by each
+visible same-role declaration. It includes candidates whose inspection ends in
+failure: an unsupported mismatch cannot become “all candidates vanish” or make
+another candidate selectable early.
+
+`GeneralNominalSupportSteps.Step` restricts installation on the newest
+feedback/reobservation relation using this whole-decision certificate. It
+retains ordinary updates, merges, equality feedback, and descriptor replacement.
+Administrative updates do not add support facts. `step_old` projects every new
+step to an actual old reobservation step. `formed_exact` proves, for every new
+SourceFormed state, exact agreement between full journal models and the
+immutable source plus all ledger deltas. No constraint is discarded by a
+support cut in the actual solver state.
+
+The new boundary adds support deferral to **InspectionPending**, not
+RootPending. Full-journal RootK2 and CandidateK2 retain priority. `install_selected`
+proves the installation guard agrees with the new independent selected
+judgment. `stable_committed` retains the additional guard explicitly; the old
+unguarded Stable⇒Committed statement is not silently reused.
+
+### Concrete results and limits
+
+* The R-growth fixture starts with the real empty-journal InitialSource,
+  performs the real first installation and certified refresh, and retains all
+  installed equations. For every admissible support, `finiteModel 0` is a model
+  of the cut in which child input 1 is int. Thus no nominal-list head for that
+  input has a support witness. The first child cannot pass any declaration's
+  guard and has independent Local `.pending`.
+* This is a classification at the displayed reachable snapshot. The name
+  `child_final_pending` does **not** assert that this snapshot is Stable, or
+  prove an EOF trace.
+* Display(list int) is selected with exactly the list declaration and child
+  [Display int]. Wrap is selected with its Container child and named item
+  obligation (numeric output name 1 in the fixture). Both have actual guarded
+  installation steps. Their emitted input heads retain direct source support.
+* `source_ready`/`source_guard` establish the general source-support route;
+  `discharged_support` establishes the route once all supporting producers have
+  finite discharge proofs. These results do not prove completeness of every
+  future support-resumption scenario.
+* `no_modelwise_guarded_rank` shows that even the now-allowed, source-supported
+  first installation cannot strictly decrease an arbitrary well-founded rank
+  of the input denotation in **every** full journal model. The regular model
+  gives equal parent/child denotations. This refutes that proposed measure, not
+  accessibility of the guarded Step; the next expansion is blocked.
+
+### Remaining termination work — no new owner question
+
+No `InstallationOrder` is constructed from SourceFormed and Checked. The exact
+missing bridge is a finite, interval-sensitive provenance readback for guarded
+applicability and emitted inputs, with a well-founded installation order that
+cannot increase under refresh, equality feedback, merge, or discharge. It must
+handle repeated-capture intervals and compound input materialization and show
+that every installed where-child receives the declaration-side substitutions
+needed by `DeclarationChecked.captureStable`. Output-only binders remain absent
+from that Paterson count. A finite fact list in each snapshot does not prove a
+finite bound on the dependency pool across a trace.
+
+Two implementation obligations remain material:
+
+1. The graph/support construction has not been proved sufficient for arbitrary
+   unresolved sibling support. A checked-pattern probe is the ladder
+   `R(list(list 'a)) where S(list 'a, out='a), R(list 'a)` together with
+   `S(list 'a) where T('a, out='b): type out=list 'b`. A provisional sibling can
+   expose the next R input without being its generation ancestor. No infinite
+   guarded Step trace is claimed or proved. The required connection to the
+   existing sibling-stabilization rule and finite source readback remains open.
+2. Packet and merge support alternatives are retained at insertion time.
+   Completeness when an already committed packet or aliased pair acquires a
+   **new independent justification later** is not proved. Novelty currently
+   prevents replay solely to add that justification. A provenance rejustification
+   bridge and its administrative bound remain to be constructed. Direct source
+   support and discharge of already-recorded dependencies work as stated.
+
+These are implementation/proof obligations under the existing owner decisions;
+this section makes no new semantic restriction and asks no new owner question.
+The older explicit Readback still yields a conditional whereAccessible result,
+but is not constructed from the new SourceFormed predicate. In particular, the
+parent target is still open.
+
+### SourceBoundary field table
+
+All names below are in `GeneralNominalSupportBoundary` unless qualified.
+“Defined” means an independent mathematical judgment; it does not certify
+completeness of its source producer or the corresponding V5 bridge.
+
+| Field | Definition / status |
+|---|---|
+| Checked | `fields.Checked`: inherited role agreement and `GeneralDeclarations.Checked`; defined |
+| Models | `fields.Models`: `GeneralNominalSaturationState.Models state.current`; defined; `formed_exact` gives ledger correspondence |
+| Step | `GeneralNominalSupportSteps.Step`; defined guarded feedback/reobservation subsystem; progress and later rejustification MISSING |
+| Stable | `GeneralNominalSupportSteps.Stable`; defined absence of guarded updates; not claimed maximal provenance |
+| Generated | `GeneralNominalSaturationState.Generated state.current`; defined, identities retained |
+| RootPending | inherited unresolved unnamed lower-head predicate; defined |
+| RootK2 | inherited `GeneralNominalFeedbackK2.RootK2 state.current`; defined, full journal |
+| CandidateK2 | inherited `GeneralNominalFeedbackK2.CandidateK2`; defined, full journal |
+| InspectionPending | inherited pending or `SupportPending`; defined; support completeness has the limits above |
+| Survivor | inherited `GeneralNominalRecursiveCandidates.Survivor`; defined; applicability guard is in pending/installation, alternatives stay separate |
+| Evidence | `GeneralDictionaryFeedbackEvidence.evidence roles registry state.current`; defined judgment; new evidenceNode bridge MISSING |
+| Reorders | inherited `GeneralRegistryReordering.Reorders`; defined |
+| DictionaryEquivalent | inherited `GeneralDictionaryPayloadOrder.Equivalent`; defined |
+
+### V5 fourteen-field accounting
+
+Concrete boundary: `GeneralNominalSupportBoundary.boundary roles`.
+Executor: `GeneralNominalSupportExecutor.executor roles progress`.
+**Six fields proved without Progress. Three further fields proved conditional
+only on Progress. Progress itself remains open; this is not ten unconditional
+fields or a completed B4 theorem.**
+
+| V5 field | Result |
+|---|---|
+| progress | MISSING: construction of the installation order/readback above |
+| execution | `GeneralNominalSupportExecutor.execution`, conditional only on `Progress roles` |
+| halted | `GeneralNominalSupportExecutor.halted`, same single global premise |
+| closure | `GeneralNominalSupportBoundary.closure`, proved |
+| stepModels | `GeneralNominalSupportBoundary.stepModels`, proved |
+| frontierLocal | `GeneralNominalSupportBoundary.frontierLocal`, proved |
+| localIdentity | `GeneralNominalSupportBoundary.localIdentity`, proved |
+| whereAccessible | MISSING unconditionally; `whereAccessible_of_readback` retains explicit Readback |
+| treeExecution | `GeneralNominalSupportExecutor.treeExecution`, conditional only on Progress, with the target's own exactness/accessibility binders retained |
+| canonicalLocalOrder | MISSING for the guarded boundary/executor |
+| dictionaryRefl | `GeneralNominalSupportBoundary.dictionaryRefl`, proved |
+| evidenceNode | MISSING for the guarded Stable/selected correspondence |
+| generatedChildren | MISSING in general; actual initial selected installations emit all children |
+| initialReorders | `GeneralNominalSupportBoundary.initialReorders`, proved |
+
+The executor's `saturationTotal` is correspondingly conditional on Progress.
+The frontiers remain a classical selection of the independent Local judgment.
+
+### Review and verification
+
+The registered `prover` role was unavailable: the configured role files and the
+three skill-referenced orchestration/design-authority rule files are absent in
+this checkout. The primary constructed the bounded derivation directly under
+[yulang-proofs](/home/momota1029/.codex/skills/yulang-proofs/SKILL.md), with separate
+read-only reviews by `confluence_review` and `canonical_review`. No prover agent
+ran. Review found and corrected unsupported negative decisions, unnecessary
+nominal reads, witness-dependent packet/merge provenance, and recovery of
+origins using untracked endpoint equalities. Neither review certified progress.
+
+Final command results are recorded below after the signature catalogue. No
+Rust/parser suite, all historical audit parts, end-to-end inference producer,
+full confluence, or unconditional termination was verified in this task.
+
+### Full new public theorem statements
+
+The following are the complete source signatures, grouped by namespace. Open
+names and local abbreviations are those of the linked modules; the Lean files
+contain every proof. Private calculation helpers are omitted. Every listed
+public theorem is covered by `lean/Audit/GeneralNominalSupport.lean`.
+
+`Yulang.GeneralNominalPacketSupport` — [module](../../lean/Yulang/GeneralNominalPacketSupport.lean)
+
+```lean
+theorem private_exact (packet : Packet roles) (model : Assignment) :
+    GeneralNominalState.Models packet.privateContext.state model ↔
+      GeneralNominalState.Models packet.context.state model ∧ Ordinary packet model
+
+theorem outputs_inputs (packet : Packet roles) (model : Assignment) (valid : Outputs packet model) :
+    GeneralNominalMaterialization.Models packet.context.state packet.declaration (capture packet)
+      (report packet) (inputSchema packet) model
+
+theorem packet_exact (packet : Packet roles) (model : Assignment) : packet.Holds model ↔
+    GeneralNominalState.Models packet.context.state model ∧ Inputs packet model ∧ Outputs packet model
+```
+
+
+`Yulang.GeneralNominalSupport` — [module](../../lean/Yulang/GeneralNominalSupport.lean)
+
+```lean
+theorem head_recorded (head : Head snapshot identity test observation) : Recorded snapshot observation
+
+theorem source_supported (state : Tracked roles) (identity : Nat) (test : Test) (observation : Observation)
+    (source : Head state.source.state identity test observation) (support : List (Occurrence roles)) :
+    HeadSupported state support identity test
+
+theorem source_ready (state : Tracked roles) (identity : Nat) (test : Test) (old current : Observation)
+    (source : Head state.source.state identity test old)
+    (seen : Head state.current.context.state identity test current) (support : List (Occurrence roles)) :
+    ReadyAt state support identity
+
+theorem source_guard (state : Tracked roles) (root : Occurrence roles) (declaration : Declaration)
+    (bounds : List (GeneralNominalInspection.Bounds state.current.context.state))
+    (roots : ∀ index, ∃ test old current, Head state.source.state (root.demand.arguments index).1 test old ∧
+      Head state.current.context.state (root.demand.arguments index).1 test current)
+    (inspected : ∀ slot ∈ readsMany state.current.context.state
+      (GeneralNominalInspection.queries state.current.context.state state.current.context.interpretation declaration) bounds,
+        ∃ test old current, Head state.source.state (state.current.context.state.base.source slot) test old ∧
+          Head state.current.context.state (state.current.context.state.base.source slot) test current) :
+    Guard state root declaration bounds []
+
+theorem discharged_external (state : State roles) (focus producer : Occurrence roles)
+    (done : Discharged state producer) : External state focus producer
+
+theorem cycle_excluded (state : Tracked roles) (focus producer : Occurrence roles)
+    (path : Generated state.current producer focus) (unresolved : ¬ Discharged state.current producer)
+    (support : List (Occurrence roles)) (allowed : Admissible state focus support) : producer ∉ support
+
+theorem entails_source (state : Tracked roles) (focus : Occurrence roles) (claim : Assignment → Prop)
+    (source : ∀ model, GeneralNominalState.Models state.source.state model → claim model) : Justified state focus claim
+
+theorem refresh_support_unchanged (state : Tracked roles) (context : GeneralNominalCandidates.Context)
+    (support : List (Occurrence roles)) (claim : Assignment → Prop) :
+    Entails {state with current
+
+theorem all_models_slice (state : Tracked roles) (support : List (Occurrence roles))
+    (model : Assignment) (valid : AllModels state model) : Slice state support model
+
+theorem support_sound (state : Tracked roles) (support : List (Occurrence roles)) (claim : Assignment → Prop)
+    (entailed : Entails state support claim) (model : Assignment) (valid : AllModels state model) : claim model
+
+theorem discharged_support (state : Tracked roles) (focus : Occurrence roles) (support : List (Occurrence roles))
+    (done : ∀ producer ∈ support, Discharged state.current producer) (claim : Assignment → Prop)
+    (entailed : Entails state support claim) : Justified state focus claim
+
+theorem unsupported_decision_defers (state : Tracked roles) (registry : Registry) (root : Occurrence roles)
+    (declaration : Declaration) (visible : declaration ∈ registry.declarations)
+    (role : declaration.role = root.demand.role)
+    (bounds : List (GeneralNominalInspection.Bounds state.current.context.state))
+    (located : GeneralNominalRecursiveCandidates.arguments state.current.context root = some bounds)
+    (unsupported : ∀ support, Admissible state root support → ¬ Inspection state support declaration bounds) :
+    ¬ ∃ support, DecisionGuard state registry root support
+```
+
+
+`Yulang.GeneralNominalSupportChoices` — [module](../../lean/Yulang/GeneralNominalSupportChoices.lean)
+
+```lean
+theorem filter_subset (list : List α) (test : α → Bool) : list.filter test ∈ subsets list
+
+theorem restrict_mem (state : Tracked roles) (support : List (Occurrence roles)) (producer : Occurrence roles) :
+    producer ∈ restrict state support ↔ producer ∈ dependencyPool state ∧ producer ∈ support
+
+theorem slice_restrict (state : Tracked roles) (support : List (Occurrence roles))
+    (model : GeneralNominalCommonBridge.Assignment) : Slice state (restrict state support) model ↔ Slice state support model
+
+theorem ready_restrict (state : Tracked roles) (support : List (Occurrence roles)) (identity : Nat)
+    (ready : ReadyAt state support identity) : ReadyAt state (restrict state support) identity
+
+theorem guard_restrict (state : Tracked roles) (root : Occurrence roles) (declaration : GeneralDeclarations.Declaration)
+    (bounds : List (GeneralNominalInspection.Bounds state.current.context.state)) (support : List (Occurrence roles))
+    (guard : Guard state root declaration bounds support) : Guard state root declaration bounds (restrict state support)
+
+theorem decision_restrict (state : Tracked roles) (registry : GeneralDeclarations.Registry) (root : Occurrence roles)
+    (support : List (Occurrence roles)) (guard : DecisionGuard state registry root support) :
+    DecisionGuard state registry root (restrict state support)
+
+theorem alternative_guard (member : support ∈ alternatives state packet) : PacketGuard state packet support
+
+theorem alternatives_exists (state : Tracked roles) (packet : Packet roles) (support : List (Occurrence roles))
+    (guard : PacketGuard state packet support) : ∃ selected, selected ∈ alternatives state packet
+
+theorem facts_exact (state : Tracked roles) (packet : Packet roles) (support : List (Occurrence roles))
+    (guard : PacketGuard state packet support) (model : GeneralNominalCommonBridge.Assignment) :
+    (∀ fact ∈ installedFacts state packet, fact.Holds model) ↔
+      GeneralNominalPacketSupport.Inputs packet model ∧ GeneralNominalPacketSupport.Outputs packet model
+
+theorem empty_alternatives (state : Tracked roles) (packet : Packet roles) (empty : state.facts = [])
+    (guard : PacketGuard state packet []) : installedFacts state packet = [.inputs packet [],.outputs packet []]
+
+theorem merge_alternatives_exists (state : Tracked roles) (first last : GeneralNominalDemandMerging.Site roles)
+    (support : List (Occurrence roles)) (guard : MergeGuard state first last support) :
+    ∃ selected, selected ∈ mergeAlternatives state first last
+
+theorem merged_facts_exact (state : Tracked roles) (first last : GeneralNominalDemandMerging.Site roles)
+    (support : List (Occurrence roles)) (guard : MergeGuard state first last support)
+    (model : GeneralNominalCommonBridge.Assignment) :
+    (∀ fact ∈ mergedFacts state first last, fact.Holds model) ↔
+      PresenceNormalForm.All CommonNominalFullCarrier.model model (GeneralNominalDemandMerging.outputAtoms first last)
+```
+
+
+`Yulang.GeneralNominalSupportSteps` — [module](../../lean/Yulang/GeneralNominalSupportSteps.lean)
+
+```lean
+theorem administrative_old (update : Administrative registry before focus after) :
+    GeneralNominalReobservationSteps.At registry before focus after
+
+theorem administrative_models (update : Administrative registry before focus after) (model : Assignment) :
+    Models after model ↔ Models before model
+
+theorem at_old (update : At registry before focus after) :
+    GeneralNominalReobservationSteps.At registry before.current focus after.current
+
+theorem step_old (update : Step registry root before after) :
+    GeneralNominalReobservationSteps.Step registry root before.current after.current
+
+theorem stepModels (update : Step registry root before after) (model : Assignment)
+    (valid : Models after.current model) : Models before.current model
+
+theorem steps_models (path : B4Target.Steps (Step registry root) before after)
+    (model : Assignment) (valid : Models after.current model) : Models before.current model
+
+theorem generated_monotone (update : Step registry root before after) (reached : Generated before.current root child) :
+    Generated after.current root child
+
+theorem at_exact (exact : Exact before) (update : At registry before focus after) : Exact after
+
+theorem formed_exact (formed : SourceFormed registry root state) : Exact state
+
+theorem at_source (update : At registry before focus after) : after.source = before.source
+
+theorem closure (halted : ∀ after, ¬ Step registry root state after) :
+    Stable registry state root ∧ ∀ child, Generated state.current root child → Stable registry state child
+
+theorem stable_committed {state : Tracked roles} (stable : Stable registry state root) (packet : Packet roles)
+    (generated : Generated state.current root packet.site.occurrence)
+    (enabled : GeneralNominalFeedbackSteps.Installable registry state.current packet)
+    (support : List (Occurrence roles)) (guard : PacketGuard state packet support) :
+    GeneralNominalFeedbackSteps.Committed state.current packet
+```
+
+
+`Yulang.GeneralNominalSupportBoundary` — [module](../../lean/Yulang/GeneralNominalSupportBoundary.lean)
+
+```lean
+theorem local_correspondence (registry : Registry) (state : Tracked roles) (root : Occurrence roles)
+    (frontier : Frontier (Occurrence roles)) :
+    B4TargetV3.Local (boundary roles).toSourceBoundary registry state root frontier ↔ Local registry state root frontier
+
+theorem local_total (registry : Registry) (checked : Checked registry) (state : Tracked roles) (root : Occurrence roles) :
+    ∃ frontier, Local registry state root frontier
+
+theorem closure (registry : Registry) (_checked : (boundary roles).Checked registry)
+    (state : Tracked roles) (root : Occurrence roles) (_reachable : Reachable (boundary roles) registry root state)
+    (halted : ∀ after, ¬ (boundary roles).Step registry root state after) :
+    (boundary roles).Stable registry state root ∧
+      ∀ child, (boundary roles).Generated registry state root child → (boundary roles).Stable registry state child
+
+theorem stepModels (registry : Registry) (_checked : (boundary roles).Checked registry)
+    (root : Occurrence roles) (before after : Tracked roles)
+    (_reachable : Reachable (boundary roles) registry root before)
+    (step : (boundary roles).Step registry root before after) :
+    ∀ model, (boundary roles).Models after model → (boundary roles).Models before model
+
+theorem localIdentity (registry : Registry) (state : Tracked roles) (root : Occurrence roles)
+    (_reachable : Reachable (boundary roles) registry root state) :
+    (frontiers roles registry state).Local = B4TargetV3.Local (boundary roles).toSourceBoundary registry state
+
+theorem frontierLocal (registry : Registry) (checked : (boundary roles).Checked registry)
+    (state : Tracked roles) (root : Occurrence roles) (_reachable : Reachable (boundary roles) registry root state)
+    (demand : Occurrence roles) (frontier : Frontier (Occurrence roles)) :
+    (frontiers roles registry state).frontier demand = frontier ↔
+      B4TargetV3.Local (boundary roles).toSourceBoundary registry state demand frontier
+
+theorem dictionaryRefl (dictionary : CommonRoleOutermostResolver.Dictionary) :
+    (boundary roles).DictionaryEquivalent dictionary dictionary
+
+theorem initialReorders (registry other : Registry) (_checked : (boundary roles).Checked registry)
+    (_checkedOther : (boundary roles).Checked other) (order : (boundary roles).Reorders registry other)
+    (state : Tracked roles) (root : Occurrence roles) (given : (boundary roles).Initial registry root state) :
+    (boundary roles).Initial other root state
+
+theorem reachable_formed (registry : Registry) (state : Tracked roles) (root : Occurrence roles)
+    (reachable : Reachable (boundary roles) registry root state) : GeneralNominalSupportSteps.SourceFormed registry root state
+
+theorem support_pending (registry : Registry) (state : Tracked roles) (root : Occurrence roles)
+    (ready : ¬ GeneralNominalState.RootPending state.current.context.state root.demand)
+    (blocked : SupportPending registry state root)
+    (noRoot : ¬ GeneralNominalFeedbackK2.RootK2 state.current root)
+    (noCandidate : ¬ GeneralNominalFeedbackK2.CandidateK2 registry state.current root) :
+    Local registry state root .pending
+
+theorem rootK2_priority (registry : Registry) (state : Tracked roles) (root : Occurrence roles)
+    (cycle : GeneralNominalFeedbackK2.RootK2 state.current root) : Local registry state root .rejected
+
+theorem candidateK2_priority (registry : Registry) (state : Tracked roles) (root : Occurrence roles)
+    (cycle : GeneralNominalFeedbackK2.CandidateK2 registry state.current root) : Local registry state root .rejected
+
+theorem selected_old (selected : Local registry state root (.selected key children)) :
+    GeneralNominalFeedbackK2.Local registry state.current root (.selected key children)
+
+theorem selected_supported (selected : GeneralNominalFeedbackK2.Local registry state.current root (.selected key children))
+    (support : List (Occurrence roles)) (guard : DecisionGuard state registry root support) :
+    Local registry state root (.selected key children)
+
+theorem install_selected {state : Tracked roles} (packet : Packet roles)
+    (enabled : GeneralNominalFeedbackSteps.Installable registry state.current packet)
+    (support : List (Occurrence roles)) (guard : GeneralNominalSupportSteps.PacketGuard state packet support) :
+    Local registry state packet.site.occurrence (.selected packet.declaration.id packet.children)
+
+theorem whereAccessible_of_readback (registry : Registry) (checked : (boundary roles).Checked registry)
+    (state : Tracked roles) (root : Occurrence roles)
+    (readback : GeneralNominalCycleReadback.Readback roles registry state.current.context) :
+    Acc (Child (B4TargetV3.Local (boundary roles).toSourceBoundary registry state)) root
+```
+
+
+`Yulang.GeneralNominalSupportGrowth` — [module](../../lean/Yulang/GeneralNominalSupportGrowth.lean)
+
+```lean
+theorem root_guard : PacketGuard start (packet 0) []
+
+theorem first_install : Step registry (root 0) start added
+
+theorem first_refresh : Step registry (root 0) added observed
+
+theorem formed : SourceFormed registry (root 0) observed
+
+theorem full_models (model : GeneralNominalCommonBridge.Assignment) :
+    Models observed.current model ↔ Models (installed 0) model
+
+theorem no_leaves_no_discharge (state : State roleDecls)
+    (nonempty : ∀ packet ∈ state.packets, packet.children ≠ []) (focus : Occurrence roleDecls) :
+    ¬ Discharged state focus
+
+theorem unresolved (focus : Occurrence roles) : ¬ Discharged observed.current focus
+
+theorem dependency : Generated observed.current (root 0) (child 0)
+
+theorem cut_model (support : List (Occurrence roles)) (allowed : Admissible observed (child 0) support) :
+    Slice observed support (finiteModel 0)
+
+theorem child_head_unsupported (support : List (Occurrence roles))
+    (allowed : Admissible observed (child 0) support) :
+    ¬ HeadSupported observed support 1 (.nominal 0 1)
+
+theorem child_not_ready (support : List (Occurrence roles))
+    (allowed : Admissible observed (child 0) support) : ¬ ReadyAt observed support 1
+
+theorem child_guard_blocked (declaration : GeneralDeclarations.Declaration)
+    (bounds : List (GeneralNominalInspection.Bounds observed.current.context.state)) (support : List (Occurrence roles)) :
+    ¬ Guard observed (child 0) declaration bounds support
+
+theorem child_final_pending : GeneralNominalSupportBoundary.Local registry observed (child 0) .pending
+
+theorem no_modelwise_guarded_rank {Measure : Type u} (less : Measure → Measure → Prop)
+    (wellFounded : WellFounded less) (rank : Ty → Measure) :
+    ¬ (∀ model, Models added.current model →
+      less (rank (model ((child 0).demand.arguments ⟨0,by decide⟩).1).1)
+        (rank (model ((root 0).demand.arguments ⟨0,by decide⟩).1).1))
+```
+
+
+`Yulang.GeneralNominalSupportInstallation` — [module](../../lean/Yulang/GeneralNominalSupportInstallation.lean)
+
+```lean
+theorem initial_selected_installation (registry : Registry) (context : GeneralNominalCandidates.Context)
+    (root : Occurrence roles) (key : Nat) (children : List (Occurrence roles))
+    (selected : GeneralNominalSupportBoundary.Local registry (GeneralNominalSupport.initial context root) root
+      (.selected key children)) (nonempty : children ≠ []) :
+    ∃ packet : Packet roles, ∃ support,
+      packet.site.occurrence = root ∧ packet.declaration.id = key ∧ packet.children = children ∧
+      Step registry root (GeneralNominalSupport.initial context root)
+        (GeneralNominalSupportSteps.install (GeneralNominalSupport.initial context root) packet support)
+```
+
+
+`Yulang.GeneralNominalSupportExamples` — [module](../../lean/Yulang/GeneralNominalSupportExamples.lean)
+
+```lean
+theorem all_source_decisions (root : Occurrence roles) (arguments : ∀ index, root.demand.arguments index = (0,0)) :
+    DecisionGuard (start root) registry root []
+
+theorem display_guard : PacketGuard (start displayRoot)
+    ⟨registry,context true,GeneralNominalDemandMerging.pointSite displayRoot,display,display_checked,[(0,0)]⟩ []
+
+theorem wrap_guard : PacketGuard (start wrapRoot)
+    ⟨registry,context true,GeneralNominalDemandMerging.pointSite wrapRoot,wrap,wrap_checked,[(0,0)]⟩ []
+
+theorem display_exactly_one (key : Nat) (children : List (Occurrence roles)) :
+    (GeneralNominalSupportBoundary.boundary roles).Survivor registry (start displayRoot) displayRoot key children ↔
+      key = 1 ∧ children = [displayChild]
+
+theorem wrap_child_equation :
+    (GeneralNominalSupportBoundary.boundary roles).Survivor registry (start wrapRoot) wrapRoot 2 [wrapChild] ∧
+      wrapChild.demand.outputs = [⟨1,itemTarget⟩] ∧
+      ¬ GeneralNominalSupportBoundary.SupportPending registry (start wrapRoot) wrapRoot
+
+theorem emitted_inputs_source_supported : Roots (start displayRoot) [] displayChild ∧ Roots (start wrapRoot) [] wrapChild
+
+theorem display_selected : GeneralNominalSupportBoundary.Local registry (start displayRoot) displayRoot
+    (.selected 1 [displayChild])
+
+theorem wrap_selected : GeneralNominalSupportBoundary.Local registry (start wrapRoot) wrapRoot
+    (.selected 2 [wrapChild])
+
+theorem display_expands : ∃ packet : Packet roles, ∃ support,
+    packet.site.occurrence = displayRoot ∧ packet.declaration.id = 1 ∧ packet.children = [displayChild] ∧
+    Step registry displayRoot (start displayRoot) (GeneralNominalSupportSteps.install (start displayRoot) packet support)
+
+theorem wrap_expands : ∃ packet : Packet roles, ∃ support,
+    packet.site.occurrence = wrapRoot ∧ packet.declaration.id = 2 ∧ packet.children = [wrapChild] ∧
+    Step registry wrapRoot (start wrapRoot) (GeneralNominalSupportSteps.install (start wrapRoot) packet support)
+```
+
+
+`Yulang.GeneralNominalSupportExecutor` — [module](../../lean/Yulang/GeneralNominalSupportExecutor.lean)
+
+```lean
+theorem final_spec (roles : Roles.RoleDecls) (progress : Progress roles)
+    (registry : Registry) (checked : (boundary roles).Checked registry)
+    (state : Tracked roles) (root : Occurrence roles)
+    (reachable : Reachable (boundary roles) registry root state) :
+    B4Target.Steps ((boundary roles).Step registry root) state (finalState roles progress registry state root) ∧
+      ∀ next, ¬ (boundary roles).Step registry root (finalState roles progress registry state root) next
+
+theorem diagnostic_eq_resolve (roles : Roles.RoleDecls) (registry : Registry)
+    (state : Tracked roles) (root : Occurrence roles)
+    (exact : FrontierExact (frontiers roles registry state))
+    (accessible : Acc (Child (frontiers roles registry state).Local) root) :
+    diagnostic roles registry state root = resolve (frontiers roles registry state) exact root accessible
+
+theorem execution (roles : Roles.RoleDecls) (progress : Progress roles) :
+    ∀ r, (boundary roles).Checked r → ∀ s d, Reachable (boundary roles) r d s →
+      B4Target.Steps ((boundary roles).Step r d) s ((executor roles progress).run r s d).1
+
+theorem halted (roles : Roles.RoleDecls) (progress : Progress roles) :
+    ∀ r, (boundary roles).Checked r → ∀ s d, Reachable (boundary roles) r d s →
+      ∀ next, ¬ (boundary roles).Step r d ((executor roles progress).run r s d).1 next
+
+theorem treeExecution (roles : Roles.RoleDecls) (progress : Progress roles) :
+    ∀ r (_checked : (boundary roles).Checked r) s d, Reachable (boundary roles) r d s →
+      ∀ (exact : FrontierExact (frontiers roles r ((executor roles progress).run r s d).1))
+      (accessible : Acc (Child (frontiers roles r ((executor roles progress).run r s d).1).Local) d),
+      ((executor roles progress).run r s d).2 =
+        resolve (frontiers roles r ((executor roles progress).run r s d).1) exact d accessible
+
+theorem final_reachable (roles : Roles.RoleDecls) (progress : Progress roles)
+    (registry : Registry) (checked : (boundary roles).Checked registry)
+    (state : Tracked roles) (root : Occurrence roles)
+    (reachable : Reachable (boundary roles) registry root state) :
+    Reachable (boundary roles) registry root ((executor roles progress).run registry state root).1
+
+theorem final_stable (roles : Roles.RoleDecls) (progress : Progress roles)
+    (registry : Registry) (checked : (boundary roles).Checked registry)
+    (state : Tracked roles) (root : Occurrence roles)
+    (reachable : Reachable (boundary roles) registry root state) :
+    (boundary roles).Stable registry ((executor roles progress).run registry state root).1 root ∧
+      ∀ child, (boundary roles).Generated registry ((executor roles progress).run registry state root).1 root child →
+        (boundary roles).Stable registry ((executor roles progress).run registry state root).1 child
+
+theorem final_models (roles : Roles.RoleDecls) (progress : Progress roles)
+    (registry : Registry) (checked : (boundary roles).Checked registry)
+    (state : Tracked roles) (root : Occurrence roles)
+    (reachable : Reachable (boundary roles) registry root state) :
+    ∀ model, (boundary roles).Models ((executor roles progress).run registry state root).1 model →
+      (boundary roles).Models state model
+
+theorem saturationTotal (roles : Roles.RoleDecls) (progress : Progress roles) :
+    B4TargetV5.SaturationTotal (boundary roles) (executor roles progress)
+```
+
+### Item 4f final checks
+
+| Command (repository root unless shown otherwise) | Exit code | Result |
+|---|---:|---|
+| `cd lean && lake build Yulang.GeneralNominalSupportExamples Yulang.GeneralNominalSupportExecutor` | 0 | Focused dependency closure, all nine new modules; 687 jobs |
+| `cd lean && lake build Yulang` | 0 | Full aggregate import build; 1639 jobs |
+| `cd lean && lake env lean Audit/GeneralNominalSupport.lean > /tmp/yulang-support-audit.log` | 0 | All 89 new public theorem entries; only propext, Classical.choice, Quot.sound |
+| `git diff --check` | 0 | No whitespace errors in tracked changes |
+
+Additional read-only checks confirmed that `lean/Yulang.lean` retains its entire
+original byte prefix and adds only nine import lines, and that `lean/Audit.lean`
+and `lean/README.md` match HEAD byte-for-byte. The new Lean files contain none of
+the prohibited proof escapes. No commit, push, or ref update was performed.
+
+Files added: nine `lean/Yulang/GeneralNominal{PacketSupport,Support,SupportChoices,
+SupportSteps,SupportBoundary,SupportGrowth,SupportInstallation,SupportExamples,
+SupportExecutor}.lean` modules; `lean/Audit/GeneralNominalSupport.lean`; and
+`notes/design/2026-11-12-general-nominal-support-module-guide.md`. Files changed:
+append-only imports in `lean/Yulang.lean`, this Item 4f section, and one module-guide
+entry in `notes/design/INDEX.md`.
+
+Assessment: this work connects the actual general nominal carriers, checked
+registries, packet constraints, emitted identities, feedback steps, and V5 Local;
+it is not another scalar or settled-unary substitute. The source examples have
+real guarded transitions and the old output-growth fixture now has a supported
+pending explanation. That is concrete convergence at the transition interface.
+It is not convergence evidence for a completed termination proof until the
+finite provenance/readback and sibling-stabilization bridges above are built.
