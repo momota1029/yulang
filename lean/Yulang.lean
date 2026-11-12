@@ -1941,3 +1941,7 @@ import Yulang.GeneralNominalReobservationMergeDiamond
 
 import Yulang.GeneralDictionaryKeyedRevision
 import Yulang.GeneralDictionaryKeyedJournalTree
+
+import Yulang.GeneralDictionaryCurrentRevisionObstruction
+
+import Yulang.GeneralDictionaryNonemptyRevisionExample

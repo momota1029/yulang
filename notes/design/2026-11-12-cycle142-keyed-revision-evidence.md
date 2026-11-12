@@ -12,8 +12,9 @@ replace Astra's transition relation. The target is Current at every reached
 state, then same-final-model Evidence from child Evidence. In addition, pure syntactic
 journal coverage plus accessibility construct a finite source tree uniformly
 for every final model, without preassuming child Evidence. No selected-to-recorded
-coverage or unconditional refresh preservation is claimed. A separate concrete
-nonempty-journal point replacement will check nonvacuity.
+coverage or unconditional refresh preservation is claimed. Two concrete nonempty-journal replacements check nonvacuity: a footprint-disjoint
+slot1 update preserves Current; a queried slot0 update preserves all models but
+changes literal child arguments, refuting unrestricted Current transport.
 
 Latest integration706f60ce: lazy output-cycle policy belongs to Astra's Step
 work; this cycle changes no semantics. Observation completion can preserve Models
@@ -23,3 +24,8 @@ only on the observation update, not on full stabilization.
 The key-report trace includes every former cycle141 guarded step; finite
 descriptor equality is a sufficient adapter, not an equivalent guard. A single
 certified revision preserves the exact syntactic tree under that adapter.
+
+The negative example does not refute final V5 Evidence. The guarded trace and
+uniform Covered+Acc tree construction are a proved restricted repair, not a
+replacement language semantics. No terminal positive nonempty Evidence fixture
+was added: the reused nonterminal fixture has a rejected child.
