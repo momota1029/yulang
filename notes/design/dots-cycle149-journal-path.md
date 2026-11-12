@@ -2,12 +2,12 @@
 
 Extend the arbitrary finite shared-binder history theorem from identical source
 IDs or point descriptors to endpoint identities connected by finite paths of
-explicit equations in an earlier journal's ordinary constraints. The path is a
+explicit equations in the current journal's ordinary constraints. The path is a
 syntactic certificate: each edge lists equations actually present, not semantic
 endpoint equivalence, a current merge premise, or a branch premise. Support
-history restricts every later caller model to that earlier journal; equations
-then give endpoint equivalence and existing allocation congruence transports
-merges. Same head source/name, seed, terminal singleton associated output,
+history recovers the earlier packet branch in the later caller model; recorded
+equations give endpoint and head equivalence and allocation congruence transports
+merges. Same head name, seed, terminal singleton associated output,
 actual packet history and exact query shapes remain explicit. No unrestricted
 Stable/Selected coverage, nonterminal materialization or V5 closure is claimed.
 
@@ -31,3 +31,18 @@ Scoped build: `lake build Yulang.GeneralNominalSharedJournalPaths` PASS,
 only propext, Classical.choice and Quot.sound. No full build or Yulang2 run.
 General V5 remains 6/14 supplied and eight residuals unresolved. In particular,
 no proof supplies recorded paths for every reachable stable selected focus.
+
+## Finite-output integration
+
+`GeneralNominalFiniteHistoricalBranch.branch_after_steps` combines the history
+proof with `GeneralNominalAssociatedSourceTransport`. Any finite number of
+associated requests is admitted, including empty lists and repeated targets.
+Each actual demanded output target is connected to the current inspected head
+by a `RecordedPath` in current ordinary constraints. Each actual selected RHS
+must translate to the nominal head query; missing `find?` lookup behavior is
+not changed or claimed complete. Together with paths for the old/new head and
+all interval endpoints this yields the full current branch at the same model.
+No semantic Equivalent, coherence, merge equations or generated Models premise
+is required. Terminal requirements, seed, name and query shape coverage remain.
+Focused 637-job build and one-theorem trust-zero audit PASS. General V5 remains
+open; in particular this does not derive path coverage for every selected focus.
