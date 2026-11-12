@@ -52,3 +52,27 @@ above obligation.
 GeneratedChildren has no model/child-Evidence assumptions and therefore still
 needs its own argument. Weakening the EvidenceNode route must not silently
 upgrade GeneratedChildren or the complete fourteen-field bridge package.
+
+## Checked shortcut that does not close the residual
+
+`GeneralNominalSupportSteps.stable_committed` cannot be invoked from Stable
+alone: it requires Generated, Installable, and PacketGuard. The existing
+`GeneralDictionarySupportEvidence.selected_support` does recover a
+DecisionGuard from actual Local selection, and `stable_joint_packet` builds
+the associated PacketGuard. However its Installable proof already uses Joint:
+it supplies historical key agreement and simultaneous related-site branch
+applicability. Reusing that proof while trying to derive Joint would be
+circular. The weaker same-model BranchModels route may bypass this stronger
+installation certificate, but its reconstruction is not done here.
+
+A further transport caution: the new Equates lemmas preserve the source domain
+and append only entailed ordinary constraints. They do not justify transporting
+arbitrary historical branches across every context update. The general proof
+must account for the current report, bounds and allocated capture identities;
+it cannot silently identify those with a packet's historical context.
+
+
+The final `GeneralDictionarySameModelComposition` now checks this exact
+conditional route in Lean. `of_joint` also proves it follows from the existing
+stronger JointAtSelected assumption. The model-local residual itself remains
+UNPROVED; the two conditional implications do not add a completed V5 field.

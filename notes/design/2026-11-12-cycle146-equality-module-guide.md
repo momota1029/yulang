@@ -184,3 +184,15 @@ still takes Joint explicitly alongside those model/child premises.
 The refined same-model parent-branch obligation and its exact V5 premises are
 recorded separately in `2026-11-12-cycle146-same-model-residual.md`. It is still
 UNPROVED and need not prove the stronger unconditional JointAtSelected first.
+
+
+## Final conditional composition (not a discharged V5 field)
+
+`GeneralDictionarySameModelComposition.SameModelBranchAtSelected` formalizes
+all V5 EvidenceNode premises, including caller model and full child Evidence,
+and requires only a visible checked declaration with selected id, located
+bounds, and BranchModels in that exact model. `of_joint` proves the old
+JointAtSelected residual implies it; `evidenceNode` composes it with the
+existing branch-to-dictionary theorem. This verifies the proposed weaker
+route's type. It does not prove the residual, GeneratedChildren or general
+EvidenceNode unconditionally. Bridge count remains 6/14.

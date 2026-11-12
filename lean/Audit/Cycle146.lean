@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionarySameModelComposition
 import Yulang.GeneralDictionaryEqualityOrder
 import Yulang.GeneralDictionaryEqualityLinearCompletion
 import Yulang.GeneralDictionaryVariableMergeSequence
@@ -136,3 +137,6 @@ import Yulang.GeneralDictionaryVariableJournalMerge
 #print axioms Yulang.GeneralDictionaryVariableMergeSequence.reordered_evidence
 
 #print axioms Yulang.GeneralDictionaryEqualityLinearCompletion.complete_sources_spanning_bound
+
+#print axioms Yulang.GeneralDictionarySameModelComposition.of_joint
+#print axioms Yulang.GeneralDictionarySameModelComposition.evidenceNode

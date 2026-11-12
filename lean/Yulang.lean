@@ -2055,3 +2055,5 @@ import Yulang.GeneralDictionaryOutputMergeStable
 import Yulang.GeneralDictionaryEqualityOrder
 import Yulang.GeneralDictionaryEqualityLinearCompletion
 import Yulang.GeneralDictionaryVariableMergeSequence
+
+import Yulang.GeneralDictionarySameModelComposition
