@@ -2116,3 +2116,5 @@ import Yulang.GeneralNominalRecoveredNodeEvidence
 import Yulang.GeneralNominalSpineFacts
 import Yulang.GeneralNominalStructuralSelectedGraph
 import Yulang.GeneralNominalWhereRequestMembership
+
+import Yulang.GeneralDictionaryFiniteJournalJointExample

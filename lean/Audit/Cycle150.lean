@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryFiniteJournalJointExample
+#print axioms Yulang.GeneralDictionaryFiniteJournalJointExample.alias_eq
+#print axioms Yulang.GeneralDictionaryFiniteJournalJointExample.root_locality
+#print axioms Yulang.GeneralDictionaryFiniteJournalJointExample.root_joint
+#print axioms Yulang.GeneralDictionaryFiniteJournalJointExample.actual_stable_joint
