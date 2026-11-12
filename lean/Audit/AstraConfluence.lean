@@ -1,0 +1,91 @@
+import Yulang.GeneralDictionaryFeedbackExecutor
+import Yulang.GeneralNominalTopObservation
+import Yulang.GeneralNominalRefreshFork
+import Yulang.GeneralNominalRefreshForkCycles
+import Yulang.GeneralNominalRefreshForkClassification
+import Yulang.GeneralNominalRefreshDivergence
+import Yulang.GeneralDictionaryExecutorOrderResidual
+
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.trace_trans
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.exists_halted
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.final_spec
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.diagnostic_eq_resolve
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.execution
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.halted
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.treeExecution
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.final_reachable
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.final_stable
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.final_models
+#print axioms Yulang.GeneralDictionaryFeedbackExecutor.saturationTotal
+#print axioms Yulang.GeneralNominalTopObservation.le_top
+#print axioms Yulang.GeneralNominalTopObservation.top_not_scalar
+#print axioms Yulang.GeneralNominalTopObservation.top_not_nominal
+#print axioms Yulang.GeneralNominalTopObservation.top_not_shape
+#print axioms Yulang.GeneralNominalTopObservation.not_known
+#print axioms Yulang.GeneralNominalRefreshFork.declaration_checked
+#print axioms Yulang.GeneralNominalRefreshFork.registry_checked
+#print axioms Yulang.GeneralNominalRefreshFork.alias_zero
+#print axioms Yulang.GeneralNominalRefreshFork.scalar_three
+#print axioms Yulang.GeneralNominalRefreshFork.top_four
+#print axioms Yulang.GeneralNominalRefreshFork.refresh_models_forward
+#print axioms Yulang.GeneralNominalRefreshFork.initial_pending
+#print axioms Yulang.GeneralNominalRefreshFork.zero_known
+#print axioms Yulang.GeneralNominalRefreshFork.refresh_step
+#print axioms Yulang.GeneralNominalRefreshFork.same_models
+#print axioms Yulang.GeneralNominalRefreshFork.initial_models
+#print axioms Yulang.GeneralNominalRefreshFork.after_models
+#print axioms Yulang.GeneralNominalRefreshFork.source_bound
+#print axioms Yulang.GeneralNominalRefreshFork.linked
+#print axioms Yulang.GeneralNominalRefreshFork.metadata
+#print axioms Yulang.GeneralNominalRefreshFork.initial_source
+#print axioms Yulang.GeneralNominalRefreshFork.initial_reachable
+#print axioms Yulang.GeneralNominalRefreshFork.after_reachable
+#print axioms Yulang.GeneralNominalRefreshFork.known_below_four
+#print axioms Yulang.GeneralNominalRefreshFork.no_refresh
+#print axioms Yulang.GeneralNominalRefreshForkCycles.feedback_edge_forward
+#print axioms Yulang.GeneralNominalRefreshForkCycles.feedback_path_forward
+#print axioms Yulang.GeneralNominalRefreshForkCycles.feedback_acyclic
+#print axioms Yulang.GeneralNominalRefreshForkCycles.raw_edge_feedback
+#print axioms Yulang.GeneralNominalRefreshForkCycles.raw_path_feedback
+#print axioms Yulang.GeneralNominalRefreshForkCycles.raw_acyclic
+#print axioms Yulang.GeneralNominalRefreshForkCycles.legacy_not_recursive
+#print axioms Yulang.GeneralNominalRefreshForkCycles.not_rootK2
+#print axioms Yulang.GeneralNominalRefreshForkCycles.not_candidateK2
+#print axioms Yulang.GeneralNominalRefreshForkClassification.list_congr
+#print axioms Yulang.GeneralNominalRefreshForkClassification.point_nominal
+#print axioms Yulang.GeneralNominalRefreshForkClassification.point_report
+#print axioms Yulang.GeneralNominalRefreshForkClassification.wide_blocked
+#print axioms Yulang.GeneralNominalRefreshForkClassification.located
+#print axioms Yulang.GeneralNominalRefreshForkClassification.children_empty
+#print axioms Yulang.GeneralNominalRefreshForkClassification.schema_empty
+#print axioms Yulang.GeneralNominalRefreshForkClassification.point_projections
+#print axioms Yulang.GeneralNominalRefreshForkClassification.point_branch
+#print axioms Yulang.GeneralNominalRefreshForkClassification.fresh
+#print axioms Yulang.GeneralNominalRefreshForkClassification.point_prepared
+#print axioms Yulang.GeneralNominalRefreshForkClassification.point_survivor
+#print axioms Yulang.GeneralNominalRefreshForkClassification.wide_not_prepared
+#print axioms Yulang.GeneralNominalRefreshForkClassification.wide_not_failed
+#print axioms Yulang.GeneralNominalRefreshForkClassification.wide_inspection_pending
+#print axioms Yulang.GeneralNominalRefreshDivergence.point_selected
+#print axioms Yulang.GeneralNominalRefreshDivergence.wide_pending
+#print axioms Yulang.GeneralNominalRefreshDivergence.generated_only_root
+#print axioms Yulang.GeneralNominalRefreshDivergence.installs_committed
+#print axioms Yulang.GeneralNominalRefreshDivergence.stable
+#print axioms Yulang.GeneralNominalRefreshDivergence.halted
+#print axioms Yulang.GeneralNominalRefreshDivergence.point_local
+#print axioms Yulang.GeneralNominalRefreshDivergence.wide_local
+#print axioms Yulang.GeneralNominalRefreshDivergence.point_tree
+#print axioms Yulang.GeneralNominalRefreshDivergence.wide_tree
+#print axioms Yulang.GeneralNominalRefreshDivergence.different_local
+#print axioms Yulang.GeneralNominalRefreshDivergence.different_diagnostic
+#print axioms Yulang.GeneralNominalRefreshDivergence.child_accessible
+#print axioms Yulang.GeneralNominalRefreshDivergence.point_reader
+#print axioms Yulang.GeneralNominalRefreshDivergence.wide_reader
+#print axioms Yulang.GeneralNominalRefreshDivergence.different_reader
+#print axioms Yulang.GeneralNominalRefreshDivergence.halted_trace_eq
+#print axioms Yulang.GeneralNominalRefreshDivergence.no_observational_join
+#print axioms Yulang.GeneralNominalRefreshDivergence.reachable_halted_divergence
+#print axioms Yulang.GeneralDictionaryExecutorOrderResidual.canonicalLocalOrder_of_halted_order
+#print axioms Yulang.GeneralDictionaryExecutorOrderResidual.not_halted_local_order
+#print axioms Yulang.GeneralDictionaryExecutorOrderResidual.remaining
+#print axioms Yulang.GeneralDictionaryExecutorOrderResidual.bridges
