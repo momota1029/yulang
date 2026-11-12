@@ -8133,3 +8133,648 @@ proved on a reachable state and its proposed continuation is blocked by the new
 rule. Further fragment proofs would not discharge the remaining obligation:
 the next proof needs an interval-sensitive global installation measure and
 complete source feedback/provenance, rather than more point-pattern examples.
+
+## Item 4e — installation orders and associated-output growth (2026-11-12)
+
+**Status: general termination remains open.** This section constructs an
+arbitrary-well-founded-order version of the installation descent interface and
+proves its accessibility theorem. It does not construct an inhabitant of that
+interface. It also supplies a checked, source-formed counterexample to two
+suggested measures, using actual feedback installation and refresh. It does
+**not** prove an infinite concrete feedback Step trace or refute general Acc.
+No existing boundary, transition, candidate, or dictionary interface changes.
+
+### The checked example and its source correspondence
+
+The declaration is:
+
+```yulang
+impl R (list 'a) where R('a, out = 'b):
+    type out = list 'b
+```
+
+Consider the inferred demand `R(list A, out = A)`. This is demand notation, not
+a claim that a complete surface program was parsed. Constructor 0 is the
+catalogue's nominal `list`, role 1 has one unnamed input and named output 0,
+input binder 0 represents `'a`, and output binder 1 represents `'b`.
+
+`GeneralNominalOutputGrowth.declaration_checked` uses the existing general
+`DeclarationChecked`, including `StableSmaller` via `unary_descent`. The unnamed
+child is `'a`, strictly smaller than `list 'a` under every finite pattern
+capture. Binder `'b` occurs only in named outputs and the impl's own associated
+definition. This obeys §6.3's output-only decision and its exclusion of named
+outputs from Paterson counting. The carrier, checker, capture, child emitter,
+materialization, and nominal model are the existing general ones.
+
+An installation captures A, allocates B using the existing invocation-indexed
+allocator, emits exactly `R(A, out = B)`, and installs `A ≈ list B`. The new
+`packet_output_equation` proves that equation from the actual packet's
+materialization obligations. There is no substitution search or chosen
+interval centre; these examples use point intervals, a legitimate special case
+of the general carrier. `output_fresh` proves B is above the source seed.
+
+`GeneralNominalOutputGrowthPackets.install_step length` proves an actual
+feedback Step from `snapshot length`. Each snapshot is independently
+SourceFormed with a finite chain of nominal source descriptors and an empty
+journal. `enabled` discharges the full current installation guards, including
+joint applicability, both local classifications, and merge closure. These
+snapshots are **not** claimed to be consecutive states of one trace.
+
+For length zero, `GeneralNominalOutputGrowthRefresh.two_steps_ready` proves an
+actual two-Step trace: installation, then a journal-justified refresh. The
+refresh adds the already-reserved B as a source slot and the entailed descriptor
+`A ≈ list B`; it preserves every journal model and all old observations. Its
+child is ready and satisfies neither RootK2 nor CandidateK2.
+`different_inputs_not_merged` rules out SameInputs between the parent and this
+child at the refreshed state. This is stronger than merely observing distinct
+source identifiers: the proof uses their different denotations in a model of
+the complete journal, after provenance recovery.
+
+The schematic continuation is:
+
+```text
+R(list A, out=A)
+  emits R(A, out=B), with A ≈ list B
+  emits R(B, out=C), with B ≈ list C
+  emits R(C, out=D), with C ≈ list D
+  ...
+```
+
+Only the first installation and refresh of this common trace are proved here.
+A second Installable certificate and an inductive realization of every later
+row as feedback Steps have not been constructed. This distinction matters:
+the finite certificates cannot establish non-accessibility by themselves.
+
+### Why the proposed sizes do not close the proof
+
+1. **Size of denotations in every journal model.** The full nominal carrier
+   contains the regular value μ with μ ≈ list μ. The constant μ assignment is
+   a model of the actual installed packet and complete journal. Parent and
+   emitted child have literally the same denotation in that assignment.
+   `no_modelwise_child_rank` proves that no function of that denotation into
+   *any* well-founded order strictly decreases in every journal model. This
+   theorem concerns a real installation, not an assumed abstract transition.
+   The model does not supply a dictionary, and no dictionary premise is added
+   to the solver's existing Models definition.
+2. **Minimum finite input height across the current models.** Define the
+   minimum over types equivalent to the finite unary nominal tower
+   `list^n int`. The initial parent has minimum height 1. The installed child
+   also has minimum height 1; after the proved refresh it still has height 1.
+   `minimum_does_not_descend` proves the failure of strict descent. The
+   one-outstanding-demand multiset containing this minimum therefore cannot
+   strictly decrease by replacing the parent with this child. This rules out
+   that measure, not every possible multiset measure.
+3. **Paterson at the declaration side.** StableSmaller is proved for this
+   declaration; it compares parent and child under one fixed capture.
+   Materialization subsequently refines the captured variable to another
+   constructor layer. A declaration-size label alone must repeatedly attach
+   the same declaration to the apparent continuation. A proof that transfers
+   fixed-capture descent through these changing captures is still missing.
+4. **Finite identities and type-cycle K2.** For every finite equation prefix
+   `x_i ≈ list x_(i+1)` there is a finite tower model ending in `int`.
+   `prefix_not_equal` separates different supported positions in that model.
+   `feedback_acyclic` proves that actual nominal observation edges decrease
+   tower depth whenever such a model exists and there are no structural
+   edges. It applies to the concrete initial, installed, and refreshed states,
+   including journal equality transport. Thus K2 does not reject the proved
+   finite trace. Finite support at each snapshot is not a uniform support
+   bound over installations; the next output binder is freshly reserved.
+
+The prefix equation model statements use the same nominal Assignment and
+Equivalent, not a replacement classifier. They do not identify arbitrary
+finite prefixes with reachable states of one fixed initial snapshot. No
+absence of all future K2 or merge events is claimed for the concrete Step.
+
+### Generalized installation order and exact remaining lemma
+
+`GeneralNominalFeedbackWellFounded.InstallationOrder registry root` contains:
+
+- an arbitrary universe-polymorphic type `Measure`, relation `before`, and
+  `WellFounded before`;
+- a rank on the actual journal States;
+- administrative updates preserve the rank or decrease it under `before`;
+- every enabled, uncommitted installation from a SourceFormed state strictly
+  decreases it.
+
+`accessible` proves Acc of the complete feedback Step. The proof nests the
+well-founded rank induction with the existing administrative accessibility
+proof, using the proved SourceFormed Step case split. `ofNat` embeds the old
+InstallationDescent without changing it. `boundary_progress` states the result
+for exactly `GeneralNominalFeedbackBoundary.boundary roles evidence`, with the
+installation-order premise visible.
+
+The remaining source construction, at this sufficient interface, is:
+
+```lean
+∀ (roles : Roles.RoleDecls) (registry : GeneralDeclarations.Registry)
+  (root : GeneralSourceDictionaries.Occurrence roles),
+  registry.roles = roles → GeneralDeclarations.Checked registry →
+  Nonempty (GeneralNominalFeedbackWellFounded.InstallationOrder registry root)
+```
+
+Alternatively, one could prove Acc directly without this global rank interface.
+Neither result is established. The generalized interface is sufficient, not a
+claim that every termination proof must take this particular form.
+
+For the apparent counterexample, the exact missing negative result is an
+inductive realization with a **fixed** initial context and root: a sequence of
+SourceFormed states whose consecutive elements are joined by nonempty feedback
+Step traces, each containing another installation with the retained origins,
+fresh ownership, journal-compatible witness, and complete Installable guards.
+The current finite trace and finite-prefix models do not discharge that lemma.
+
+`fixed_snapshot_whereAccessible` does prove child accessibility for each
+example's frozen initial snapshot: its selected root emits one pending child.
+`boundary_example_whereAccessible` transports this to the actual V3 Local of
+the feedback boundary. It is an example theorem, not the general V3 field.
+General source readback and unconditional where accessibility remain open.
+
+### Boundary field table (13 fields)
+
+The concrete boundary is unchanged:
+`GeneralNominalFeedbackBoundary.boundary roles evidence`. Every classification
+field below is independent of an executor. These are definitions, not a claim
+of completed whole-language coverage; Item 4d's provenance, joint
+classification, and normalization coverage limitations remain.
+
+| Field | Definition/status | Item 4e consequence |
+|---|---|---|
+| Checked | `registry.roles = roles ∧ GeneralDeclarations.Checked registry` | The output-growth declaration passes this general check. |
+| Models | `GeneralNominalSaturationState.Models` | Full journal models used in every concrete certificate; finite and regular witnesses retained. |
+| Step | `GeneralNominalFeedbackSteps.Step` | Defined; one installation plus refresh proved; general Acc MISSING. |
+| Stable | `GeneralNominalFeedbackSteps.Stable` | Defined, unchanged; no claim that the example reaches Stable. |
+| Generated | `GeneralNominalSaturationState.Generated` | Defined, unchanged; the refresh uses an actually emitted child. |
+| RootPending | `GeneralNominalState.RootPending state.context.state root.demand` | Defined; the example child is initially pending and ready after refresh. |
+| RootK2 | `GeneralNominalFeedbackK2.RootK2` | Defined; both raw and journal cycle branches excluded on the refreshed child. |
+| CandidateK2 | `GeneralNominalFeedbackK2.CandidateK2` | Defined; both branches excluded on the refreshed child. |
+| InspectionPending | `GeneralNominalCycleK2.InspectionPending registry state.context root` | Defined, unchanged; no complete second classification after refresh is claimed. |
+| Survivor | `GeneralNominalRecursiveCandidates.Survivor registry state.context root` | Defined, unchanged; exact general capture/emission used by the example. |
+| Evidence | Explicit `evidence : GeneralNominalFeedbackBoundary.Evidence roles` parameter | Concrete integration remains MISSING in this boundary; other prover's interfaces untouched. |
+| Reorders | `GeneralRegistryReordering.Reorders` | Defined, unchanged. |
+| DictionaryEquivalent | `GeneralDictionaryPayloadOrder.Equivalent` | Defined, unchanged. |
+
+Vocabulary remains Registry = `GeneralDeclarations.Registry`, State =
+`GeneralNominalSaturationState.State roles`, Demand =
+`GeneralSourceDictionaries.Occurrence roles`, Model =
+`GeneralNominalCommonBridge.Assignment`. No Executor.run is defined here.
+
+### Exact V3 field count
+
+**5/12**, for the unchanged feedback boundary and its existing independent
+classical `frontiers`:
+
+| V3 bridge | Status |
+|---|---|
+| progress | MISSING; only conditional `boundary_progress`. |
+| execution | MISSING; no executor. |
+| halted | MISSING; no executor. |
+| closure | Proved previously by `GeneralNominalFeedbackBoundary.closure`. |
+| stepModels | Proved previously by `GeneralNominalFeedbackBoundary.stepModels`. |
+| frontierLocal | Proved previously by `GeneralNominalFeedbackBoundary.frontierLocal`. |
+| localIdentity | Proved previously by `GeneralNominalFeedbackBoundary.localIdentity`. |
+| whereAccessible | MISSING generally; conditional readback and new example theorem only. |
+| treeExecution | MISSING; no executor. |
+| canonicalLocalOrder | MISSING for final states. |
+| dictionaryRefl | Proved previously by `GeneralNominalFeedbackBoundary.dictionaryRefl`. |
+| evidenceNode | MISSING for this parameterized boundary. |
+
+V3 quantifies over all states; even a future SourceFormed-qualified progress
+proof would need a formed-state carrier restriction or a stronger theorem to
+count as its literal all-state field. Nothing in this section increments the
+accepted count or changes the other prover's Stable/Committed contract.
+
+### OWNER QUESTION — recursive associated-output head growth
+
+This question concerns §6.3's still-open associated-RHS reference cycles (T13),
+not the settled type-graph K2 rule. The observed graph `list A → A → B` in the
+proved trace is acyclic. A regular model alone does not establish an entailed
+type cycle. All equations and genuine K2 evidence must continue to feed back.
+The example demonstrates failures of the proposed measures, not a theorem that
+an additional language restriction is necessary; richer solver reasoning might
+supply another answer.
+
+For the declaration and requested `R(list A, out=A)` above, how should expansion
+of the now-ready child `R(A, out=B)` be treated when the only support for its
+head `A ≈ list B` is a provisional associated-output equation from its own
+unresolved ancestor/dependency cycle?
+
+1. **Lazy option first:** retain the equation for ordinary constraints,
+   equality, and K2, but defer that child's expansion until its needed head has
+   support independent of the provisional output packets in its unresolved
+   dependency cycle. Resume when source constraints or discharged/outside-cycle
+   demands supply that support. This is a targeted restriction on circular
+   justification of expansion, not a ban on output-to-input propagation or
+   independent sibling updates. It blocks this example at the first child.
+   It leaves `Wrap(list int, out=list B) → Container(int, item=B)` expandable,
+   because the child's input head `int` is already source-supported. Any final
+   unresolved result is handled only at the stable end of the file.
+2. **Declaration restriction:** reject cycles of associated-output-producing
+   where dependencies that can feed constructor growth back into their own
+   unnamed input obligations. A blanket ban on output-only binders in compound
+   associated RHSs would also reject the accepted Wrap example, so that blanket
+   restriction is not proposed. A precise cyclic-dependency check and its
+   sufficiency would still need design and proof.
+
+Option 1 is the smallest operational restriction identified here that blocks
+this concrete continuation while preserving the accepted Wrap use and ordinary
+sibling feedback. Its sufficiency for **all** checked declarations and arbitrary
+intervals is **not** proved; neither is global minimality among possible rules.
+No proposed restriction is installed, and no new rejection or pending reason is
+silently added. The current definitions keep the choice open.
+
+### Full public theorem statements
+
+The following signatures are extracted by Lean from the six new modules.
+Private helpers and data definitions are omitted; all public theorems have
+matching appended dependency-print entries in Audit.lean.
+
+```lean
+@Yulang.GeneralNominalFeedbackWellFounded.accessible.{u_1} : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (order : Yulang.GeneralNominalFeedbackWellFounded.InstallationOrder.{u_1} registry root)
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state →
+    Acc.{1} (fun next current => Yulang.GeneralNominalFeedbackSteps.Step registry root current next) state
+Yulang.GeneralNominalFeedbackWellFounded.boundary_progress.{u_1} : ∀ (roles : Yulang.Roles.RoleDecls)
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence roles) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (order : Yulang.GeneralNominalFeedbackWellFounded.InstallationOrder.{u_1} registry root)
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed registry root state →
+    Acc.{1}
+      (fun next current =>
+        Yulang.B4Target.SourceBoundary.Step.{0} (Yulang.GeneralNominalFeedbackBoundary.boundary roles evidence) registry
+          root current next)
+      state
+Yulang.GeneralNominalOutputGrowth.declaration_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalOutputGrowth.declaration
+Yulang.GeneralNominalOutputGrowth.checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralNominalOutputGrowth.registry
+Yulang.GeneralNominalOutputGrowth.output_only : Eq.{1} Yulang.GeneralNominalOutputGrowth.declaration.outputNames
+    (List.cons.{0} 1 List.nil.{0}) ∧
+  Eq.{1} Yulang.GeneralNominalOutputGrowth.declaration.inputNames (List.cons.{0} 0 List.nil.{0}) ∧
+    Eq.{1} Yulang.GeneralNominalOutputGrowth.clause.arguments
+      (List.cons.{0} (Yulang.GeneralDeclarationPatterns.Pattern.var 0) List.nil.{0})
+Yulang.GeneralNominalOutputGrowth.child_equations : ∀ (input output : Nat)
+  (allocation :
+    Yulang.GeneralDeclarationDemands.Allocation Yulang.GeneralDeclarationExamples.roles
+      Yulang.GeneralNominalOutputGrowth.clause),
+  (Eq.{1}
+      (Yulang.GeneralDeclarationDemands.childDemand Yulang.GeneralNominalOutputGrowth.declaration
+          Yulang.GeneralNominalOutputGrowth.clause Yulang.GeneralNominalOutputGrowth.clauseChecked
+          (Yulang.GeneralNominalOutputGrowth.capture input output) allocation).arguments
+      fun x => Prod.mk.{0, 0} input input) ∧
+    Eq.{1}
+      (Yulang.GeneralDeclarationDemands.childDemand Yulang.GeneralNominalOutputGrowth.declaration
+          Yulang.GeneralNominalOutputGrowth.clause Yulang.GeneralNominalOutputGrowth.clauseChecked
+          (Yulang.GeneralNominalOutputGrowth.capture input output) allocation).outputs
+      (List.cons.{0} { name := 0, target := output } List.nil.{0})
+Yulang.GeneralNominalOutputGrowth.tower_equivalent : ∀ (first last : Nat),
+  Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralNominalOutputGrowth.tower first)
+      (Yulang.GeneralNominalOutputGrowth.tower last) ↔
+    Eq.{1} first last
+Yulang.GeneralNominalOutputGrowth.finite_prefix_models : ∀ (length : Nat),
+  Yulang.GeneralNominalOutputGrowth.PrefixModels length (Yulang.GeneralNominalOutputGrowth.finiteModel length)
+Yulang.GeneralNominalOutputGrowth.prefix_consistent : ∀ (length : Nat),
+  Exists.{1} fun model => Yulang.GeneralNominalOutputGrowth.PrefixModels length model
+Yulang.GeneralNominalOutputGrowth.prefix_refines : ∀ (length : Nat)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalOutputGrowth.PrefixModels (HAdd.hAdd.{0, 0, 0} length 1) model →
+    Yulang.GeneralNominalOutputGrowth.PrefixModels length model
+Yulang.GeneralNominalOutputGrowth.finite_prefix_separates : ∀ (length first last : Nat),
+  LE.le.{0} first (HAdd.hAdd.{0, 0, 0} length 1) →
+    LE.le.{0} last (HAdd.hAdd.{0, 0, 0} length 1) →
+      Ne.{1} first last →
+        ¬Yulang.CommonNominalFullCarrier.Equivalent
+            (Prod.fst.{0, 0} (Yulang.GeneralNominalOutputGrowth.finiteModel length first))
+            (Prod.fst.{0, 0} (Yulang.GeneralNominalOutputGrowth.finiteModel length last))
+Yulang.GeneralNominalOutputGrowth.prefix_not_equal : ∀ (length first last : Nat),
+  LE.le.{0} first (HAdd.hAdd.{0, 0, 0} length 1) →
+    LE.le.{0} last (HAdd.hAdd.{0, 0, 0} length 1) →
+      Ne.{1} first last →
+        ¬∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalOutputGrowth.PrefixModels length model →
+              Yulang.CommonNominalFullCarrier.Equivalent (Prod.fst.{0, 0} (model first)) (Prod.fst.{0, 0} (model last))
+Yulang.GeneralNominalOutputGrowth.old_minimizer_removed : ∀ (length : Nat),
+  ¬Yulang.GeneralNominalOutputGrowth.PrefixModels (HAdd.hAdd.{0, 0, 0} length 1)
+      (Yulang.GeneralNominalOutputGrowth.finiteModel length)
+Yulang.GeneralNominalOutputGrowth.regular_prefix_models : ∀ (length : Nat),
+  Yulang.GeneralNominalOutputGrowth.PrefixModels length Yulang.GeneralNominalProgressObstruction.model
+@Yulang.GeneralNominalOutputGrowth.no_universal_denotation_rank.{u_1} : ∀ {Measure : Type u_1}
+  (less : Measure → Measure → Prop),
+  WellFounded.{u_1 + 1} less →
+    ∀ (rank : Yulang.CommonNominalFullCarrier.Ty → Measure) (length : Nat),
+      ¬∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalOutputGrowth.PrefixModels length model →
+            less (rank (Prod.fst.{0, 0} (model (HAdd.hAdd.{0, 0, 0} length 1)))) (rank (Prod.fst.{0, 0} (model length)))
+Yulang.GeneralNominalOutputGrowthModels.observation_decreases : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (depth : Nat → Nat),
+  (∀ (source : Nat), Eq.{1} (Prod.fst.{0, 0} (model source)) (Yulang.GeneralNominalOutputGrowth.tower (depth source))) →
+    ∀ (first last name index : Nat) (actual : Yulang.CommonNominalFullCarrier.Ty),
+      Yulang.GeneralNominalProjections.Observes model
+          ((Yulang.GeneralNominalProjections.Ref.source first).argument name index) (Sum.inl.{0, 0} actual) →
+        Yulang.CommonNominalFullCarrier.Equivalent actual (Prod.fst.{0, 0} (model last)) →
+          LT.lt.{0} (depth last) (depth first)
+@Yulang.GeneralNominalOutputGrowthModels.feedback_acyclic : ∀ {roleDecls : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roleDecls) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models state model →
+    ∀ (depth : Nat → Nat),
+      (∀ (source : Nat),
+          Eq.{1} (Prod.fst.{0, 0} (model source)) (Yulang.GeneralNominalOutputGrowth.tower (depth source))) →
+        (∀ (first last : Nat), ¬Yulang.GeneralNominalFeedbackK2.Structural state first last) →
+          ∀ (source : Nat), ¬Yulang.GeneralNominalFeedbackK2.Cycle state source
+Yulang.GeneralNominalOutputGrowthModels.source_models : ∀ (length : Nat)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalOutputGrowthModels.source length) model ↔
+    Yulang.GeneralNominalOutputGrowth.PrefixModels length model
+Yulang.GeneralNominalOutputGrowthModels.snapshot_models : ∀ (length : Nat)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalOutputGrowthModels.snapshot length) model ↔
+    Yulang.GeneralNominalOutputGrowth.PrefixModels length model
+Yulang.GeneralNominalOutputGrowthModels.snapshot_acyclic : ∀ (length source : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle (Yulang.GeneralNominalOutputGrowthModels.snapshot length) source
+Yulang.GeneralNominalOutputGrowthModels.raw_acyclic : ∀ (length : Nat)
+  (slot : Fin (Yulang.GeneralNominalOutputGrowthModels.source length).base.slots),
+  ¬Yulang.GeneralNominalCycleK2.Cycle (Yulang.GeneralNominalOutputGrowthModels.source length) slot
+Yulang.GeneralNominalOutputGrowthModels.not_rootK2 : ∀ (length : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.RootK2 (Yulang.GeneralNominalOutputGrowthModels.snapshot length)
+      (Yulang.GeneralNominalOutputGrowthModels.root length)
+Yulang.GeneralNominalOutputGrowthModels.not_candidateK2 : ∀ (length : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.CandidateK2 Yulang.GeneralNominalOutputGrowth.registry
+      (Yulang.GeneralNominalOutputGrowthModels.snapshot length) (Yulang.GeneralNominalOutputGrowthModels.root length)
+Yulang.GeneralNominalOutputGrowthModels.source_member : ∀ (length : Nat) (slot : Fin (HAdd.hAdd.{0, 0, 0} length 2)),
+  Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources (Yulang.GeneralNominalOutputGrowthModels.source length))
+    ↑slot
+Yulang.GeneralNominalOutputGrowthModels.metadata : ∀ (length : Nat),
+  Yulang.GeneralNominalRecursiveCandidates.Metadata Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.context length)
+Yulang.GeneralNominalOutputGrowthModels.linked : ∀ (length : Nat),
+  Yulang.GeneralNominalState.Linked (Yulang.GeneralNominalOutputGrowthModels.source length)
+    (Yulang.GeneralNominalOutputGrowthModels.root length).demand
+Yulang.GeneralNominalOutputGrowthModels.initial_source : ∀ (length : Nat),
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.context length) (Yulang.GeneralNominalOutputGrowthModels.root length)
+Yulang.GeneralNominalOutputGrowthModels.formed : ∀ (length : Nat),
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.root length) (Yulang.GeneralNominalOutputGrowthModels.snapshot length)
+Yulang.GeneralNominalOutputGrowthModels.ready : ∀ (length : Nat),
+  ¬Yulang.GeneralNominalState.RootPending (Yulang.GeneralNominalOutputGrowthModels.source length)
+      (Yulang.GeneralNominalOutputGrowthModels.root length).demand
+Yulang.GeneralNominalOutputGrowthPackets.report_exact : ∀ (length : Nat),
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.report (Yulang.GeneralNominalOutputGrowthModels.context length)
+      Yulang.GeneralNominalOutputGrowth.declaration (Yulang.GeneralNominalOutputGrowthPackets.bounds length))
+    (Yulang.GeneralNominalUnaryCaptureFacts.captured (Yulang.GeneralNominalOutputGrowthModels.source length)
+      (Yulang.GeneralNominalOutputGrowthPackets.slot length) 0 0
+      (Prod.mk.{0, 0} (Yulang.GeneralNominalOutputGrowthPackets.endpoint length)
+        (Yulang.GeneralNominalOutputGrowthPackets.endpoint length)))
+Yulang.GeneralNominalOutputGrowthPackets.bindings_exact : ∀ (length : Nat),
+  Eq.{1} (Yulang.GeneralNominalOutputGrowthPackets.packet length).bindings
+    (List.cons.{0} (Prod.mk.{0, 0} 0 (Prod.mk.{0, 0} (HAdd.hAdd.{0, 0, 0} length 1) (HAdd.hAdd.{0, 0, 0} length 1)))
+      List.nil.{0})
+Yulang.GeneralNominalOutputGrowthPackets.children_exact : ∀ (length : Nat),
+  Eq.{1} (Yulang.GeneralNominalOutputGrowthPackets.packet length).children
+    (List.cons.{0} (Yulang.GeneralNominalOutputGrowthPackets.child length) List.nil.{0})
+Yulang.GeneralNominalOutputGrowthPackets.schema_exact : ∀ (length : Nat),
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.generated Yulang.GeneralNominalOutputGrowth.registry
+      (Yulang.GeneralNominalOutputGrowthModels.context length) (Yulang.GeneralNominalOutputGrowthModels.root length)
+      Yulang.GeneralNominalOutputGrowth.declaration Yulang.GeneralNominalOutputGrowth.declaration_checked
+      (Yulang.GeneralNominalOutputGrowthPackets.bounds length))
+    {
+      variables :=
+        List.cons.{0}
+          { name := 1,
+            origin :=
+              (Yulang.GeneralNominalRecursiveInspection.Origin.source (HAdd.hAdd.{0, 0, 0} length 1)).nominal 0 0,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+          (List.cons.{0}
+            { name := 1,
+              origin :=
+                Yulang.GeneralNominalRecursiveInspection.Origin.source
+                  (Yulang.GeneralNominalOutputGrowthPackets.output length),
+              mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+            List.nil.{0}),
+      tests :=
+        List.cons.{0}
+          (Prod.mk.{0, 0} (Yulang.GeneralNominalRecursiveInspection.Origin.source (HAdd.hAdd.{0, 0, 0} length 1))
+            (Yulang.GeneralNominalRecursiveInspection.Test.nominal 0 1))
+          List.nil.{0} }
+Yulang.GeneralNominalOutputGrowthPackets.output_fresh : ∀ (length : Nat),
+  LT.lt.{0} (HAdd.hAdd.{0, 0, 0} length 1) (Yulang.GeneralNominalOutputGrowthPackets.output length)
+Yulang.GeneralNominalOutputGrowthPackets.packet_models : ∀ (length : Nat)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalOutputGrowth.PrefixModels length model →
+    Yulang.CommonNominalFullCarrier.Equivalent (Prod.fst.{0, 0} (model (HAdd.hAdd.{0, 0, 0} length 1)))
+        (Yulang.CommonNominalFullCarrier.nominal 0
+          (List.cons.{0}
+            (Sum.inl.{0, 0} (Prod.fst.{0, 0} (model (Yulang.GeneralNominalOutputGrowthPackets.output length))))
+            List.nil.{0})) →
+      (Yulang.GeneralNominalOutputGrowthPackets.packet length).Holds model
+Yulang.GeneralNominalOutputGrowthPackets.finite_packet_models : ∀ (length : Nat),
+  (Yulang.GeneralNominalOutputGrowthPackets.packet length).Holds
+    (Yulang.GeneralNominalOutputGrowth.finiteModel (HAdd.hAdd.{0, 0, 0} length 1))
+Yulang.GeneralNominalOutputGrowthPackets.regular_packet_models : ∀ (length : Nat),
+  (Yulang.GeneralNominalOutputGrowthPackets.packet length).Holds Yulang.GeneralNominalProgressObstruction.model
+Yulang.GeneralNominalOutputGrowthPackets.located : ∀ (length : Nat),
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.arguments (Yulang.GeneralNominalOutputGrowthModels.context length)
+      (Yulang.GeneralNominalOutputGrowthModels.root length))
+    (Option.some.{0} (Yulang.GeneralNominalOutputGrowthPackets.bounds length))
+Yulang.GeneralNominalOutputGrowthPackets.prepared : ∀ (length : Nat),
+  Yulang.GeneralNominalRecursiveCandidates.Prepared Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.context length) (Yulang.GeneralNominalOutputGrowthModels.root length)
+    Yulang.GeneralNominalOutputGrowth.declaration Yulang.GeneralNominalOutputGrowth.declaration_checked
+Yulang.GeneralNominalOutputGrowthPackets.survivor : ∀ (length : Nat),
+  Yulang.GeneralNominalRecursiveCandidates.Survivor Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.context length) (Yulang.GeneralNominalOutputGrowthModels.root length) 2
+    (Yulang.GeneralNominalOutputGrowthPackets.packet length).children
+Yulang.GeneralNominalOutputGrowthPackets.selected : ∀ (length : Nat),
+  Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.snapshot length) (Yulang.GeneralNominalOutputGrowthModels.root length)
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 2
+      (Yulang.GeneralNominalOutputGrowthPackets.packet length).children)
+Yulang.GeneralNominalOutputGrowthPackets.enabled : ∀ (length : Nat),
+  Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.snapshot length) (Yulang.GeneralNominalOutputGrowthPackets.packet length)
+Yulang.GeneralNominalOutputGrowthPackets.install_step : ∀ (length : Nat),
+  Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.root length) (Yulang.GeneralNominalOutputGrowthModels.snapshot length)
+    (Yulang.GeneralNominalOutputGrowthPackets.installed length)
+Yulang.GeneralNominalOutputGrowthPackets.installed_formed : ∀ (length : Nat),
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralNominalOutputGrowth.registry
+    (Yulang.GeneralNominalOutputGrowthModels.root length) (Yulang.GeneralNominalOutputGrowthPackets.installed length)
+Yulang.GeneralNominalOutputGrowthPackets.installed_models : ∀ (length : Nat),
+  Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalOutputGrowthPackets.installed length)
+    (Yulang.GeneralNominalOutputGrowth.finiteModel (HAdd.hAdd.{0, 0, 0} length 1))
+Yulang.GeneralNominalOutputGrowthPackets.installed_acyclic : ∀ (length identity : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle (Yulang.GeneralNominalOutputGrowthPackets.installed length) identity
+Yulang.GeneralNominalOutputGrowthPackets.child_pending : ∀ (length : Nat),
+  Yulang.GeneralNominalState.RootPending (Yulang.GeneralNominalOutputGrowthModels.source length)
+    (Yulang.GeneralNominalOutputGrowthPackets.child length).demand
+Yulang.GeneralNominalOutputGrowthPackets.fixed_snapshot_whereAccessible : ∀ (length : Nat),
+  Acc.{1}
+    (Yulang.CommonRoleOutermostResolver.Child.{0}
+      (Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralNominalOutputGrowth.registry
+        (Yulang.GeneralNominalOutputGrowthModels.snapshot length)))
+    (Yulang.GeneralNominalOutputGrowthModels.root length)
+Yulang.GeneralNominalOutputGrowthPackets.regular_installed_models : ∀ (length : Nat),
+  Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalOutputGrowthPackets.installed length)
+    Yulang.GeneralNominalProgressObstruction.model
+@Yulang.GeneralNominalOutputGrowthPackets.no_modelwise_child_rank.{u_1} : ∀ {Measure : Type u_1}
+  (less : Measure → Measure → Prop),
+  WellFounded.{u_1 + 1} less →
+    ∀ (rank : Yulang.CommonNominalFullCarrier.Ty → Measure) (length : Nat),
+      ¬∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalOutputGrowthPackets.installed length)
+              model →
+            less
+              (rank
+                (Prod.fst.{0, 0}
+                  (model
+                    (Prod.fst.{0, 0}
+                      ((Yulang.GeneralNominalOutputGrowthPackets.child length).demand.arguments ⟨0, ⋯⟩)))))
+              (rank
+                (Prod.fst.{0, 0}
+                  (model
+                    (Prod.fst.{0, 0} ((Yulang.GeneralNominalOutputGrowthModels.root length).demand.arguments ⟨0, ⋯⟩)))))
+Yulang.GeneralNominalOutputGrowthPackets.packet_output_equation : ∀ (length : Nat)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralNominalOutputGrowthPackets.packet length).Holds model →
+    Yulang.CommonNominalFullCarrier.Equivalent (Prod.fst.{0, 0} (model (HAdd.hAdd.{0, 0, 0} length 1)))
+      (Yulang.CommonNominalFullCarrier.nominal 0
+        (List.cons.{0}
+          (Sum.inl.{0, 0} (Prod.fst.{0, 0} (model (Yulang.GeneralNominalOutputGrowthPackets.output length))))
+          List.nil.{0}))
+Yulang.GeneralNominalOutputGrowthRefresh.child_known : Yulang.GeneralNominalState.Known
+  Yulang.GeneralNominalOutputGrowthRefresh.refreshedState 1
+Yulang.GeneralNominalOutputGrowthRefresh.refresh_step : Yulang.GeneralNominalFeedbackSteps.Step
+  Yulang.GeneralNominalOutputGrowth.registry (Yulang.GeneralNominalOutputGrowthModels.root 0)
+  (Yulang.GeneralNominalOutputGrowthPackets.installed 0) Yulang.GeneralNominalOutputGrowthRefresh.refreshed
+Yulang.GeneralNominalOutputGrowthRefresh.refresh_models : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalOutputGrowthRefresh.refreshed model ↔
+    Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalOutputGrowthPackets.installed 0) model
+Yulang.GeneralNominalOutputGrowthRefresh.refreshed_formed : Yulang.GeneralNominalFeedbackSteps.SourceFormed
+  Yulang.GeneralNominalOutputGrowth.registry (Yulang.GeneralNominalOutputGrowthModels.root 0)
+  Yulang.GeneralNominalOutputGrowthRefresh.refreshed
+Yulang.GeneralNominalOutputGrowthRefresh.child_ready : ¬Yulang.GeneralNominalState.RootPending
+    Yulang.GeneralNominalOutputGrowthRefresh.refreshedState (Yulang.GeneralNominalOutputGrowthPackets.child 0).demand
+Yulang.GeneralNominalOutputGrowthRefresh.refreshed_acyclic : ∀ (identity : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralNominalOutputGrowthRefresh.refreshed identity
+Yulang.GeneralNominalOutputGrowthRefresh.raw_acyclic : ∀
+  (slot : Fin Yulang.GeneralNominalOutputGrowthRefresh.refreshedState.base.slots),
+  ¬Yulang.GeneralNominalCycleK2.Cycle Yulang.GeneralNominalOutputGrowthRefresh.refreshedState slot
+Yulang.GeneralNominalOutputGrowthRefresh.child_not_rootK2 : ¬Yulang.GeneralNominalFeedbackK2.RootK2
+    Yulang.GeneralNominalOutputGrowthRefresh.refreshed (Yulang.GeneralNominalOutputGrowthPackets.child 0)
+Yulang.GeneralNominalOutputGrowthRefresh.child_not_candidateK2 : ¬Yulang.GeneralNominalFeedbackK2.CandidateK2
+    Yulang.GeneralNominalOutputGrowth.registry Yulang.GeneralNominalOutputGrowthRefresh.refreshed
+    (Yulang.GeneralNominalOutputGrowthPackets.child 0)
+Yulang.GeneralNominalOutputGrowthRefresh.two_steps_ready : Yulang.GeneralDeclarations.Checked
+    Yulang.GeneralNominalOutputGrowth.registry ∧
+  Yulang.GeneralNominalFeedbackSteps.SourceFormed Yulang.GeneralNominalOutputGrowth.registry
+      (Yulang.GeneralNominalOutputGrowthModels.root 0) Yulang.GeneralNominalOutputGrowthRefresh.refreshed ∧
+    Yulang.B4Target.Steps.{1}
+        (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalOutputGrowth.registry
+          (Yulang.GeneralNominalOutputGrowthModels.root 0))
+        (Yulang.GeneralNominalOutputGrowthModels.snapshot 0) Yulang.GeneralNominalOutputGrowthRefresh.refreshed ∧
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalOutputGrowthRefresh.refreshed
+          (Yulang.GeneralNominalOutputGrowth.finiteModel 1) ∧
+        ¬Yulang.GeneralNominalState.RootPending Yulang.GeneralNominalOutputGrowthRefresh.refreshedState
+              (Yulang.GeneralNominalOutputGrowthPackets.child 0).demand ∧
+          ¬Yulang.GeneralNominalFeedbackK2.RootK2 Yulang.GeneralNominalOutputGrowthRefresh.refreshed
+                (Yulang.GeneralNominalOutputGrowthPackets.child 0) ∧
+            ¬Yulang.GeneralNominalFeedbackK2.CandidateK2 Yulang.GeneralNominalOutputGrowth.registry
+                Yulang.GeneralNominalOutputGrowthRefresh.refreshed (Yulang.GeneralNominalOutputGrowthPackets.child 0)
+Yulang.GeneralNominalOutputGrowthRefresh.different_inputs_not_merged : ¬Yulang.GeneralNominalFeedbackSites.SameInputs
+    Yulang.GeneralNominalOutputGrowthRefresh.refreshed
+    (Yulang.GeneralNominalDemandMerging.pointSite (Yulang.GeneralNominalOutputGrowthModels.root 0))
+    (Yulang.GeneralNominalFeedbackSites.childSite (Yulang.GeneralNominalOutputGrowthPackets.packet 0)
+      (Yulang.GeneralNominalOutputGrowthPackets.child 0))
+Yulang.GeneralNominalOutputGrowthMeasures.initial_minimum : ∀ (length : Nat),
+  Yulang.GeneralNominalOutputGrowthMeasures.MinimumHeight
+    (Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalOutputGrowthModels.snapshot length)) length 1
+Yulang.GeneralNominalOutputGrowthMeasures.installed_child_minimum : ∀ (length : Nat),
+  Yulang.GeneralNominalOutputGrowthMeasures.MinimumHeight
+    (Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalOutputGrowthPackets.installed length))
+    (HAdd.hAdd.{0, 0, 0} length 1) 1
+Yulang.GeneralNominalOutputGrowthMeasures.refreshed_child_minimum : Yulang.GeneralNominalOutputGrowthMeasures.MinimumHeight
+  (Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalOutputGrowthRefresh.refreshed) 1 1
+Yulang.GeneralNominalOutputGrowthMeasures.minimum_unique : ∀
+  (models : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (source first last : Nat),
+  Yulang.GeneralNominalOutputGrowthMeasures.MinimumHeight models source first →
+    Yulang.GeneralNominalOutputGrowthMeasures.MinimumHeight models source last → Eq.{1} first last
+Yulang.GeneralNominalOutputGrowthMeasures.minimum_does_not_descend : ∀ (first last : Nat),
+  Yulang.GeneralNominalOutputGrowthMeasures.MinimumHeight
+      (Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalOutputGrowthModels.snapshot 0)) 0 first →
+    Yulang.GeneralNominalOutputGrowthMeasures.MinimumHeight
+        (Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalOutputGrowthRefresh.refreshed) 1 last →
+      ¬LT.lt.{0} last first
+Yulang.GeneralNominalOutputGrowthMeasures.boundary_example_whereAccessible : ∀
+  (evidence : Yulang.GeneralNominalFeedbackBoundary.Evidence Yulang.GeneralDeclarationExamples.roles) (length : Nat),
+  Acc.{1}
+    (Yulang.CommonRoleOutermostResolver.Child.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.GeneralNominalFeedbackBoundary.boundary Yulang.GeneralDeclarationExamples.roles evidence)
+        Yulang.GeneralNominalOutputGrowth.registry (Yulang.GeneralNominalOutputGrowthModels.snapshot length)))
+    (Yulang.GeneralNominalOutputGrowthModels.root length)
+```
+
+### Files, verification, and remaining scope
+
+Added:
+
+- `lean/Yulang/GeneralNominalFeedbackWellFounded.lean`
+- `lean/Yulang/GeneralNominalOutputGrowth.lean`
+- `lean/Yulang/GeneralNominalOutputGrowthModels.lean`
+- `lean/Yulang/GeneralNominalOutputGrowthPackets.lean`
+- `lean/Yulang/GeneralNominalOutputGrowthRefresh.lean`
+- `lean/Yulang/GeneralNominalOutputGrowthMeasures.lean`
+
+Changed only by appending: six imports in `lean/Yulang.lean`, 68 public-theorem
+print entries in `lean/Audit.lean`, and this Item 4e section. No spec, plan,
+configuration, pre-existing Lean implementation line, commit, push, or git
+reference was changed.
+
+Final commands, run from `lean/`, each exited **0**:
+
+```sh
+lake build Yulang.GeneralNominalFeedbackWellFounded Yulang.GeneralNominalOutputGrowth Yulang.GeneralNominalOutputGrowthModels Yulang.GeneralNominalOutputGrowthPackets Yulang.GeneralNominalOutputGrowthRefresh Yulang.GeneralNominalOutputGrowthMeasures > /tmp/astra-descent-focused.log 2>&1
+lake build Yulang > /tmp/astra-descent-umbrella.log 2>&1
+lake env lean Audit.lean > /tmp/astra-descent-audit.log 2>&1
+```
+
+The focused build completed 626 jobs and the umbrella build 1536 jobs. Audit
+produced 9921 dependency records (9684 nonempty, 237 empty). All 68 new public
+theorems were present exactly once; nonempty dependencies were contained in
+`{propext, Classical.choice, Quot.sound}`. Signature extraction with
+`lake env lean --stdin` exited 0. The final append-only/path audit, restricted
+source-token scan, theorem-to-Audit coverage check, and `git diff --check`
+passed. Intermediate proof iterations had compiler errors that were corrected;
+only the final successful commands above are presented as validation.
+
+The [yulang-proofs skill](/home/momota1029/.codex/skills/yulang-proofs/SKILL.md)
+was applied. The checkout and callable collaboration schema provide no
+registered prover launch surface; no prover agent ran. The primary constructed
+bounded proofs directly. A separate read-only reviewer independently found the
+same output-growth pattern and reviewed all six modules and the final scope
+statements, finding no theorem-level defect. The reviewer did not run an
+independent build.
+
+Not verified/proved: a second Installable after the refreshed child becomes
+ready; an infinite trace from one initial state; absence of all future merges
+or K2; a general installation measure or Acc; general Readback or where
+accessibility; full joint classification/provenance/normalization coverage; an
+inference-to-InitialSource producer; surface parsing of the illustrated
+inferred demand; a concrete Evidence integration; an executor; final order
+independence; or the B4 theorem. The proposed lazy dependency policy has not
+been implemented or proved sufficient for general termination.
+
+This work is converging toward the general boundary by testing the missing
+proof against the exact checker, packet materialization, allocation, journal,
+refresh, K2, and merge definitions. The failed measures are exposed by real
+SourceFormed updates, not an alternate scalar classifier. Nevertheless the
+termination gap remains substantive: additional isolated fragment termination
+proofs would not connect StableSmaller to output-driven growth across updates.
+The next useful result is either the missing common-trace realization or a
+source dependency argument that blocks it under an explicitly approved policy.
