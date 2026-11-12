@@ -11151,3 +11151,665 @@ Yulang.GeneralNominalReobservationBoundaryExamples.repaired_fork : (Yulang.Gener
                     (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
                     (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
 ```
+
+## Item 5d — same-model completion obstruction and an actual merge/reobservation diamond (2026-11-12)
+
+**Status: the requested same-model full-Stable completion is false for the
+existing descriptor-replacement relation.** This is proved on the actual checked,
+source-reachable carriers. General maximal-view inspection and all transition
+confluence are not claimed complete. The task contract clarification is pending:
+observation completion can preserve models, while full stabilization must be
+allowed to decrease them, as the existing B4 V5 clause (1) already permits.
+Progress/descent and the R-growth owner question remain paused.
+
+### Why the completion requirements separate
+
+Spec §6.3 states that the selected implementation's associated definition is
+substituted into the fresh output variable. It also requires waiting for known
+inputs and finalizing only after sibling updates stabilize. The draft/addenda
+make all unnamed inputs needed; the named output is not an applicability input.
+Thus an unresolved output cannot prevent a known, uniquely matching implementation
+from supplying its output equation. `B4TargetV5.SaturationTotal` requires final
+Models to imply initial Models, not equivalence of those predicates.
+
+A schematic Yulang instance of the checked declaration used here is:
+
+```yulang
+impl Container (list (list int)):
+    type item = int
+```
+
+The demand is `Container(list (list int), item = 'out)`, with `'out` initially
+unconstrained. The test uses the general declaration carrier, its real checker,
+the existing nominal list constructor, normalized state, explicit source
+identities, materialization schema, candidate predicates, and feedback Step.
+There is no scalar-only substitute boundary or ad-hoc Local judgment.
+
+| Source identity | Information in both pre-install snapshots |
+| --- | --- |
+| 0 | `list (list int)`, also constrained equal to source 1 |
+| 1 | `list (list int)` |
+| 2 | `list int` |
+| 3 | `int` |
+| 4 | top |
+| 5 | the unconstrained requested associated output; reserved and linked |
+
+The wide snapshot records source 0's nominal parameter interval as `(2,4)`;
+the precise snapshot records `(2,2)`. Both have exactly the same full journal
+models. The old wide state is genuinely halted: nested inspection is blocked,
+top cannot acquire a certified head, and source 5 has both int and str model
+witnesses, preventing a certified head there. There are no other generated
+sites, uncommitted packets, or nontrivial merges. It is reached by an actual old
+refresh from an empty-journal `InitialSource` state.
+
+The descriptor repair preserves all models, but precise inspection selects key
+90 with no children and a materialized `source 5 ≈ int` obligation. The packet
+is actually Installable, including the full joint and merge guards. Installation
+therefore keeps the int-output model and excludes the str-output model.
+`installed_models_exact` proves the stronger exact statement, for every assignment:
+
+```text
+Models installed assignment ↔
+  Models oldWide assignment ∧ Equivalent (assignment 5).1 (.base .int)
+```
+
+This is an information-adding installation required by the selected declaration,
+not an order-dependent language choice or a loss caused by normalization.
+
+### The obstruction covers every current transition path
+
+The primary strengthened the concrete example into an all-path theorem:
+
+- `point_descriptor_forced`: with this catalogue and explicit source model, a
+  point descriptor at slots 0/1 must be `list(2,2)`, and at slot 2 must be
+  `list(3,3)`. The nominal invariant theorem determines the constructor name,
+  layout, and argument; distinct source values determine the endpoints.
+- `revision_result_forced`: every certified improving Revision of the wide
+  snapshot is exactly the precise snapshot. The Revision carrier fixes the
+  base and nominal presence domain; slots 1 and 2 are already point-valued,
+  so its strict new point must be at slot 0.
+- `step_from_wide`: every full new Step from the wide state reaches the precise
+  state, because old stability excludes every ordinary update.
+- `step_from_point_excludes_bad`: every full new Step from the precise state
+  excludes the str-output model. Point closure excludes more descriptor
+  replacements; old refresh/enqueue/merge/equality guards exclude the other
+  administrative updates; every remaining installation is the same visible
+  declaration with the same root and bounds, hence forces the int output.
+- `trace_trichotomy`: after **any** finite full new-Step trace from the wide
+  state, the final state is wide, precise, or has lost the str-output model.
+- `stable_trace_loses_bad`: the first two states are not new-Stable, so every
+  stable continuation has lost that model.
+- `no_same_models_stable_extension`: there is no stable continuation with the
+  same models.
+- `not_old_halted_same_models_completion`: the universal claim over checked
+  registries and old-reachable, old-halted states is false for the existing
+  `GeneralNominalReobservationSteps.Step`.
+- `boundary_completion_obstruction`: the same concrete witness uses the public
+  `GeneralNominalReobservationBoundary.boundary roles` Step, Stable, Models,
+  and Reachable. Its old-halted premise intentionally names the old feedback Step.
+
+These theorems do not merely exhibit one unsuccessful schedule. They also do
+not assert failure of every hypothetical future canonical-view relation, refute
+cache-only completion, or construct a stable final state after the installation.
+The existing Step's entire trace relation is the quantified relation. The separate
+`canonical_views_equal` theorem shows that the wide and precise pre-install
+snapshots have the same maximal semantic predicate.
+
+A minimal faithful restatement is already available conditionally:
+`model_decreasing_completion_of_progress` gives an actual stable continuation
+and final-model inclusion for every checked reachable state of the current
+boundary, from precisely its Progress field. This is a reuse of the existing
+executor laws, not a proof of Progress, a maximal-view consumer, or a new V5 field.
+The stronger equality requirement has not been silently replaced.
+
+### A genuine transition diamond, independent of that clarification
+
+`GeneralNominalReobservationMergeDiamond.merge_reobserve_diamond` constructs the
+following square for arbitrary general states, sites, and certified improving
+revisions:
+
+```text
+state ──merge──▶ merge state first last
+  │                     │
+revision          lifted revision
+  │                     │
+  ▼                     ▼
+revision.result ──merge──▶ merge revision.result first last
+```
+
+All four arrows are the actual public Step, including Generated restrictions.
+Only the original merge guards and revision certificate/improvement are premises.
+Neither second transition is assumed. The final states are literally identical.
+
+The proof supplies the missing preservation facts for this pair:
+
+- Full model equivalence preserves recovered origins and same-input recognition.
+- Reobservation leaves sites/aliases unchanged, so merge membership and novelty
+  survive. Generated membership follows from the proved actual-Step law.
+- A Revision lifts over the merge's ordinary associated-output equations.
+  Its raw-model preservation and exact full-model equivalence follow from the
+  original certificate and the exact `merge_models` characterization.
+- Nominal presence and point improvement are unchanged by that lift.
+
+This closes **merge/this certified descriptor replacement**, not
+install/install, install/merge, install/canonical-refresh, arbitrary
+refresh/refresh, or full maximal-view consumption. The old model-only commuting
+squares have not been promoted to transition diamonds. No application of
+Newman's lemma or final-state agreement is claimed. No genuine semantic
+update-order divergence was established, so no owner language question was
+invented from these implementation gaps.
+
+### V5 14-field table
+
+The current concrete boundary remains
+`GeneralNominalReobservationBoundary.boundary roles`, with
+`GeneralNominalReobservationExecutor.executor roles progress`.
+No existing definition was changed and no completed maximal-view boundary is
+claimed.
+
+| V5 field | Status |
+| --- | --- |
+| `progress` | OPEN/PAUSED; exact current `Progress roles`, not supplied or proved here. |
+| `execution` | Previously proved conditional only on that Progress. |
+| `halted` | Previously proved conditional only on that Progress. |
+| `closure` | PROVED, unchanged `GeneralNominalReobservationBoundary.closure`. |
+| `stepModels` | PROVED, unchanged `GeneralNominalReobservationBoundary.stepModels`; model decrease is the correct saturation direction. |
+| `frontierLocal` | PROVED, unchanged `GeneralNominalReobservationBoundary.frontierLocal`. |
+| `localIdentity` | PROVED, unchanged `GeneralNominalReobservationBoundary.localIdentity`. |
+| `whereAccessible` | OPEN; no descent work resumed. |
+| `treeExecution` | Previously proved conditional on Progress with the target's explicit frontier-exactness and child-accessibility binders. |
+| `canonicalLocalOrder` | OPEN; the one new diamond does not supply all local confluence or the canonical consumer. |
+| `dictionaryRefl` | PROVED, unchanged `GeneralNominalReobservationBoundary.dictionaryRefl`. |
+| `evidenceNode` | OPEN in the current bridge package. |
+| `generatedChildren` | OPEN in the current bridge package. |
+| `initialReorders` | PROVED, unchanged `GeneralNominalReobservationBoundary.initialReorders`. |
+
+Count unchanged: **6/14 unconditional; 3 additional execution fields conditional
+on Progress; Progress itself and 4 other fields remain open.** The universal
+same-model completion request is an additional requested property, not one of
+those 14 fields, and is now refuted for this relation. None of the obstruction
+or diamond lemmas is counted as an extra bridge field.
+
+### Review, files, and checks
+
+The four new implementation modules are listed in the
+[small module guide](2026-11-12-astra-canonical-completion-module-guide.md).
+The only existing Lean change is four appended imports in `lean/Yulang.lean`.
+`lean/Audit/AstraCanonicalCompletion.lean` is a new audit part. Frozen
+`lean/Audit.lean` and `lean/README.md`, spec, plan, configs, and git refs are unchanged.
+
+The yulang-proofs workflow was used. The registered `prover` role/configuration
+and the skill's three referenced rule files were unavailable; no prover agent
+ran. A complementary reviewer constructed only the two leased counterexample
+support modules, which the primary independently reviewed. The primary proved
+the all-trace obstruction and the merge/reobservation diamond. A fresh independent
+review covered all four modules, including quantifiers, actual source reachability,
+model witnesses, the distinction between the current and hypothetical relations,
+and the absence of a second-edge premise in the diamond. No blocking issue remained.
+
+Final verification, from `lean/`:
+
+- `lake build Yulang.GeneralNominalCanonicalCompletionObstruction Yulang.GeneralNominalReobservationMergeDiamond` — exit **0**.
+- `lake build Yulang` — exit **0**.
+- `lake env lean Audit/AstraCanonicalCompletion.lean` — exit **0**. All **72** new public theorems are covered; dependencies are confined to `propext`, `Classical.choice`, and `Quot.sound` (or none).
+
+The frozen umbrella audit and all historical audit parts were not rerun. No
+claim is made for general canonical inspection, all transition diamonds,
+Newman/final-state agreement, or `canonicalLocalOrder` from Progress alone.
+This work is on the real general carriers and closes a concrete contract error
+and one actual transition pair; it does not complete Item 5c as originally phrased.
+
+### Full new public theorem statements
+
+These are Lean's elaborated `#check @...` statements, with implicit premises
+exposed. The implementation modules contain the definitions and proofs.
+
+```lean
+Yulang.GeneralNominalCanonicalOutputFork.declaration_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalCanonicalOutputFork.declaration
+Yulang.GeneralNominalCanonicalOutputFork.registry_checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralNominalCanonicalOutputFork.registry
+Yulang.GeneralNominalCanonicalOutputFork.state_models : ∀ (choice : Option Bool)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalCanonicalOutputFork.state choice) m ↔
+    Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state choice) m
+Yulang.GeneralNominalCanonicalOutputFork.zero_known : ∀ (wide : Bool),
+  Yulang.GeneralNominalState.Known (Yulang.GeneralNominalCanonicalOutputFork.state (some wide)) 0
+Yulang.GeneralNominalCanonicalOutputFork.refresh_step : ∀ (wide : Bool),
+  Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+    Yulang.GeneralNominalCanonicalOutputFork.root Yulang.GeneralNominalCanonicalOutputFork.before
+    (Yulang.GeneralNominalCanonicalOutputFork.after wide)
+Yulang.GeneralNominalCanonicalOutputFork.same_models : ∀ (wide : Bool)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after wide) m ↔
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalCanonicalOutputFork.before m
+Yulang.GeneralNominalCanonicalOutputFork.initial_models : ∀ (scalar : Yulang.Inference.Base),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalCanonicalOutputFork.before
+    (Yulang.GeneralNominalCanonicalOutputFork.model scalar)
+Yulang.GeneralNominalCanonicalOutputFork.after_models : ∀ (wide : Bool) (scalar : Yulang.Inference.Base),
+  Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after wide)
+    (Yulang.GeneralNominalCanonicalOutputFork.model scalar)
+Yulang.GeneralNominalCanonicalOutputFork.source_bound : ∀ (choice : Option Bool) (source : Nat),
+  source ∈ Yulang.GeneralNominalState.sources (Yulang.GeneralNominalCanonicalOutputFork.state choice) → source ≤ 5
+Yulang.GeneralNominalCanonicalOutputFork.linked : ∀ (choice : Option Bool),
+  Yulang.GeneralNominalState.Linked (Yulang.GeneralNominalCanonicalOutputFork.state choice)
+    Yulang.GeneralNominalCanonicalOutputFork.root.demand
+Yulang.GeneralNominalCanonicalOutputFork.metadata : ∀ (choice : Option Bool),
+  Yulang.GeneralNominalRecursiveCandidates.Metadata Yulang.GeneralNominalCanonicalOutputFork.registry
+    (Yulang.GeneralNominalCanonicalOutputFork.context choice)
+Yulang.GeneralNominalCanonicalOutputFork.initial_source : Yulang.GeneralNominalSourceFormation.InitialSource
+  Yulang.GeneralNominalCanonicalOutputFork.registry (Yulang.GeneralNominalCanonicalOutputFork.context none)
+  Yulang.GeneralNominalCanonicalOutputFork.root
+Yulang.GeneralNominalCanonicalOutputFork.initial_reachable : Yulang.B4TargetV5.Reachable
+  (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root
+  Yulang.GeneralNominalCanonicalOutputFork.before
+Yulang.GeneralNominalCanonicalOutputFork.after_reachable : ∀ (wide : Bool),
+  Yulang.B4TargetV5.Reachable
+    (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root
+    (Yulang.GeneralNominalCanonicalOutputFork.after wide)
+Yulang.GeneralNominalCanonicalOutputFork.no_refresh : ∀ (wide : Bool) (next : Yulang.GeneralNominalCandidates.Context)
+  (certified : Yulang.GeneralNominalFeedbackSteps.Refresh (Yulang.GeneralNominalCanonicalOutputFork.after wide) next)
+  (source : Nat),
+  source ∈ Yulang.GeneralNominalState.sources (Yulang.GeneralNominalCanonicalOutputFork.state (some wide)) →
+    ¬Yulang.GeneralNominalState.Known (Yulang.GeneralNominalCanonicalOutputFork.state (some wide)) source →
+      ¬Yulang.GeneralNominalState.Known next.state source
+Yulang.GeneralNominalCanonicalOutputFork.revision_result : Yulang.GeneralNominalCanonicalOutputFork.revision.result =
+  Yulang.GeneralNominalCanonicalOutputFork.after false
+Yulang.GeneralNominalCanonicalOutputFork.revision_certified : Yulang.GeneralNominalReobservationSteps.Certified
+  Yulang.GeneralNominalCanonicalOutputFork.revision
+Yulang.GeneralNominalCanonicalOutputFork.revision_improves : Yulang.GeneralNominalReobservationSteps.Improves
+  Yulang.GeneralNominalCanonicalOutputFork.revision
+Yulang.GeneralNominalCanonicalOutputFork.repair_step : Yulang.GeneralNominalReobservationSteps.Step
+  Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root
+  (Yulang.GeneralNominalCanonicalOutputFork.after true) (Yulang.GeneralNominalCanonicalOutputFork.after false)
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_report : Yulang.GeneralNominalRecursiveCandidates.report
+    (Yulang.GeneralNominalCanonicalOutputFork.context (some false)) Yulang.GeneralNominalCanonicalOutputFork.declaration
+    [(0, 0)] =
+  Yulang.GeneralNominalCanonicalOutputForkClassification.calculated
+Yulang.GeneralNominalCanonicalOutputForkClassification.wide_blocked : (Yulang.GeneralNominalRecursiveCandidates.report
+      (Yulang.GeneralNominalCanonicalOutputFork.context (some true))
+      Yulang.GeneralNominalCanonicalOutputFork.declaration [(0, 0)]).blocked =
+  [(2, 4)]
+Yulang.GeneralNominalCanonicalOutputForkClassification.located : ∀ (choice : Option Bool),
+  Yulang.GeneralNominalRecursiveCandidates.arguments (Yulang.GeneralNominalCanonicalOutputFork.context choice)
+      Yulang.GeneralNominalCanonicalOutputFork.root =
+    some [(0, 0)]
+Yulang.GeneralNominalCanonicalOutputForkClassification.children_empty : ∀ (choice : Option Bool)
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalCanonicalOutputFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalCanonicalOutputFork.declaration)
+  (bindings : Yulang.GeneralNominalAllocation.Bindings),
+  Yulang.GeneralNominalAllocation.children (Yulang.GeneralNominalCanonicalOutputFork.state choice)
+      Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root
+      Yulang.GeneralNominalCanonicalOutputFork.declaration checked bindings =
+    []
+Yulang.GeneralNominalCanonicalOutputForkClassification.schema_calculated : ∀ (choice : Option Bool)
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalCanonicalOutputFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalCanonicalOutputFork.declaration),
+  Yulang.GeneralNominalRecursiveCandidates.generated Yulang.GeneralNominalCanonicalOutputFork.registry
+      (Yulang.GeneralNominalCanonicalOutputFork.context choice) Yulang.GeneralNominalCanonicalOutputFork.root
+      Yulang.GeneralNominalCanonicalOutputFork.declaration checked [(0, 0)] =
+    {
+      tests :=
+        [(Yulang.GeneralNominalRecursiveInspection.Origin.source 5,
+            Yulang.GeneralNominalRecursiveInspection.Test.scalar Yulang.Inference.Base.int)] }
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_projections : ∀
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalCanonicalOutputFork.state (some false)) m →
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels
+      (Yulang.GeneralNominalCanonicalOutputFork.state (some false))
+      Yulang.GeneralNominalCanonicalOutputForkClassification.calculated m
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_branch : ∀
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalCanonicalOutputFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalCanonicalOutputFork.declaration)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalCanonicalOutputFork.state (some false)) m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 5).fst
+        (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int) →
+      Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralNominalCanonicalOutputFork.registry
+        (Yulang.GeneralNominalCanonicalOutputFork.context (some false)) Yulang.GeneralNominalCanonicalOutputFork.root
+        Yulang.GeneralNominalCanonicalOutputFork.declaration checked [(0, 0)] m
+Yulang.GeneralNominalCanonicalOutputForkClassification.branch_output : ∀
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalCanonicalOutputFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalCanonicalOutputFork.declaration)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralNominalCanonicalOutputFork.registry
+      (Yulang.GeneralNominalCanonicalOutputFork.context (some false)) Yulang.GeneralNominalCanonicalOutputFork.root
+      Yulang.GeneralNominalCanonicalOutputFork.declaration checked [(0, 0)] m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 5).fst
+      (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+Yulang.GeneralNominalCanonicalOutputForkClassification.fresh : ∀ (choice : Option Bool),
+  Yulang.GeneralNominalAllocation.Fresh (Yulang.GeneralNominalCanonicalOutputFork.state choice)
+    Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root.identity
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_prepared : Yulang.GeneralNominalRecursiveCandidates.Prepared
+  Yulang.GeneralNominalCanonicalOutputFork.registry (Yulang.GeneralNominalCanonicalOutputFork.context (some false))
+  Yulang.GeneralNominalCanonicalOutputFork.root Yulang.GeneralNominalCanonicalOutputFork.declaration
+  Yulang.GeneralNominalCanonicalOutputFork.declaration_checked
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralNominalCanonicalOutputFork.registry (Yulang.GeneralNominalCanonicalOutputFork.context (some false))
+  Yulang.GeneralNominalCanonicalOutputFork.root 90 []
+Yulang.GeneralNominalCanonicalOutputForkClassification.wide_not_prepared : ∀
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalCanonicalOutputFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalCanonicalOutputFork.declaration),
+  ¬Yulang.GeneralNominalRecursiveCandidates.Prepared Yulang.GeneralNominalCanonicalOutputFork.registry
+      (Yulang.GeneralNominalCanonicalOutputFork.context (some true)) Yulang.GeneralNominalCanonicalOutputFork.root
+      Yulang.GeneralNominalCanonicalOutputFork.declaration checked
+Yulang.GeneralNominalCanonicalOutputForkClassification.generated_only_root : ∀ (wide : Bool)
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  Yulang.GeneralNominalSaturationState.Generated (Yulang.GeneralNominalCanonicalOutputFork.after wide)
+      Yulang.GeneralNominalCanonicalOutputFork.root focus →
+    focus = Yulang.GeneralNominalCanonicalOutputFork.root
+Yulang.GeneralNominalCanonicalOutputForkClassification.wide_stable : Yulang.GeneralNominalFeedbackSteps.Stable
+  Yulang.GeneralNominalCanonicalOutputFork.registry (Yulang.GeneralNominalCanonicalOutputFork.after true)
+  Yulang.GeneralNominalCanonicalOutputFork.root
+Yulang.GeneralNominalCanonicalOutputForkClassification.feedback_acyclic : ∀ (wide : Bool) (source : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle (Yulang.GeneralNominalCanonicalOutputFork.after wide) source
+Yulang.GeneralNominalCanonicalOutputForkClassification.raw_acyclic : ∀ (wide : Bool) (slot : Fin 5),
+  ¬Yulang.GeneralNominalCycleK2.RecursAt (Yulang.GeneralNominalCanonicalOutputFork.state (some wide)) slot
+Yulang.GeneralNominalCanonicalOutputForkClassification.not_rootK2 : ∀ (wide : Bool)
+  (demand : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  ¬Yulang.GeneralNominalFeedbackK2.RootK2 (Yulang.GeneralNominalCanonicalOutputFork.after wide) demand
+Yulang.GeneralNominalCanonicalOutputForkClassification.not_candidateK2 : ∀ (wide : Bool)
+  (r : Yulang.GeneralDeclarations.Registry)
+  (demand : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  ¬Yulang.GeneralNominalFeedbackK2.CandidateK2 r (Yulang.GeneralNominalCanonicalOutputFork.after wide) demand
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_selected : Yulang.GeneralNominalFeedbackK2.Local
+  Yulang.GeneralNominalCanonicalOutputFork.registry (Yulang.GeneralNominalCanonicalOutputFork.after false)
+  Yulang.GeneralNominalCanonicalOutputFork.root (Yulang.CommonRoleOutermostResolver.Frontier.selected 90 [])
+Yulang.GeneralNominalCanonicalOutputForkClassification.packet_children : Yulang.GeneralNominalCanonicalOutputForkClassification.packet.children =
+  []
+Yulang.GeneralNominalCanonicalOutputForkClassification.good_packet : Yulang.GeneralNominalCanonicalOutputForkClassification.packet.Holds
+  (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.int)
+Yulang.GeneralNominalCanonicalOutputForkClassification.bad_packet : ¬Yulang.GeneralNominalCanonicalOutputForkClassification.packet.Holds
+    (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str)
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_installable : Yulang.GeneralNominalFeedbackSteps.Installable
+  Yulang.GeneralNominalCanonicalOutputFork.registry (Yulang.GeneralNominalCanonicalOutputFork.after false)
+  Yulang.GeneralNominalCanonicalOutputForkClassification.packet
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_not_committed : ¬Yulang.GeneralNominalFeedbackSteps.Committed
+    (Yulang.GeneralNominalCanonicalOutputFork.after false) Yulang.GeneralNominalCanonicalOutputForkClassification.packet
+Yulang.GeneralNominalCanonicalOutputForkClassification.actual_install : Yulang.GeneralNominalReobservationSteps.Step
+  Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root
+  (Yulang.GeneralNominalCanonicalOutputFork.after false)
+  Yulang.GeneralNominalCanonicalOutputForkClassification.installed
+Yulang.GeneralNominalCanonicalOutputForkClassification.installed_excludes_bad : ¬Yulang.GeneralNominalSaturationState.Models
+    Yulang.GeneralNominalCanonicalOutputForkClassification.installed
+    (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str)
+Yulang.GeneralNominalCanonicalOutputForkClassification.installed_good : Yulang.GeneralNominalSaturationState.Models
+  Yulang.GeneralNominalCanonicalOutputForkClassification.installed
+  (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.int)
+Yulang.GeneralNominalCanonicalOutputForkClassification.point_not_stable : ¬Yulang.GeneralNominalReobservationSteps.Stable
+    Yulang.GeneralNominalCanonicalOutputFork.registry (Yulang.GeneralNominalCanonicalOutputFork.after false)
+    Yulang.GeneralNominalCanonicalOutputFork.root
+Yulang.GeneralNominalCanonicalOutputForkClassification.no_stable_same_models_with_installable : ∀
+  (final : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  Yulang.GeneralNominalReobservationSteps.Stable Yulang.GeneralNominalCanonicalOutputFork.registry final
+      Yulang.GeneralNominalCanonicalOutputFork.root →
+    (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after true) m ↔
+          Yulang.GeneralNominalSaturationState.Models final m) →
+      Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalCanonicalOutputFork.registry final
+          Yulang.GeneralNominalCanonicalOutputForkClassification.packet →
+        False
+Yulang.GeneralNominalCanonicalOutputForkClassification.installed_trace_loses_bad : ∀
+  (final : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  Yulang.B4Target.Steps
+      (Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+        Yulang.GeneralNominalCanonicalOutputFork.root)
+      Yulang.GeneralNominalCanonicalOutputForkClassification.installed final →
+    ¬Yulang.GeneralNominalSaturationState.Models final
+        (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str)
+Yulang.GeneralNominalCanonicalOutputForkClassification.concrete_completion_requires_output : Yulang.GeneralDeclarations.Checked
+    Yulang.GeneralNominalCanonicalOutputFork.registry ∧
+  Yulang.B4TargetV5.Reachable
+      (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+      Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root
+      (Yulang.GeneralNominalCanonicalOutputFork.after true) ∧
+    Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralNominalCanonicalOutputFork.registry
+        (Yulang.GeneralNominalCanonicalOutputFork.after true) Yulang.GeneralNominalCanonicalOutputFork.root ∧
+      Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+          Yulang.GeneralNominalCanonicalOutputFork.root (Yulang.GeneralNominalCanonicalOutputFork.after true)
+          (Yulang.GeneralNominalCanonicalOutputFork.after false) ∧
+        (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after true) m ↔
+              Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after false) m) ∧
+          Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after true)
+              (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.int) ∧
+            Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after true)
+                (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str) ∧
+              Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalCanonicalOutputFork.registry
+                  (Yulang.GeneralNominalCanonicalOutputFork.after false)
+                  Yulang.GeneralNominalCanonicalOutputForkClassification.packet ∧
+                ¬Yulang.GeneralNominalReobservationSteps.Stable Yulang.GeneralNominalCanonicalOutputFork.registry
+                      (Yulang.GeneralNominalCanonicalOutputFork.after false)
+                      Yulang.GeneralNominalCanonicalOutputFork.root ∧
+                  Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+                      Yulang.GeneralNominalCanonicalOutputFork.root
+                      (Yulang.GeneralNominalCanonicalOutputFork.after false)
+                      Yulang.GeneralNominalCanonicalOutputForkClassification.installed ∧
+                    Yulang.GeneralNominalSaturationState.Models
+                        Yulang.GeneralNominalCanonicalOutputForkClassification.installed
+                        (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.int) ∧
+                      ¬Yulang.GeneralNominalSaturationState.Models
+                          Yulang.GeneralNominalCanonicalOutputForkClassification.installed
+                          (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str)
+Yulang.GeneralNominalCanonicalCompletionObstruction.point_descriptor_forced : ∀ (slot : Fin 5)
+  (d : Yulang.GeneralNominalState.Descriptor 5),
+  ↑slot < 3 →
+    Yulang.GeneralDeclarationExamples.constructors d.constructor = some d.declaration →
+      Yulang.GeneralNominalReobservationSteps.PointDescriptor d →
+        Yulang.GeneralNominalState.Denotes Yulang.GeneralNominalRefreshFork.base Yulang.GeneralNominalRefreshFork.model
+            slot d →
+          d = Yulang.GeneralNominalRefreshFork.descriptor (if slot = 2 then (3, 3) else (2, 2))
+Yulang.GeneralNominalCanonicalCompletionObstruction.revision_pointClosed : ∀
+  (change : Yulang.GeneralNominalReobservationSteps.Revision (Yulang.GeneralNominalCanonicalOutputFork.after true)),
+  Yulang.GeneralNominalReobservationSteps.Improves change →
+    Yulang.GeneralNominalReobservationSteps.PointClosed change.snapshot
+Yulang.GeneralNominalCanonicalCompletionObstruction.revision_entries_forced : ∀
+  (change : Yulang.GeneralNominalReobservationSteps.Revision (Yulang.GeneralNominalCanonicalOutputFork.after true)),
+  Yulang.GeneralNominalReobservationSteps.Certified change →
+    Yulang.GeneralNominalReobservationSteps.Improves change →
+      change.entries = (Yulang.GeneralNominalCanonicalOutputFork.state (some false)).nominals
+Yulang.GeneralNominalCanonicalCompletionObstruction.revision_result_forced : ∀
+  (change : Yulang.GeneralNominalReobservationSteps.Revision (Yulang.GeneralNominalCanonicalOutputFork.after true)),
+  Yulang.GeneralNominalReobservationSteps.Certified change →
+    Yulang.GeneralNominalReobservationSteps.Improves change →
+      change.result = Yulang.GeneralNominalCanonicalOutputFork.after false
+Yulang.GeneralNominalCanonicalCompletionObstruction.step_from_wide : ∀
+  (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+      Yulang.GeneralNominalCanonicalOutputFork.root (Yulang.GeneralNominalCanonicalOutputFork.after true) next →
+    next = Yulang.GeneralNominalCanonicalOutputFork.after false
+Yulang.GeneralNominalCanonicalCompletionObstruction.point_packet_excludes_bad : ∀
+  (p : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles),
+  p.site.occurrence = Yulang.GeneralNominalCanonicalOutputFork.root →
+    Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalCanonicalOutputFork.registry
+        (Yulang.GeneralNominalCanonicalOutputFork.after false) p →
+      ¬p.Holds (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str)
+Yulang.GeneralNominalCanonicalCompletionObstruction.step_from_point_excludes_bad : ∀
+  (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+      Yulang.GeneralNominalCanonicalOutputFork.root (Yulang.GeneralNominalCanonicalOutputFork.after false) next →
+    ¬Yulang.GeneralNominalSaturationState.Models next
+        (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str)
+Yulang.GeneralNominalCanonicalCompletionObstruction.trace_trichotomy : ∀
+  (final : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  Yulang.B4Target.Steps
+      (Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+        Yulang.GeneralNominalCanonicalOutputFork.root)
+      (Yulang.GeneralNominalCanonicalOutputFork.after true) final →
+    final = Yulang.GeneralNominalCanonicalOutputFork.after true ∨
+      final = Yulang.GeneralNominalCanonicalOutputFork.after false ∨
+        ¬Yulang.GeneralNominalSaturationState.Models final
+            (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str)
+Yulang.GeneralNominalCanonicalCompletionObstruction.stable_trace_loses_bad : ∀
+  (final : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  Yulang.B4Target.Steps
+      (Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+        Yulang.GeneralNominalCanonicalOutputFork.root)
+      (Yulang.GeneralNominalCanonicalOutputFork.after true) final →
+    Yulang.GeneralNominalReobservationSteps.Stable Yulang.GeneralNominalCanonicalOutputFork.registry final
+        Yulang.GeneralNominalCanonicalOutputFork.root →
+      ¬Yulang.GeneralNominalSaturationState.Models final
+          (Yulang.GeneralNominalCanonicalOutputFork.model Yulang.Inference.Base.str)
+Yulang.GeneralNominalCanonicalCompletionObstruction.no_same_models_stable_extension : ¬∃ final,
+    Yulang.B4Target.Steps
+        (Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+          Yulang.GeneralNominalCanonicalOutputFork.root)
+        (Yulang.GeneralNominalCanonicalOutputFork.after true) final ∧
+      Yulang.GeneralNominalReobservationSteps.Stable Yulang.GeneralNominalCanonicalOutputFork.registry final
+          Yulang.GeneralNominalCanonicalOutputFork.root ∧
+        ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models final assignment ↔
+            Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after true) assignment
+Yulang.GeneralNominalCanonicalCompletionObstruction.installed_models_exact : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalCanonicalOutputForkClassification.installed
+      assignment ↔
+    Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalCanonicalOutputFork.after true) assignment ∧
+      Yulang.CommonNominalFullCarrier.Equivalent (assignment 5).fst
+        (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+Yulang.GeneralNominalCanonicalCompletionObstruction.canonical_views_equal : Yulang.GeneralCanonicalObservations.canonical
+    (Yulang.GeneralNominalCanonicalOutputFork.after true) =
+  Yulang.GeneralCanonicalObservations.canonical (Yulang.GeneralNominalCanonicalOutputFork.after false)
+Yulang.GeneralNominalCanonicalCompletionObstruction.boundary_completion_obstruction : (Yulang.GeneralNominalReobservationBoundary.boundary
+        Yulang.GeneralDeclarationExamples.roles).Checked
+    Yulang.GeneralNominalCanonicalOutputFork.registry ∧
+  Yulang.B4TargetV5.Reachable
+      (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+      Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root
+      (Yulang.GeneralNominalCanonicalOutputFork.after true) ∧
+    (∀ (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+        ¬Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalCanonicalOutputFork.registry
+            Yulang.GeneralNominalCanonicalOutputFork.root (Yulang.GeneralNominalCanonicalOutputFork.after true) next) ∧
+      ¬∃ final,
+          Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Step
+                Yulang.GeneralNominalCanonicalOutputFork.registry Yulang.GeneralNominalCanonicalOutputFork.root)
+              (Yulang.GeneralNominalCanonicalOutputFork.after true) final ∧
+            (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Stable
+                Yulang.GeneralNominalCanonicalOutputFork.registry final Yulang.GeneralNominalCanonicalOutputFork.root ∧
+              ∀
+                (assignment :
+                  (Yulang.GeneralNominalReobservationBoundary.vocabulary
+                      Yulang.GeneralDeclarationExamples.roles).Model),
+                (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Models
+                    final assignment ↔
+                  (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Models
+                    (Yulang.GeneralNominalCanonicalOutputFork.after true) assignment
+Yulang.GeneralNominalCanonicalCompletionObstruction.not_old_halted_same_models_completion : ¬∀
+    (r : Yulang.GeneralDeclarations.Registry),
+    (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Checked r →
+      ∀ (start : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles)
+        (d : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+        Yulang.B4TargetV5.Reachable
+            (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles) r d start →
+          (∀ (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+              ¬Yulang.GeneralNominalFeedbackSteps.Step r d start next) →
+            ∃ final,
+              Yulang.B4Target.Steps (Yulang.GeneralNominalReobservationSteps.Step r d) start final ∧
+                Yulang.GeneralNominalReobservationSteps.Stable r final d ∧
+                  ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalSaturationState.Models final assignment ↔
+                      Yulang.GeneralNominalSaturationState.Models start assignment
+Yulang.GeneralNominalCanonicalCompletionObstruction.model_decreasing_completion_of_progress : ∀
+  (roleDecls : Yulang.Roles.RoleDecls),
+  Yulang.GeneralNominalReobservationExecutor.Progress roleDecls →
+    ∀ (r : Yulang.GeneralDeclarations.Registry),
+      (Yulang.GeneralNominalReobservationBoundary.boundary roleDecls).Checked r →
+        ∀ (start : Yulang.GeneralNominalSaturationState.State roleDecls)
+          (d : Yulang.GeneralSourceDictionaries.Occurrence roleDecls),
+          Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roleDecls) r d start →
+            ∃ final,
+              Yulang.B4Target.Steps (Yulang.GeneralNominalReobservationSteps.Step r d) start final ∧
+                Yulang.GeneralNominalReobservationSteps.Stable r final d ∧
+                  ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalSaturationState.Models final assignment →
+                      Yulang.GeneralNominalSaturationState.Models start assignment
+@Yulang.GeneralNominalReobservationMergeDiamond.recover_equal_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (before after : Yulang.GeneralNominalSaturationState.State roles),
+  (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models before model ↔
+        Yulang.GeneralNominalSaturationState.Models after model) →
+    ∀ (site : Yulang.GeneralNominalDemandMerging.Site roles),
+      Yulang.GeneralNominalFeedbackSites.recover before site = Yulang.GeneralNominalFeedbackSites.recover after site
+@Yulang.GeneralNominalReobservationMergeDiamond.sameInputs_equal_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (before after : Yulang.GeneralNominalSaturationState.State roles),
+  (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models before model ↔
+        Yulang.GeneralNominalSaturationState.Models after model) →
+    ∀ (first last : Yulang.GeneralNominalDemandMerging.Site roles),
+      Yulang.GeneralNominalFeedbackSites.SameInputs before first last ↔
+        Yulang.GeneralNominalFeedbackSites.SameInputs after first last
+@Yulang.GeneralNominalReobservationMergeDiamond.alias_of_same_edges : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Nat} {before after : Yulang.GeneralNominalSaturationState.State roles},
+  before.aliases = after.aliases →
+    Yulang.GeneralNominalSaturationState.Alias before first last →
+      Yulang.GeneralNominalSaturationState.Alias after first last
+@Yulang.GeneralNominalReobservationMergeDiamond.merged_result : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (change : Yulang.GeneralNominalReobservationSteps.Revision state)
+  (first last : Yulang.GeneralNominalDemandMerging.Site roles),
+  (Yulang.GeneralNominalReobservationMergeDiamond.merged change first last).result =
+    Yulang.GeneralNominalSaturationState.merge change.result first last
+@Yulang.GeneralNominalReobservationMergeDiamond.merged_certified : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (change : Yulang.GeneralNominalReobservationSteps.Revision state),
+  Yulang.GeneralNominalReobservationSteps.Certified change →
+    ∀ (first last : Yulang.GeneralNominalDemandMerging.Site roles),
+      Yulang.GeneralNominalReobservationSteps.Certified
+        (Yulang.GeneralNominalReobservationMergeDiamond.merged change first last)
+@Yulang.GeneralNominalReobservationMergeDiamond.merged_improves : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (change : Yulang.GeneralNominalReobservationSteps.Revision state),
+  Yulang.GeneralNominalReobservationSteps.Improves change →
+    ∀ (first last : Yulang.GeneralNominalDemandMerging.Site roles),
+      Yulang.GeneralNominalReobservationSteps.Improves
+        (Yulang.GeneralNominalReobservationMergeDiamond.merged change first last)
+@Yulang.GeneralNominalReobservationMergeDiamond.merge_reobserve_diamond : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (first last : Yulang.GeneralNominalDemandMerging.Site roles),
+  first ∈ state.sites →
+    last ∈ state.sites →
+      Yulang.GeneralNominalSaturationState.Generated state root first.occurrence →
+        Yulang.GeneralNominalFeedbackSites.SameInputs state first last →
+          ¬Yulang.GeneralNominalSaturationState.Alias state first.occurrence.identity last.occurrence.identity →
+            ∀ (change : Yulang.GeneralNominalReobservationSteps.Revision state),
+              Yulang.GeneralNominalReobservationSteps.Certified change →
+                Yulang.GeneralNominalReobservationSteps.Improves change →
+                  Yulang.GeneralNominalReobservationSteps.Step registry root state
+                      (Yulang.GeneralNominalSaturationState.merge state first last) ∧
+                    Yulang.GeneralNominalReobservationSteps.Step registry root state change.result ∧
+                      Yulang.GeneralNominalReobservationSteps.Step registry root
+                          (Yulang.GeneralNominalSaturationState.merge state first last)
+                          (Yulang.GeneralNominalSaturationState.merge change.result first last) ∧
+                        Yulang.GeneralNominalReobservationSteps.Step registry root change.result
+                          (Yulang.GeneralNominalSaturationState.merge change.result first last)
+```
+
+### Task-contract clarification (pending; not a language-semantics decision)
+
+For `Container(list (list int), item = 'out)`, should same-model equality
+apply to observation completion alone, with full stabilization permitted to add
+the selected `item = int` constraint and decrease Models?
+
+1. **Recommended:** complete observations without model loss, then carry out
+   model-decreasing saturation under the existing B4 clause (1).
+2. Retain same-model equality, but stop at an observation-complete intermediate
+   rather than claim full Stable. The checked old-halted domain cannot satisfy
+   both properties under the current relation, as proved above.
+
+### Owner answer to the Item 4e recursive associated-output growth question (2026-11-12)
+
+Option 1 (lazy): defer expansion of a where-child whose needed input head is supported only by provisional associated-output equations inside its own unresolved dependency cycle; keep those equations for ordinary constraints, same-input merging and K2; resume when support arrives from outside the cycle (source constraints or discharged demands); final pending at the stable end of file. No declaration-time rejection. Recorded in spec/06-roles.md §6.3 and draft addendum 5.
+
+### Supervisor answer to the Item 5d clarification (2026-11-12)
+
+Yes: model equality is required only for observation completion (refresh/reobservation/descriptor replacement). Full stabilization may decrease Models (installation adds the selected candidate's constraints), as V5 already permits; the earlier "every old-halted state extends to a new-Stable state with the same models" request was too strong and is withdrawn.

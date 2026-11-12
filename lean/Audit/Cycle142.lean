@@ -1,0 +1,16 @@
+import Yulang.GeneralDictionaryKeyedRevision
+
+#print axioms Yulang.GeneralDictionaryKeyedRevision.reports_of_footprint
+#print axioms Yulang.GeneralDictionaryKeyedRevision.reports_of_preservesAt
+#print axioms Yulang.GeneralDictionaryKeyedRevision.instance_of_key_reports
+#print axioms Yulang.GeneralDictionaryKeyedRevision.instance_of_key_footprint
+#print axioms Yulang.GeneralDictionaryKeyedRevision.recorded_keys_of_reports
+#print axioms Yulang.GeneralDictionaryKeyedRevision.recorded_keys_of_footprint
+#print axioms Yulang.GeneralDictionaryKeyedRevision.refresh_current
+#print axioms Yulang.GeneralDictionaryKeyedRevision.revision_current
+#print axioms Yulang.GeneralDictionaryKeyedRevision.step_actual
+#print axioms Yulang.GeneralDictionaryKeyedRevision.step_current
+#print axioms Yulang.GeneralDictionaryKeyedRevision.trace_actual
+#print axioms Yulang.GeneralDictionaryKeyedRevision.trace_current
+#print axioms Yulang.GeneralDictionaryKeyedRevision.initial_trace_current
+#print axioms Yulang.GeneralDictionaryKeyedRevision.recorded_node
