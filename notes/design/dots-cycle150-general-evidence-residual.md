@@ -77,3 +77,36 @@ focusにはまだpacketがない状態**におけるJoint構成である。こ�
 有効なInitialSource＋Reachable＋Stable＋Modelsをすべて備えた未記録selected非terminal
 の具体反例は、この監査では確立していない。一般定理を偽とも真とも断定しない。
 新しい構造coverage定理を一般V5完成や未解決8項目の削減として数えない。
+
+## 追加のmerge検査: 反例候補と未達の検査条件
+
+`GeneralNominalSupportSteps.At.merge` は、実sites membership、SameInputs、alias novelty、
+MergeGuardを要求するが、既に記録された二つのclassのkey等号を直接は要求しない。
+`GeneralNominalSupportChoices.MergeGuard` はsupport Slice上のRecovered SameInputsと
+RecoverySupportedであり、これもkey等号や全branchの同時充足そのものではない。
+
+`GeneralDictionarySupportChoices.merge_coherent_iff` は、merge後のCoherentがmerge前の
+Coherentおよび両旧alias class間の全packet key一致と同値だと証明する。
+`formed_coherent_of_merge_keys` は後者を**実際のSourceFormed状態でenabledなmergeに
+ついて別途仮定して**全履歴のCoherentを導く。したがってこの前提を一般の実mergeが
+すでに満たすとは扱えない。一方、以前からSameInputsであった二つのclassについては、
+installのMergesClosedが先行mergeを要求するため、単に異なるpacketを並べたraw state
+を実到達可能例として使うこともできない。
+
+検討価値のある候補は、実parent installによって生成された、入力はalias可能だが
+named-output demandが異なる未記録childrenで、各local Uniqueが別のkeyを選ぶ場合。
+Jointが要求する共通key/同時branchが成立しなければ、その子のinstallは進まない。
+ただし、この形だけでは反例にならない。少なくとも以下がまだ必要:
+
+1. parentの実InitialSource、選択、PacketGuardを含む正しいinstall履歴。
+2. 実SameInputsとMergeGuardによるmerge、およびmerge後の非空Models。
+3. enqueue/install/mergeだけでなく、refresh/equate/reobserveをすべて閉じたStable。
+4. 結果がEvidenceNodeまたはGeneratedChildrenの実際の前提を満たすこと。
+   terminal childならJoint不成立でもEvidenceが成立し、子生成は空で済む可能性がある。
+
+特に、既存packetが要求するoutput値とmerge equationを衝突させるだけでは、postmerge
+Modelsが空になり得る。これはModelsを前提にするEvidenceNodeの反例を与えない。
+`GeneralDictionaryJointMergeEnabled` のstarting journalは明示的にSourceFormed未証明。
+`GeneralDictionaryOutputMergeStable.stable_classified_dictionary` は本物のReachable・
+Stable・Modelsを持つが、全辞書Evidenceが成立する**正の例**である。これらを失敗例に
+読み替えない。この追加検査でも有効な一般V5反例は確立していない。
