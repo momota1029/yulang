@@ -575,3 +575,7 @@ worktree. The primary performed the design derivation with separate read-only
 counterexample and proof-plan reviews. No registered prover or kernel-checked
 new theorem is claimed. This document is a proposal and obstruction analysis,
 not an Authoritative language decision or a completion of B4 clause (1).
+
+## Owner answer (2026-11-13): option 1 (lazy downstream deferral)
+
+The owner chose option 1: consumers whose only explanation for a needed input head depends on an unresolved output cycle defer, even when they are not members of that cycle; equations remain available to ordinary constraints, same-input merging and K2; resume on independent source or discharged support; no declaration rejection. Recorded in spec/06-roles.md §6.3 and B4 draft addendum 6.
