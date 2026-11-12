@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionarySupportReadback
+import Yulang.GeneralDictionaryEarlyMergeChoices
+import Yulang.GeneralDictionaryEarlyMergeRegression
+#print axioms Yulang.GeneralDictionarySupportReadback.classified_exists
+#print axioms Yulang.GeneralDictionarySupportReadback.uniform_dictionary
+#print axioms Yulang.GeneralDictionarySupportReadback.premises_inhabited
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeChoices.merge_coherent
+#print axioms Yulang.GeneralDictionaryEarlyMergeChoices.scheduled_formed
+#print axioms Yulang.GeneralDictionaryEarlyMergeChoices.scheduled_coherent
+#print axioms Yulang.GeneralDictionaryEarlyMergeChoices.recorded_choices
+#print axioms Yulang.GeneralDictionaryEarlyMergeRegression.scheduled
+#print axioms Yulang.GeneralDictionaryEarlyMergeRegression.coherent_not_current

@@ -1,9 +1,8 @@
 cycle: 144
 status: running
 started: 2026-11-12T15:26:06Z
-updated: 2026-11-12T15:27:45Z
-elapsed_min: 1.7
-activity: evidenceNode; fresh I25 support boundary, recursive Stable/Classify and merge Joint residual
-workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 9c58272b1
-resume_hint: Previous143 completed; fresh integration6cff680cc, no old writer. Work only work/dots-main, focused builds and small Audit/Cycle144. Deadline16:21:06 actual-start conservative.
+updated: 2026-11-12T15:34:40Z
+elapsed_min: 8.6
+activity: 3 new modules / 9 public theorems pass focused build727 and trust0 audit; interim publication
+last_local_commit: a2aae775d
+resume_hint: Conditional finite readback without Classify premise; structural early-merge Coherent. Recursive completion and actual merge regression in progress. General V5 remains6/14 unconditional,8 open. End16:21:06Z latest.
