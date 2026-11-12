@@ -80,3 +80,17 @@ reached positive fixture now has full root Evidence
 `node 1 [node 7 [], node 7 []]`, retaining two distinct child source identities
 and their ordered payloads. This conclusion is stronger than separate child
 outputs but still does not assert general Stable/completeness.
+
+`OutputMergeAllModels` strengthens the positive regression to EVERY final
+journal model. The historical parent packet forces both output targets to int;
+terminal branches are rebuilt at that same arbitrary assignment, then extended
+into the current context. `OutputMergeJointModels` supplies current root/child
+BranchAt with explicit Linked/Fresh and packages inhabited Joint with universal
+full-root Evidence. No semantic witness is swapped to the example's fixed model.
+
+`OutputMergeClassification` proves the actual support Local selections and
+Classify tree, not just semantic evidence. Source Heads supply DecisionGuards;
+model-height arguments exclude K2. `OutputMergeExactPayload` proves that every
+full Evidence at the root has exactly the ordered payload
+`node 1 [node 7 [], node 7 []]`, and every final model validates it. This is a
+specific fixture readback/uniqueness result, not general principality.
