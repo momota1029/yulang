@@ -61,3 +61,40 @@ scope / standing runtime restriction). `lean/Audit.lean` and `lean/README.md`
 are frozen. Existing source is unchanged except appended root imports.
 Fresh `work/dots-audit@55574b605` oracle was read; X1–X25 runtime observations
 remain separate from these Lean proofs. No runtime agreement is inferred.
+
+## Second checkpoint: quantitative and concrete progress
+
+`GeneralDictionaryEqualityStepBound.complete_sources_quadratic` strengthens
+mere finiteness to an explicit bound: for every tracked starting journal with
+N entries in its current source list, there are an endpoint and a natural n
+with a `Counted` path of n actual support Steps, n ≤ N², EqualityComplete and
+an Equates certificate. The proof constructs only equality transitions; the
+Counted relation itself counts the existing support Step relation. Duplicate
+list entries only enlarge the upper bound. This is a bound on transition
+count, NOT on deciding semantic entailment or a full execution.
+Independent read-only review checked the finite filter, same-model/source
+transport and duplicate-source cases.
+
+`GeneralDictionaryOutputMergeRefresh` extends the cycle145 concrete actual
+output-merge example. The old `next` is proved **not Stable**, by supplying a
+real administrative refresh. A Fin4 context now records outputTarget10 and
+outputTarget11 as int observations. Both identities were already registered;
+source membership is exactly preserved. Old state had two slots, new has
+four; the model set is unchanged, with the explicit old model retained.
+The actual Initial-to-output-merge-to-equate-to-refresh path is Reachable and
+SourceFormed. This is not a hand-built unreachable journal counterexample.
+
+`GeneralDictionaryOutputMergeRefreshEvidence` rebuilds the parent and both
+child Instances in the NEW context and gives the SAME ordered three-node
+root dictionary `[1;7;7]` full recursive Evidence for EVERY post-refresh
+journal model. It does not substitute old-context Evidence. Final Stable and
+new-context Classify are not asserted by these two modules.
+
+`GeneralDictionaryVariableJournalExample` witnesses the historical variable
+merge premise concretely: a checked parent packet generates two actual
+binder-0 output requests with common name 0 and distinct allocated target
+identities. There is an explicit model of the journal and merged journal;
+all-assignment Models equivalence follows. The witness values are int,
+not a concrete nominal-valued example. The journal is manually assembled:
+SourceFormed/reachability is NOT claimed. General variable-merge theorem
+still has no scalar type restriction.
