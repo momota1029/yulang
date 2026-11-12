@@ -89,3 +89,13 @@ assumption is deliberately not weakened using an unavailable model witness.
 Stored declaration visibility is also preserved through all support updates.
 For a singleton registry this removes the key-coherence half of Joint without
 assuming Current; the simultaneous model for all alias branches still remains.
+
+## Journal-key localization
+
+`GeneralDictionarySupportChoices` isolates the key-equality half of Joint from
+context-sensitive observation equality. Actual administrative transitions and
+actual enabled installation preserve pairwise key agreement within alias
+classes. From InitialSource, an empty final alias ledger excludes every merge
+and proves this invariant without Current. A recorded key then determines its
+whole alias class. General merging and the simultaneous branch-model witness
+remain explicit obligations; no global coherence theorem is claimed.

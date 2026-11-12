@@ -118,4 +118,27 @@ theorem singleton_joint (registry : Registry) (root focus : Occurrence roles)
     (GeneralNominalSupportBoundary.reachable_formed registry state root reachable)
     declaration singleton packet member
 
+/-- A recorded packet remains committed at its stored context in every actual
+support-formed state. This includes exact emitted edges, not only reachability. -/
+theorem recorded_committed (registry : Registry) (root : Occurrence roles)
+    (state : Tracked roles) (formed : SourceFormed registry root state) :
+    ∀ packet ∈ state.current.packets, GeneralNominalFeedbackSteps.Committed state.current packet := by
+  induction formed with
+  | initial context source => intro packet member; cases member
+  | @update before after formed update ih =>
+    obtain ⟨focus,generated,action⟩ := update
+    have retain : ∀ packet ∈ before.current.packets,
+        GeneralNominalFeedbackSteps.Committed after.current packet := by
+      intro packet member
+      exact GeneralNominalReobservationSteps.committed_trace
+        (.tail .refl ⟨focus,generated,at_old action⟩) (ih packet member)
+    intro packet member
+    cases action with
+    | administrative _ _ admin => cases admin <;> exact retain packet member
+    | merge => exact retain packet member
+    | install installed support enabled novel guard =>
+      rcases List.mem_cons.mp member with rfl | old
+      · exact GeneralNominalFeedbackSteps.installed_committed before.current packet
+      · exact retain packet old
+
 end Yulang.GeneralDictionarySupportJournal
