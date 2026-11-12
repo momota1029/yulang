@@ -1,0 +1,99 @@
+import Yulang.GeneralNominalPacketSupport
+import Yulang.GeneralNominalSupport
+import Yulang.GeneralNominalSupportChoices
+import Yulang.GeneralNominalSupportSteps
+import Yulang.GeneralNominalSupportBoundary
+import Yulang.GeneralNominalSupportGrowth
+import Yulang.GeneralNominalSupportInstallation
+import Yulang.GeneralNominalSupportExamples
+import Yulang.GeneralNominalSupportExecutor
+
+#print axioms Yulang.GeneralNominalPacketSupport.private_exact
+#print axioms Yulang.GeneralNominalPacketSupport.outputs_inputs
+#print axioms Yulang.GeneralNominalPacketSupport.packet_exact
+#print axioms Yulang.GeneralNominalSupport.head_recorded
+#print axioms Yulang.GeneralNominalSupport.source_supported
+#print axioms Yulang.GeneralNominalSupport.source_ready
+#print axioms Yulang.GeneralNominalSupport.source_guard
+#print axioms Yulang.GeneralNominalSupport.discharged_external
+#print axioms Yulang.GeneralNominalSupport.cycle_excluded
+#print axioms Yulang.GeneralNominalSupport.entails_source
+#print axioms Yulang.GeneralNominalSupport.refresh_support_unchanged
+#print axioms Yulang.GeneralNominalSupport.all_models_slice
+#print axioms Yulang.GeneralNominalSupport.support_sound
+#print axioms Yulang.GeneralNominalSupport.discharged_support
+#print axioms Yulang.GeneralNominalSupport.unsupported_decision_defers
+#print axioms Yulang.GeneralNominalSupportChoices.filter_subset
+#print axioms Yulang.GeneralNominalSupportChoices.restrict_mem
+#print axioms Yulang.GeneralNominalSupportChoices.slice_restrict
+#print axioms Yulang.GeneralNominalSupportChoices.ready_restrict
+#print axioms Yulang.GeneralNominalSupportChoices.guard_restrict
+#print axioms Yulang.GeneralNominalSupportChoices.decision_restrict
+#print axioms Yulang.GeneralNominalSupportChoices.alternative_guard
+#print axioms Yulang.GeneralNominalSupportChoices.alternatives_exists
+#print axioms Yulang.GeneralNominalSupportChoices.facts_exact
+#print axioms Yulang.GeneralNominalSupportChoices.empty_alternatives
+#print axioms Yulang.GeneralNominalSupportChoices.merge_alternatives_exists
+#print axioms Yulang.GeneralNominalSupportChoices.merged_facts_exact
+#print axioms Yulang.GeneralNominalSupportSteps.administrative_old
+#print axioms Yulang.GeneralNominalSupportSteps.administrative_models
+#print axioms Yulang.GeneralNominalSupportSteps.at_old
+#print axioms Yulang.GeneralNominalSupportSteps.step_old
+#print axioms Yulang.GeneralNominalSupportSteps.stepModels
+#print axioms Yulang.GeneralNominalSupportSteps.steps_models
+#print axioms Yulang.GeneralNominalSupportSteps.generated_monotone
+#print axioms Yulang.GeneralNominalSupportSteps.at_exact
+#print axioms Yulang.GeneralNominalSupportSteps.formed_exact
+#print axioms Yulang.GeneralNominalSupportSteps.at_source
+#print axioms Yulang.GeneralNominalSupportSteps.closure
+#print axioms Yulang.GeneralNominalSupportSteps.stable_committed
+#print axioms Yulang.GeneralNominalSupportBoundary.local_correspondence
+#print axioms Yulang.GeneralNominalSupportBoundary.local_total
+#print axioms Yulang.GeneralNominalSupportBoundary.closure
+#print axioms Yulang.GeneralNominalSupportBoundary.stepModels
+#print axioms Yulang.GeneralNominalSupportBoundary.localIdentity
+#print axioms Yulang.GeneralNominalSupportBoundary.frontierLocal
+#print axioms Yulang.GeneralNominalSupportBoundary.dictionaryRefl
+#print axioms Yulang.GeneralNominalSupportBoundary.initialReorders
+#print axioms Yulang.GeneralNominalSupportBoundary.reachable_formed
+#print axioms Yulang.GeneralNominalSupportBoundary.support_pending
+#print axioms Yulang.GeneralNominalSupportBoundary.rootK2_priority
+#print axioms Yulang.GeneralNominalSupportBoundary.candidateK2_priority
+#print axioms Yulang.GeneralNominalSupportBoundary.selected_old
+#print axioms Yulang.GeneralNominalSupportBoundary.selected_supported
+#print axioms Yulang.GeneralNominalSupportBoundary.install_selected
+#print axioms Yulang.GeneralNominalSupportBoundary.whereAccessible_of_readback
+#print axioms Yulang.GeneralNominalSupportGrowth.root_guard
+#print axioms Yulang.GeneralNominalSupportGrowth.first_install
+#print axioms Yulang.GeneralNominalSupportGrowth.first_refresh
+#print axioms Yulang.GeneralNominalSupportGrowth.formed
+#print axioms Yulang.GeneralNominalSupportGrowth.full_models
+#print axioms Yulang.GeneralNominalSupportGrowth.no_leaves_no_discharge
+#print axioms Yulang.GeneralNominalSupportGrowth.unresolved
+#print axioms Yulang.GeneralNominalSupportGrowth.dependency
+#print axioms Yulang.GeneralNominalSupportGrowth.cut_model
+#print axioms Yulang.GeneralNominalSupportGrowth.child_head_unsupported
+#print axioms Yulang.GeneralNominalSupportGrowth.child_not_ready
+#print axioms Yulang.GeneralNominalSupportGrowth.child_guard_blocked
+#print axioms Yulang.GeneralNominalSupportGrowth.child_final_pending
+#print axioms Yulang.GeneralNominalSupportGrowth.no_modelwise_guarded_rank
+#print axioms Yulang.GeneralNominalSupportInstallation.initial_selected_installation
+#print axioms Yulang.GeneralNominalSupportExamples.all_source_decisions
+#print axioms Yulang.GeneralNominalSupportExamples.display_guard
+#print axioms Yulang.GeneralNominalSupportExamples.wrap_guard
+#print axioms Yulang.GeneralNominalSupportExamples.display_exactly_one
+#print axioms Yulang.GeneralNominalSupportExamples.wrap_child_equation
+#print axioms Yulang.GeneralNominalSupportExamples.emitted_inputs_source_supported
+#print axioms Yulang.GeneralNominalSupportExamples.display_selected
+#print axioms Yulang.GeneralNominalSupportExamples.wrap_selected
+#print axioms Yulang.GeneralNominalSupportExamples.display_expands
+#print axioms Yulang.GeneralNominalSupportExamples.wrap_expands
+#print axioms Yulang.GeneralNominalSupportExecutor.final_spec
+#print axioms Yulang.GeneralNominalSupportExecutor.diagnostic_eq_resolve
+#print axioms Yulang.GeneralNominalSupportExecutor.execution
+#print axioms Yulang.GeneralNominalSupportExecutor.halted
+#print axioms Yulang.GeneralNominalSupportExecutor.treeExecution
+#print axioms Yulang.GeneralNominalSupportExecutor.final_reachable
+#print axioms Yulang.GeneralNominalSupportExecutor.final_stable
+#print axioms Yulang.GeneralNominalSupportExecutor.final_models
+#print axioms Yulang.GeneralNominalSupportExecutor.saturationTotal

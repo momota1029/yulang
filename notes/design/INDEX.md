@@ -365,3 +365,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle136 ordinary source-evidence transport](2026-11-12-cycle136-ordinary-evidence-transport.md) (Draft).
 
 - [Cycles131–136 dictionary module guide](2026-11-12-cycle131-136-module-guide.md)
+
+- [Item 4f nominal support module guide](2026-11-12-general-nominal-support-module-guide.md) — Partial; provenance-retaining guarded expansion, with termination still open.
