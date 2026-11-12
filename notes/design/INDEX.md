@@ -369,3 +369,13 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Item 4f nominal support module guide](2026-11-12-general-nominal-support-module-guide.md) — Partial; provenance-retaining guarded expansion, with termination still open.
 
 - [2026-11-12 General nominal guarded installation order](2026-11-12-general-nominal-support-order-module-guide.md) — Item 4g administrative accessibility and the remaining installation-order obligation.
+## Cycle150 dictionary Evidence work (2026-11-12, partial)
+
+- [dots-cycle150-alias-mixed-locality](dots-cycle150-alias-mixed-locality.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+- [dots-cycle150-alias-recorded-locality](dots-cycle150-alias-recorded-locality.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+- [dots-cycle150-binary-branch-leaf](dots-cycle150-binary-branch-leaf.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+- [dots-cycle150-branch-coverage](dots-cycle150-branch-coverage.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+- [dots-cycle150-finite-joint-example](dots-cycle150-finite-joint-example.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+- [dots-cycle150-general-evidence-residual](dots-cycle150-general-evidence-residual.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+- [dots-cycle150-named-locality](dots-cycle150-named-locality.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+- [dots-cycle150-ordinary-structural-coverage](dots-cycle150-ordinary-structural-coverage.md) — partial structural proof/review; general V5 remains8/14 unresolved.
