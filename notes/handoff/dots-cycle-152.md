@@ -16,6 +16,8 @@ fresh integration/m1-final `dc145d71f`、standing ordersとinbox I25 ACTIVEを�
 
 - **非scalarへの条件付き拡張・健全性**: 既存source slotに対応する有限closed nominal tree（nullary/unary/binary、内部point辺、scalar葉）の観測certificateから任意有限requestbatchのmaterialization Modelsを導く。すべてのprojection testの存在・全観測値のHoldsを示し、generated variables=[]とunknown=falseも別に証明する。free binder・row・fresh target・非point辺は対象外。実BranchModels/Instanceに接続し、同一モデルでalias Jointと有限辞書recursive coverageまで拡張。旧scalar coverageの包含も証明。List Intのrequestはnominal root testと投影scalar testの2つを保持し、旧scalar certificateではないこととモデルの存在を形式化。ただしこれはmaterialization正例で、scalar出力の完成例と同じReachable/Stableプログラムではない。
 
+- **任意有限arity・健全性補助**: さらにFin nで全descriptor引数とquery/slotを対応させ、任意有限arityのclosed nominal requestについて全materialization Modelsを証明。旧binary certificateを埋め込む。これはmaterialization層の拡張で、branch/alias/recursive coverageの証明は前項のarity≤2 certificateのまま。
+
 完全型と全定理名はtheorem index/types文書を参照。完全性・主型性・一般停止の新しい完成はない。
 
 ## 13境界項目と残る橋
@@ -45,7 +47,10 @@ work/dots-auditをfetchし、ROLE-MORE-003/004のwhere/body prerequisite差と�
 初回checkpoint `8a6a66f014cfde4790696356e4400eb8d6d185b4`、tree `eb32a4ef80181b2d345ad53984f210ebf85a3806`全一致。
 第2checkpoint `2079b46acb07409bb3a81b8f21bff889de9dbc2c`、tree `80925793007d2cd3c0f1aa8fc24a3e6071dc1302`全一致。
 初回SHAのCore CI43330462874・Lean CI43330462819ともsuccess。以後のSHAのCIまで意味しない。
-第3checkpointまでのfocused build21modules、153公開定理と全宣言gateを検証。最終検証・公開情報はこの節へ追記する。全体lake buildと全監査はstanding ordersに従いdotでは実行しない。
+第3checkpoint `89fd8b230fa957d0282d14aca5919626fcac5d23`、tree `afce93d6203ec70d64131508b3f657ff05b93ad4`全一致。Core CI43332813810・Lean CI43332814133ともsuccess。
+
+最終sourceは22modules・161公開定理。focused `lake build <22modules> --wfail` exit0、768jobs。`lake env lean --trust=0 Audit/Cycle152.lean` exit0。全宣言gateは436declarationsでexit0、許可依存はpropext/Classical.choice/Quot.soundのみ。完全型出力exit0。量化・前提の全文はtypes1〜8。独立read-onlyレビューもscalar完成例・closed/finite request全体に問題を検出せず。
+最終公開SHA/CIは次の追記で特定する。全体lake buildと全監査はstanding ordersに従いdotでは実行しない。
 
 ## 制限・修正
 開始後の心拍で推定時刻23:37を記した誤りを実時計23:35のcheckpointで訂正し、以後dateから生成。初期に別ファイルを同一worktreeで分担したが、git-concurrency再読後ただちにisolated worktreeへ移し、親だけが統合・commit・公開。衝突や内容損失はない。差分verifyの初回は未commitのAudit/importを検出しFAIL、commit後に再実行PASS。第2checkpoint後の心拍更新は末尾改行差によるblob SHA409となり、remoteを再読して新SHAで同じ内容を更新した（成功）。全Lean証明にsorry/new axiom/native_decideなし。使用量枠は不明。

@@ -17,6 +17,7 @@ General V5 remains 6/14 supplied, 8/14 unresolved. Definitions and exact theorem
 - `GeneralDictionaryObservedCompleteInstallation`: 9 public theorems.
 - `GeneralDictionaryObservedCompleteSelected`: 6 public theorems.
 - `GeneralDictionaryObservedCompleteStable`: 4 public theorems.
+- `GeneralDictionaryObservedFiniteRequests`: 8 public theorems.
 - `GeneralDictionaryObservedInitialExample`: 16 public theorems.
 - `GeneralDictionaryObservedInitialInstallation`: 9 public theorems.
 - `GeneralDictionaryObservedInitialReadback`: 6 public theorems.

@@ -102,83 +102,93 @@ Yulang.GeneralDictionaryObservedCompleteStable.stable_reachable_named_dictionary
                 Yulang.GeneralDictionaryObservedCompleteClosure.current assignment
                 Yulang.GeneralDictionaryObservedCompleteExample.root
                 Yulang.GeneralDictionaryObservedCompleteEvidence.payload)))))
-Yulang.GeneralDictionaryObservedInitialExample.source_models : Yulang.GeneralNominalState.Models
-  Yulang.GeneralDictionaryObservedInitialExample.source Yulang.GeneralNominalExamples.model
-Yulang.GeneralDictionaryObservedInitialExample.checked : Yulang.GeneralDeclarations.DeclarationChecked
-  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
-  Yulang.GeneralDictionaryObservedInitialExample.declaration
-Yulang.GeneralDictionaryObservedInitialExample.requests_exact : @Eq (List Yulang.GeneralNominalMaterialization.Request)
-  (@Yulang.GeneralNominalMaterialization.requests Yulang.GeneralDeclarationExamples.roles
-    Yulang.GeneralDictionaryObservedInitialExample.source Yulang.GeneralDictionaryObservedInitialExample.registry
-    Yulang.GeneralDictionaryObservedInitialExample.root Yulang.GeneralDictionaryObservedInitialExample.declaration
-    Yulang.GeneralDictionaryObservedInitialExample.checked
-    (Yulang.GeneralNominalRecursiveInspection.bindings Yulang.GeneralDictionaryObservedInitialExample.source
-      (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralDictionaryObservedInitialExample.context
-        Yulang.GeneralDictionaryObservedInitialExample.declaration
-        (@List.cons
-          (Yulang.GeneralNominalInspection.Bounds Yulang.GeneralDictionaryObservedInitialExample.context.state)
-          (@Prod.mk (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots)
-            (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots)
-            (@OfNat.ofNat (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots) (nat_lit 0)
-              (@Fin.instOfNat Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots ⋯ (nat_lit 0)))
-            (@OfNat.ofNat (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots) (nat_lit 0)
-              (@Fin.instOfNat Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots ⋯ (nat_lit 0))))
-          (@List.nil
-            (Yulang.GeneralNominalInspection.Bounds Yulang.GeneralDictionaryObservedInitialExample.context.state))))))
-  (@List.cons Yulang.GeneralNominalMaterialization.Request
-    {
-      pattern :=
-        Yulang.GeneralDeclarationPatterns.Pattern.app (@OfNat.ofNat Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))
-          (@List.nil Yulang.GeneralDeclarationPatterns.Pattern),
-      target := @OfNat.ofNat Nat (nat_lit 1) (instOfNatNat (nat_lit 1)),
-      mode := Yulang.GeneralNominalMaterialization.Mode.actual }
-    (@List.nil Yulang.GeneralNominalMaterialization.Request))
-Yulang.GeneralDictionaryObservedInitialExample.metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata
-  Yulang.GeneralDictionaryObservedInitialExample.registry Yulang.GeneralDictionaryObservedInitialExample.context
-Yulang.GeneralDictionaryObservedInitialExample.named_request_present : @Ne (List Yulang.GeneralSourceState.Output)
-  (@Yulang.GeneralSourceState.Demand.outputs Yulang.GeneralDeclarationExamples.roles
-    (@Yulang.GeneralSourceDictionaries.Occurrence.demand Yulang.GeneralDeclarationExamples.roles
-      Yulang.GeneralDictionaryObservedInitialExample.root))
-  (@List.nil Yulang.GeneralSourceState.Output)
-Yulang.GeneralDictionaryObservedInitialExample.nonterminal : @Ne (List Yulang.GeneralDeclarations.Clause)
-  Yulang.GeneralDictionaryObservedInitialExample.declaration.requirements (@List.nil Yulang.GeneralDeclarations.Clause)
-Yulang.GeneralDictionaryObservedInitialExample.every_source_model : ∀
-  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
-  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryObservedInitialExample.source assignment →
-    @Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDeclarationExamples.roles
-      Yulang.GeneralDictionaryObservedInitialExample.registry Yulang.GeneralDictionaryObservedInitialExample.context
-      Yulang.GeneralDictionaryObservedInitialExample.root Yulang.GeneralDictionaryObservedInitialExample.declaration
-      Yulang.GeneralDictionaryObservedInitialExample.checked
-      (@List.cons (Yulang.GeneralNominalInspection.Bounds Yulang.GeneralDictionaryObservedInitialExample.context.state)
-        (@Prod.mk (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots)
-          (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots)
-          (@OfNat.ofNat (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots) (nat_lit 0)
-            (@Fin.instOfNat Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots ⋯ (nat_lit 0)))
-          (@OfNat.ofNat (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots) (nat_lit 0)
-            (@Fin.instOfNat Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots ⋯ (nat_lit 0))))
-        (@List.nil
-          (Yulang.GeneralNominalInspection.Bounds Yulang.GeneralDictionaryObservedInitialExample.context.state)))
-      assignment
-Yulang.GeneralDictionaryObservedInitialExample.actual_instance : @Yulang.GeneralDictionaryRecursiveEvidence.Instance
-  Yulang.GeneralDeclarationExamples.roles Yulang.GeneralDictionaryObservedInitialExample.registry
-  Yulang.GeneralDictionaryObservedInitialExample.context Yulang.GeneralNominalExamples.model
-  Yulang.GeneralDictionaryObservedInitialExample.root Yulang.GeneralDictionaryObservedInitialExample.declaration.id
-  (@Yulang.GeneralNominalAllocation.children Yulang.GeneralDeclarationExamples.roles
-    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDictionaryObservedInitialExample.source
-    Yulang.GeneralDictionaryObservedInitialExample.registry Yulang.GeneralDictionaryObservedInitialExample.root
-    Yulang.GeneralDictionaryObservedInitialExample.declaration Yulang.GeneralDictionaryObservedInitialExample.checked
-    (Yulang.GeneralNominalRecursiveInspection.bindings Yulang.GeneralDictionaryObservedInitialExample.source
-      (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralDictionaryObservedInitialExample.context
-        Yulang.GeneralDictionaryObservedInitialExample.declaration
-        (@List.cons
-          (Yulang.GeneralNominalInspection.Bounds Yulang.GeneralDictionaryObservedInitialExample.context.state)
-          (@Prod.mk (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots)
-            (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots)
-            (@OfNat.ofNat (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots) (nat_lit 0)
-              (@Fin.instOfNat Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots ⋯ (nat_lit 0)))
-            (@OfNat.ofNat (Fin Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots) (nat_lit 0)
-              (@Fin.instOfNat Yulang.GeneralDictionaryObservedInitialExample.context.state.base.slots ⋯ (nat_lit 0))))
-          (@List.nil
-            (Yulang.GeneralNominalInspection.Bounds Yulang.GeneralDictionaryObservedInitialExample.context.state))))))
+Yulang.GeneralDictionaryObservedFiniteRequests.schemas_valid : ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (queries : List Yulang.GeneralNominalInspection.Query)
+  (origins : Nat → Yulang.GeneralNominalRecursiveInspection.Origin) (mode : Yulang.GeneralNominalMaterialization.Mode)
+  (start : Nat),
+  (∀ (index : Nat) (query : Yulang.GeneralNominalInspection.Query),
+      @Eq (Option Yulang.GeneralNominalInspection.Query)
+          (@getElem? (List Yulang.GeneralNominalInspection.Query) Nat Yulang.GeneralNominalInspection.Query
+            (fun as i => @LT.lt Nat instLTNat i (@List.length Yulang.GeneralNominalInspection.Query as))
+            (@List.instGetElem?NatLtLength Yulang.GeneralNominalInspection.Query) queries index)
+          (@some Yulang.GeneralNominalInspection.Query query) →
+        Yulang.GeneralDictionaryObservedClosedRequests.ClosedValid model
+          (Yulang.GeneralNominalMaterialization.schema query
+            (origins (@HAdd.hAdd Nat Nat Nat (@instHAdd Nat instAddNat) start index)) mode)) →
+    Yulang.GeneralDictionaryObservedClosedRequests.ClosedValid model
+      (Yulang.GeneralNominalMaterialization.schemas queries origins mode start)
+Yulang.GeneralDictionaryObservedFiniteRequests.tree_schema : ∀ (state : Yulang.GeneralNominalState.State)
+  {slot : Fin state.base.slots} {query : Yulang.GeneralNominalInspection.Query}
+  (tree : Yulang.GeneralDictionaryObservedFiniteRequests.Tree state slot query)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models state model →
+    ∀ (origin : Yulang.GeneralNominalRecursiveInspection.Origin) (mode : Yulang.GeneralNominalMaterialization.Mode),
+      Yulang.GeneralNominalSpineFacts.Matches state model slot origin →
+        Yulang.GeneralDictionaryObservedClosedRequests.ClosedValid model
+          (Yulang.GeneralNominalMaterialization.schema query origin mode)
+Yulang.GeneralDictionaryObservedFiniteRequests.schemas_shape : ∀ (queries : List Yulang.GeneralNominalInspection.Query)
+  (origins : Nat → Yulang.GeneralNominalRecursiveInspection.Origin) (mode : Yulang.GeneralNominalMaterialization.Mode)
+  (start : Nat),
+  (∀ (index : Nat) (query : Yulang.GeneralNominalInspection.Query),
+      @Eq (Option Yulang.GeneralNominalInspection.Query)
+          (@getElem? (List Yulang.GeneralNominalInspection.Query) Nat Yulang.GeneralNominalInspection.Query
+            (fun as i => @LT.lt Nat instLTNat i (@List.length Yulang.GeneralNominalInspection.Query as))
+            (@List.instGetElem?NatLtLength Yulang.GeneralNominalInspection.Query) queries index)
+          (@some Yulang.GeneralNominalInspection.Query query) →
+        And
+          (@Eq (List Yulang.GeneralNominalMaterialization.Use)
+            (Yulang.GeneralNominalMaterialization.schema query
+                (origins (@HAdd.hAdd Nat Nat Nat (@instHAdd Nat instAddNat) start index)) mode).variables
+            (@List.nil Yulang.GeneralNominalMaterialization.Use))
+          (@Eq Bool
+            (Yulang.GeneralNominalMaterialization.schema query
+                (origins (@HAdd.hAdd Nat Nat Nat (@instHAdd Nat instAddNat) start index)) mode).unknown
+            false)) →
+    And
+      (@Eq (List Yulang.GeneralNominalMaterialization.Use)
+        (Yulang.GeneralNominalMaterialization.schemas queries origins mode start).variables
+        (@List.nil Yulang.GeneralNominalMaterialization.Use))
+      (@Eq Bool (Yulang.GeneralNominalMaterialization.schemas queries origins mode start).unknown false)
+Yulang.GeneralDictionaryObservedFiniteRequests.tree_shape : ∀ (state : Yulang.GeneralNominalState.State)
+  {slot : Fin state.base.slots} {query : Yulang.GeneralNominalInspection.Query}
+  (tree : Yulang.GeneralDictionaryObservedFiniteRequests.Tree state slot query)
+  (origin : Yulang.GeneralNominalRecursiveInspection.Origin) (mode : Yulang.GeneralNominalMaterialization.Mode),
+  And
+    (@Eq (List Yulang.GeneralNominalMaterialization.Use)
+      (Yulang.GeneralNominalMaterialization.schema query origin mode).variables
+      (@List.nil Yulang.GeneralNominalMaterialization.Use))
+    (@Eq Bool (Yulang.GeneralNominalMaterialization.schema query origin mode).unknown false)
+Yulang.GeneralDictionaryObservedFiniteRequests.observed_of_closed : ∀ (state : Yulang.GeneralNominalState.State)
+  (interpretation : Yulang.GeneralNominalInspection.Interpretation)
+  (requests : List Yulang.GeneralNominalMaterialization.Request),
+  Yulang.GeneralDictionaryObservedClosedRequests.Observed state interpretation requests →
+    Yulang.GeneralDictionaryObservedFiniteRequests.Observed state interpretation requests
+Yulang.GeneralDictionaryObservedFiniteRequests.generated_shape : ∀ (state : Yulang.GeneralNominalState.State)
+  (interpretation : Yulang.GeneralNominalInspection.Interpretation)
+  (requests : List Yulang.GeneralNominalMaterialization.Request),
+  Yulang.GeneralDictionaryObservedFiniteRequests.Observed state interpretation requests →
+    And
+      (@Eq (List Yulang.GeneralNominalMaterialization.Use)
+        (Yulang.GeneralNominalMaterialization.generated state interpretation requests).variables
+        (@List.nil Yulang.GeneralNominalMaterialization.Use))
+      (@Eq Bool (Yulang.GeneralNominalMaterialization.generated state interpretation requests).unknown false)
+Yulang.GeneralDictionaryObservedFiniteRequests.generated_valid : ∀ (state : Yulang.GeneralNominalState.State)
+  (interpretation : Yulang.GeneralNominalInspection.Interpretation)
+  (requests : List Yulang.GeneralNominalMaterialization.Request),
+  Yulang.GeneralDictionaryObservedFiniteRequests.Observed state interpretation requests →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models state model →
+        Yulang.GeneralDictionaryObservedClosedRequests.ClosedValid model
+          (Yulang.GeneralNominalMaterialization.generated state interpretation requests)
+Yulang.GeneralDictionaryObservedFiniteRequests.generated_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (interpretation : Yulang.GeneralNominalInspection.Interpretation)
+  (requests : List Yulang.GeneralNominalMaterialization.Request),
+  Yulang.GeneralDictionaryObservedFiniteRequests.Observed state interpretation requests →
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration) (capture : Yulang.GeneralDeclarationDemands.Capture)
+      (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+      (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models state model →
+        Yulang.GeneralNominalMaterialization.Models state declaration capture report
+          (Yulang.GeneralNominalMaterialization.generated state interpretation requests) model
 
 ```

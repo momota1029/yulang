@@ -407,3 +407,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle152 module guide](dots-cycle152-module-guide.md).
 
 - [Cycle152 closed observed requests](2026-11-12-cycle152-closed-observed-requests.md) — conditional non-scalar materialization.
+
+- [Cycle152 arbitrary finite arity requests](2026-11-12-cycle152-finite-arity-observed-requests.md) — materialization only.

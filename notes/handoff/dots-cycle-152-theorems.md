@@ -104,6 +104,14 @@ Exact quantified statements are in the types files. Evidence results are conditi
 - `Yulang.GeneralDictionaryObservedCompleteStable.feedback_stable`
 - `Yulang.GeneralDictionaryObservedCompleteStable.stable`
 - `Yulang.GeneralDictionaryObservedCompleteStable.stable_reachable_named_dictionary`
+- `Yulang.GeneralDictionaryObservedFiniteRequests.schemas_valid`
+- `Yulang.GeneralDictionaryObservedFiniteRequests.tree_schema`
+- `Yulang.GeneralDictionaryObservedFiniteRequests.schemas_shape`
+- `Yulang.GeneralDictionaryObservedFiniteRequests.tree_shape`
+- `Yulang.GeneralDictionaryObservedFiniteRequests.observed_of_closed`
+- `Yulang.GeneralDictionaryObservedFiniteRequests.generated_shape`
+- `Yulang.GeneralDictionaryObservedFiniteRequests.generated_valid`
+- `Yulang.GeneralDictionaryObservedFiniteRequests.generated_models`
 - `Yulang.GeneralDictionaryObservedInitialExample.source_models`
 - `Yulang.GeneralDictionaryObservedInitialExample.checked`
 - `Yulang.GeneralDictionaryObservedInitialExample.requests_exact`
