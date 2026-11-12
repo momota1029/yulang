@@ -127,3 +127,33 @@ judgments and the generic Classify-to-Evidence theorem. The recursive nonempty
 Display example remains unclassified and not proved Stable: reserved origins
 require a varying-model family to exclude further certified refresh; root/child
 installable→Committed and cross-site SameInputs exclusion are also outstanding.
+
+## Next exact obligations for the recursive positive fixture (unproved)
+
+The semantic `.node 1 [.node 3 []]` result is already proved. The following
+separate judgments are not consequences of `Instance` or `Evidence`:
+
+1. `finish_pointClosed : PointClosed finish.current.context.state`. The
+   nominal descriptor is still point-valued; establish this by unfolding the
+   extension. It excludes descriptor revision only. The existing
+   `stable_of_pointClosed` also requires old feedback stability and cannot
+   supply the missing refresh/install/merge facts.
+2. `final_parent_selected : SupportBoundary.Local registry finish displayRoot
+   (.selected 1 [displayChild])` and `final_leaf_selected : ... displayChild
+   (.selected 3 [])`. Re-establish current-context Prepared, unique survivors,
+   K2 safety and DecisionGuard after the extension. These two Local facts yield
+   `final_classified` by the two-node tree even before stability is proved.
+3. For stability, establish `generated_cases` (only root or child) and exact
+   stored sites, then `installs_committed` for any installable packet at either
+   generated occurrence. The root edge already exists and the leaf has no
+   emitted children, but arbitrary installable packets still need comparison.
+4. Establish `sameInputs_no_cross` for the root/child sites using an inhabited
+   final model and List Int versus Int, and `final_context_complete` to exclude
+   novel equality updates. Self merges have reflexive alias already.
+5. `no_refresh_reserved`: every certified Refresh from finish must preserve
+   absence of Known at any previously unknown reserved origin. PointClosed
+   does NOT prove this. A varying-model separation family must preserve ALL
+   final source, packet and site constraints while changing each such origin;
+   no such family is established in this cycle.
+
+These are decomposition targets, not new axioms or claimed Lean declarations.
