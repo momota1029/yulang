@@ -1894,3 +1894,7 @@ import Yulang.GeneralDictionaryJournalTreeFormation
 import Yulang.GeneralDictionaryTerminalRefresh
 import Yulang.GeneralDictionaryTerminalClassification
 import Yulang.GeneralDictionarySelectedInstanceCoherence
+
+import Yulang.GeneralDictionaryReachableEvidenceRecorded
+
+import Yulang.B4TargetV5Compatibility

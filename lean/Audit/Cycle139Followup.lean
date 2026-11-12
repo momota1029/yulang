@@ -1,3 +1,5 @@
+import Yulang.B4TargetV5Compatibility
+import Yulang.GeneralDictionaryReachableEvidenceRecorded
 import Yulang.GeneralDictionaryReachableModelGap
 import Yulang.GeneralDictionaryReachableEvidenceExamples
 import Yulang.GeneralDictionaryReachableJointBridge
@@ -16,3 +18,10 @@ import Yulang.GeneralDictionaryReachableObligations
 #print axioms Yulang.GeneralDictionaryReachableEvidenceProvenance.formed_inhabited_context_incomplete
 #print axioms Yulang.GeneralDictionaryReachableModelGap.reachable_inhabited_context_incomplete
 #print axioms Yulang.GeneralDictionaryReachableModelGap.no_reachable_context_complete
+
+#print axioms Yulang.GeneralDictionaryReachableEvidenceRecorded.selected_branch
+#print axioms Yulang.GeneralDictionaryReachableEvidenceRecorded.recorded_selected_joint
+
+#print axioms Yulang.B4TargetV5Compatibility.restrict_statement
+#print axioms Yulang.B4TargetV5Compatibility.unrestrict_statement
+#print axioms Yulang.B4TargetV5Compatibility.universal_initial_iff

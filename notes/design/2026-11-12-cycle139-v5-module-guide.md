@@ -59,3 +59,16 @@ and all-model current Evidence. It is one example, not a universal executor.
 a real journal model but refutes ContextComplete there. Raw-context Models
 cannot be upgraded to journal Models using reachability alone. This example
 is not asserted Stable and does not refute the V5 evidence bridge.
+
+## Restricted recorded class
+
+`GeneralDictionaryReachableEvidenceRecorded.recorded_selected_joint` derives
+Joint for an arbitrary registry and noninitial journal. It requires an actual
+restricted FinishedTrace, a recorded packet at exactly the selected focus,
+exact-occurrence equality for every aliased packet/site, a final model and actual
+selection. The witness is the SAME model for all alias branches. This proves
+neither coverage from stability nor arbitrary refresh/alias transport.
+
+`B4TargetV5Compatibility` proves that V3 Statement restricts to V5, and that if
+Initial is universal V5 is equivalent to V3. These are fidelity implications,
+not concrete B4 solutions and not an assumption that concrete Initial is universal.
