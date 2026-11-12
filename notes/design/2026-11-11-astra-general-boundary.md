@@ -12840,3 +12840,19 @@ fixture also runs on the actual general carrier. These are useful reductions,
 but the decisive installation bound has not advanced to a constructed order.
 Neither a closed termination theorem nor a concrete divergence has been shown;
 Item 4g's primary objective remains unfinished.
+
+## Item 4i — downstream deferral (2026-11-13)
+
+The owner-selected downstream rule is implemented additively in
+`GeneralNominalDownstreamSupport` / `Steps` / `Boundary`. Needed-head provenance
+includes unresolved uninstalled children, aliases, named equations, and certified
+refresh/reobservation views; waiting paths stop at discharged obligations.
+The fixed-snapshot support-depth bound is proved, but the source-derived bound
+across installations (plan L5), bounded allocation (L6), and packet signatures
+(L7) remain open. No unconditional Progress or Readback is claimed.
+
+The exact new boundary has six unconditional V5 fields and eight remaining
+fields. See the [Item 4i design, theorem statements, regression limits, ledger,
+and checks](2026-11-13-general-nominal-downstream-support.md) and
+[module guide](2026-11-13-general-nominal-downstream-module-guide.md).
+Existing evidence/Step interfaces and all prior Lean definitions are unchanged.

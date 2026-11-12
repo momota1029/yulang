@@ -385,3 +385,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [dots-cycle150-module-guide](dots-cycle150-module-guide.md) — partial structural proof/review; general V5 remains8/14 unresolved.
 - [dots-cycle150-recursive-binary-tree](dots-cycle150-recursive-binary-tree.md) — partial structural proof/review; general V5 remains8/14 unresolved.
 - [dots-cycle150-tree-coverage](dots-cycle150-tree-coverage.md) — partial structural proof/review; general V5 remains8/14 unresolved.
+
+- [Item 4i downstream output support](2026-11-13-general-nominal-downstream-support.md) — Partial implementation; independent support guard, snapshot-depth proof, and remaining termination obligations.
+- [Item 4i downstream module guide](2026-11-13-general-nominal-downstream-module-guide.md) — Additive guard, boundary, regressions, order contract, and audit.
