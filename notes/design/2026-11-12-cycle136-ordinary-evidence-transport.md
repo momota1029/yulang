@@ -1,6 +1,6 @@
 # Ordinary-extension transport of source dictionary evidence
 
-Status: Ordinary transport and trace bridge verified locally; publication held by an earlier unresolved source-upload approval. Date: 2026-11-12.
+Status: Verified and published in work/dots-main at ae519000b1235124a7b1b9d2bfdfb43cc38a295c after the I-24 audit-shard migration. Date: 2026-11-12.
 Scope: I-23, dictionary Evidence only. Astra transitions and source semantics remain unchanged.
 
 The recorded-instance theorem retains each packet's original inspection context. The target Evidence uses the final context. A transition preserving only models does not by itself preserve inspection, canonical child allocation, or source readback. In particular a certified refresh can change nominal observations, so it cannot be silently handled as an ordinary extension.
