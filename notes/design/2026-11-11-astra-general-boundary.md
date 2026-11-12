@@ -9408,3 +9408,773 @@ Yulang.GeneralDictionaryFinalOrderObstruction.not_all_executors : ¬∀
         (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles)),
     Yulang.GeneralDictionaryCanonicalLocalOrder.CanonicalLocalOrder Yulang.GeneralDeclarationExamples.roles e
 ```
+
+## Item 5b — progress-conditional executor and halted refresh divergence
+
+### Result and scope
+
+The concrete noncomputable feedback executor is now defined, with exactly the
+V5 progress field as its explicit parameter. Its `execution`, `halted`, and
+`treeExecution` fields are proved with **Progress as the sole additional
+premise**. The existing binders of those fields are retained, including the
+child-accessibility binder already present in `treeExecution`. B4 clause (1),
+`SaturationTotal`, follows conditional on the same Progress premise. No descent
+measure or new proof of Progress is supplied.
+
+The proposed confluence route fails for the current feedback relation. There
+is a checked, source-formed, inhabited initial state with two actual one-step
+refreshes to halted states. They preserve exactly the same models, have no K2
+cycle, and disagree at the saturation root: one selects a concrete leaf and the
+other is inspection-pending. Both have child accessibility and are read by the
+actual `resolve`; their trees are not `SameDiagnostic`. This is an
+implementation gap in observation refinement and recursive inspection, not a
+language-semantic choice or a result about an arbitrary unconstrained executor.
+
+The exact `canonicalLocalOrder` field for the new choice-based executor remains
+open. Universal agreement of all halted outcomes is formally refuted; that does
+not by itself refute registry-order agreement of one particular deterministic
+choice of outcomes. No weaker same-state result is counted as that field.
+
+### Executor construction and exact premises
+
+`GeneralDictionaryFeedbackExecutor.Progress roles` copies the V5 field:
+
+```lean
+∀ r, (boundary roles).Checked r → ∀ s d,
+  B4TargetV5.Reachable (boundary roles) r d s →
+  Acc (fun next current => (boundary roles).Step r d current next) s
+```
+
+Here and below `boundary` is
+`GeneralDictionaryReachableBoundary.boundary`; its underlying source boundary
+is the unchanged `GeneralDictionaryFeedbackEvidence.boundary roles`.
+`exists_halted` is generic in an actual forward Step relation. Well-founded
+induction on its reversed accessibility relation either stops immediately or
+follows an enabled step and prepends it to the inductively obtained finite
+trace. Its complete conclusion is:
+
+```lean
+∃ final, B4Target.Steps step state final ∧ ∀ next, ¬ step final next
+```
+
+`finalState roles progress registry state root` chooses this witness when the
+registry is checked and the input is Reachable. Outside that specified domain
+it returns the input state. Reachability of the chosen final state follows by
+concatenating the actual finite trace, not by a separate formation assumption.
+The halt property yields Stable for the root and all genuinely generated
+children, and the actual Step model law yields model inclusion along the trace.
+
+The executor returns that state with
+`diagnostic roles registry final root`. This total tree function tests the
+existing FrontierExact and child Acc propositions. When both hold it calls
+`CommonRoleOutermostResolver.resolve`; otherwise its explicit total extension
+returns `.pending`. This extension is **not asserted to classify a
+non-accessible child relation correctly**. For checked final states,
+FrontierExact is already available from the existing `frontierLocal` theorem.
+Progress of Step has not been shown to imply child accessibility. The latter
+remains the independent V5 `whereAccessible` field.
+
+This is why the exact requested `treeExecution` field can be proved with only
+Progress added: its original statement already quantifies the FrontierExact
+and child Acc witnesses at the returned state. Those witnesses select the
+resolve branch, and proof irrelevance identifies their proof arguments. Neither
+witness is silently required at the public `run` call. The constructor is a
+concrete conditional driver, not an unconditional implementation of B4 Exact.
+
+The exact new field theorems are `execution`, `halted`, and `treeExecution` in
+`GeneralDictionaryFeedbackExecutor`. `final_reachable`, `final_stable`,
+`final_models`, and `saturationTotal` expose the related guarantees. No selected
+packet or journal evidence premise was added.
+
+### Concrete fork: equal models, incompatible halted diagnostics
+
+The source idea is a fully concrete leaf declaration and an alias:
+
+```yulang
+impl Display (list (list int)):
+    ...
+x = [[1]]
+y = x
+display y
+```
+
+This is an explanatory surface sketch, not a parser or inference-production
+theorem. The formal fixture uses the existing general `Roles` data, constructor
+catalogue, nominal/Common carrier, Checked, InitialSource, feedback Step,
+recursive Survivor, and independent Local. `list` remains a resolved nominal
+constructor, never a structural record/tag.
+
+The five source identities are:
+
+| Source | Information in the initial full state |
+| --- | --- |
+| 0 (`B`) | Ordinary equation `B ≈ A`; its observed head is unresolved. The root demand uses interval `(B,B)`. |
+| 1 (`A`) | Nominal `list` with point parameter `(I,I)`. |
+| 2 (`I`) | Nominal `list` with point parameter `(N,N)`. |
+| 3 (`N`) | Ordinary equation and observed scalar head `int`. |
+| 4 (`U`) | Ordinary equation `U ≈ top`; no supported constructor head. |
+
+The checked registry contains only declaration key 90, head `list (list int)`,
+with no variables, outputs, or where clauses. The initial journal is empty and
+contains only the root site. `initial_source` and `initial_reachable` establish
+the exact V5 source domain. `initial_models` supplies a real model with
+`B = A = list (list int)`, `I = list int`, `N = int`, and `U = top`.
+
+Both updates are actual `GeneralNominalFeedbackSteps.At.refresh` steps at the
+root. They retain the ordinary equations and all original observations:
+
+- The precise update records `B` as nominal `list` with parameter `(I,I)`.
+- The wider update records `B` as nominal `list` with parameter `(I,U)`.
+
+The latter descriptor is semantically sound: the alias and the descriptor of
+`A` already fix the actual parameter to `I`, which lies between `I` and top.
+`refresh_models_forward` proves this for every original model, not only the
+chosen example. `same_models wide m` proves both whole-journal model sets are
+exactly the original set. The wider parameter is a centerless interval; no
+exists-substitution candidate search or invented central variable is used.
+
+The actual recursive report for the precise descriptor inspects `(0,0)`,
+`(2,2)`, and `(3,3)`, with the real nominal projection origins. `point_branch`
+holds in every model of that context. `point_survivor` uses the unchanged
+general Survivor and has the exact child list `[]`.
+
+For the wider descriptor, inspection of the nested non-variable nominal head
+reaches interval `(2,4)`. Its lower endpoint is a known `list`; its upper
+endpoint is top and has no nominal descriptor. The current inspector returns
+`blocked = [(2,4)]`. Thus `wide_not_prepared` and `wide_not_failed` yield actual
+InspectionPending, and independent Local yields pending. This pending result
+is conservative in isolation, but its irreparable dependence on refresh's
+chosen representation violates final observational confluence.
+
+The support proofs exclude alternative explanations:
+
+- The common inhabited model forces all journal recurrence edges forward
+  through the source numbers; no cycle is possible. The raw graph bridges into
+  those actual edges. RootK2 and CandidateK2 are false for both outcomes.
+- Both outcomes have a single root site, no child edges, and no aliases, so
+  enqueue and a novel merge cannot apply.
+- In the precise outcome every possible matching terminal packet is already
+  semantically Committed: all constraints hold in every model and it emits no
+  children. No installation is needed or enabled as new information.
+- In the wider outcome the blocked candidate cannot be installed.
+- Sources 0–3 are already Known. The only remaining source is 4. The generic
+  `GeneralNominalTopObservation.not_known` theorem proves that a model assigning
+  top rules out any certified scalar, structural, or nominal head there. Exact
+  refresh preserves that model, so no later refresh can have the required
+  unknown-to-Known witness.
+- The packet journal is empty, so journal equality is already raw equality;
+  no novel equate step is available.
+
+Therefore `stable` and `halted` hold for both endpoints. The observed trees are
+`.selected 90 []` and `.pending`. `child_accessible` holds for each; `point_reader`
+and `wide_reader` evaluate the new executor's tree reader through actual
+`resolve`. `different_reader` proves they are not SameDiagnostic. The root is
+Generated reflexively, so this refutes even agreement restricted to generated
+root demands, not just the stronger field's quantification over arbitrary
+other demands.
+
+`no_observational_join` excludes any later reconciliation: every finite trace
+from either halted state is reflexive. These states refute the local
+observational joinability premise needed before applying Newman's lemma. An
+assumed progress proof cannot turn this unjoinable fork into a joinable one.
+No argument deriving progress or a new descent restriction was attempted.
+
+### What must change, and what was not decided
+
+The example needs no new owner language decision. The governing draft clause
+(3) and spec §6.3 already require order-independent final classifications;
+addendum 2 requires retention of diagnostic trees. The two outcomes encode the
+same already-known type and satisfy all current source/refresh checks. Choosing
+one outcome by update order is not a semantic option implemented here.
+
+The implementation must make final inspection independent of these equivalent
+descriptor presentations, or permit a model-preserving observation refinement
+that repairs the wider descriptor after its root is already Known. Merely
+proving Known monotone or model sets decreasing/equal cannot do that. The
+present `Refines.nominals` preserves existing descriptors, and the Step refresh
+novelty condition requires a new Known source. A correct additive repair must
+address these together with actual projection inspection; simply postponing
+again leaves the wider state halted under the current relation. This note does
+not select a repair design or change the frozen definitions.
+
+The outstanding recursive associated-output-growth owner question is unrelated
+to this finite, variable-free, no-where example and remains unanswered.
+Progress/descent stays paused. No new language-semantic question is added.
+
+### Exact remaining order obligation
+
+`GeneralDictionaryExecutorOrderResidual.HaltedLocalOrder roles` states that,
+for checked reordered registries, two finite traces from a shared Reachable
+input to halted states have identical independent Local judgments for every
+demand/frontier. `canonicalLocalOrder_of_halted_order` proves that this would
+supply the exact order field for `GeneralDictionaryFeedbackExecutor.executor
+roles progress`, using its proved execution and halting fields.
+
+`not_halted_local_order` refutes that premise with the concrete fork and
+**reflexive Reorders**. Hence it is an explicit failed sufficient route, not a
+new premise being passed to claim B4 completion. The fork does not establish
+that `CanonicalLocalOrder roles (executor roles progress)` itself is false:
+that property concerns one choice of returned states across registry
+permutations. The fixture's singleton registry does not exercise two distinct
+permutations. The precise remaining obligation for the chosen executor is still
+the `FinalStateAgreement` equivalence isolated in Item 5a, or a repair and proof
+that implies it.
+
+### V5 fourteen-field table
+
+For `GeneralDictionaryReachableBoundary.boundary roles` and the new
+`executor roles progress`, there are **six existing unconditional laws and
+three new laws derived conditional only on Progress**. Progress itself is
+assumed, not proved. Four other fields remain unsupported. Thus nine fields
+have derivations with the stated dependency split; this is not nine
+unconditional laws, nor a proof of termination.
+
+| V5 B4Bridges field | Status | Exact implementation/theorem or remaining dependency |
+| --- | --- | --- |
+| progress | ASSUMED | `GeneralDictionaryFeedbackExecutor.Progress roles`; unchanged V5 quantifiers. |
+| execution | PROVED given Progress | `GeneralDictionaryFeedbackExecutor.execution`. |
+| halted | PROVED given Progress | `GeneralDictionaryFeedbackExecutor.halted`. |
+| closure | PROVED, existing | `GeneralDictionaryReachableBoundary.closure`. |
+| stepModels | PROVED, existing | `GeneralDictionaryReachableBoundary.stepModels`. |
+| frontierLocal | PROVED, existing | `GeneralDictionaryReachableBoundary.frontierLocal`. |
+| localIdentity | PROVED, existing | `GeneralDictionaryReachableBoundary.localIdentity`. |
+| whereAccessible | OPEN | General reachable-root child accessibility; Progress does not yet provide it. The fork endpoints have it concretely. |
+| treeExecution | PROVED given Progress | `GeneralDictionaryFeedbackExecutor.treeExecution`; retains the field's original FrontierExact/child Acc binders. |
+| canonicalLocalOrder | OPEN | Exact final-state agreement for this executor. Universal halted Local confluence is refuted. |
+| dictionaryRefl | PROVED, existing | `GeneralDictionaryReachableBoundary.dictionaryRefl`. |
+| evidenceNode | OPEN | Existing concrete source evidence obligation, unchanged. |
+| generatedChildren | OPEN | Existing generated-child correspondence obligation, unchanged. |
+| initialReorders | PROVED, existing | `GeneralDictionaryReachableBoundary.initialReorders`. |
+
+`GeneralDictionaryExecutorOrderResidual.Remaining roles progress` now lists
+only the four unsupported fields. `remaining` constructs the exact existing
+`GeneralDictionaryReachableObligations.Remaining` using the supplied Progress
+and the three derived execution laws. `bridges` then composes the existing
+six laws. Neither theorem supplies the four residual fields or proves
+Progress. No Step, Stable, Committed, Evidence, Initial, or boundary definition
+was changed.
+
+### Files and validation
+
+Added seven modules:
+
+- `lean/Yulang/GeneralDictionaryFeedbackExecutor.lean`
+- `lean/Yulang/GeneralNominalTopObservation.lean`
+- `lean/Yulang/GeneralNominalRefreshFork.lean`
+- `lean/Yulang/GeneralNominalRefreshForkCycles.lean`
+- `lean/Yulang/GeneralNominalRefreshForkClassification.lean`
+- `lean/Yulang/GeneralNominalRefreshDivergence.lean`
+- `lean/Yulang/GeneralDictionaryExecutorOrderResidual.lean`
+
+Added `lean/Audit/AstraConfluence.lean` with its own imports and all 83 new public
+theorem print entries, plus the small
+[module guide](2026-11-12-astra-confluence-module-guide.md). Appended seven imports
+to `lean/Yulang.lean` and this Item 5b section. The frozen `lean/Audit.lean` and
+`lean/README.md` are unchanged. All pre-existing Lean implementation lines,
+spec, plans, configuration, and git references are unchanged. No commit or
+push was performed.
+
+Final commands from `lean/`, each exited **0**:
+
+```sh
+lake build Yulang.GeneralDictionaryFeedbackExecutor Yulang.GeneralNominalTopObservation Yulang.GeneralNominalRefreshFork Yulang.GeneralNominalRefreshForkCycles Yulang.GeneralNominalRefreshForkClassification Yulang.GeneralNominalRefreshDivergence Yulang.GeneralDictionaryExecutorOrderResidual > /tmp/astra-confluence-focused.log 2>&1
+lake build Yulang > /tmp/astra-confluence-umbrella.log 2>&1
+lake env lean Audit/AstraConfluence.lean > /tmp/astra-confluence-audit.log 2>&1
+```
+
+Focused build completed 675 jobs; umbrella build completed 1609 jobs. All 83
+new public theorems occur exactly once in the new dependency audit, using only
+`propext`, `Classical.choice`, and `Quot.sound`. Full signature extraction with
+`lake env lean --stdin` exited 0. The append-only/path check, restricted source
+scan, and `git diff --check` passed. Intermediate proof iterations included
+compiler errors, all resolved before these final checks.
+
+The yulang-proofs skill was used. No registered prover role was available, and
+no prover agent ran. The primary constructed the executor, fixture,
+classification, divergence, and residual package. A complementary agent
+independently searched for a counterexample and constructed the two small
+TopObservation/Cycles support modules; the primary reviewed those source
+proofs. That agent separately reviewed the primary's final modules and the
+exact field scopes. Independent compiled type/dependency checks for the
+principal divergence, reader, executor, and residual theorems exited 0 with
+only the permitted dependencies. This is separate review, not self-review of
+the support modules. No independent full umbrella rebuild was claimed.
+
+Not verified/proved: general Progress or a descent measure; an unconditional
+child-accessibility producer; absence of the executor's fallback for every
+checked reachable input; order agreement of the chosen executor; a repair of
+the frozen Step/Refines/inspector; commuting installations or merges; general
+EvidenceNode/generatedChildren; an inference producer or parser test for the
+illustrative surface sketch; or unconditional B4. The full repository verifier
+was not run; the requested focused, umbrella, and new audit-part checks were.
+
+The proof work is converging on the actual general instance by testing exact
+execution-level claims against the shared nominal model and real source
+formation. This example also shows why model-preservation and local
+order-invariance alone are insufficient: an implementation can retain the same
+information semantically yet halt with different observable inspection states.
+The next necessary implementation result is a repair and proof of observation
+completeness/refinement for this fork, rather than another fragment confluence
+lemma or an assumed Newman premise.
+
+### Full new public theorem statements
+
+The following are Lean's elaborated types for all 83 new public theorems,
+with implicit parameters exposed. Progress, the executor's total extension,
+and HaltedLocalOrder are defined explicitly above and in their modules.
+
+```text
+@Yulang.GeneralDictionaryFeedbackExecutor.trace_trans : ∀ {α : Type u_1} {step : α → α → Prop} {first middle last : α},
+  Yulang.B4Target.Steps step first middle →
+    Yulang.B4Target.Steps step middle last → Yulang.B4Target.Steps step first last
+@Yulang.GeneralDictionaryFeedbackExecutor.exists_halted : ∀ {α : Type u_1} (step : α → α → Prop) (state : α),
+  Acc (fun next current => step current next) state →
+    ∃ final, Yulang.B4Target.Steps step state final ∧ ∀ (next : α), ¬step final next
+Yulang.GeneralDictionaryFeedbackExecutor.final_spec : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles) (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) registry root state →
+        Yulang.B4Target.Steps ((Yulang.GeneralDictionaryReachableBoundary.boundary roles).Step registry root) state
+            (Yulang.GeneralDictionaryFeedbackExecutor.finalState roles progress registry state root) ∧
+          ∀ (next : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State),
+            ¬(Yulang.GeneralDictionaryReachableBoundary.boundary roles).Step registry root
+                (Yulang.GeneralDictionaryFeedbackExecutor.finalState roles progress registry state root) next
+Yulang.GeneralDictionaryFeedbackExecutor.diagnostic_eq_resolve : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (exact :
+    Yulang.CommonRoleOutermostResolver.FrontierExact
+      (Yulang.GeneralDictionaryReachableBoundary.frontiers roles registry state))
+  (accessible :
+    Acc
+      (Yulang.CommonRoleOutermostResolver.Child
+        (Yulang.GeneralDictionaryReachableBoundary.frontiers roles registry state).Local)
+      root),
+  Yulang.GeneralDictionaryFeedbackExecutor.diagnostic roles registry state root =
+    Yulang.CommonRoleOutermostResolver.resolve
+      (Yulang.GeneralDictionaryReachableBoundary.frontiers roles registry state) exact root accessible
+Yulang.GeneralDictionaryFeedbackExecutor.execution : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles)
+  (r : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked r →
+    ∀ (s : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+      (d : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) r d s →
+        Yulang.B4Target.Steps ((Yulang.GeneralDictionaryReachableBoundary.boundary roles).Step r d) s
+          ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run r s d).fst
+Yulang.GeneralDictionaryFeedbackExecutor.halted : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles)
+  (r : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked r →
+    ∀ (s : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+      (d : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) r d s →
+        ∀ (next : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State),
+          ¬(Yulang.GeneralDictionaryReachableBoundary.boundary roles).Step r d
+              ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run r s d).fst next
+Yulang.GeneralDictionaryFeedbackExecutor.treeExecution : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles)
+  (r : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked r →
+    ∀ (s : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).State)
+      (d : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) r d s →
+        ∀
+          (exact :
+            Yulang.CommonRoleOutermostResolver.FrontierExact
+              (Yulang.GeneralDictionaryReachableBoundary.frontiers roles r
+                ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run r s d).fst))
+          (accessible :
+            Acc
+              (Yulang.CommonRoleOutermostResolver.Child
+                (Yulang.GeneralDictionaryReachableBoundary.frontiers roles r
+                    ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run r s d).fst).Local)
+              d),
+          ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run r s d).snd =
+            Yulang.CommonRoleOutermostResolver.resolve
+              (Yulang.GeneralDictionaryReachableBoundary.frontiers roles r
+                ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run r s d).fst)
+              exact d accessible
+Yulang.GeneralDictionaryFeedbackExecutor.final_reachable : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles) (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) registry root state →
+        Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) registry root
+          ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run registry state root).fst
+Yulang.GeneralDictionaryFeedbackExecutor.final_stable : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles) (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) registry root state →
+        (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Stable registry
+            ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run registry state root).fst root ∧
+          ∀ (child : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Demand),
+            (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Generated registry
+                ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run registry state root).fst root
+                child →
+              (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Stable registry
+                ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run registry state root).fst child
+Yulang.GeneralDictionaryFeedbackExecutor.final_models : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles) (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) registry root state →
+        ∀ (model : (Yulang.GeneralNominalFeedbackBoundary.vocabulary roles).Model),
+          (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Models
+              ((Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress).run registry state root).fst model →
+            (Yulang.GeneralDictionaryReachableBoundary.boundary roles).Models state model
+Yulang.GeneralDictionaryFeedbackExecutor.saturationTotal : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles),
+  Yulang.B4TargetV5.SaturationTotal (Yulang.GeneralDictionaryReachableBoundary.boundary roles)
+    (Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress)
+Yulang.GeneralNominalTopObservation.le_top : ∀ (value : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Subtype value Yulang.CommonNominalSyntax.Layer.top
+Yulang.GeneralNominalTopObservation.top_not_scalar : ∀ (base : Yulang.Inference.Base),
+  ¬Yulang.CommonNominalFullCarrier.Subtype Yulang.CommonNominalSyntax.Layer.top
+      (Yulang.CommonNominalSyntax.Layer.base base)
+Yulang.GeneralNominalTopObservation.top_not_nominal : ∀ (name : Nat)
+  (arguments : List Yulang.CommonNominalFullCarrier.Argument),
+  ¬Yulang.CommonNominalFullCarrier.Subtype Yulang.CommonNominalSyntax.Layer.top
+      (Yulang.CommonNominalFullCarrier.nominal name arguments)
+@Yulang.GeneralNominalTopObservation.top_not_shape : ∀ {slots : Nat} (shape : Yulang.GeneralNormalizedObservation.Shape)
+  (children : Fin shape.arity → Fin slots)
+  (assignment : Fin slots → Yulang.Core.PresenceGeneration.Comp Yulang.CommonNominalFullCarrier.model),
+  ¬Yulang.CommonNominalFullCarrier.Subtype Yulang.CommonNominalSyntax.Layer.top
+      (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment
+        (shape.term children))
+Yulang.GeneralNominalTopObservation.not_known : ∀ (state : Yulang.GeneralNominalState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (source : Nat),
+  Yulang.GeneralNominalState.Models state model →
+    (model source).fst = Yulang.CommonNominalSyntax.Layer.top → ¬Yulang.GeneralNominalState.Known state source
+Yulang.GeneralNominalRefreshFork.declaration_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralNominalRefreshFork.declaration
+Yulang.GeneralNominalRefreshFork.registry_checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralNominalRefreshFork.registry
+@Yulang.GeneralNominalRefreshFork.alias_zero : ∀ {choice : Option Bool}
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state choice) m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 0).fst (m 1).fst
+@Yulang.GeneralNominalRefreshFork.scalar_three : ∀ {choice : Option Bool}
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state choice) m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 3).fst
+      (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+@Yulang.GeneralNominalRefreshFork.top_four : ∀ {choice : Option Bool}
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state choice) m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 4).fst Yulang.CommonNominalSyntax.Layer.top
+Yulang.GeneralNominalRefreshFork.refresh_models_forward : ∀ (wide : Bool)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state none) m →
+    Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state (some wide)) m
+Yulang.GeneralNominalRefreshFork.initial_pending : Yulang.GeneralNominalState.RootPending
+  (Yulang.GeneralNominalRefreshFork.state none) Yulang.GeneralNominalRefreshFork.root.demand
+Yulang.GeneralNominalRefreshFork.zero_known : ∀ (wide : Bool),
+  Yulang.GeneralNominalState.Known (Yulang.GeneralNominalRefreshFork.state (some wide)) 0
+Yulang.GeneralNominalRefreshFork.refresh_step : ∀ (wide : Bool),
+  Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+    Yulang.GeneralNominalRefreshFork.root Yulang.GeneralNominalRefreshFork.before
+    (Yulang.GeneralNominalRefreshFork.after wide)
+Yulang.GeneralNominalRefreshFork.same_models : ∀ (wide : Bool) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalRefreshFork.after wide) m ↔
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalRefreshFork.before m
+Yulang.GeneralNominalRefreshFork.initial_models : Yulang.GeneralNominalSaturationState.Models
+  Yulang.GeneralNominalRefreshFork.before Yulang.GeneralNominalRefreshFork.model
+Yulang.GeneralNominalRefreshFork.after_models : ∀ (wide : Bool),
+  Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalRefreshFork.after wide)
+    Yulang.GeneralNominalRefreshFork.model
+Yulang.GeneralNominalRefreshFork.source_bound : ∀ (choice : Option Bool) (source : Nat),
+  source ∈ Yulang.GeneralNominalState.sources (Yulang.GeneralNominalRefreshFork.state choice) → source < 5
+Yulang.GeneralNominalRefreshFork.linked : ∀ (choice : Option Bool),
+  Yulang.GeneralNominalState.Linked (Yulang.GeneralNominalRefreshFork.state choice)
+    Yulang.GeneralNominalRefreshFork.root.demand
+Yulang.GeneralNominalRefreshFork.metadata : ∀ (choice : Option Bool),
+  Yulang.GeneralNominalRecursiveCandidates.Metadata Yulang.GeneralNominalRefreshFork.registry
+    (Yulang.GeneralNominalRefreshFork.context choice)
+Yulang.GeneralNominalRefreshFork.initial_source : Yulang.GeneralNominalSourceFormation.InitialSource
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.context none)
+  Yulang.GeneralNominalRefreshFork.root
+Yulang.GeneralNominalRefreshFork.initial_reachable : Yulang.B4TargetV5.Reachable
+  (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+  Yulang.GeneralNominalRefreshFork.before
+Yulang.GeneralNominalRefreshFork.after_reachable : ∀ (wide : Bool),
+  Yulang.B4TargetV5.Reachable
+    (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+    (Yulang.GeneralNominalRefreshFork.after wide)
+Yulang.GeneralNominalRefreshFork.known_below_four : ∀ (wide : Bool) (source : Nat),
+  source < 4 → Yulang.GeneralNominalState.Known (Yulang.GeneralNominalRefreshFork.state (some wide)) source
+Yulang.GeneralNominalRefreshFork.no_refresh : ∀ (wide : Bool) (next : Yulang.GeneralNominalCandidates.Context)
+  (certified : Yulang.GeneralNominalFeedbackSteps.Refresh (Yulang.GeneralNominalRefreshFork.after wide) next)
+  (source : Nat),
+  source ∈ Yulang.GeneralNominalState.sources (Yulang.GeneralNominalRefreshFork.state (some wide)) →
+    ¬Yulang.GeneralNominalState.Known (Yulang.GeneralNominalRefreshFork.state (some wide)) source →
+      ¬Yulang.GeneralNominalState.Known next.state source
+Yulang.GeneralNominalRefreshForkCycles.feedback_edge_forward : ∀ (wide : Bool) (first last : Nat),
+  Yulang.GeneralNominalFeedbackK2.Edge (Yulang.GeneralNominalRefreshFork.after wide) first last → first < last
+Yulang.GeneralNominalRefreshForkCycles.feedback_path_forward : ∀ (wide : Bool) (first last : Nat),
+  Yulang.GeneralNominalFeedbackK2.Path (Yulang.GeneralNominalRefreshFork.after wide) first last → first ≤ last
+Yulang.GeneralNominalRefreshForkCycles.feedback_acyclic : ∀ (wide : Bool) (source : Nat),
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle (Yulang.GeneralNominalRefreshFork.after wide) source
+Yulang.GeneralNominalRefreshForkCycles.raw_edge_feedback : ∀ (wide : Bool) (first last : Fin 5),
+  Yulang.GeneralNominalMixedRecurrence.Edge (Yulang.GeneralNominalRefreshFork.state (some wide)) first last →
+    Yulang.GeneralNominalFeedbackK2.Edge (Yulang.GeneralNominalRefreshFork.after wide) ↑first ↑last
+Yulang.GeneralNominalRefreshForkCycles.raw_path_feedback : ∀ (wide : Bool) (first last : Fin 5),
+  Yulang.GeneralNominalMixedRecurrence.Path (Yulang.GeneralNominalRefreshFork.state (some wide)) first last →
+    Yulang.GeneralNominalFeedbackK2.Path (Yulang.GeneralNominalRefreshFork.after wide) ↑first ↑last
+Yulang.GeneralNominalRefreshForkCycles.raw_acyclic : ∀ (wide : Bool) (slot : Fin 5),
+  ¬Yulang.GeneralNominalCycleK2.RecursAt (Yulang.GeneralNominalRefreshFork.state (some wide)) slot
+Yulang.GeneralNominalRefreshForkCycles.legacy_not_recursive : ∀ (wide : Bool) (slot : Fin 5),
+  ¬Yulang.GeneralNominalMixedRecurrence.RecursAt (Yulang.GeneralNominalRefreshFork.state (some wide)) slot
+Yulang.GeneralNominalRefreshForkCycles.not_rootK2 : ∀ (wide : Bool)
+  (demand : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  ¬Yulang.GeneralNominalFeedbackK2.RootK2 (Yulang.GeneralNominalRefreshFork.after wide) demand
+Yulang.GeneralNominalRefreshForkCycles.not_candidateK2 : ∀ (wide : Bool)
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (demand : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  ¬Yulang.GeneralNominalFeedbackK2.CandidateK2 registry (Yulang.GeneralNominalRefreshFork.after wide) demand
+@Yulang.GeneralNominalRefreshForkClassification.list_congr : ∀ {first last : Yulang.CommonNominalFullCarrier.Ty},
+  Yulang.CommonNominalFullCarrier.Equivalent first last →
+    Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralNominalRefreshFork.list first)
+      (Yulang.GeneralNominalRefreshFork.list last)
+@Yulang.GeneralNominalRefreshForkClassification.point_nominal : ∀ {choice : Option Bool}
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state choice) m →
+    ∀ (slot target : Fin 5),
+      (Yulang.GeneralNominalRefreshFork.state choice).nominals slot =
+          some (Yulang.GeneralNominalRefreshFork.descriptor (target, target)) →
+        Yulang.CommonNominalFullCarrier.Equivalent (m ↑slot).fst (Yulang.GeneralNominalRefreshFork.list (m ↑target).fst)
+Yulang.GeneralNominalRefreshForkClassification.point_report : Yulang.GeneralNominalRecursiveCandidates.report
+    (Yulang.GeneralNominalRefreshFork.context (some false)) Yulang.GeneralNominalRefreshFork.declaration [(0, 0)] =
+  Yulang.GeneralNominalRefreshForkClassification.calculated
+Yulang.GeneralNominalRefreshForkClassification.wide_blocked : (Yulang.GeneralNominalRecursiveCandidates.report
+      (Yulang.GeneralNominalRefreshFork.context (some true)) Yulang.GeneralNominalRefreshFork.declaration
+      [(0, 0)]).blocked =
+  [(2, 4)]
+Yulang.GeneralNominalRefreshForkClassification.located : ∀ (choice : Option Bool),
+  Yulang.GeneralNominalRecursiveCandidates.arguments (Yulang.GeneralNominalRefreshFork.context choice)
+      Yulang.GeneralNominalRefreshFork.root =
+    some [(0, 0)]
+Yulang.GeneralNominalRefreshForkClassification.children_empty : ∀ (choice : Option Bool)
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalRefreshFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalRefreshFork.declaration)
+  (bindings : Yulang.GeneralNominalAllocation.Bindings),
+  Yulang.GeneralNominalAllocation.children (Yulang.GeneralNominalRefreshFork.state choice)
+      Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+      Yulang.GeneralNominalRefreshFork.declaration checked bindings =
+    []
+Yulang.GeneralNominalRefreshForkClassification.schema_empty : ∀ (choice : Option Bool)
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalRefreshFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalRefreshFork.declaration),
+  Yulang.GeneralNominalRecursiveCandidates.generated Yulang.GeneralNominalRefreshFork.registry
+      (Yulang.GeneralNominalRefreshFork.context choice) Yulang.GeneralNominalRefreshFork.root
+      Yulang.GeneralNominalRefreshFork.declaration checked [(0, 0)] =
+    { }
+Yulang.GeneralNominalRefreshForkClassification.point_projections : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state (some false)) m →
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels (Yulang.GeneralNominalRefreshFork.state (some false))
+      Yulang.GeneralNominalRefreshForkClassification.calculated m
+Yulang.GeneralNominalRefreshForkClassification.point_branch : ∀
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalRefreshFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalRefreshFork.declaration)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralNominalRefreshFork.state (some false)) m →
+    Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralNominalRefreshFork.registry
+      (Yulang.GeneralNominalRefreshFork.context (some false)) Yulang.GeneralNominalRefreshFork.root
+      Yulang.GeneralNominalRefreshFork.declaration checked [(0, 0)] m
+Yulang.GeneralNominalRefreshForkClassification.fresh : ∀ (choice : Option Bool),
+  Yulang.GeneralNominalAllocation.Fresh (Yulang.GeneralNominalRefreshFork.state choice)
+    Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root.identity
+Yulang.GeneralNominalRefreshForkClassification.point_prepared : Yulang.GeneralNominalRecursiveCandidates.Prepared
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.context (some false))
+  Yulang.GeneralNominalRefreshFork.root Yulang.GeneralNominalRefreshFork.declaration
+  Yulang.GeneralNominalRefreshFork.declaration_checked
+Yulang.GeneralNominalRefreshForkClassification.point_survivor : Yulang.GeneralNominalRecursiveCandidates.Survivor
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.context (some false))
+  Yulang.GeneralNominalRefreshFork.root 90 []
+Yulang.GeneralNominalRefreshForkClassification.wide_not_prepared : ∀
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalRefreshFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalRefreshFork.declaration),
+  ¬Yulang.GeneralNominalRecursiveCandidates.Prepared Yulang.GeneralNominalRefreshFork.registry
+      (Yulang.GeneralNominalRefreshFork.context (some true)) Yulang.GeneralNominalRefreshFork.root
+      Yulang.GeneralNominalRefreshFork.declaration checked
+Yulang.GeneralNominalRefreshForkClassification.wide_not_failed : ∀
+  (checked :
+    Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralNominalRefreshFork.registry.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalRefreshFork.declaration),
+  ¬Yulang.GeneralNominalRecursiveCandidates.Failed Yulang.GeneralNominalRefreshFork.registry
+      (Yulang.GeneralNominalRefreshFork.context (some true)) Yulang.GeneralNominalRefreshFork.root
+      Yulang.GeneralNominalRefreshFork.declaration checked
+Yulang.GeneralNominalRefreshForkClassification.wide_inspection_pending : Yulang.GeneralNominalRecursiveCandidates.InspectionPending
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.context (some true))
+  Yulang.GeneralNominalRefreshFork.root
+Yulang.GeneralNominalRefreshDivergence.point_selected : Yulang.GeneralNominalFeedbackK2.Local
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false)
+  Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Frontier.selected 90 [])
+Yulang.GeneralNominalRefreshDivergence.wide_pending : Yulang.GeneralNominalFeedbackK2.Local
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true)
+  Yulang.GeneralNominalRefreshFork.root Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.GeneralNominalRefreshDivergence.generated_only_root : ∀ (wide : Bool)
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  Yulang.GeneralNominalSaturationState.Generated (Yulang.GeneralNominalRefreshFork.after wide)
+      Yulang.GeneralNominalRefreshFork.root focus →
+    focus = Yulang.GeneralNominalRefreshFork.root
+Yulang.GeneralNominalRefreshDivergence.installs_committed : ∀ (wide : Bool)
+  (packet : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles),
+  packet.site.occurrence = Yulang.GeneralNominalRefreshFork.root →
+    Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalRefreshFork.registry
+        (Yulang.GeneralNominalRefreshFork.after wide) packet →
+      Yulang.GeneralNominalFeedbackSteps.Committed (Yulang.GeneralNominalRefreshFork.after wide) packet
+Yulang.GeneralNominalRefreshDivergence.stable : ∀ (wide : Bool),
+  Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralNominalRefreshFork.registry
+    (Yulang.GeneralNominalRefreshFork.after wide) Yulang.GeneralNominalRefreshFork.root
+Yulang.GeneralNominalRefreshDivergence.halted : ∀ (wide : Bool)
+  (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  ¬Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+      Yulang.GeneralNominalRefreshFork.root (Yulang.GeneralNominalRefreshFork.after wide) next
+Yulang.GeneralNominalRefreshDivergence.point_local : Yulang.B4TargetV3.Local
+  (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false)
+  Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Frontier.selected 90 [])
+Yulang.GeneralNominalRefreshDivergence.wide_local : Yulang.B4TargetV3.Local
+  (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true)
+  Yulang.GeneralNominalRefreshFork.root Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.GeneralNominalRefreshDivergence.point_tree : Yulang.CommonRoleOutermostResolver.Resolves
+  (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false))
+  Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
+Yulang.GeneralNominalRefreshDivergence.wide_tree : Yulang.CommonRoleOutermostResolver.Resolves
+  (Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true))
+  Yulang.GeneralNominalRefreshFork.root Yulang.CommonRoleOutermostResolver.Tree.pending
+Yulang.GeneralNominalRefreshDivergence.different_local : ¬∀
+    (d : (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand)
+    (f :
+      Yulang.CommonRoleOutermostResolver.Frontier
+        (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand),
+    Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+        Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false) d f ↔
+      Yulang.B4TargetV3.Local
+        (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+        Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true) d f
+Yulang.GeneralNominalRefreshDivergence.different_diagnostic : ¬Yulang.B4TargetV3.SameDiagnostic
+    (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+    (Yulang.CommonRoleOutermostResolver.Tree.selected 90 []) Yulang.CommonRoleOutermostResolver.Tree.pending
+Yulang.GeneralNominalRefreshDivergence.child_accessible : ∀ (wide : Bool),
+  Acc
+    (Yulang.CommonRoleOutermostResolver.Child
+      (Yulang.B4TargetV3.Local
+        (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+        Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after wide)))
+    Yulang.GeneralNominalRefreshFork.root
+Yulang.GeneralNominalRefreshDivergence.point_reader : Yulang.GeneralDictionaryFeedbackExecutor.diagnostic
+    Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalRefreshFork.registry
+    (Yulang.GeneralNominalRefreshFork.after false) Yulang.GeneralNominalRefreshFork.root =
+  Yulang.CommonRoleOutermostResolver.Tree.selected 90 []
+Yulang.GeneralNominalRefreshDivergence.wide_reader : Yulang.GeneralDictionaryFeedbackExecutor.diagnostic
+    Yulang.GeneralDeclarationExamples.roles Yulang.GeneralNominalRefreshFork.registry
+    (Yulang.GeneralNominalRefreshFork.after true) Yulang.GeneralNominalRefreshFork.root =
+  Yulang.CommonRoleOutermostResolver.Tree.pending
+Yulang.GeneralNominalRefreshDivergence.different_reader : ¬Yulang.B4TargetV3.SameDiagnostic
+    (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+    (Yulang.GeneralDictionaryFeedbackExecutor.diagnostic Yulang.GeneralDeclarationExamples.roles
+      Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false)
+      Yulang.GeneralNominalRefreshFork.root)
+    (Yulang.GeneralDictionaryFeedbackExecutor.diagnostic Yulang.GeneralDeclarationExamples.roles
+      Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true)
+      Yulang.GeneralNominalRefreshFork.root)
+@Yulang.GeneralNominalRefreshDivergence.halted_trace_eq : ∀
+  {state final : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles},
+  (∀ (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+      ¬Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+          Yulang.GeneralNominalRefreshFork.root state next) →
+    Yulang.B4Target.Steps
+        (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+          Yulang.GeneralNominalRefreshFork.root)
+        state final →
+      final = state
+Yulang.GeneralNominalRefreshDivergence.no_observational_join : ¬∃ left right,
+    Yulang.B4Target.Steps
+        (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+          Yulang.GeneralNominalRefreshFork.root)
+        (Yulang.GeneralNominalRefreshFork.after false) left ∧
+      Yulang.B4Target.Steps
+          (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+            Yulang.GeneralNominalRefreshFork.root)
+          (Yulang.GeneralNominalRefreshFork.after true) right ∧
+        ∀ (d : (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand)
+          (f :
+            Yulang.CommonRoleOutermostResolver.Frontier
+              (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand),
+          Yulang.B4TargetV3.Local
+              (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+              Yulang.GeneralNominalRefreshFork.registry left d f ↔
+            Yulang.B4TargetV3.Local
+              (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+              Yulang.GeneralNominalRefreshFork.registry right d f
+Yulang.GeneralNominalRefreshDivergence.reachable_halted_divergence : (Yulang.GeneralDictionaryReachableBoundary.boundary
+        Yulang.GeneralDeclarationExamples.roles).Checked
+    Yulang.GeneralNominalRefreshFork.registry ∧
+  (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Initial
+      Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+      Yulang.GeneralNominalRefreshFork.before ∧
+    Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+        Yulang.GeneralNominalRefreshFork.root Yulang.GeneralNominalRefreshFork.before
+        (Yulang.GeneralNominalRefreshFork.after false) ∧
+      Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+          Yulang.GeneralNominalRefreshFork.root Yulang.GeneralNominalRefreshFork.before
+          (Yulang.GeneralNominalRefreshFork.after true) ∧
+        (∀ (wide : Bool) (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+            ¬Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+                Yulang.GeneralNominalRefreshFork.root (Yulang.GeneralNominalRefreshFork.after wide) next) ∧
+          (∀ (wide : Bool) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalRefreshFork.after wide) m ↔
+                Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalRefreshFork.before m) ∧
+            Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalRefreshFork.before
+                Yulang.GeneralNominalRefreshFork.model ∧
+              Yulang.CommonRoleOutermostResolver.Resolves
+                  (Yulang.B4TargetV3.Local
+                    (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+                    Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false))
+                  Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Tree.selected 90 []) ∧
+                Yulang.CommonRoleOutermostResolver.Resolves
+                    (Yulang.B4TargetV3.Local
+                      (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+                      Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true))
+                    Yulang.GeneralNominalRefreshFork.root Yulang.CommonRoleOutermostResolver.Tree.pending ∧
+                  ¬Yulang.B4TargetV3.SameDiagnostic
+                      (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+                      (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
+                      Yulang.CommonRoleOutermostResolver.Tree.pending
+Yulang.GeneralDictionaryExecutorOrderResidual.canonicalLocalOrder_of_halted_order : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles),
+  Yulang.GeneralDictionaryExecutorOrderResidual.HaltedLocalOrder roles →
+    Yulang.GeneralDictionaryCanonicalLocalOrder.CanonicalLocalOrder roles
+      (Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress)
+Yulang.GeneralDictionaryExecutorOrderResidual.not_halted_local_order : ¬Yulang.GeneralDictionaryExecutorOrderResidual.HaltedLocalOrder
+    Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryExecutorOrderResidual.remaining : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles),
+  Yulang.GeneralDictionaryExecutorOrderResidual.Remaining roles progress →
+    Yulang.GeneralDictionaryReachableObligations.Remaining roles
+      (Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress)
+Yulang.GeneralDictionaryExecutorOrderResidual.bridges : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralDictionaryFeedbackExecutor.Progress roles),
+  Yulang.GeneralDictionaryExecutorOrderResidual.Remaining roles progress →
+    Yulang.B4SkeletonV5.B4Bridges (Yulang.GeneralDictionaryReachableBoundary.boundary roles)
+      (Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress)
+      (Yulang.GeneralDictionaryReachableBoundary.frontiers roles)
+```
