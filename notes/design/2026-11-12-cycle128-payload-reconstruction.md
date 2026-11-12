@@ -42,3 +42,21 @@ For each root/key, find the actual visible declaration with matching role, then 
 A checked registry makes the selected declaration unique. Existing Survivor premises imply the computed Plan with exactly the original candidate children. Mapping finite indexed or raw PayloadEvidence through this implication permits executable reconstruction without caller-supplied Frames or descendant occurrences.
 
 This does not establish existence of a complete candidate-evidence tree, run recursive candidate search, prove materialization success, or construct general B4. Existing Survivor readiness, root-output, freshness, consistency, coverage and emission restrictions are preserved as premises, not weakened.
+
+## Same returned witness across candidate and source evidence
+
+For a fixed nominal Context and raw payload, independent recursive Survivor
+Evidence plus successful supported-variable preparation implies that the actual
+returned dictionary is the same candidate witness. Its original raw readback,
+existing candidate evidence and arbitrary-full-model source Instance all hold
+on one fixed tree. The full nominal recording preserves original Models.
+This conditional theorem keeps both premises explicit; it supplies neither the
+candidate forest nor successive child contexts nor materialization completeness.
+
+## Combined-premise nonvacuity
+
+A dedicated checked singleton registry uses a terminal variable head at known
+source interval `(1,1)`. Its actual existing Survivor, raw candidate evidence,
+computed-frame preparation success and concrete full transaction model all
+hold together. The joint theorem returns one Readback witness carrying both
+candidate and independent nominal source evidence. No candidate guard changed.
