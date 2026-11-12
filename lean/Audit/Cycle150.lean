@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryTreeInitialExample
 import Yulang.GeneralDictionaryAliasTreeLocality
 import Yulang.GeneralDictionaryTreeCoverage
 import Yulang.GeneralDictionaryTreeLeaf
@@ -107,3 +108,11 @@ import Yulang.GeneralDictionaryFiniteJournalJointExample
 #print axioms Yulang.GeneralNominalTreeFacts.private_models
 #print axioms Yulang.GeneralNominalTreeFacts.ofSpine_query
 #print axioms Yulang.GeneralNominalTreeFacts.ofFork_query
+#print axioms Yulang.GeneralDictionaryTreeInitialExample.metadata
+#print axioms Yulang.GeneralDictionaryTreeInitialExample.linked
+#print axioms Yulang.GeneralDictionaryTreeInitialExample.initial_source
+#print axioms Yulang.GeneralDictionaryTreeInitialExample.initial_models
+#print axioms Yulang.GeneralDictionaryTreeInitialExample.actual_reachable
+#print axioms Yulang.GeneralDictionaryTreeInitialExample.actual_instance
+#print axioms Yulang.GeneralDictionaryTreeInitialExample.evidence
+#print axioms Yulang.GeneralDictionaryTreeInitialExample.reachable_inhabited_evidence

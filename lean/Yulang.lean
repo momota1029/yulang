@@ -2133,3 +2133,4 @@ import Yulang.GeneralDictionaryTreeCoverage
 import Yulang.GeneralDictionaryTreeLeaf
 import Yulang.GeneralNominalTreeExample
 import Yulang.GeneralNominalTreeFacts
+import Yulang.GeneralDictionaryTreeInitialExample
