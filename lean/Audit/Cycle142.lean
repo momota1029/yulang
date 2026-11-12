@@ -1,4 +1,5 @@
 import Yulang.GeneralDictionaryKeyedRevision
+import Yulang.GeneralDictionaryKeyedJournalTree
 
 #print axioms Yulang.GeneralDictionaryKeyedRevision.reports_of_footprint
 #print axioms Yulang.GeneralDictionaryKeyedRevision.reports_of_preservesAt
@@ -8,9 +9,20 @@ import Yulang.GeneralDictionaryKeyedRevision
 #print axioms Yulang.GeneralDictionaryKeyedRevision.recorded_keys_of_footprint
 #print axioms Yulang.GeneralDictionaryKeyedRevision.refresh_current
 #print axioms Yulang.GeneralDictionaryKeyedRevision.revision_current
+#print axioms Yulang.GeneralDictionaryKeyedRevision.revision_footprint_current
+#print axioms Yulang.GeneralDictionaryKeyedRevision.footprint_step
+#print axioms Yulang.GeneralDictionaryKeyedRevision.previous_step
 #print axioms Yulang.GeneralDictionaryKeyedRevision.step_actual
 #print axioms Yulang.GeneralDictionaryKeyedRevision.step_current
 #print axioms Yulang.GeneralDictionaryKeyedRevision.trace_actual
 #print axioms Yulang.GeneralDictionaryKeyedRevision.trace_current
 #print axioms Yulang.GeneralDictionaryKeyedRevision.initial_trace_current
 #print axioms Yulang.GeneralDictionaryKeyedRevision.recorded_node
+#print axioms Yulang.GeneralDictionaryKeyedJournalTree.indexed_of_current
+#print axioms Yulang.GeneralDictionaryKeyedJournalTree.uniform_of_current
+#print axioms Yulang.GeneralDictionaryKeyedJournalTree.uniform_after_trace
+#print axioms Yulang.GeneralDictionaryKeyedJournalTree.revision_recorded
+#print axioms Yulang.GeneralDictionaryKeyedJournalTree.revision_child
+#print axioms Yulang.GeneralDictionaryKeyedJournalTree.revision_reach
+#print axioms Yulang.GeneralDictionaryKeyedJournalTree.revision_covered
+#print axioms Yulang.GeneralDictionaryKeyedJournalTree.same_dictionary_revision

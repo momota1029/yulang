@@ -1,5 +1,5 @@
 import Yulang.GeneralDictionaryRecordedRevisionTrace
-import Yulang.GeneralDictionaryInspectionLocality
+import Yulang.GeneralDictionarySelectedLocality
 
 /-! Key-local computed guards for current journal semantics. Competitors with a
  different declaration key are not constrained. This is a sufficient restricted
@@ -20,13 +20,8 @@ def KeyReports (registry : Registry) (context : Context) (next : Observation con
     ∀ bounds, arguments context root = some bounds →
       report (reobserve context next) declaration bounds = transferReport context next (report context declaration bounds)
 
-def KeyFootprint (registry : Registry) (context : Context) (next : Observation context.state)
-    (root : Occurrence roles) (key : Nat) : Prop :=
-  ∀ declaration ∈ registry.declarations, declaration.id = key → declaration.role = root.demand.role →
-    ∀ bounds, arguments context root = some bounds →
-      ∀ slot ∈ footprints context.state
-        (GeneralNominalInspection.queries context.state context.interpretation declaration) bounds,
-        next.nominals slot = context.state.nominals slot
+/-- Reuse cycle137's selected-key descriptor footprint rather than duplicate it. -/
+abbrev KeyFootprint := @GeneralDictionarySelectedLocality.FootprintFor
 
 theorem reports_of_footprint (registry : Registry) (context : Context)
     (next : Observation context.state) (view : next.view = context.state.view)
@@ -103,13 +98,23 @@ theorem refresh_current (registry : Registry) (root : Occurrence roles)
 
 theorem revision_current (registry : Registry) (before : State roles)
     (revision : Revision before) (certificate : Certified revision)
-    (same : RecordedFootprint registry before revision) (current : Current registry before) :
+    (same : RecordedKeys registry before (GeneralDictionaryRecordedRevisionTrace.observation before revision))
+    (current : Current registry before) :
     Current registry revision.result := by
   intro packet member model valid
   exact instance_of_key_reports registry before.context
     (GeneralDictionaryRecordedRevisionTrace.observation before revision) model packet.site.occurrence
-    packet.declaration.id packet.children (recorded_keys_of_footprint registry before revision same packet member)
+    packet.declaration.id packet.children (same packet member)
     valid.1 (current packet member model ((certificate.exact model).mp valid))
+
+/-- The finite descriptor condition is an independently checkable sufficient
+ condition, not asserted equivalent to report equality. -/
+theorem revision_footprint_current (registry : Registry) (before : State roles)
+    (revision : Revision before) (certificate : Certified revision)
+    (same : RecordedFootprint registry before revision) (current : Current registry before) :
+    Current registry revision.result :=
+  revision_current registry before revision certificate
+    (recorded_keys_of_footprint registry before revision same) current
 
 inductive Step (registry : Registry) (root : Occurrence roles) : State roles → State roles → Prop where
   | ordinary {before after} : GeneralDictionaryOrdinaryTrace.OrdinaryStep registry root before after → Step registry root before after
@@ -118,9 +123,30 @@ inductive Step (registry : Registry) (root : Occurrence roles) : State roles →
       (actual : GeneralNominalFeedbackSteps.Step registry root before (regenerate before (reobserve before.context next))) :
       Step registry root before (regenerate before (reobserve before.context next))
   | revision (before : State roles) (revision : Revision before)
-      (same : RecordedFootprint registry before revision) (certificate : Certified revision)
+      (same : RecordedKeys registry before (GeneralDictionaryRecordedRevisionTrace.observation before revision))
+      (certificate : Certified revision)
       (actual : GeneralNominalReobservationSteps.Step registry root before revision.result) :
       Step registry root before revision.result
+
+theorem footprint_step (registry : Registry) (root : Occurrence roles) (before : State roles)
+    (revision : Revision before) (same : RecordedFootprint registry before revision)
+    (certificate : Certified revision)
+    (actual : GeneralNominalReobservationSteps.Step registry root before revision.result) :
+    Step registry root before revision.result :=
+  .revision before revision (recorded_keys_of_footprint registry before revision same) certificate actual
+
+/-- Every cycle141 guarded step embeds without strengthening its hypotheses. -/
+theorem previous_step (registry : Registry) (root : Occurrence roles) (before after : State roles)
+    (old : GeneralDictionaryRecordedRevisionTrace.Step registry root before after) :
+    Step registry root before after := by
+  cases old with
+  | feedback action =>
+    cases action with
+    | ordinary action => exact .ordinary action
+    | refresh next reports actual =>
+      exact .refresh before next (recorded_keys_of_reports registry before next reports) actual
+  | revision revision reports certificate actual =>
+    exact .revision before revision (recorded_keys_of_reports registry before _ reports) certificate actual
 
 theorem step_actual (registry : Registry) (root : Occurrence roles) (before after : State roles)
     (step : Step registry root before after) : GeneralNominalReobservationSteps.Step registry root before after := by

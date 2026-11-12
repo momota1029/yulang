@@ -9,7 +9,9 @@ inspection footprint on point revisions (whose normalized view is fixed).
 The trace uses the unchanged actual reobservation Step and Certified revisions;
 ordinary extensions keep their existing restriction. It does not silently
 replace Astra's transition relation. The target is Current at every reached
-state, then same-final-model Evidence from child Evidence. No selected-to-recorded
+state, then same-final-model Evidence from child Evidence. In addition, pure syntactic
+journal coverage plus accessibility construct a finite source tree uniformly
+for every final model, without preassuming child Evidence. No selected-to-recorded
 coverage or unconditional refresh preservation is claimed. A separate concrete
 nonempty-journal point replacement will check nonvacuity.
 
@@ -17,3 +19,7 @@ Latest integration706f60ce: lazy output-cycle policy belongs to Astra's Step
 work; this cycle changes no semantics. Observation completion can preserve Models
 while full saturation decreases it. Our revision certificate uses exact Models
 only on the observation update, not on full stabilization.
+
+The key-report trace includes every former cycle141 guarded step; finite
+descriptor equality is a sufficient adapter, not an equivalent guard. A single
+certified revision preserves the exact syntactic tree under that adapter.

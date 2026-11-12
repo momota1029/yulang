@@ -1940,3 +1940,4 @@ import Yulang.GeneralNominalCanonicalCompletionObstruction
 import Yulang.GeneralNominalReobservationMergeDiamond
 
 import Yulang.GeneralDictionaryKeyedRevision
+import Yulang.GeneralDictionaryKeyedJournalTree
