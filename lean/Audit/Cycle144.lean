@@ -1,3 +1,6 @@
+import Yulang.GeneralDictionaryDiagnosticAccessibility
+import Yulang.GeneralDictionaryEarlyMergeDiagnostics
+import Yulang.GeneralDictionarySupportLocalOrder
 import Yulang.GeneralDictionarySupportRecursiveTrace
 import Yulang.GeneralDictionaryEarlyMergeExample
 import Yulang.GeneralDictionarySupportReadbackRegression
@@ -162,3 +165,49 @@ import Yulang.GeneralDictionaryEarlyMergeRegression
 #print axioms Yulang.GeneralDictionarySupportRecursiveTrace.initial_not_stable
 
 #print axioms Yulang.GeneralDictionarySupportRecursiveTrace.stable_endpoint_iff
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.inspection
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.decision_guard_forward
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.decision_guard
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.support_pending
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.local_forward
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.local_iff
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.boundary_local
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.resolves
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.child
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.whereAccessible_iff
+
+#print axioms Yulang.GeneralDictionarySupportLocalOrder.classify
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.parent_instance
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.acyclic
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.parent_selected
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.child_rejected
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.supported_parent
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.supported_child
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.diagnostic
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.child_no_dictionary
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.root_no_classify
+
+#print axioms Yulang.GeneralDictionaryEarlyMergeDiagnostics.reachable_diagnostic
+
+#print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.resolved_accessible
+#print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.resolved_children_accessible
+#print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.actual_accessible_without_classify

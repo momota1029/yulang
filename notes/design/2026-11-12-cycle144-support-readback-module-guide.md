@@ -109,3 +109,22 @@ then the real support merge identifies their same inputs. The final journal has
 a parent packet and a nonempty alias ledger, and a concrete model and Coherent
 are proved. Both merged child classes were uncommitted. No claim about merging
 two already-recorded classes, stable completion, or general Joint is made.
+
+## Proved support-aware shared-snapshot order
+
+The pre-support Local reordering proof does not cover SupportPending. The new module proves that
+DecisionGuard itself is preserved by permitted declaration/where enumeration:
+queries depend only on each unchanged head and readiness certificates are
+registry-independent. It transports all five support Local constructors, full
+diagnostic Resolves, selected-child relation and existing Acc at one fixed
+tracked snapshot. This shrinks canonicalLocalOrder's support-side gap but does
+not compare different executor return states and cannot close that field.
+
+## Diagnostic accessibility, including failed leaves
+
+The DiagnosticAccessibility module extends the finite-tree accessibility direction from successful Classify to all
+finite Resolves diagnostics. Local functionality eliminates any hidden selected
+Child at pending/rejected/ambiguous leaves. Apply this to the actual merged-child
+failure fixture: independent where Acc may hold while no four-way Classify exists.
+This distinguishes finite diagnostics from successful dictionaries and directly
+checks that the target retains the failed children rather than rejecting parent.
