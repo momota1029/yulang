@@ -72,4 +72,50 @@ theorem recorded_evidence (registry : Registry) (root : Occurrence roles)
   exact GeneralDictionaryRecursiveEvidence.evidence_node registry packet.context model packet.site.occurrence
     packet.declaration.id packet.children dictionaries instanceRule given
 
+/-- Every stored declaration was actually visible in the source registry.
+This provenance statement survives administrative point replacement. -/
+theorem packet_visible (registry : Registry) (root : Occurrence roles)
+    (state : Tracked roles) (formed : SourceFormed registry root state) :
+    ∀ packet ∈ state.current.packets, packet.declaration ∈ registry.declarations := by
+  induction formed with
+  | initial context source => intro packet member; cases member
+  | update formed update ih =>
+    intro packet member
+    obtain ⟨focus,generated,action⟩ := update
+    cases action with
+    | administrative _ _ admin => cases admin <;> exact ih packet member
+    | merge => exact ih packet member
+    | install installed support enabled novel guard =>
+      rcases List.mem_cons.mp member with rfl | old
+      · exact enabled.1.2.2.2.1
+      · exact ih packet old
+
+/-- For a singleton declaration registry, the journal-key half of Joint follows
+from actual provenance, with no Current or alias-equality assumption. -/
+theorem singleton_choices (registry : Registry) (root : Occurrence roles)
+    (state : Tracked roles) (formed : SourceFormed registry root state)
+    (declaration : Declaration) (singleton : registry.declarations = [declaration]) :
+    ∀ packet ∈ state.current.packets, packet.declaration.id = declaration.id := by
+  intro packet member
+  have visible := packet_visible registry root state formed packet member
+  rw [singleton] at visible
+  exact congrArg Declaration.id (List.mem_singleton.mp visible)
+
+/-- In the singleton-registry reachable case, ONLY the simultaneous semantic
+witness remains for Joint. It is not silently inferred from local selection. -/
+theorem singleton_joint (registry : Registry) (root focus : Occurrence roles)
+    (state : Tracked roles)
+    (reachable : B4TargetV5.Reachable (GeneralNominalSupportBoundary.boundary roles) registry root state)
+    (declaration : Declaration) (singleton : registry.declarations = [declaration])
+    (simultaneous : ∃ model, Models state.current model ∧
+      GeneralNominalJointCandidates.BranchAt registry state.current focus declaration.id model ∧
+      ∀ site, GeneralNominalJointCandidates.Related state.current focus site →
+        GeneralNominalJointCandidates.BranchAt registry state.current site.occurrence declaration.id model) :
+    GeneralNominalJointCandidates.Joint registry state.current focus declaration.id := by
+  refine ⟨?_,simultaneous⟩
+  intro packet member _
+  exact singleton_choices registry root state
+    (GeneralNominalSupportBoundary.reachable_formed registry state root reachable)
+    declaration singleton packet member
+
 end Yulang.GeneralDictionarySupportJournal
