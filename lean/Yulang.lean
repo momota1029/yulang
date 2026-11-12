@@ -1907,6 +1907,11 @@ import Yulang.GeneralNominalCandidateReordering
 import Yulang.GeneralNominalLocalReordering
 import Yulang.GeneralDictionaryCanonicalLocalOrder
 import Yulang.GeneralDictionaryFinalOrderObstruction
+
+import Yulang.GeneralDictionaryJointReordering
+import Yulang.GeneralDictionarySemanticCompletion
+
+import Yulang.GeneralDictionaryJointEquality
 import Yulang.GeneralDictionaryFeedbackExecutor
 import Yulang.GeneralNominalTopObservation
 import Yulang.GeneralNominalRefreshFork
