@@ -10178,3 +10178,976 @@ Yulang.GeneralDictionaryExecutorOrderResidual.bridges : ∀ (roles : Yulang.Role
       (Yulang.GeneralDictionaryFeedbackExecutor.executor roles progress)
       (Yulang.GeneralDictionaryReachableBoundary.frontiers roles)
 ```
+
+## Item 5c — canonical observation predicate and additive fork repair (2026-11-12)
+
+**Status: partial.** The maximal certified semantic view, its exact model laws,
+and the concrete refresh-fork repair are proved. A general consumer of the
+maximal view is not constructed. Consequently neither general old-halted to
+new-Stable completion nor final-state confluence nor `canonicalLocalOrder`
+from Progress alone is claimed. The R-growth question and progress/descent
+remain paused; no language decision was made.
+
+### Source authority and two proved implementation obstructions
+
+Spec §6.3 requires waiting for known inputs and finalizing only after sibling
+updates stabilize. Its normalization rules remove hidden fields and merge equal
+tags before inspection. The draft/addenda preserve root-pending priority, all
+unnamed applicability arguments, and lossless child diagnostics. The K2 decision
+is about the known type graph, including nominal arguments and excluding nominal
+bodies. These rules require the result to reflect known information independently
+of a refresh schedule. The same-input merge decision remains unchanged.
+
+Merely adding “no certified refresh can add a Known source” to old Stable is
+insufficient. `GeneralNominalCanonicalViewObstructions.knownMaximal_stable_fork`
+proves that **both** old endpoints already satisfy that condition. They are
+checked, source-reachable, inhabited, and model-equivalent, but disagree on
+Local. `not_knownMaximal_stable_confluence` states the negation with those
+premises explicitly. Furthermore `wide_cannot_refine_to_point` and
+`wide_cannot_refresh_to_point` prove that the old descriptor-preserving refinement
+contract itself prevents the repair, independently of the fresh-Known guard.
+
+The second obstruction is representational. The same state entails both the
+point descriptor `(2,2)` and the wider descriptor `(2,4)` for source 0. The theorem
+`no_single_descriptor_contains_all` proves that one optional descriptor at that
+source cannot literally contain both certified facts. This does **not** exclude
+choosing a normalized representative with an appropriate completeness theorem;
+it rules out equating literal single-slot containment with the maximal view.
+
+### Maximal certified view, with an exact scope
+
+`GeneralCanonicalObservations.canonical state observation` is the conjunction of:
+
+1. `Certified`: the fact is recorded as a scalar, complete normalized structural
+   head, or catalogue-checked nominal descriptor in some checked snapshot;
+2. `Compatible`: its source and row-source support is available in this state,
+   and any nominal declaration agrees with this state's constructor catalogue;
+3. `Entails`: **every full journal model** of this state satisfies the fact.
+
+The base witness carries the explicit type/row source identities. Compatibility
+uses the whole witness base support, conservatively stronger than only the free
+sources of the individual term. Certification uses the existing normalized
+snapshot checker, including its hidden-field/same-tag rules. It is not a new
+normalizer, nor a claim that the current state's equations possess a particular
+syntactic rewrite derivation. State-specific validity comes from journal
+entailment. Unknown/deferred observations are excluded from `Recorded`.
+
+`recorded_in_canonical` includes every current recorded head. `maximal` proves
+that every compatible, certified, sound predicate is included. `models_exact`
+proves that adjoining the entire predicate preserves exactly the full journal
+models. Equality of models **and** source support/catalogue gives equality of
+canonical views. The predicate is independent of every executor. On an empty
+model set entailment is vacuous; this predicate is not fed directly into a K2
+or rejection rule, so no new rejection is inferred from that vacuity.
+
+`Cache`, `Completion`, `completion_exists`, and `completion_halted_iff` give a
+one-step completion of a semantic observation cache with identical models.
+**This is cache completion, not full role saturation.** It does not establish
+that a finite `GeneralNominalState.State` realizes all observations or that its
+existing recursive inspector consumes them.
+
+### An actual additive transition and the repaired fork
+
+`GeneralNominalReobservationSteps.Revision` fixes the base, normalized structural
+view, source identities, constructor catalogue, allocation state, interpretation,
+and journal; it replaces nominal descriptors with the same presence domain.
+`Certified.raw` requires new raw models to imply old raw models.
+`Certified.exact` requires equivalence of **full journal models**. These are
+explicit refresh certificates, not assumptions smuggled into a classifier.
+`Improves` preserves all currently point-valued descriptors and makes at least
+one additional slot point-valued. It does not claim to cover all possible
+nonpoint precision improvements.
+
+The new `At` contains every old feedback transition and this certified
+reobservation. The new `Step` still operates only at generated demands.
+`Stable` means that neither kind of transition applies there or at any generated
+child. `stable_iff` characterizes it exactly as old stability plus absence of
+these point improvements. `PointClosed` is a sufficient condition for the
+second part, **not** a synonym for full canonicality.
+
+The new relation has actual laws for model inclusion, Known/source support,
+generated demands, and committed constraints/edges. `canonical_monotone` and
+`canonical_trace` show that its full maximal semantic view only grows.
+`stable_committed` preserves the evidence prover's required interface.
+No existing Step/Stable/Committed definition or theorem was edited.
+
+For the prior fork, `revision_certified` proves a wide-to-point replacement
+with equal models, and `repair_step` is an actual new Step. The old point endpoint
+is new-Stable; the old wide endpoint is not. Both old forks extend to the exact
+same point endpoint. `GeneralNominalReobservationBoundaryExamples.repaired_fork`
+packages checked/initial status, both initial transitions, both extensions,
+halting/stability, model equality, the actual new-boundary Local
+`selected 90 []`, its diagnostic tree, and `SameDiagnostic`.
+This is joinability of the specified two forks, not a theorem about every
+execution starting there.
+
+A useful guard against an invalid shortcut is
+`canonical_equality_does_not_fix_old_local`: the maximal predicates were already
+equal at the old divergent endpoints. A consumer bridge is indispensable.
+
+### Confluence attempt and exact remaining work
+
+`GeneralCanonicalObservationSquares` proves actual merge/merge model equality
+and maximal-view equality, without assuming those equalities. Old certified
+refreshes and new certified revisions leave the maximal predicate unchanged.
+Two such revisions from one start therefore agree on that predicate.
+
+`install_adds` derives the precise information addition of an actual installation
+from its current-context premise. `square_models` and `square_observations`
+show commutation when both orders have the **same fixed semantic additions**.
+`reobservation_add_models` gives the analogous refresh/addition equation.
+These theorems leave the second transition's availability explicit. They do
+not prove install/install or install/merge diamonds: candidate reinspection,
+packet rebasing, allocation/capture identities, children, and gate preservation
+must still be connected. In particular, monotonic information alone does not
+prove that a frozen packet remains Installable after an arbitrary other update.
+Merge/merge model commutation likewise does not by itself prove all transition
+novelty/enablement conditions or equality of diagnostic sites.
+
+No Newman's-lemma conclusion is claimed. The missing work is:
+
+- **Canonical inspection:** construct a representative or multi-observation
+  consumer whose inspected positions, captures, and emitted children are
+  complete for `canonical`, and prove the corresponding Local/K2/pending laws.
+  In addition, reconcile full journal Models with the current raw-context
+  `Survivor` predicate (`ContextComplete` is not automatic).
+- **General completion:** establish actual saturation to a state satisfying
+  that inspection contract. Cache completion is insufficient. The requested
+  same-model conclusion additionally requires that any installation newly
+  enabled by completing observations adds no unentailed constraint. The exact
+  necessary condition `same_models_stable_requires_constraints` is proved:
+  a new-Stable state with the same models must already satisfy every enabled
+  packet's constraints in every original model. No concrete counterexample to
+  the universal completion request is asserted here.
+- **Local diamonds:** prove installation rebasing/emission preservation and
+  compatibility of second updates, not just commutation of supplied semantic
+  conditions; then obtain final Local/diagnostic agreement under Progress.
+
+These are implementation/proof obligations under the existing decisions.
+No formal semantic update-order divergence was established, so there is no
+new owner question. The old R-growth owner question remains untouched.
+
+### V5 field table for the new, explicitly partial boundary
+
+The concrete boundary below is
+`GeneralNominalReobservationBoundary.boundary roles`; its executor is
+`GeneralNominalReobservationExecutor.executor roles progress`.
+It preserves the existing independent Local and evidence judgments while
+extending Step/Stable. It is **not** advertised as a completed canonical-view
+boundary. `Initial` is the unchanged empty-journal source predicate, and
+Reachable uses the actual extended relation.
+
+| V5 field | Status and exact provider |
+| --- | --- |
+| `progress` | OPEN/PAUSED; exact `GeneralNominalReobservationExecutor.Progress roles`. Old feedback Progress is not substituted for it. |
+| `execution` | Conditional only on that Progress; `GeneralNominalReobservationExecutor.execution`. |
+| `halted` | Conditional only on that Progress; `GeneralNominalReobservationExecutor.halted`. |
+| `closure` | PROVED: `GeneralNominalReobservationBoundary.closure`. |
+| `stepModels` | PROVED: `GeneralNominalReobservationBoundary.stepModels`. |
+| `frontierLocal` | PROVED: `GeneralNominalReobservationBoundary.frontierLocal`. |
+| `localIdentity` | PROVED: `GeneralNominalReobservationBoundary.localIdentity`. |
+| `whereAccessible` | OPEN; no new descent/child-accessibility claim. |
+| `treeExecution` | Conditional only on Progress, with the target's own explicit `FrontierExact`/child-`Acc` binders; `GeneralNominalReobservationExecutor.treeExecution`. |
+| `canonicalLocalOrder` | OPEN; `canonicalLocalOrder_of_halted_order` explicitly additionally assumes `HaltedLocalOrder`. No claim from Progress alone. |
+| `dictionaryRefl` | PROVED: `GeneralNominalReobservationBoundary.dictionaryRefl`. |
+| `evidenceNode` | OPEN; recorded evidence is not promoted to all current selected nodes. |
+| `generatedChildren` | OPEN; no unconditional joint-applicability theorem. |
+| `initialReorders` | PROVED: `GeneralNominalReobservationBoundary.initialReorders`. |
+
+Count: **6/14 unconditional; 3 more execution fields conditional on Progress;
+Progress itself is open, and 4 other fields remain.**
+`GeneralNominalReobservationObligations.Remaining` lists exactly those four after
+fixing Progress, and `bridges` fills the actual 14-field structure one for one.
+The executor reuses the existing accessibility-to-halted-state existence proof;
+its tree fallback does not establish the separate where-accessibility obligation.
+
+### Files, review, and verification
+
+Nine new implementation modules are listed in
+[the small module guide](2026-11-12-astra-canonical-view-module-guide.md).
+Only import lines were appended to `lean/Yulang.lean`. The audit is the new
+`lean/Audit/AstraCanonicalView.lean`; the frozen `lean/Audit.lean` and
+`lean/README.md` were not changed. No spec, plan, configuration, or git-ref edits.
+
+The yulang-proofs workflow was used. The requested registered `prover` role and
+its repository configuration were unavailable; no prover agent ran. The primary
+constructed the bounded derivations. A separate reviewer constructed only the
+leased obstruction module, which the primary reviewed; that reviewer then
+independently reviewed the primary's other eight modules read-only, including
+model directions, quantifiers, residual premises, and the 14-field count. No
+blocking finding remained. This does not close the missing general consumer or
+confluence proofs.
+
+Verification commands, from `lean/` (final runs):
+
+- `lake build Yulang.GeneralNominalReobservationObligations Yulang.GeneralNominalReobservationBoundaryExamples Yulang.GeneralCanonicalObservationSquares` — exit **0**.
+- `lake build Yulang` — exit **0**.
+- `lake env lean Audit/AstraCanonicalView.lean` — exit **0**; all **95** new public theorems audited, dependencies confined to `propext`, `Classical.choice`, and `Quot.sound` (or none).
+
+These commands do not claim that the frozen umbrella audit or every historical
+audit part was rerun. General maximal-view inspection/completion/confluence and
+Progress remain unverified. The result is a repair on the real general carrier,
+not another scalar fragment, but a complete Item 5c requires the consumer bridge
+and transition diamonds above.
+
+### Full new public theorem statements
+
+The following are Lean's elaborated `#check @...` statements. Definitions and
+proofs remain in the modules linked by the guide; all implicit premises are
+visible here.
+
+```lean
+@Yulang.GeneralCanonicalObservations.recorded_sound : ∀ {observation : Yulang.GeneralCanonicalObservations.Observation}
+  (snapshot : Yulang.GeneralNominalState.State) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models snapshot model →
+    Yulang.GeneralCanonicalObservations.Recorded snapshot observation → observation.Holds model
+@Yulang.GeneralCanonicalObservations.recorded_compatible : ∀ {roles : Yulang.Roles.RoleDecls}
+  {observation : Yulang.GeneralCanonicalObservations.Observation}
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralCanonicalObservations.Recorded state.context.state observation →
+    Yulang.GeneralCanonicalObservations.Compatible state observation
+@Yulang.GeneralCanonicalObservations.recorded_in_canonical : ∀ {roles : Yulang.Roles.RoleDecls}
+  {observation : Yulang.GeneralCanonicalObservations.Observation}
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralCanonicalObservations.Recorded state.context.state observation →
+    Yulang.GeneralCanonicalObservations.canonical state observation
+@Yulang.GeneralCanonicalObservations.canonical_sound : ∀ {roles : Yulang.Roles.RoleDecls}
+  {observation : Yulang.GeneralCanonicalObservations.Observation}
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralCanonicalObservations.canonical state observation →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models state model → observation.Holds model
+@Yulang.GeneralCanonicalObservations.canonical_complete : ∀ {roles : Yulang.Roles.RoleDecls}
+  {observation : Yulang.GeneralCanonicalObservations.Observation}
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralCanonicalObservations.Certified observation →
+    Yulang.GeneralCanonicalObservations.Compatible state observation →
+      Yulang.GeneralCanonicalObservations.Entails state observation →
+        Yulang.GeneralCanonicalObservations.canonical state observation
+@Yulang.GeneralCanonicalObservations.maximal : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (view : Yulang.GeneralCanonicalObservations.Observation → Prop),
+  (∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+      view observation → Yulang.GeneralCanonicalObservations.Certified observation) →
+    (∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+        view observation → Yulang.GeneralCanonicalObservations.Compatible state observation) →
+      (∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+          view observation → Yulang.GeneralCanonicalObservations.Entails state observation) →
+        ∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+          view observation → Yulang.GeneralCanonicalObservations.canonical state observation
+@Yulang.GeneralCanonicalObservations.models_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralCanonicalObservations.ViewModels state model ↔ Yulang.GeneralNominalSaturationState.Models state model
+@Yulang.GeneralCanonicalObservations.compatible_mono : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles}
+  {observation : Yulang.GeneralCanonicalObservations.Observation},
+  Yulang.GeneralCanonicalObservations.BasisExtends before after →
+    Yulang.GeneralCanonicalObservations.Compatible before observation →
+      Yulang.GeneralCanonicalObservations.Compatible after observation
+@Yulang.GeneralCanonicalObservations.monotone : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralCanonicalObservations.BasisExtends before after →
+    (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models after model →
+          Yulang.GeneralNominalSaturationState.Models before model) →
+      ∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+        Yulang.GeneralCanonicalObservations.canonical before observation →
+          Yulang.GeneralCanonicalObservations.canonical after observation
+@Yulang.GeneralCanonicalObservations.equal_of_same_information : ∀ {roles : Yulang.Roles.RoleDecls}
+  {first last : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralCanonicalObservations.BasisExtends first last →
+    Yulang.GeneralCanonicalObservations.BasisExtends last first →
+      (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models first model ↔
+            Yulang.GeneralNominalSaturationState.Models last model) →
+        Yulang.GeneralCanonicalObservations.canonical first = Yulang.GeneralCanonicalObservations.canonical last
+@Yulang.GeneralCanonicalObservations.complete_canonical : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles),
+  Yulang.GeneralCanonicalObservations.Canonical (Yulang.GeneralCanonicalObservations.complete state)
+@Yulang.GeneralCanonicalObservations.canonical_cache_unique : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (first last : Yulang.GeneralCanonicalObservations.Cache state),
+  Yulang.GeneralCanonicalObservations.Canonical first →
+    Yulang.GeneralCanonicalObservations.Canonical last → first.contains = last.contains
+@Yulang.GeneralCanonicalObservations.completion_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {first last : Yulang.GeneralCanonicalObservations.Cache state},
+  Yulang.GeneralCanonicalObservations.Completion state first last →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      (Yulang.GeneralNominalSaturationState.Models state model ∧
+          ∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+            last.contains observation → observation.Holds model) ↔
+        Yulang.GeneralNominalSaturationState.Models state model ∧
+          ∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+            first.contains observation → observation.Holds model
+@Yulang.GeneralCanonicalObservations.completion_exists : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} (cache : Yulang.GeneralCanonicalObservations.Cache state),
+  ∃ final,
+    Yulang.B4Target.Steps (Yulang.GeneralCanonicalObservations.Completion state) cache final ∧
+      Yulang.GeneralCanonicalObservations.Canonical final
+@Yulang.GeneralCanonicalObservations.completion_halted_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} (cache : Yulang.GeneralCanonicalObservations.Cache state),
+  (∀ (next : Yulang.GeneralCanonicalObservations.Cache state),
+      ¬Yulang.GeneralCanonicalObservations.Completion state cache next) ↔
+    Yulang.GeneralCanonicalObservations.Canonical cache
+Yulang.GeneralNominalCanonicalViewObstructions.fork_knownMaximal : ∀ (wide : Bool),
+  Yulang.GeneralNominalCanonicalViewObstructions.KnownMaximal (Yulang.GeneralNominalRefreshFork.after wide)
+Yulang.GeneralNominalCanonicalViewObstructions.wide_cannot_refine_to_point : ¬Nonempty
+    (Yulang.GeneralNominalRefinements.Refines (Yulang.GeneralNominalRefreshFork.state (some true))
+      (Yulang.GeneralNominalRefreshFork.state (some false)))
+Yulang.GeneralNominalCanonicalViewObstructions.wide_cannot_refresh_to_point : ¬Nonempty
+    (Yulang.GeneralNominalFeedbackSteps.Refresh (Yulang.GeneralNominalRefreshFork.after true)
+      (Yulang.GeneralNominalRefreshFork.context (some false)))
+Yulang.GeneralNominalCanonicalViewObstructions.knownMaximal_stable_fork : (Yulang.GeneralDictionaryReachableBoundary.boundary
+        Yulang.GeneralDeclarationExamples.roles).Checked
+    Yulang.GeneralNominalRefreshFork.registry ∧
+  (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Initial
+      Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+      Yulang.GeneralNominalRefreshFork.before ∧
+    (∀ (wide : Bool),
+        Yulang.B4TargetV5.Reachable
+          (Yulang.GeneralDictionaryReachableBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+          Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+          (Yulang.GeneralNominalRefreshFork.after wide)) ∧
+      (∀ (wide : Bool),
+          Yulang.GeneralNominalCanonicalViewObstructions.KnownMaximal (Yulang.GeneralNominalRefreshFork.after wide) ∧
+            Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralNominalRefreshFork.registry
+              (Yulang.GeneralNominalRefreshFork.after wide) Yulang.GeneralNominalRefreshFork.root) ∧
+        (∀ (wide : Bool) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalRefreshFork.after wide) model ↔
+              Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalRefreshFork.before model) ∧
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalRefreshFork.before
+              Yulang.GeneralNominalRefreshFork.model ∧
+            ¬∀
+                (demand :
+                  (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand)
+                (frontier :
+                  Yulang.CommonRoleOutermostResolver.Frontier
+                    (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand),
+                Yulang.B4TargetV3.Local
+                    (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+                    Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false) demand
+                    frontier ↔
+                  Yulang.B4TargetV3.Local
+                    (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+                    Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true) demand
+                    frontier
+Yulang.GeneralNominalCanonicalViewObstructions.not_knownMaximal_stable_confluence : ¬∀
+    (first last : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+    Yulang.B4Target.Steps
+        (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+          Yulang.GeneralNominalRefreshFork.root)
+        Yulang.GeneralNominalRefreshFork.before first →
+      Yulang.B4Target.Steps
+          (Yulang.GeneralNominalFeedbackSteps.Step Yulang.GeneralNominalRefreshFork.registry
+            Yulang.GeneralNominalRefreshFork.root)
+          Yulang.GeneralNominalRefreshFork.before last →
+        Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralNominalRefreshFork.registry first
+            Yulang.GeneralNominalRefreshFork.root →
+          Yulang.GeneralNominalFeedbackSteps.Stable Yulang.GeneralNominalRefreshFork.registry last
+              Yulang.GeneralNominalRefreshFork.root →
+            Yulang.GeneralNominalCanonicalViewObstructions.KnownMaximal first →
+              Yulang.GeneralNominalCanonicalViewObstructions.KnownMaximal last →
+                (∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalSaturationState.Models first assignment ↔
+                      Yulang.GeneralNominalSaturationState.Models last assignment) →
+                  ∀
+                    (demand :
+                      (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand)
+                    (frontier :
+                      Yulang.CommonRoleOutermostResolver.Frontier
+                        (Yulang.GeneralNominalFeedbackBoundary.vocabulary
+                            Yulang.GeneralDeclarationExamples.roles).Demand),
+                    Yulang.B4TargetV3.Local
+                        (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+                        Yulang.GeneralNominalRefreshFork.registry first demand frontier ↔
+                      Yulang.B4TargetV3.Local
+                        (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+                        Yulang.GeneralNominalRefreshFork.registry last demand frontier
+@Yulang.GeneralNominalReobservationSteps.revision_known : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision state) (source : Nat),
+  Yulang.GeneralNominalState.Known revision.snapshot source ↔
+    Yulang.GeneralNominalState.Known state.context.state source
+@Yulang.GeneralNominalReobservationSteps.revision_basis : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision state),
+  Yulang.GeneralCanonicalObservations.BasisExtends state revision.result ∧
+    Yulang.GeneralCanonicalObservations.BasisExtends revision.result state
+@Yulang.GeneralNominalReobservationSteps.revision_canonical : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision state),
+  Yulang.GeneralNominalReobservationSteps.Certified revision →
+    Yulang.GeneralCanonicalObservations.canonical revision.result = Yulang.GeneralCanonicalObservations.canonical state
+@Yulang.GeneralNominalReobservationSteps.pointClosed_no_revision : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles},
+  Yulang.GeneralNominalReobservationSteps.PointClosed state.context.state →
+    ∀ (revision : Yulang.GeneralNominalReobservationSteps.Revision state),
+      ¬Yulang.GeneralNominalReobservationSteps.Improves revision
+@Yulang.GeneralNominalReobservationSteps.old_step : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackSteps.Step registry root before after →
+    Yulang.GeneralNominalReobservationSteps.Step registry root before after
+@Yulang.GeneralNominalReobservationSteps.at_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.At registry before focus after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after model → Yulang.GeneralNominalSaturationState.Models before model
+@Yulang.GeneralNominalReobservationSteps.stepModels : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.Step registry root before after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after model → Yulang.GeneralNominalSaturationState.Models before model
+@Yulang.GeneralNominalReobservationSteps.steps_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalReobservationSteps.Step registry root) before after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after model → Yulang.GeneralNominalSaturationState.Models before model
+@Yulang.GeneralNominalReobservationSteps.at_known : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.At registry before focus after →
+    ∀ (source : Nat),
+      Yulang.GeneralNominalState.Known before.context.state source →
+        Yulang.GeneralNominalState.Known after.context.state source
+@Yulang.GeneralNominalReobservationSteps.at_extends : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.At registry before focus after →
+    Yulang.GeneralNominalFeedbackProgress.Extends before after
+@Yulang.GeneralNominalReobservationSteps.generated_monotone : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root child : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.Step registry root before after →
+    Yulang.GeneralNominalSaturationState.Generated before root child →
+      Yulang.GeneralNominalSaturationState.Generated after root child
+@Yulang.GeneralNominalReobservationSteps.basis_of_refines : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles}
+  (refines : Yulang.GeneralNominalRefinements.Refines before.context.state after.context.state),
+  Yulang.GeneralCanonicalObservations.BasisExtends before after
+@Yulang.GeneralNominalReobservationSteps.at_basis : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.At registry before focus after →
+    Yulang.GeneralCanonicalObservations.BasisExtends before after
+@Yulang.GeneralNominalReobservationSteps.canonical_monotone : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.Step registry root before after →
+    ∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+      Yulang.GeneralCanonicalObservations.canonical before observation →
+        Yulang.GeneralCanonicalObservations.canonical after observation
+@Yulang.GeneralNominalReobservationSteps.canonical_trace : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalReobservationSteps.Step registry root) before after →
+    ∀ (observation : Yulang.GeneralCanonicalObservations.Observation),
+      Yulang.GeneralCanonicalObservations.canonical before observation →
+        Yulang.GeneralCanonicalObservations.canonical after observation
+@Yulang.GeneralNominalReobservationSteps.stable_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.GeneralNominalReobservationSteps.Stable registry state root ↔
+    Yulang.GeneralNominalFeedbackSteps.Stable registry state root ∧
+      ∀ (revision : Yulang.GeneralNominalReobservationSteps.Revision state),
+        Yulang.GeneralNominalReobservationSteps.Certified revision →
+          ¬Yulang.GeneralNominalReobservationSteps.Improves revision
+@Yulang.GeneralNominalReobservationSteps.stable_of_pointClosed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalFeedbackSteps.Stable registry state root →
+    Yulang.GeneralNominalReobservationSteps.PointClosed state.context.state →
+      Yulang.GeneralNominalReobservationSteps.Stable registry state root
+@Yulang.GeneralNominalReobservationSteps.halted_stable : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  (∀ (after : Yulang.GeneralNominalSaturationState.State roles),
+      ¬Yulang.GeneralNominalReobservationSteps.Step registry root state after) →
+    Yulang.GeneralNominalReobservationSteps.Stable registry state root
+@Yulang.GeneralNominalReobservationSteps.stable_halted : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.Stable registry state root →
+    ∀ (after : Yulang.GeneralNominalSaturationState.State roles),
+      ¬Yulang.GeneralNominalReobservationSteps.Step registry root state after
+@Yulang.GeneralNominalReobservationSteps.stable_generated : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root child : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.Stable registry state root →
+    Yulang.GeneralNominalSaturationState.Generated state root child →
+      Yulang.GeneralNominalReobservationSteps.Stable registry state child
+@Yulang.GeneralNominalReobservationSteps.closure : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  (∀ (after : Yulang.GeneralNominalSaturationState.State roles),
+      ¬Yulang.GeneralNominalReobservationSteps.Step registry root state after) →
+    Yulang.GeneralNominalReobservationSteps.Stable registry state root ∧
+      ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Yulang.GeneralNominalSaturationState.Generated state root child →
+          Yulang.GeneralNominalReobservationSteps.Stable registry state child
+@Yulang.GeneralNominalReobservationSteps.stable_committed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.Stable registry state root →
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      Yulang.GeneralNominalSaturationState.Generated state root packet.site.occurrence →
+        Yulang.GeneralNominalFeedbackSteps.Installable registry state packet →
+          Yulang.GeneralNominalFeedbackSteps.Committed state packet
+@Yulang.GeneralNominalReobservationSteps.committed_trace : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {packet : Yulang.GeneralNominalSaturationState.Packet roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalReobservationSteps.Step registry root) before after →
+    Yulang.GeneralNominalFeedbackSteps.Committed before packet →
+      Yulang.GeneralNominalFeedbackSteps.Committed after packet
+@Yulang.GeneralNominalReobservationSteps.same_models_stable_requires_constraints : ∀ {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalReobservationSteps.Stable registry after root →
+    (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models before model ↔
+          Yulang.GeneralNominalSaturationState.Models after model) →
+      ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+        Yulang.GeneralNominalSaturationState.Generated after root packet.site.occurrence →
+          Yulang.GeneralNominalFeedbackSteps.Installable registry after packet →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalSaturationState.Models before model → packet.Holds model
+@Yulang.GeneralCanonicalObservationSquares.install_adds : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (emission : Yulang.GeneralNominalFeedbackSites.Emission packet),
+  packet.context = state.context →
+    Yulang.GeneralCanonicalObservationSquares.Adds state
+      (Yulang.GeneralNominalFeedbackSites.install state packet emission) packet.Holds
+@Yulang.GeneralCanonicalObservationSquares.merge_adds : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles)
+  (first last : Yulang.GeneralNominalDemandMerging.Site roles),
+  Yulang.GeneralCanonicalObservationSquares.Adds state (Yulang.GeneralNominalSaturationState.merge state first last)
+    fun model =>
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalDemandMerging.outputAtoms first last)
+@Yulang.GeneralCanonicalObservationSquares.square_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {start left right finalLeft finalRight : Yulang.GeneralNominalSaturationState.State roles}
+  {one two : Yulang.GeneralNominalCommonBridge.Assignment → Prop},
+  Yulang.GeneralCanonicalObservationSquares.Adds start left one →
+    Yulang.GeneralCanonicalObservationSquares.Adds start right two →
+      Yulang.GeneralCanonicalObservationSquares.Adds left finalLeft two →
+        Yulang.GeneralCanonicalObservationSquares.Adds right finalRight one →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models finalLeft model ↔
+              Yulang.GeneralNominalSaturationState.Models finalRight model
+@Yulang.GeneralCanonicalObservationSquares.square_observations : ∀ {roles : Yulang.Roles.RoleDecls}
+  {start left right finalLeft finalRight : Yulang.GeneralNominalSaturationState.State roles}
+  {one two : Yulang.GeneralNominalCommonBridge.Assignment → Prop},
+  Yulang.GeneralCanonicalObservationSquares.Adds start left one →
+    Yulang.GeneralCanonicalObservationSquares.Adds start right two →
+      Yulang.GeneralCanonicalObservationSquares.Adds left finalLeft two →
+        Yulang.GeneralCanonicalObservationSquares.Adds right finalRight one →
+          Yulang.GeneralCanonicalObservations.BasisExtends finalLeft finalRight →
+            Yulang.GeneralCanonicalObservations.BasisExtends finalRight finalLeft →
+              Yulang.GeneralCanonicalObservations.canonical finalLeft =
+                Yulang.GeneralCanonicalObservations.canonical finalRight
+@Yulang.GeneralCanonicalObservationSquares.merge_merge_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (a b c d : Yulang.GeneralNominalDemandMerging.Site roles)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models
+      (Yulang.GeneralNominalSaturationState.merge (Yulang.GeneralNominalSaturationState.merge state a b) c d) model ↔
+    Yulang.GeneralNominalSaturationState.Models
+      (Yulang.GeneralNominalSaturationState.merge (Yulang.GeneralNominalSaturationState.merge state c d) a b) model
+@Yulang.GeneralCanonicalObservationSquares.merge_merge_basis : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (a b c d : Yulang.GeneralNominalDemandMerging.Site roles),
+  Yulang.GeneralCanonicalObservations.BasisExtends
+    (Yulang.GeneralNominalSaturationState.merge (Yulang.GeneralNominalSaturationState.merge state a b) c d)
+    (Yulang.GeneralNominalSaturationState.merge (Yulang.GeneralNominalSaturationState.merge state c d) a b)
+@Yulang.GeneralCanonicalObservationSquares.merge_merge_observations : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (a b c d : Yulang.GeneralNominalDemandMerging.Site roles),
+  Yulang.GeneralCanonicalObservations.canonical
+      (Yulang.GeneralNominalSaturationState.merge (Yulang.GeneralNominalSaturationState.merge state a b) c d) =
+    Yulang.GeneralCanonicalObservations.canonical
+      (Yulang.GeneralNominalSaturationState.merge (Yulang.GeneralNominalSaturationState.merge state c d) a b)
+@Yulang.GeneralCanonicalObservationSquares.refresh_observations : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (context : Yulang.GeneralNominalCandidates.Context)
+  (certificate : Yulang.GeneralNominalFeedbackSteps.Refresh state context),
+  Yulang.GeneralCanonicalObservations.canonical (Yulang.GeneralNominalSaturationState.regenerate state context) =
+    Yulang.GeneralCanonicalObservations.canonical state
+@Yulang.GeneralCanonicalObservationSquares.reobservation_reobservation : ∀ {roles : Yulang.Roles.RoleDecls}
+  {start : Yulang.GeneralNominalSaturationState.State roles}
+  (first last : Yulang.GeneralNominalReobservationSteps.Revision start),
+  Yulang.GeneralNominalReobservationSteps.Certified first →
+    Yulang.GeneralNominalReobservationSteps.Certified last →
+      Yulang.GeneralCanonicalObservations.canonical first.result =
+        Yulang.GeneralCanonicalObservations.canonical last.result
+@Yulang.GeneralCanonicalObservationSquares.enqueue_merge_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSaturationState.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (first last : Yulang.GeneralNominalDemandMerging.Site roles) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models
+      (Yulang.GeneralNominalSaturationState.merge (Yulang.GeneralNominalSaturationState.enqueue state root) first last)
+      model ↔
+    Yulang.GeneralNominalSaturationState.Models
+      (Yulang.GeneralNominalSaturationState.enqueue (Yulang.GeneralNominalSaturationState.merge state first last) root)
+      model
+@Yulang.GeneralCanonicalObservationSquares.reobservation_add_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {start left right : Yulang.GeneralNominalSaturationState.State roles}
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision start),
+  Yulang.GeneralNominalReobservationSteps.Certified revision →
+    ∀ {condition : Yulang.GeneralNominalCommonBridge.Assignment → Prop},
+      Yulang.GeneralCanonicalObservationSquares.Adds start left condition →
+        Yulang.GeneralCanonicalObservationSquares.Adds revision.result right condition →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models left model ↔
+              Yulang.GeneralNominalSaturationState.Models right model
+Yulang.GeneralNominalReobservationExamples.revision_result : Yulang.GeneralNominalReobservationExamples.revision.result =
+  Yulang.GeneralNominalRefreshFork.after false
+Yulang.GeneralNominalReobservationExamples.revision_certified : Yulang.GeneralNominalReobservationSteps.Certified
+  Yulang.GeneralNominalReobservationExamples.revision
+Yulang.GeneralNominalReobservationExamples.point_closed : Yulang.GeneralNominalReobservationSteps.PointClosed
+  (Yulang.GeneralNominalRefreshFork.state (some false))
+Yulang.GeneralNominalReobservationExamples.revision_improves : Yulang.GeneralNominalReobservationSteps.Improves
+  Yulang.GeneralNominalReobservationExamples.revision
+Yulang.GeneralNominalReobservationExamples.repair_step : Yulang.GeneralNominalReobservationSteps.Step
+  Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+  (Yulang.GeneralNominalRefreshFork.after true) (Yulang.GeneralNominalRefreshFork.after false)
+Yulang.GeneralNominalReobservationExamples.point_stable : Yulang.GeneralNominalReobservationSteps.Stable
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false)
+  Yulang.GeneralNominalRefreshFork.root
+Yulang.GeneralNominalReobservationExamples.point_halted : ∀
+  (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+  ¬Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalRefreshFork.registry
+      Yulang.GeneralNominalRefreshFork.root (Yulang.GeneralNominalRefreshFork.after false) next
+Yulang.GeneralNominalReobservationExamples.wide_not_stable : ¬Yulang.GeneralNominalReobservationSteps.Stable
+    Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true)
+    Yulang.GeneralNominalRefreshFork.root
+Yulang.GeneralNominalReobservationExamples.fork_extension : ∀ (wide : Bool),
+  Yulang.B4Target.Steps
+    (Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalRefreshFork.registry
+      Yulang.GeneralNominalRefreshFork.root)
+    (Yulang.GeneralNominalRefreshFork.after wide) (Yulang.GeneralNominalRefreshFork.after false)
+Yulang.GeneralNominalReobservationExamples.fork_join : ∀ (wide : Bool),
+  Yulang.B4Target.Steps
+      (Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalRefreshFork.registry
+        Yulang.GeneralNominalRefreshFork.root)
+      Yulang.GeneralNominalRefreshFork.before (Yulang.GeneralNominalRefreshFork.after false) ∧
+    Yulang.B4Target.Steps
+        (Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalRefreshFork.registry
+          Yulang.GeneralNominalRefreshFork.root)
+        (Yulang.GeneralNominalRefreshFork.after wide) (Yulang.GeneralNominalRefreshFork.after false) ∧
+      Yulang.GeneralNominalReobservationSteps.Stable Yulang.GeneralNominalRefreshFork.registry
+          (Yulang.GeneralNominalRefreshFork.after false) Yulang.GeneralNominalRefreshFork.root ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalRefreshFork.after wide) model ↔
+            Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalRefreshFork.after false) model
+Yulang.GeneralNominalReobservationExamples.canonical_fork_equal : Yulang.GeneralCanonicalObservations.canonical
+    (Yulang.GeneralNominalRefreshFork.after false) =
+  Yulang.GeneralCanonicalObservations.canonical (Yulang.GeneralNominalRefreshFork.after true)
+Yulang.GeneralNominalReobservationExamples.canonical_equality_does_not_fix_old_local : Yulang.GeneralCanonicalObservations.canonical
+      (Yulang.GeneralNominalRefreshFork.after false) =
+    Yulang.GeneralCanonicalObservations.canonical (Yulang.GeneralNominalRefreshFork.after true) ∧
+  ¬∀ (d : (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand)
+      (f :
+        Yulang.CommonRoleOutermostResolver.Frontier
+          (Yulang.GeneralNominalFeedbackBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand),
+      Yulang.B4TargetV3.Local
+          (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+          Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false) d f ↔
+        Yulang.B4TargetV3.Local
+          (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+          Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after true) d f
+Yulang.GeneralNominalReobservationExamples.point_observation_in_wide : Yulang.GeneralCanonicalObservations.canonical
+  (Yulang.GeneralNominalRefreshFork.after true)
+  (Yulang.GeneralCanonicalObservations.Observation.nominal Yulang.GeneralNominalRefreshFork.base 0
+    (Yulang.GeneralNominalRefreshFork.descriptor (2, 2)))
+Yulang.GeneralNominalReobservationExamples.wide_observation_in_wide : Yulang.GeneralCanonicalObservations.canonical
+  (Yulang.GeneralNominalRefreshFork.after true)
+  (Yulang.GeneralCanonicalObservations.Observation.nominal Yulang.GeneralNominalRefreshFork.base 0
+    (Yulang.GeneralNominalRefreshFork.descriptor (2, 4)))
+Yulang.GeneralNominalReobservationExamples.no_single_descriptor_contains_all : ¬∃ entries,
+    ∀ (descriptor : Yulang.GeneralNominalState.Descriptor Yulang.GeneralNominalRefreshFork.base.slots),
+      Yulang.GeneralCanonicalObservations.canonical (Yulang.GeneralNominalRefreshFork.after true)
+          (Yulang.GeneralCanonicalObservations.Observation.nominal Yulang.GeneralNominalRefreshFork.base 0 descriptor) →
+        entries 0 = some descriptor
+Yulang.GeneralNominalReobservationExamples.repaired_diagnostic : (∀ (wide : Bool),
+    Yulang.B4Target.Steps
+      (Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalRefreshFork.registry
+        Yulang.GeneralNominalRefreshFork.root)
+      (Yulang.GeneralNominalRefreshFork.after wide) (Yulang.GeneralNominalRefreshFork.after false)) ∧
+  (∀ (next : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+      ¬Yulang.GeneralNominalReobservationSteps.Step Yulang.GeneralNominalRefreshFork.registry
+          Yulang.GeneralNominalRefreshFork.root (Yulang.GeneralNominalRefreshFork.after false) next) ∧
+    Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+        Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false)
+        Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Frontier.selected 90 []) ∧
+      Yulang.CommonRoleOutermostResolver.Resolves
+          (Yulang.B4TargetV3.Local
+            (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+            Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false))
+          Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Tree.selected 90 []) ∧
+        Yulang.B4TargetV3.SameDiagnostic
+          (Yulang.GeneralDictionaryFeedbackEvidence.boundary Yulang.GeneralDeclarationExamples.roles)
+          (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
+          (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
+Yulang.GeneralNominalReobservationBoundary.local_iff_old : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (frontier : Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.B4TargetV3.Local (Yulang.GeneralNominalReobservationBoundary.boundary roles).toSourceBoundary registry state
+      root frontier ↔
+    Yulang.B4TargetV3.Local (Yulang.GeneralDictionaryFeedbackEvidence.boundary roles) registry state root frontier
+@Yulang.GeneralNominalReobservationBoundary.closure : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root state →
+        (∀ (after : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).State),
+            ¬(Yulang.GeneralNominalReobservationBoundary.boundary roles).Step registry root state after) →
+          (Yulang.GeneralNominalReobservationBoundary.boundary roles).Stable registry state root ∧
+            ∀ (child : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Demand),
+              (Yulang.GeneralNominalReobservationBoundary.boundary roles).Generated registry state root child →
+                (Yulang.GeneralNominalReobservationBoundary.boundary roles).Stable registry state child
+@Yulang.GeneralNominalReobservationBoundary.stepModels : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (before after : Yulang.GeneralNominalSaturationState.State roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root before →
+        (Yulang.GeneralNominalReobservationBoundary.boundary roles).Step registry root before after →
+          ∀ (model : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Model),
+            (Yulang.GeneralNominalReobservationBoundary.boundary roles).Models after model →
+              (Yulang.GeneralNominalReobservationBoundary.boundary roles).Models before model
+@Yulang.GeneralNominalReobservationBoundary.frontierLocal : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root state →
+        ∀ (d : Yulang.GeneralSourceDictionaries.Occurrence roles)
+          (f : Yulang.CommonRoleOutermostResolver.Frontier (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+          (Yulang.GeneralNominalReobservationBoundary.frontiers roles registry state).frontier d = f ↔
+            Yulang.B4TargetV3.Local (Yulang.GeneralNominalReobservationBoundary.boundary roles).toSourceBoundary
+              registry state d f
+@Yulang.GeneralNominalReobservationBoundary.localIdentity : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root state →
+    (Yulang.GeneralNominalReobservationBoundary.frontiers roles registry state).Local =
+      Yulang.B4TargetV3.Local (Yulang.GeneralNominalReobservationBoundary.boundary roles).toSourceBoundary registry
+        state
+@Yulang.GeneralNominalReobservationBoundary.dictionaryRefl : ∀ {roles : Yulang.Roles.RoleDecls}
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).DictionaryEquivalent dictionary dictionary
+@Yulang.GeneralNominalReobservationBoundary.initialReorders : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry other : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked registry →
+    (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked other →
+      (Yulang.GeneralNominalReobservationBoundary.boundary roles).Reorders registry other →
+        ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+          (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+          (Yulang.GeneralNominalReobservationBoundary.boundary roles).Initial registry root state →
+            (Yulang.GeneralNominalReobservationBoundary.boundary roles).Initial other root state
+@Yulang.GeneralNominalReobservationBoundary.old_reachable : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  Yulang.B4TargetV5.Reachable (Yulang.GeneralDictionaryReachableBoundary.boundary roles) registry root state →
+    Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root state
+Yulang.GeneralNominalReobservationExecutor.final_spec : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root state →
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalReobservationBoundary.boundary roles).Step registry root) state
+            (Yulang.GeneralNominalReobservationExecutor.finalState roles progress registry state root) ∧
+          ∀ (next : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).State),
+            ¬(Yulang.GeneralNominalReobservationBoundary.boundary roles).Step registry root
+                (Yulang.GeneralNominalReobservationExecutor.finalState roles progress registry state root) next
+Yulang.GeneralNominalReobservationExecutor.diagnostic_eq_resolve : ∀ (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSaturationState.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (exact :
+    Yulang.CommonRoleOutermostResolver.FrontierExact
+      (Yulang.GeneralNominalReobservationBoundary.frontiers roles registry state))
+  (accessible :
+    Acc
+      (Yulang.CommonRoleOutermostResolver.Child
+        (Yulang.GeneralNominalReobservationBoundary.frontiers roles registry state).Local)
+      root),
+  Yulang.GeneralNominalReobservationExecutor.diagnostic roles registry state root =
+    Yulang.CommonRoleOutermostResolver.resolve
+      (Yulang.GeneralNominalReobservationBoundary.frontiers roles registry state) exact root accessible
+Yulang.GeneralNominalReobservationExecutor.execution : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles)
+  (r : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked r →
+    ∀ (s : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).State)
+      (d : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Demand),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) r d s →
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalReobservationBoundary.boundary roles).Step r d) s
+          ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run r s d).fst
+Yulang.GeneralNominalReobservationExecutor.halted : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles)
+  (r : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked r →
+    ∀ (s : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).State)
+      (d : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Demand),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) r d s →
+        ∀ (next : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).State),
+          ¬(Yulang.GeneralNominalReobservationBoundary.boundary roles).Step r d
+              ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run r s d).fst next
+Yulang.GeneralNominalReobservationExecutor.treeExecution : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles)
+  (r : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked r →
+    ∀ (s : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).State)
+      (d : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Demand),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) r d s →
+        ∀
+          (exact :
+            Yulang.CommonRoleOutermostResolver.FrontierExact
+              (Yulang.GeneralNominalReobservationBoundary.frontiers roles r
+                ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run r s d).fst))
+          (accessible :
+            Acc
+              (Yulang.CommonRoleOutermostResolver.Child
+                (Yulang.GeneralNominalReobservationBoundary.frontiers roles r
+                    ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run r s d).fst).Local)
+              d),
+          ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run r s d).snd =
+            Yulang.CommonRoleOutermostResolver.resolve
+              (Yulang.GeneralNominalReobservationBoundary.frontiers roles r
+                ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run r s d).fst)
+              exact d accessible
+Yulang.GeneralNominalReobservationExecutor.final_reachable : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root state →
+        Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root
+          ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run registry state root).fst
+Yulang.GeneralNominalReobservationExecutor.final_stable : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root state →
+        (Yulang.GeneralNominalReobservationBoundary.boundary roles).Stable registry
+            ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run registry state root).fst root ∧
+          ∀ (child : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Demand),
+            (Yulang.GeneralNominalReobservationBoundary.boundary roles).Generated registry
+                ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run registry state root).fst root
+                child →
+              (Yulang.GeneralNominalReobservationBoundary.boundary roles).Stable registry
+                ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run registry state root).fst child
+Yulang.GeneralNominalReobservationExecutor.final_models : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked registry →
+    ∀ (state : Yulang.GeneralNominalSaturationState.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root state →
+        ∀ (model : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Model),
+          (Yulang.GeneralNominalReobservationBoundary.boundary roles).Models
+              ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run registry state root).fst model →
+            (Yulang.GeneralNominalReobservationBoundary.boundary roles).Models state model
+Yulang.GeneralNominalReobservationExecutor.saturationTotal : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles),
+  Yulang.B4TargetV5.SaturationTotal (Yulang.GeneralNominalReobservationBoundary.boundary roles)
+    (Yulang.GeneralNominalReobservationExecutor.executor roles progress)
+Yulang.GeneralNominalReobservationObligations.bridges : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles),
+  Yulang.GeneralNominalReobservationObligations.Remaining roles progress →
+    Yulang.B4SkeletonV5.B4Bridges (Yulang.GeneralNominalReobservationBoundary.boundary roles)
+      (Yulang.GeneralNominalReobservationExecutor.executor roles progress)
+      (Yulang.GeneralNominalReobservationBoundary.frontiers roles)
+Yulang.GeneralNominalReobservationObligations.canonicalLocalOrder_of_halted_order : ∀ (roles : Yulang.Roles.RoleDecls)
+  (progress : Yulang.GeneralNominalReobservationExecutor.Progress roles),
+  Yulang.GeneralNominalReobservationObligations.HaltedLocalOrder roles →
+    ∀ (r r' : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Registry),
+      (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked r →
+        (Yulang.GeneralNominalReobservationBoundary.boundary roles).Checked r' →
+          (Yulang.GeneralNominalReobservationBoundary.boundary roles).Reorders r r' →
+            ∀ (s : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).State)
+              (root : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Demand),
+              Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) r root s →
+                Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalReobservationBoundary.boundary roles) r' root s →
+                  ∀ (d : (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Demand)
+                    (f :
+                      Yulang.CommonRoleOutermostResolver.Frontier
+                        (Yulang.GeneralNominalReobservationBoundary.vocabulary roles).Demand),
+                    Yulang.B4TargetV3.Local (Yulang.GeneralNominalReobservationBoundary.boundary roles).toSourceBoundary
+                        r ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run r s root).fst d f ↔
+                      Yulang.B4TargetV3.Local
+                        (Yulang.GeneralNominalReobservationBoundary.boundary roles).toSourceBoundary r'
+                        ((Yulang.GeneralNominalReobservationExecutor.executor roles progress).run r' s root).fst d f
+Yulang.GeneralNominalReobservationBoundaryExamples.point_local : Yulang.B4TargetV3.Local
+  (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false)
+  Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Frontier.selected 90 [])
+Yulang.GeneralNominalReobservationBoundaryExamples.point_tree : Yulang.CommonRoleOutermostResolver.Resolves
+  (Yulang.B4TargetV3.Local
+    (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+    Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false))
+  Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
+Yulang.GeneralNominalReobservationBoundaryExamples.same_diagnostic : Yulang.B4TargetV3.SameDiagnostic
+  (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+  (Yulang.CommonRoleOutermostResolver.Tree.selected 90 []) (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
+Yulang.GeneralNominalReobservationBoundaryExamples.reachable_point : Yulang.B4TargetV5.Reachable
+  (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+  (Yulang.GeneralNominalRefreshFork.after false)
+Yulang.GeneralNominalReobservationBoundaryExamples.repaired_fork : (Yulang.GeneralNominalReobservationBoundary.boundary
+        Yulang.GeneralDeclarationExamples.roles).Checked
+    Yulang.GeneralNominalRefreshFork.registry ∧
+  (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Initial
+      Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+      Yulang.GeneralNominalRefreshFork.before ∧
+    (∀ (wide : Bool),
+        (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Step
+          Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+          Yulang.GeneralNominalRefreshFork.before (Yulang.GeneralNominalRefreshFork.after wide)) ∧
+      (∀ (wide : Bool),
+          Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Step
+              Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root)
+            (Yulang.GeneralNominalRefreshFork.after wide) (Yulang.GeneralNominalRefreshFork.after false)) ∧
+        (∀
+            (next :
+              (Yulang.GeneralNominalReobservationBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).State),
+            ¬(Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Step
+                Yulang.GeneralNominalRefreshFork.registry Yulang.GeneralNominalRefreshFork.root
+                (Yulang.GeneralNominalRefreshFork.after false) next) ∧
+          (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Stable
+              Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false)
+              Yulang.GeneralNominalRefreshFork.root ∧
+            (∀ (wide : Bool)
+                (model :
+                  (Yulang.GeneralNominalReobservationBoundary.vocabulary
+                      Yulang.GeneralDeclarationExamples.roles).Model),
+                (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Models
+                    (Yulang.GeneralNominalRefreshFork.after wide) model ↔
+                  (Yulang.GeneralNominalReobservationBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Models
+                    (Yulang.GeneralNominalRefreshFork.after false) model) ∧
+              Yulang.B4TargetV3.Local
+                  (Yulang.GeneralNominalReobservationBoundary.boundary
+                      Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+                  Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false)
+                  Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Frontier.selected 90 []) ∧
+                Yulang.CommonRoleOutermostResolver.Resolves
+                    (Yulang.B4TargetV3.Local
+                      (Yulang.GeneralNominalReobservationBoundary.boundary
+                          Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+                      Yulang.GeneralNominalRefreshFork.registry (Yulang.GeneralNominalRefreshFork.after false))
+                    Yulang.GeneralNominalRefreshFork.root (Yulang.CommonRoleOutermostResolver.Tree.selected 90 []) ∧
+                  Yulang.B4TargetV3.SameDiagnostic
+                    (Yulang.GeneralNominalReobservationBoundary.boundary
+                        Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+                    (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
+                    (Yulang.CommonRoleOutermostResolver.Tree.selected 90 [])
+```
