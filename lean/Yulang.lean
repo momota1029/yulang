@@ -2002,3 +2002,5 @@ import Yulang.GeneralDictionarySupportLocalOrder
 import Yulang.GeneralDictionaryEarlyMergeDiagnostics
 
 import Yulang.GeneralDictionaryDiagnosticAccessibility
+
+import Yulang.GeneralDictionaryDiagnosticTotality

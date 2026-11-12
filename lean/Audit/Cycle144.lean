@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryDiagnosticTotality
 import Yulang.GeneralDictionaryDiagnosticAccessibility
 import Yulang.GeneralDictionaryEarlyMergeDiagnostics
 import Yulang.GeneralDictionarySupportLocalOrder
@@ -211,3 +212,8 @@ import Yulang.GeneralDictionaryEarlyMergeRegression
 #print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.resolved_accessible
 #print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.resolved_children_accessible
 #print axioms Yulang.GeneralDictionaryDiagnosticAccessibility.actual_accessible_without_classify
+
+#print axioms Yulang.GeneralDictionaryDiagnosticTotality.diagnostic_exists
+#print axioms Yulang.GeneralDictionaryDiagnosticTotality.diagnostic_iff_accessible
+#print axioms Yulang.GeneralDictionaryDiagnosticTotality.closure_local
+#print axioms Yulang.GeneralDictionaryDiagnosticTotality.diagnostic_iff

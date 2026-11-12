@@ -128,3 +128,13 @@ Child at pending/rejected/ambiguous leaves. Apply this to the actual merged-chil
 failure fixture: independent where Acc may hold while no four-way Classify exists.
 This distinguishes finite diagnostics from successful dictionaries and directly
 checks that the target retains the failed children rather than rejecting parent.
+
+## Finite diagnostics versus successful dictionaries
+
+The DiagnosticTotality construction assumes Local existence only on the
+independent selected-child closure, then uses Acc to produce a finite Resolves
+tree retaining pending/rejected/ambiguous leaves. It does not establish Local
+totality itself (Astra's owned obligation), and does not run an executor.
+Contrast LocalReadbackExact: successful dictionary extraction requires every
+closure node to be selected. The actual merged-child fixture separates these
+criteria: it has a finite diagnostic and Acc, but failed children and no Classify.

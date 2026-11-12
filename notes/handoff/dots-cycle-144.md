@@ -51,6 +51,18 @@ cycle143の `SupportRecursiveExample.finish` は、List Intに対するDisplay�
 
 `EarlyMergeExample`: そのparametric構成を実際に具体化。checked Display(List Int)宣言に同入力whereをclause10/11として2個置き、初期guarded install→実guarded merge。child IDは異なる。親packet1個、alias非空、具体モデル、actual Reachable、Coherentを証明。merge対象の**両子クラスは未記録**であり、両方にpacketがあるクラスのmergeではない。両子のassociated outputsも空で、output等式相互作用の実証には数えない。
 
+### D. support付き順序不変と失敗子を残す診断
+
+`SupportLocalOrder` は任意roles、Reorders first last、first.roles=roles、**同じ tracked state**、任意root/frontierでInspection、DecisionGuard、SupportPending、全support Localの同値を証明。全diagnostic Resolves、独立Child、既存Acc、既存Classifyも同値。Classifyの存在を新たに与えず、異なるexecutor終状態を比較しないので一般canonicalLocalOrderは未解決。
+
+`EarlyMergeDiagnostics` はCの実merge後、parent selected key1の子2個がそれぞれrejectedになることをsupport込みで確認。`.selected 1 [.rejected,.rejected]` の有限Resolvesが成立する一方、任意outcomeについてparentのClassifyは不存在。親自体をrejectedに潰さず、失敗子を保持する。
+
+`DiagnosticAccessibility` は任意B4 SourceBoundary、任意registry/state/root/treeで、有限Resolvesがあれば独立ChildのAccを導く。成功Classifyを仮定しない。Localの関数性によりterminal失敗leafに隠れたselected childが無いことを証明している。Cの実到達可能・具体モデルあり・journal/alias非空の状態に適用し、**AccでもClassifyが存在しない**正確な例を得た。Stableはこの例で未証明なので、Stable completenessへの反例とは呼ばない。
+
+`DiagnosticTotality` はさらに任意SourceBoundary/registry/state/rootに対して、有限Resolves存在 iff (独立ChildのReach閉包上で全点Local存在 ∧ Acc Child root)を証明。前向きは診断木とLocal関数性から閉包上の証人を取り、後向きはAcc帰納で失敗葉も保存する。成功dictionaryの必要十分条件と別の定理であり、actual Local全域性自体や実executor停止は証明していない。
+
+独立レビューでも、同一snapshot限定、モデル非空、成功を仮定しない診断、Stable未証明の区別を確認した。
+
 ## 一般境界の状態
 
 「一般定義あり」はgeneral nominal carrierの現定義。言語全域のparser/elaboration網羅性ではない。
@@ -84,6 +96,20 @@ work/dots-auditを再fetchしてX1–X25 oracleを確認。X1はopaque nominal l
 
 1. 一般reachable・Stable・selected alias classのJoint。同時モデルを維持しつつ、historical packetの意味論からcurrent BranchAtへ運ぶ。literal Currentは実反例があるので無条件に使わない。
 2. 両クラスが既に記録済みのmerge。構造Early条件だけでは覆わない。MergesClosed/SameInputsからcross-key一致を一般に導くか、実条件不足を特定する。
-3. Astra所有Progress/where accessibility/canonical-orderと衝突せず、今回の辞書側一般残差を閉じる。具体traceを一般橋へ数えない。
+3. `EarlyMergeExample.finish` のStableを検証する。現時点では未証明。必要なexact補題は generated={親,child10,child11}、parent再install Committedとchild install不可能、root-child SameInputs不可能かつ子間Alias済み、ContextComplete/PointClosed/予約origin可変モデルによる全admin更新排除。成立すれば失敗子を保つStable診断の具体回帰になるが、現報告では断言しない。Astra所有の一般Progress/where accessibility/canonical-orderとは分離する。
 
 意味論を独断で追加していない。新しい言語設計質問はなし。使用量枠は不明。
+
+## 検証と途中公開（最終確定前）
+
+- focused `lake build <Cycle144の15modules> --wfail`: PASS,753jobs（依存キャッシュ込み）。
+- `lake env lean --trust=0 Audit/Cycle144.lean`: PASS,104public theorem、全public宣言との集合一致、漏れ/余分なし。許容公理propext/Classical.choice/Quot.soundのみ。
+- `bash tools/verify-lean.sh . origin/integration/m1-final --no-build`: PASS。全体build/fullAuditは実行していない。
+- 独立review: LocalReadbackExact、実mergefixture、支持付きLocal順序、失敗子diagnostic/Accを確認。leaf BranchAtはEvidenceから逆算しない直接source Instance輸送へ修正後に公開。
+- 初期試行のconstructor引数/型推論エラーは修正し再build済み。未検証のまま通ったとは扱っていない。
+- 中間公開0ca5afcで集約`Yulang.lean`の内容転送が切り詰められ、remote/local tree不一致を検知。直後ca2fc408で完全な元内容＋追記を復元し、fetch後tree完全一致を確認。現行branchの既存imports削除はゼロ。公開成功だけで完了とせず、内容の照合で検出して修復した。
+- 計画/設定/凍結Audit/README/既存Yulang定理は変更していない。
+
+中間source公開: `7d2624d9` (9 public)、`b0c48623` (50 public)、`cd7e3ca4` (80 public)、`ca2fc408` (104 public、修復済み)。
+
+全追加public定理名と前提付き型の索引: [theorem inventory](../design/2026-11-12-cycle144-theorem-inventory.md)。
