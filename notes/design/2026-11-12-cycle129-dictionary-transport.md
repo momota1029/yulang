@@ -55,3 +55,24 @@ A repeated nonempty dictionary batch and a separately evaluated arrow term check
 multiplicity and the separate type/row maps. Independent arbitrary nominal source
 Instance/Evidence also transports under registry order, with computed frames at
 one fixed Context and the same existing binder-value witnesses.
+
+## Final boundary checks and actual new-source use
+
+The complete raw executor is exercised both on an old source ID retained through
+the mixed extension and on newly represented reserved type ID88. In the latter
+case the old preparation is none and the new one returns a real tree with two
+explicit outputs, full nominal joint model and independent source Evidence. The
+new source remains RootPending. This is useful dictionary materialization, not
+successful candidate inspection or Survivor construction.
+
+Freshness requires an additional CoordinatesBound premise: each new type or row
+source must be either an old mixed source or no larger than the old allocation
+seed. Under that premise, generated membership, source allocation and Fresh are
+preserved with the original owner map. The mixed fixture satisfies the premise
+using reserved88 and row44 below seed77. It does not authorize arbitrary IDs.
+
+An identity-coordinate fixture changes only the normalized view. It has a real
+full nominal model before and after, and satisfies Transport, while Known and
+RootPending differ. Thus view/readiness equivalence cannot be derived from the
+model-preservation certificate alone. The state owner must add an observational
+contract or produce an actual source-state construction before that next bridge.
