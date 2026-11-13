@@ -1,9 +1,9 @@
 cycle: 166
 status: running
 started: 2026-11-13T13:32:00Z
-updated: 2026-11-13T13:55:00Z
-elapsed_min: 23
-activity: source b4ca790459 read back; all25 changed modules (10 new+15 upstream) rebuilt trust0 in separate output library; audits pass, gate185. Final documentation in progress.
+updated: 2026-11-13T14:02:00Z
+elapsed_min: 30
+activity: final11 modules87 theorem source published; focused716 jobs passed. Final immutable trust0 replay and manifest/readback in progress. Consumer trusted alias remains open.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang159
-last_local_commit: 2137498ca2
-resume_hint: Public replay /tmp/y166-public-replay.log exit0. Preserve I26 trusted alias gap; consumer only raw ready. Finish artifacts/readback by14:22:19 UTC.
+last_local_commit: 264527ffdc
+resume_hint: Source sha recorded in cycle166 report ledger; all25 earlier changed modules replayed. Finish final26module replay/artifacts by14:22:19 UTC. No parallel publisher.
