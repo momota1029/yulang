@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryHistoricalNominalTree
+#print axioms Yulang.GeneralDictionaryHistoricalNominalTree.dictionary_evidence
+#print axioms Yulang.GeneralDictionaryHistoricalNominalTree.dictionaries_evidence
+#print axioms Yulang.GeneralDictionaryHistoricalNominalTree.root_dictionary_evidence
+#print axioms Yulang.GeneralDictionaryHistoricalNominalTree.completed_tree_evidence

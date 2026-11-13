@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryScalarGeneratedCoverage
+#print axioms Yulang.GeneralDictionaryScalarGeneratedCoverage.selected_instance
+#print axioms Yulang.GeneralDictionaryScalarGeneratedCoverage.dictionary_evidence
+#print axioms Yulang.GeneralDictionaryScalarGeneratedCoverage.dictionaries_evidence
+#print axioms Yulang.GeneralDictionaryScalarGeneratedCoverage.root_dictionary_evidence
+#print axioms Yulang.GeneralDictionaryScalarGeneratedCoverage.completed_tree_evidence

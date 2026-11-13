@@ -1,0 +1,32 @@
+Yulang.GeneralDictionaryNestedRefinement 0
+Yulang.GeneralDictionaryNestedRefinementReplay 0
+Yulang.GeneralDictionaryNestedBranchTransport 0
+Yulang.GeneralDictionaryRecordedInspectionFacts 0
+Yulang.GeneralDictionaryUnaryCurrentEvidence 0
+Yulang.GeneralDictionaryRefinedLocations 0
+Yulang.GeneralDictionaryNestedCurrentEvidence 0
+Yulang.GeneralDictionaryScalarChildIntervals 0
+Yulang.GeneralDictionaryScalarChildEvidence 0
+Yulang.GeneralDictionaryScalarRegistryIntervals 0
+Yulang.GeneralDictionaryHistoricalNominalCoverage 0
+Yulang.GeneralDictionaryUnaryCurrentExample 0
+Yulang.GeneralDictionaryHistoricalNominalRefreshExample 0
+Yulang.GeneralDictionaryScalarGeneratedCoverage 0
+Yulang.GeneralDictionaryMixedHistoricalCoverage 0
+Yulang.GeneralDictionaryHistoricalNominalTree 0
+Yulang.GeneralDictionaryHistoricalRefreshSelection 0
+Yulang.GeneralDictionaryNestedRefinementExamples 0
+Yulang.GeneralDictionaryNestedCarrierExample 0
+Yulang.GeneralDictionaryReobservationRefinementGap 0
+Yulang.GeneralDictionaryRevisionArgumentBridge 0
+Yulang.GeneralDictionaryRevisionParameterCoverage 0
+Yulang.GeneralDictionaryScalarChildExample 0
+Yulang.GeneralDictionaryScalarChildReachable 0
+Yulang.GeneralDictionaryScalarRegistryExample 0
+Yulang.GeneralDictionaryValueRecordedCoverageLimit 0
+GATE 0 AXIOM-GATE-PASS: 313 declarations
+
+
+Additional exact-source trust0 compilation: MixedHistoricalExample exit0; RevisionBridgeExample exit0.
+Final all28-module gate:
+GATE 0 AXIOM-GATE-PASS: 370 declarations

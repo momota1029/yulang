@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionaryScalarChildEvidence
+#print axioms Yulang.GeneralDictionaryScalarChildEvidence.branch_models
+#print axioms Yulang.GeneralDictionaryScalarChildEvidence.instance_of_shape
+#print axioms Yulang.GeneralDictionaryScalarChildEvidence.selected_instance

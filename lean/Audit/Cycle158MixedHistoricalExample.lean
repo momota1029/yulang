@@ -1,0 +1,12 @@
+import Yulang.GeneralDictionaryMixedHistoricalExample
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.root_selected
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.fragment
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.root_supported
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.child_structural
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.path_cases
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.covered
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.classified
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.resolves
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.completed
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.every_model
+#print axioms Yulang.GeneralDictionaryMixedHistoricalExample.actual_mixed_tree

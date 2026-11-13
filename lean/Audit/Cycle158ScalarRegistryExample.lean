@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryScalarRegistryExample
+#print axioms Yulang.GeneralDictionaryScalarRegistryExample.fragment
+#print axioms Yulang.GeneralDictionaryScalarRegistryExample.all_generated_intervals
+#print axioms Yulang.GeneralDictionaryScalarRegistryExample.not_variable_registry
+#print axioms Yulang.GeneralDictionaryScalarRegistryExample.strict_extension

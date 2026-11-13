@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionaryRecordedInspectionFacts
+import Yulang.GeneralDictionaryRefinedLocations
+#print axioms Yulang.GeneralDictionaryRecordedInspectionFacts.prepared
+#print axioms Yulang.GeneralDictionaryRecordedInspectionFacts.located
+#print axioms Yulang.GeneralDictionaryRecordedInspectionFacts.role
+#print axioms Yulang.GeneralDictionaryRecordedInspectionFacts.finished
+#print axioms Yulang.GeneralDictionaryRecordedInspectionFacts.root_defined
+#print axioms Yulang.GeneralDictionaryRecordedInspectionFacts.metadata
+#print axioms Yulang.GeneralDictionaryRefinedLocations.source_slot
+#print axioms Yulang.GeneralDictionaryRefinedLocations.locate_cons
+#print axioms Yulang.GeneralDictionaryRefinedLocations.locate
+#print axioms Yulang.GeneralDictionaryRefinedLocations.arguments
+#print axioms Yulang.GeneralDictionaryRefinedLocations.metadata

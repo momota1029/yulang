@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionaryNestedCurrentEvidence
+#print axioms Yulang.GeneralDictionaryNestedCurrentEvidence.current_instance
+#print axioms Yulang.GeneralDictionaryNestedCurrentEvidence.selected_instance
+#print axioms Yulang.GeneralDictionaryNestedCurrentEvidence.selected_evidence

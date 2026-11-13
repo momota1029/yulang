@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryHistoricalRefreshSelection
+#print axioms Yulang.GeneralDictionaryHistoricalRefreshSelection.feedback_acyclic
+#print axioms Yulang.GeneralDictionaryHistoricalRefreshSelection.raw_acyclic
+#print axioms Yulang.GeneralDictionaryHistoricalRefreshSelection.no_raw_recurs
+#print axioms Yulang.GeneralDictionaryHistoricalRefreshSelection.no_root
+#print axioms Yulang.GeneralDictionaryHistoricalRefreshSelection.no_candidate

@@ -1,0 +1,311 @@
+LAST 0
+Cycle158HistoricalRefresh.lean 0 'Yulang.GeneralDictionaryHistoricalNominalRefreshExample.scope' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalRefreshExample.supported' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalRefreshExample.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalRefreshExample.positive_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalRefreshExample.capture_nonempty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalRefreshExample.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalRefreshExample.selected_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158HistoricalTree.lean 0 'Yulang.GeneralDictionaryHistoricalNominalTree.dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalTree.dictionaries_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalTree.root_dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalTree.completed_tree_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158Locations.lean 0 'Yulang.GeneralDictionaryRecordedInspectionFacts.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRecordedInspectionFacts.located' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRecordedInspectionFacts.role' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRecordedInspectionFacts.finished' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRecordedInspectionFacts.root_defined' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecordedInspectionFacts.metadata' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRefinedLocations.source_slot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRefinedLocations.locate_cons' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRefinedLocations.locate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRefinedLocations.arguments' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRefinedLocations.metadata' depends on axioms: [propext, Quot.sound]
+
+Cycle158MixedHistorical.lean 0 'Yulang.GeneralDictionaryHistoricalNominalCoverage.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalNominalCoverage.supported_of_recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalCoverage.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalCoverage.root_dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalCoverage.completed_tree_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalCoverage.dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalCoverage.dictionaries_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158MixedHistoricalExample.lean 0 'Yulang.GeneralDictionaryMixedHistoricalExample.root_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.fragment' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.root_supported' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.child_structural' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.path_cases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.classified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.resolves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.completed' does not depend on any axioms
+'Yulang.GeneralDictionaryMixedHistoricalExample.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedHistoricalExample.actual_mixed_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158NestedBranch.lean 0 'Yulang.GeneralDictionaryNestedBranchTransport.projection_map' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedBranchTransport.selfChecks_map' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedBranchTransport.merges_seed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedBranchTransport.private_refined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedBranchTransport.recorded_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158NestedCarrier.lean 0 'Yulang.GeneralDictionaryNestedCarrierExample.retained' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedCarrierExample.refinement' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedCarrierExample.model_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedCarrierExample.carrier_strictly_larger' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedCarrierExample.nested_report_transported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedCarrierExample.capture_sources_retained' depends on axioms: [propext, Quot.sound]
+
+Cycle158NestedCurrent.lean 0 'Yulang.GeneralDictionaryNestedCurrentEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNestedCurrentEvidence.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNestedCurrentEvidence.selected_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158NestedRefinement.lean 0 'Yulang.GeneralDictionaryNestedRefinement.map_append' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.map_visit' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.embed_injective' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.typeArguments_map' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.inspect_refined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.inspectMany_refined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.bindings_map' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.origins_map' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.finished_map' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.bindings_refined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinement.origins_refined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinementReplay.queries_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinementReplay.report_refined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinementReplay.bindings_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinementReplay.recorded_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinementExamples.nested_scope' depends on axioms: [propext]
+'Yulang.GeneralDictionaryNestedRefinementExamples.nested_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinementExamples.captures_two_sources' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinementExamples.positive_nonpoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNestedRefinementExamples.arbitrary_refinement' depends on axioms: [propext, Quot.sound]
+
+Cycle158RefreshSelection.lean 0 'Yulang.GeneralDictionaryHistoricalRefreshSelection.feedback_acyclic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalRefreshSelection.raw_acyclic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalRefreshSelection.no_raw_recurs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHistoricalRefreshSelection.no_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryHistoricalRefreshSelection.no_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158ReobservationGap.lean 0 'Yulang.GeneralDictionaryReobservationRefinementGap.embedding_identity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryReobservationRefinementGap.point_preserved_backwards' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryReobservationRefinementGap.improving_not_refines' depends on axioms: [propext, Quot.sound]
+
+Cycle158RevisionArgument.lean 0 'Yulang.GeneralDictionaryRevisionArgumentBridge.descriptor_name' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRevisionArgumentBridge.shared_argument' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRevisionArgumentBridge.cross_checks' depends on axioms: [propext, Quot.sound]
+
+Cycle158RevisionBridgeExample.lean 0 'Yulang.GeneralDictionaryRevisionBridgeExample.positive_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRevisionBridgeExample.no_refinement' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRevisionBridgeExample.cross_checks' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRevisionBridgeExample.parameter_covered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRevisionBridgeExample.shared_argument' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRevisionBridgeExample.actual_positive_boundary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158RevisionCoverage.lean 0 'Yulang.GeneralDictionaryRevisionParameterCoverage.arity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRevisionParameterCoverage.parameter_covered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158ScalarChildEvidence.lean 0 'Yulang.GeneralDictionaryScalarChildEvidence.branch_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildEvidence.instance_of_shape' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarChildEvidence.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158ScalarChildExample.lean 0 'Yulang.GeneralDictionaryScalarChildExample.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.endpoint_nonzero' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.endpoints_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.query' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.schema_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.actual_child_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.child_member' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.endpoints_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildExample.nonvacuous_emitted_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158ScalarChildIntervals.lean 0 'Yulang.GeneralDictionaryScalarChildIntervals.scalar_request' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildIntervals.emission_request' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildIntervals.clause_scalar_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildIntervals.variable_inputs_included' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildIntervals.child_intervals' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildIntervals.generated_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarChildIntervals.located_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158ScalarChildReachable.lean 0 'Yulang.GeneralDictionaryScalarChildReachable.registry_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.all_source_decisions' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.packet_guard' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.value_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.installed_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarChildReachable.actual_reachable_scalar_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158ScalarGeneratedCoverage.lean 0 'Yulang.GeneralDictionaryScalarGeneratedCoverage.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarGeneratedCoverage.dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarGeneratedCoverage.dictionaries_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarGeneratedCoverage.root_dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarGeneratedCoverage.completed_tree_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158ScalarRegistryExample.lean 0 'Yulang.GeneralDictionaryScalarRegistryExample.fragment' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryExample.all_generated_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryExample.not_variable_registry' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryExample.strict_extension' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158ScalarRegistryIntervals.lean 0 'Yulang.GeneralDictionaryScalarRegistryIntervals.at_interpretation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryIntervals.coherent_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryIntervals.coherent_trace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryIntervals.reachable_coherent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryIntervals.journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryIntervals.generated_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryScalarRegistryIntervals.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+Cycle158Unary.lean 0 'Yulang.GeneralDictionaryUnaryCurrentEvidence.current_bindings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryUnaryCurrentEvidence.current_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryUnaryCurrentEvidence.current_branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryUnaryCurrentEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryUnaryCurrentEvidence.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryUnaryCurrentEvidence.selected_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryUnaryCurrentExample.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryUnaryCurrentExample.positive_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryUnaryCurrentExample.nonterminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+Cycle158ValueRecordedCoverageLimit.lean 0 'Yulang.GeneralDictionaryValueRecordedCoverageLimit.value_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryValueRecordedCoverageLimit.reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryValueRecordedCoverageLimit.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryValueRecordedCoverageLimit.leaf_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryValueRecordedCoverageLimit.stable_selected_unrecorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

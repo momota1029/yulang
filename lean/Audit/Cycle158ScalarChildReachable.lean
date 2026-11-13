@@ -1,0 +1,16 @@
+import Yulang.GeneralDictionaryScalarChildReachable
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.registry_checked
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.all_source_decisions
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.prepared
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.survivor
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.selected
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.enabled
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.packet_guard
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.novel
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.source
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.value_step
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.reachable
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.installed_model
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.recorded
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.generated
+#print axioms Yulang.GeneralDictionaryScalarChildReachable.actual_reachable_scalar_child

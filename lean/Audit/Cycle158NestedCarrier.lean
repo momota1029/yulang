@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryNestedCarrierExample
+#print axioms Yulang.GeneralDictionaryNestedCarrierExample.retained
+#print axioms Yulang.GeneralDictionaryNestedCarrierExample.refinement
+#print axioms Yulang.GeneralDictionaryNestedCarrierExample.model_preserved
+#print axioms Yulang.GeneralDictionaryNestedCarrierExample.carrier_strictly_larger
+#print axioms Yulang.GeneralDictionaryNestedCarrierExample.nested_report_transported
+#print axioms Yulang.GeneralDictionaryNestedCarrierExample.capture_sources_retained

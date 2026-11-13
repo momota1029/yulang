@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryScalarChildIntervals
+#print axioms Yulang.GeneralDictionaryScalarChildIntervals.scalar_request
+#print axioms Yulang.GeneralDictionaryScalarChildIntervals.emission_request
+#print axioms Yulang.GeneralDictionaryScalarChildIntervals.clause_scalar_order
+#print axioms Yulang.GeneralDictionaryScalarChildIntervals.variable_inputs_included
+#print axioms Yulang.GeneralDictionaryScalarChildIntervals.child_intervals
+#print axioms Yulang.GeneralDictionaryScalarChildIntervals.generated_intervals
+#print axioms Yulang.GeneralDictionaryScalarChildIntervals.located_intervals

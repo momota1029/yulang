@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionaryRevisionArgumentBridge
+#print axioms Yulang.GeneralDictionaryRevisionArgumentBridge.descriptor_name
+#print axioms Yulang.GeneralDictionaryRevisionArgumentBridge.shared_argument
+#print axioms Yulang.GeneralDictionaryRevisionArgumentBridge.cross_checks

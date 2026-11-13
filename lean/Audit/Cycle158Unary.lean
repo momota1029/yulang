@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionaryUnaryCurrentEvidence
+import Yulang.GeneralDictionaryUnaryCurrentExample
+#print axioms Yulang.GeneralDictionaryUnaryCurrentEvidence.current_bindings
+#print axioms Yulang.GeneralDictionaryUnaryCurrentEvidence.current_finished
+#print axioms Yulang.GeneralDictionaryUnaryCurrentEvidence.current_branch
+#print axioms Yulang.GeneralDictionaryUnaryCurrentEvidence.current_instance
+#print axioms Yulang.GeneralDictionaryUnaryCurrentEvidence.selected_instance
+#print axioms Yulang.GeneralDictionaryUnaryCurrentEvidence.selected_evidence
+#print axioms Yulang.GeneralDictionaryUnaryCurrentExample.current_instance
+#print axioms Yulang.GeneralDictionaryUnaryCurrentExample.positive_instance
+#print axioms Yulang.GeneralDictionaryUnaryCurrentExample.nonterminal
