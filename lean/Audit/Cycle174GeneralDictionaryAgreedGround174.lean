@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionaryAgreedGround174
+#print axioms Yulang.GeneralDictionaryAgreedGround174.boundary
+#print axioms Yulang.GeneralDictionaryAgreedGround174.reachable_old
+#print axioms Yulang.GeneralDictionaryAgreedGround174.reachable_agreed
+#print axioms Yulang.GeneralDictionaryAgreedGround174.progress
+#print axioms Yulang.GeneralDictionaryAgreedGround174.diagnostic
+#print axioms Yulang.GeneralDictionaryAgreedGround174.diagnostic_eq_resolve
+#print axioms Yulang.GeneralDictionaryAgreedGround174.executor
+#print axioms Yulang.GeneralDictionaryAgreedGround174.execution
+#print axioms Yulang.GeneralDictionaryAgreedGround174.halted
+#print axioms Yulang.GeneralDictionaryAgreedGround174.treeExecution
+#print axioms Yulang.GeneralDictionaryAgreedGround174.saturationTotal
+#print axioms Yulang.GeneralDictionaryAgreedGround174.initialReorders

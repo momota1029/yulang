@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryAgreedRefresh174
+#print axioms Yulang.GeneralDictionaryAgreedRefresh174.recorded_instance
+#print axioms Yulang.GeneralDictionaryAgreedRefresh174.recorded_evidence
+#print axioms Yulang.GeneralDictionaryAgreedRefresh174.actual_step
+#print axioms Yulang.GeneralDictionaryAgreedRefresh174.ordinary_then_refresh_actual
+#print axioms Yulang.GeneralDictionaryAgreedRefresh174.ordinary_then_refresh_instance
+#print axioms Yulang.GeneralDictionaryAgreedRefresh174.ordinary_then_refresh_evidence
+#print axioms Yulang.GeneralDictionaryAgreedRefresh174.ordinary_then_refresh_result

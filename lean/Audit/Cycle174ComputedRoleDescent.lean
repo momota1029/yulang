@@ -1,0 +1,15 @@
+import Yulang.GeneralDictionaryAgreedComputed174
+
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.check_iff
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.check_sound
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.checked_whereAccessible
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.mem_childRoles
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.child_rank_lt
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.height_stabilizes
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.check_complete
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.check_complete_budget
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.exists_check_iff
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.check_of_leaves
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.wrap_zero_false
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.wrap_computed
+#print axioms Yulang.GeneralDictionaryAgreedComputed174.display_fails
