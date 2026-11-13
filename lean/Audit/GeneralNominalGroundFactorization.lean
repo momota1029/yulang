@@ -1,0 +1,30 @@
+import Yulang.GeneralNominalBranchingMass
+import Yulang.GeneralNominalShowGroundAcc
+
+#print axioms Yulang.GeneralNominalBranchingReadback.nominal_child
+#print axioms Yulang.GeneralNominalBranchingReadback.pair_child
+#print axioms Yulang.GeneralNominalBranchingReadback.observed_path
+#print axioms Yulang.GeneralNominalBranchingCaptures.usable_path
+#print axioms Yulang.GeneralNominalBranchingLabels.path_unique
+#print axioms Yulang.GeneralNominalBranchingLabels.captured_tree
+#print axioms Yulang.GeneralNominalBranchingLabels.simultaneous_trees
+#print axioms Yulang.GeneralNominalCompoundCapturePaths.inspect_paths
+#print axioms Yulang.GeneralNominalCompoundCapturePaths.many_paths
+#print axioms Yulang.GeneralNominalCompoundCapturePaths.report_forest
+#print axioms Yulang.GeneralNominalCompoundCapturePaths.explained_value
+#print axioms Yulang.GeneralNominalCompoundCapturePaths.simultaneous_captures
+#print axioms Yulang.GeneralNominalBranchingMass.equivalent_mass
+#print axioms Yulang.GeneralNominalBranchingMass.shared_capture_mass
+#print axioms Yulang.GeneralPatternGroundSubstitution.covered_plain_names
+#print axioms Yulang.GeneralPatternGroundSubstitution.encode_subst
+#print axioms Yulang.GeneralPatternGroundSubstitution.encode_substArgs
+#print axioms Yulang.GeneralPatternGroundSubstitution.normalize_subst
+#print axioms Yulang.GeneralPatternGroundSubstitution.counted_substitution
+#print axioms Yulang.GeneralPatternGroundSubstitution.instantiated_mass
+#print axioms Yulang.GeneralNominalBranchingAccessibility.child_path
+#print axioms Yulang.GeneralNominalBranchingAccessibility.sites_paths
+#print axioms Yulang.GeneralNominalBranchingAccessibility.installed_depth_bound
+#print axioms Yulang.GeneralNominalBranchingAccessibility.accessible
+#print axioms Yulang.GeneralNominalShowGroundAcc.depth_bound
+#print axioms Yulang.GeneralNominalShowGroundAcc.show_pair_list_int_accessible
+#print axioms Yulang.GeneralNominalShowGroundAcc.inhabited_closed_example
