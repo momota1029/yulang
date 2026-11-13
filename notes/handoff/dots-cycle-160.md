@@ -176,3 +176,14 @@ source checkpoint:1f5af85b4a1486e582052b102fb93cd47d130a9b。
 - 08:00〜08:10 独立source監査・非terminal次目標の定義確認。
 - 08:10〜08:13 emitter request identityを証明し、再監査。
 終了は時間枠(a)。一般bridgeが閉じたための終了ではない。
+
+## 終了準備・公開照合
+
+08:18 UTC時点で全worker/build終了、追加作業なし。
+最終artifact acfe5fed0b60b4438ab484fc4be94b5d64344997を取得し直し、
+公開source20本のSHA256を公開inventoryと直接照合PASS。
+固定localとの全tree差分は意図した心拍のみ。公開後gateも577宣言PASS。
+公開対象は計56ファイル。追加時間を含め実開始から約50分、通知から55分以内で
+completed心拍・最終報告を公開して終了する。最終SHAは会話への報告に記載。
+全体検証は監督役の担当として残す。Yulang2 CLIはPATH上に見つからず、今回は
+既存文書/auditとの照合のみで、新たな実機検証結果はない。
