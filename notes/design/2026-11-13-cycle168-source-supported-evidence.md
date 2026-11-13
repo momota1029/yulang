@@ -8,3 +8,8 @@ Start2026-11-13T15:30Z; hard deadline16:22:19Z. Fresh integration11be97cb1d76080
 2. For arbitrary packet refresh pairs, source-preserving report relocation and matching computed report plus the explicit allocation/schema equalities should transport old packet semantic obligations to fresh Holds. Under explicit current arguments, Finished, RequestReady and Metadata, derive terminal Evidence. Do not assume the target BranchModels or Evidence conclusion.
 
 Existing files remain untouched except additive root imports; small new audits. Focused builds and trust0 replay, not whole repository validation. No full Shared V5 instance claimed. Supervisor-owned compound recursion is integrated but not extended.
+
+## Refined scope after inspecting existing proofs (15:41 UTC)
+The source-supported initial container trace already exists. New goal1 is therefore the missing general readiness/DecisionGuard persistence along actual OrdinaryStep Shared traces, combined with inherited evidence preservation and the existing inhabited positive fixture. Descriptor refresh is excluded. Goal2 has compiled, including the actual captured-producer scalar-refresh specialization. Its old_branch is derived from the real journal, not assumed in the concrete theorem.
+
+Next compositional goal: recursively transport a whole existing Evidence tree through a source-preserving relocation, using per-instance fresh argument/report/schema witnesses and derived child emission equality, rather than requiring already-transported child Evidence.

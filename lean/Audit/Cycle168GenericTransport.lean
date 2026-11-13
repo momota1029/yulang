@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionarySource168Transport
+#print axioms Yulang.GeneralDictionarySource168Transport.capture_seed
+#print axioms Yulang.GeneralDictionarySource168Transport.branch_relocated
+#print axioms Yulang.GeneralDictionarySource168Transport.node_relocated
