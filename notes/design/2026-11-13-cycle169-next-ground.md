@@ -101,7 +101,7 @@ For packet-free nodes, derive the concrete leaf shape from A (or existing scalar
 
 Then prove the selected key/ordered children match the constructed current Instance via `GeneralDictionary169Selected.relocated_selected` or the underlying `SelectedInstanceCoherence.instance_selected`. These use actual FeedbackK2.Local selected at the **same occurrence**. A separate justification is still needed that the intended final boundary's Local/Unique premises give that judgment under the current guard discipline; do not substitute a legacy classifier by name.
 
-### C. Chosen-child accessibility in a fixed final state
+### C. Mixed-Node Acc obligation now discharged by CoverageAccessible; Named analogue remains open. Chosen-child accessibility in a fixed final state
 
 `GroundAccessibility.sites_bounded` gives, along an ActualInspection trace and for each surviving final model and stored site, **some** finite labels and literal ancestry depth satisfying `depth + mass labels ≤ mass rootLabels`. Labels may depend on model/state/site. This is not yet a uniform chosen-Node graph ranking.
 
@@ -123,7 +123,7 @@ Do not call the new GroundExamples branching root such an execution: its `access
 
 This plan leaves general V5 evidenceNode, all-selected coverage, arbitrary refresh transport, and termination factorization open. No specification question or guard repair is established by this read-only pass.
 
-## 6. Stronger fixed-journal route found on final inspection
+## 6. Historical proposal, superseded by verified late update. Stronger fixed-journal route found on final inspection
 
 There is a simpler candidate for **dictionary** accessibility that does not need the unfinished ground producer. This is a proof plan, not a theorem proved in cycle169.
 

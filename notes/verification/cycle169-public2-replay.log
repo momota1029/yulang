@@ -1,0 +1,513 @@
+GeneralDictionary169RelocationComposition exit=0
+GeneralDictionary169LeafPersistence exit=0
+GeneralDictionary169MixedPersistence exit=0
+GeneralDictionary169Selected exit=0
+GeneralDictionary169FiniteCoverage exit=0
+GeneralDictionary169FiniteDisplay exit=0
+GeneralDictionary169SharedStable exit=0
+GeneralDictionary169NamedLeaf exit=0
+GeneralDictionary169NamedGap exit=0
+GeneralDictionary169NamedTree exit=0
+GeneralDictionary169NamedPersistence exit=0
+AXIOM-GATE-PASS: 87 declarations
+Audit/Cycle169CoverageGate.lean exit=0
+AXIOM-GATE-PASS: 32 declarations
+Audit/Cycle169DependencyGate.lean exit=0
+'Yulang.GeneralDictionary169FiniteCoverage.node_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169FiniteCoverage.accessible_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169FiniteCoverage.wellFounded_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169FiniteCoverage.uniform_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169FiniteCoverage.node_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (node : Yulang.GeneralDictionary169FiniteCoverage.Node registry state occurrence)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload),
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDictionaryMixed168Tree.MixedTree registry state) node.children
+      payloads →
+    Yulang.GeneralDictionaryMixed168Tree.MixedTree registry state occurrence
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node node.key payloads)
+@Yulang.GeneralDictionary169FiniteCoverage.accessible_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary169FiniteCoverage.Coverage registry state domain) (root : Subtype domain),
+  Acc (Yulang.GeneralDictionary169FiniteCoverage.Child coverage) root →
+    ∃ payload, Yulang.GeneralDictionaryMixed168Tree.MixedTree registry state root.val payload
+@Yulang.GeneralDictionary169FiniteCoverage.wellFounded_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary169FiniteCoverage.Coverage registry state domain),
+  WellFounded (Yulang.GeneralDictionary169FiniteCoverage.Child coverage) →
+    ∀ (root : Subtype domain), ∃ payload, Yulang.GeneralDictionaryMixed168Tree.MixedTree registry state root.val payload
+@Yulang.GeneralDictionary169FiniteCoverage.uniform_dictionary : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (coverage : Yulang.GeneralDictionary169FiniteCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Acc (Yulang.GeneralDictionary169FiniteCoverage.Child coverage) focus →
+    Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+      ∃ payload,
+        Yulang.GeneralDictionaryMixed168Tree.MixedTree registry state focus.val payload ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus.val payload
+Audit/Cycle169FiniteCoverage.lean exit=0
+'Yulang.GeneralDictionary169FiniteDisplay.accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169FiniteDisplay.uniform_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169FiniteDisplay.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary169FiniteDisplay.accessible : Acc
+  (Yulang.GeneralDictionary169FiniteCoverage.Child Yulang.GeneralDictionary169FiniteDisplay.coverage)
+  ⟨Yulang.GeneralNominalExamples.displayRoot, ⋯⟩
+Yulang.GeneralDictionary169FiniteDisplay.uniform_dictionary : ∃ payload,
+  Yulang.GeneralDictionaryMixed168Tree.MixedTree Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralDictionarySharedDisplayInstallation.after Yulang.GeneralNominalExamples.displayRoot payload ∧
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+          model →
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+          Yulang.GeneralDictionarySharedDisplayInstallation.after.current.context model
+          Yulang.GeneralNominalExamples.displayRoot payload
+Yulang.GeneralDictionary169FiniteDisplay.nonvacuous : ∃ payload,
+  Yulang.GeneralDictionaryMixed168Tree.MixedTree Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralDictionarySharedDisplayInstallation.after Yulang.GeneralNominalExamples.displayRoot payload ∧
+    ∃ model,
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+          model ∧
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+          Yulang.GeneralDictionarySharedDisplayInstallation.after.current.context model
+          Yulang.GeneralNominalExamples.displayRoot payload
+Audit/Cycle169FiniteDisplay.lean exit=0
+'Yulang.GeneralDictionary169NamedGap.empty_named_not_mixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedGap.actual_not_mixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedGap.stable_named_coverage_gap' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169NamedGap.empty_named_not_mixed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  state.current.packets = [] →
+    occurrence.demand.outputs ≠ [] →
+      ∀ (payload : Yulang.GeneralDictionaryReadback.Payload),
+        ¬Yulang.GeneralDictionaryMixed168Tree.MixedTree registry state occurrence payload
+Yulang.GeneralDictionary169NamedGap.actual_not_mixed : ∀ (payload : Yulang.GeneralDictionaryReadback.Payload),
+  ¬Yulang.GeneralDictionaryMixed168Tree.MixedTree Yulang.GeneralDictionaryFiniteObservedExample.registry
+      Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root payload
+Yulang.GeneralDictionary169NamedGap.stable_named_coverage_gap : Yulang.GeneralNominalSharedSteps.SourceFormed
+    Yulang.GeneralDictionaryFiniteObservedExample.registry Yulang.GeneralDictionaryFiniteObservedExample.root
+    Yulang.GeneralDictionaryFiniteObservedExample.start ∧
+  Yulang.GeneralNominalSharedSteps.Stable Yulang.GeneralDictionaryFiniteObservedExample.registry
+      Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root ∧
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryFiniteObservedExample.start.current
+        Yulang.GeneralDictionaryFiniteObservedExample.model ∧
+      Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryFiniteObservedExample.registry
+          Yulang.GeneralDictionaryFiniteObservedExample.start.current.context
+          Yulang.GeneralDictionaryFiniteObservedExample.model Yulang.GeneralDictionaryFiniteObservedExample.root
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node
+            Yulang.GeneralDictionaryFiniteObservedExample.declaration.id []) ∧
+        ∀ (payload : Yulang.GeneralDictionaryReadback.Payload),
+          ¬Yulang.GeneralDictionaryMixed168Tree.MixedTree Yulang.GeneralDictionaryFiniteObservedExample.registry
+              Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root
+              payload
+Audit/Cycle169NamedGap.lean exit=0
+AXIOM-GATE-PASS: 77 declarations
+Audit/Cycle169NamedGate.lean exit=0
+'Yulang.GeneralDictionary169NamedLeaf.report_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedLeaf.branch_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedLeaf.ready' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedLeaf.instance_of_shape' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedLeaf.evidence_of_shape' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedLeaf.actual_shape' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169NamedLeaf.actual_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169NamedLeaf.actual_nonempty_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary169NamedLeaf.LeafShape : {roles : Yulang.Roles.RoleDecls} →
+  (registry : Yulang.GeneralDeclarations.Registry) →
+    Yulang.GeneralNominalRecursiveCandidates.Context →
+      Yulang.GeneralSourceDictionaries.Occurrence roles →
+        (declaration : Yulang.GeneralDeclarations.Declaration) →
+          Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration → Type
+@Yulang.GeneralDictionary169NamedLeaf.instance_of_shape : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration),
+  declaration ∈ registry.declarations →
+    ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+      (shape : Yulang.GeneralDictionary169NamedLeaf.LeafShape registry context root declaration checked),
+      Yulang.GeneralNominalRecursiveCandidates.Metadata registry context →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalState.Models context.state model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Instance registry context model root declaration.id []
+@Yulang.GeneralDictionary169NamedLeaf.evidence_of_shape : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration),
+  declaration ∈ registry.declarations →
+    ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+      (shape : Yulang.GeneralDictionary169NamedLeaf.LeafShape registry context root declaration checked),
+      Yulang.GeneralNominalRecursiveCandidates.Metadata registry context →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalState.Models context.state model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry context model root
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id [])
+Yulang.GeneralDictionary169NamedLeaf.actual_nonempty_output : Nonempty
+    (Yulang.GeneralDictionary169NamedLeaf.LeafShape Yulang.GeneralDictionaryFiniteObservedExample.registry
+      Yulang.GeneralDictionaryFiniteObservedExample.context Yulang.GeneralDictionaryFiniteObservedExample.root
+      Yulang.GeneralDictionaryFiniteObservedExample.declaration Yulang.GeneralDictionaryFiniteObservedExample.checked) ∧
+  Yulang.GeneralDictionaryFiniteObservedExample.root.demand.outputs ≠ [] ∧
+    ∃ assignment,
+      Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryFiniteObservedExample.state assignment ∧
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryFiniteObservedExample.registry
+          Yulang.GeneralDictionaryFiniteObservedExample.context assignment
+          Yulang.GeneralDictionaryFiniteObservedExample.root
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node
+            Yulang.GeneralDictionaryFiniteObservedExample.declaration.id [])
+Audit/Cycle169NamedLeaf.lean exit=0
+'Yulang.GeneralDictionary169NamedPersistence.tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedPersistence.observed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedPersistence.leaf' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedPersistence.extension' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169NamedPersistence.ordinary_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169NamedPersistence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169NamedPersistence.leaf : {roles : Yulang.Roles.RoleDecls} →
+  (registry : Yulang.GeneralDeclarations.Registry) →
+    (context : Yulang.GeneralNominalRecursiveCandidates.Context) →
+      (reserved : List Nat) →
+        (atoms : List (Yulang.PresenceNormalForm.Atom Nat)) →
+          (allocated : List Yulang.GeneralNominalIdentities.Origin) →
+            {root : Yulang.GeneralSourceDictionaries.Occurrence roles} →
+              {declaration : Yulang.GeneralDeclarations.Declaration} →
+                {checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration} →
+                  Yulang.GeneralDictionary169NamedLeaf.LeafShape registry context root declaration checked →
+                    Yulang.GeneralDictionary169NamedLeaf.LeafShape registry
+                      (Yulang.GeneralDictionaryOrdinaryTransport.extend context reserved atoms allocated) root
+                      declaration checked
+@Yulang.GeneralDictionary169NamedPersistence.extension : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  (∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ before.current.packets → packet ∈ after.current.packets) →
+    Yulang.GeneralDictionaryOrdinaryTrace.Extension before.current.context after.current.context →
+      Yulang.GeneralDictionary169NamedTree.NamedTree registry before occurrence payload →
+        Yulang.GeneralDictionary169NamedTree.NamedTree registry after occurrence payload
+@Yulang.GeneralDictionary169NamedPersistence.ordinary_steps : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after →
+    Yulang.GeneralDictionary169NamedTree.NamedTree registry before occurrence payload →
+      Yulang.GeneralDictionary169NamedTree.NamedTree registry after occurrence payload
+@Yulang.GeneralDictionary169NamedPersistence.current_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after →
+    Yulang.GeneralNominalSharedSteps.SourceFormed registry root after →
+      Yulang.GeneralDictionary169NamedTree.NamedTree registry before occurrence payload →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models after.current model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model occurrence payload
+Audit/Cycle169NamedPersistence.lean exit=0
+AXIOM-GATE-PASS: 11 declarations
+Audit/Cycle169NamedPersistenceGate.lean exit=0
+'Yulang.GeneralDictionary169NamedTree.current_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary169NamedTree.current_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    Yulang.GeneralDictionary169NamedTree.NamedTree registry state occurrence payload →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models state.current model →
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model occurrence payload
+'Yulang.GeneralDictionary169NamedTree.actual_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary169NamedTree.actual_tree : Yulang.GeneralDictionary169NamedTree.NamedTree
+  Yulang.GeneralDictionaryFiniteObservedExample.registry Yulang.GeneralDictionaryFiniteObservedExample.start
+  Yulang.GeneralDictionaryFiniteObservedExample.root
+  (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryFiniteObservedExample.declaration.id [])
+'Yulang.GeneralDictionary169NamedTree.strict_coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary169NamedTree.strict_coverage : Yulang.GeneralDictionary169NamedTree.NamedTree
+    Yulang.GeneralDictionaryFiniteObservedExample.registry Yulang.GeneralDictionaryFiniteObservedExample.start
+    Yulang.GeneralDictionaryFiniteObservedExample.root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryFiniteObservedExample.declaration.id
+      []) ∧
+  ∀ (payload : Yulang.GeneralDictionaryReadback.Payload),
+    ¬Yulang.GeneralDictionaryMixed168Tree.MixedTree Yulang.GeneralDictionaryFiniteObservedExample.registry
+        Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root payload
+'Yulang.GeneralDictionary169NamedTree.stable_named_interpretation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary169NamedTree.stable_named_interpretation : Yulang.GeneralNominalSharedSteps.SourceFormed
+    Yulang.GeneralDictionaryFiniteObservedExample.registry Yulang.GeneralDictionaryFiniteObservedExample.root
+    Yulang.GeneralDictionaryFiniteObservedExample.start ∧
+  Yulang.GeneralNominalSharedSteps.Stable Yulang.GeneralDictionaryFiniteObservedExample.registry
+      Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root ∧
+    Yulang.GeneralDictionary169NamedTree.NamedTree Yulang.GeneralDictionaryFiniteObservedExample.registry
+        Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryFiniteObservedExample.declaration.id
+          []) ∧
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryFiniteObservedExample.start.current
+          Yulang.GeneralDictionaryFiniteObservedExample.model ∧
+        (∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryFiniteObservedExample.start.current
+                assignment →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryFiniteObservedExample.registry
+                Yulang.GeneralDictionaryFiniteObservedExample.start.current.context assignment
+                Yulang.GeneralDictionaryFiniteObservedExample.root
+                (Yulang.CommonRoleOutermostResolver.Dictionary.node
+                  Yulang.GeneralDictionaryFiniteObservedExample.declaration.id [])) ∧
+          ∀ (payload : Yulang.GeneralDictionaryReadback.Payload),
+            ¬Yulang.GeneralDictionaryMixed168Tree.MixedTree Yulang.GeneralDictionaryFiniteObservedExample.registry
+                Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root
+                payload
+Audit/Cycle169NamedTree.lean exit=0
+'Yulang.GeneralDictionary169RelocationComposition.report_comp' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary169RelocationComposition.report_comp : ∀ (first middle last : Yulang.GeneralNominalState.State)
+  (f : Fin first.base.slots → Fin middle.base.slots) (g : Fin middle.base.slots → Fin last.base.slots)
+  (value : Yulang.GeneralNominalRecursiveInspection.Report first),
+  Yulang.GeneralNominalReportSourceTransport.moveReport g
+      (Yulang.GeneralNominalReportSourceTransport.moveReport f value) =
+    Yulang.GeneralNominalReportSourceTransport.moveReport (fun x => g (f x)) value
+'Yulang.GeneralDictionary169RelocationComposition.at_trans' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary169RelocationComposition.at_trans : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (first middle last : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (f : Fin first.state.base.slots → Fin middle.state.base.slots)
+  (g : Fin middle.state.base.slots → Fin last.state.base.slots)
+  (occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat),
+  Yulang.GeneralDictionaryRecursive168Transport.RelocatesAt registry first middle f occurrence key →
+    Yulang.GeneralDictionaryRecursive168Transport.RelocatesAt registry middle last g occurrence key →
+      Yulang.GeneralDictionaryRecursive168Transport.RelocatesAt registry first last (fun x => g (f x)) occurrence key
+'Yulang.GeneralDictionary169RelocationComposition.packet_extension' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary169RelocationComposition.packet_extension : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+  Yulang.GeneralDictionaryRecorded168Relocation.Relocates registry before packet →
+    Yulang.GeneralDictionaryOrdinaryTrace.Extension before.current.context after.current.context →
+      Yulang.GeneralDictionaryRecorded168Relocation.Relocates registry after packet
+'Yulang.GeneralDictionary169LeafPersistence.spine_query' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary169LeafPersistence.spine_query : ∀ {n : Nat} (state : Yulang.GeneralNominalState.State)
+  (reserved : List Nat) (atoms : List (Yulang.PresenceNormalForm.Atom Nat))
+  (allocated : List Yulang.GeneralNominalIdentities.Origin) {names : Fin n → Nat}
+  {bounds : Fin n → Yulang.GeneralNominalInspection.Bounds state} {slot : Fin state.base.slots}
+  (shape : Yulang.GeneralNominalSpineFacts.Spine state names bounds slot),
+  (Yulang.GeneralDictionary169LeafPersistence.spine state reserved atoms allocated shape).query = shape.query
+'Yulang.GeneralDictionary169MixedPersistence.packets_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary169MixedPersistence.packets_steps : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalSharedSteps.Step registry root) before after →
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ before.current.packets → packet ∈ after.current.packets
+'Yulang.GeneralDictionary169MixedPersistence.extension' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary169MixedPersistence.extension : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  (∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ before.current.packets → packet ∈ after.current.packets) →
+    Yulang.GeneralDictionaryOrdinaryTrace.Extension before.current.context after.current.context →
+      Yulang.GeneralDictionaryMixed168Tree.MixedTree registry before occurrence payload →
+        Yulang.GeneralDictionaryMixed168Tree.MixedTree registry after occurrence payload
+'Yulang.GeneralDictionary169MixedPersistence.ordinary_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary169MixedPersistence.ordinary_steps : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after →
+    Yulang.GeneralDictionaryMixed168Tree.MixedTree registry before occurrence payload →
+      Yulang.GeneralDictionaryMixed168Tree.MixedTree registry after occurrence payload
+'Yulang.GeneralDictionary169MixedPersistence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169MixedPersistence.current_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after →
+    Yulang.GeneralNominalSharedSteps.SourceFormed registry root after →
+      Yulang.GeneralDictionaryMixed168Tree.MixedTree registry before occurrence payload →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models after.current model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model occurrence payload
+'Yulang.GeneralDictionary169MixedPersistence.source_formed_steps' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169MixedPersistence.source_formed_steps : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalSharedSteps.Step registry root) before after →
+    Yulang.GeneralNominalSharedSteps.SourceFormed registry root before →
+      Yulang.GeneralNominalSharedSteps.SourceFormed registry root after
+'Yulang.GeneralDictionary169MixedPersistence.source_dictionary_steps' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169MixedPersistence.source_dictionary_steps : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after →
+    Yulang.GeneralNominalSharedSteps.SourceFormed registry root before →
+      Yulang.GeneralDictionaryMixed168Tree.MixedTree registry before occurrence payload →
+        Yulang.GeneralDictionaryMixed168Tree.MixedTree registry after occurrence payload ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models after.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model occurrence payload
+Audit/Cycle169Persistence.lean exit=0
+'Yulang.GeneralDictionary169Selected.relocated_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169Selected.relocated_selected_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionary169Selected.stable_current_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169Selected.stable_generated_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionary169Selected.stable_current_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary169Selected.relocated_selected : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCycleBoundary.vocabulary roles).Demand}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ state.current.packets →
+        Yulang.GeneralDictionaryRecorded168Relocation.Relocates registry state packet →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              Yulang.GeneralNominalFeedbackK2.Local registry state.current packet.site.occurrence
+                  (Yulang.CommonRoleOutermostResolver.Frontier.selected key children) →
+                packet.declaration.id = key ∧ packet.children = children
+@Yulang.GeneralDictionary169Selected.relocated_selected_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCycleBoundary.vocabulary roles).Demand}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ state.current.packets →
+        Yulang.GeneralDictionaryRecorded168Relocation.Relocates registry state packet →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              Yulang.GeneralNominalFeedbackK2.Local registry state.current packet.site.occurrence
+                  (Yulang.CommonRoleOutermostResolver.Frontier.selected key children) →
+                ∀ (payloads : List Yulang.GeneralDictionaryReadback.Payload),
+                  Yulang.CommonRoleOutermostResolver.All₂
+                      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) children
+                      payloads →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model
+                      packet.site.occurrence (Yulang.CommonRoleOutermostResolver.Dictionary.node key payloads)
+@Yulang.GeneralDictionary169Selected.stable_current_instance : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+  Yulang.GeneralNominalSharedSteps.Stable registry state root →
+    Yulang.GeneralNominalSaturationState.Generated state.current root packet.site.occurrence →
+      Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet →
+        ∀ (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+          Yulang.GeneralNominalSharedSteps.PacketGuard state packet support →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalSaturationState.Models state.current model →
+                Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.current.context model
+                  packet.site.occurrence packet.declaration.id packet.children
+@Yulang.GeneralDictionary169Selected.stable_generated_children : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+  Yulang.GeneralNominalSharedSteps.Stable registry state root →
+    Yulang.GeneralNominalSaturationState.Generated state.current root packet.site.occurrence →
+      Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet →
+        ∀ (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+          Yulang.GeneralNominalSharedSteps.PacketGuard state packet support →
+            ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+              child ∈ packet.children → Yulang.GeneralNominalSaturationState.Generated state.current root child
+@Yulang.GeneralDictionary169Selected.stable_current_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+  Yulang.GeneralNominalSharedSteps.Stable registry state root →
+    Yulang.GeneralNominalSaturationState.Generated state.current root packet.site.occurrence →
+      Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet →
+        ∀ (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+          Yulang.GeneralNominalSharedSteps.PacketGuard state packet support →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalSaturationState.Models state.current model →
+                ∀ (payloads : List Yulang.GeneralDictionaryReadback.Payload),
+                  Yulang.CommonRoleOutermostResolver.All₂
+                      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model)
+                      packet.children payloads →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model
+                      packet.site.occurrence
+                      (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id payloads)
+'Yulang.GeneralDictionary169Selected.child_payloads' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary169Selected.child_payloads : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  (sites : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  (∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      child ∈ sites →
+        ∃ payload,
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model child payload) →
+    ∃ payloads,
+      Yulang.CommonRoleOutermostResolver.All₂
+        (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) sites payloads
+'Yulang.GeneralDictionary169Selected.installed_dictionary_exists' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169Selected.installed_dictionary_exists : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models
+          (Yulang.GeneralNominalSharedSteps.install state packet support).current model →
+        (∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+            child ∈ packet.children →
+              ∃ payload,
+                Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+                  (Yulang.GeneralNominalSharedSteps.install state packet support).current.context model child payload) →
+          ∃ payloads,
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+              (Yulang.GeneralNominalSharedSteps.install state packet support).current.context model
+              packet.site.occurrence (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id payloads)
+'Yulang.GeneralDictionary169Selected.actual_nonterminal_exists' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary169Selected.actual_nonterminal_exists : ∃ model,
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current model ∧
+    ∃ payloads,
+      payloads.length = 1 ∧
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+          Yulang.GeneralDictionarySharedDisplayInstallation.after.current.context model
+          Yulang.GeneralNominalExamples.displayRoot (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 payloads)
+Audit/Cycle169Selected.lean exit=0
+'Yulang.GeneralDictionary169SharedStable.value_action_exists' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169SharedStable.of_value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169SharedStable.actual_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary169SharedStable.actual_formed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169SharedStable.actual_stable_named_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169SharedStable.value_action_exists : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {before : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralNominalSharedSteps.At registry before focus after →
+    ∃ next, Yulang.GeneralNominalValueSteps.At registry before focus next
+@Yulang.GeneralDictionary169SharedStable.of_value : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralNominalValueSteps.Stable registry state root →
+    Yulang.GeneralNominalSharedSteps.Stable registry state root
+Yulang.GeneralDictionary169SharedStable.actual_stable_named_dictionary : Yulang.GeneralNominalSharedSteps.SourceFormed
+    Yulang.GeneralDictionaryFiniteObservedExample.registry Yulang.GeneralDictionaryFiniteObservedExample.root
+    Yulang.GeneralDictionaryFiniteObservedExample.start ∧
+  Yulang.GeneralNominalSharedSteps.Stable Yulang.GeneralDictionaryFiniteObservedExample.registry
+      Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root ∧
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryFiniteObservedExample.start.current
+        Yulang.GeneralDictionaryFiniteObservedExample.model ∧
+      Yulang.GeneralDictionaryFiniteObservedExample.root.demand.outputs ≠ [] ∧
+        ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryFiniteObservedExample.start.current
+              assignment →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryFiniteObservedExample.registry
+              Yulang.GeneralDictionaryFiniteObservedExample.start.current.context assignment
+              Yulang.GeneralDictionaryFiniteObservedExample.root
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node
+                Yulang.GeneralDictionaryFiniteObservedExample.declaration.id [])
+Audit/Cycle169SharedStable.lean exit=0
