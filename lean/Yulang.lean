@@ -2721,3 +2721,6 @@ import Yulang.GeneralDictionary171RequestChecker
 
 import Yulang.GeneralDictionary172CheckerExact
 import Yulang.GeneralDictionary172CheckedSpineExact
+import Yulang.GeneralDictionary172CheckerRegression
+import Yulang.GeneralDictionary172CoverageInput
+import Yulang.GeneralDictionary172CoverageInputExample

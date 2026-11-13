@@ -459,5 +459,9 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle170 local coverage and bounded assembly](2026-11-13-cycle170-local-assembly.md) — Draft auxiliary proof progress.
 
 - [Cycle170 next observation bridge](2026-11-13-cycle170-next-observation-bridge.md) — Draft; physical snapshot and semantic source readback obligations.
+- [Ground capture assembly after full-report readback (2026-11-14)](2026-11-14-ground-capture-assembly.md) — actual fallback readbacks, simultaneous source labels, normalized descent; general Acc remains conditional.
 
 - [Cycle171 recursive named-spine coverage](2026-11-13-cycle171-spine-coverage.md) — Draft: recursive certificate and ordinary transport.
+
+- [Cycle172: conservative checker exactness](2026-11-13-cycle172-checker-exact.md) — exact physical-slot certificate, not language completeness.
+- [Cycle172: nested input discovery](2026-11-13-cycle172-nested-input-discovery.md) — actual finished inspection yields finite unary input certificate.
