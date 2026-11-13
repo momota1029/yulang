@@ -1,5 +1,6 @@
 import Yulang.GeneralDictionarySharedCapturedGuards
 import Yulang.GeneralNominalSupportSiblings
+set_option linter.unusedSimpArgs false
 namespace Yulang.GeneralDictionarySharedCapturedInstallable
 open GeneralDeclarations GeneralSourceDictionaries GeneralNominalSaturationState
 open GeneralNominalRecursiveInspection GeneralDictionarySharedOutputBinderScope
@@ -27,7 +28,7 @@ private theorem no_candidate : ¬ GeneralNominalFeedbackK2.CandidateK2 registry 
   · exact no_feedback _ cycle
 
 theorem p_only (d : Declaration) (visible : d ∈ registry.declarations) (role : d.role = root.demand.role) : d=capturedProposal := by
-  simp only [List.mem_cons,List.not_mem_nil,or_false] at visible
+  simp only [registry,List.mem_cons,List.not_mem_nil,or_false] at visible
   rcases visible with rfl | rfl
   · rfl
   · cases role
@@ -54,7 +55,7 @@ theorem selected_old : GeneralNominalFeedbackK2.Local registry start.current roo
 theorem enabled : GeneralNominalFeedbackSteps.Installable registry start.current packet := by
   let model := GeneralDictionarySharedCapturedModel.model
   have valid := GeneralDictionarySharedCapturedModel.source_models
-  refine ⟨⟨rfl,rfl,by simp [start,GeneralNominalSupport.initial,GeneralNominalSaturationState.initial],by simp,rfl,located,prepared,
+  refine ⟨⟨rfl,rfl,by simp [start,GeneralNominalSupport.initial,GeneralNominalSaturationState.initial,packet],by simp [registry],rfl,located,prepared,
     GeneralNominalFeedbackK2.selected_legacy selected_old,?_,?_,?_,?_⟩,selected_old,?_⟩
   · intro prior member; cases member
   · intro other member same
@@ -62,7 +63,7 @@ theorem enabled : GeneralNominalFeedbackSteps.Installable registry start.current
     subst other
     exact .refl _
   · exact ⟨model,(initial_models ..).mpr valid,GeneralDictionarySharedCapturedModel.branch_models⟩
-  · exact GeneralNominalJointCandidates.initial_joint registry context root capturedProposal (by simp) captured_proposal_checked rfl [(0,0)] located prepared model (GeneralDictionarySharedCapturedModel.branch_models)
+  · exact GeneralNominalJointCandidates.initial_joint registry context root capturedProposal (by simp [registry]) captured_proposal_checked rfl [(0,0)] located prepared model (GeneralDictionarySharedCapturedModel.branch_models)
   · intro other member same
     have equal := List.mem_singleton.mp member
     subst other
@@ -76,12 +77,12 @@ theorem reads_exact : readsMany source
   rw [reads.eq_def]
   change 0 :: readsMany source [.nominal 0 [.variables [0]]] [(1,1)] = [0,1]
   rw [readsMany.eq_def]
-  simp only
+  simp only [List.append_nil]
   rw [reads.eq_def]
   have empty : readsMany source [] [] = [] := by rw [readsMany.eq_def]
   simp only [empty,List.append_nil]
   change 0 :: (1 :: readsMany source [.variables [0]] [(2,2)]) = [0,1]
-  simp only [readsMany.eq_def,reads.eq_def,List.append_nil]
+  simp only [readsMany.eq_def,reads.eq_def,List.append_nil,List.nil_append]
 
 theorem decisions : DecisionGuard start registry root [] := by
   have head0 : Head source 0 (.nominal 0 1)
