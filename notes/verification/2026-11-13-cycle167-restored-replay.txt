@@ -1,0 +1,73 @@
+Yulang.GeneralDictionarySharedCapturedProducer EXIT 0  
+Yulang.GeneralDictionaryCapturedScalarRefresh EXIT 0  
+Yulang.GeneralDictionarySharedCapturedInputReady EXIT 0  
+Yulang.GeneralDictionarySharedCapturedProducerGuard EXIT 0  
+Yulang.GeneralDictionarySharedCapturedPreparation EXIT 0  
+Yulang.GeneralDictionarySharedCapturedProducerEnabled EXIT 0  
+Yulang.GeneralDictionarySharedCapturedConsequences EXIT 0  
+Yulang.GeneralDictionarySharedCapturedProducerResolution EXIT 0  
+Yulang.GeneralDictionarySharedCapturedProducerEvidence EXIT 0  
+Yulang.GeneralDictionaryCapturedTrustedBoundary EXIT 0  
+Yulang.GeneralDictionarySharedCapturedNovelty EXIT 0  
+Yulang.GeneralDictionarySharedCapturedResumption EXIT 0  
+Yulang.GeneralDictionaryCapturedSettlementBoundary EXIT 0  
+Yulang.GeneralNominalStructuralReadback EXIT 0  
+Yulang.GeneralNominalFrontierReadback EXIT 0  
+Yulang.GeneralNominalRecipeBounds EXIT 0  
+Yulang.GeneralNominalSchemaBudget EXIT 0  
+Yulang.GeneralNominalSettledGrowth EXIT 0  
+Yulang.GeneralNominalOccurrenceEnumeration EXIT 0  
+Yulang.GeneralNominalActualBudget EXIT 0  
+Yulang.GeneralNominalPatersonLineage EXIT 0  
+Yulang.GeneralNominalSettlementHeight EXIT 0  
+Yulang.GeneralDictionarySharedCapturedInstallable EXIT 0  
+Yulang.GeneralNominalSourceFactorization EXIT 0  
+Yulang.GeneralDictionarySharedCapturedFinalProducer EXIT 0  
+Yulang.GeneralNominalSchemaVocabulary EXIT 0  
+Cycle167CapturedSettlement.lean EXIT 0 'Yulang.GeneralDictionaryCapturedSettlementBoundary.alias_eq_of_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.discharged_identity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.trusted_output_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.consumer_not_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.parent_not_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle167InheritedCapturedCoverage.lean EXIT 0 'Yulang.GeneralDictionarySharedCapturedInputReady.old_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.facts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.input_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.refreshed_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.input_endpoint_equation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.lo_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.hi_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.queries' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.bounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.schema_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.candidate_bindings' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.allocated_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.private_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.projections' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.materialized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.branch_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.output_int' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.captured_int' depends on axioms: [propext, Classical.choice, Quot.sound]
+ 
+ALL PASS 26

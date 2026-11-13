@@ -1,0 +1,44 @@
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.old_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.packet_seed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.seed_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.constructors_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.interpretation_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.ordinary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.projections' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.schema_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.branch_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.bounds' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.request_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.concrete_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

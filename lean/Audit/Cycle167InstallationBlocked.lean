@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionaryCapturedInstallationBlocked
+#print axioms Yulang.GeneralDictionaryCapturedInstallationBlocked.installable_guard_current
+#print axioms Yulang.GeneralDictionaryCapturedInstallationBlocked.consumer_packet_guard_absent
+#print axioms Yulang.GeneralDictionaryCapturedInstallationBlocked.no_guarded_consumer_installation

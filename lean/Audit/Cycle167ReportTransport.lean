@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionarySharedCapturedReportTransport
+#print axioms Yulang.GeneralNominalReportSourceTransport.bindings_preserved
+#print axioms Yulang.GeneralNominalReportSourceTransport.selfChecks_preserved
+#print axioms Yulang.GeneralNominalReportSourceTransport.finished_iff
+#print axioms Yulang.GeneralNominalReportSourceTransport.projections_iff
+#print axioms Yulang.GeneralNominalReportSourceTransport.materialization_iff
+#print axioms Yulang.GeneralDictionarySharedCapturedReportTransport.exact_relocation
+#print axioms Yulang.GeneralDictionarySharedCapturedReportTransport.projections_equivalent
