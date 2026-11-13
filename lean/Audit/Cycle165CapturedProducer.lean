@@ -1,0 +1,12 @@
+import Yulang.GeneralDictionarySharedCapturedProducer
+
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.bounds
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.report_exact
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.schema_exact
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.allocated_value
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.private_models
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.projections
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.materialized
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.branch_models
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.output_int
+#print axioms Yulang.GeneralDictionarySharedCapturedProducer.captured_int

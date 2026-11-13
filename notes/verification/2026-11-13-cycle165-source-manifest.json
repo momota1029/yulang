@@ -1,0 +1,187 @@
+{
+  "frozen_local": "7092e30d417399bdb2d0933d343e3581906dcd51",
+  "public_source": "c6ed54f37da73fadedb159185f544f4b06a5e5b7",
+  "base_merge": "f22c744cb2a9d0e826a8ff60d09bc75761c7651a",
+  "files": [
+    {
+      "path": "lean/Audit/Cycle164FinalDependencyGate.lean",
+      "git_blob": "8385806734f51dff9218aae285ccfbb994bb7f55",
+      "sha256": "7cc27872ee386008aa98bb8bae26f18e0f86a3b85c46fe9ff1857b189dd3f3da",
+      "bytes": 2322
+    },
+    {
+      "path": "lean/Audit/Cycle165CapturedBranch.lean",
+      "git_blob": "262dd033fde0064b71a89c198e92cd982f28090a",
+      "sha256": "a3a02dbedb7ed4418fe4cbcc8f3ab2e1be9c4c075df97b4a776e85819259ce1a",
+      "bytes": 955
+    },
+    {
+      "path": "lean/Audit/Cycle165CapturedInputReady.lean",
+      "git_blob": "e1f85407422edc5f30c7a6638a6c006f3e697b8f",
+      "sha256": "9471ce6bdb3de03100560da7c311f450fc92154fd24a2856818e40d66fa3dec8",
+      "bytes": 445
+    },
+    {
+      "path": "lean/Audit/Cycle165CapturedInstallable.lean",
+      "git_blob": "8718b45f6d4ec3d13f7186af7f1ee07d0cbade4f",
+      "sha256": "b79d1b8e80240424ffe18a4e8f20a10ecbb2a236de0aef9aef5d531323aa39be",
+      "bytes": 356
+    },
+    {
+      "path": "lean/Audit/Cycle165CapturedInstallation.lean",
+      "git_blob": "3d8d91294a720bc290a7af1e4f134d19f434879f",
+      "sha256": "f8d7e23ab4d688fe54a6b15771af3a452db93252fa2cb6413f2487722f2bec2e",
+      "bytes": 1011
+    },
+    {
+      "path": "lean/Audit/Cycle165CapturedProducer.lean",
+      "git_blob": "f94355fd8e3b4d8521ab82a708cbe06bb7a0cd7e",
+      "sha256": "b348b49d1fe55cc204e130ab5e6b08cd6b65c945e1f1fde85722ce4a8896eac8",
+      "bytes": 792
+    },
+    {
+      "path": "lean/Audit/Cycle165CapturedRefresh.lean",
+      "git_blob": "006f3f17c36ccd302e558d93e21aa8a05e9f0090",
+      "sha256": "fe35445269df8cbce2878ff7d1a9570dfa5a60df0be9b84b4072c4b793093633",
+      "bytes": 924
+    },
+    {
+      "path": "lean/Audit/Cycle165FinalDependencyGate.lean",
+      "git_blob": "83d0036ae27baa68a5f96a0ecf4711720eeb1366",
+      "sha256": "eedf818bdf7f622289a05aec098402dc785e7deda9534ba48aa9b07287793056",
+      "bytes": 2114
+    },
+    {
+      "path": "lean/Audit/Cycle165IdentityCurrentEvidence.lean",
+      "git_blob": "91dadf3302ee187430d906ea086d7a85198c0f1e",
+      "sha256": "545ba6da4e1815cf6931791bf07754aa95c05744e1cb3316c639db51521df411",
+      "bytes": 383
+    },
+    {
+      "path": "lean/Audit/Cycle165IdentityEvidenceExample.lean",
+      "git_blob": "4582c087ebae9e5b403ff786ed117c59b28ce341",
+      "sha256": "5185bec376a5c32984060a12d6e96aa82d98b778defd787deab04bf67df93c7c",
+      "bytes": 369
+    },
+    {
+      "path": "lean/Audit/Cycle165IdentityRefreshExample.lean",
+      "git_blob": "1c65768e7c55f32a56a299bc5604aa1c457aa330",
+      "sha256": "79896de678d245167ff6421ee88b23bfec03e6943fcc5e1d15c2dcc05c849d6b",
+      "bytes": 683
+    },
+    {
+      "path": "lean/Audit/Cycle165Inherited164DependencyGate.lean",
+      "git_blob": "407e1a9cb73556e99f0c83351138905d403089ca",
+      "sha256": "cca73dd8d73d7e0e33ce966307f4d75aba61f646dd3653340037704917225744",
+      "bytes": 3025
+    },
+    {
+      "path": "lean/Audit/Cycle165PublicTypes.lean",
+      "git_blob": "f6367d6394563a2f030cc37bc8a97b0aa19468fc",
+      "sha256": "046b9d405a906908d6196a687d7528c65ce3a583ab8682354e7cb2a670c95c1b",
+      "bytes": 8566
+    },
+    {
+      "path": "lean/Audit/Cycle165SharedMetadata.lean",
+      "git_blob": "efaeba1b2f52fbbb068a3e34c979c875b0e96097",
+      "sha256": "2357b917ac11a0a1af016c45004c9bc45f3818bfbef292aec4cffd8dac3e3d65",
+      "bytes": 260
+    },
+    {
+      "path": "lean/Audit/Cycle165SharedOrdinaryHistory.lean",
+      "git_blob": "2b9f3f0d9d630662f037120906633a7b6df467eb",
+      "sha256": "9463506280ac843c66c0d5c0cfdbabe358e6c764f42595fd7f8b68e795d19ea1",
+      "bytes": 428
+    },
+    {
+      "path": "lean/Audit/Cycle165SourceRetention.lean",
+      "git_blob": "81eddb0a56f8e8627c0550d751cb77bef003df42",
+      "sha256": "2d5fce9915dbc7ced79e92bb1148a3da36e2de1a00679143722a6d4da9af3e02",
+      "bytes": 436
+    },
+    {
+      "path": "lean/Yulang.lean",
+      "git_blob": "8956e8b11c65db683881fc8f94c3060d5f1aa858",
+      "sha256": "b3a1cc4362d169417c639a386c91d364944d048d6663db675fc6a0e185ab1c7a",
+      "bytes": 93525
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryIdentityCurrentEvidence.lean",
+      "git_blob": "36df2a4245562f81b0173c423173e7493a93a46a",
+      "sha256": "c88843b725a26b371d2ffc8be551042b9a3a10de633993300f08115d1ae70407",
+      "bytes": 5430
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryIdentityEvidenceExample.lean",
+      "git_blob": "60a256aea3a7177cb29d158f5f5f7c505f8fba36",
+      "sha256": "306dbbd8118307d568a9d9ae0babb6bb13a1267024ee74c4264c56d23c695593",
+      "bytes": 1507
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryIdentityRefreshExample.lean",
+      "git_blob": "61c2294261bcfb8c2f81a493db3aa9e2fd58e5cf",
+      "sha256": "650be7a0ca0fa22492195063dbb0fd27032def7eab5b4cc28f31ecb635f7b9a6",
+      "bytes": 7751
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedGuards.lean",
+      "git_blob": "c6b4715f1f0bf9aed34e297da182a91c17bd3708",
+      "sha256": "2a03a9e62e457eb4dd33471e31823251ce909770aa9c3c5b3357e7392bd028c6",
+      "bytes": 5503
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedInputReady.lean",
+      "git_blob": "e85cf0b0c1ab1adc2017b963e195b341272f89fd",
+      "sha256": "a626bb80b06e632cc6020a4365c1b11b4891359ee2ff5de01305af474ff24774",
+      "bytes": 6998
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedInstallable.lean",
+      "git_blob": "d2bfe57db7333d4f17ec345048ccd83935e8972d",
+      "sha256": "a41c2293f9f0b3ac0a3082aa0ef4a8234078040e9ab5d9a0943b2dffdbdb9948",
+      "bytes": 5901
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedInstallation.lean",
+      "git_blob": "d23e3e988d286ad12fc1c292759d5a0a04b00887",
+      "sha256": "4c115f7e561353efd37dff032cd7c66fce7e35d0a3da64689b1c3e274a588058",
+      "bytes": 6041
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedModel.lean",
+      "git_blob": "74fab69411b4a49d911700481435ceebc827cc11",
+      "sha256": "4e84d65497494d18d9f2e9e684be4275f3601285d3be3845a8e6c8b1146f439c",
+      "bytes": 12477
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedProducer.lean",
+      "git_blob": "5e02417794e95f41461035e40e0aa733ec32b3e1",
+      "sha256": "d376ee2ba5403d036b7e9a4ac8dde47f5a20e90d2cde8c58cace500f2eb3a722",
+      "bytes": 13342
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedRefresh.lean",
+      "git_blob": "ad685ccfa42febb744e723f5d9c4c633f3f84002",
+      "sha256": "00dbb2bfcf073d6e6c4886f5b868a93914507fafaa8187e073fa7f7cd80988ee",
+      "bytes": 13863
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedMetadata.lean",
+      "git_blob": "a580d2e7f77d273a477454d18c80a553ae3b41ac",
+      "sha256": "d8c5b76ab0def8178a9f978bfc9d664bf2a5aab566da06e64267ce345d14d229",
+      "bytes": 2764
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedOrdinaryHistory.lean",
+      "git_blob": "755154a929c45d21a0a3fc3e0e54f14838cfb419",
+      "sha256": "d900d7c85250879f45c84fa4b86be0c28c1f31c83595602fcf74258b6f936741",
+      "bytes": 4314
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedSourceRetention.lean",
+      "git_blob": "ca6521e27bf5a752e7f3cec6b7110b534f19d397",
+      "sha256": "f938b302e9b7d4eaa310180577d6ca51879406c4594070f90390763acc8ea95a",
+      "bytes": 3932
+    }
+  ]
+}

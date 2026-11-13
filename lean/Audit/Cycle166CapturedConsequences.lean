@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySharedCapturedConsequences
+#print axioms Yulang.GeneralDictionarySharedCapturedConsequences.path_models
+#print axioms Yulang.GeneralDictionarySharedCapturedConsequences.recorded_output_int
+#print axioms Yulang.GeneralDictionarySharedCapturedConsequences.recorded_captured_int
+#print axioms Yulang.GeneralDictionarySharedCapturedConsequences.captured_int_after_path

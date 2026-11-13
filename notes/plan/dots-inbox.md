@@ -271,3 +271,10 @@ spec 6 の K2 の決定に追記した: 根（または head の非変数 patter
 
 Astra の新しい終了性の分析（`notes/design/2026-11-13-termination-fresh-analysis.md`）が、輪にならない蓄積のポンプで、輪だけの保留（補遺 5・6）では需要が無限に増えることを示した。ユーザーの決定で、spec 6.3 と B4 草稿の補遺 7 に記録した: 片付いていない需要（impl を選んだが where の子に保留が残る）の関連型の出力は、ほかの需要の、候補を調べるのに要る入力の頭の根拠にしない。ソースの制約か片付いた需要の出力が根拠になれば再開する。等式は通常の制約・まとめ・K2 には使う。
 - Astra が終了性の側（ガードの実装と停止の証明）を担当する。dot の `Evidence` 側は、このガードで保留になった需要に辞書を作らないことだけ確かめればよい。`Stable` の定義が変わる場合は、Astra の新しいモジュールに合わせる（Astra の定義は消さない）。
+
+## I-27: 前のサイクルのファイルも追記のみ（監督役, 2026-11-13）
+
+サイクル 166 が、サイクル 165 で公開済みの `lean/Yulang/GeneralDictionarySharedCapturedInstallable.lean`（simp 引数の整理、`set_option` の削除）と `lean/Audit/Cycle165FinalDependencyGate.lean`・`Cycle165PublicTypes.lean`（import と `wanted` の追加）をその場で書き換えたため、`tools/verify-lean.sh` が FAIL した（既存行の削除・変更）。監督役がこの 3 ファイルを統合ブランチの版に戻してから統合した（意味の変化なし、ビルドと監査は PASS）。
+- 公開済みのファイルは、前のサイクルのものでも**追記のみ**。既存の行（`set_option`、simp の引数、`wanted` のリストを含む）は書き換えない。
+- 新しいモジュールの公理チェックは、新しい `lean/Audit/<名前>.lean` に書く（既存の監査ファイルの `wanted` には足さない）。
+- 戻した結果、`GeneralDictionarySharedCapturedInputReady` と `GeneralDictionarySharedCapturedProducer` は、サイクル 166 の監査パートには入っていない可能性がある。`tools/AxiomGate.lean` が全宣言を検査しているので公理は確認済みだが、次のサイクルで新しい監査ファイルに入れておくこと。

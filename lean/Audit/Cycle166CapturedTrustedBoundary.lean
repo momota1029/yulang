@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryCapturedTrustedBoundary
+#print axioms Yulang.GeneralDictionaryCapturedTrustedBoundary.producer_output_int
+#print axioms Yulang.GeneralDictionaryCapturedTrustedBoundary.ready_from_trusted_alias
+#print axioms Yulang.GeneralDictionaryCapturedTrustedBoundary.alias_from_parent_output
+#print axioms Yulang.GeneralDictionaryCapturedTrustedBoundary.parent_settlement_requires_consumer

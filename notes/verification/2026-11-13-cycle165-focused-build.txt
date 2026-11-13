@@ -1,0 +1,5 @@
+✔ [693/708] Built Yulang.GeneralDictionarySharedCapturedInstallation (1.2s)
+✔ [697/708] Built Yulang.GeneralDictionarySharedCapturedRefresh (1.3s)
+✔ [701/708] Built Yulang.GeneralDictionarySharedCapturedProducer (1.2s)
+✔ [703/721] Built Yulang.GeneralDictionarySharedCapturedInputReady (1.0s)
+Build completed successfully (721 jobs).
