@@ -101,7 +101,7 @@ terminal/深さ2/単一binderは証明断片の制限で、言語の拒否規則
 
 ## 検証・失敗・公開制限
 
-Lean4.35.0。新19module、公開200定理。focused buildは749jobs PASS。
+Lean4.35.0。新19module、公開200定理。focused buildは全19新targetを指定して752jobs PASS。
 全19sourceを独立cacheへ `lean --trust=0` で再compileし、private/generatedも
 含む574宣言の依存公理gate PASS。公開定理auditと保存gateを独立cacheで実行。
 公理はpropext/Classical.choice/Quot.sound以内。sorry/new axiom/native_decideなし。
@@ -140,3 +140,16 @@ e1834b594c103ab53148a58b755d283614ca389f。
 各不変commitを取得し直し、固定local sourceとの全tree差分が心拍だけであることを確認。
 後続のregistry確認・監査artifactと最終報告も同じ手順で検証する。
 最終commit SHAは会話への完了報告に記載する。
+
+08:06のartifact checkpointは72104fc54c2037995288f4e2825538ae5b0d83ed。
+固定localとの全tree差分は心拍のみ、19sourceのSHA256もinventoryと一致。
+独立reviewで、registry Checked、非空schema、共通model、実Certified Stepの整合と
+非空前提を確認。originの`.1`は「割当型」であって「下端」ではないため説明を修正。
+公開定理audit18本＋保存gate1本、公開名200の出力照合PASS。
+
+次の非terminal検討で、同一seed/invocationのRevisionではrequest ID変更より
+先にrequestリスト不変を証明すべきと分かった。normalized variable入力は
+inputRequestsが省き、他の入力は固定allocationを使う。ただしchild demand intervalは
+変わる。変数入力だけの1子fragmentで親BranchModelsを先に輸送し、子Evidenceは
+別に扱う方針を `notes/design/2026-11-13-cycle160-next-nonterminal-map.md` に残した。
+これは次の証明計画で、今回の完了定理には数えていない。
