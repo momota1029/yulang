@@ -73,6 +73,14 @@ theorem producer_pending : GeneralNominalState.RootPending after.current.context
   rw [producer_inputs]
   exact producer_still_unknown
 
+/-- Descriptor-only reobservation cannot introduce the missing fresh slots. -/
+theorem revision_producer_pending (revision : GeneralNominalReobservationSteps.Revision after.current) :
+    GeneralNominalState.RootPending revision.snapshot producer.demand := by
+  refine ⟨⟨0,by decide +kernel⟩,?_⟩
+  rw [producer_inputs]
+  exact fun known => producer_still_unknown ((GeneralNominalReobservationSteps.revision_known revision lo).mp known)
+
+
 /-- The initial parent supplies semantic shape constraints even though no
 base slot for its fresh producer endpoint has yet been added. -/
 theorem producer_shape (assignment : GeneralNominalCommonBridge.Assignment)

@@ -11,3 +11,4 @@ import Yulang.GeneralDictionarySharedCapturedInstallation
 #print axioms Yulang.GeneralDictionarySharedCapturedInstallation.producer_shape
 #print axioms Yulang.GeneralDictionarySharedCapturedInstallation.output_capture_equivalent
 #print axioms Yulang.GeneralDictionarySharedCapturedInstallation.reached_parent
+#print axioms Yulang.GeneralDictionarySharedCapturedInstallation.revision_producer_pending

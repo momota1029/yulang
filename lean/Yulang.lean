@@ -2556,3 +2556,7 @@ import Yulang.GeneralDictionarySharedCapturedInstallable
 import Yulang.GeneralDictionarySharedCapturedInstallation
 
 import Yulang.GeneralDictionaryIdentityEvidenceExample
+
+import Yulang.GeneralDictionaryIdentityRefreshExample
+
+import Yulang.GeneralDictionarySharedCapturedRefresh

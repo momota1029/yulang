@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryIdentityRefreshExample
+#print axioms Yulang.GeneralDictionaryIdentityRefreshExample.refresh_step
+#print axioms Yulang.GeneralDictionaryIdentityRefreshExample.refreshed_formed
+#print axioms Yulang.GeneralDictionaryIdentityRefreshExample.refreshed_models
+#print axioms Yulang.GeneralDictionaryIdentityRefreshExample.old_unknown
+#print axioms Yulang.GeneralDictionaryIdentityRefreshExample.new_known
+#print axioms Yulang.GeneralDictionaryIdentityRefreshExample.refreshed_evidence
+#print axioms Yulang.GeneralDictionaryIdentityRefreshExample.nonvacuous_refreshed_evidence
+#print axioms Yulang.GeneralDictionaryIdentityRefreshExample.not_ordinary_extension
