@@ -479,3 +479,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [2026-11-14 Centered ground composition](2026-11-14-centered-ground-composition.md) — ten V5 fields, a reachable selection/installation obstruction, general center model extension, and conditional P/W ledger rejection; source execution remains open.
 
 - [Centered administrative ground composition](2026-11-14-centered-administrative-composition.md) — merge-aware Local, eleven unconditional V5 fields, all-state where accessibility, fixed-snapshot reordering, and explicit production/final-observation residuals.
+
+- [Centered production and terminal observation limits](2026-11-14-centered-terminal-production.md) — persistent packet commitment, exact selected-frame completion residual, same-center merge availability, and an actual ground terminal fork refuting full primitive-observation confluence; the two V5 fields remain open.
