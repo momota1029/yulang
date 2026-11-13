@@ -472,3 +472,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - Cycle173 actual ground witness, concrete branching run and selected-edge schema: `2026-11-13-cycle173-actual-evidence.md` (conditional dictionary bridges; not full B4).
 
 - [Explicit centers at the actual-inspection boundary](2026-11-14-centered-actual-boundary.md) — Center ledger, model equations, centered transition kernel, six V5 structural fields, and conditional compatibility/K2 bridges; full simulation and trigger execution remain open.
+
+- [Centered point-source bridges](2026-11-14-centered-point-bridges.md) — Exact initial agreement, a reachable ground counterexample to literal erasure with a matching raw execution, and selected inspection guards; unrestricted simulation and full installation availability remain open.

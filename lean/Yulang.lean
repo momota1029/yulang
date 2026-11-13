@@ -2766,3 +2766,7 @@ import Yulang.GeneralNominalCenteredSteps
 import Yulang.GeneralNominalCenteredBoundary
 import Yulang.GeneralNominalCenteredExamples
 import Yulang.GeneralNominalCenteredSupport
+import Yulang.GeneralNominalCenteredPointSource
+import Yulang.GeneralNominalCenteredMergeBridge
+import Yulang.GeneralNominalCenteredPointMergeExample
+import Yulang.GeneralNominalCenteredInspection
