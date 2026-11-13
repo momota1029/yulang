@@ -1,0 +1,20 @@
+import Yulang.GeneralDictionary172CheckerExact
+
+#check Yulang.GeneralDictionary172CheckerExact.closedQuery_complete
+#print axioms Yulang.GeneralDictionary172CheckerExact.closedQuery_complete
+#check Yulang.GeneralDictionary172CheckerExact.closedQuery_iff
+#print axioms Yulang.GeneralDictionary172CheckerExact.closedQuery_iff
+#check Yulang.GeneralDictionary172CheckerExact.pointArguments_ofFn
+#print axioms Yulang.GeneralDictionary172CheckerExact.pointArguments_ofFn
+#check Yulang.GeneralDictionary172CheckerExact.pointArguments_iff
+#print axioms Yulang.GeneralDictionary172CheckerExact.pointArguments_iff
+#check Yulang.GeneralDictionary172CheckerExact.pointReport_iff
+#print axioms Yulang.GeneralDictionary172CheckerExact.pointReport_iff
+#check Yulang.GeneralDictionary172CheckerExact.finishedReport_iff
+#print axioms Yulang.GeneralDictionary172CheckerExact.finishedReport_iff
+#check Yulang.GeneralDictionary172CheckerExact.checkAt_iff
+#print axioms Yulang.GeneralDictionary172CheckerExact.checkAt_iff
+#check Yulang.GeneralDictionary172CheckerExact.checkRequest_iff
+#print axioms Yulang.GeneralDictionary172CheckerExact.checkRequest_iff
+#check Yulang.GeneralDictionary172CheckerExact.checkRequests_iff
+#print axioms Yulang.GeneralDictionary172CheckerExact.checkRequests_iff

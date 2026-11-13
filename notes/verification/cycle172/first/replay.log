@@ -1,0 +1,225 @@
+
+MODULE GeneralDictionary172CheckerExact exit=0
+
+MODULE GeneralDictionary172CoverageInput exit=0
+
+MODULE GeneralDictionary172CoverageInputExample exit=0
+
+MODULE GeneralDictionary172CheckedSpineExact exit=0
+
+MODULE GeneralDictionary172CheckerRegression exit=0
+Yulang.GeneralDictionary172CheckedSpineExact.check_iff {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (input : Yulang.GeneralDictionary171SpineDiscovery.Input context root declaration) :
+  Yulang.GeneralDictionary171CheckedSpine.check registry context root declaration checked input = true ↔
+    Yulang.GeneralDictionary171SpineDiscovery.RequestsFinished registry context root declaration checked input
+'Yulang.GeneralDictionary172CheckedSpineExact.check_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary172CheckedSpineExact.discover_iff {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : declaration ∈ registry.declarations)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (input : Yulang.GeneralDictionary171SpineDiscovery.Input state.current.context root declaration) :
+  (∃ node,
+      Yulang.GeneralDictionary171CheckedSpine.discover registry state root declaration visible checked input =
+        some node) ↔
+    Yulang.GeneralDictionary171SpineDiscovery.RequestsFinished registry state.current.context root declaration checked
+      input
+'Yulang.GeneralDictionary172CheckedSpineExact.discover_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary172CheckedSpineExact.check_false_iff {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (input : Yulang.GeneralDictionary171SpineDiscovery.Input context root declaration) :
+  Yulang.GeneralDictionary171CheckedSpine.check registry context root declaration checked input = false ↔
+    ¬Yulang.GeneralDictionary171SpineDiscovery.RequestsFinished registry context root declaration checked input
+'Yulang.GeneralDictionary172CheckedSpineExact.check_false_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+AUDIT Cycle172CheckedSpineExact exit=0
+Yulang.GeneralDictionary172CheckerExact.closedQuery_complete (query : Yulang.GeneralNominalInspection.Query)
+  (closed : Yulang.GeneralDictionary171InspectionObservation.Closed query) :
+  Yulang.GeneralDictionary171RequestChecker.closedQuery query = true
+'Yulang.GeneralDictionary172CheckerExact.closedQuery_complete' depends on axioms: [propext]
+Yulang.GeneralDictionary172CheckerExact.closedQuery_iff (query : Yulang.GeneralNominalInspection.Query) :
+  Yulang.GeneralDictionary171RequestChecker.closedQuery query = true ↔
+    Yulang.GeneralDictionary171InspectionObservation.Closed query
+'Yulang.GeneralDictionary172CheckerExact.closedQuery_iff' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary172CheckerExact.pointArguments_ofFn {k n : Nat} (slots : Fin k → Fin n) :
+  Yulang.GeneralDictionary171RequestChecker.pointArguments
+      (List.ofFn fun i => Yulang.GeneralNominalState.Parameter.type (slots i, slots i)) =
+    true
+'Yulang.GeneralDictionary172CheckerExact.pointArguments_ofFn' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary172CheckerExact.pointArguments_iff {n : Nat}
+  (arguments : List (Yulang.GeneralNominalState.Parameter n)) :
+  Yulang.GeneralDictionary171RequestChecker.pointArguments arguments = true ↔
+    ∃ k slots, arguments = List.ofFn fun i => Yulang.GeneralNominalState.Parameter.type (slots i, slots i)
+'Yulang.GeneralDictionary172CheckerExact.pointArguments_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary172CheckerExact.pointReport_iff (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralDictionary171RequestChecker.pointReport state report = true ↔
+    Yulang.GeneralDictionary171LocalInspectionObservation.PointInspection state report
+'Yulang.GeneralDictionary172CheckerExact.pointReport_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary172CheckerExact.finishedReport_iff {state : Yulang.GeneralNominalState.State}
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralDictionary171RequestChecker.finishedReport report = true ↔
+    Yulang.GeneralNominalRecursiveInspection.Finished report
+'Yulang.GeneralDictionary172CheckerExact.finishedReport_iff' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary172CheckerExact.checkAt_iff (state : Yulang.GeneralNominalState.State)
+  (interpretation : Yulang.GeneralNominalInspection.Interpretation)
+  (request : Yulang.GeneralNominalMaterialization.Request) (slot : Fin state.base.slots) :
+  Yulang.GeneralDictionary171RequestChecker.checkAt state interpretation request slot = true ↔
+    Yulang.GeneralDictionary172CheckerExact.At state interpretation request slot
+'Yulang.GeneralDictionary172CheckerExact.checkAt_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary172CheckerExact.checkRequest_iff (state : Yulang.GeneralNominalState.State)
+  (interpretation : Yulang.GeneralNominalInspection.Interpretation)
+  (request : Yulang.GeneralNominalMaterialization.Request) :
+  Yulang.GeneralDictionary171RequestChecker.checkRequest state interpretation request = true ↔
+    ∃ slot, Yulang.GeneralDictionary172CheckerExact.At state interpretation request slot
+'Yulang.GeneralDictionary172CheckerExact.checkRequest_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary172CheckerExact.checkRequests_iff (state : Yulang.GeneralNominalState.State)
+  (interpretation : Yulang.GeneralNominalInspection.Interpretation)
+  (requests : List Yulang.GeneralNominalMaterialization.Request) :
+  Yulang.GeneralDictionary171RequestChecker.checkRequests state interpretation requests = true ↔
+    ∀ (request : Yulang.GeneralNominalMaterialization.Request),
+      request ∈ requests → ∃ slot, Yulang.GeneralDictionary172CheckerExact.At state interpretation request slot
+'Yulang.GeneralDictionary172CheckerExact.checkRequests_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+AUDIT Cycle172CheckerExact exit=0
+Yulang.GeneralDictionary172CheckerRegression.named_criterion_and_dictionary :
+  Yulang.GeneralDictionary171SpineDiscovery.RequestsFinished Yulang.GeneralDictionary170NamedSpineExample.registry
+      Yulang.GeneralDictionary170NamedSpineExample.context Yulang.GeneralDictionary170NamedSpineExample.root
+      Yulang.GeneralDictionary170NamedSpineExample.declaration Yulang.GeneralDictionary170NamedSpineExample.checked
+      Yulang.GeneralDictionary171SpineDiscoveryExample.input ∧
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models Yulang.GeneralDictionary170NamedSpineExample.source assignment →
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionary170NamedSpineExample.registry
+          Yulang.GeneralDictionary170NamedSpineExample.context assignment
+          Yulang.GeneralDictionary170NamedSpineExample.root
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node
+            Yulang.GeneralDictionary170NamedSpineExample.declaration.id [])
+'Yulang.GeneralDictionary172CheckerRegression.named_criterion_and_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary172CheckerRegression.reserved_no_certificate :
+  ¬∃ slot,
+      Yulang.GeneralDictionary172CheckerExact.At Yulang.GeneralDictionaryFiniteObservedExampleReserved.state
+        Yulang.GeneralDictionaryFiniteObservedExample.interpretation
+        Yulang.GeneralDictionaryFiniteObservedExampleReserved.request slot
+'Yulang.GeneralDictionary172CheckerRegression.reserved_no_certificate' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary172CheckerRegression.reachable_satisfiable_checker_false :
+  Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalSupportBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+      Yulang.GeneralDictionaryFiniteObservedExample.registry Yulang.GeneralDictionaryFiniteObservedExampleReserved.root
+      Yulang.GeneralDictionaryFiniteObservedExampleReserved.start ∧
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryFiniteObservedExampleReserved.state
+        Yulang.GeneralDictionaryFiniteObservedExample.model ∧
+      Yulang.GeneralDictionary171RequestChecker.checkRequests
+            Yulang.GeneralDictionaryFiniteObservedExampleReserved.state
+            Yulang.GeneralDictionaryFiniteObservedExample.interpretation
+            [Yulang.GeneralDictionaryFiniteObservedExampleReserved.request] =
+          false ∧
+        ¬∃ slot,
+            Yulang.GeneralDictionary172CheckerExact.At Yulang.GeneralDictionaryFiniteObservedExampleReserved.state
+              Yulang.GeneralDictionaryFiniteObservedExample.interpretation
+              Yulang.GeneralDictionaryFiniteObservedExampleReserved.request slot
+'Yulang.GeneralDictionary172CheckerRegression.reachable_satisfiable_checker_false' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+AUDIT Cycle172CheckerRegression exit=0
+Yulang.GeneralDictionary172CoverageInput.inspected_spine {n : Nat} {query : Yulang.GeneralNominalInspection.Query}
+  (state : Yulang.GeneralNominalState.State) (names : Fin n → Nat)
+  (form : Yulang.GeneralDictionary172CoverageInput.Syntax names query) (slot : Fin state.base.slots)
+  (origin : Option Yulang.GeneralNominalRecursiveInspection.Origin)
+  (finished :
+    Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveInspection.inspect state query (slot, slot) origin))
+  (points :
+    Yulang.GeneralDictionary171LocalInspectionObservation.PointInspection state
+      (Yulang.GeneralNominalRecursiveInspection.inspect state query (slot, slot) origin)) :
+  ∃ bounds spine, spine.query = query
+'Yulang.GeneralDictionary172CoverageInput.inspected_spine' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary172CoverageInput.input_exists {roles : Yulang.Roles.RoleDecls} {n : Nat}
+  {query : Yulang.GeneralNominalInspection.Query} (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (terminal : declaration.requirements = []) (role : declaration.role = root.demand.role)
+  (slot : Fin context.state.base.slots) (names : Fin n → Nat) (distinct : Function.Injective names)
+  (inputs : declaration.inputNames = List.ofFn names)
+  (form : Yulang.GeneralDictionary172CoverageInput.Syntax names query)
+  (queries : Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration = [query])
+  (located : Yulang.GeneralNominalRecursiveCandidates.arguments context root = some [(slot, slot)])
+  (defined : Yulang.GeneralNominalMaterialization.RootDefined declaration root)
+  (finished :
+    Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveCandidates.report context declaration [(slot, slot)]))
+  (points :
+    Yulang.GeneralDictionary171LocalInspectionObservation.PointInspection context.state
+      (Yulang.GeneralNominalRecursiveCandidates.report context declaration [(slot, slot)])) :
+  ∃ input, input.slot = slot
+'Yulang.GeneralDictionary172CoverageInput.input_exists' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary172CoverageInput.checked_uniform_evidence {roles : Yulang.Roles.RoleDecls} {n : Nat}
+  {query : Yulang.GeneralNominalInspection.Query} (registry : Yulang.GeneralDeclarations.Registry)
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : declaration ∈ registry.declarations)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (terminal : declaration.requirements = []) (role : declaration.role = root.demand.role)
+  (slot : Fin context.state.base.slots) (names : Fin n → Nat) (distinct : Function.Injective names)
+  (inputs : declaration.inputNames = List.ofFn names)
+  (form : Yulang.GeneralDictionary172CoverageInput.Syntax names query)
+  (queries : Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration = [query])
+  (located : Yulang.GeneralNominalRecursiveCandidates.arguments context root = some [(slot, slot)])
+  (defined : Yulang.GeneralNominalMaterialization.RootDefined declaration root)
+  (finished :
+    Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveCandidates.report context declaration [(slot, slot)]))
+  (points :
+    Yulang.GeneralDictionary171LocalInspectionObservation.PointInspection context.state
+      (Yulang.GeneralNominalRecursiveCandidates.report context declaration [(slot, slot)]))
+  (success :
+    Yulang.GeneralDictionary171RequestChecker.checkRequests context.state context.interpretation
+        (Yulang.GeneralNominalMaterialization.requests context.state registry root declaration checked
+          (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+            (Yulang.GeneralNominalRecursiveCandidates.report context declaration [(slot, slot)]))) =
+      true)
+  (metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata registry context)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalState.Models context.state model →
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry context model root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id [])
+'Yulang.GeneralDictionary172CoverageInput.checked_uniform_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary172CoverageInputExample.finite_syntax :
+  Yulang.GeneralDictionary172CoverageInput.Syntax (fun x => 7) Yulang.GeneralDictionaryNestedRefinementExamples.query
+'Yulang.GeneralDictionary172CoverageInputExample.finite_syntax' does not depend on any axioms
+Yulang.GeneralDictionary172CoverageInputExample.actual_finished :
+  Yulang.GeneralNominalRecursiveInspection.Finished
+    (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralNominalProvenanceSource.state
+      Yulang.GeneralDictionaryNestedRefinementExamples.query (0, 0) none)
+'Yulang.GeneralDictionary172CoverageInputExample.actual_finished' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary172CoverageInputExample.actual_points :
+  Yulang.GeneralDictionary171LocalInspectionObservation.PointInspection Yulang.GeneralNominalProvenanceSource.state
+    (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralNominalProvenanceSource.state
+      Yulang.GeneralDictionaryNestedRefinementExamples.query (0, 0) none)
+'Yulang.GeneralDictionary172CoverageInputExample.actual_points' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary172CoverageInputExample.nested_extracted :
+  ∃ bounds spine, spine.query = Yulang.GeneralDictionaryNestedRefinementExamples.query
+'Yulang.GeneralDictionary172CoverageInputExample.nested_extracted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary172CoverageInputExample.inhabited_nested :
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalProvenanceSource.state
+      (Yulang.GeneralNominalProvenanceSource.model Yulang.CommonNominalSyntax.Layer.bottom
+        Yulang.CommonNominalSyntax.Layer.top Yulang.CommonNominalSyntax.Layer.bottom) ∧
+    ∃ bounds spine, spine.query = Yulang.GeneralDictionaryNestedRefinementExamples.query
+'Yulang.GeneralDictionary172CoverageInputExample.inhabited_nested' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+AUDIT Cycle172CoverageInput exit=0

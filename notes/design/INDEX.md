@@ -463,4 +463,11 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle171 recursive named-spine coverage](2026-11-13-cycle171-spine-coverage.md) — Draft: recursive certificate and ordinary transport.
 - [Actual-inspection B4 boundary and fixed-hole phases](2026-11-14-actual-boundary-hole-phases.md) — Six operational V5 transfers, ground progress/terminal existence, source-indexed root readback, snapshot enumeration and conditional phase Acc; general unknown-hole readback remains open.
+- [Actual-inspection boundary agreement](2026-11-14-actual-boundary-agreement.md) — Draft owner-decision audit; known-head missing-provenance deferral needs a decision before defining an agreed local boundary. No new boundary or bridge theorem is claimed.
+- [Actual boundary agreement with provenance parameters](2026-11-14-actual-boundary-agreement-parameters.md) — Both local policies, six V5 transfers, policy-scoped generated children, conditional execution/where accessibility, and model-preserving recovery repair; semantic completeness and general provenance remain open.
+
+- [Cycle172: conservative checker exactness](2026-11-13-cycle172-checker-exact.md) — exact physical-slot certificate, not language completeness.
+- [Cycle172: nested input discovery](2026-11-13-cycle172-nested-input-discovery.md) — actual finished inspection yields finite unary input certificate.
+- [Cycle173 actual-inspection evidence and ground composition](2026-11-13-cycle173-actual-evidence.md)
+- Cycle173 actual ground witness, concrete branching run and selected-edge schema: `2026-11-13-cycle173-actual-evidence.md` (conditional dictionary bridges; not full B4).
 - [Canonical hole transport and reduced-hole source producers](2026-11-14-canonical-hole-transport.md) — Exact shared substitution and mass transport, reduced-hole structural/point-nominal exposure, actual K2 occurs checking, and certified inventory/journal transition branches; universal unknown-hole source production remains open. No missing-provenance deferral is used.
