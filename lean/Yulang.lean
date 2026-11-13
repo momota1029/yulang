@@ -2305,3 +2305,4 @@ import Yulang.GeneralDictionaryReservedCatalogEvidence
 import Yulang.GeneralDictionaryReachableRootIntervals
 import Yulang.GeneralDictionaryScalarIntervalInspection
 import Yulang.GeneralDictionaryProvenanceScalarIntervalRoot
+import Yulang.GeneralDictionaryCatalogScalarIntervalRoot
