@@ -441,3 +441,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Class P: compound input producers and a larger recursive class](2026-11-14-classp-compound-inputs.md) — Unconditional actual-Step Acc for multi-argument recursion with a distinguished finite input, checked compound/output/binder source families, and actual nominal compound emission/readback/recovery; general ClassPProducer remains open.
 
 - [Ground-root Class P: finite input production](2026-11-14-ground-root-production.md) — Actual structural containment, shared capture and emitted-child meanings, recovered-input readback, and actual-Step Acc conditional on one local finite-capture factorization; inhabited branching Show source. Unconditional ground-root Acc remains open.
+
+- [Ground capture factorization: actual paths and closed branching Acc](2026-11-14-ground-factorization-progress.md) — Actual nested nominal/pair capture paths, simultaneous finite values, application-fragment counted substitution, and unconditional Show (pair (list int) int) accessibility; general GroundCaptureFactorization remains open.
