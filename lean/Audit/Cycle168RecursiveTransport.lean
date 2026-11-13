@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryRecursive168Transport
+#print axioms Yulang.GeneralDictionaryRecursive168Transport.children_seed
+#print axioms Yulang.GeneralDictionaryRecursive168Transport.instance_relocated
+#print axioms Yulang.GeneralDictionaryRecursive168Transport.indexed_relocated
+#print axioms Yulang.GeneralDictionaryRecursive168Transport.erased_relocated

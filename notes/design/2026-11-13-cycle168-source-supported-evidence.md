@@ -13,3 +13,9 @@ Existing files remain untouched except additive root imports; small new audits. 
 The source-supported initial container trace already exists. New goal1 is therefore the missing general readiness/DecisionGuard persistence along actual OrdinaryStep Shared traces, combined with inherited evidence preservation and the existing inhabited positive fixture. Descriptor refresh is excluded. Goal2 has compiled, including the actual captured-producer scalar-refresh specialization. Its old_branch is derived from the real journal, not assumed in the concrete theorem.
 
 Next compositional goal: recursively transport a whole existing Evidence tree through a source-preserving relocation, using per-instance fresh argument/report/schema witnesses and derived child emission equality, rather than requiring already-transported child Evidence.
+
+## Whole-tree transport (15:46 UTC)
+`RelocatesAt` was tightened BEFORE publication to declarations visible in the registry whose key is the key in the existing evidence node. `RelocatesTree` only asks for these comparisons at occurrences in the old tree. Source-ID/seed preservation derives identical generated child occurrences. The same finite tree and erased payload transport by induction. A real non-identity scalar refresh of the captured producer instantiates this, with old Instance reconstructed from Prepared and the actual final journal's old_branch.
+
+## Journal connection goal
+For a source-formed Shared final state, existing `stored_instance` derives the stored semantic instance of every recorded packet from actual current models. Replace the old recorded-tree interpreter's ALL-packet ordinary-extension premise by explicit per-packet source-ID/seed/report/schema relocation, then recursively interpret the finite RecordedTree at the current context. This is a sufficient structural certificate, not a claim that arbitrary refresh or Stable supplies it. Mixed recorded/unrecorded source leaf coverage remains open.

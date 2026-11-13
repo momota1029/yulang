@@ -2623,3 +2623,5 @@ import Yulang.GeneralNominalCompoundEmission
 import Yulang.GeneralDictionarySource168Transport
 import Yulang.GeneralDictionary168SourceGuard
 import Yulang.GeneralDictionaryActual168Transport
+import Yulang.GeneralDictionaryRecursive168Transport
+import Yulang.GeneralDictionaryCapturedTree168Transport

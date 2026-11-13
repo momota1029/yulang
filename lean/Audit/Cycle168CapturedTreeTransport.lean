@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryCapturedTree168Transport
+#print axioms Yulang.GeneralDictionaryCapturedTree168Transport.locality
+#print axioms Yulang.GeneralDictionaryCapturedTree168Transport.tree_locality
+#print axioms Yulang.GeneralDictionaryCapturedTree168Transport.stored_instance
+#print axioms Yulang.GeneralDictionaryCapturedTree168Transport.old_tree
+#print axioms Yulang.GeneralDictionaryCapturedTree168Transport.actual_tree
+#print axioms Yulang.GeneralDictionaryCapturedTree168Transport.actual_payload
