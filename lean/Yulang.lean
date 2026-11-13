@@ -1021,7 +1021,1144 @@ import Yulang.CommonEffectKindedGeneration
 import Yulang.CommonEffectKindedHandler
 import Yulang.CommonSignedFiniteBounds
 import Yulang.CommonRoleCaptureNormalization
-im…10192 tokens truncated…onObstruction
+import Yulang.CommonRoleStablePaterson
+import Yulang.CommonRoleMergedCaptureBoundary
+import Yulang.CommonRoleStableRecordResidual
+import Yulang.CommonRoleSharedPayloadCapture
+import Yulang.CommonRoleCanonicalPayloadCandidates
+import Yulang.CommonRoleNominalCoverBoundary
+import Yulang.CommonRoleSharedPayloadAgreement
+import Yulang.CommonRoleSharedCaptureDescent
+import Yulang.CommonRoleIntervals
+import Yulang.CommonRoleIntervalGeneration
+import Yulang.CommonRoleIntervalCongruence
+import Yulang.CommonRoleDeferredBounds
+
+import Yulang.CommonEffectFieldInstances
+
+import Yulang.CommonDeclaredNominalInspection
+
+import Yulang.CommonRoleIntervalRecordResidual
+
+import Yulang.CommonPatternPrefixNoMiss
+
+import Yulang.CommonRoleIntervalRecordGeneration
+
+import Yulang.CommonEffectFieldTable
+
+import Yulang.CommonEffectRefRunField
+
+import Yulang.CommonRoleIntervalReadyChain
+
+import Yulang.CommonPurePatternPrefixNoMiss
+
+import Yulang.CommonCasePrefixCoverage
+
+import Yulang.CommonCaseCoreRecordPrefixSolved
+
+import Yulang.CommonCaseCoreRecordPrefixExamples
+
+import Yulang.CommonDeclaredNominalSlots
+
+import Yulang.CommonDeclaredNominalSourceFamily
+
+import Yulang.CommonDeclaredInvariantBounds
+
+import Yulang.CommonDeclaredInvariantSourceFamily
+
+import Yulang.CommonEffectRowIntervalConstraints
+
+import Yulang.CommonEffectFamilyRowSlots
+
+import Yulang.CommonRoleClosedRecordResidual
+
+import Yulang.CommonRoleClosedIntervalRecordGeneration
+
+import Yulang.CommonCoreDataEvaluation
+
+import Yulang.CommonCoreDataPrefixes
+
+import Yulang.CommonCaseCoreDataGate
+
+import Yulang.CommonCaseCoreDataPrefixSolved
+
+import Yulang.CommonCaseCoreDataPrefixExamples
+
+import Yulang.CommonCasePrefixCompletion
+
+import Yulang.CommonCaseCoreDataCompletion
+
+import Yulang.CommonRoleClosedRecordComparison
+
+import Yulang.CommonRoleIntervalPaterson
+
+import Yulang.CommonRoleIntervalCapture
+
+import Yulang.CommonRoleIntervalCandidates
+
+import Yulang.CommonRoleIntervalExpansion
+
+import Yulang.CommonRoleIntervalExpansionChecks
+
+import Yulang.CommonEffectMixedDeclarations
+
+import Yulang.CommonEffectMixedSource
+
+import Yulang.CommonEffectMixedFormula
+
+import Yulang.CommonEffectMixedGeneration
+
+import Yulang.CommonEffectMixedExact
+
+import Yulang.CommonEffectMixedKinds
+
+import Yulang.CommonEffectMixedChecked
+
+import Yulang.CommonRoleIntervalDictionaries
+
+import Yulang.CommonRoleIntervalDictionaryCompilation
+
+import Yulang.CommonRoleClosedRecordInspection
+
+import Yulang.CommonRoleClosedIntervalInspection
+
+import Yulang.CommonRoleClosedResidualInspection
+
+import Yulang.CommonRoleClosedResidualSlots
+
+import Yulang.CommonPatternSourcePresence
+
+import Yulang.CommonPatternDeclaredPresence
+
+import Yulang.CommonCasePresenceGeneration
+
+import Yulang.CommonRoleClosedResidualSourceFamily
+
+import Yulang.CommonEffectMixedFamilyAllocation
+
+import Yulang.CommonEffectMixedFamilyConstraints
+
+import Yulang.CommonEffectMixedWitness
+
+import Yulang.CommonDeclaredCastCostGraph
+
+import Yulang.CommonDeclaredCastCost
+
+import Yulang.CommonDeclaredCastEvaluation
+
+import Yulang.CommonDeclarationVarianceSyntax
+
+import Yulang.CommonDeclarationVarianceOccurrences
+
+import Yulang.CommonDeclarationVarianceLowering
+
+import Yulang.CommonDeclarationVarianceCalls
+
+import Yulang.CommonDeclarationVarianceRecursion
+
+import Yulang.CommonDeclarationVarianceGraph
+
+import Yulang.CommonDeclarationVarianceTable
+
+import Yulang.CommonDeclaredCastEvaluationExamples
+
+import Yulang.CommonDeclarationVarianceExamples
+
+import Yulang.CommonDeclarationVarianceRegistry
+
+import Yulang.CommonEffectFamilyArgumentKinds
+
+import Yulang.CommonRecursiveNominalIntervals
+
+import Yulang.CommonRecursiveNominalIntervalGeneration
+
+import Yulang.CommonDeclarationVarianceInspection
+
+import Yulang.CommonEffectFamilyApplications
+
+import Yulang.CommonRecursiveNominalIntervalExact
+
+import Yulang.CommonEffectFamilyApplicationGeneration
+
+import Yulang.CommonDeclarationVarianceSourceFamily
+
+import Yulang.CommonRecursiveNominalIntervalAdmission
+
+import Yulang.CommonRecursiveNominalIntervalContext
+
+import Yulang.CommonRecursiveNominalIntervalContextExact
+
+import Yulang.CommonEffectFamilySourceGeneration
+
+import Yulang.CommonRecursiveNominalIntervalContextAdmission
+
+import SpecExamples
+
+import Yulang.CommonRoleRepeatedCaptureChecks
+
+import Yulang.CommonRoleRegularGraph
+
+import Yulang.CommonRoleGraphInspection
+
+import Yulang.CommonRoleGraphBisimulation
+
+import Yulang.CommonRoleUnaryGraphBridge
+
+import Yulang.CommonRoleGraphInspectionExamples
+
+import Yulang.CommonRoleRecordGraphBridge
+
+import Yulang.CommonRoleGraphDemandSnapshots
+
+import Yulang.CommonRoleCandidateConstraints
+
+import Yulang.CommonRoleCandidateConstraintExamples
+
+import Yulang.CommonRoleOutermostResolver
+
+import Yulang.CommonRoleOutermostResolverChecks
+
+import SpecExamplesSettled
+
+import Yulang.CommonSourcePatternTyping
+
+import Yulang.CommonSourcePatternInversion
+
+import Yulang.CommonSourcePatternGeneration
+
+import Yulang.CommonSourcePatternAllocation
+
+import Yulang.CommonSourcePatternGenerationProvenance
+
+import Yulang.CommonSourcePatternElaboration
+
+import Yulang.CommonSourceArmGeneration
+
+import Yulang.CommonSourcePatternPartialSafety
+
+import Yulang.CommonSourceCasePartial
+
+import Yulang.CommonSourceArmSolved
+
+import Yulang.CommonSourceArmsSolved
+
+import Yulang.CommonSourceOptionalX22
+
+import Yulang.CommonRoleOpenConstraints
+import Yulang.CommonRoleOpenDescent
+import Yulang.CommonRoleOpenState
+
+import Yulang.CommonRoleOpenNormalization
+import Yulang.CommonRoleOpenExamples
+
+-- T1b: concrete producer and state-returning pass (not saturation).
+import Yulang.CommonRoleOpenProducer
+import Yulang.CommonRoleOpenProducerAccess
+import Yulang.CommonRoleOpenThreading
+import Yulang.CommonRoleOpenPropagation
+import Yulang.CommonRoleOpenPropagationOrigin
+import Yulang.CommonRoleOpenRecursivePass
+
+-- Instruction I-1, cycle 1: candidate-local ordinary frontier.
+import Yulang.CommonRoleEndpointSlots
+import Yulang.CommonRoleCandidateStateFrontier
+import Yulang.CommonRoleIntervalCandidateFrontier
+
+-- I-2 cycle 2: declaration equations, source identity, finite closure.
+import Yulang.CommonRoleSourceIdentity
+import Yulang.CommonRoleAssociatedStateFlow
+import Yulang.CommonRoleOpenFiniteClosure
+import Yulang.CommonRoleAssociatedBatch
+import Yulang.CommonRoleAssociatedParentGround
+import Yulang.CommonRoleOpenPassStability
+import Yulang.MainStatementsDraft
+import Yulang.CommonRoleOpenClosureAllocation
+import Yulang.CommonRoleOrdinaryKnownness
+import Yulang.CommonRoleAssociatedParentPipeline
+import Yulang.SpecConformanceIndex
+
+import Yulang.CommonRoleAssociatedParentSuccess
+import Yulang.CommonRoleAssociatedParentExact
+
+import Yulang.CommonRoleSourceDescent
+import Main
+import Yulang.CommonRoleStatefulIndexSweep
+import Yulang.CommonRoleStatefulIndexPath
+import Yulang.CommonRoleStatefulParentExample
+import Yulang.CommonRoleStatefulPathComplete
+import Yulang.CommonRoleStatefulPathParent
+
+import Yulang.CommonRoleNamedPath
+
+import Yulang.CommonRoleSiblingOrders
+
+import Yulang.CommonRolePathOrder
+
+import Yulang.CommonRoleFiniteAssociatedClosure
+
+import Yulang.CommonRoleFiniteAssociatedModels
+
+import Yulang.CommonRoleFiniteAssociatedStable
+
+import Yulang.CommonArgumentEffectCast
+
+import Yulang.ArgumentEffectCastRuntime
+
+import Yulang.CommonRoleNamedAssociatedGraph
+
+import Yulang.CommonRoleAssociatedDeclarationExact
+
+import Yulang.CommonRoleFiniteAssociatedDeclaration
+
+import Yulang.CommonRolePotentialChildClosure
+
+import Yulang.CommonRolePotentialAllocation
+
+import Yulang.CommonRoleSourceGrowth
+
+import Yulang.CommonRoleCaptureOrigin
+
+import Yulang.CommonRoleSourcePositions
+
+import Yulang.CommonRoleMaterializedDomain
+
+import Yulang.CommonRoleChildTemplates
+
+import Yulang.CommonRoleSourceTemplateClosure
+
+import Yulang.CommonRoleSourceWorklist
+
+import Yulang.CommonRoleCacheInvalidation
+
+import Yulang.CommonRoleRefreshDriver
+
+import Yulang.CommonRoleFiniteFeedback
+
+import Yulang.CommonRoleAssociatedFeedback
+
+import Yulang.CommonRoleSourceAssociatedAdapter
+
+import Yulang.CommonRoleFeedbackTrace
+
+import Yulang.CommonRoleFeedbackConfluence
+import Yulang.CommonRoleAssociatedConfluence
+
+import Yulang.CommonRoleFeedbackSupport
+import Yulang.CommonRoleFirstHitSupportBoundary
+
+import Yulang.CommonRoleSupportSearch
+
+import Yulang.CommonRoleSupportSearchBoundary
+
+import Yulang.CommonRoleGuardedCandidates
+
+import Yulang.CommonRoleGuardedEquations
+
+import Yulang.CommonRoleGuardedCandidatesBoundary
+
+-- Cycle25: full ancestor-candidate histories and retained equation metadata.
+import Yulang.CommonRoleCorrelatedPaths
+import Yulang.CommonRoleCorrelatedCarrier
+import Yulang.CommonRoleCorrelatedEquations
+
+import Yulang.CommonRoleGlobalChoices
+
+import Yulang.CommonRoleGlobalChoiceEquations
+
+-- Cycle27: revalidate global certificates at their own output.
+import Yulang.CommonRoleStableGlobalChoices
+import Yulang.CommonRoleStableGlobalModels
+
+-- Cycle28: child-preserving diagnostic certificates.
+import Yulang.CommonRoleDiagnosticTree
+import Yulang.CommonRoleDiagnosticTreeCheck
+
+import Yulang.CommonRoleDiagnosticCanonical
+import Yulang.CommonRoleDiagnosticCanonicalBoundary
+import Yulang.CommonRoleDiagnosticEvidenceTransfer
+
+import Yulang.CommonRoleEvidenceSaturation
+
+import Yulang.CommonRoleEvidenceNormalization
+
+import Yulang.CommonRoleEvidenceSaturationExamples
+
+import Yulang.CommonRoleNormalizedDiagnostic
+
+import Yulang.CommonRoleNormalizedGlobalChoices
+
+import Yulang.CommonRoleNormalizedDiagnosticCheck
+
+import Yulang.CommonRoleDirectedBounds
+import Yulang.CommonRoleDirectedDiagnostic
+import Yulang.CommonRoleDirectedBoundsCheck
+
+import Yulang.CommonRoleDirectedGlobalChoices
+
+import Yulang.CommonRoleDirectedConflicts
+
+import Yulang.CommonRoleConflictFilteredInference
+
+import Yulang.CommonRoleStructuralConflicts
+
+import Yulang.CommonRoleStructuralFilteredInference
+import Yulang.CommonRoleStructuralPaths
+import Yulang.CommonRolePathFilteredInference
+
+import Yulang.CommonRoleRecursiveConflicts
+
+import Yulang.CommonRoleRecursivePaths
+
+import Yulang.CommonRoleRecursiveFilteredInference
+
+import Yulang.CommonRoleStructuralDecomposition
+
+import Yulang.CommonRoleDecomposedInference
+
+import Yulang.CommonRolePathDecomposition
+
+-- Cycle39 finite structural closure
+import Yulang.CommonRoleFiniteStructuralClosure
+import Yulang.CommonRoleAlternatingRegression
+import Yulang.CommonRoleSaturatedStructuralInference
+
+import Yulang.CommonRoleFiniteClosureRegression
+
+import Yulang.CommonRoleStructuralCarrierCoverage
+
+import Yulang.CommonRoleStructuralStateGrammar
+
+import Yulang.CommonRoleStructuralGlobalChoices
+
+import Yulang.CommonRoleScalarStructuralAbsorption
+
+import Yulang.CommonRoleDynamicIndexClosure
+import Yulang.CommonRoleDynamicIndexExamples
+
+import Yulang.CommonRoleDynamicIndexSource
+import Yulang.CommonRoleDynamicIndexSourceExecution
+import Yulang.CommonRoleDynamicIndexSourceExamples
+
+import Yulang.CommonRoleDynamicIndexCheckedSource
+
+import Yulang.CommonRoleDynamicIndexConsistentSource
+
+import Yulang.CommonRoleDynamicIndexEqualitySource
+
+import Yulang.CommonRoleDynamicIndexSemanticSource
+
+import Yulang.CommonRoleDynamicIndexSourceSemantics
+
+import Yulang.CommonRoleDynamicIndexResidualSource
+
+import Yulang.CommonRoleDynamicIndexResidualResume
+
+import Yulang.CommonRoleDynamicIndexResidualBatches
+
+import Yulang.CommonRoleDynamicIndexResidualFrontier
+
+import Yulang.CommonRoleDynamicIndexOccurrenceDiagnostics
+import Yulang.CommonRoleScalarSourceEndpoint
+import Yulang.CommonRoleScalarSourceInspection
+
+import Yulang.CommonRoleCanonicalSourceGraph
+
+import Yulang.CommonRoleCanonicalSourceGrowth
+
+import Yulang.CommonRoleAllocatedGraph
+
+import Yulang.CommonRoleChildSourceAllocation
+
+import Yulang.CommonRoleClosureSourceAllocation
+import Yulang.CommonRoleAllocatedGraphUpdates
+
+import Yulang.CommonRoleSourceIntervalBatches
+
+import Yulang.CommonRoleCaptureBatchModels
+
+import Yulang.CommonRoleWhereSourceModels
+
+import Yulang.CommonRoleWhereSourceAllocation
+
+import Yulang.CommonRoleRecursiveSourceAllocation
+
+import Yulang.CommonRoleFreshCaptureSources
+
+import Yulang.CommonRoleRegisteredCaptureSources
+
+import Yulang.CommonRoleAddressedCaptureModels
+
+import Yulang.CommonRoleFiniteAssociatedSourceModels
+
+import Yulang.CommonRoleNamedAssociatedSourceModels
+
+import Yulang.CommonRoleStructuralAssociatedTemplates
+
+import Yulang.CommonRoleCheckedAssociatedPrograms
+
+import Yulang.CommonRoleAssociatedClauseExtraction
+
+import Yulang.CommonRoleSourceRoleObligations
+
+import Yulang.CommonRoleSourceStateDischarge
+
+import Yulang.CommonRoleNamedSourceEntry
+
+import Yulang.CommonRoleNamedSourceRenaming
+
+import Yulang.CommonRoleFiniteSourceRenaming
+
+import Yulang.CommonRoleComputedSourceAllocation
+
+import Yulang.CommonRoleAnnotatedLiteralInputs
+
+import Yulang.CommonRoleScalarExpressionInputs
+
+import Yulang.CommonRoleGeneratedWhereClosure
+
+import Yulang.CommonRoleIntervalWorkClosure
+
+import Yulang.CommonRoleGuardedIntervalPlans
+
+import Yulang.CommonRoleGuardedIntervalFrontier
+
+import Yulang.CommonRoleFrontierGraphs
+
+import Yulang.CommonRoleStateMaterializedFrontier
+
+import Yulang.CommonRoleMaterializationProgress
+
+import Yulang.CommonRoleFrontierReplay
+
+import Yulang.CommonRoleCheckedOrdinaryReplay
+
+import Yulang.CommonRoleEvidenceReplay
+import Yulang.CommonRoleMixedEvidenceClosure
+import Yulang.CommonRoleMixedEvidenceReplay
+
+import Yulang.CommonRoleStructuralMixedSource
+
+import Yulang.CommonRoleAmbientMixedSource
+
+import Yulang.CommonRoleNamedOrdinaryInputs
+
+import Yulang.CommonRoleCheckedMixedSource
+
+import Yulang.CommonRoleRecursiveDiagnostics
+import Yulang.CommonRoleSourceDiagnosticForest
+
+import Yulang.CommonRoleDiagnosticDictionaries
+
+import Yulang.CommonRoleSourceDictionaryForest
+
+import Yulang.CommonRoleSourceEnvironmentCongruence
+
+import Yulang.CommonRoleDiagnosticOrder
+
+import Yulang.CommonRoleExpressionDictionaryForest
+
+import Yulang.CommonRoleStructuralOrdinaryMaterialization
+
+import Yulang.CommonRoleStructuralMaterializationProgress
+
+import Yulang.CommonRoleStructuralMaterializationDomain
+
+import Yulang.CommonRoleStructuralFrontierReplay
+
+import Yulang.CommonRoleDerivedStructuralMaterialization
+
+import Yulang.CommonRoleStructuralSaturationTrace
+
+import Yulang.CommonRoleStructuralHornClosure
+
+import Yulang.CommonRoleStructuralAssociatedClosure
+
+import Yulang.CommonRoleStructuralAssociatedSolver
+
+import Yulang.CommonRoleStructuralAssociatedReplay
+
+import Yulang.CommonRoleStructuralHornSchedules
+
+import Yulang.CommonRoleStructuralNamedInputs
+
+import Yulang.CommonRoleStructuralRenaming
+
+import Yulang.CommonRoleNamedStructuralDerivations
+
+import Yulang.CommonRoleRawStructuralSource
+
+import Yulang.B4Skeleton
+import Yulang.CommonRoleSettledRootClassification
+import Yulang.CommonRoleScalarDictionaryModels
+import Yulang.CommonRoleSettledVisibleOrder
+
+import Yulang.CommonRoleScalarRegistry
+
+import Yulang.CommonRoleScalarExpressionRegistry
+
+import Yulang.CommonRoleSaturatedScalarRegistry
+
+import Yulang.CommonRoleScalarTargetObstruction
+import Yulang.GeneralSourceBoundary
+import Yulang.GeneralSourceState
+import Yulang.GeneralSourceStateExamples
+import Yulang.GeneralNormalizedObservation
+import Yulang.GeneralSourceK2
+import Yulang.GeneralSourceK2Examples
+import Yulang.GeneralDeclarationPatterns
+import Yulang.GeneralDeclarations
+import Yulang.GeneralDeclarationDemands
+import Yulang.GeneralDeclarationExamples
+
+import Yulang.B4TargetV2
+import Yulang.B4TargetV2Functionality
+import Yulang.B4SkeletonV2
+import Yulang.B4TargetV2Regressions
+import Yulang.GeneralSourceDictionaries
+import Yulang.GeneralSourceDictionaryEquations
+import Yulang.GeneralRegistryReordering
+import Yulang.GeneralRegistryChildOrder
+import Yulang.GeneralDictionaryStateEquations
+import Yulang.GeneralDictionaryEquationExamples
+import Yulang.GeneralCanonicalChildOrder
+
+-- I-19: inspection-pending target and exact totality boundary.
+import Yulang.B4TargetV3
+import Yulang.B4TargetV3Functionality
+import Yulang.B4TargetV3Totality
+import Yulang.B4SkeletonV3
+import Yulang.B4TargetV3Regressions
+import Yulang.B4TargetV3TotalityRegressions
+
+-- Exact source-indexed evidence readback and shared-state equation soundness.
+import Yulang.GeneralDictionaryReadback
+import Yulang.GeneralDictionaryModelEvidence
+import Yulang.GeneralDictionaryReadbackExamples
+
+-- Source-preserving structural payload order and unordered model evidence.
+import Yulang.GeneralDictionaryPayloadOrder
+import Yulang.GeneralDictionarySemanticOrder
+import Yulang.GeneralDictionarySemanticOrderExamples
+import Yulang.GeneralDictionarySemanticUniqueness
+import Yulang.GeneralDictionaryUniquenessExamples
+import Yulang.GeneralDictionaryEmissionPlans
+import Yulang.GeneralDictionaryEmissionPlanExamples
+import Yulang.GeneralDictionaryPlanLookup
+import Yulang.GeneralDictionaryPlanLookupExamples
+import Yulang.GeneralDictionaryPlannedEvidence
+
+-- Exact dictionary recording and declaration RHS provenance.
+import Yulang.GeneralDictionaryEquationRecording
+import Yulang.GeneralDictionaryAssociatedProvenance
+import Yulang.GeneralDictionaryAssociatedProvenanceExamples
+
+-- Shared finite dictionary transactions and combined output plans.
+import Yulang.GeneralDictionaryBatchRecording
+import Yulang.GeneralDictionaryTransactions
+import Yulang.GeneralDictionaryRecordingExamples
+import Yulang.GeneralDictionaryPlannedOutputs
+import Yulang.GeneralDictionaryInvocationExamples
+import Yulang.GeneralDictionaryRefinementEvidence
+import Yulang.GeneralDictionaryRefinementExamples
+import Yulang.GeneralDictionaryBatchExamples
+
+import Yulang.GeneralDictionaryOutputBinderTerms
+
+import Yulang.GeneralDictionaryBinderLocations
+import Yulang.GeneralDictionaryOutputBinderExamples
+import Yulang.GeneralDictionaryBinderLocationExamples
+
+import Yulang.GeneralDictionaryComputedOutputPlans
+
+import Yulang.GeneralDictionaryComputedTransactions
+
+import Yulang.GeneralDictionaryComputedOutputExamples
+
+import Yulang.GeneralDictionaryBinderOnlyBoundary
+
+import Yulang.GeneralDictionaryVariableTerms
+
+import Yulang.GeneralDictionaryVariableCompatibility
+
+import Yulang.GeneralDictionaryVariableExamples
+
+import Yulang.GeneralDictionaryVariablePlans
+
+import Yulang.GeneralDictionaryVariableTransactions
+
+import Yulang.GeneralDictionaryVariableMaterialization
+
+import Yulang.GeneralDictionaryVariableOrder
+
+import Yulang.GeneralDictionaryTerminalFixture
+
+import Yulang.GeneralDictionaryVariablePreparation
+
+import Yulang.GeneralDictionaryPreparationExamples
+
+import Yulang.GeneralDictionaryVariableRealization
+
+import Yulang.GeneralDictionaryVariableHeads
+
+import Yulang.GeneralDictionaryHeadExamples
+import Yulang.GeneralCandidateIntervals
+import Yulang.GeneralCandidateInspection
+import Yulang.GeneralCandidateBoundaryParts
+import Yulang.GeneralCandidateExamples
+import Yulang.GeneralCandidateConflictExamples
+import Yulang.GeneralDictionaryHeadlessCandidateBoundary
+import Yulang.GeneralDictionaryHeadlessExactness
+import Yulang.GeneralDictionaryHeadlessExamples
+import Yulang.GeneralDictionaryHeadlessFixture
+import Yulang.GeneralDictionaryHeadlessLocations
+import Yulang.GeneralDictionaryHeadlessOrder
+import Yulang.GeneralDictionaryHeadlessPendingBoundary
+import Yulang.GeneralDictionaryHeadlessPlans
+import Yulang.GeneralDictionaryHeadlessPreparation
+import Yulang.GeneralDictionaryHeadlessRealization
+import Yulang.GeneralDictionaryHeadlessSemanticOrder
+import Yulang.GeneralDictionary…370 tokens truncated…ort Yulang.GeneralNominalProjections
+import Yulang.GeneralNominalProjectionPropagation
+import Yulang.GeneralNominalK2Coverage
+import Yulang.GeneralNominalLocalBoundary
+import Yulang.GeneralNominalIntervalExamples
+import Yulang.GeneralNominalEmissionOrigins
+
+import Yulang.GeneralNominalCaptureMerges
+import Yulang.GeneralNominalMaterialization
+import Yulang.GeneralNominalMixedCandidateExample
+import Yulang.GeneralNominalMixedExamples
+import Yulang.GeneralNominalMixedRecurrence
+import Yulang.GeneralNominalNonpointInspectionExamples
+import Yulang.GeneralNominalRecursiveBoundary
+import Yulang.GeneralNominalRecursiveCandidates
+import Yulang.GeneralNominalRecursiveExamples
+import Yulang.GeneralNominalRecursiveInspection
+import Yulang.GeneralNominalRecursivePropagation
+import Yulang.GeneralNominalRecursiveRegressions
+import Yulang.GeneralNominalStructuralProjectionLaws
+import Yulang.GeneralNominalUnaryCaptureFacts
+import Yulang.GeneralDictionaryNominalCandidateOrder
+import Yulang.GeneralDictionaryNominalSlotTransport
+import Yulang.GeneralDictionaryTypeCoverage
+import Yulang.GeneralDictionaryTypeCoverageExamples
+import Yulang.GeneralDictionaryNominalCandidateOrderExamples
+import Yulang.GeneralDictionaryNominalBatchTransport
+import Yulang.GeneralDictionaryNominalBatchTransportExamples
+import Yulang.GeneralDictionaryNominalSemanticOrder
+import Yulang.GeneralDictionaryNominalSlotTransportExamples
+import Yulang.GeneralDictionarySlotLocalizationTransport
+import Yulang.GeneralDictionarySlotMaterializationTransport
+import Yulang.GeneralDictionarySlotPreparationTransport
+import Yulang.GeneralDictionarySlotEvidenceTransport
+import Yulang.GeneralDictionarySlotPreparationTransportExamples
+import Yulang.GeneralDictionarySlotFreshnessTransport
+import Yulang.GeneralDictionarySlotFreshnessTransportExamples
+
+import Yulang.GeneralDictionarySlotViewBoundaryExamples
+
+import Yulang.GeneralDictionaryFreshSlotPreparationExamples
+
+import Yulang.GeneralNominalAssociatedDeterminationScope
+import Yulang.GeneralNominalDemandMerging
+import Yulang.GeneralNominalProgressObstruction
+import Yulang.GeneralNominalRefinements
+import Yulang.GeneralNominalSaturationBoundary
+import Yulang.GeneralNominalSaturationExamples
+import Yulang.GeneralNominalSaturationInstallation
+import Yulang.GeneralNominalSaturationInvariants
+import Yulang.GeneralNominalSaturationProgress
+import Yulang.GeneralNominalSaturationState
+import Yulang.GeneralNominalSaturationSteps
+import Yulang.GeneralDictionaryRecursiveReadback
+
+import Yulang.GeneralDictionaryRecursivePreparation
+
+import Yulang.GeneralDictionaryRecursiveEvidence
+
+import Yulang.GeneralDictionaryRecursiveObstruction
+
+import Yulang.GeneralDictionaryRecursiveEvidenceReadback
+
+import Yulang.GeneralDictionaryRecursiveEvidenceFacts
+
+import Yulang.GeneralDictionaryRecursiveObstructionEvidence
+
+import Yulang.GeneralDictionaryRecursiveOrder
+
+import Yulang.GeneralDictionaryRecursiveRecordingExamples
+
+import Yulang.GeneralDictionaryRecursiveSemanticOrder
+
+import Yulang.GeneralNominalCapturedChildOrigins
+import Yulang.GeneralNominalCycleBoundary
+import Yulang.GeneralNominalCycleDescent
+import Yulang.GeneralNominalCycleEdges
+import Yulang.GeneralNominalCycleHalting
+import Yulang.GeneralNominalCycleInstallation
+import Yulang.GeneralNominalCycleK2
+import Yulang.GeneralNominalCycleReadback
+import Yulang.GeneralNominalCycleRegressions
+import Yulang.GeneralNominalCycleSteps
+import Yulang.GeneralNominalCycleSupport
+import Yulang.GeneralNominalCycleWrapper
+import Yulang.GeneralNominalJointCandidates
+
+import Yulang.GeneralNominalAdministrativeProgress
+import Yulang.GeneralNominalCanonicalSiteObstruction
+import Yulang.GeneralNominalCaptureAnchors
+import Yulang.GeneralNominalCycleCompatibility
+import Yulang.GeneralNominalProgressBoundary
+import Yulang.GeneralNominalReadbackCounterexample
+import Yulang.GeneralNominalSourceFormation
+import Yulang.GeneralNominalSourceReadback
+
+import Yulang.GeneralNominalFeedbackAdministrative
+import Yulang.GeneralNominalFeedbackBoundary
+import Yulang.GeneralNominalFeedbackDescent
+import Yulang.GeneralNominalFeedbackK2
+import Yulang.GeneralNominalFeedbackObstruction
+import Yulang.GeneralNominalFeedbackProgress
+import Yulang.GeneralNominalFeedbackRefresh
+import Yulang.GeneralNominalFeedbackRegressions
+import Yulang.GeneralNominalFeedbackSites
+import Yulang.GeneralNominalFeedbackSteps
+import Yulang.GeneralNominalFeedbackWellFounded
+import Yulang.GeneralNominalOutputGrowth
+import Yulang.GeneralNominalOutputGrowthModels
+import Yulang.GeneralNominalOutputGrowthPackets
+import Yulang.GeneralNominalOutputGrowthRefresh
+import Yulang.GeneralNominalOutputGrowthMeasures
+
+import Yulang.GeneralDictionaryFeedbackEvidence
+import Yulang.GeneralDictionaryFeedbackEvidenceExamples
+
+import Yulang.GeneralDictionaryOrdinaryTransport
+import Yulang.GeneralDictionaryOrdinaryTrace
+import Yulang.GeneralDictionaryOrdinaryTransportExamples
+import Yulang.GeneralDictionaryRefreshCurrentEvidence
+
+import Yulang.GeneralDictionaryInspectionTransport
+import Yulang.GeneralDictionaryInspectionTransportExamples
+import Yulang.GeneralDictionaryCurrentContextReplay
+import Yulang.GeneralDictionaryTreeTransport
+
+import Yulang.GeneralDictionaryRecordedRefresh
+import Yulang.GeneralDictionaryRefreshTrace
+import Yulang.GeneralDictionaryRefreshDescriptors
+import Yulang.GeneralDictionaryInspectionLocality
+import Yulang.GeneralDictionaryInspectionLocalityExamples
+import Yulang.GeneralDictionarySelectedLocality
+import Yulang.GeneralDictionarySelectedLocalityExamples
+
+import Yulang.GeneralDictionarySelectedTree
+
+import Yulang.GeneralDictionaryRefinementInspectionFacts
+import Yulang.GeneralDictionaryFinishedRefresh
+import Yulang.GeneralDictionaryFinishedInspection
+import Yulang.GeneralDictionaryFinishedEvidence
+import Yulang.GeneralDictionaryFinishedTrace
+import Yulang.GeneralDictionaryFinishedInspectionExamples
+
+import Yulang.GeneralDictionaryJournalTree
+import Yulang.GeneralDictionaryModeledJointGap
+import Yulang.GeneralDictionaryRefreshGap
+import Yulang.GeneralDictionarySourceChoiceVisibility
+import Yulang.GeneralDictionaryJournalTreeExamples
+import Yulang.GeneralDictionaryJournalTreeFormation
+import Yulang.GeneralDictionaryTerminalRefresh
+import Yulang.GeneralDictionaryTerminalClassification
+import Yulang.GeneralDictionarySelectedInstanceCoherence
+
+import Yulang.GeneralDictionaryReachableEvidenceRecorded
+
+import Yulang.B4TargetV5Compatibility
+
+import Yulang.GeneralDictionaryReachableEvidenceUnrecorded
+
+import Yulang.GeneralDictionaryModelLoss
+import Yulang.GeneralNominalRegistryOrder
+import Yulang.GeneralNominalCandidateReordering
+import Yulang.GeneralNominalLocalReordering
+import Yulang.GeneralDictionaryCanonicalLocalOrder
+import Yulang.GeneralDictionaryFinalOrderObstruction
+
+import Yulang.GeneralDictionaryJointReordering
+import Yulang.GeneralDictionarySemanticCompletion
+
+import Yulang.GeneralDictionaryJointEquality
+import Yulang.GeneralDictionaryFeedbackExecutor
+import Yulang.GeneralNominalTopObservation
+import Yulang.GeneralNominalRefreshFork
+import Yulang.GeneralNominalRefreshForkCycles
+import Yulang.GeneralNominalRefreshForkClassification
+import Yulang.GeneralNominalRefreshDivergence
+import Yulang.GeneralDictionaryExecutorOrderResidual
+import Yulang.GeneralCanonicalObservations
+import Yulang.GeneralNominalCanonicalViewObstructions
+import Yulang.GeneralNominalReobservationSteps
+import Yulang.GeneralCanonicalObservationSquares
+import Yulang.GeneralNominalReobservationExamples
+import Yulang.GeneralNominalReobservationBoundary
+import Yulang.GeneralNominalReobservationExecutor
+import Yulang.GeneralNominalReobservationObligations
+import Yulang.GeneralNominalReobservationBoundaryExamples
+
+import Yulang.GeneralDictionaryReobservationEvidence
+import Yulang.GeneralDictionaryReobservationEvidenceExamples
+import Yulang.GeneralDictionaryRecordedObservationTrace
+import Yulang.GeneralDictionaryRecordedRevisionTrace
+import Yulang.GeneralDictionaryRecordedObservationExamples
+import Yulang.GeneralNominalCanonicalOutputFork
+import Yulang.GeneralNominalCanonicalOutputForkClassification
+import Yulang.GeneralNominalCanonicalCompletionObstruction
+import Yulang.GeneralNominalReobservationMergeDiamond
+
+import Yulang.GeneralDictionaryKeyedRevision
+import Yulang.GeneralDictionaryKeyedJournalTree
+
+import Yulang.GeneralDictionaryCurrentRevisionObstruction
+
+import Yulang.GeneralDictionaryNonemptyRevisionExample
+import Yulang.GeneralNominalPacketSupport
+import Yulang.GeneralNominalSupport
+import Yulang.GeneralNominalSupportChoices
+import Yulang.GeneralNominalSupportSteps
+import Yulang.GeneralNominalSupportBoundary
+import Yulang.GeneralNominalSupportGrowth
+import Yulang.GeneralNominalSupportInstallation
+import Yulang.GeneralNominalSupportExamples
+import Yulang.GeneralNominalSupportExecutor
+import Yulang.GeneralNominalReobservationOrder
+import Yulang.GeneralNominalSupportOrder
+import Yulang.GeneralNominalSupportSiblings
+import Yulang.GeneralNominalSupportRankObstruction
+
+import Yulang.GeneralDictionarySupportEvidence
+
+import Yulang.GeneralDictionarySupportJournal
+
+import Yulang.GeneralDictionarySupportRevisionObstruction
+
+import Yulang.GeneralDictionarySupportCompletionGap
+
+import Yulang.GeneralDictionarySupportTree
+
+import Yulang.GeneralDictionarySupportComposition
+
+import Yulang.GeneralDictionarySupportForkExample
+
+import Yulang.GeneralDictionarySupportInhabitation
+
+import Yulang.GeneralDictionarySupportChoices
+
+import Yulang.GeneralDictionarySupportNonemptyExample
+
+import Yulang.GeneralDictionarySupportRecursiveExample
+
+import Yulang.GeneralDictionarySupportReadback
+
+import Yulang.GeneralDictionaryEarlyMergeChoices
+import Yulang.GeneralDictionaryEarlyMergeRegression
+
+import Yulang.GeneralDictionaryLocalReadback
+import Yulang.GeneralDictionaryEarlyMergeBoundary
+import Yulang.GeneralDictionarySupportRecursiveClassification
+
+import Yulang.GeneralDictionaryLocalReadbackExact
+
+import Yulang.GeneralDictionarySupportRecursiveClosure
+
+import Yulang.GeneralDictionarySupportRecursiveJoint
+
+import Yulang.GeneralDictionarySupportReadbackRegression
+
+import Yulang.GeneralDictionaryEarlyMergeExample
+
+import Yulang.GeneralDictionarySupportRecursiveTrace
+
+import Yulang.GeneralDictionarySupportLocalOrder
+import Yulang.GeneralDictionaryEarlyMergeDiagnostics
+
+import Yulang.GeneralDictionaryDiagnosticAccessibility
+
+import Yulang.GeneralDictionaryDiagnosticTotality
+
+import Yulang.GeneralDictionaryEarlyMergeClosure
+
+import Yulang.GeneralDictionaryEarlyMergeNoEvidence
+
+import Yulang.GeneralDictionaryAliasJoint
+import Yulang.GeneralDictionaryFailedDiagnosticScope
+import Yulang.GeneralDictionaryJointMerge
+import Yulang.GeneralDictionaryMergeSequence
+import Yulang.GeneralDictionaryJointMergeResidual
+import Yulang.GeneralDictionaryJointMergeSequence
+import Yulang.GeneralDictionaryJointMergeExample
+import Yulang.GeneralDictionaryScalarMerge
+import Yulang.GeneralDictionaryScalarMergeExample
+import Yulang.GeneralDictionaryJointMergeEnabled
+import Yulang.GeneralDictionaryJointMergeJournalScope
+import Yulang.GeneralDictionaryOutputMergeReachable
+import Yulang.GeneralDictionaryOutputMergeScalarFacts
+import Yulang.GeneralDictionaryOutputMergeScope
+import Yulang.GeneralDictionaryScalarJournalMerge
+import Yulang.GeneralDictionaryOutputMergeSuccess
+import Yulang.GeneralDictionaryOutputMergeRootEvidence
+import Yulang.GeneralDictionaryOutputMergeAllModels
+import Yulang.GeneralDictionaryOutputMergeJointModels
+import Yulang.GeneralDictionaryOutputMergeExactPayload
+import Yulang.GeneralDictionaryOutputMergeClassification
+import Yulang.GeneralDictionaryOutputMergeFeedback
+import Yulang.GeneralDictionaryOutputMergeRawModel
+import Yulang.GeneralDictionaryOutputMergeFeedbackClassification
+
+import Yulang.GeneralDictionaryEqualityObservations
+import Yulang.GeneralDictionaryFiniteEqualityCompletion
+import Yulang.GeneralDictionaryFiniteEqualityObservations
+import Yulang.GeneralDictionaryVariableJournalMerge
+import Yulang.GeneralDictionaryEqualityStepBound
+import Yulang.GeneralDictionaryOutputMergeRefresh
+import Yulang.GeneralDictionaryOutputMergeRefreshEvidence
+import Yulang.GeneralDictionaryVariableJournalExample
+import Yulang.GeneralDictionaryOutputMergeEqualityCompletion
+import Yulang.GeneralDictionaryOutputMergeContextComplete
+import Yulang.GeneralDictionaryOutputMergeObservationClosure
+import Yulang.GeneralDictionaryContextCompletePreservation
+import Yulang.GeneralDictionaryOutputMergeRefreshClassification
+import Yulang.GeneralDictionaryOutputMergeInstallClosure
+import Yulang.GeneralDictionaryOutputMergeSiteClosure
+import Yulang.GeneralDictionaryOutputMergeRefreshClosure
+import Yulang.GeneralDictionaryOutputMergeStabilityResidual
+import Yulang.GeneralDictionaryOutputMergeStable
+import Yulang.GeneralDictionaryEqualityOrder
+import Yulang.GeneralDictionaryEqualityLinearCompletion
+import Yulang.GeneralDictionaryVariableMergeSequence
+
+import Yulang.GeneralDictionarySameModelComposition
+
+import Yulang.GeneralDictionarySupportGeneratedChildren
+import Yulang.GeneralDictionarySupportGeneratedChildrenRegression
+import Yulang.GeneralDictionarySupportModelLoss
+import Yulang.GeneralNominalBinaryCaptureFacts
+import Yulang.GeneralNominalLinearCaptureFacts
+import Yulang.GeneralNominalRepeatedCaptureFacts
+
+import Yulang.GeneralNominalRepeatedBranchFacts
+import Yulang.GeneralDictionarySupportBindingGeneration
+import Yulang.GeneralDictionarySupportBindingGenerationRegression
+import Yulang.GeneralNominalLinearMaterializationFacts
+
+import Yulang.GeneralDictionarySupportConstraintTrace
+import Yulang.GeneralNominalRepeatedMaterializationFacts
+import Yulang.GeneralNominalRepeatedJournalFacts
+import Yulang.GeneralDictionarySupportRevisionStability
+import Yulang.GeneralDictionarySupportPointRefresh
+import Yulang.GeneralDictionarySupportRootRejection
+import Yulang.GeneralNominalRepeatedHistoricalBranch
+import Yulang.GeneralNominalRepeatedMergeTransport
+import Yulang.GeneralNominalSharedCaptureFacts
+import Yulang.GeneralNominalSharedJournalFacts
+import Yulang.GeneralNominalSharedMaterializationFacts
+import Yulang.GeneralNominalMergeCongruence
+import Yulang.GeneralNominalSharedHistoricalBranch
+
+import Yulang.GeneralNominalFiniteAssociatedFacts
+import Yulang.GeneralNominalSharedJournalPaths
+import Yulang.GeneralDictionaryInstallationOrigin
+import Yulang.GeneralDictionaryCoveredEvidence
+import Yulang.GeneralDictionaryOrdinarySelectedReplay
+import Yulang.GeneralDictionarySameContextSelection
+import Yulang.GeneralDictionarySupportOrdinaryExecution
+import Yulang.GeneralNominalAssociatedSourceTransport
+import Yulang.GeneralNominalFiniteHistoricalBranch
+import Yulang.GeneralNominalHistoricalSelectedEvidence
+import Yulang.GeneralNominalWhereAssociatedFacts
+import Yulang.GeneralDictionaryRecordedCoverageLimit
+import Yulang.GeneralDictionaryEdgeOrigin
+import Yulang.GeneralDictionaryLinearLeaf
+import Yulang.GeneralNominalHistoricalNodeEvidence
+import Yulang.GeneralDictionaryMixedCoverage
+import Yulang.GeneralDictionaryMixedCoverageExample
+import Yulang.GeneralDictionaryScalarLeaf
+import Yulang.GeneralNominalMaterializedHeadRecovery
+import Yulang.GeneralDictionarySupportSourceInvariants
+import Yulang.GeneralDictionaryFiniteJournalJoint
+import Yulang.GeneralDictionaryNestedLeaf
+import Yulang.GeneralDictionarySpineCoverage
+import Yulang.GeneralDictionarySpineLeaf
+import Yulang.GeneralDictionarySupportMetadataInvariants
+import Yulang.GeneralNominalHistoricalOutputRecovery
+import Yulang.GeneralNominalNestedLinearFacts
+import Yulang.GeneralNominalQueryRecoveredNodeEvidence
+import Yulang.GeneralNominalRecoveredNodeEvidence
+import Yulang.GeneralNominalSpineFacts
+import Yulang.GeneralNominalStructuralSelectedGraph
+import Yulang.GeneralNominalWhereRequestMembership
+
+import Yulang.GeneralDictionaryFiniteJournalJointExample
+import Yulang.GeneralDictionaryBranchOrdinaryCoverage
+import Yulang.GeneralDictionaryNamedLocality
+import Yulang.GeneralDictionaryNamedLocalityExample
+import Yulang.GeneralDictionaryAliasMixedLocality
+import Yulang.GeneralDictionaryAliasRecordedLocality
+import Yulang.GeneralDictionaryBranchLeaf
+import Yulang.GeneralNominalBranchExample
+import Yulang.GeneralNominalBranchFacts
+import Yulang.GeneralNominalBranchProjection
+import Yulang.GeneralDictionaryBranchCoverage
+import Yulang.GeneralDictionaryAliasTreeLocality
+import Yulang.GeneralDictionaryTreeCoverage
+import Yulang.GeneralDictionaryTreeLeaf
+import Yulang.GeneralNominalTreeExample
+import Yulang.GeneralNominalTreeFacts
+import Yulang.GeneralDictionaryTreeInitialExample
+import Yulang.GeneralDictionaryVariableRequirements
+import Yulang.GeneralDictionaryVariableTree
+import Yulang.GeneralDictionaryVariableTreeCoverage
+import Yulang.GeneralDictionaryUnrecordedAliasLeafJoint
+import Yulang.GeneralDictionaryUnrecordedAliasLeafExample
+import Yulang.GeneralDictionaryUnrecordedVariableJoint
+import Yulang.GeneralDictionaryVariableStableCoverage
+import Yulang.GeneralDictionaryVariableStableExample
+import Yulang.GeneralDictionaryVariableTreeEvidence
+import Yulang.GeneralDictionaryVariableTreeExample
+import Yulang.GeneralDictionaryEarlyMergeScalarClassification
+import Yulang.GeneralDictionaryEarlyMergeScalarExample
+import Yulang.GeneralDictionaryEarlyMergeScalarJoint
+import Yulang.GeneralDictionaryEmittedChildCount
+import Yulang.GeneralDictionaryEarlyMergeScalarEvidence
+import Yulang.GeneralDictionaryEarlyMergeScalarReadback
+import Yulang.GeneralDictionaryEarlyMergeScalarStable
+import Yulang.GeneralDictionaryEarlyMergeVariableCoverage
+import Yulang.GeneralDictionaryObservedScalarRequests
+import Yulang.GeneralDictionaryObservedTreeBranch
+import Yulang.GeneralDictionaryObservedTreeExample
+import Yulang.GeneralDictionarySelectedAliasConflict
+import Yulang.GeneralDictionaryVariableTreeChildSelected
+import Yulang.GeneralDictionaryVariableTreeCycles
+import Yulang.GeneralDictionaryVariableTreeInitialJoint
+import Yulang.GeneralDictionaryVariableTreeInstallation
+import Yulang.GeneralDictionaryVariableTreeSelected
+import Yulang.GeneralDictionaryObservedAliasJoint
+import Yulang.GeneralNominalDownstreamBoundary
+import Yulang.GeneralNominalDownstreamDepth
+import Yulang.GeneralNominalDownstreamExamples
+import Yulang.GeneralNominalDownstreamExecutor
+import Yulang.GeneralNominalDownstreamObligations
+import Yulang.GeneralNominalDownstreamOrder
+import Yulang.GeneralNominalDownstreamSiblingFixture
+import Yulang.GeneralNominalDownstreamSteps
+import Yulang.GeneralNominalDownstreamSupport
+import Yulang.GeneralNominalBudgetObservation
+import Yulang.GeneralNominalBudgetDepthObstruction
+import Yulang.GeneralNominalBudgetMergeRetention
+import Yulang.GeneralNominalBudgetContainer
+import Yulang.GeneralNominalBudgetPrefix
+import Yulang.GeneralDictionaryObservedRequestTransport
+import Yulang.GeneralDictionaryObservedStableCoverage
+import Yulang.GeneralDictionaryObservedInitialExample
+import Yulang.GeneralDictionaryAliasInstallationObstruction
 import Yulang.GeneralDictionaryObservedCompleteEvidence
 import Yulang.GeneralDictionaryObservedCompleteExample
 import Yulang.GeneralDictionaryObservedInitialInstallation
@@ -1605,3 +2742,7 @@ import Yulang.GeneralDictionaryAgreedGround174
 import Yulang.GeneralDictionaryAgreedRoleExamples174
 import Yulang.GeneralDictionaryAgreedComputed174
 import Yulang.GeneralDictionaryAgreedChecked174
+import Yulang.GeneralDictionaryAgreedSearchOrder174
+import Yulang.GeneralDictionaryAgreedUniform174
+import Yulang.GeneralDictionaryAgreedHistoryObstruction174
+import Yulang.GeneralDictionaryAgreedRefresh174

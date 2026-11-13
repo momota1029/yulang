@@ -472,3 +472,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - Cycle173 actual ground witness, concrete branching run and selected-edge schema: `2026-11-13-cycle173-actual-evidence.md` (conditional dictionary bridges; not full B4).
 
 - [Cycle174 Actual agreed evidence](2026-11-14-cycle174-agreed-evidence.md) (Draft; scoped diagnostics and conditional dictionary bridges).
+- Cycle174 follow-up: `GeneralDictionaryAgreedComputed174`, `SearchOrder174`, `Uniform174` give a complete executable role-DAG certificate (not a language checker), search-order invariance, and finite selected-child depth. `Checked174` and `Uniform174` connect it to current-Local exactness of the noncomputable ground diagnostic. See `2026-11-14-cycle174-uniform-role-search.md`.
+- Cycle174 history review: `GeneralDictionaryAgreedHistoryObstruction174` shows ordinary Extension cannot survive genuine observation improvement with a recorded packet; `GeneralDictionaryAgreedRefresh174` transports current Evidence through one fixed-carrier/view actual refresh without post-refresh Extension. See `cycle174-refresh-obligations.md`.
