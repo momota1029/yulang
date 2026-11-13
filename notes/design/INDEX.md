@@ -400,3 +400,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Item 4j: general nominal generation-budget checks](2026-11-13-general-nominal-budget.md) — Partial: actual Container and P/C/W installations, observation-depth transport, bounded measure obstructions; L5–L7 and progress remain open.
 - [General nominal budget module guide](2026-11-13-general-nominal-budget-module-guide.md) — Five additive modules and their separate audit part.
+
+- [Item 4k: captured-value provenance](2026-11-13-general-nominal-value-provenance.md) — Partial: exact checked/source fixture, additive child-value guard, all-Step depth-zero preservation; stress execution and budget remain open.
+- [Captured-value provenance module guide](2026-11-13-general-nominal-value-provenance-module-guide.md) — Ten additive modules and their audit part.
