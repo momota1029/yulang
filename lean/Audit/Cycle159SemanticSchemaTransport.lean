@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionarySemanticSchemaTransport
+
+#print axioms Yulang.GeneralDictionarySemanticSchemaTransport.equivalent_right
+#print axioms Yulang.GeneralDictionarySemanticSchemaTransport.fits_endpoints
+#print axioms Yulang.GeneralDictionarySemanticSchemaTransport.variable_meaning
+#print axioms Yulang.GeneralDictionarySemanticSchemaTransport.replay

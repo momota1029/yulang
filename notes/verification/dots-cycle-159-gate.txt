@@ -1,0 +1,18 @@
+Yulang.GeneralDictionaryCaptureMultiplicity 0  
+Yulang.GeneralDictionarySemanticSchemaTransport 0  
+Yulang.GeneralDictionaryCaptureSemanticCollapse 0  
+Yulang.GeneralDictionaryPositiveNestedProjection 0  
+Yulang.GeneralDictionaryPositiveNestedBranch 0  
+Yulang.GeneralDictionaryPositiveNestedInitial 0  
+Yulang.GeneralDictionarySemanticCollapse 0  
+Yulang.GeneralDictionarySemanticCollapseAllocation 0  
+Yulang.GeneralDictionarySemanticCollapseExample 0  
+Yulang.GeneralDictionarySemanticCollapseAllocationExample 0  
+Yulang.GeneralDictionarySemanticCollapseSchema 0  
+Yulang.GeneralDictionarySemanticCollapseBranch 0  
+Yulang.GeneralDictionarySemanticCollapseBranchExample 0  
+Yulang.GeneralDictionarySemanticCollapseEvidenceExample 0  
+Yulang.GeneralDictionarySemanticCollapseOutputExample 0  
+Yulang.GeneralDictionarySemanticCollapsePointBoundary 0  
+GATE 0 AXIOM-GATE-PASS: 374 declarations
+ 

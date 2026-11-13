@@ -1,0 +1,257 @@
+==== Audit/Cycle159CaptureMultiplicity.lean
+'Yulang.GeneralDictionaryCaptureMultiplicity.capture_fits_of_membership' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCaptureMultiplicity.duplicate_collapse' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCaptureMultiplicity.duplicate_sources_differ' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCaptureMultiplicity.endpoints_of_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCaptureMultiplicity.propagated_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCaptureMultiplicity.collapse_propagation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCaptureMultiplicity.collapse_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159CaptureSemanticCollapse.lean
+'Yulang.GeneralDictionaryCaptureSemanticCollapse.capture_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCaptureSemanticCollapse.endpoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCaptureSemanticCollapse.propagation' depends on axioms: [propext, Classical.choice, Quot.sound]
+==== Audit/Cycle159PositiveNestedBranch.lean
+'Yulang.GeneralDictionaryPositiveNestedBranch.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.captured' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.checked_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.private_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.generated_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.branch_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.consistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.located' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedBranch.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+==== Audit/Cycle159PositiveNestedInitial.lean
+'Yulang.GeneralDictionaryPositiveNestedInitial.source_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedInitial.source_formed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedInitial.initial_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedInitial.initial_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedInitial.report_transport' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedInitial.generated_empty_current' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedInitial.branch_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedInitial.prepared_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159PositiveNestedProjection.lean
+'Yulang.GeneralDictionaryPositiveNestedProjection.parents_observed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.leaves_observed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.captures' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.anchors' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.tests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.positive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.refined_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.observed_leaves_general' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPositiveNestedProjection.projection_requires_equal_leaves' depends on axioms: [propext,
+ Quot.sound]
+==== Audit/Cycle159SemanticCollapse.lean
+'Yulang.GeneralDictionarySemanticCollapse.before_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapse.after_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapse.current_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapse.capture_count_drops' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapse.both_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapse.bindings_before' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapse.bindings_after' depends on axioms: [propext, Quot.sound]
+==== Audit/Cycle159SemanticCollapseAllocation.lean
+'Yulang.GeneralDictionarySemanticCollapseAllocation.point_leaf_equivalent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseAllocation.current_propagation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseAllocation.capture_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159SemanticCollapseAllocationExample.lean
+'Yulang.GeneralDictionarySemanticCollapseAllocationExample.fresh_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseAllocationExample.old_propagation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseAllocationExample.current_propagation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseAllocationExample.endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseAllocationExample.capture_ids_differ' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159SemanticCollapseBranch.lean
+'Yulang.GeneralDictionarySemanticCollapseBranch.reports' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranch.terminal_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranch.branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+==== Audit/Cycle159SemanticCollapseBranchExample.lean
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.queries' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.report_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.captured' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.private_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.generated_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.old_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.current_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.old_consistent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.current_consistent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.source_formed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.reachable_branch_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.located' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.prepared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.current_generated_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.current_report' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.current_located' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.current_prepared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.children_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.survivor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseBranchExample.current_survivor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159SemanticCollapseEvidenceExample.lean
+'Yulang.GeneralDictionarySemanticCollapseEvidenceExample.old_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseEvidenceExample.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseEvidenceExample.old_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseEvidenceExample.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseEvidenceExample.reachable_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159SemanticCollapseExample.lean
+'Yulang.GeneralDictionarySemanticCollapseExample.raw_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.certified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.improves' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.source_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.revised_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.observed_parent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.observed_leaf' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.parent_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.leaf_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.old_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.new_projection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.actual_reobserve' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.duplicate_binding_collapse' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.start_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.result_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.positive_collapse' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.initial_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.actual_value_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.value_formed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseExample.value_positive_collapse' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159SemanticCollapseOutputExample.lean
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.names' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.root_request' depends on axioms: [propext]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.generated_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.nonempty' does not depend on any axioms
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.old_materialized' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.current_materialized' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.queries' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.report_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.generated_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.private_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.old_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.current_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseOutputExample.terminal_no_output_binders' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159SemanticCollapsePointBoundary.lean
+'Yulang.GeneralDictionarySemanticCollapsePointBoundary.shared_actual_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapsePointBoundary.lower_endpoints_differ' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapsePointBoundary.upper_endpoints_equal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapsePointBoundary.first_nonpoint' does not depend on any axioms
+'Yulang.GeneralDictionarySemanticCollapsePointBoundary.shared_actual_not_endpoint_equivalence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+==== Audit/Cycle159SemanticCollapseSchema.lean
+'Yulang.GeneralDictionarySemanticCollapseSchema.footprint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySemanticCollapseSchema.replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+==== Audit/Cycle159SemanticSchemaTransport.lean
+'Yulang.GeneralDictionarySemanticSchemaTransport.equivalent_right' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticSchemaTransport.fits_endpoints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticSchemaTransport.variable_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySemanticSchemaTransport.replay' depends on axioms: [propext, Quot.sound]

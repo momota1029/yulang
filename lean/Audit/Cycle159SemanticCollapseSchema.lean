@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionarySemanticCollapseSchema
+
+#print axioms Yulang.GeneralDictionarySemanticCollapseSchema.footprint
+#print axioms Yulang.GeneralDictionarySemanticCollapseSchema.replay
