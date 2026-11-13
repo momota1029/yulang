@@ -463,3 +463,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle171 recursive named-spine coverage](2026-11-13-cycle171-spine-coverage.md) — Draft: recursive certificate and ordinary transport.
 - [Actual-inspection B4 boundary and fixed-hole phases](2026-11-14-actual-boundary-hole-phases.md) — Six operational V5 transfers, ground progress/terminal existence, source-indexed root readback, snapshot enumeration and conditional phase Acc; general unknown-hole readback remains open.
+- [Actual-inspection boundary agreement](2026-11-14-actual-boundary-agreement.md) — Draft owner-decision audit; known-head missing-provenance deferral needs a decision before defining an agreed local boundary. No new boundary or bridge theorem is claimed.
+- [Actual boundary agreement with provenance parameters](2026-11-14-actual-boundary-agreement-parameters.md) — Both local policies, six V5 transfers, policy-scoped generated children, conditional execution/where accessibility, and model-preserving recovery repair; semantic completeness and general provenance remain open.
