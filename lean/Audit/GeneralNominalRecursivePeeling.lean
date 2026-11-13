@@ -1,0 +1,32 @@
+import Yulang.GeneralNominalInheritedPaths
+import Yulang.GeneralNominalPeelingSources
+import Yulang.GeneralNominalPeelingReadback
+
+#print axioms Yulang.GeneralNominalInheritedPaths.inspect_supported
+#print axioms Yulang.GeneralNominalInheritedPaths.many_supported
+#print axioms Yulang.GeneralNominalInheritedPaths.inherited_supported
+#print axioms Yulang.GeneralNominalInheritedPaths.actual_supported
+#print axioms Yulang.GeneralNominalPeelingOrigins.observed_path
+#print axioms Yulang.GeneralNominalPeelingOrigins.nominal_captures
+#print axioms Yulang.GeneralNominalPeelingOrigins.inherited_captures
+#print axioms Yulang.GeneralNominalPeelingAccessibility.child_projection
+#print axioms Yulang.GeneralNominalPeelingAccessibility.sites_paths
+#print axioms Yulang.GeneralNominalPeelingAccessibility.initial_origin
+#print axioms Yulang.GeneralNominalPeelingAccessibility.installed_depth_bound
+#print axioms Yulang.GeneralNominalPeelingAccessibility.accessible
+#print axioms Yulang.GeneralNominalPeelingReadback.expression_closed
+#print axioms Yulang.GeneralNominalPeelingReadback.expression_bounded
+#print axioms Yulang.GeneralNominalPeelingReadback.expression_holds
+#print axioms Yulang.GeneralNominalPeelingReadback.equal_paths_equal_depth
+#print axioms Yulang.GeneralNominalPeelingReadback.site_readback
+#print axioms Yulang.GeneralNominalPeelingExamples.point_source
+#print axioms Yulang.GeneralNominalPeelingExamples.display_accessible
+#print axioms Yulang.GeneralNominalPeelingExamples.after_display_accessible
+#print axioms Yulang.GeneralNominalPeelingExamples.real_recursive_step
+#print axioms Yulang.GeneralNominalPeelingSources.source_models
+#print axioms Yulang.GeneralNominalPeelingSources.ground
+#print axioms Yulang.GeneralNominalPeelingSources.source_inhabited
+#print axioms Yulang.GeneralNominalPeelingSources.initial_source
+#print axioms Yulang.GeneralNominalPeelingSources.point_source
+#print axioms Yulang.GeneralNominalPeelingSources.depth_bound
+#print axioms Yulang.GeneralNominalPeelingSources.display_accessible
