@@ -1,0 +1,16 @@
+import Yulang.GeneralDictionarySharedTrustTransport
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.at_source
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.at_facts
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.at_packets
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.at_sites
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.at_aliases
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.at_alias
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.at_discharged
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.generated_at
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.at_settled
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.trusted_monotone
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.trusted_at
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.trusted_steps
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.head_at
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.head_step
+#print axioms Yulang.GeneralDictionarySharedTrustTransport.head_steps

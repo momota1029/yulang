@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionarySharedBlockedOutput
+#print axioms Yulang.GeneralDictionarySharedBlockedOutput.head_known
+#print axioms Yulang.GeneralDictionarySharedBlockedOutput.unknown_not_ready
+#print axioms Yulang.GeneralDictionarySharedBlockedOutput.unknown_input_blocks
+#print axioms Yulang.GeneralDictionarySharedBlockedOutput.unknown_query_blocks
+#print axioms Yulang.GeneralDictionarySharedBlockedOutput.output_blocks_packet
+#print axioms Yulang.GeneralDictionarySharedBlockedOutput.no_output_install_contract

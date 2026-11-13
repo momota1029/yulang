@@ -136,3 +136,100 @@ unsupported emitter/stability conversion. General definition is not V5 completio
 | Evidence | Shared current/history/finite-tree bridges; restrictions explicit |
 | Reorders | Unchanged |
 | DictionaryEquivalent | Unchanged |
+
+## First immutable public replay
+
+Intermediate remote e971107baa5b92ea57de891bae5599c8d510f814 was fetched into a
+separate detached checkout. Its full tree matches frozen local46bb8eeec except
+heartbeat. Integration f71f1d626 is an actual ancestor via second parent. Fresh
+isolated output replay rebuilt all15 new source modules with `lean --trust=0`,
+then ran all Cycle164 audit parts: PASS, exit0. Dependency gate covered151 new
+public/private/generated declarations, only propext/Classical.choice/Quot.sound.
+The separate100-public-theorem type listing also passed. Full first replay log:
+`notes/verification/2026-11-13-cycle164-first-public-replay.txt`.
+
+The first diff-only gate detected a missing prior163 module import after the
+supervisor conflict resolution. Restoring the entrypoint import fixed it before
+publication. Rerun PASS, with2 REVIEW items for audit-only run_cmd dependency
+inspectors. Neither inspector registers axioms or definitions, and both fail
+on non-whitelisted dependencies. This is a diff gate, NOT a full build claim.
+
+## Subsequent additions under verification
+
+- `SharedTrustTransport`: actual Shared transition/path preserves source identity,
+  prior facts, packet/site/alias records, discharge, settlement, trusted finite
+  readbacks and HeadJustified. It does NOT assert preservation of ReadyAt after
+  arbitrary descriptor changes; explanation and current observation are distinct.
+- `SharedBlockedOutput`: unknown required input or inspected query head blocks
+  the actual Shared DecisionGuard. For any exact-refresh continuation of the
+  actual terminal prefix, any proposed packet reading its output cannot meet
+  the guarded installation contract. No actual generated consumer is invented,
+  and no independent semantic Evidence judgment is declared impossible.
+- `SharedSettlementResume`: a real guarded novel terminal install settles a
+  recorded producer when its other children are already discharged. With old
+  trusted inputs, actual output membership and a finite OutputCertificate/Recipe,
+  it promotes the producer's output and derives symbolic readback. Recipes and
+  other-child discharge remain assumptions; ReadyAt and consumer success are not
+  conclusions. Certificate substitution is preserved under unchanged source,
+  not by identifying changed current contexts.
+
+## Informative output counterpart and checked-syntax review
+
+`SharedConstantRefresh` proves an actual novel constant-int output installation
+and actual Shared refresh, Shared SourceFormed, inhabited models and current
+terminal dictionary. Output identity1 is a PRE-EXISTING source slot: it becomes
+Known, not newly allocated. `SharedConstantReady` strengthens this to actual
+Shared.ReadyAt using an inhabited certified input/output ledger, finite constant
+recipe, terminal settlement and trust transport. Generated-only-root is proved;
+this is not a producer/consumer resumption example.
+
+An exploratory output-only-binder consumer proposal was rejected on review:
+DeclarationChecked already forbids such a name in child input arguments. It is
+NOT a completeness obstruction for admitted source programs or a request for new
+semantics. `SharedOutputBinderScope` formally proves checked Needed names are input
+names, rejects that proposal/no Packet, and verifies an alternative captured-input
+parent declaration with two smaller children and no output-only binders. The
+alternative declaration is checked syntax, NOT yet an executed source fixture.
+No claimed new delayed-generation rule is introduced.
+
+Independent review also separated sufficient from strict settlement: the general
+`producer_settled` result permits already-settled producers. The new
+`producer_becomes_settled` adds actual child membership and missing old discharge,
+then proves old Unsettled and new PacketSettled. Readback promotion alone never
+claims new head observation or a novel consumer step.
+
+Yulang2 reference cross-check: the retained June role-system/invariant-sandwich
+notes specify interval pairs without a stored representative, and distinguish
+input from associated output obligations. This cycle does not pick an interval
+endpoint as its value or change that rule. No executable Yulang2 comparison was
+run for the new Shared ledger; current spec/I26 remains authority.
+
+## V5 accounting caveat and next work
+
+Repository review confirms14 V5 fields and6 existing unconditional general-boundary
+proofs. The8 open fields are progress, execution, halted, whereAccessible,
+treeExecution, canonicalLocalOrder, evidenceNode and generatedChildren. There is
+not yet a complete Shared boundary/classifier instance: this count must not be
+read as six bridges proved for the new Shared instance. Current evidence proofs
+require recorded/enabled packet metadata, certified guards or explicit context
+growth; generic selection does not yet supply those premises.
+
+Next bounded construction and rejected shortcuts are recorded in
+`notes/design/2026-11-13-cycle164-next-consumer-plan.md`. In particular a source-known
+terminal consumer may lack novelty, and a clause output target must be related to
+a captured input by proved materialized equations, not silently identified.
+
+## Last bounded construction: verified source/target mapping
+
+`SharedCapturedTargets` instantiates the checked alternative registry and actual
+InitialSource with a finite-model witness. It captures pre-existing source2, which
+is unknown. The producer child has a genuinely fresh allocated output target;
+the consumer input is exactly(2,2). The named schema contains an actual use of
+input variable0 at the allocated target, and materialized Outputs imply semantic
+Equivalent(model target,model2). Thus target identity is NOT silently conflated
+with captured source2. The parent branch model and actual Shared parent/consumer
+trace are still unproved; no complete resumed-consumer claim is made.
+
+The next-plan file's first source/mapping step is now partly completed by this
+module. Its remaining conditions are parent branch feasibility, actual guard and
+novelty, informative producer behavior, exact observation and consumer selection.
