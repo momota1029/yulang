@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryNonterminalScope
+#print axioms Yulang.GeneralDictionaryNonterminalScope.normalized_outputs
+#print axioms Yulang.GeneralDictionaryNonterminalScope.variable_outputs
+#print axioms Yulang.GeneralDictionaryNonterminalScope.request_scope
+#print axioms Yulang.GeneralDictionaryNonterminalScope.generated_scope
+#print axioms Yulang.GeneralDictionaryNonterminalScope.branch
+#print axioms Yulang.GeneralDictionaryNonterminalScope.normal_form_branch
+#print axioms Yulang.GeneralDictionaryNonterminalScope.variable_output_branch

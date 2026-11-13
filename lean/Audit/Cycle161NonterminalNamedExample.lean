@@ -1,0 +1,18 @@
+import Yulang.GeneralDictionaryNonterminalNamedExample
+
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.checked
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.variable_inputs
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.output_normal
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.names
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.root_request
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.target_value
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.nonempty
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.old_materialized
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.queries
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.report_exact
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.requests_exact
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.generated_exact
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.private_models
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.old_branch
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.current_branch
+#print axioms Yulang.GeneralDictionaryNonterminalNamedExample.positive_nonterminal
