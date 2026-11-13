@@ -1,0 +1,18 @@
+import Yulang.GeneralDictionaryActualV5173
+
+#check Yulang.GeneralDictionaryActualV5173.ground_reachable
+#print axioms Yulang.GeneralDictionaryActualV5173.ground_reachable
+#check Yulang.GeneralDictionaryActualV5173.phase_reachable
+#print axioms Yulang.GeneralDictionaryActualV5173.phase_reachable
+#check Yulang.GeneralDictionaryActualV5173.ground_evidenceNode
+#print axioms Yulang.GeneralDictionaryActualV5173.ground_evidenceNode
+#check Yulang.GeneralDictionaryActualV5173.ground_generatedChildren
+#print axioms Yulang.GeneralDictionaryActualV5173.ground_generatedChildren
+#check Yulang.GeneralDictionaryActualV5173.phase_evidenceNode
+#print axioms Yulang.GeneralDictionaryActualV5173.phase_evidenceNode
+#check Yulang.GeneralDictionaryActualV5173.phase_generatedChildren
+#print axioms Yulang.GeneralDictionaryActualV5173.phase_generatedChildren
+#check Yulang.GeneralDictionaryActualV5173.halted_classified_evidence
+#print axioms Yulang.GeneralDictionaryActualV5173.halted_classified_evidence
+#check Yulang.GeneralDictionaryActualV5173.ground_terminal_evidence
+#print axioms Yulang.GeneralDictionaryActualV5173.ground_terminal_evidence

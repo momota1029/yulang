@@ -1,0 +1,10 @@
+import Yulang.GeneralDictionaryActualExample173
+
+#check Yulang.GeneralDictionaryActualExample173.display_not_stable
+#print axioms Yulang.GeneralDictionaryActualExample173.display_not_stable
+#check Yulang.GeneralDictionaryActualExample173.actual_inhabited_child
+#print axioms Yulang.GeneralDictionaryActualExample173.actual_inhabited_child
+#check Yulang.GeneralDictionaryActualExample173.current_instance
+#print axioms Yulang.GeneralDictionaryActualExample173.current_instance
+#check Yulang.GeneralDictionaryActualExample173.current_node
+#print axioms Yulang.GeneralDictionaryActualExample173.current_node
