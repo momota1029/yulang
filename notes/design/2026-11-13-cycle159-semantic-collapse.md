@@ -37,3 +37,23 @@ and revised raw Models. Both allocated endpoint values are equivalent to
 source3, but capture source identities are unequal. This supplies concrete,
 non-vacuous premises for the cycle's semantic schema replay theorem; it does
 not claim arbitrary schemas or branch replay automatically preserve Models.
+
+## Full terminal candidate replay
+
+Declaration31 is checked with nested head Box(Box(var7)), no outputs and no
+requirements. The old private state is modeled by the concrete assignment,
+including nonempty duplicate merges and every checked interval. Its full
+BranchModels is proved, then the generic semantic branch theorem derives the
+current BranchModels. Both sides satisfy Prepared and Survivor with empty
+children. The current tracked journal is SourceFormed under this same registry
+through the actual improving reobserve. This terminal fixture has an empty
+materialized schema; no conclusion about arbitrary output schemas, child
+requirements, packet uniqueness, or V5 closure is made.
+
+## Existing Evidence adapter
+
+The terminal branch instantiates the existing recursive Instance judgment with
+this concrete model, then `evidence_node` constructs `.node31[]` Evidence before
+and after collapse. The final conjunction retains SourceFormed and current
+journal Models. These are positive, one-model source certificates, not the
+universal EvidenceNode field and not a proof of arbitrary-model applicability.

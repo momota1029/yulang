@@ -2409,3 +2409,9 @@ import Yulang.GeneralDictionarySemanticCollapseExample
 import Yulang.GeneralDictionarySemanticCollapseAllocationExample
 
 import Yulang.GeneralDictionarySemanticCollapseBranch
+
+import Yulang.GeneralDictionarySemanticCollapseBranchExample
+
+import Yulang.GeneralDictionarySemanticCollapseEvidenceExample
+
+import Yulang.GeneralDictionarySemanticCollapseOutputExample
