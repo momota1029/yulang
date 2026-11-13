@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionarySharedRecursiveExample
+#print axioms Yulang.GeneralDictionarySharedRecursiveExample.initial_source
+#print axioms Yulang.GeneralDictionarySharedRecursiveExample.formed
+#print axioms Yulang.GeneralDictionarySharedRecursiveExample.actual_trace
+#print axioms Yulang.GeneralDictionarySharedRecursiveExample.parent_instance
+#print axioms Yulang.GeneralDictionarySharedRecursiveExample.leaf_evidence
+#print axioms Yulang.GeneralDictionarySharedRecursiveExample.recursive_evidence
+#print axioms Yulang.GeneralDictionarySharedRecursiveExample.nonvacuous_recursive_dictionary

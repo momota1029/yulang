@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionarySharedCurrentEvidence
+#print axioms Yulang.GeneralDictionarySharedCurrentEvidence.private_extension
+#print axioms Yulang.GeneralDictionarySharedCurrentEvidence.current_instance
+#print axioms Yulang.GeneralDictionarySharedCurrentEvidence.current_evidence
+#print axioms Yulang.GeneralDictionarySharedCurrentEvidence.terminal_current_evidence
+#print axioms Yulang.GeneralDictionarySharedCurrentEvidence.actual_terminal_current_dictionary

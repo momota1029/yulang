@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionarySharedRecordedEvidence
+#print axioms Yulang.GeneralDictionarySharedRecordedEvidence.formed_recorded
+#print axioms Yulang.GeneralDictionarySharedRecordedEvidence.recorded_committed
+#print axioms Yulang.GeneralDictionarySharedRecordedEvidence.stored_instance
+#print axioms Yulang.GeneralDictionarySharedRecordedEvidence.recorded_children
+#print axioms Yulang.GeneralDictionarySharedRecordedEvidence.current_instance
+#print axioms Yulang.GeneralDictionarySharedRecordedEvidence.current_evidence

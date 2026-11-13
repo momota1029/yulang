@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySharedTerminalObstruction
+#print axioms Yulang.GeneralDictionarySharedTerminalObstruction.terminal_install_eq
+#print axioms Yulang.GeneralDictionarySharedTerminalObstruction.concrete_after_eq
+#print axioms Yulang.GeneralDictionarySharedTerminalObstruction.shared_unknown_after_exact_chain
+#print axioms Yulang.GeneralDictionarySharedTerminalObstruction.dictionary_and_obstruction

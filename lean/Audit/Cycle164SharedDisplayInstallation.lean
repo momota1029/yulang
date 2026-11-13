@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionarySharedDisplayInstallation
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.located
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.prepared
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.children
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.selected
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.installable
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.novel
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.step
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.inhabited
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.certified_child_site
+#print axioms Yulang.GeneralDictionarySharedDisplayInstallation.generated_child

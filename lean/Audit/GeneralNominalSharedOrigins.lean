@@ -1,0 +1,90 @@
+import Yulang.GeneralNominalOriginTerms
+import Yulang.GeneralNominalSharedCaptures
+import Yulang.GeneralNominalSharedEmission
+import Yulang.GeneralNominalSharedSupport
+import Yulang.GeneralNominalSharedSteps
+import Yulang.GeneralNominalSharedPump
+import Yulang.GeneralNominalSharedPositive
+import Yulang.GeneralNominalSharedExamples
+import Yulang.GeneralNominalSharedEnumeration
+import Yulang.GeneralNominalSharedBudget
+
+#print axioms Yulang.GeneralNominalOriginTerms.same_trans
+#print axioms Yulang.GeneralNominalOriginTerms.same_symm
+#print axioms Yulang.GeneralNominalOriginTerms.source_self
+#print axioms Yulang.GeneralNominalOriginTerms.holds_observations
+#print axioms Yulang.GeneralNominalOriginTerms.holds_transport
+#print axioms Yulang.GeneralNominalOriginTerms.leaves_bind
+#print axioms Yulang.GeneralNominalOriginTerms.recipe_leaf_use
+#print axioms Yulang.GeneralNominalOriginTerms.recipe_readback
+#print axioms Yulang.GeneralNominalOriginTerms.readback_over
+#print axioms Yulang.GeneralNominalOriginTerms.packets_share
+#print axioms Yulang.GeneralNominalSharedCaptures.empty_input_coherent
+#print axioms Yulang.GeneralNominalSharedCaptures.variable_retains
+#print axioms Yulang.GeneralNominalSharedCaptures.missing_capture_blocks
+#print axioms Yulang.GeneralNominalSharedCaptures.no_children_guard
+#print axioms Yulang.GeneralNominalSharedCaptures.repeated_capture_agrees
+#print axioms Yulang.GeneralNominalSharedCaptures.forward_variable
+#print axioms Yulang.GeneralNominalSharedCaptures.point_use
+#print axioms Yulang.GeneralNominalSharedCaptures.retained_use
+#print axioms Yulang.GeneralNominalSharedCaptures.output_binder_use
+#print axioms Yulang.GeneralNominalSharedCaptures.coherent_of_uses
+#print axioms Yulang.GeneralNominalSharedEmission.origin_sound
+#print axioms Yulang.GeneralNominalSharedEmission.retains
+#print axioms Yulang.GeneralNominalSharedEmission.child_sound
+#print axioms Yulang.GeneralNominalSharedSupport.certificate_coherent
+#print axioms Yulang.GeneralNominalSharedSupport.empty_input_explanation
+#print axioms Yulang.GeneralNominalSharedSupport.trusted_old
+#print axioms Yulang.GeneralNominalSharedSupport.settled_readback
+#print axioms Yulang.GeneralNominalSharedSupport.promoted_outputs
+#print axioms Yulang.GeneralNominalSharedSupport.settled_readback_leaves
+#print axioms Yulang.GeneralNominalSharedSupport.promoted_output_readback
+#print axioms Yulang.GeneralNominalSharedSupport.head_old
+#print axioms Yulang.GeneralNominalSharedSupport.decision_old
+#print axioms Yulang.GeneralNominalSharedSupport.source_head
+#print axioms Yulang.GeneralNominalSharedSteps.install_models
+#print axioms Yulang.GeneralNominalSharedSteps.step_models
+#print axioms Yulang.GeneralNominalSharedSteps.at_edges
+#print axioms Yulang.GeneralNominalSharedSteps.installed_committed
+#print axioms Yulang.GeneralNominalSharedSteps.missing_generation_blocks
+#print axioms Yulang.GeneralNominalSharedSteps.leaf_guard
+#print axioms Yulang.GeneralNominalSharedSteps.closure
+#print axioms Yulang.GeneralNominalSharedSteps.passive_accessible
+#print axioms Yulang.GeneralNominalSharedSteps.generated_registered
+#print axioms Yulang.GeneralNominalSharedSteps.formed_step_cases
+#print axioms Yulang.GeneralNominalSharedPump.p_queries
+#print axioms Yulang.GeneralNominalSharedPump.p_captures
+#print axioms Yulang.GeneralNominalSharedPump.b_needed
+#print axioms Yulang.GeneralNominalSharedPump.p_first_round_blocked
+#print axioms Yulang.GeneralNominalSharedPump.p_not_installable
+#print axioms Yulang.GeneralNominalSharedPump.source_formed
+#print axioms Yulang.GeneralNominalSharedPump.leaf_generation
+#print axioms Yulang.GeneralNominalSharedPump.leaf_captures
+#print axioms Yulang.GeneralNominalSharedPump.leaf_output_deferred
+#print axioms Yulang.GeneralNominalSharedPump.shared_round_cycle
+#print axioms Yulang.GeneralNominalSharedPositive.leaf_input_schema
+#print axioms Yulang.GeneralNominalSharedPositive.leaf_input_coherent
+#print axioms Yulang.GeneralNominalSharedPositive.single_capture_usable
+#print axioms Yulang.GeneralNominalSharedPositive.constant_certificate
+#print axioms Yulang.GeneralNominalSharedPositive.initial_decision
+#print axioms Yulang.GeneralNominalSharedPositive.binder_readback
+#print axioms Yulang.GeneralNominalSharedExamples.usable
+#print axioms Yulang.GeneralNominalSharedExamples.generation
+#print axioms Yulang.GeneralNominalSharedExamples.input_empty
+#print axioms Yulang.GeneralNominalSharedExamples.display_guard
+#print axioms Yulang.GeneralNominalSharedExamples.wrap_guard
+#print axioms Yulang.GeneralNominalSharedExamples.len_generation
+#print axioms Yulang.GeneralNominalSharedExamples.len_input_coherence
+#print axioms Yulang.GeneralNominalSharedExamples.pump_leaf_coherence
+#print axioms Yulang.GeneralNominalSharedEnumeration.choices_complete
+#print axioms Yulang.GeneralNominalSharedEnumeration.bounded_enumerated
+#print axioms Yulang.GeneralNominalSharedEnumeration.bounded_mono
+#print axioms Yulang.GeneralNominalSharedEnumeration.bounded_bind
+#print axioms Yulang.GeneralNominalSharedEnumeration.substituted_enumerated
+#print axioms Yulang.GeneralNominalSharedBudget.holds_monotone
+#print axioms Yulang.GeneralNominalSharedBudget.novel_signature
+#print axioms Yulang.GeneralNominalSharedBudget.installed_signature
+#print axioms Yulang.GeneralNominalSharedBudget.remaining_monotone
+#print axioms Yulang.GeneralNominalSharedBudget.remaining_decreases
+#print axioms Yulang.GeneralNominalSharedBudget.accessible_of_signature_cover
+#print axioms Yulang.GeneralNominalSharedBudget.checked_initial_accessible
