@@ -1,0 +1,10 @@
+import Yulang.GeneralDictionaryActualGroundComposition173
+
+#check Yulang.GeneralDictionaryActualGroundComposition173.initial_reorders
+#print axioms Yulang.GeneralDictionaryActualGroundComposition173.initial_reorders
+#check Yulang.GeneralDictionaryActualGroundComposition173.Remaining
+#print axioms Yulang.GeneralDictionaryActualGroundComposition173.Remaining
+#check Yulang.GeneralDictionaryActualGroundComposition173.bridges
+#print axioms Yulang.GeneralDictionaryActualGroundComposition173.bridges
+#check Yulang.GeneralDictionaryActualGroundComposition173.statement
+#print axioms Yulang.GeneralDictionaryActualGroundComposition173.statement

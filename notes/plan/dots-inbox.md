@@ -285,3 +285,7 @@ Astra が、根の入力がソースで決まった型（ground root）のとき
 - V5 の骨格への差し込み口は `GeneralNominalActualBoundary.boundary`（ground 版は `groundBoundary`、点のソース版は `GeneralNominalActualPhaseBoundary.boundary`）。6 本の構造フィールドと ground の progress は証明済み。
 - 今後の `evidenceNode`・`generatedChildren`・`treeExecution` などは、この境界の Step と `Stable` に向けて証明すること（古い feedback / value / settled の境界は消さないが、新しい成果はこちらを対象にする）。
 - 局所の分類（Local / pending / K2）を新しい検査（shared generation、actual-position Safe / AlternativesSafe）にそろえる作業は、監督役が別の Astra に頼んでいる。dot はその定義を待たずに、既存の `Local` で示せる部分から進めてよい。食い違いを見つけたら報告に書くこと。
+
+## I-29: 実際の引数の名前（中心）を表現に置く（ユーザー決定 2026-11-14）
+
+spec 6.5 に追記した: 不変な引数は区間に加えて中心（実際の引数の名前）を持つ。「共有の証明が無ければ保留」という実装上の検査は、意味の規則ではない（B4 草稿の補遺 8）。監督役は Astra に、中心つきの表現と、それを使う Step（共有の証明が常にある Step）への移し替えを頼む。dot は I-28 の境界で作業を続けてよい。中心つきの Step が統合されたら、そちらへ移す指示を出す。

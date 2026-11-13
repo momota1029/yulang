@@ -1,0 +1,160 @@
+yulang173-public/lean/Audit/Cycle173GeneralDictionaryActualGroundComposition173.lean
+Yulang.GeneralDictionaryActualGroundComposition173.initial_reorders {roles : Yulang.Roles.RoleDecls}
+  (registry other : Yulang.GeneralDeclarations.Registry)
+  (order : (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Reorders registry other)
+  (state : Yulang.GeneralNominalSupport.Tracked roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (given : (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Initial registry root state) :
+  (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Initial other root state
+'Yulang.GeneralDictionaryActualGroundComposition173.initial_reorders' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryActualGroundComposition173.Remaining (roles : Yulang.Roles.RoleDecls) : Prop
+'Yulang.GeneralDictionaryActualGroundComposition173.Remaining' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryActualGroundComposition173.bridges (roles : Yulang.Roles.RoleDecls)
+  (rest : Yulang.GeneralDictionaryActualGroundComposition173.Remaining roles) :
+  Yulang.B4SkeletonV5.B4Bridges (Yulang.GeneralNominalActualBoundary.groundBoundary roles)
+    (Yulang.GeneralDictionaryActualGroundExecutor173.executor roles)
+    (Yulang.GeneralNominalActualBoundary.frontiers roles)
+'Yulang.GeneralDictionaryActualGroundComposition173.bridges' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryActualGroundComposition173.statement (roles : Yulang.Roles.RoleDecls)
+  (rest : Yulang.GeneralDictionaryActualGroundComposition173.Remaining roles) :
+  Yulang.B4TargetV5.Statement (Yulang.GeneralNominalActualBoundary.groundBoundary roles)
+    (Yulang.GeneralDictionaryActualGroundExecutor173.executor roles)
+'Yulang.GeneralDictionaryActualGroundComposition173.statement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+yulang173-public/lean/Audit/Cycle173GeneralDictionaryActualGroundExecutor173.lean
+Yulang.GeneralDictionaryActualGroundExecutor173.finalState (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) : Yulang.GeneralNominalSupport.Tracked roles
+'Yulang.GeneralDictionaryActualGroundExecutor173.finalState' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.final_spec (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (checked : (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Checked registry)
+  (state : Yulang.GeneralNominalSupport.Tracked roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalActualBoundary.groundBoundary roles) registry root state) :
+  Yulang.B4Target.Steps ((Yulang.GeneralNominalActualBoundary.groundBoundary roles).Step registry root) state
+      (Yulang.GeneralDictionaryActualGroundExecutor173.finalState roles registry state root) ∧
+    ∀ (next : (Yulang.GeneralNominalActualBoundary.vocabulary roles).State),
+      ¬(Yulang.GeneralNominalActualBoundary.groundBoundary roles).Step registry root
+          (Yulang.GeneralDictionaryActualGroundExecutor173.finalState roles registry state root) next
+'Yulang.GeneralDictionaryActualGroundExecutor173.final_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.diagnostic (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) : Yulang.CommonRoleOutermostResolver.Tree
+'Yulang.GeneralDictionaryActualGroundExecutor173.diagnostic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.diagnostic_eq_resolve (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (exact :
+    Yulang.CommonRoleOutermostResolver.FrontierExact
+      (Yulang.GeneralNominalActualBoundary.frontiers roles registry state))
+  (accessible :
+    Acc
+      (Yulang.CommonRoleOutermostResolver.Child
+        (Yulang.GeneralNominalActualBoundary.frontiers roles registry state).Local)
+      root) :
+  Yulang.GeneralDictionaryActualGroundExecutor173.diagnostic roles registry state root =
+    Yulang.CommonRoleOutermostResolver.resolve (Yulang.GeneralNominalActualBoundary.frontiers roles registry state)
+      exact root accessible
+'Yulang.GeneralDictionaryActualGroundExecutor173.diagnostic_eq_resolve' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.executor (roles : Yulang.Roles.RoleDecls) :
+  Yulang.B4TargetV3.Executor (Yulang.GeneralNominalActualBoundary.vocabulary roles)
+'Yulang.GeneralDictionaryActualGroundExecutor173.executor' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.execution (roles : Yulang.Roles.RoleDecls)
+  (r : (Yulang.GeneralNominalActualBoundary.vocabulary roles).Registry) :
+  (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Checked r →
+    ∀ (s : (Yulang.GeneralNominalActualBoundary.vocabulary roles).State)
+      (d : (Yulang.GeneralNominalActualBoundary.vocabulary roles).Demand),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalActualBoundary.groundBoundary roles) r d s →
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalActualBoundary.groundBoundary roles).Step r d) s
+          ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run r s d).fst
+'Yulang.GeneralDictionaryActualGroundExecutor173.execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.halted (roles : Yulang.Roles.RoleDecls)
+  (r : (Yulang.GeneralNominalActualBoundary.vocabulary roles).Registry) :
+  (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Checked r →
+    ∀ (s : (Yulang.GeneralNominalActualBoundary.vocabulary roles).State)
+      (d : (Yulang.GeneralNominalActualBoundary.vocabulary roles).Demand),
+      Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalActualBoundary.groundBoundary roles) r d s →
+        ∀ (next : (Yulang.GeneralNominalActualBoundary.vocabulary roles).State),
+          ¬(Yulang.GeneralNominalActualBoundary.groundBoundary roles).Step r d
+              ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run r s d).fst next
+'Yulang.GeneralDictionaryActualGroundExecutor173.halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.treeExecution (roles : Yulang.Roles.RoleDecls)
+  (r : (Yulang.GeneralNominalActualBoundary.vocabulary roles).Registry)
+  (_checked : (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Checked r)
+  (s : (Yulang.GeneralNominalActualBoundary.vocabulary roles).State)
+  (d : (Yulang.GeneralNominalActualBoundary.vocabulary roles).Demand) :
+  Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalActualBoundary.groundBoundary roles) r d s →
+    ∀
+      (exact :
+        Yulang.CommonRoleOutermostResolver.FrontierExact
+          (Yulang.GeneralNominalActualBoundary.frontiers roles r
+            ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run r s d).fst))
+      (accessible :
+        Acc
+          (Yulang.CommonRoleOutermostResolver.Child
+            (Yulang.GeneralNominalActualBoundary.frontiers roles r
+                ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run r s d).fst).Local)
+          d),
+      ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run r s d).snd =
+        Yulang.CommonRoleOutermostResolver.resolve
+          (Yulang.GeneralNominalActualBoundary.frontiers roles r
+            ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run r s d).fst)
+          exact d accessible
+'Yulang.GeneralDictionaryActualGroundExecutor173.treeExecution' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.final_reachable (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (checked : (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Checked registry)
+  (state : Yulang.GeneralNominalSupport.Tracked roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalActualBoundary.groundBoundary roles) registry root state) :
+  Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalActualBoundary.groundBoundary roles) registry root
+    ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run registry state root).fst
+'Yulang.GeneralDictionaryActualGroundExecutor173.final_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.final_stable (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (checked : (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Checked registry)
+  (state : Yulang.GeneralNominalSupport.Tracked roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalActualBoundary.groundBoundary roles) registry root state) :
+  (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Stable registry
+      ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run registry state root).fst root ∧
+    ∀ (child : (Yulang.GeneralNominalActualBoundary.vocabulary roles).Demand),
+      (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Generated registry
+          ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run registry state root).fst root child →
+        (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Stable registry
+          ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run registry state root).fst child
+'Yulang.GeneralDictionaryActualGroundExecutor173.final_stable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.final_models (roles : Yulang.Roles.RoleDecls)
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (checked : (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Checked registry)
+  (state : Yulang.GeneralNominalSupport.Tracked roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalActualBoundary.groundBoundary roles) registry root state)
+  (model : (Yulang.GeneralNominalActualBoundary.vocabulary roles).Model) :
+  (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Models
+      ((Yulang.GeneralDictionaryActualGroundExecutor173.executor roles).run registry state root).fst model →
+    (Yulang.GeneralNominalActualBoundary.groundBoundary roles).Models state model
+'Yulang.GeneralDictionaryActualGroundExecutor173.final_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryActualGroundExecutor173.saturationTotal (roles : Yulang.Roles.RoleDecls) :
+  Yulang.B4TargetV5.SaturationTotal (Yulang.GeneralNominalActualBoundary.groundBoundary roles)
+    (Yulang.GeneralDictionaryActualGroundExecutor173.executor roles)
+'Yulang.GeneralDictionaryActualGroundExecutor173.saturationTotal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+yulang173-public/lean/Audit/Cycle173DependencyGate.lean
+AXIOM-GATE-PASS: 89 declarations

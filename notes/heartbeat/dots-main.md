@@ -1,9 +1,9 @@
-cycle: 171
+cycle: 174
 status: running
-started: 2026-11-13T18:24:41Z
-updated: 2026-11-13T19:00:40Z
-elapsed_min: 36
-activity: Recovered interrupted worker. 19 modules and 14 audits trust0 PASS, 415 declaration gate PASS. Publishing final source/report, then immutable readback.
-workspace: /workspace/scratch/1d0b4aaa3394/yulang159
-last_local_commit: b14c8d0aa8
-resume_hint: First checkpoint babc030cd5 public. Do not duplicate uncertain publication. Verify work/dots-main before continuing. V5 remains8/14.
+started: 2026-11-13T21:22:53Z
+updated: 2026-11-13T21:50:31Z
+elapsed_min: 27
+activity: uniform role-DAG certificate and single-refresh current evidence verified; focused replay
+workspace: /workspace/scratch/1d0b4aaa3394/yulang174-public
+last_local_commit: b66a9b3bf0
+resume_hint: Finish bounded diagnostic if verified, publish final report and release writer before 22:17:53 UTC. General B4 fields remain open.

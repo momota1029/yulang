@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionary172CheckedSpineExact
+#check Yulang.GeneralDictionary172CheckedSpineExact.check_iff
+#print axioms Yulang.GeneralDictionary172CheckedSpineExact.check_iff
+#check Yulang.GeneralDictionary172CheckedSpineExact.discover_iff
+#print axioms Yulang.GeneralDictionary172CheckedSpineExact.discover_iff
+#check Yulang.GeneralDictionary172CheckedSpineExact.check_false_iff
+#print axioms Yulang.GeneralDictionary172CheckedSpineExact.check_false_iff

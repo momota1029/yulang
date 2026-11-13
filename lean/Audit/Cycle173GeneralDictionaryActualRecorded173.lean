@@ -1,0 +1,12 @@
+import Yulang.GeneralDictionaryActualRecorded173
+
+#check Yulang.GeneralDictionaryActualRecorded173.recorded_metadata
+#print axioms Yulang.GeneralDictionaryActualRecorded173.recorded_metadata
+#check Yulang.GeneralDictionaryActualRecorded173.recorded_committed
+#print axioms Yulang.GeneralDictionaryActualRecorded173.recorded_committed
+#check Yulang.GeneralDictionaryActualRecorded173.stored_instance
+#print axioms Yulang.GeneralDictionaryActualRecorded173.stored_instance
+#check Yulang.GeneralDictionaryActualRecorded173.recorded_children
+#print axioms Yulang.GeneralDictionaryActualRecorded173.recorded_children
+#check Yulang.GeneralDictionaryActualRecorded173.current_evidence
+#print axioms Yulang.GeneralDictionaryActualRecorded173.current_evidence

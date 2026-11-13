@@ -1,0 +1,20 @@
+import Yulang.GeneralDictionaryActualStable173
+
+#check Yulang.GeneralDictionaryActualStable173.stable_committed
+#print axioms Yulang.GeneralDictionaryActualStable173.stable_committed
+#check Yulang.GeneralDictionaryActualStable173.stable_site
+#print axioms Yulang.GeneralDictionaryActualStable173.stable_site
+#check Yulang.GeneralDictionaryActualStable173.uncommitted_not_guarded
+#print axioms Yulang.GeneralDictionaryActualStable173.uncommitted_not_guarded
+#check Yulang.GeneralDictionaryActualStable173.stable_instance
+#print axioms Yulang.GeneralDictionaryActualStable173.stable_instance
+#check Yulang.GeneralDictionaryActualStable173.stable_children
+#print axioms Yulang.GeneralDictionaryActualStable173.stable_children
+#check Yulang.GeneralDictionaryActualStable173.stable_evidence
+#print axioms Yulang.GeneralDictionaryActualStable173.stable_evidence
+#check Yulang.GeneralDictionaryActualStable173.SelectedPackets
+#print axioms Yulang.GeneralDictionaryActualStable173.SelectedPackets
+#check Yulang.GeneralDictionaryActualStable173.evidenceNode
+#print axioms Yulang.GeneralDictionaryActualStable173.evidenceNode
+#check Yulang.GeneralDictionaryActualStable173.generatedChildren
+#print axioms Yulang.GeneralDictionaryActualStable173.generatedChildren
