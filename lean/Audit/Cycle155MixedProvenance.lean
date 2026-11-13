@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryReservedMixedProvenance
+#print axioms Yulang.GeneralDictionaryReservedMixedProvenance.source_observed
+#print axioms Yulang.GeneralDictionaryReservedMixedProvenance.reserved_covered
+#print axioms Yulang.GeneralDictionaryReservedMixedProvenance.supported
+#print axioms Yulang.GeneralDictionaryReservedMixedProvenance.installed_batch_models
+#print axioms Yulang.GeneralDictionaryReservedMixedProvenance.after_batch_models
+#print axioms Yulang.GeneralDictionaryReservedMixedProvenance.inhabited_mixed_provenance
