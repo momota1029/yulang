@@ -1,10 +1,9 @@
-cycle: 158
-status: completed
-started: 2026-11-13T05:27:20Z
-updated: 2026-11-13T06:17:40Z
-elapsed_min: 50.3
-activity: 28new modules157public theorems; exact-source trust0 gate370declarations and23public audits pass. Actual mixed completed tree and semantic revision bridge. V5 remains8/14open.
-workspace: /workspace/scratch/1d0b4aaa3394/yulang158
-last_local_commit: 3d79d04aa
-report: notes/handoff/dots-cycle-158.md
-resume_hint: Fetch integration fresh; read module guide and next-revision-transport. Refines cannot cover improving reobserve; historical packets do not cover all selected leaves. Final verified source1786fa124. No active writer/build remains.
+cycle: 159
+status: running
+started: 2026-11-13T06:23:20Z
+updated: 2026-11-13T06:24:30Z
+elapsed_min: 1
+activity: Evidence/evidenceNode: semantic reobserve inspection and allocation bridge; V5 8/14 open
+workspace: /workspace/scratch/1d0b4aaa3394/yulang159
+last_local_commit: 707d524c3
+resume_hint: Fresh integration707d524c; prior158 completed. Continue cycle159 semantic transport, inspect logs before retry. Deadline07:18UTC.
