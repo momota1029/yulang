@@ -1,9 +1,9 @@
 cycle: 170
-status: running
+status: completed
 started: 2026-11-13T17:26:17Z
-updated: 2026-11-13T18:12:00Z
-elapsed_min: 45.7
-activity: Final public 11 modules / 69 theorems replay passed; 16 audits and 295 declaration gate PASS. T7b 147/295 entry reachability recorded; final readback and completion pending.
-workspace: /workspace/scratch/1d0b4aaa3394/yulang159
-last_local_commit: afbd591366cc90e027141ea6e5ef2ac619840bfe
-resume_hint: Complete public replay and final report by18:21UTC; no concurrent writer.
+updated: 2026-11-13T18:16:20Z
+elapsed_min: 50.1
+activity: All work stopped; 11 modules, 69 theorems, 16 public audits and 295 declaration gate PASS; exact publication readback verified. V5 remains 8/14 open.
+last_local_commit: 0b4b566618d418be1a34bc0da70fc4ae11a95855
+report: notes/handoff/dots-cycle-170.md
+resume_hint: Fresh-fetch integration and orders; extend recursive local certificate for NamedSpine before general coverage discovery. Do not rewrite published Lean.

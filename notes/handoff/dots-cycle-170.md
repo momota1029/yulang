@@ -186,3 +186,7 @@ T7b read-only依存調査を実施。`dots-cycle-170-reachability.md`と`tools/R
 最終diff gateもPASS（6 REVIEWは読取専用audit内run_cmd）。18:12再取得のintegrationは `afbd591366cc90e027141ea6e5ef2ac619840bfe`、今回の中間報告commitで既にworkの祖先。standing orders/inboxを再読し、STOPなし・I27継続。最終read-only reviewで11moduleの量化と報告を再確認、重大問題なし。全69台帳項目の存在、source8dからLean差分なし、3個のreachability profileが同一295宣言集合を列挙することも自動照合した。
 
 最終構造reviewで、次回の新leaf対応にはNodeだけでなくrecursive treeの新versionも必要と確認した。旧NamedTreeのrecorded親は旧childしか受け取れないため、単純な旧tree+新leafのsumでは不十分。新recursive証明書・interpreter・rank・assembly・依存Shapeのordinary transportを分けた未証明の計画をnext-observation-bridgeノート末尾へ追記した。公開sourceのCompleteGateも再実行して295宣言PASS。
+
+## 終了台帳
+
+最終検証記録・次回の構造的分解ノートまで `0b4b566618d418be1a34bc0da70fc4ae11a95855` に公開し、取得し直したtree全体とローカルの一致を確認。最終Lean sourceは8d893bdcのまま、全11module/69定理・16audit/295宣言gateが成功。作業者・再検証プロセスは終了、後続writerへ引継ぎ可能。完了心拍をこの報告と同時公開する。未完はV5の8/14義務と一般coverage導出・refresh保存、全repo build未実施。
