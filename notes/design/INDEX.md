@@ -397,3 +397,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [dots-cycle151-observed-named-output](dots-cycle151-observed-named-output.md) — partial theorem/regression, not unrestricted V5.
 - [Item 4i downstream output support](2026-11-13-general-nominal-downstream-support.md) — Partial implementation; independent support guard, snapshot-depth proof, and remaining termination obligations.
 - [Item 4i downstream module guide](2026-11-13-general-nominal-downstream-module-guide.md) — Additive guard, boundary, regressions, order contract, and audit.
+
+- [Item 4j: general nominal generation-budget checks](2026-11-13-general-nominal-budget.md) — Partial: actual Container and P/C/W installations, observation-depth transport, bounded measure obstructions; L5–L7 and progress remain open.
+- [General nominal budget module guide](2026-11-13-general-nominal-budget-module-guide.md) — Five additive modules and their separate audit part.
