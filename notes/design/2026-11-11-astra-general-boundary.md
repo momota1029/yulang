@@ -12894,3 +12894,27 @@ open. Both the unchanged downstream boundary and the additive value boundary
 have six unconditional V5 fields. See the [Item 4k design, theorem statements,
 ledger and checks](2026-11-13-general-nominal-value-provenance.md) and
 [module guide](2026-11-13-general-nominal-value-provenance-module-guide.md).
+
+## Item 4l — reached provenance prefix and representative exclusion
+
+Partial (2026-11-13). The exact six-role source now has a proved four-Step
+prefix under GeneralNominalValueSteps: P installation, two certified refreshes
+of ExtractA's allocated endpoints, and the actual ExtractA installation. All
+installation premises, repeated-capture constraints and model witnesses are
+proved. ExtractA is discharged and its shared output is equal to A. The
+emitted input heads have empty-support certificates using only P input facts.
+
+A concrete W/G representative journal now instantiates the mutual child-value
+exclusion theorem, with explicit cut models preserving all input facts and the
+other producer's outputs. Exclusion and absence of finite HeadDepth persist
+through every certified View. That representative still omits P/Extract
+packets and uses point inputs/direct output targets; its relation to the real
+remaining W/G/ExtractB trace has not been proved. It is not reported as a reached
+checkpoint or as the requested full stress-test decision.
+
+No positive-depth L5 counterexample or preservation theorem was established.
+L6/L7, InstallationOrder and progress remain open. The new work does not change
+the boundary: six unconditional V5 fields remain proved. No genuine semantic
+obstruction was found and no owner question is posed. See the
+[Item 4l note, statements and ledger](2026-11-13-general-nominal-provenance-checkpoint.md)
+and [small module guide](2026-11-13-general-nominal-provenance-checkpoint-module-guide.md).

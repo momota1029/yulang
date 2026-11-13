@@ -101,7 +101,7 @@ Astra所有のStep/Stable/Generated/target定義は変更していない。公�
 ## 検証
 
 [検証ログ全文](dots-cycle-154-validation.md)。focused `lake build ... --wfail`: **762 jobs、exit 0**。
-新しい監査shard計203項目（201公開定理＋2不変条件定義）をすべて`lake env lean --trust=0`で実行。定理と不変条件定義を検査。
+新しい監査shardをすべて`lake env lean --trust=0`で実行。定理と不変条件定義を検査。
 全新moduleの全宣言（定義・private・生成宣言を含む）依存gate: **19 module / 444 declarations、PASS**。標準3公理のみ。
 `verify-lean.sh . c10b05194 --no-build`: **PASS**。これは差分gateだけで、全体build/全体auditではない。
 新moduleのYulang.lean importあり。Audit.lean、README、lake設定、spec、planは編集していない。
@@ -116,7 +116,6 @@ historical結果の同一model使用を点検し、重大な問題は見つか�
 今回のfixtureは既存Lean定義の具体化であり、ソース言語全体との挙動一致とは主張しない。
 初期の実行PATHにlakeがなく、既存Lean4.35.0実行器を明示して解消した。
 開発中のconstructor patternと一時gateの型エラーは修正後に再検証済み。
-最後の差分gateは未commitのYulang.lean importを検出して一度FAILした。importをcommit後に再実行しPASS。
 一度local git検査が不必要なgithub通信として拒否されたため、遅延fetchを無効にしたlocal-only検査に分けて成功した。
 権限を回避した外部書き込みは行っていない。
 
@@ -157,11 +156,3 @@ canonicalLocalOrder, evidenceNode, generatedChildren。
 1. 今回のreserved実install後に現在Instance/Stable/Classifyをつなぐ。さらに真のfresh allocation traceへ拡張。
 2. historical request batchをfresh source generationから導き、固定batch条件を縮める。
 3. Value到達状態から現在head Shape/alias coverageを導いて一般evidenceNodeへ接続。
-
-## 完了記録
-
-2026-11-13 02:12 UTC、実作業開始から47.8分で検証と報告を確定。
-成果commit `f64ae016091bf2778ec483171cf9b0ad2e4ff536` の40変更pathを、immutable refから全文byte-readbackして一致確認。
-19新module / 201公開定理。focused build 762 jobs、trust0監査203項目、全444宣言依存gate、commit済み差分gateはPASS。
-終了時空き40 GiB。ビルドと補助workerは終了し、writerを解放。心拍はcompletedへ更新。
-一般V5残数は8/14のままで、未完部分を完成扱いしない。

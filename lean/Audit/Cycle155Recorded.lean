@@ -1,0 +1,14 @@
+import Yulang.GeneralDictionaryRecordedBatchModels
+import Yulang.GeneralDictionaryRecordedTreeBranch
+#print axioms Yulang.GeneralDictionaryRecordedBatchModels.Covered
+#print axioms Yulang.GeneralDictionaryRecordedBatchModels.covered_nil
+#print axioms Yulang.GeneralDictionaryRecordedBatchModels.covered_append
+#print axioms Yulang.GeneralDictionaryRecordedBatchModels.generated_cons
+#print axioms Yulang.GeneralDictionaryRecordedBatchModels.reachable_shape
+#print axioms Yulang.GeneralDictionaryRecordedBatchModels.reachable_models
+#print axioms Yulang.GeneralDictionaryRecordedTreeBranch.branch_models
+#print axioms Yulang.GeneralDictionaryRecordedTreeBranch.ready
+#print axioms Yulang.GeneralDictionaryRecordedTreeBranch.instance_of_shape
+#print axioms Yulang.GeneralDictionaryRecordedTreeBranch.selected_instance
+#print axioms Yulang.GeneralDictionaryRecordedTreeBranch.selected_branch
+#print axioms Yulang.GeneralDictionaryRecordedTreeBranch.value_node_evidence
