@@ -1,0 +1,7 @@
+# Cycle169: 有限journalから選択済み子関係のAcc
+
+Status: proof plan, 2026-11-13. Scope: Evidence certificate assembly only.
+
+固定状態のjournal中packetの親identityの最大値Mを取る。Coverageの選択された子edgeはrecorded Nodeからだけ生じ、親identity≤M。emitted_clauseとsource_above_invocationから子identity>親identity。rank=(M+1)-identityが全edgeで真に減少する。scalar/spine leafにはedgeがない。domain有限性、SourceFormed、モデルやoperational terminationを仮定しない。
+
+これにより既存CoverageからMixedTree構築時のAcc前提を除ける。ただしCoverageそのもの、Relocates、任意のStableからの証明書存在は未証明。Mは固定journalごとの値で、実行中のjournal増大を一様に抑えない。AstraのGroundCaptureFactorizationや実行停止の証明の代わりではない。alias edgeをliteral child edgeと同一視しない。
