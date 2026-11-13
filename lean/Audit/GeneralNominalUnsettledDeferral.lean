@@ -1,0 +1,55 @@
+import Yulang.GeneralNominalSettledSupport
+import Yulang.GeneralNominalSettledSteps
+import Yulang.GeneralNominalSettledPump
+import Yulang.GeneralNominalSettledBudget
+import Yulang.GeneralNominalSettledBoundary
+
+#print axioms Yulang.GeneralNominalSettledSupport.packet_settled_demand
+#print axioms Yulang.GeneralNominalSettledSupport.unsettled_iff
+#print axioms Yulang.GeneralNominalSettledSupport.trusted_members
+#print axioms Yulang.GeneralNominalSettledSupport.trusted_outputs_settled
+#print axioms Yulang.GeneralNominalSettledSupport.no_unsettled_output
+#print axioms Yulang.GeneralNominalSettledSupport.all_models
+#print axioms Yulang.GeneralNominalSettledSupport.head_sound
+#print axioms Yulang.GeneralNominalSettledSupport.source_head
+#print axioms Yulang.GeneralNominalSettledSupport.pending_merge_usable
+#print axioms Yulang.GeneralNominalSettledSupport.pending_recovered_merge_usable
+#print axioms Yulang.GeneralNominalSettledSupport.trusted_monotone
+#print axioms Yulang.GeneralNominalSettledSupport.head_monotone
+
+#print axioms Yulang.GeneralNominalSettledSteps.at_old
+#print axioms Yulang.GeneralNominalSettledSteps.step_old
+#print axioms Yulang.GeneralNominalSettledSteps.formed_old
+#print axioms Yulang.GeneralNominalSettledSteps.formed_exact
+#print axioms Yulang.GeneralNominalSettledSteps.stepModels
+#print axioms Yulang.GeneralNominalSettledSteps.settled_monotone
+#print axioms Yulang.GeneralNominalSettledSteps.head_step
+#print axioms Yulang.GeneralNominalSettledSteps.closure
+#print axioms Yulang.GeneralNominalSettledSteps.passive_accessible
+#print axioms Yulang.GeneralNominalSettledSteps.formed_step_cases
+#print axioms Yulang.GeneralNominalSettledSteps.pending_not_installable
+#print axioms Yulang.GeneralNominalSettledSteps.infinitely_often_installation
+
+#print axioms Yulang.GeneralNominalSettledPump.cut_models
+#print axioms Yulang.GeneralNominalSettledPump.cut_excludes_nominal
+#print axioms Yulang.GeneralNominalSettledPump.inspected_cut_pending
+#print axioms Yulang.GeneralNominalSettledPump.first_prefix_cut
+#print axioms Yulang.GeneralNominalSettledPump.first_recursive_child_not_installable
+#print axioms Yulang.GeneralNominalSettledPump.pump_source_formed
+
+#print axioms Yulang.GeneralNominalSettledBudget.holds_monotone
+#print axioms Yulang.GeneralNominalSettledBudget.novel_signature
+#print axioms Yulang.GeneralNominalSettledBudget.installed_signature
+#print axioms Yulang.GeneralNominalSettledBudget.remaining_monotone
+#print axioms Yulang.GeneralNominalSettledBudget.remaining_decreases
+#print axioms Yulang.GeneralNominalSettledBudget.accessible_of_signature_cover
+#print axioms Yulang.GeneralNominalSettledBudget.checked_initial_accessible
+
+#print axioms Yulang.GeneralNominalSettledBoundary.local_correspondence
+#print axioms Yulang.GeneralNominalSettledBoundary.support_pending
+#print axioms Yulang.GeneralNominalSettledBoundary.rootK2_priority
+#print axioms Yulang.GeneralNominalSettledBoundary.candidateK2_priority
+#print axioms Yulang.GeneralNominalSettledBoundary.reachable_formed
+#print axioms Yulang.GeneralNominalSettledBoundary.boundary_progress
+#print axioms Yulang.GeneralNominalSettledBoundary.closure
+#print axioms Yulang.GeneralNominalSettledBoundary.stepModels
