@@ -433,3 +433,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Hole elimination, observations, and interval facets](2026-11-13-hole-elimination.md) — Source-formed cyclic refresh, computed endpoint provenance, fixed-basis readback composition and conditional elimination budget; the actual source-to-elimination bridge and SourceBudget remain open.
 
 - [Source frontier and point identity leaves](2026-11-13-source-frontier.md) — Finite direct K2 paths and source-derived singleton signature cover with actual guarded installation and Acc for the explicit identity-leaf restriction; general SourceBudget remains open.
+
+- [Point-class termination: finite covers from invocation ancestry](2026-11-13-point-class-invocation-budget.md) — Draft proof companion. Exact actual-Step signature cover and Acc from one invocation-depth bound; unconditional reachable-role-hierarchy Acc with a real Wrap installation. Arbitrary recursive Class P source producers remain open.
