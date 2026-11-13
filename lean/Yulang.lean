@@ -2284,3 +2284,7 @@ import Yulang.GeneralDictionaryReservedClassifierSoundness
 import Yulang.GeneralDictionaryReservedSuccessorBoundary
 
 import Yulang.GeneralDictionaryNonterminalProvenanceApplication
+
+import Yulang.GeneralDictionaryReservedNominalRefresh
+
+import Yulang.GeneralDictionaryReservedRefreshedEvidence

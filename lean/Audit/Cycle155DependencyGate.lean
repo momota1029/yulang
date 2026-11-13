@@ -14,7 +14,9 @@ import Yulang.GeneralDictionaryReservedEqualityStep
 import Yulang.GeneralDictionaryReservedInstalledClassification
 import Yulang.GeneralDictionaryReservedInstalledEvidence
 import Yulang.GeneralDictionaryReservedMixedProvenance
+import Yulang.GeneralDictionaryReservedNominalRefresh
 import Yulang.GeneralDictionaryReservedOutputEquality
+import Yulang.GeneralDictionaryReservedRefreshedEvidence
 import Yulang.GeneralDictionaryReservedSuccessorBoundary
 import Yulang.GeneralDictionarySelectedProvenanceCoverage
 import Lean
@@ -22,7 +24,7 @@ open Lean Elab Command in
 run_cmd do
   let environment ← getEnv
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
-  let wanted : List Name := [`Yulang.GeneralDictionaryInstalledRequestProvenance, `Yulang.GeneralDictionaryNonterminalProvenanceApplication, `Yulang.GeneralDictionaryProvenanceClassification, `Yulang.GeneralDictionaryProvenanceHeadBranch, `Yulang.GeneralDictionaryProvenanceScalarBranch, `Yulang.GeneralDictionaryProvenanceTreeBranch, `Yulang.GeneralDictionaryRecordedBatchModels, `Yulang.GeneralDictionaryRecordedTreeBranch, `Yulang.GeneralDictionaryRequestBatchAssembly, `Yulang.GeneralDictionaryRequestProvenance, `Yulang.GeneralDictionaryRequestProvenanceTrace, `Yulang.GeneralDictionaryReservedClassifierSoundness, `Yulang.GeneralDictionaryReservedEqualityStep, `Yulang.GeneralDictionaryReservedInstalledClassification, `Yulang.GeneralDictionaryReservedInstalledEvidence, `Yulang.GeneralDictionaryReservedMixedProvenance, `Yulang.GeneralDictionaryReservedOutputEquality, `Yulang.GeneralDictionaryReservedSuccessorBoundary, `Yulang.GeneralDictionarySelectedProvenanceCoverage]
+  let wanted : List Name := [`Yulang.GeneralDictionaryInstalledRequestProvenance, `Yulang.GeneralDictionaryNonterminalProvenanceApplication, `Yulang.GeneralDictionaryProvenanceClassification, `Yulang.GeneralDictionaryProvenanceHeadBranch, `Yulang.GeneralDictionaryProvenanceScalarBranch, `Yulang.GeneralDictionaryProvenanceTreeBranch, `Yulang.GeneralDictionaryRecordedBatchModels, `Yulang.GeneralDictionaryRecordedTreeBranch, `Yulang.GeneralDictionaryRequestBatchAssembly, `Yulang.GeneralDictionaryRequestProvenance, `Yulang.GeneralDictionaryRequestProvenanceTrace, `Yulang.GeneralDictionaryReservedClassifierSoundness, `Yulang.GeneralDictionaryReservedEqualityStep, `Yulang.GeneralDictionaryReservedInstalledClassification, `Yulang.GeneralDictionaryReservedInstalledEvidence, `Yulang.GeneralDictionaryReservedMixedProvenance, `Yulang.GeneralDictionaryReservedNominalRefresh, `Yulang.GeneralDictionaryReservedOutputEquality, `Yulang.GeneralDictionaryReservedRefreshedEvidence, `Yulang.GeneralDictionaryReservedSuccessorBoundary, `Yulang.GeneralDictionarySelectedProvenanceCoverage]
   let mut checked : Nat := 0
   for (name, _) in environment.constants.toList do
     if let some index := environment.getModuleIdxFor? name then

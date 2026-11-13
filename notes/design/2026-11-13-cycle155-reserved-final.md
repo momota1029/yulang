@@ -25,3 +25,11 @@ Soundness: current_instance/current_evidence/final_evidence.
 Auxiliary: arbitrary finite repeated-scalar nominal semantic reconstruction,
 classification and trace reachability, exact model preservation, and nonstability.
 Completeness/principality/general evidenceNode remain outside this result.
+
+## Further verified continuation
+
+The actual equality successor is itself nonstable: a certified carrier extension
+from2 to3 slots makes reserved source2 a Known ternary nominal. Snapshot validity
+is proved for every journal model using source/output equality; it adds no model
+constraint. The refresh preserves Models exactly and the positive model survives.
+This is the second post-install Value step (third from the initial state); the final refreshed state's stability is open.
