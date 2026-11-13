@@ -2272,3 +2272,11 @@ import Yulang.GeneralDictionaryReservedInstalledClassification
 import Yulang.GeneralDictionaryReservedOutputEquality
 
 import Yulang.GeneralDictionaryReservedMixedProvenance
+
+import Yulang.GeneralDictionaryProvenanceScalarBranch
+
+import Yulang.GeneralDictionaryProvenanceHeadBranch
+
+import Yulang.GeneralDictionarySelectedProvenanceCoverage
+
+import Yulang.GeneralDictionaryReservedClassifierSoundness
