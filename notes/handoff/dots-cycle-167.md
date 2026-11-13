@@ -79,3 +79,15 @@ V5の継承会計は **未証明8/14** のまま。全Shared境界のevidenceNod
 3. I21/I25の一般Shared V5 evidenceNodeに必要な到達不変量を、今回のcurrent EvidenceとTrusted guardの区別を維持して整理する。
 
 新しい意味論判断は行わず、I26の遅延指示に従う。今回の局所反例を理由にguardを弱めない。
+
+## 追加の切り分け: settled producer の出力は実際にTrustedになる
+
+source checkpoint `e65949934788380b72d566ef56a7bff39fd47753` を公開し、独立checkoutで取得した。凍結local `c720385c4a6066868ea0fe929daebfae5016b6d4` と全treeは心拍以外一致。独立出力libraryで34moduleと全cycle167小auditを `--trust=0` 再実行し、exit0、依存gate177宣言PASSを確認した。
+
+その後、`GeneralDictionaryCapturedSettledProducerTrust.producer_output_trusted` を追加前提なしで証明した。実際のobservedにおいて、terminal producerのoutput factを含むTrusted facts/readbacks/supportが**存在する**。親の入力factを実経路に沿って移送し、正確なnominal descriptorによる入力readback、葉のsettlement、定数int recipeとOutputCertificateから構成した。単なるtag一致ではない。新しい7定理の日本語の量化・前提は `notes/design/2026-11-13-cycle167-settled-producer-promotion.md`。これで合計 **10module・76公開定理** となる。公開済みの69定理auditを変更せず、新しいpromotion audit/gateを追加した。
+
+この追加により、固定observedの残る障害はproducer出力をTrustedに昇格できないことではなく、そのtargetを元capture source2へ対応づけるaliasにあると切り分けた。`notes/design/2026-11-13-unsettled-output-deferral.md` の「すべての正当なsource/settled説明をTrustedとして再構成することはimplementation coverage obligation」という未解決点に対応する。意味論を新しく選ぶ必要が確定したという主張ではなく、guardを弱めず監督役へ返す実装範囲の課題である。
+
+追加のlean限定 `git diff --check` はexit0。全treeの同検査は原ログの末尾空白を表示する。正確なstdout保存と公開済みファイル不変を優先し、ログの空白は書き換えていない。
+
+検証出力全文と終了コード: [own-diff](../verification/2026-11-13-cycle167-own-diff.txt)、[local replay](../verification/2026-11-13-cycle167-local-replay.txt)、[public replay](../verification/2026-11-13-cycle167-public-replay.txt)、[focused build](../verification/2026-11-13-cycle167-focused-build.txt)。
