@@ -2601,3 +2601,11 @@ import Yulang.GeneralNominalPeelingAccessibility
 import Yulang.GeneralNominalPeelingExamples
 import Yulang.GeneralNominalPeelingSources
 import Yulang.GeneralNominalPeelingReadback
+import Yulang.GeneralNominalCaptureNames
+import Yulang.GeneralNominalSpineAccessibility
+import Yulang.GeneralNominalSpineExamples
+import Yulang.GeneralNominalCompoundReadback
+import Yulang.GeneralNominalReadbackFunctionality
+import Yulang.GeneralNominalCompoundRecovery
+import Yulang.GeneralNominalSpineOutputs
+import Yulang.GeneralNominalCompoundEmission

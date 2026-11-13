@@ -1,0 +1,27 @@
+import Yulang.GeneralNominalSpineOutputs
+import Yulang.GeneralNominalCompoundEmission
+
+#print axioms Yulang.GeneralNominalCaptureNames.inspect_named
+#print axioms Yulang.GeneralNominalCaptureNames.distinguished_capture
+#print axioms Yulang.GeneralNominalSpineAccessibility.peeling_spine
+#print axioms Yulang.GeneralNominalSpineAccessibility.child_projection
+#print axioms Yulang.GeneralNominalSpineAccessibility.sites_paths
+#print axioms Yulang.GeneralNominalSpineAccessibility.installed_depth_bound
+#print axioms Yulang.GeneralNominalSpineAccessibility.accessible
+#print axioms Yulang.GeneralNominalSpineExamples.not_unary_peeling
+#print axioms Yulang.GeneralNominalSpineExamples.accessible
+#print axioms Yulang.GeneralNominalSpineExamples.initial_inhabited
+#print axioms Yulang.GeneralNominalSpineOutputs.checked
+#print axioms Yulang.GeneralNominalSpineOutputs.accessible
+#print axioms Yulang.GeneralNominalSpineOutputs.initial_inhabited
+#print axioms Yulang.GeneralNominalSpineOutputs.materialized_request
+#print axioms Yulang.GeneralNominalSpineOutputs.binder_producer
+#print axioms Yulang.GeneralNominalCompoundReadback.quote_recipe
+#print axioms Yulang.GeneralNominalCompoundReadback.usable_same
+#print axioms Yulang.GeneralNominalCompoundReadback.input_request_readback
+#print axioms Yulang.GeneralNominalReadbackFunctionality.holds_same
+#print axioms Yulang.GeneralNominalCompoundRecovery.input_over_basis
+#print axioms Yulang.GeneralNominalCompoundRecovery.trace_coherence
+#print axioms Yulang.GeneralNominalCompoundEmission.emitted_requests
+#print axioms Yulang.GeneralNominalCompoundEmission.historical_child_endpoint_equal
+#print axioms Yulang.GeneralNominalCompoundEmission.historical_child_root_recovered
