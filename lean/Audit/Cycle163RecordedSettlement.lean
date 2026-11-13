@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryRecordedSettlement
+#print axioms Yulang.GeneralDictionaryRecordedSettlement.coverage_child
+#print axioms Yulang.GeneralDictionaryRecordedSettlement.classified_discharged
+#print axioms Yulang.GeneralDictionaryRecordedSettlement.children_discharged
+#print axioms Yulang.GeneralDictionaryRecordedSettlement.completed_discharged
+#print axioms Yulang.GeneralDictionaryRecordedSettlement.packet_settled
+#print axioms Yulang.GeneralDictionaryRecordedSettlement.output_trusted

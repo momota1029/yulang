@@ -1,0 +1,10 @@
+import Yulang.GeneralDictionarySettledConsumerResume
+
+#print axioms Yulang.GeneralDictionarySettledConsumerResume.trusted_at
+#print axioms Yulang.GeneralDictionarySettledConsumerResume.installed_leaf_discharged
+#print axioms Yulang.GeneralDictionarySettledConsumerResume.producer_settled_after_leaf
+#print axioms Yulang.GeneralDictionarySettledConsumerResume.producer_output_after_leaf
+#print axioms Yulang.GeneralDictionarySettledConsumerResume.ready_of_explained
+#print axioms Yulang.GeneralDictionarySettledConsumerResume.decision_of_reads
+#print axioms Yulang.GeneralDictionarySettledConsumerResume.consumer_step
+#print axioms Yulang.GeneralDictionarySettledConsumerResume.leaf_then_consumer

@@ -1,0 +1,276 @@
+lean/Audit/Cycle162DependencyGate.lean EXIT 0
+AXIOM-GATE-PASS: 132 declarations
+
+lean/Audit/Cycle162SettledCutExclusion.lean EXIT 0
+'Yulang.GeneralDictionarySettledCutExclusion.inspected_cut_no_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledCutExclusion.inspected_cut_no_completed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledCutExclusion.descendant_cut_no_completed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162SettledEvidence.lean EXIT 0
+'Yulang.GeneralDictionarySettledEvidence.stable_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.stable_site' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.selected_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.stable_joint_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.stable_joint_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.stable_joint_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.stable_merges_of_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.reachable_joint_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.reachable_joint_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.steps_reobservation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.reachable_reobservation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.reachable_packetFree_terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledEvidence.reachable_packetFree_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162SettledGuardClosure.lean EXIT 0
+'Yulang.GeneralDictionarySettledGuardClosure.old_child_is_new' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledGuardClosure.old_descendant_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledGuardClosure.guardClosure_of_classified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledGuardClosure.selected_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+lean/Audit/Cycle162SettledGuardedClassification.lean EXIT 0
+'Yulang.GeneralDictionarySettledGuardedClassification.guard_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledGuardedClassification.guard_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledGuardedClassification.selected_local_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledGuardedClassification.classified_of_guards' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledGuardedClassification.children_of_guards' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledGuardedClassification.selected_iff_of_guards' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162SettledNamedExample.lean EXIT 0
+'Yulang.GeneralDictionarySettledNamedExample.initial_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.install_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.actual_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.current_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.parent_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.child_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.classified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.completed_named' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.no_discharged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.named_packet_unsettled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledNamedExample.output_head_independent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162SettledPendingExclusion.lean EXIT 0
+'Yulang.GeneralDictionarySettledPendingExclusion.no_local_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.no_boundary_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.no_selected_classification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.child_pending_no_parent_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.no_completed_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.child_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.descendant_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.descendant_pending_no_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.descendant_pending_no_completed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledPendingExclusion.no_local_ambiguous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162SettledProjection.lean EXIT 0
+'Yulang.GeneralDictionarySettledProjection.safe_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledProjection.selected_local_old' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledProjection.selected_classification_old' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledProjection.selected_children_old' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledProjection.completed_selected_old' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledProjection.steps_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledProjection.reachable_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledProjection.evidence_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledProjection.models_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+lean/Audit/Cycle162SettledRecursiveExample.lean EXIT 0
+'Yulang.GeneralDictionarySettledRecursiveExample.initial_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.install_guard' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.actual_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.current_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.parent_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.leaf_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.classified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.completed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.no_discharge_without_terminal_packet' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.no_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.packet_unsettled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRecursiveExample.output_not_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162SettledReservedExample.lean EXIT 0
+'Yulang.GeneralDictionarySettledReservedExample.initial_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.install_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.equality_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.refresh_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.packet_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.not_unsettled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.output_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.output_head_justified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.output_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledReservedExample.consumer_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162SettledRootEvidence.lean EXIT 0
+'Yulang.GeneralDictionarySettledRootEvidence.stable_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRootEvidence.selected_descendant_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRootEvidence.nodeClosure_of_root_stable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRootEvidence.classified_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRootEvidence.completed_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162SettledSourceGuard.lean EXIT 0
+'Yulang.GeneralDictionarySettledSourceGuard.head_of_empty_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.ready_of_empty_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.base_decision_of_empty_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.decision_of_empty_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.initial_decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.selected_of_empty_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.initial_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.packet_guard_of_empty_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.at_of_empty_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.step_of_empty_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledSourceGuard.initial_step_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+lean/Audit/Cycle162SettledTreeEvidence.lean EXIT 0
+'Yulang.GeneralDictionarySettledTreeEvidence.nodeClosure_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTreeEvidence.classified_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTreeEvidence.children_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTreeEvidence.completed_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle162FinalDependencyGate.lean EXIT 0
+AXIOM-GATE-PASS: 138 declarations
+  EXIT 0

@@ -1,0 +1,37 @@
+'Yulang.GeneralNominalSettledIntervalDeclarations.p_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalDeclarations.w_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalDeclarations.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalDeclarations.shared_anchor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalDeclarations.recursive_emission' does not depend on any axioms
+'Yulang.GeneralNominalSettledIntervalSource.interval_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalSource.source_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalSource.initial_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalSource.formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalSource.initial_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.queries' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.report_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.packet_bindings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.schema_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.input_not_output' depends on axioms: [propext]
+'Yulang.GeneralNominalSettledIntervalOutputs.actual_capture_inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.interval_contains' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.materialized_family' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.packet_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalOutputs.same_input_endpoints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalObstruction.branch_family' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalSettledIntervalObstruction.children_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalObstruction.int_not_variant' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalObstruction.variant_cancel' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalObstruction.tower_separated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSettledIntervalObstruction.fixed_inputs_unbounded_tails' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalSettledIntervalObstruction.finite_horizon' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

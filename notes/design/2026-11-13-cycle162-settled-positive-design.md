@@ -58,3 +58,57 @@ installation. This fixture cannot establish a wrongful blocked resume:
 it instead checks that settled outputs are genuinely usable after refresh.
 An output-only nonterminal producer with an unrecorded terminal leaf plus an
 actually generated distinct consumer remains the precise missing experiment.
+
+## Bounded investigation: missing actual consumer experiment
+
+Read-only inspection after the positive examples identified two concrete
+obstacles to shortcutting the missing experiment:
+
+* `GeneralDeclarations.Declaration.OutputOnly` prohibits an output-binder name
+  in every child's unnamed arguments. Merely adding `Consumer(z)` beside a
+  child that binds output `z` does not furnish `DeclarationChecked`. This is a
+  certificate restriction in the present carrier; its failure alone is not a
+  language-rejection theorem.
+* `GeneralNominalSaturationState.Generated` has only root, installed child-edge,
+  and alias-site constructors. A fresh arbitrary query such as occurrence 157
+  is not made reachable by proving `Linked` or `DecisionGuard`. Administrative
+  enqueue still needs the outer `Step`'s Generated witness.
+
+A narrower candidate construction avoids both shortcuts by routing output to
+an already captured input identity. This is a reproduction plan, NOT a checked
+new source or a proved operational failure:
+
+1. Use an outer known pair constructor with two captured inputs: identity 1
+   is `List Int`; identity 3 is initially unresolved. Identity 2 is the known
+   scalar Int inside identity 1. Identity 0 is the outer pair descriptor with
+   arguments 1 and 3. The source does not constrain the head of identity 3.
+2. A parent declaration matches `Pair(a,b)` and emits two actual children:
+   `Producer(a, out=b)` and `Consumer(b)`. Here b is an INPUT capture, not an
+   output binder. Both child argument lists are smaller than Pair(a,b), and
+   the parent inspector's variable subqueries do not read b's unknown head.
+   Concrete Checked, InitialSource and first-install certificates still need
+   to be proved; they must not be assumed from this description.
+3. Producer matches `List(t)`, emits terminal `Display(t)`, and defines
+   `out=List(t)`. Its child is the known Int at identity 2. The output request
+   routes to identity 3 via the parent's captured b. Prove the producer's
+   actual Settled installation, then equality/refresh observing identity 3.
+4. Check exact emitted edges and origins. Consumer must be the actual sibling
+   generated in step 2, not a separately invented occurrence. Check that the
+   Int leaf is selected/has Evidence but has no recorded packet. If all
+   recorded packets have nonempty children, the already proved
+   `no_discharge_without_terminal_packet` establishes ledger nonsettlement.
+5. Construct an OutputCut model with identity 3 = Int, identity 1 = List Int,
+   and identity 0 = Pair(List Int, Int). Verify EVERY retained fact, including
+   the parent's input facts, output-routing facts and any merge facts. Only
+   the Producer packet's outputs may be removed. This is the substantive
+   model obligation; source validity alone is insufficient.
+6. Prove the actual refreshed consumer reads identity 3 using an
+   `GeneralNominalSettledPump.InspectionPoint`. Only after all preceding
+   obligations may `inspected_cut_pending` establish new SupportPending.
+   Separately verify that Producer's terminal where-child is semantically
+   complete. These would identify the exact ledger/completion alignment
+   question; none of those new prefix/model facts is claimed here.
+
+No new Lean fixture implementing this plan was completed in this bounded pass.
+Existing reserved and named-output positive examples cannot substitute for it:
+one has an empty child list, the other has a source-known output target.

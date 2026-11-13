@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionarySettledFiniteCoverage
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverage.selected_support
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverage.covered_of_support
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverage.selected_instance_children
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverage.dictionary_evidence
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverage.dictionaries_evidence
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverage.root_dictionary_all_models
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverage.completed_evidence

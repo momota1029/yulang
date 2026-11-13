@@ -1,0 +1,5 @@
+✔ [653/656] Built Yulang.GeneralNominalSettledIntervalDeclarations (1.9s)
+✔ [654/656] Built Yulang.GeneralNominalSettledIntervalSource (1.7s)
+✔ [655/656] Built Yulang.GeneralNominalSettledIntervalOutputs (1.2s)
+✔ [656/656] Built Yulang.GeneralNominalSettledIntervalObstruction (993ms)
+Build completed successfully (656 jobs).
