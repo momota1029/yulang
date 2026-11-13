@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionary171LocalInspectionObservation
+#print axioms Yulang.GeneralDictionary171LocalInspectionObservation.inspected_tree
+#print axioms Yulang.GeneralDictionary171LocalInspectionObservation.observed_requests
+#print axioms Yulang.GeneralDictionary171LocalInspectionObservation.of_global
+#check @Yulang.GeneralDictionary171LocalInspectionObservation.inspected_tree
+#check @Yulang.GeneralDictionary171LocalInspectionObservation.observed_requests
+#check @Yulang.GeneralDictionary171LocalInspectionObservation.of_global
