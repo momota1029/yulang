@@ -1,0 +1,280 @@
+{
+  "source_commit": "dc66410fa983d27858742563539b73a918778170",
+  "lean": "4.35.0 eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+  "new_modules": 22,
+  "audit_files": 23,
+  "public_theorem_types": 172,
+  "dependency_checked_declarations": 291,
+  "files": [
+    {
+      "path": "lean/Yulang/GeneralDictionaryExactRefreshChain.lean",
+      "git_blob": "aa021e7e3c5587063fca250cb33e7431953b5ea0",
+      "sha256": "c4718ea3342eedebd58c35dc507dbb1165404281d68fc1a80ac0cec6b0e1fd79",
+      "bytes": 2661
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySettledTerminalEvidence.lean",
+      "git_blob": "b009d26d62f658e76e9095921f6a936f7cd8db52",
+      "sha256": "3c81c677c65e93530656d900cb89557524b9cad26e50befe2a6dd7fee5cea7c9",
+      "bytes": 4132
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedBlockedOutput.lean",
+      "git_blob": "ab5b8978ebfe5bf92518262be1678b5bbbe1bff8",
+      "sha256": "9a1a1adb5626dc7f8b353aacd3e3bb3d6de10ba734047fc04f23027f471b1356",
+      "bytes": 5040
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedTargets.lean",
+      "git_blob": "c8107679325b8d0629067d81253d783f3650fcbf",
+      "sha256": "54cc8b7f75a9f90ea8233e0af253b7f4e06c72a54659bb9699a5eec466da8d91",
+      "bytes": 8243
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedConstantReady.lean",
+      "git_blob": "038eebbfc28629b7c5165d922f739feb5a4a9c53",
+      "sha256": "5473837453c1c37821faac8efc1b92f4483ad526529bac41e87da6f7ce3d8cdd",
+      "bytes": 4188
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedConstantRefresh.lean",
+      "git_blob": "3497a7fd50caf27403aed6593ee309e6aba05388",
+      "sha256": "ab3f592b32e4fcd42265437816b4ae84bf2e548ba0e0a393d3f86c3fdc2e2ba9",
+      "bytes": 6399
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCurrentEvidence.lean",
+      "git_blob": "46328acd787a9652c75c7e76f2169756fdcf8da3",
+      "sha256": "cdf08875375794110125991dc4f6ebaf005df6ca85902a979b0f1605961c94f7",
+      "bytes": 4634
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedDisplayInstallation.lean",
+      "git_blob": "18e6a401212480eca8877285893648687780511a",
+      "sha256": "4c3b409c9cf010e92a1f3b099e34c8b84c2100cfb5e5582bcdf2aaf9755c0297",
+      "bytes": 4550
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedEvidenceTrace.lean",
+      "git_blob": "a698a7ce2dfc4f1de7a5686bb3cfe3781c397ca0",
+      "sha256": "616ecb00e8b122baaf33b4fc73d29c9dd22817af334b0c912eeec9130a388418",
+      "bytes": 6283
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedInstallEvidence.lean",
+      "git_blob": "e6b890e640a29a914cfbc5a289dc1cc1c6b1a7ad",
+      "sha256": "195b719e3211f9b425983e65dc13fdcd19780330cb1cf124b1ffd1945a6f3eb3",
+      "bytes": 6656
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedLenCommitted.lean",
+      "git_blob": "b40ee00dc48445527df7b33735ccd7b6ae7d4223",
+      "sha256": "2d4ee2d311421e1bc1d32e0242f4870efe3c73704cea716ab6d9d7fa5d58659c",
+      "bytes": 2209
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedOutputBinderScope.lean",
+      "git_blob": "8c3312fee4421f99e35b73ec20f57899d39fcb70",
+      "sha256": "8e9a61223e49c3ee973ff2f95e3271559c7cc6f9d7f370c863a78987a9a2fee5",
+      "bytes": 4381
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedRecordedEvidence.lean",
+      "git_blob": "952442be4dbe5bfc84777425d5f738d3e1402086",
+      "sha256": "69fe6c2905a2f72a746e9b361dab24f263a1d37c4561e3882086617efcc9baf6",
+      "bytes": 5574
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedRecordedTree.lean",
+      "git_blob": "84ed19702c69dd8b58b76851cc75ae5649f0321e",
+      "sha256": "49ac40bb88cbf574577d89a2d4ca45bf9b87cfaa38d203e315ee71e4491a5b1b",
+      "bytes": 4979
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedRecursiveExample.lean",
+      "git_blob": "32e044ebfdfcde92aa450667eb4529653f74457d",
+      "sha256": "d77bdd3dfd60042a434c2c896f4dabdf4c354d1d1a975690776cc87d5d731a7c",
+      "bytes": 3317
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedSemanticSettlement.lean",
+      "git_blob": "3124d9f112896164725e7e9fcec0bf07982398ed",
+      "sha256": "06744f7fc540feaa28410be51f65e679548d44a85bb16737dbec7c51cc97b979",
+      "bytes": 2591
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedSettlementResume.lean",
+      "git_blob": "0d63d88976e93a5ed8fc621512b41a00bb86e612",
+      "sha256": "41f50cd6f1a840b4b3457e73c0b8b9db9d22f1e28ddfe74176393f83922081b5",
+      "bytes": 7346
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedSiblingPrefix.lean",
+      "git_blob": "8286058d30c67dd1ad17ae766ad40f1d62671382",
+      "sha256": "ad5b5fe96995adc0f49cd485814077491f404d22f899a65da99616020b0c3385",
+      "bytes": 8290
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedTerminalInstallation.lean",
+      "git_blob": "ee4d18955e1c220f55078858bb8bac3e301faa6d",
+      "sha256": "b556ee17233fdc7bc8985cad32f594740ee73ab1bdb78b40b6dc33c750421542",
+      "bytes": 4939
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedTerminalObstruction.lean",
+      "git_blob": "2082d6040bbb45a701bdd9d2fc89f961842ee898",
+      "sha256": "f5bdb7d833cd828bd486c5db0508b55221800df2b9bb95f0bab9cc6f1701e6fd",
+      "bytes": 2808
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedTrustTransport.lean",
+      "git_blob": "d0ce0c18a7a047a989b6a7654b80a1425911d092",
+      "sha256": "156d4a57294679939f507eb4de9ffb34d8e17adf47828fcb0ea1cf8c57de4862",
+      "bytes": 7059
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryTerminalRefreshObstruction.lean",
+      "git_blob": "edc7b966288a9b94ea5b5f654910c73b6ee3feb9",
+      "sha256": "96c75c5a7657ca26003c4d2b99351af4567571e4b789a23fa0b896e9c6b0250b",
+      "bytes": 7551
+    },
+    {
+      "path": "lean/Audit/Cycle164ExactRefreshChain.lean",
+      "git_blob": "295b85c42a6ae8b15c18e7fe00e9c38c6323f088",
+      "sha256": "682c992a9cd8645681a147cdbcd44eb5e387e851423e30baded603b492813bc2",
+      "bytes": 346
+    },
+    {
+      "path": "lean/Audit/Cycle164FinalDependencyGate.lean",
+      "git_blob": "407e1a9cb73556e99f0c83351138905d403089ca",
+      "sha256": "cca73dd8d73d7e0e33ce966307f4d75aba61f646dd3653340037704917225744",
+      "bytes": 3025
+    },
+    {
+      "path": "lean/Audit/Cycle164PublicTypes.lean",
+      "git_blob": "145e6d2592a3f5441b63d62c99a5034ea3fcf012",
+      "sha256": "f621a89c744fc411727f943731b7d5ddc9d241e2ec7ece92284f5018713ce4a6",
+      "bytes": 13075
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedBlockedOutput.lean",
+      "git_blob": "52e5eabcd5bba360e438298b9a97aae7dc7fd9be",
+      "sha256": "538cbb2116760bf960d27882394e9330eb6a8455fa7d483f0c659a03e43d16c4",
+      "bytes": 518
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedCapturedTargets.lean",
+      "git_blob": "50af01e2ff159b16222d5a128cbe64b46ebb692a",
+      "sha256": "4a7d7a9b77d67b48aa88cdbdc672e19d115984053ed665c48e78c2273f6963a0",
+      "bytes": 1098
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedConstantReady.lean",
+      "git_blob": "778348e5827c9e4035c01a5632a23fedb5926271",
+      "sha256": "43da93348e11a7d5856c1d9c1b0cda30708f2ba69e6fda4696760519fe0154b4",
+      "bytes": 741
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedConstantRefresh.lean",
+      "git_blob": "4bc8a1eebe33586af13ea82bf01928dc7fd2d1ab",
+      "sha256": "b1635af45a4c415edba54ca7f2f33515377a9c9a7b71bc72cc9e392678045480",
+      "bytes": 1228
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedCurrentEvidence.lean",
+      "git_blob": "68f61a88c22d92fc3979dc0d4120e968a87f87df",
+      "sha256": "d8830d9af180f375a2bd0099e1d71f3feb9d983bddfae1a0c7d500911bd687ad",
+      "bytes": 466
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedDisplayInstallation.lean",
+      "git_blob": "589d31cacd017268c3cfc62c3ef89dfe4913b5ec",
+      "sha256": "8101362402c4fcc1e7d84e79979f5a058a47c5b302d6244754801aca71378fc3",
+      "bytes": 802
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedEvidenceTrace.lean",
+      "git_blob": "9005440270921e49debc34875c6e91de90427383",
+      "sha256": "598b94a6d3b94398bbb7dd671fe7d02fa52ccd14401c950a906ca6ec4c3b9197",
+      "bytes": 575
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedInstallEvidence.lean",
+      "git_blob": "abe24a7297671e9769c7b19597e8f4d16cd7b41b",
+      "sha256": "c02ff7c3fdc290be3440477d8ae963753c7a23c42c423035eacb6ace9866919e",
+      "bytes": 612
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedOutputBinderScope.lean",
+      "git_blob": "38e37b0f012130922f4e54b25601d13b218e1e25",
+      "sha256": "9d82f0e6f7f11ae281ff9cc8584d0213989eb5c00c2544b6f5a8dba1d8cc2166",
+      "bytes": 646
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedRecordedEvidence.lean",
+      "git_blob": "a297555c6c50d70681919ed3756843192705b432",
+      "sha256": "afe8f09ce9e84d51f680b05fa5a804c2b21d97da519da1df280925dafda304b6",
+      "bytes": 523
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedRecordedTree.lean",
+      "git_blob": "4b6bfac8a8920f4d71cfd553f662bf74990ee05f",
+      "sha256": "78e0bff9ba7b67ebb068df1ffff9f80f71098089a8b7439b1c8337f8a8e39d65",
+      "bytes": 584
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedRecursiveExample.lean",
+      "git_blob": "e0065654994e8d5fcc1d5313238dc1f1014a3e9e",
+      "sha256": "5043e226da7cbd86660f97040c8a47c2ce8a1564664ef3d6f2cdb075fadedd2d",
+      "bytes": 597
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedSemanticSettlement.lean",
+      "git_blob": "5cdfaa7ba6aee167a7750943c6ae6e8a444c3816",
+      "sha256": "06d9eb92f18a9ee73840d0faa8b5bd1b0bfbd405451592c98c37559b36401907",
+      "bytes": 398
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedSettlementResume.lean",
+      "git_blob": "da257d6f8baf4d061d21ad72cc909755293e8410",
+      "sha256": "2ff8d168b884048c3e311c4ccac032140597dd0b696275a9fff5bccab3380091",
+      "bytes": 460
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedSiblingPrefix.lean",
+      "git_blob": "a422b8fcd67d3874d9af3878ae5769b03a712d5f",
+      "sha256": "de4ec2149d13aef273ad44ca6b6068bec963c4168ecea4ac32a52c448ab86062",
+      "bytes": 1044
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedTerminalInstallation.lean",
+      "git_blob": "93af5b27456a98c00270bfe7745e1274f00208ac",
+      "sha256": "41010843ee5b9ed634d7cfda367268c5bfe37878bc498b0e869b1f1a6d8707af",
+      "bytes": 939
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedTerminalObstruction.lean",
+      "git_blob": "17953998fec8d0d86d4154517a14d488571bd57f",
+      "sha256": "bc0fd68dfc33347ad12865b1d434fe15f8255ad22a6da14bc3e1637b56681a7b",
+      "bytes": 411
+    },
+    {
+      "path": "lean/Audit/Cycle164SharedTrustTransport.lean",
+      "git_blob": "329ec26428bf39dabf86c84df99897c1a497793c",
+      "sha256": "42b90062c75b7e8e15d0bb6b5c0732afdc06be09fad21ffcddd373fc3efa71f0",
+      "bytes": 1105
+    },
+    {
+      "path": "lean/Audit/Cycle164TerminalEvidence.lean",
+      "git_blob": "4047eaa1bce2909d6aa1538506d36d2c0308700a",
+      "sha256": "c71bb3bdf8a26e3cac82c278c505482e3c4706b4d79acdc19c009b89c5a2e546",
+      "bytes": 651
+    },
+    {
+      "path": "lean/Audit/Cycle164TerminalRefreshObstruction.lean",
+      "git_blob": "703af1b3e70adcf6caa34626c82f0843c0826c6b",
+      "sha256": "760c068ee0368a09afbfc7905cb27b60f75847de6e4bf85aae4d72583b925afb",
+      "bytes": 606
+    }
+  ]
+}

@@ -77,3 +77,27 @@ fresh producer output target, exact consumer input(2,2), and materialized output
 schema implying Equivalent(model target,model2). This completes the source/mapping
 portion of step1 without identifying the two identities. It does not prove the
 parent branch feasible, parent Shared installation or any consumer step.
+
+## Read-only branch feasibility review (not a new theorem)
+
+The source witness `finiteModel 1` alone is not the intended parent branch witness:
+fresh compound producer-input endpoints lie above seed2 and receive int there,
+whereas the named schema requires nominal0/arity1 at both endpoints. A candidate
+branch model must patch those two fresh endpoints to list int while preserving
+source0/list(list int), source1/list int, source2/int and the fresh output/int.
+
+Outstanding proof obligations, not assumed completed:
+- Distinctness of those two allocations from each other, the output target and
+  original source identities, via exact origin/source-identity lemmas.
+- Private-state Compatible/cross constraints, single-capture merges and point
+  self-checks. The candidate singleton capture suggests reflexive constraints,
+  but the complete parent BranchModels theorem has not been checked.
+- Projection tests/anchors and capture-origin consistency for the recorded nested
+  nominal descriptors, using actual observation uniqueness rather than point
+  intuition alone.
+- Every named-schema test, possible observation, variable-use equation and
+  actual-use/captured-origin equation for the patched assignment.
+
+This is a constructive candidate to test next, not an existing checked branch
+model. The unconditional InitialSource/source-model theorem and conditional
+materialization equality must not be combined into an unproved branch witness.

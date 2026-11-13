@@ -2,7 +2,7 @@
 
 ## Status
 
-Intermediate publication; final verification/publication ledger will be appended.
+Completed source verification and report; immutable publication ledger below.
 Evidence lane only. V5 remains **8/14 open**. No general evidenceNode,
 generatedChildren, termination, progress, completeness or principal typing result.
 Fresh supervisor SharedSteps has a different child-origin emitter, so no
@@ -233,3 +233,48 @@ trace are still unproved; no complete resumed-consumer claim is made.
 The next-plan file's first source/mapping step is now partly completed by this
 module. Its remaining conditions are parent branch feasibility, actual guard and
 novelty, informative producer behavior, exact observation and consumer selection.
+
+## Final verification ledger
+
+Verified immutable source checkpoint:
+`dc66410fa983d27858742563539b73a918778170` (`work/dots-main`). It was fetched into a
+separate detached checkout; all code matches frozen localcb547f064 exactly, with
+only heartbeat differing. Fresh integration f71f1d626 is an actual ancestor.
+
+- Lean4.35.0 (eb6cafb7290e8bd5f2937522d8d804f58f02bafc).
+- Focused new-module Lake batches all exited0, including final723-job batch.
+  Job counts include cached dependencies, not that many new theorems.
+- Independent output-directory replay rebuilt all22 new source modules from the
+  fetched commit using `lean --trust=0`, then ran all23 Cycle164 audit files: exit0,
+  `ALL PASS 22`. The public-types audit checks172 public theorem signatures.
+- Complete new-module dependency gate:291 public/private/generated declarations,
+  only propext/Classical.choice/Quot.sound. No sorry/new axiom/native_decide.
+- Diff gate on the fetched public checkout against fresh integration: PASS
+  (diff-only, no full build),2 REVIEW entries for audit dependency inspection.
+- `git diff --check`: exit0. Frozen semantic files/root Audit/README/Lake config
+  remain unchanged by this cycle; only new modules/audit parts and imports added.
+- First intermediate published11:46UTC; second source checkpoint12:06UTC.
+  Heartbeats published throughout. No overlapping prior-cycle writer.
+- No full-repository build, full upstream audit, executable Yulang2 oracle run,
+  or CI success is claimed. No unverified source file is included.
+
+Artifacts:
+- `notes/verification/2026-11-13-cycle164-final-public-replay.txt`
+- `notes/verification/2026-11-13-cycle164-source-manifest.json` (source/audit blob
+  hashes, SHA256, exact source commit and counts).
+
+The last read-only model review found that the initial source witness does not
+itself cover fresh compound-input schema tests. A patched branch-model candidate
+and all missing obligations are recorded in the next-plan note; they remain
+unproved. Thus full producer→informative output→previously blocked consumer
+execution is still open. V5 remains8/14 open under the accounting caveat above.
+
+## Late upstream observation
+
+At12:13UTC, remote integration had advanced to
+f22c75e5779bf23cc3116e5201119d55bb1ad3a1. It includes this cycle's first checkpoint
+and additional supervisor Hole/SourceFrontier modules. A direct comparison found
+no changes to standing-orders/inbox and no STOP. This cycle's frozen verification
+base remains f71f1d626; the late additions were not mixed into or independently
+audited as part of the22-module result. Their notes explicitly keep general
+SourceBudget/B4(1) open. The next cycle must freshly recover that newer integration.
