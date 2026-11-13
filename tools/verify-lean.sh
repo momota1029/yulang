@@ -87,7 +87,7 @@ badnew=$(echo "$newfiles" | grep -v '^$' | grep -vE '^lean/(Yulang/[A-Za-z0-9_]+
 if [ -n "$badnew" ]; then echo "FAIL: unexpected new files:"; echo "$badnew"; fail=1; else echo "ok: new files are Yulang modules only"; fi
 for f in $(echo "$newfiles" | grep -E '^lean/Yulang/[A-Za-z0-9_]+\.lean$'); do
   m=$(basename "$f" .lean)
-  if ! grep -rqE "^import Yulang\.$m\b" lean --include=*.lean; then echo "FAIL: new module Yulang.$m is not imported anywhere (never built/audited)"; fail=1; fi
+  if ! grep -rqE "^import Yulang\.$m\b" lean --include=*.lean --exclude-dir=Audit --exclude-dir=.lake; then echo "FAIL: new module Yulang.$m is not imported by any built module (only audit parts import it, so lake build skips it)"; fail=1; fi
 done
 
 # 9. Audit.lean and lean/Audit/*.lean: insertions only at the end (existing files)
