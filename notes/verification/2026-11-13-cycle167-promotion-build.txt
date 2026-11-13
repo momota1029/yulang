@@ -1,0 +1,33 @@
+✔ [719/719] Built Yulang.GeneralDictionaryCapturedSettledProducerTrust (2.0s)
+Build completed successfully (719 jobs).
+AXIOM-GATE-PASS: 14 declarations
+Yulang.GeneralDictionaryCapturedSettledProducerTrust.parent_trusted : Yulang.GeneralNominalSharedSupport.Trusted
+  Yulang.GeneralDictionarySharedCapturedResumption.observed
+  [Yulang.GeneralDictionaryCapturedSettledProducerTrust.parentInput] []
+Yulang.GeneralDictionaryCapturedSettledProducerTrust.terminal_settled : Yulang.GeneralNominalSettledSupport.PacketSettled
+  Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+  Yulang.GeneralDictionarySharedCapturedProducer.candidate
+Yulang.GeneralDictionaryCapturedSettledProducerTrust.input_variables_empty : (Yulang.GeneralNominalPacketSupport.inputSchema
+      Yulang.GeneralDictionarySharedCapturedProducer.candidate).variables =
+  []
+Yulang.GeneralDictionaryCapturedSettledProducerTrust.endpoint_observation : ∀ (slot : Fin 5),
+  slot = 3 ∨ slot = 4 →
+    ∀ {identity : Nat} {test : Yulang.GeneralNominalRecursiveInspection.Test}
+      {observation : Yulang.GeneralCanonicalObservations.Observation},
+      Yulang.GeneralNominalSupport.Head Yulang.GeneralDictionarySharedCapturedRefresh.snapshot identity test
+          observation →
+        identity = Yulang.GeneralDictionarySharedCapturedRefresh.base.source slot →
+          ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalPacketSupport.Inputs Yulang.GeneralDictionarySharedCapturedTargets.packet m →
+              observation.Holds m
+Yulang.GeneralDictionaryCapturedSettledProducerTrust.input_readback : Yulang.GeneralNominalSettledSupport.Readback
+  Yulang.GeneralDictionarySharedCapturedResumption.observed
+  [Yulang.GeneralDictionaryCapturedSettledProducerTrust.parentInput]
+  Yulang.GeneralDictionarySharedCapturedProducer.candidate
+Yulang.GeneralDictionaryCapturedSettledProducerTrust.int_recipe : Yulang.GeneralNominalOriginTerms.Recipe
+  (Yulang.GeneralNominalPacketSupport.namedSchema Yulang.GeneralDictionarySharedCapturedProducer.candidate)
+  (Yulang.GeneralNominalRecursiveInspection.Origin.source Yulang.GeneralDictionarySharedCapturedTargets.target)
+  Yulang.GeneralDictionaryCapturedSettledProducerTrust.intTerm
+Yulang.GeneralDictionaryCapturedSettledProducerTrust.producer_output_trusted : ∃ facts readbacks support,
+  Yulang.GeneralNominalSharedSupport.Trusted Yulang.GeneralDictionarySharedCapturedResumption.observed facts readbacks ∧
+    Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralDictionarySharedCapturedProducer.candidate support ∈ facts

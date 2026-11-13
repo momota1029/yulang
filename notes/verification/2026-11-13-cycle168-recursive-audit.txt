@@ -1,0 +1,72 @@
+'Yulang.GeneralDictionaryRecursive168Transport.children_seed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRecursive168Transport.instance_relocated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRecursive168Transport.indexed_relocated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRecursive168Transport.erased_relocated' depends on axioms: [propext, Quot.sound]
+AXIOM-GATE-PASS: 14 declarations
+@Yulang.GeneralDictionaryRecursive168Transport.children_seed : ∀ {roles : Yulang.Roles.RoleDecls}
+  (before after : Yulang.GeneralNominalState.State),
+  after.seed = before.seed →
+    ∀ (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (declaration : Yulang.GeneralDeclarations.Declaration)
+      (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+      (bs : Yulang.GeneralNominalAllocation.Bindings),
+      Yulang.GeneralNominalAllocation.children after registry root declaration checked bs =
+        Yulang.GeneralNominalAllocation.children before registry root declaration checked bs
+@Yulang.GeneralDictionaryRecursive168Transport.instance_relocated : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (before after : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (slots : Fin before.state.base.slots → Fin after.state.base.slots),
+  (∀ (slot : Fin before.state.base.slots), after.state.base.source (slots slot) = before.state.base.source slot) →
+    after.state.seed = before.state.seed →
+      Yulang.GeneralNominalRecursiveCandidates.Metadata registry after →
+        ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+          (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+          Yulang.GeneralDictionaryRecursive168Transport.RelocatesAt registry before after slots root key →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalState.Models after.state model →
+                Yulang.GeneralDictionaryRecursiveEvidence.Instance registry before model root key children →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry after model root key children
+@Yulang.GeneralDictionaryRecursive168Transport.indexed_relocated : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (before after : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (slots : Fin before.state.base.slots → Fin after.state.base.slots),
+  (∀ (slot : Fin before.state.base.slots), after.state.base.source (slots slot) = before.state.base.source slot) →
+    after.state.seed = before.state.seed →
+      Yulang.GeneralNominalRecursiveCandidates.Metadata registry after →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalState.Models after.state model →
+            ∀ (tree : Yulang.GeneralSourceDictionaries.Dictionary roles),
+              Yulang.GeneralSourceDictionaries.Evidence
+                  (Yulang.GeneralDictionaryRecursiveEvidence.Instance registry before model) tree →
+                Yulang.GeneralDictionaryRecursive168Transport.RelocatesTree registry before after slots tree →
+                  Yulang.GeneralSourceDictionaries.Evidence
+                    (Yulang.GeneralDictionaryRecursiveEvidence.Instance registry after model) tree
+@Yulang.GeneralDictionaryRecursive168Transport.erased_relocated : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (before after : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (slots : Fin before.state.base.slots → Fin after.state.base.slots),
+  (∀ (slot : Fin before.state.base.slots), after.state.base.source (slots slot) = before.state.base.source slot) →
+    after.state.seed = before.state.seed →
+      Yulang.GeneralNominalRecursiveCandidates.Metadata registry after →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalState.Models after.state model →
+            ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+              (payload : Yulang.GeneralDictionaryReadback.Payload)
+              (tree : Yulang.GeneralSourceDictionaries.Dictionary roles),
+              Yulang.GeneralSourceDictionaries.Readback root payload tree →
+                Yulang.GeneralSourceDictionaries.Evidence
+                    (Yulang.GeneralDictionaryRecursiveEvidence.Instance registry before model) tree →
+                  Yulang.GeneralDictionaryRecursive168Transport.RelocatesTree registry before after slots tree →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after model root payload
+'Yulang.GeneralDictionaryCapturedTree168Transport.locality' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCapturedTree168Transport.tree_locality' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedTree168Transport.stored_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedTree168Transport.old_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCapturedTree168Transport.actual_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedTree168Transport.actual_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+AXIOM-GATE-PASS: 7 declarations

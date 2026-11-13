@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionary168SourceGuard
+#print axioms Yulang.GeneralDictionary168SourceGuard.head_extension
+#print axioms Yulang.GeneralDictionary168SourceGuard.ready_steps
+#print axioms Yulang.GeneralDictionary168SourceGuard.reads_extended
+#print axioms Yulang.GeneralDictionary168SourceGuard.readsMany_extended
+#print axioms Yulang.GeneralDictionary168SourceGuard.decision_steps
+#print axioms Yulang.GeneralDictionary168SourceGuard.evidence_and_guard_steps
+#print axioms Yulang.GeneralDictionary168SourceGuard.container_install_ordinary
+#print axioms Yulang.GeneralDictionary168SourceGuard.source_consumer_guard
+#print axioms Yulang.GeneralDictionary168SourceGuard.source_consumer_continuation
+#print axioms Yulang.GeneralDictionary168SourceGuard.source_consumer_nonvacuous

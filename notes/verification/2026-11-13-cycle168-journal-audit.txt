@@ -1,0 +1,100 @@
+'Yulang.GeneralDictionaryRecorded168Relocation.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecorded168Relocation.recorded_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRecorded168Relocation.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecorded168Relocation.of_recorded_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRecorded168Relocation.recorded_current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecorded168Relocation.discharged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedJournal168.relocation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCapturedJournal168.journal_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCapturedJournal168.current_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedJournal168.nonvacuous_journal_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+AXIOM-GATE-PASS: 28 declarations
+@Yulang.GeneralDictionaryRecorded168Relocation.current_instance : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ state.current.packets →
+        Yulang.GeneralDictionaryRecorded168Relocation.Relocates registry state packet →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.current.context model
+                packet.site.occurrence packet.declaration.id packet.children
+@Yulang.GeneralDictionaryRecorded168Relocation.recorded_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload},
+  Yulang.GeneralDictionaryRecorded168Relocation.RelocatedTree registry state occurrence payload →
+    Yulang.GeneralDictionarySharedRecordedTree.RecordedTree state.current occurrence payload
+@Yulang.GeneralDictionaryRecorded168Relocation.current_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    Yulang.GeneralDictionaryRecorded168Relocation.RelocatedTree registry state occurrence payload →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models state.current model →
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model occurrence payload
+@Yulang.GeneralDictionaryRecorded168Relocation.of_recorded_tree : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles},
+  (∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ state.current.packets → Yulang.GeneralDictionaryRecorded168Relocation.Relocates registry state packet) →
+    Yulang.GeneralDictionarySharedRecordedTree.RecordedTree state.current occurrence payload →
+      Yulang.GeneralDictionaryRecorded168Relocation.RelocatedTree registry state occurrence payload
+@Yulang.GeneralDictionaryRecorded168Relocation.recorded_current_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    (∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+        packet ∈ state.current.packets →
+          Yulang.GeneralDictionaryRecorded168Relocation.Relocates registry state packet) →
+      Yulang.GeneralDictionarySharedRecordedTree.RecordedTree state.current occurrence payload →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models state.current model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model occurrence payload
+@Yulang.GeneralDictionaryRecorded168Relocation.discharged : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload},
+  Yulang.GeneralDictionaryRecorded168Relocation.RelocatedTree registry state occurrence payload →
+    Yulang.GeneralNominalSupport.Discharged state.current occurrence
+Yulang.GeneralDictionaryCapturedJournal168.relocation : Yulang.GeneralDictionaryRecorded168Relocation.Relocates
+  Yulang.GeneralDictionarySharedCapturedTargets.registry Yulang.GeneralDictionarySharedCapturedResumption.observed
+  Yulang.GeneralDictionarySharedCapturedProducer.candidate
+Yulang.GeneralDictionaryCapturedJournal168.journal_tree : Yulang.GeneralDictionaryRecorded168Relocation.RelocatedTree
+  Yulang.GeneralDictionarySharedCapturedTargets.registry Yulang.GeneralDictionarySharedCapturedResumption.observed
+  Yulang.GeneralDictionarySharedCapturedTargets.producer
+  (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionarySharedCapturedProducer.declaration.id [])
+Yulang.GeneralDictionaryCapturedJournal168.current_dictionary : ∀
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current model →
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionarySharedCapturedTargets.registry
+      Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context model
+      Yulang.GeneralDictionarySharedCapturedTargets.producer
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionarySharedCapturedProducer.declaration.id
+        [])
+Yulang.GeneralDictionaryCapturedJournal168.nonvacuous_journal_replay : Yulang.GeneralNominalSharedSteps.SourceFormed
+    Yulang.GeneralDictionarySharedCapturedTargets.registry Yulang.GeneralDictionarySharedCapturedTargets.root
+    Yulang.GeneralDictionarySharedCapturedResumption.observed ∧
+  Yulang.GeneralDictionaryRecorded168Relocation.RelocatedTree Yulang.GeneralDictionarySharedCapturedTargets.registry
+      Yulang.GeneralDictionarySharedCapturedResumption.observed Yulang.GeneralDictionarySharedCapturedTargets.producer
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionarySharedCapturedProducer.declaration.id
+        []) ∧
+    ∃ model,
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+          model ∧
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionarySharedCapturedTargets.registry
+          Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context model
+          Yulang.GeneralDictionarySharedCapturedTargets.producer
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node
+            Yulang.GeneralDictionarySharedCapturedProducer.declaration.id [])

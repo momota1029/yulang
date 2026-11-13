@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionaryOrdinary168Relocation
+#print axioms Yulang.GeneralDictionaryOrdinary168Relocation.report_is_move
+#print axioms Yulang.GeneralDictionaryOrdinary168Relocation.extension_at
+#print axioms Yulang.GeneralDictionaryOrdinary168Relocation.packet_relocates

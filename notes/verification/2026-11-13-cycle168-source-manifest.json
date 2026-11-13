@@ -1,0 +1,113 @@
+{
+  "modules": [
+    {
+      "path": "lean/Yulang/GeneralDictionary168SourceGuard.lean",
+      "blob": "e333375632d570b2659d351faa0d6744c07e51cd",
+      "theorems": [
+        "Yulang.GeneralDictionary168SourceGuard.head_extension",
+        "Yulang.GeneralDictionary168SourceGuard.ready_steps",
+        "Yulang.GeneralDictionary168SourceGuard.reads_extended",
+        "Yulang.GeneralDictionary168SourceGuard.readsMany_extended",
+        "Yulang.GeneralDictionary168SourceGuard.decision_steps",
+        "Yulang.GeneralDictionary168SourceGuard.evidence_and_guard_steps",
+        "Yulang.GeneralDictionary168SourceGuard.container_install_ordinary",
+        "Yulang.GeneralDictionary168SourceGuard.source_consumer_guard",
+        "Yulang.GeneralDictionary168SourceGuard.source_consumer_continuation",
+        "Yulang.GeneralDictionary168SourceGuard.source_consumer_nonvacuous"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryActual168Transport.lean",
+      "blob": "9614ec82fd1605c3dbe9716d0c5fd4eaa4938e3e",
+      "theorems": [
+        "Yulang.GeneralDictionarySource168Transport.actual_schemas",
+        "Yulang.GeneralDictionarySource168Transport.actual_sources",
+        "Yulang.GeneralDictionarySource168Transport.actual_seed",
+        "Yulang.GeneralDictionarySource168Transport.actual_producer_branch",
+        "Yulang.GeneralDictionarySource168Transport.actual_current_evidence"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryCapturedJournal168.lean",
+      "blob": "3b0f31802cdab23b79def7b4dfab729fe3603a61",
+      "theorems": [
+        "Yulang.GeneralDictionaryCapturedJournal168.relocation",
+        "Yulang.GeneralDictionaryCapturedJournal168.journal_tree",
+        "Yulang.GeneralDictionaryCapturedJournal168.current_dictionary",
+        "Yulang.GeneralDictionaryCapturedJournal168.nonvacuous_journal_replay"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryCapturedTree168Transport.lean",
+      "blob": "3d154afb508ee2f5a09452c9650641dfc3475f50",
+      "theorems": [
+        "Yulang.GeneralDictionaryCapturedTree168Transport.locality",
+        "Yulang.GeneralDictionaryCapturedTree168Transport.tree_locality",
+        "Yulang.GeneralDictionaryCapturedTree168Transport.stored_instance",
+        "Yulang.GeneralDictionaryCapturedTree168Transport.old_tree",
+        "Yulang.GeneralDictionaryCapturedTree168Transport.actual_tree",
+        "Yulang.GeneralDictionaryCapturedTree168Transport.actual_payload"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryMixed168Display.lean",
+      "blob": "bd8696e8269edfb9f8e69859a670e4de4b4ea964",
+      "theorems": [
+        "Yulang.GeneralDictionaryMixed168Display.parent_relocates",
+        "Yulang.GeneralDictionaryMixed168Display.structural_tree",
+        "Yulang.GeneralDictionaryMixed168Display.interpreted_dictionary",
+        "Yulang.GeneralDictionaryMixed168Display.mixed_not_recorded",
+        "Yulang.GeneralDictionaryMixed168Display.nonvacuous_interpretation"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryMixed168Tree.lean",
+      "blob": "1c2b546c9eafccad75a7d3c3c7c66e2ee9e907d9",
+      "theorems": [
+        "Yulang.GeneralDictionaryMixed168Tree.current_evidence",
+        "Yulang.GeneralDictionaryMixed168Tree.of_relocated_tree"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryOrdinary168Relocation.lean",
+      "blob": "a8d85decfcaafa2574ff619122c51c1b015ae4bc",
+      "theorems": [
+        "Yulang.GeneralDictionaryOrdinary168Relocation.report_is_move",
+        "Yulang.GeneralDictionaryOrdinary168Relocation.extension_at",
+        "Yulang.GeneralDictionaryOrdinary168Relocation.packet_relocates"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryRecorded168Relocation.lean",
+      "blob": "ad8a9f3b4b0a99ce54b2e1e4442993c3eeeb8ba9",
+      "theorems": [
+        "Yulang.GeneralDictionaryRecorded168Relocation.current_instance",
+        "Yulang.GeneralDictionaryRecorded168Relocation.recorded_tree",
+        "Yulang.GeneralDictionaryRecorded168Relocation.current_evidence",
+        "Yulang.GeneralDictionaryRecorded168Relocation.of_recorded_tree",
+        "Yulang.GeneralDictionaryRecorded168Relocation.recorded_current_evidence",
+        "Yulang.GeneralDictionaryRecorded168Relocation.discharged"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryRecursive168Transport.lean",
+      "blob": "e52ba949d9773de7c2b7e93c35c3a10821939936",
+      "theorems": [
+        "Yulang.GeneralDictionaryRecursive168Transport.children_seed",
+        "Yulang.GeneralDictionaryRecursive168Transport.instance_relocated",
+        "Yulang.GeneralDictionaryRecursive168Transport.indexed_relocated",
+        "Yulang.GeneralDictionaryRecursive168Transport.erased_relocated"
+      ]
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySource168Transport.lean",
+      "blob": "681fce9521ae60c553929608b0ab0367965773aa",
+      "theorems": [
+        "Yulang.GeneralDictionarySource168Transport.capture_seed",
+        "Yulang.GeneralDictionarySource168Transport.branch_relocated",
+        "Yulang.GeneralDictionarySource168Transport.node_relocated"
+      ]
+    }
+  ],
+  "public_theorems": 48
+}
