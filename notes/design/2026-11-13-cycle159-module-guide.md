@@ -21,6 +21,9 @@
   variable use; old/new schema and BranchModels. Operational reachability of the new
   output-bearing root is NOT established.
 
+- SemanticCollapsePointBoundary: shared actual Fits alone does not imply equivalent lower
+  endpoints. This is not a counterexample to reobserve soundness.
+
 ## Why terminal is material
 `terminal_no_output_binders` proves a Checked/Produced declaration with no requirements
 has no produced output binders. The named associated root request in OutputExample is
@@ -45,3 +48,31 @@ does not show arbitrary produced-output allocation transport.
    old branch/recorded origin premises hold in that model.
 
 Full-language completeness, execution, halting and V5's remaining eight fields stay open.
+
+## Concrete next attempt: mode-sensitive one-way replay
+The endpoint-equivalence footprint is stronger than the direction needed by
+`Models old → Models current`. For an `.actual` variable request, the needed
+statement is only `Fits oldCapture actual → Fits currentCapture actual`.
+Dropping one of two occurrences keeps the first occurrence, so the existing
+`capture_interval_exact` should give that implication without equivalent leaf
+endpoints. `.lower` and `.upper` requests still need stronger information.
+
+Inspection of GeneralNominalMaterialization confirms rootRequests explicitly creates
+.actual requests; structural schema recursion preserves its mode and nominal recursion
+resets to .actual. A next cycle can formalize this mutual invariant and prove a separate
+one-way replay theorem, rather than weakening the present equivalence theorem.
+For a terminal Shape branch, current selfChecks at the retained nonpoint leaf
+should be recoverable from old selfChecks instead of the reflexivity proof used
+here. The current ProjectionModels theorem already retains old origin checks.
+These are a proposed proof decomposition, NOT a completed nonpoint-branch theorem.
+The PointBoundary counterexample does not refute this mode-sensitive direction.
+
+## Operational evidence quantifier checkpoint
+The concrete reobserve fixture starts with no installed packets. Its old repeated
+capture allocates fresh merge identities, and the explicit assignment supplies their
+int values. This gives a genuine branch model, but the proof is not a theorem that
+all models of the raw source satisfy those private equations. Do not replace the
+model-indexed `reachable_evidence` by a universal claim in a report or wrapper.
+The existing historical-evidence path needs committed/recorded branch constraints;
+this cycle supplies the semantic transport component and nonvacuous tests, not that
+universal historical premise for arbitrary reachable/reobserved states.
