@@ -414,3 +414,17 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Item 4k: captured-value provenance](2026-11-13-general-nominal-value-provenance.md) — Partial: exact checked/source fixture, additive child-value guard, all-Step depth-zero preservation; stress execution and budget remain open.
 - [Captured-value provenance module guide](2026-11-13-general-nominal-value-provenance-module-guide.md) — Ten additive modules and their audit part.
+
+- [2026-11-13-cycle154-finite-observed-example](2026-11-13-cycle154-finite-observed-example.md) — cycle154 条件付き辞書健全性・検証例。
+
+- [2026-11-13-cycle154-historical-request-models](2026-11-13-cycle154-historical-request-models.md) — cycle154 条件付き辞書健全性・検証例。
+
+- [2026-11-13-cycle154-historical-tree-branch](2026-11-13-cycle154-historical-tree-branch.md) — cycle154 条件付き辞書健全性・検証例。
+
+- [2026-11-13-cycle154-historical-value-requests](2026-11-13-cycle154-historical-value-requests.md) — cycle154 条件付き辞書健全性・検証例。
+
+- [2026-11-13-cycle154-value-evidence](2026-11-13-cycle154-value-evidence.md) — cycle154 条件付き辞書健全性・検証例。
+
+- [2026-11-13-cycle154-module-guide](2026-11-13-cycle154-module-guide.md) — cycle154 条件付き辞書健全性・検証例。
+
+- [2026-11-13-cycle154-recorded-requests](2026-11-13-cycle154-recorded-requests.md) — cycle154 条件付き辞書健全性・検証例。
