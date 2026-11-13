@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryRequestSnapshot
+#print axioms Yulang.GeneralDictionaryRequestSnapshot.canonical_requests
+#print axioms Yulang.GeneralDictionaryRequestSnapshot.requests_bindings
+#print axioms Yulang.GeneralDictionaryRequestSnapshot.requests_revision
+#print axioms Yulang.GeneralDictionaryRequestSnapshot.generated_revision
+#print axioms Yulang.GeneralDictionaryRequestSnapshot.ready_revision

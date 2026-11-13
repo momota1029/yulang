@@ -2444,3 +2444,4 @@ import Yulang.GeneralDictionaryNonpointCertifiedOutput
 import Yulang.GeneralDictionaryNonpointOperationalEvidence
 
 import Yulang.GeneralDictionaryEmissionRequestIdentity
+import Yulang.GeneralDictionaryRequestSnapshot

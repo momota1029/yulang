@@ -1,6 +1,6 @@
 import Yulang.GeneralDictionarySemanticSchemaTransport
 
-/-! Actual-mode schemas admit directional capture replay. Root output requests
+/-! Actual-mode schemas allow directional capture replay. Root output requests
 use actual mode; compound emitted inputs may use lower/upper and are excluded. -/
 namespace Yulang.GeneralDictionaryActualSchema
 open GeneralDeclarations GeneralDeclarationDemands GeneralNominalMaterialization
