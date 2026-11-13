@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryValueRecordedCoverageLimit
+#print axioms Yulang.GeneralDictionaryValueRecordedCoverageLimit.value_step
+#print axioms Yulang.GeneralDictionaryValueRecordedCoverageLimit.reachable
+#print axioms Yulang.GeneralDictionaryValueRecordedCoverageLimit.stable
+#print axioms Yulang.GeneralDictionaryValueRecordedCoverageLimit.leaf_selected
+#print axioms Yulang.GeneralDictionaryValueRecordedCoverageLimit.stable_selected_unrecorded

@@ -2380,3 +2380,11 @@ import Yulang.GeneralDictionaryHistoricalNominalRefreshExample
 import Yulang.GeneralDictionaryHistoricalNominalTree
 
 import Yulang.GeneralDictionaryHistoricalRefreshSelection
+
+import Yulang.GeneralDictionaryReobservationRefinementGap
+import Yulang.GeneralDictionaryValueRecordedCoverageLimit
+
+import Yulang.GeneralDictionaryRevisionArgumentBridge
+import Yulang.GeneralDictionaryRevisionParameterCoverage
+
+import Yulang.GeneralDictionaryMixedHistoricalExample

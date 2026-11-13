@@ -1,0 +1,3 @@
+import Yulang.GeneralDictionaryRevisionParameterCoverage
+#print axioms Yulang.GeneralDictionaryRevisionParameterCoverage.arity
+#print axioms Yulang.GeneralDictionaryRevisionParameterCoverage.parameter_covered
