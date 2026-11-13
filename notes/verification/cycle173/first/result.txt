@@ -1,0 +1,1 @@
+Focused dependency rebuild44 modules PASS. New7 source modules trust0 PASS.8 audit files PASS, dependency axiom gate89 declarations PASS. Whole lake build and verify-lean.sh intentionally not run per standing orders.

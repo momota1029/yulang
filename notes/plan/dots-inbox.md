@@ -278,3 +278,10 @@ Astra の新しい終了性の分析（`notes/design/2026-11-13-termination-fres
 - 公開済みのファイルは、前のサイクルのものでも**追記のみ**。既存の行（`set_option`、simp の引数、`wanted` のリストを含む）は書き換えない。
 - 新しいモジュールの公理チェックは、新しい `lean/Audit/<名前>.lean` に書く（既存の監査ファイルの `wanted` には足さない）。
 - 戻した結果、`GeneralDictionarySharedCapturedInputReady` と `GeneralDictionarySharedCapturedProducer` は、サイクル 166 の監査パートには入っていない可能性がある。`tools/AxiomGate.lean` が全宣言を検査しているので公理は確認済みだが、次のサイクルで新しい監査ファイルに入れておくこと。
+
+## I-28: 終了性が示された Step に合わせる（監督役, 2026-11-14）
+
+Astra が、根の入力がソースで決まった型（ground root）のとき、実際の検査つき Step（`GeneralNominalActualInspectionSteps.Step`）が止まることを前提なしで証明した（`GeneralNominalGroundHeadMatching.ground_class_p_accessible`）。この Step は、片付いていない出力の保留（I-26）、区間の共有の保持、実際に調べる位置での K2 を含む。
+- V5 の骨格への差し込み口は `GeneralNominalActualBoundary.boundary`（ground 版は `groundBoundary`、点のソース版は `GeneralNominalActualPhaseBoundary.boundary`）。6 本の構造フィールドと ground の progress は証明済み。
+- 今後の `evidenceNode`・`generatedChildren`・`treeExecution` などは、この境界の Step と `Stable` に向けて証明すること（古い feedback / value / settled の境界は消さないが、新しい成果はこちらを対象にする）。
+- 局所の分類（Local / pending / K2）を新しい検査（shared generation、actual-position Safe / AlternativesSafe）にそろえる作業は、監督役が別の Astra に頼んでいる。dot はその定義を待たずに、既存の `Local` で示せる部分から進めてよい。食い違いを見つけたら報告に書くこと。

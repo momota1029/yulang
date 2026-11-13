@@ -1,0 +1,24 @@
+import Yulang.GeneralDictionary172CoverageSyntax
+
+#check Yulang.GeneralDictionary172CoverageSyntax.leafArguments
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.leafArguments
+#check Yulang.GeneralDictionary172CoverageSyntax.leafArguments_exact
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.leafArguments_exact
+#check Yulang.GeneralDictionary172CoverageSyntax.recognize
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.recognize
+#check Yulang.GeneralDictionary172CoverageSyntax.recognize_nominal
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.recognize_nominal
+#check Yulang.GeneralDictionary172CoverageSyntax.recognize_sound
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.recognize_sound
+#check Yulang.GeneralDictionary172CoverageSyntax.recognize_complete
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.recognize_complete
+#check Yulang.GeneralDictionary172CoverageSyntax.recognize_exact
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.recognize_exact
+#check Yulang.GeneralDictionary172CoverageSyntax.recognize_false
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.recognize_false
+#check Yulang.GeneralDictionary172CoverageSyntax.recognized_spine
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.recognized_spine
+#check Yulang.GeneralDictionary172CoverageSyntax.nested_recognized
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.nested_recognized
+#check Yulang.GeneralDictionary172CoverageSyntax.computed_nested
+#print axioms Yulang.GeneralDictionary172CoverageSyntax.computed_nested
