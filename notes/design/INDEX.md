@@ -485,3 +485,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Direct centered ground-root accessibility](2026-11-14-centered-direct-accessibility.md) — Unrestricted centered Step accessibility from ground point roots, actual terminal executions, six structural V5 transfers, namespace/nested-use invariants, and conditional selected-plan/where bridges; full guard availability and the P/W trace remain open.
 - [Cycle175 recursive evidence after refining histories](2026-11-14-cycle175-dictionary-completion.md)
 - [Cycle175 table certificate](2026-11-14-cycle175-table-certificate.md)
+- [2026-11-14 Centered ground composition](2026-11-14-centered-ground-composition.md) — ten V5 fields, a reachable selection/installation obstruction, general center model extension, and conditional P/W ledger rejection; source execution remains open.
