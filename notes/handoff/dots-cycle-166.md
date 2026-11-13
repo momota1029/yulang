@@ -66,7 +66,7 @@ V5の継承した会計は **8/14、未完** のまま。全Shared境界のevide
 - 途中公開 `8d87dee4a54f8e88192fbbc60791078e69bc8ce7` は最新integrationを第二親に含む。
 - source公開 `b4ca7904590a46793d6bc2e2f829e999848d7eab` と凍結local `b6a32fbf4977989644f17c84a3ce1d131be945b6` の全tree一致（心拍以外）を確認。
 - 焦点を絞ったlake buildのみ。upstream714、準備/refresh706、最終組合せ715 cache-inclusive jobs、すべてexit0。全repo buildや巨大Audit.leanは実行していない。
-- 新規10module、84public theoremの型を索引化。新しい依存gateはprivate/generatedを含め185宣言、標準 `propext / Classical.choice / Quot.sound` のみ。run_cmdは検査だけのauditコードでありproductionではない。
+- 第2公開時点の新規10module、84public theoremの型を索引化。新しい依存gateはprivate/generatedを含め185宣言、標準 `propext / Classical.choice / Quot.sound` のみ。run_cmdは検査だけのauditコードでありproductionではない。
 - 個別コンパイル中、sourceファイルへの出力先の階層を誤った操作はファイル未作成で失敗し、正しい場所で再実行した。Resumptionのpacket所属でappendとconsを取り違えた証明を修正。unused simp警告は引数を除去して直し、最終--wfail成功。
 - 最初のtree作成は入口の末尾改行を転送時に変えてしまいblob SHA不一致で422になった。元ファイルの正確なbytesを再送し、treeを再作成して一致確認。誤ったtreeは公開していない。
 - diff-only gateで新規docstringの英単語admitをtacticと誤検知。意味を変えずhaveへ修正。上流integration基準では、前回165から既に公開されていたaudit追加とInstallableのlint修正がappend-only検査に抵触する。今回の新規変更とは分け、既存証明や監査範囲を戻さず維持した。今回の統合時点db221e731を基準とする検査結果と、上流基準の失敗全文を両方保存する。
@@ -84,3 +84,13 @@ V5の継承した会計は **8/14、未完** のまま。全Shared境界のevide
 ### 最終contextでの限定した追加
 
 `GeneralDictionarySharedCapturedFinalProducer` により、scalarContextで再構成したproducer packetの正確なreport、Finished、二重capture bindingsを証明した。新規総数は11module・87public theorem。これは検査の再構成だけで、最終contextのBranchModels/Evidenceではない。後者の依存型を広いsimpで正規化する実験2回はメモリ制約で停止した。失敗コードは公開せず、定義を弱めたり、新しい仮定で完成扱いしたりしない。各定理の日本語の量化・前提を3本の `cycle166-*-theorems.md` に記載した。
+
+## 最終source・再実行台帳
+
+最終source公開 `24d07fe6408f0214f5ecb29989cb91ff4e75e714`、local `264527ffdc0a29a6914bc9beac271baa6c4b1d2d`。公開commitを再取得し、心拍を除く全tree一致とintegrationの祖先関係を確認した。変更Lean39ファイル全てのbytes/git blob/SHA256を公開checkoutと照合し一致。manifestは `notes/verification/2026-11-13-cycle166-source-manifest.json`。
+
+14:04 UTC、公開最終sourceの **26変更module（今回11＋監督役統合15）をすべて別出力libraryでsourceから --trust=0 再コンパイル**し、全10個のCycle166 auditと監督役2auditを再実行、exit0。依存gateは **190宣言**、標準3公理のみ。87public theoremの型も出力成功。全文は `...-final-public-replay.txt`。最後のfocused buildは716 cache-inclusive jobs、exit0、`...-final-focused-build.txt`。
+
+今回だけの変更を統合時点db221e731から検査したdiff-only gateはPASS（audit-only run_cmdのREVIEW1件）。上流integration基準の継承差分による失敗も隠さず別ログを残した。本文記載の新規docstring誤検知は修正済みで、最終sourceには影響しない。全repo検証PASSは主張しない。
+
+定理担当の書き込み・検証処理は終了。最終contextの検査結果だけは再構成できたが、BranchModels/Evidenceの輸送とconsumerのtrusted aliasは次回へ残す。終了心拍とartifact公開の最終hashは会話の報告に記す。
