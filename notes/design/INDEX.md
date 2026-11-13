@@ -400,3 +400,14 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Item 4j: general nominal generation-budget checks](2026-11-13-general-nominal-budget.md) — Partial: actual Container and P/C/W installations, observation-depth transport, bounded measure obstructions; L5–L7 and progress remain open.
 - [General nominal budget module guide](2026-11-13-general-nominal-budget-module-guide.md) — Five additive modules and their separate audit part.
+- [Cycle152 observed recursive evidence](2026-11-12-cycle152-observed-recursive-evidence.md) — conditional soundness.
+- [Cycle152 observed initial example](2026-11-12-cycle152-observed-initial.md) — actual InitialSource.
+- [Cycle152 observed request transport](2026-11-12-cycle152-observed-request-transport.md) — ordinary-only trace.
+
+- [Cycle152 named output complete example](2026-11-12-cycle152-observed-complete.md) — exact stated scope.
+- [Cycle152 alias installation obstruction](2026-11-12-cycle152-alias-install-obstruction.md) — necessary condition only.
+- [Cycle152 module guide](dots-cycle152-module-guide.md).
+
+- [Cycle152 closed observed requests](2026-11-12-cycle152-closed-observed-requests.md) — conditional non-scalar materialization.
+
+- [Cycle152 arbitrary finite arity requests](2026-11-12-cycle152-finite-arity-observed-requests.md) — materialization only.
