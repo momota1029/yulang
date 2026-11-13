@@ -2,11 +2,9 @@ import Yulang.GeneralDictionaryIdentityCurrentEvidence
 import Yulang.GeneralDictionaryIdentityEvidenceExample
 import Yulang.GeneralDictionaryIdentityRefreshExample
 import Yulang.GeneralDictionarySharedCapturedGuards
-import Yulang.GeneralDictionarySharedCapturedInputReady
 import Yulang.GeneralDictionarySharedCapturedInstallable
 import Yulang.GeneralDictionarySharedCapturedInstallation
 import Yulang.GeneralDictionarySharedCapturedModel
-import Yulang.GeneralDictionarySharedCapturedProducer
 import Yulang.GeneralDictionarySharedCapturedRefresh
 import Yulang.GeneralDictionarySharedMetadata
 import Yulang.GeneralDictionarySharedOrdinaryHistory
@@ -16,7 +14,7 @@ open Lean Elab Command in
 run_cmd do
   let environment ← getEnv
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
-  let wanted : List Name := [`Yulang.GeneralDictionaryIdentityCurrentEvidence, `Yulang.GeneralDictionaryIdentityEvidenceExample, `Yulang.GeneralDictionaryIdentityRefreshExample, `Yulang.GeneralDictionarySharedCapturedGuards, `Yulang.GeneralDictionarySharedCapturedInputReady, `Yulang.GeneralDictionarySharedCapturedInstallable, `Yulang.GeneralDictionarySharedCapturedInstallation, `Yulang.GeneralDictionarySharedCapturedModel, `Yulang.GeneralDictionarySharedCapturedProducer, `Yulang.GeneralDictionarySharedCapturedRefresh, `Yulang.GeneralDictionarySharedMetadata, `Yulang.GeneralDictionarySharedOrdinaryHistory, `Yulang.GeneralDictionarySharedSourceRetention]
+  let wanted : List Name := [`Yulang.GeneralDictionaryIdentityCurrentEvidence, `Yulang.GeneralDictionaryIdentityEvidenceExample, `Yulang.GeneralDictionaryIdentityRefreshExample, `Yulang.GeneralDictionarySharedCapturedGuards, `Yulang.GeneralDictionarySharedCapturedInstallable, `Yulang.GeneralDictionarySharedCapturedInstallation, `Yulang.GeneralDictionarySharedCapturedModel, `Yulang.GeneralDictionarySharedCapturedRefresh, `Yulang.GeneralDictionarySharedMetadata, `Yulang.GeneralDictionarySharedOrdinaryHistory, `Yulang.GeneralDictionarySharedSourceRetention]
   let mut checked : Nat := 0
   for (name, _) in environment.constants.toList do
     if let some index := environment.getModuleIdxFor? name then

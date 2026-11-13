@@ -1,0 +1,29 @@
+import Yulang.GeneralNominalSourceFactorization
+import Yulang.GeneralNominalFrontierReadback
+import Yulang.GeneralNominalSchemaVocabulary
+
+#print axioms Yulang.GeneralNominalStructuralReadback.record_payload
+#print axioms Yulang.GeneralNominalStructuralReadback.shape_payload
+#print axioms Yulang.GeneralNominalStructuralReadback.actual_structural_readback
+#print axioms Yulang.GeneralNominalFrontierReadback.source_walk_survives
+#print axioms Yulang.GeneralNominalRecipeBounds.recipe_enumerated
+#print axioms Yulang.GeneralNominalRecipeBounds.weight_depth
+#print axioms Yulang.GeneralNominalRecipeBounds.weight_bind
+#print axioms Yulang.GeneralNominalSchemaBudget.request_menu
+#print axioms Yulang.GeneralNominalSchemaBudget.uniform_packet_weight
+#print axioms Yulang.GeneralNominalSchemaVocabulary.recipe_vocabulary
+#print axioms Yulang.GeneralNominalPatersonLineage.instantiated_child
+#print axioms Yulang.GeneralNominalPatersonLineage.reachable_depth
+#print axioms Yulang.GeneralNominalSettlementHeight.within_discharged
+#print axioms Yulang.GeneralNominalSettlementHeight.discharged_height
+#print axioms Yulang.GeneralNominalSettlementHeight.packet_height
+#print axioms Yulang.GeneralNominalSettledGrowth.assembly_bound
+#print axioms Yulang.GeneralNominalSettledGrowth.uniform_certificate_growth
+#print axioms Yulang.GeneralNominalSourceFactorization.expression_bounded
+#print axioms Yulang.GeneralNominalSourceFactorization.assembled_replacement
+#print axioms Yulang.GeneralNominalSourceFactorization.replay
+#print axioms Yulang.GeneralNominalSourceFactorization.root_budget
+#print axioms Yulang.GeneralNominalSourceFactorization.installed_depth_bound
+#print axioms Yulang.GeneralNominalSourceFactorization.accessible
+#print axioms Yulang.GeneralNominalSourceFactorization.sourceBudget_of_producer
+#print axioms Yulang.GeneralNominalSourceFactorization.class_p_accessible

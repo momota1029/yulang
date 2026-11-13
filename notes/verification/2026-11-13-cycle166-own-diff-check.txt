@@ -1,8 +1,8 @@
-verify-lean: . @ 264527ffdc (base db221e731)
+verify-lean: . @ 2137498ca2 (base db221e731)
 ok: no removed lines in lean/ since db221e731
 ok: no sorry/native_decide/axiom-like constructs in added lines
 REVIEW: metaprogramming/#eval in added lines (a human must read these):
-78:+run_cmd do
+77:+run_cmd do
 ok: lake config unchanged (or only SpecExamples*/Main* libs added)
 ok: new files are Yulang modules only
 ok: lean/Audit.lean only appended (plus top import lines)
