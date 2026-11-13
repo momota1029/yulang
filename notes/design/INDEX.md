@@ -462,3 +462,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Ground capture assembly after full-report readback (2026-11-14)](2026-11-14-ground-capture-assembly.md) — actual fallback readbacks, simultaneous source labels, normalized descent; general Acc remains conditional.
 
 - [Cycle171 recursive named-spine coverage](2026-11-13-cycle171-spine-coverage.md) — Draft: recursive certificate and ordinary transport.
+- [Actual-inspection B4 boundary and fixed-hole phases](2026-11-14-actual-boundary-hole-phases.md) — Six operational V5 transfers, ground progress/terminal existence, source-indexed root readback, snapshot enumeration and conditional phase Acc; general unknown-hole readback remains open.
