@@ -1,0 +1,110 @@
+{
+  "base": "8d83c0c2690584834d0fd78e1915895e41e44f7e",
+  "verified_public_source": "4e96f96fa20d69c748178c001e23f055f7d86961",
+  "local_final_import_commit": "2ec3fa0bed",
+  "modules": 10,
+  "public_theorems": 76,
+  "public_replay_modules": 33,
+  "dependency_gate_declarations": [
+    177,
+    14
+  ],
+  "entries": [
+    {
+      "path": "lean/Audit/Cycle167AllPublicAxioms.lean",
+      "git_blob_sha": "c8d023bfa55f6eb592e510827d9f2eb7b30c8def"
+    },
+    {
+      "path": "lean/Audit/Cycle167CapturedAliasCountermodel.lean",
+      "git_blob_sha": "d273a858e20b9cb4d11c4619bf89d966cb196c89"
+    },
+    {
+      "path": "lean/Audit/Cycle167CapturedInputCountermodel.lean",
+      "git_blob_sha": "9b54bee1d849187d7132c38ba08d1be4b47bfabd"
+    },
+    {
+      "path": "lean/Audit/Cycle167CapturedSettledProducerTrust.lean",
+      "git_blob_sha": "07c486a1addaab045c6eb70491c84e9a487d82e1"
+    },
+    {
+      "path": "lean/Audit/Cycle167CapturedSettlement.lean",
+      "git_blob_sha": "2f7e8c9c89ac5cd64c14df12b18515efab32df17"
+    },
+    {
+      "path": "lean/Audit/Cycle167DependencyGate.lean",
+      "git_blob_sha": "29c3b841f7802be131a5318d8cbb807939bc02ed"
+    },
+    {
+      "path": "lean/Audit/Cycle167EvidenceDelay.lean",
+      "git_blob_sha": "d7983c1179126a540efd5e026e6e5acb30d16300"
+    },
+    {
+      "path": "lean/Audit/Cycle167FinalEvidence.lean",
+      "git_blob_sha": "929e2d7405a97027f44407911819e420573bc08d"
+    },
+    {
+      "path": "lean/Audit/Cycle167InheritedCapturedCoverage.lean",
+      "git_blob_sha": "ff7558d7985f9d3f72ad56c12fa112dbef4d4321"
+    },
+    {
+      "path": "lean/Audit/Cycle167InstallationBlocked.lean",
+      "git_blob_sha": "893aa2ad26d006c019fa5bbd2bba92eb44d7d7b7"
+    },
+    {
+      "path": "lean/Audit/Cycle167PromotionGateAndTypes.lean",
+      "git_blob_sha": "32ea0791653d1920bff8b1d7812bfdb51a184835"
+    },
+    {
+      "path": "lean/Audit/Cycle167PublicTypes.lean",
+      "git_blob_sha": "4f5d75a971a5c16d764ee126def46cc1cdc45a1d"
+    },
+    {
+      "path": "lean/Audit/Cycle167ReportTransport.lean",
+      "git_blob_sha": "7a4c2ffb0cb3a164989844fde367210c2cb99da1"
+    },
+    {
+      "path": "lean/Yulang.lean",
+      "git_blob_sha": "95dfd611a170663f6100585bab3eb10b400afc38"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryCapturedAliasCountermodel.lean",
+      "git_blob_sha": "7fceec928d860140e4606478b446fec641e4f34d"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryCapturedEvidenceDelay.lean",
+      "git_blob_sha": "cd0957883aa898c76c78d345c57e389302fb1e3c"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryCapturedInputCountermodel.lean",
+      "git_blob_sha": "44fdfd84802894cad15a3439ba1605c449243b88"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryCapturedInstallationBlocked.lean",
+      "git_blob_sha": "bfcefb34fb8eaca108fbc81a797e4d23a1fad524"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryCapturedSettledProducerTrust.lean",
+      "git_blob_sha": "d08fe6d2651a552b7806ab2efa929ce4bf16f85b"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryCapturedSettlementBoundary.lean",
+      "git_blob_sha": "807f5d4e736eca6c17911d57c08b9f91156019ff"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedFinalCurrentEvidence.lean",
+      "git_blob_sha": "f4520ae2268dc542e1390202d5c2101bd7c2ae3f"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedFinalEvidence.lean",
+      "git_blob_sha": "1ff29a6ef250341e7388cfd4c8f98d3efa4cec1f"
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionarySharedCapturedReportTransport.lean",
+      "git_blob_sha": "44708705a6fc4a11304f3c668c82ae82ef3926aa"
+    },
+    {
+      "path": "lean/Yulang/GeneralNominalReportSourceTransport.lean",
+      "git_blob_sha": "30ae18e5862f0bd7507eba501cb911da5a89e9b3"
+    }
+  ]
+}

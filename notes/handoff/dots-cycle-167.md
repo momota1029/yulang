@@ -91,3 +91,21 @@ source checkpoint `e65949934788380b72d566ef56a7bff39fd47753` を公開し、独�
 追加のlean限定 `git diff --check` はexit0。全treeの同検査は原ログの末尾空白を表示する。正確なstdout保存と公開済みファイル不変を優先し、ログの空白は書き換えていない。
 
 検証出力全文と終了コード: [own-diff](../verification/2026-11-13-cycle167-own-diff.txt)、[local replay](../verification/2026-11-13-cycle167-local-replay.txt)、[public replay](../verification/2026-11-13-cycle167-public-replay.txt)、[focused build](../verification/2026-11-13-cycle167-focused-build.txt)。
+
+## 最終台帳
+
+- 最終proof source公開: `4e96f96fa20d69c748178c001e23f055f7d86961`。local `d8673c622d` と心拍以外のtree一致を確認した。
+- この公開commitを独立checkoutへ取得し直し、33moduleを独立出力libraryへ `--trust=0` で再構築、全Cycle167小auditを再実行してexit0。既存キャッシュがない上流依存を含む初回は34module、今回は再構築対象33moduleであり、検査を失敗した分を数から外したものではない。
+- 主dependency gate177宣言、追加promotion gate14宣言、いずれも `propext / Classical.choice / Quot.sound` のみ。76公開定理すべてにaxiom登録があり、定理名の重複なし。新規production moduleにrun_cmd/unsafe等なし。
+- 最終source差分は10module、入口import、13個の小audit。実行済みsourceとの唯一の後続Lean差分は、既に間接importされコンパイル済みの3moduleを入口に明示する3行の追記。証明moduleは変更していない。
+- 最終append-only検査はremote refが後から進んでも再現できるよう、基点をSHAで固定して `bash tools/verify-lean.sh . 8d83c0c2690584834d0fd78e1915895e41e44f7e --no-build`、exit0。REVIEWは2件で、いずれも新規axiom gateの検査専用run_cmd。human-reviewフラグは保持する。
+- 追加promotionのfocused buildは719 cache-inclusive jobs、exit0。small audit/正確な型の確認もexit0。独立レビューでfull descriptor readback、closed int recipe、Trusted outputとsource2不準備の整合を確認した。
+- 最終検証全文: [final public replay](../verification/2026-11-13-cycle167-final-public-replay.txt)、[final diff](../verification/2026-11-13-cycle167-final-own-diff.txt)、[promotion](../verification/2026-11-13-cycle167-promotion-build.txt)、[source manifest](../verification/2026-11-13-cycle167-source-manifest.json)。全repo build/巨大audit/新Yulang2実行は行っていない。
+
+### 終了時の上流再照会
+
+15:09 UTC頃の再取得でintegrationは `47da90ca0483d773ec9f08efd95d4afb5c1aeb75` に進んだ。inboxの変更はなくACTIVE、STOPなし。追加はAstraのrecursive nominal peeling関連6module・audit・設計ノートで、現在のcycle167 sourceとは別の仕事。新ノートを読み、有限深さの `Display (list^n int)` を含むactual-inspectionのaccessibilityであり、一般ClassPProducerの完成ではないことを確認した。
+
+今回の検証済み成果は開始時8d83c0c基点のまま公開し、締切前に未検証の統合を混ぜていない。次サイクルは47da90ca以降を取得して取り込む。integrationやAstraの作業を上書きしていない。移動したremote refを使ったmanifest作成が、未取込上流ファイルを見つけられず一度失敗したが、開始時SHAに固定して再生成済み。
+
+最終公開差分は開始時基点から50ファイル（心拍1を含み、前cycle166の記録3ファイルを保持）。実作業開始14:33 UTC、検証完了15:10 UTC頃。公開と照合を含む終了時刻・経過分は同じ最終commitのcompleted心拍に記録する。scheduled開始14:27:19から55分以内の15:22:19締切を優先し、追加の大きな作業は始めない。
