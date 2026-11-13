@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionary171InputDiscovery
+#check Yulang.GeneralDictionary171InputDiscovery.type_arguments_exact
+#print axioms Yulang.GeneralDictionary171InputDiscovery.type_arguments_exact
+#check Yulang.GeneralDictionary171InputDiscovery.inspected_leaf
+#print axioms Yulang.GeneralDictionary171InputDiscovery.inspected_leaf
+#check Yulang.GeneralDictionary171InputDiscovery.input_exists
+#print axioms Yulang.GeneralDictionary171InputDiscovery.input_exists

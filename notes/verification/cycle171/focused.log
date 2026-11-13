@@ -1,0 +1,13 @@
+✔ [788/799] Built Yulang.GeneralDictionary171SpineTree (4.1s)
+✔ [789/799] Built Yulang.GeneralDictionary171NamedSpinePersistence (4.1s)
+✔ [790/799] Built Yulang.GeneralDictionary171InspectionObservation (4.9s)
+✔ [791/799] Built Yulang.GeneralDictionary171SpineCoverage (2.6s)
+✔ [792/799] Built Yulang.GeneralDictionary171SpineAccessible (1.5s)
+✔ [793/799] Built Yulang.GeneralDictionary171SpinePersistence (5.4s)
+✔ [794/799] Built Yulang.GeneralDictionary171SpineExample (5.4s)
+✔ [795/799] Built Yulang.GeneralDictionary171BoundedAssembly (5.5s)
+✔ [796/799] Built Yulang.GeneralDictionary171AssemblySize (3.7s)
+✔ [797/799] Built Yulang.GeneralDictionary171AssemblyPersistence (3.7s)
+✔ [798/799] Built Yulang.GeneralDictionary171RecursiveStrictness (3.8s)
+✔ [799/799] Built Yulang.GeneralDictionary171SelectedAssembly (1.2s)
+Build completed successfully (799 jobs).

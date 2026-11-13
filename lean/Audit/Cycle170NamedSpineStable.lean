@@ -1,0 +1,17 @@
+import Yulang.GeneralDictionary170NamedSpineStable
+#print axioms Yulang.GeneralDictionary170NamedSpineStable.initial_models
+#check @Yulang.GeneralDictionary170NamedSpineStable.initial_models
+#print axioms Yulang.GeneralDictionary170NamedSpineStable.generated_root
+#check @Yulang.GeneralDictionary170NamedSpineStable.generated_root
+#print axioms Yulang.GeneralDictionary170NamedSpineStable.installs_committed
+#check @Yulang.GeneralDictionary170NamedSpineStable.installs_committed
+#print axioms Yulang.GeneralDictionary170NamedSpineStable.refresh_large_unknown
+#check @Yulang.GeneralDictionary170NamedSpineStable.refresh_large_unknown
+#print axioms Yulang.GeneralDictionary170NamedSpineStable.feedback_stable
+#check @Yulang.GeneralDictionary170NamedSpineStable.feedback_stable
+#print axioms Yulang.GeneralDictionary170NamedSpineStable.stable
+#check @Yulang.GeneralDictionary170NamedSpineStable.stable
+#print axioms Yulang.GeneralDictionary170NamedSpineStable.shared_stable
+#check @Yulang.GeneralDictionary170NamedSpineStable.shared_stable
+#print axioms Yulang.GeneralDictionary170NamedSpineStable.stable_coverage_gap
+#check @Yulang.GeneralDictionary170NamedSpineStable.stable_coverage_gap

@@ -1,0 +1,17 @@
+import Yulang.GeneralDictionary171RequestChecker
+#print axioms Yulang.GeneralDictionary171RequestChecker.closedQuery_sound
+#print axioms Yulang.GeneralDictionary171RequestChecker.closedQueries_sound
+#print axioms Yulang.GeneralDictionary171RequestChecker.pointArguments_sound
+#print axioms Yulang.GeneralDictionary171RequestChecker.pointReport_sound
+#print axioms Yulang.GeneralDictionary171RequestChecker.finishedReport_sound
+#print axioms Yulang.GeneralDictionary171RequestChecker.checkAt_sound
+#print axioms Yulang.GeneralDictionary171RequestChecker.checkRequest_sound
+#print axioms Yulang.GeneralDictionary171RequestChecker.checkRequests_sound
+#check @Yulang.GeneralDictionary171RequestChecker.closedQuery_sound
+#check @Yulang.GeneralDictionary171RequestChecker.closedQueries_sound
+#check @Yulang.GeneralDictionary171RequestChecker.pointArguments_sound
+#check @Yulang.GeneralDictionary171RequestChecker.pointReport_sound
+#check @Yulang.GeneralDictionary171RequestChecker.finishedReport_sound
+#check @Yulang.GeneralDictionary171RequestChecker.checkAt_sound
+#check @Yulang.GeneralDictionary171RequestChecker.checkRequest_sound
+#check @Yulang.GeneralDictionary171RequestChecker.checkRequests_sound

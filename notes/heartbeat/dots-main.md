@@ -1,9 +1,9 @@
-cycle: 170
+cycle: 171
 status: running
-started: 2026-11-13T17:26:17Z
-updated: 2026-11-13T17:54:41Z
-elapsed_min: 28.4
-activity: Frozen61theorem source9e1febb public replay10modules14audits PASS; gate275PASS; Japanese report and next observation bridge prepared. Read-only final verification.
+started: 2026-11-13T18:24:41Z
+updated: 2026-11-13T19:00:40Z
+elapsed_min: 36
+activity: Recovered interrupted worker. 19 modules and 14 audits trust0 PASS, 415 declaration gate PASS. Publishing final source/report, then immutable readback.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang159
-last_local_commit: 9e1febb08784db6030756319bea1e3a682e65ddc
-resume_hint: No additional production edits; final report/heartbeat by18:21UTC. All proof workers stopped.
+last_local_commit: b14c8d0aa8
+resume_hint: First checkpoint babc030cd5 public. Do not duplicate uncertain publication. Verify work/dots-main before continuing. V5 remains8/14.

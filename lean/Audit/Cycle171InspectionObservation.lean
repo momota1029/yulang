@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionary171InspectionObservation
+#print axioms Yulang.GeneralDictionary171InspectionObservation.inspected_tree
+#print axioms Yulang.GeneralDictionary171InspectionObservation.observed_requests
+#print axioms Yulang.GeneralDictionary171InspectionObservation.variables_finished
+#print axioms Yulang.GeneralDictionary171InspectionObservation.no_variables_tree
+#check @Yulang.GeneralDictionary171InspectionObservation.inspected_tree
+#check @Yulang.GeneralDictionary171InspectionObservation.observed_requests
+#check @Yulang.GeneralDictionary171InspectionObservation.variables_finished
+#check @Yulang.GeneralDictionary171InspectionObservation.no_variables_tree

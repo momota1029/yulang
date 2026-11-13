@@ -1,0 +1,179 @@
+{
+  "checked_at": "2026-11-13T18:14:28.364247+00:00",
+  "source": "8d893bdc440a3e0255cd0bb8f742ac171ed3eb42",
+  "integrated_base": "898526b04164829e196293fee0128e756d41e208",
+  "latest_integration": "afbd591366cc90e027141ea6e5ef2ac619840bfe",
+  "existing_lean_deleted_lines": 0,
+  "frozen_paths_unchanged": true,
+  "final_lean_frozen": true,
+  "changed_lean_paths": [
+    {
+      "path": "lean/Audit/Cycle170AllGate.lean",
+      "added": 26,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170AssemblyPersistence.lean",
+      "added": 17,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170AssemblyPersistenceGate.lean",
+      "added": 21,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170AssemblySize.lean",
+      "added": 11,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170AssemblySizeGate.lean",
+      "added": 21,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170BoundedAssembly.lean",
+      "added": 13,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170CompleteGate.lean",
+      "added": 31,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170FinalGate.lean",
+      "added": 30,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170NamedCoverage.lean",
+      "added": 26,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170NamedCoverageGate.lean",
+      "added": 23,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170NamedCoveragePersistence.lean",
+      "added": 15,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170NamedSelection.lean",
+      "added": 6,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170NamedSpine.lean",
+      "added": 9,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170NamedSpineExample.lean",
+      "added": 17,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170NamedSpineStable.lean",
+      "added": 17,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Audit/Cycle170PathBound.lean",
+      "added": 13,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang.lean",
+      "added": 13,
+      "deleted": 0,
+      "existing": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170AssemblyPersistence.lean",
+      "added": 138,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170AssemblySize.lean",
+      "added": 111,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170BoundedAssembly.lean",
+      "added": 136,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170NamedAccessible.lean",
+      "added": 114,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170NamedCoverage.lean",
+      "added": 108,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170NamedCoveragePersistence.lean",
+      "added": 114,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170NamedSelection.lean",
+      "added": 92,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170NamedSpine.lean",
+      "added": 76,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170NamedSpineExample.lean",
+      "added": 142,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170NamedSpineStable.lean",
+      "added": 118,
+      "deleted": 0,
+      "existing": false
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionary170PathBound.lean",
+      "added": 56,
+      "deleted": 0,
+      "existing": false
+    }
+  ]
+}

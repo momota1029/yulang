@@ -1,0 +1,19 @@
+import Yulang.GeneralNominalFiniteBracket
+
+#print axioms Yulang.GeneralNominalHeadMatchMass.translated_count
+#print axioms Yulang.GeneralNominalHeadMatchMass.matched_mass_eq
+#print axioms Yulang.GeneralNominalTemplateSubstitution.translate_substitution
+#print axioms Yulang.GeneralPatternNormalForm.idempotent_covered
+#print axioms Yulang.GeneralPatternVariableProvenance.needed_input
+#print axioms Yulang.GeneralNominalRequestCompleteness.input_complete
+#print axioms Yulang.GeneralNominalCanonicalTemplates.translated_good
+#print axioms Yulang.GeneralNominalCanonicalTemplates.quoted
+#print axioms Yulang.GeneralNominalClosedSubstitution.filled_closed
+#print axioms Yulang.GeneralNominalChildAssembly.children
+#print axioms Yulang.GeneralNominalMatchedAssembly.recorded_capture_part
+#print axioms Yulang.GeneralNominalMatchedAssembly.head_mass
+#print axioms Yulang.GeneralNominalMatchedAssembly.assembly_of_matching
+#print axioms Yulang.GeneralNominalMatchedAssembly.ground_accessible_of_matching
+#print axioms Yulang.GeneralNominalFiniteBracket.test_bracket
+#print axioms Yulang.GeneralNominalFiniteBracket.shape_payload_below
+#print axioms Yulang.GeneralNominalFiniteBracket.structural_interval

@@ -1,0 +1,20 @@
+import Yulang.GeneralDictionary171BoundedAssembly
+import Yulang.GeneralDictionary171AssemblySize
+#check Yulang.GeneralDictionary171BoundedAssembly.enough_fuel
+#print axioms Yulang.GeneralDictionary171BoundedAssembly.enough_fuel
+#check Yulang.GeneralDictionary171BoundedAssembly.successful_tree
+#print axioms Yulang.GeneralDictionary171BoundedAssembly.successful_tree
+#check Yulang.GeneralDictionary171BoundedAssembly.build_succeeds
+#print axioms Yulang.GeneralDictionary171BoundedAssembly.build_succeeds
+#check Yulang.GeneralDictionary171BoundedAssembly.build_dictionary
+#print axioms Yulang.GeneralDictionary171BoundedAssembly.build_dictionary
+#check Yulang.GeneralDictionary171BoundedAssembly.zero_fuel
+#print axioms Yulang.GeneralDictionary171BoundedAssembly.zero_fuel
+#check Yulang.GeneralDictionary171AssemblySize.node_degree
+#print axioms Yulang.GeneralDictionary171AssemblySize.node_degree
+#check Yulang.GeneralDictionary171AssemblySize.collect_bound
+#print axioms Yulang.GeneralDictionary171AssemblySize.collect_bound
+#check Yulang.GeneralDictionary171AssemblySize.successful_bound
+#print axioms Yulang.GeneralDictionary171AssemblySize.successful_bound
+#check Yulang.GeneralDictionary171AssemblySize.build_bound
+#print axioms Yulang.GeneralDictionary171AssemblySize.build_bound
