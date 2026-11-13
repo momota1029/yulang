@@ -439,3 +439,8 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Class P producer: recursive nominal peeling](2026-11-13-classp-recursive-peeling.md) — Draft proof companion. Dynamic inherited paths, fixed finite input readbacks, and unconditional actual-Step Acc for recursive unary peeling on finite ground spines; real Display installation and arbitrary-depth point sources. General ClassPProducer remains open.
 
 - [Class P: compound input producers and a larger recursive class](2026-11-14-classp-compound-inputs.md) — Unconditional actual-Step Acc for multi-argument recursion with a distinguished finite input, checked compound/output/binder source families, and actual nominal compound emission/readback/recovery; general ClassPProducer remains open.
+
+- [Ground-root Class P: finite input production](2026-11-14-ground-root-production.md) — Actual structural containment, shared capture and emitted-child meanings, recovered-input readback, and actual-Step Acc conditional on one local finite-capture factorization; inhabited branching Show source. Unconditional ground-root Acc remains open.
+
+- [Cycle169 構造的辞書証明書の通常継続](2026-11-13-cycle169-certificate-persistence.md)
+- [Cycle169 選択された辞書節点](2026-11-13-cycle169-selected-evidence.md)
