@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySemanticCollapseAllocation
+
+#print axioms Yulang.GeneralDictionarySemanticCollapseAllocation.point_leaf_equivalent
+#print axioms Yulang.GeneralDictionarySemanticCollapseAllocation.current_propagation
+#print axioms Yulang.GeneralDictionarySemanticCollapseAllocation.capture_endpoints

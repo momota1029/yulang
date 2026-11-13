@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryCaptureSemanticCollapse
+
+#print axioms Yulang.GeneralDictionaryCaptureSemanticCollapse.capture_fits
+#print axioms Yulang.GeneralDictionaryCaptureSemanticCollapse.endpoints
+#print axioms Yulang.GeneralDictionaryCaptureSemanticCollapse.propagation

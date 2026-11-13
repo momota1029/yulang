@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryCaptureMultiplicity
+
+#print axioms Yulang.GeneralDictionaryCaptureMultiplicity.capture_fits_of_membership
+#print axioms Yulang.GeneralDictionaryCaptureMultiplicity.duplicate_collapse
+#print axioms Yulang.GeneralDictionaryCaptureMultiplicity.duplicate_sources_differ
+#print axioms Yulang.GeneralDictionaryCaptureMultiplicity.endpoints_of_fits
+#print axioms Yulang.GeneralDictionaryCaptureMultiplicity.propagated_endpoints
+#print axioms Yulang.GeneralDictionaryCaptureMultiplicity.collapse_propagation
+#print axioms Yulang.GeneralDictionaryCaptureMultiplicity.collapse_endpoints

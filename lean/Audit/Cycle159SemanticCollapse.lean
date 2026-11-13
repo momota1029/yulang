@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionarySemanticCollapse
+#print axioms Yulang.GeneralDictionarySemanticCollapse.before_exact
+#print axioms Yulang.GeneralDictionarySemanticCollapse.after_exact
+#print axioms Yulang.GeneralDictionarySemanticCollapse.current_projection
+#print axioms Yulang.GeneralDictionarySemanticCollapse.capture_count_drops
+#print axioms Yulang.GeneralDictionarySemanticCollapse.both_finished
+#print axioms Yulang.GeneralDictionarySemanticCollapse.bindings_before
+#print axioms Yulang.GeneralDictionarySemanticCollapse.bindings_after
