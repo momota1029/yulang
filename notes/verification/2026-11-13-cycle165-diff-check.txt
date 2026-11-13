@@ -1,9 +1,9 @@
-verify-lean: . @ f11c87a78 (base origin/integration/m1-final)
+verify-lean: . @ 7092e30d4 (base origin/integration/m1-final)
 ok: no removed lines in lean/ since origin/integration/m1-final
 ok: no sorry/native_decide/axiom-like constructs in added lines
 REVIEW: metaprogramming/#eval in added lines (a human must read these):
-337:+run_cmd do
-396:+run_cmd do
+357:+run_cmd do
+416:+run_cmd do
 ok: lake config unchanged (or only SpecExamples*/Main* libs added)
 ok: new files are Yulang modules only
 ok: lean/Audit.lean only appended (plus top import lines)

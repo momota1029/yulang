@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionarySharedCapturedFinalProducer
+#print axioms Yulang.GeneralDictionarySharedCapturedFinalProducer.report_exact
+#print axioms Yulang.GeneralDictionarySharedCapturedFinalProducer.finished
+#print axioms Yulang.GeneralDictionarySharedCapturedFinalProducer.repeated_bindings
