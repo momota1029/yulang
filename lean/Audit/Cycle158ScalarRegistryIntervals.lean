@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryScalarRegistryIntervals
+#print axioms Yulang.GeneralDictionaryScalarRegistryIntervals.at_interpretation
+#print axioms Yulang.GeneralDictionaryScalarRegistryIntervals.coherent_at
+#print axioms Yulang.GeneralDictionaryScalarRegistryIntervals.coherent_trace
+#print axioms Yulang.GeneralDictionaryScalarRegistryIntervals.reachable_coherent
+#print axioms Yulang.GeneralDictionaryScalarRegistryIntervals.journal
+#print axioms Yulang.GeneralDictionaryScalarRegistryIntervals.generated_intervals
+#print axioms Yulang.GeneralDictionaryScalarRegistryIntervals.selected_instance

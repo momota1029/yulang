@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionaryScalarChildExample
+#print axioms Yulang.GeneralDictionaryScalarChildExample.checked
+#print axioms Yulang.GeneralDictionaryScalarChildExample.endpoint_nonzero
+#print axioms Yulang.GeneralDictionaryScalarChildExample.endpoints_distinct
+#print axioms Yulang.GeneralDictionaryScalarChildExample.query
+#print axioms Yulang.GeneralDictionaryScalarChildExample.schema_exact
+#print axioms Yulang.GeneralDictionaryScalarChildExample.branch
+#print axioms Yulang.GeneralDictionaryScalarChildExample.actual_child_order
+#print axioms Yulang.GeneralDictionaryScalarChildExample.child_member
+#print axioms Yulang.GeneralDictionaryScalarChildExample.endpoints_exact
+#print axioms Yulang.GeneralDictionaryScalarChildExample.nonvacuous_emitted_order
