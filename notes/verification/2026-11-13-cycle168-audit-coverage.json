@@ -1,0 +1,155 @@
+{
+  "source_commit": "1004e5ff661d8b2ded5010c0ba31fb31226120d0",
+  "module_count": 10,
+  "public_theorem_count": 48,
+  "axiom_print_covered": 48,
+  "missing": [],
+  "extra": [],
+  "audit_parts": 13,
+  "coverage": {
+    "Yulang.GeneralDictionary168SourceGuard.container_install_ordinary": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.decision_steps": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.evidence_and_guard_steps": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.head_extension": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.readsMany_extended": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.reads_extended": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.ready_steps": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.source_consumer_continuation": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.source_consumer_guard": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionary168SourceGuard.source_consumer_nonvacuous": [
+      "lean/Audit/Cycle168Source.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedJournal168.current_dictionary": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedJournal168.journal_tree": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedJournal168.nonvacuous_journal_replay": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedJournal168.relocation": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedTree168Transport.actual_payload": [
+      "lean/Audit/Cycle168CapturedTreeTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedTree168Transport.actual_tree": [
+      "lean/Audit/Cycle168CapturedTreeTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedTree168Transport.locality": [
+      "lean/Audit/Cycle168CapturedTreeTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedTree168Transport.old_tree": [
+      "lean/Audit/Cycle168CapturedTreeTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedTree168Transport.stored_instance": [
+      "lean/Audit/Cycle168CapturedTreeTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryCapturedTree168Transport.tree_locality": [
+      "lean/Audit/Cycle168CapturedTreeTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryMixed168Display.interpreted_dictionary": [
+      "lean/Audit/Cycle168Mixed.lean"
+    ],
+    "Yulang.GeneralDictionaryMixed168Display.mixed_not_recorded": [
+      "lean/Audit/Cycle168Mixed.lean"
+    ],
+    "Yulang.GeneralDictionaryMixed168Display.nonvacuous_interpretation": [
+      "lean/Audit/Cycle168Mixed.lean"
+    ],
+    "Yulang.GeneralDictionaryMixed168Display.parent_relocates": [
+      "lean/Audit/Cycle168Mixed.lean"
+    ],
+    "Yulang.GeneralDictionaryMixed168Display.structural_tree": [
+      "lean/Audit/Cycle168Mixed.lean"
+    ],
+    "Yulang.GeneralDictionaryMixed168Tree.current_evidence": [
+      "lean/Audit/Cycle168Mixed.lean"
+    ],
+    "Yulang.GeneralDictionaryMixed168Tree.of_relocated_tree": [
+      "lean/Audit/Cycle168Mixed.lean"
+    ],
+    "Yulang.GeneralDictionaryOrdinary168Relocation.extension_at": [
+      "lean/Audit/Cycle168OrdinaryRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryOrdinary168Relocation.packet_relocates": [
+      "lean/Audit/Cycle168OrdinaryRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryOrdinary168Relocation.report_is_move": [
+      "lean/Audit/Cycle168OrdinaryRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryRecorded168Relocation.current_evidence": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryRecorded168Relocation.current_instance": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryRecorded168Relocation.discharged": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryRecorded168Relocation.of_recorded_tree": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryRecorded168Relocation.recorded_current_evidence": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryRecorded168Relocation.recorded_tree": [
+      "lean/Audit/Cycle168RecordedRelocation.lean"
+    ],
+    "Yulang.GeneralDictionaryRecursive168Transport.children_seed": [
+      "lean/Audit/Cycle168RecursiveTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryRecursive168Transport.erased_relocated": [
+      "lean/Audit/Cycle168RecursiveTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryRecursive168Transport.indexed_relocated": [
+      "lean/Audit/Cycle168RecursiveTransport.lean"
+    ],
+    "Yulang.GeneralDictionaryRecursive168Transport.instance_relocated": [
+      "lean/Audit/Cycle168RecursiveTransport.lean"
+    ],
+    "Yulang.GeneralDictionarySource168Transport.actual_current_evidence": [
+      "lean/Audit/Cycle168ActualTransport.lean"
+    ],
+    "Yulang.GeneralDictionarySource168Transport.actual_producer_branch": [
+      "lean/Audit/Cycle168ActualTransport.lean"
+    ],
+    "Yulang.GeneralDictionarySource168Transport.actual_schemas": [
+      "lean/Audit/Cycle168ActualTransport.lean"
+    ],
+    "Yulang.GeneralDictionarySource168Transport.actual_seed": [
+      "lean/Audit/Cycle168ActualTransport.lean"
+    ],
+    "Yulang.GeneralDictionarySource168Transport.actual_sources": [
+      "lean/Audit/Cycle168ActualTransport.lean"
+    ],
+    "Yulang.GeneralDictionarySource168Transport.branch_relocated": [
+      "lean/Audit/Cycle168GenericTransport.lean"
+    ],
+    "Yulang.GeneralDictionarySource168Transport.capture_seed": [
+      "lean/Audit/Cycle168GenericTransport.lean"
+    ],
+    "Yulang.GeneralDictionarySource168Transport.node_relocated": [
+      "lean/Audit/Cycle168GenericTransport.lean"
+    ]
+  }
+}
