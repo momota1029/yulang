@@ -77,3 +77,32 @@ CapturedChildIntervalsは実cross行列とmerge等式を使う。
 
 ここでの照合は現行specとLean定義の読解である。
 Yulang2のCLIをこのcycleで実行した結果ではない。
+
+## 次のnested証明を始める位置（source読解で確認）
+
+GeneralNominalRecursiveInspection.inspect/inspectManyは相互再帰である。
+次はnominal/variablesだけのquery treeについて、古いFinishedを前提とする
+Reportのrename等式を同時帰納で示すのが具体的な入口になる。
+古いdescriptorがnoneだった場合に新しくsomeになることはRefinesが許すので、
+無条件にblocked reportまで不変と言うのは誤り。
+Finishedなら旧検査で実際に訪れたnominal descriptorが存在したことを取り出せる。
+
+非pointのnominal分岐はlowerとupperを別々に検査してappendする。
+ここでembedが等しいslotを新しく同一化しないことが必要だが、新しい仮定ではない。
+base.source保存とbefore.source_injectiveからembedの単射性を導ける。
+したがってbounds.1=bounds.2の分岐条件は保たれる。
+
+Report.append/visit、typeArgumentsのmapM、arity mismatchの排除を補助補題に分ける。
+originはslotではなくsource identityを含むので、descriptor引数のrenameと
+source保存を使えばnominal pathのname/index部分は変わらない。
+この設計メモはその帰納証明を実装したという報告ではない。
+
+## compound where入力の別の橋
+
+GeneralDeclarationDemands.inputIntervalは変数以外ならallocation.argumentsを使う。
+GeneralNominalAllocation.allocation.argumentsはoriginタグ3と4を別々に割り当てる。
+したがってcompound入力を「新しいpointなので反射律だけ」として扱うことはできない。
+両端のrequest materializationが作る制約からlower≤upperを導く必要がある。
+まずscalar定数patternの両極性requestを切り出し、その後nominalの引数/varianceへ
+進むのが検証可能な分解になる。この読み取り結果に合わせ、VariableRegistry制限を
+本cycleの汎用形成定理から勝手に削除しない。

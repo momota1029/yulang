@@ -53,3 +53,7 @@ example : GeneralNominalRecursiveCandidates.BranchModels registry refreshedConte
     refreshed_reachable packet_recorded prior rfl (0 : Fin 2) GeneralNominalExamples.listDescriptor
     rfl 0 (1,1) rfl GeneralDictionaryMixedCatalogInhabited.query rfl rfl
     GeneralNominalExamples.model refreshed_inhabited
+
+-- In this concrete refresh, the mapped bounds are also the actual lookup result.
+example : GeneralNominalCandidates.arguments refreshedContext displayRoot = some [(0,0)] := by
+  rfl
