@@ -466,3 +466,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Canonical hole transport and reduced-hole source producers](2026-11-14-canonical-hole-transport.md) — Exact shared substitution and mass transport, reduced-hole structural/point-nominal exposure, actual K2 occurs checking, and certified inventory/journal transition branches; universal unknown-hole source production remains open. No missing-provenance deferral is used.
 
 - [Uniform source production through actual centers](2026-11-14-uniform-centered-source-production.md) — Nonpoint named-argument readback, uniform full-report captures and source-key exposure, shared packet substitution, uniform child emission, and scalar hole elimination; universal Simulation.next remains open.
+
+- [Source producer closure and exact simulation handoff](2026-11-14-source-producer-handoff.md) — Explicit-center projection closure, actual settled binder-ledger labels, graph-backed elimination and compatible journal extension; source extraction and universal next remain open, with compiled handoff goal types.
