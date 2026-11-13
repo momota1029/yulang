@@ -398,6 +398,8 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Item 4i downstream output support](2026-11-13-general-nominal-downstream-support.md) — Partial implementation; independent support guard, snapshot-depth proof, and remaining termination obligations.
 - [Item 4i downstream module guide](2026-11-13-general-nominal-downstream-module-guide.md) — Additive guard, boundary, regressions, order contract, and audit.
 
+- [Item 4j: general nominal generation-budget checks](2026-11-13-general-nominal-budget.md) — Partial: actual Container and P/C/W installations, observation-depth transport, bounded measure obstructions; L5–L7 and progress remain open.
+- [General nominal budget module guide](2026-11-13-general-nominal-budget-module-guide.md) — Five additive modules and their separate audit part.
 - [Cycle152 observed recursive evidence](2026-11-12-cycle152-observed-recursive-evidence.md) — conditional soundness.
 - [Cycle152 observed initial example](2026-11-12-cycle152-observed-initial.md) — actual InitialSource.
 - [Cycle152 observed request transport](2026-11-12-cycle152-observed-request-transport.md) — ordinary-only trace.

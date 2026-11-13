@@ -12856,3 +12856,20 @@ fields. See the [Item 4i design, theorem statements, regression limits, ledger,
 and checks](2026-11-13-general-nominal-downstream-support.md) and
 [module guide](2026-11-13-general-nominal-downstream-module-guide.md).
 Existing evidence/Step interfaces and all prior Lean definitions are unchanged.
+
+## Item 4j — generation budget and actual sibling prefix (2026-11-13)
+
+The Container installation and actual P→Container→Wrap transition prefix are
+now proved, including the downstream block for the complete retained support
+ledger. Observation-only updates preserve support-depth certificates. Actual
+installations refute producer-grounding persistence and a non-increasing
+recorded-pool bound; neither refutes every possible per-head or symbolic budget.
+A fixed two-slot non-K2 initial state has unbounded model heights, and an actual
+same-input merge retains distinct diagnostic IDs.
+
+L5–L7, InstallationOrder, unconditional progress, and unconditional
+whereAccessible remain open; the exact downstream boundary remains at 6/14 V5
+fields. No infinite guarded trace or new language restriction is asserted.
+See the [Item 4j results, theorem statements, ledger, unverified stress test,
+and checks](2026-11-13-general-nominal-budget.md) and
+[module guide](2026-11-13-general-nominal-budget-module-guide.md).
