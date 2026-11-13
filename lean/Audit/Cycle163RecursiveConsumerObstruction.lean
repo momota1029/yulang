@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryRecursiveConsumerObstruction
+#print axioms Yulang.GeneralDictionaryRecursiveConsumerObstruction.child_generated
+#print axioms Yulang.GeneralDictionaryRecursiveConsumerObstruction.child_installable_committed
+#print axioms Yulang.GeneralDictionaryRecursiveConsumerObstruction.no_child_install_contract
+#print axioms Yulang.GeneralDictionaryRecursiveConsumerObstruction.no_child_at
+#print axioms Yulang.GeneralDictionaryRecursiveConsumerObstruction.realized

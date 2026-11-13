@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryTerminalRefreshObstruction
+#print axioms Yulang.GeneralDictionaryTerminalRefreshObstruction.int_model
+#print axioms Yulang.GeneralDictionaryTerminalRefreshObstruction.nominal_model
+#print axioms Yulang.GeneralDictionaryTerminalRefreshObstruction.int_output
+#print axioms Yulang.GeneralDictionaryTerminalRefreshObstruction.nominal_output
+#print axioms Yulang.GeneralDictionaryTerminalRefreshObstruction.no_known
+#print axioms Yulang.GeneralDictionaryTerminalRefreshObstruction.refresh_unknown
+#print axioms Yulang.GeneralDictionaryTerminalRefreshObstruction.refresh_not_ready

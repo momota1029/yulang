@@ -1,0 +1,15 @@
+import Yulang.GeneralDictionarySharedSiblingPrefix
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.inherited
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.usable
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.generation
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.input_empty
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.guard
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.origin_iff
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.origin_unique
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.child_origin
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.child_site
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.parent_install_eq
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.parent_step
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.shared_prefix
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.shared_formed
+#print axioms Yulang.GeneralDictionarySharedSiblingPrefix.reached_terminal_dictionary

@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionarySharedEvidenceTrace
+#print axioms Yulang.GeneralDictionarySharedEvidenceTrace.trace_models
+#print axioms Yulang.GeneralDictionarySharedEvidenceTrace.stored_instance
+#print axioms Yulang.GeneralDictionarySharedEvidenceTrace.ordinary_trace_real
+#print axioms Yulang.GeneralDictionarySharedEvidenceTrace.ordinary_trace_extension
+#print axioms Yulang.GeneralDictionarySharedEvidenceTrace.current_instance
+#print axioms Yulang.GeneralDictionarySharedEvidenceTrace.current_evidence
+#print axioms Yulang.GeneralDictionarySharedEvidenceTrace.execution

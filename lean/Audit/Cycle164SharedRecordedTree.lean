@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionarySharedRecordedTree
+#print axioms Yulang.GeneralDictionarySharedRecordedTree.discharged
+#print axioms Yulang.GeneralDictionarySharedRecordedTree.packet_settled
+#print axioms Yulang.GeneralDictionarySharedRecordedTree.current_evidence
+#print axioms Yulang.GeneralDictionarySharedRecordedTree.terminal_tree
+#print axioms Yulang.GeneralDictionarySharedRecordedTree.terminal_discharged
+#print axioms Yulang.GeneralDictionarySharedRecordedTree.terminal_packet_settled
+#print axioms Yulang.GeneralDictionarySharedRecordedTree.terminal_certificate_and_evidence

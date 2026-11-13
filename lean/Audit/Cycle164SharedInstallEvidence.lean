@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionarySharedInstallEvidence
+
+#print axioms Yulang.GeneralDictionarySharedInstallEvidence.stable_committed
+#print axioms Yulang.GeneralDictionarySharedInstallEvidence.installed_instance
+#print axioms Yulang.GeneralDictionarySharedInstallEvidence.installed_children
+#print axioms Yulang.GeneralDictionarySharedInstallEvidence.installed_evidence
+#print axioms Yulang.GeneralDictionarySharedInstallEvidence.terminal_evidence
+#print axioms Yulang.GeneralDictionarySharedInstallEvidence.actual_terminal_step
+#print axioms Yulang.GeneralDictionarySharedInstallEvidence.stable_terminal_evidence
