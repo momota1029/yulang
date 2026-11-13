@@ -1,0 +1,31 @@
+import Yulang.GeneralNominalActualPhaseBoundary
+
+#print axioms Yulang.GeneralNominalActualBoundary.closure
+#print axioms Yulang.GeneralNominalActualBoundary.stepModels
+#print axioms Yulang.GeneralNominalActualBoundary.frontierLocal
+#print axioms Yulang.GeneralNominalActualBoundary.localIdentity
+#print axioms Yulang.GeneralNominalActualBoundary.dictionaryRefl
+#print axioms Yulang.GeneralNominalActualBoundary.initialReorders
+#print axioms Yulang.GeneralNominalActualBoundary.reachable_iff_sourceFormed
+#print axioms Yulang.GeneralNominalActualBoundary.ground_progress
+#print axioms Yulang.GeneralNominalActualBoundary.ground_terminal
+#print axioms Yulang.GeneralNominalSnapshotCover.snapshot
+#print axioms Yulang.GeneralNominalSnapshotCover.covers
+#print axioms Yulang.GeneralNominalPhaseLabels.child_descent
+#print axioms Yulang.GeneralNominalPhaseLabels.parents
+#print axioms Yulang.GeneralNominalPhaseLabels.closed_packet_descent
+#print axioms Yulang.GeneralNominalHolePhases.replay
+#print axioms Yulang.GeneralNominalHolePhases.accessible
+#print axioms Yulang.GeneralNominalHolePhases.invocation_bound_implies_phases
+#print axioms Yulang.GeneralNominalHolePhases.class_p_accessible
+#print axioms Yulang.GeneralNominalHolePhaseSimulation.phase_cover
+#print axioms Yulang.GeneralNominalHolePhaseSimulation.fixed_growth_budget
+#print axioms Yulang.GeneralNominalHolePhaseSimulation.fixed_growth_parent_depth
+#print axioms Yulang.GeneralNominalHolePhaseSimulation.class_p_accessible
+#print axioms Yulang.GeneralNominalIndexedHoleReadback.initial_root
+#print axioms Yulang.GeneralNominalIndexedHoleReadback.actual_elimination
+#print axioms Yulang.GeneralNominalIndexedHoleReadback.project
+#print axioms Yulang.GeneralNominalIndexedHoleReadback.alias
+#print axioms Yulang.GeneralNominalActualPhaseBoundary.progress
+#print axioms Yulang.GeneralNominalActualPhaseBoundary.Show.phase_accessible
+#print axioms Yulang.GeneralNominalActualPhaseBoundary.Show.v5_progress
