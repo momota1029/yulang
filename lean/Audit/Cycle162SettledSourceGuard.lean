@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionarySettledSourceGuard
+
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.head_of_empty_facts
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.ready_of_empty_facts
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.base_decision_of_empty_facts
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.decision_of_empty_facts
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.initial_decision
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.selected_of_empty_facts
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.initial_selected
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.packet_guard_of_empty_facts
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.at_of_empty_facts
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.step_of_empty_facts
+#print axioms Yulang.GeneralDictionarySettledSourceGuard.initial_step_iff

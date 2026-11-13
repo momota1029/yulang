@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySettledCutExclusion
+
+#print axioms Yulang.GeneralDictionarySettledCutExclusion.inspected_cut_no_dictionary
+#print axioms Yulang.GeneralDictionarySettledCutExclusion.inspected_cut_no_completed
+#print axioms Yulang.GeneralDictionarySettledCutExclusion.descendant_cut_no_completed

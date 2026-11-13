@@ -154,20 +154,3 @@ private/generatedも含む252宣言の依存公理gate PASS。監査ファイル
 独立reviewで、旧/現のchild需要の区別、現childEvidenceの明示、registry keyの一意性、
 leaf planの具体的な前提、最後のCertified revisionと実Stepの区別を確認した。
 workerの証明作業は終了。残りは公開tree照合と最終報告のみ。
-
-
-## 公開後の照合（09:15 UTC）
-
-最終artifact **89a67afb9bf99b05c0a80406acb268ba3e43fa15** を取得し直した。
-固定local13742d7daとの全tree差分は意図した心拍のみ。
-公開inventoryの19source SHA256を公開commitの実内容と直接照合PASS。
-取得した19sourceを別directoryからtrust0で再compileし、公開gateも252宣言PASS、EXIT0。
-最初の起動はcompilerのworking directoryが旧treeのままでsource-root外を指定して失敗。
-取得source directoryへ直して全19module・gateを再実行PASS。数学的な修正はない。
-ログは `notes/verification/dots-cycle-161-published-replay.txt`。
-
-今回08:27:19開始。08:27〜08:38 request/親輸送、08:35〜08:45 child/current
-Evidence、08:45〜08:53 Certified例と旧Evidence阻害、08:54〜09:04 I26照合・選択排除・
-有限leaf計画からの記録履歴bridge、09:04〜09:15 source監査と公開後kernel再検証。
-共同作業の時間帯は重なる。終了は時間枠(a)、一般bridgeが閉じたためではない。
-全worker終了、以後の数学的変更はない。最終completed心拍と会話の報告でサイクルを閉じる。
