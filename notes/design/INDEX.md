@@ -427,3 +427,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [2026-11-13-cycle154-recorded-requests](2026-11-13-cycle154-recorded-requests.md) — cycle154 条件付き辞書健全性・検証例。
 - [Fresh termination analysis](2026-11-13-termination-fresh-analysis.md) — Draft acyclic accumulator counterexample; checked algebraic core and infinite-installation necessity, full Lean trace still open.
 - [Unsettled output deferral](2026-11-13-unsettled-output-deferral.md) — Additive head-provenance guard and B4 boundary; conditional pump exclusion and finite-signature accessibility, source budget and concrete prefix certificate remain open.
+
+- [Settled-cover obstruction](2026-11-13-settled-cover-obstruction.md) — Two-role interval-sharing counterexecution on paper; checked declarations/source and exact leaf branch models, complete Step trace and SourceBudget remain open.
