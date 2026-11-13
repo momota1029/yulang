@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionary169NamedPersistence
+#print axioms Yulang.GeneralDictionary169NamedPersistence.tree
+#print axioms Yulang.GeneralDictionary169NamedPersistence.observed
+#print axioms Yulang.GeneralDictionary169NamedPersistence.leaf
+#print axioms Yulang.GeneralDictionary169NamedPersistence.extension
+#print axioms Yulang.GeneralDictionary169NamedPersistence.ordinary_steps
+#print axioms Yulang.GeneralDictionary169NamedPersistence.current_evidence
+#check @Yulang.GeneralDictionary169NamedPersistence.leaf
+#check @Yulang.GeneralDictionary169NamedPersistence.extension
+#check @Yulang.GeneralDictionary169NamedPersistence.ordinary_steps
+#check @Yulang.GeneralDictionary169NamedPersistence.current_evidence

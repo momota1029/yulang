@@ -1,0 +1,39 @@
+'Yulang.GeneralDictionary169CoverageAccessible.packet_child_above' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169CoverageAccessible.child_rank' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169CoverageAccessible.coverage_accessible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169CoverageAccessible.covered_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary169CoverageAccessible.covered_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary169CoverageAccessible.packet_child_above : ∀ {roles : Yulang.Roles.RoleDecls}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  child ∈ packet.children → packet.site.occurrence.identity < child.identity
+@Yulang.GeneralDictionary169CoverageAccessible.child_rank : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary169FiniteCoverage.Coverage registry state domain) (child parent : Subtype domain),
+  Yulang.GeneralDictionary169FiniteCoverage.Child coverage child parent →
+    Yulang.GeneralDictionary169CoverageAccessible.rank state child.val <
+      Yulang.GeneralDictionary169CoverageAccessible.rank state parent.val
+@Yulang.GeneralDictionary169CoverageAccessible.coverage_accessible : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary169FiniteCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Acc (Yulang.GeneralDictionary169FiniteCoverage.Child coverage) focus
+@Yulang.GeneralDictionary169CoverageAccessible.covered_tree : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary169FiniteCoverage.Coverage registry state domain) (focus : Subtype domain),
+  ∃ payload, Yulang.GeneralDictionaryMixed168Tree.MixedTree registry state focus.val payload
+@Yulang.GeneralDictionary169CoverageAccessible.covered_dictionary : ∀ {roles : Yulang.Roles.RoleDecls}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary169FiniteCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    ∃ payload,
+      Yulang.GeneralDictionaryMixed168Tree.MixedTree registry state focus.val payload ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models state.current model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus.val payload

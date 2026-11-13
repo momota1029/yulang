@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionary169FiniteCoverage
+#print axioms Yulang.GeneralDictionary169FiniteCoverage.node_tree
+#print axioms Yulang.GeneralDictionary169FiniteCoverage.accessible_tree
+#print axioms Yulang.GeneralDictionary169FiniteCoverage.wellFounded_tree
+#print axioms Yulang.GeneralDictionary169FiniteCoverage.uniform_dictionary
+#check @Yulang.GeneralDictionary169FiniteCoverage.node_tree
+#check @Yulang.GeneralDictionary169FiniteCoverage.accessible_tree
+#check @Yulang.GeneralDictionary169FiniteCoverage.wellFounded_tree
+#check @Yulang.GeneralDictionary169FiniteCoverage.uniform_dictionary

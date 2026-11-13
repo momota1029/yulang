@@ -1,0 +1,22 @@
+import Yulang.GeneralDictionary169Selected
+
+#print axioms Yulang.GeneralDictionary169Selected.relocated_selected
+#print axioms Yulang.GeneralDictionary169Selected.relocated_selected_evidence
+#print axioms Yulang.GeneralDictionary169Selected.stable_current_instance
+#print axioms Yulang.GeneralDictionary169Selected.stable_generated_children
+#print axioms Yulang.GeneralDictionary169Selected.stable_current_evidence
+
+#check @Yulang.GeneralDictionary169Selected.relocated_selected
+#check @Yulang.GeneralDictionary169Selected.relocated_selected_evidence
+#check @Yulang.GeneralDictionary169Selected.stable_current_instance
+#check @Yulang.GeneralDictionary169Selected.stable_generated_children
+#check @Yulang.GeneralDictionary169Selected.stable_current_evidence
+
+#print axioms Yulang.GeneralDictionary169Selected.child_payloads
+#check @Yulang.GeneralDictionary169Selected.child_payloads
+
+#print axioms Yulang.GeneralDictionary169Selected.installed_dictionary_exists
+#check @Yulang.GeneralDictionary169Selected.installed_dictionary_exists
+
+#print axioms Yulang.GeneralDictionary169Selected.actual_nonterminal_exists
+#check @Yulang.GeneralDictionary169Selected.actual_nonterminal_exists

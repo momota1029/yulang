@@ -1,0 +1,10 @@
+import Yulang.GeneralDictionary169NamedTree
+
+#print axioms Yulang.GeneralDictionary169NamedTree.current_evidence
+#check @Yulang.GeneralDictionary169NamedTree.current_evidence
+#print axioms Yulang.GeneralDictionary169NamedTree.actual_tree
+#check @Yulang.GeneralDictionary169NamedTree.actual_tree
+#print axioms Yulang.GeneralDictionary169NamedTree.strict_coverage
+#check @Yulang.GeneralDictionary169NamedTree.strict_coverage
+#print axioms Yulang.GeneralDictionary169NamedTree.stable_named_interpretation
+#check @Yulang.GeneralDictionary169NamedTree.stable_named_interpretation

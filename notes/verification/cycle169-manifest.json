@@ -1,0 +1,139 @@
+[
+  {
+    "module": "GeneralDictionary169CoverageAccessible",
+    "path": "lean/Yulang/GeneralDictionary169CoverageAccessible.lean",
+    "theorems": [
+      "packet_child_above",
+      "child_rank",
+      "coverage_accessible",
+      "covered_tree",
+      "covered_dictionary"
+    ],
+    "sha": "6100a4d2cd175a37d12b2f3183f4685047ab66ad"
+  },
+  {
+    "module": "GeneralDictionary169FiniteCoverage",
+    "path": "lean/Yulang/GeneralDictionary169FiniteCoverage.lean",
+    "theorems": [
+      "node_tree",
+      "accessible_tree",
+      "wellFounded_tree",
+      "uniform_dictionary"
+    ],
+    "sha": "e13e9a7965103381c5b9a73222564db15e904343"
+  },
+  {
+    "module": "GeneralDictionary169FiniteDisplay",
+    "path": "lean/Yulang/GeneralDictionary169FiniteDisplay.lean",
+    "theorems": [
+      "accessible",
+      "uniform_dictionary",
+      "nonvacuous"
+    ],
+    "sha": "d2bce866b1e388c4fdab6ae6457969fd2f91f044"
+  },
+  {
+    "module": "GeneralDictionary169LeafPersistence",
+    "path": "lean/Yulang/GeneralDictionary169LeafPersistence.lean",
+    "theorems": [
+      "spine_query"
+    ],
+    "sha": "3e3ede8fd8edc92d4cc0151442b51cc4dee839a0"
+  },
+  {
+    "module": "GeneralDictionary169MixedPersistence",
+    "path": "lean/Yulang/GeneralDictionary169MixedPersistence.lean",
+    "theorems": [
+      "packets_steps",
+      "extension",
+      "ordinary_steps",
+      "current_evidence",
+      "source_formed_steps",
+      "source_dictionary_steps"
+    ],
+    "sha": "865dccac8166a96da88236cc6844cab9f14ad5f2"
+  },
+  {
+    "module": "GeneralDictionary169NamedGap",
+    "path": "lean/Yulang/GeneralDictionary169NamedGap.lean",
+    "theorems": [
+      "empty_named_not_mixed",
+      "actual_not_mixed",
+      "stable_named_coverage_gap"
+    ],
+    "sha": "4e2bbbe438a51c3ca0bff15d0a8eb932a878a8ae"
+  },
+  {
+    "module": "GeneralDictionary169NamedLeaf",
+    "path": "lean/Yulang/GeneralDictionary169NamedLeaf.lean",
+    "theorems": [
+      "report_exact",
+      "branch_models",
+      "ready",
+      "instance_of_shape",
+      "evidence_of_shape",
+      "actual_evidence",
+      "actual_nonempty_output"
+    ],
+    "sha": "bd5ae455b2e53c11be0af57471b530714f89a9e5"
+  },
+  {
+    "module": "GeneralDictionary169NamedPersistence",
+    "path": "lean/Yulang/GeneralDictionary169NamedPersistence.lean",
+    "theorems": [
+      "observed",
+      "extension",
+      "ordinary_steps",
+      "current_evidence"
+    ],
+    "sha": "3c8e5ecc5bbec3d4331ca86c6d02e593f096cdee"
+  },
+  {
+    "module": "GeneralDictionary169NamedTree",
+    "path": "lean/Yulang/GeneralDictionary169NamedTree.lean",
+    "theorems": [
+      "current_evidence",
+      "actual_tree",
+      "strict_coverage",
+      "stable_named_interpretation"
+    ],
+    "sha": "b448d272c04a4b60ada7ea373e290e58474d25d2"
+  },
+  {
+    "module": "GeneralDictionary169RelocationComposition",
+    "path": "lean/Yulang/GeneralDictionary169RelocationComposition.lean",
+    "theorems": [
+      "report_comp",
+      "at_trans",
+      "packet_extension"
+    ],
+    "sha": "565571707a2b5954fe2c8885c7adc80ce7f603a2"
+  },
+  {
+    "module": "GeneralDictionary169Selected",
+    "path": "lean/Yulang/GeneralDictionary169Selected.lean",
+    "theorems": [
+      "relocated_selected",
+      "relocated_selected_evidence",
+      "stable_current_instance",
+      "stable_generated_children",
+      "stable_current_evidence",
+      "child_payloads",
+      "installed_dictionary_exists",
+      "actual_nonterminal_exists"
+    ],
+    "sha": "c8bd6e01f4a82de07282fb0a99bfcf61c5f245b2"
+  },
+  {
+    "module": "GeneralDictionary169SharedStable",
+    "path": "lean/Yulang/GeneralDictionary169SharedStable.lean",
+    "theorems": [
+      "value_action_exists",
+      "of_value",
+      "actual_stable",
+      "actual_formed",
+      "actual_stable_named_dictionary"
+    ],
+    "sha": "38b884d1724eba62c11cae50a9a00cbea1836e9e"
+  }
+]

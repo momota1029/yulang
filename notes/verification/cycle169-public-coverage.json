@@ -1,0 +1,21 @@
+{
+  "modules": 12,
+  "public_theorems": 53,
+  "missing_audit_names": [],
+  "extra_printed_definitions": [
+    "Yulang.GeneralDictionary169NamedLeaf.actual_shape",
+    "Yulang.GeneralDictionary169NamedPersistence.leaf",
+    "Yulang.GeneralDictionary169NamedPersistence.tree"
+  ],
+  "module_exit0": 12,
+  "audit_exit0": 15,
+  "gates": [
+    "11",
+    "87",
+    "32",
+    "77",
+    "11"
+  ],
+  "source_commit": "e791991e45150f47094f2b61289ea4622563427c",
+  "source_tree": "0fc79cb903ac5ff1bb270c1724bcc5a65114cbd0"
+}
