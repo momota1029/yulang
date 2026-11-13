@@ -417,3 +417,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Item 4l: concrete provenance checkpoint](2026-11-13-general-nominal-provenance-checkpoint.md) — Partial: actual four-Step P/ExtractA prefix and concrete paired exclusion; the full source checkpoint bridge and L5–L7 remain open.
 - [Provenance checkpoint module guide](2026-11-13-general-nominal-provenance-checkpoint-module-guide.md) — Eight additive modules and a separate audit part.
+
+- [Fresh termination analysis](2026-11-13-termination-fresh-analysis.md) — Draft acyclic accumulator counterexample; checked algebraic core and infinite-installation necessity, full Lean trace still open.
