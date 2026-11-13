@@ -1,8 +1,9 @@
-verify-lean: . @ 15de3e459 (base 70461874b)
+verify-lean: . @ 5a9d3c15f (base 70461874b)
 ok: no removed lines in lean/ since 70461874b
 ok: no sorry/native_decide/axiom-like constructs in added lines
 REVIEW: metaprogramming/#eval in added lines (a human must read these):
 14:+run_cmd do
+44:+run_cmd do
 ok: lake config unchanged (or only SpecExamples*/Main* libs added)
 ok: new files are Yulang modules only
 ok: lean/Audit.lean only appended (plus top import lines)
@@ -166,4 +167,4 @@ ok: lean/Audit/NonpointOutput.lean only appended (plus top import lines)
 ok: lean/Audit/NonpointStrict.lean only appended (plus top import lines)
 ok: lean/Audit/NonpointStrictOutput.lean only appended (plus top import lines)
 ok: lean/Audit/Recovery131135.lean only appended (plus top import lines)
-verify-lean: PASS (diff checks only, NO build) with 1 REVIEW item(s) above
+verify-lean: PASS (diff checks only, NO build) with 2 REVIEW item(s) above

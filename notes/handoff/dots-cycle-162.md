@@ -88,3 +88,35 @@ Gitで再取得し、固定local955cd2615との差が意図した心拍だけと
 依存公理gate PASS。audit12本PASS、標準3公理以外なし。focused build最終788jobs PASS。
 差分限定verify-lean --no-buildはEXIT0。report-only collectAxiomsのrun_cmd1件を
 REVIEWとして記録した。宣言を挿入するメタプログラムではない。
+
+## 公開sourceの独立再生（09:57 UTC）
+
+checkpoint72736f97c33ba21cdf2368a31c32ac4da7bb2131、監査公開
+ e4fa5a07ca619fcac0f03f4f29bce75f0900bf07を取得。後者の全treeは固定local2d4c2a5bdと
+心拍だけが異なる。公開inventoryのSHA256全11件を公開sourceと照合し、そのsourceを
+別directoryでtrust0再compile、132宣言gateを再実行してEXIT0。
+全11moduleのentrypoint importも確認した。
+workflow APIはe4fa5a07で空一覧。PR-triggered先頭page限定のため、CI全体の不存在や
+成功とは解釈しない。空きworkspace38GiB、/tmp428MiB、使用量quotaは不明。
+
+## rootのStableだけで辞書treeへ（10:02 UTC）
+
+追加の`SettledRootEvidence`により、各descendantのStable前提を除去した。
+**rootの実Settled Stableと、選択descendantのselected-key JointClosure**から、
+選択child graphの各点が実Generatedであることをpath帰納法で導く。
+親のreachable_joint_instanceが記録済みpacketの子をGeneratedにするため、単なる
+構文的選択を実生成と同一視していない。root Stableをgenerated_transで子へ制限し、
+全辞書/完成診断treeのfinal-model Evidenceを得る。一般JointClosureは依然明示前提。
+
+別の独立reviewでsourceとevidence rootの区別、帰納法の非循環性を確認した。
+後続consumerの未実装実験はdesign noteに具体化した。OutputOnlyを破る出力binderの
+入力利用や、Generatedでないqueryの任意enqueueは使わない。既知Pair(a,b)から
+input capture bへ出力をrouteする候補を記したが、Checkedや実Stepを証明済みとはしない。
+
+## 最終source範囲の再検証
+
+最終は12module・公開105定理。root追加後の名前照合105/105、型出力105個EXIT0。
+新root sourceを独立cacheでtrust0再compile。全138宣言のFinalDependencyGate PASS。
+監査13本の一括再実行に加え、新FinalDependencyGateを個別実行し計14本PASS。
+元のCycle162DependencyGateは変更せず保持。追加root target build690jobs PASS。
+最終差分限定verify-leanはEXIT0、report-only gate2件のREVIEWを明示。

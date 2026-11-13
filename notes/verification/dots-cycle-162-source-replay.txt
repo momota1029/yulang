@@ -13,3 +13,7 @@ GATE 0 AXIOM-GATE-PASS: 114 declarations
 Reserved source direct trust0 EXIT0
 AXIOM-GATE-PASS: 132 declarations
   EXIT 0
+
+RootEvidence direct trust0 EXIT0
+AXIOM-GATE-PASS: 138 declarations
+  EXIT 0

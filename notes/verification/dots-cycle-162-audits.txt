@@ -1,3 +1,6 @@
+lean/Audit/Cycle162DependencyGate.lean EXIT 0
+AXIOM-GATE-PASS: 132 declarations
+
 lean/Audit/Cycle162SettledCutExclusion.lean EXIT 0
 'Yulang.GeneralDictionarySettledCutExclusion.inspected_cut_no_dictionary' depends on axioms: [propext,
  Classical.choice,
@@ -208,6 +211,23 @@ lean/Audit/Cycle162SettledReservedExample.lean EXIT 0
  Classical.choice,
  Quot.sound]
 
+lean/Audit/Cycle162SettledRootEvidence.lean EXIT 0
+'Yulang.GeneralDictionarySettledRootEvidence.stable_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRootEvidence.selected_descendant_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRootEvidence.nodeClosure_of_root_stable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRootEvidence.classified_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledRootEvidence.completed_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
 lean/Audit/Cycle162SettledSourceGuard.lean EXIT 0
 'Yulang.GeneralDictionarySettledSourceGuard.head_of_empty_facts' depends on axioms: [propext,
  Classical.choice,
@@ -251,5 +271,6 @@ lean/Audit/Cycle162SettledTreeEvidence.lean EXIT 0
  Classical.choice,
  Quot.sound]
 
-lean/Audit/Cycle162DependencyGate.lean EXIT 0
-AXIOM-GATE-PASS: 132 declarations
+lean/Audit/Cycle162FinalDependencyGate.lean EXIT 0
+AXIOM-GATE-PASS: 138 declarations
+  EXIT 0

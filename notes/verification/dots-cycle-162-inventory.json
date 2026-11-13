@@ -148,6 +148,18 @@
     ]
   },
   {
+    "path": "lean/Yulang/GeneralDictionarySettledRootEvidence.lean",
+    "namespace": "Yulang.GeneralDictionarySettledRootEvidence",
+    "sha256": "e0accab8761757144611ec44b7937d6ddfc884e7bdd3fd6013f2db289812b46f",
+    "public_theorems": [
+      "stable_generated",
+      "selected_descendant_generated",
+      "nodeClosure_of_root_stable",
+      "classified_evidence",
+      "completed_evidence"
+    ]
+  },
+  {
     "path": "lean/Yulang/GeneralDictionarySettledSourceGuard.lean",
     "namespace": "Yulang.GeneralDictionarySettledSourceGuard",
     "sha256": "a66af1aad0f74ebdb6ee515de23f25b0613480464868233a4f472505770e8bb4",
