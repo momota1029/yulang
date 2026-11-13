@@ -2280,3 +2280,7 @@ import Yulang.GeneralDictionaryProvenanceHeadBranch
 import Yulang.GeneralDictionarySelectedProvenanceCoverage
 
 import Yulang.GeneralDictionaryReservedClassifierSoundness
+
+import Yulang.GeneralDictionaryReservedSuccessorBoundary
+
+import Yulang.GeneralDictionaryNonterminalProvenanceApplication
