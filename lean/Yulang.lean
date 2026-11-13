@@ -2306,3 +2306,45 @@ import Yulang.GeneralDictionaryReachableRootIntervals
 import Yulang.GeneralDictionaryScalarIntervalInspection
 import Yulang.GeneralDictionaryProvenanceScalarIntervalRoot
 import Yulang.GeneralDictionaryCatalogScalarIntervalRoot
+
+import Yulang.GeneralDictionaryPersistentCatalog
+import Yulang.GeneralDictionaryRequestCatalog
+import Yulang.GeneralDictionaryMixedCatalogExample
+import Yulang.GeneralDictionaryRequestCatalogEvidence
+
+import Yulang.GeneralDictionaryVariableClauseCatalog
+import Yulang.GeneralDictionaryVariableClauseCatalogExample
+
+import Yulang.GeneralDictionaryMixedCatalogInhabited
+
+import Yulang.GeneralDictionaryCapturedChildIntervals
+
+import Yulang.GeneralDictionaryCapturedSchemaTransport
+
+import Yulang.GeneralDictionaryGeneratedIntervalCoverage
+
+import Yulang.GeneralDictionaryGeneratedIntervalExample
+
+import Yulang.GeneralDictionaryGeneratedIntervals
+
+import Yulang.GeneralDictionaryGeneratedOrigins
+
+import Yulang.GeneralDictionaryMixedCatalogReachable
+
+import Yulang.GeneralDictionaryProvenanceGeneratedIntervals
+
+import Yulang.GeneralDictionaryVariableRegistryIntervals
+
+import Yulang.GeneralDictionaryBindingSchemaReplay
+
+import Yulang.GeneralDictionaryMixedCapturedReplay
+
+import Yulang.GeneralDictionaryRecordedScalarIntervalEvidence
+
+import Yulang.GeneralDictionaryMixedCarrierRefresh
+
+import Yulang.GeneralDictionaryRequestCatalogCompute
+
+import Yulang.GeneralDictionaryComputedCatalogExample
+
+import Yulang.GeneralDictionaryUnaryRefinementCapture

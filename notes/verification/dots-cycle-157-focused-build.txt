@@ -1,0 +1,4 @@
+✔ [807/809] Built Yulang.GeneralDictionaryRequestCatalogCompute (3.1s)
+✔ [808/809] Built Yulang.GeneralDictionaryMixedCarrierRefresh (3.7s)
+✔ [809/809] Built Yulang.GeneralDictionaryComputedCatalogExample (2.1s)
+Build completed successfully (809 jobs).

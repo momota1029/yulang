@@ -1,0 +1,11 @@
+'Yulang.GeneralDictionaryUnaryRefinementCapture.queries_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryUnaryRefinementCapture.report_refined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryUnaryRefinementCapture.bindings_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryUnaryRefinementCapture.origins_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryUnaryRefinementCapture.recorded_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryUnaryRefinementCapture.recorded_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+AXIOM-GATE-PASS: 7 declarations

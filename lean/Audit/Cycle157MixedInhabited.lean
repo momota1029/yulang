@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryMixedCatalogInhabited
+
+#print axioms Yulang.GeneralDictionaryMixedCatalogInhabited.target_nonzero
+#print axioms Yulang.GeneralDictionaryMixedCatalogInhabited.query
+#print axioms Yulang.GeneralDictionaryMixedCatalogInhabited.branch
+#print axioms Yulang.GeneralDictionaryMixedCatalogInhabited.journal_models
+#print axioms Yulang.GeneralDictionaryMixedCatalogInhabited.nonvacuous_strict_coverage

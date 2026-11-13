@@ -1,0 +1,28 @@
+import Yulang.GeneralDictionaryPersistentCatalog
+import Yulang.GeneralDictionaryRequestCatalog
+import Yulang.GeneralDictionaryMixedCatalogExample
+import Yulang.GeneralDictionaryRequestCatalogEvidence
+
+#print axioms Yulang.GeneralDictionaryPersistentCatalog.safeCatalog_step
+#print axioms Yulang.GeneralDictionaryPersistentCatalog.safeCatalog_trace
+#print axioms Yulang.GeneralDictionaryPersistentCatalog.recorded_trace
+#print axioms Yulang.GeneralDictionaryRequestCatalog.eligible_iff
+#print axioms Yulang.GeneralDictionaryRequestCatalog.member_iff
+#print axioms Yulang.GeneralDictionaryRequestCatalog.covered_iff
+#print axioms Yulang.GeneralDictionaryRequestCatalog.safe_included
+#print axioms Yulang.GeneralDictionaryRequestCatalog.supported
+#print axioms Yulang.GeneralDictionaryRequestCatalog.catalog_step
+#print axioms Yulang.GeneralDictionaryRequestCatalog.catalog_trace
+#print axioms Yulang.GeneralDictionaryRequestCatalog.shape
+#print axioms Yulang.GeneralDictionaryMixedCatalogExample.checked
+#print axioms Yulang.GeneralDictionaryMixedCatalogExample.emissions
+#print axioms Yulang.GeneralDictionaryMixedCatalogExample.closed
+#print axioms Yulang.GeneralDictionaryMixedCatalogExample.mixed
+#print axioms Yulang.GeneralDictionaryMixedCatalogExample.old_catalog_empty
+#print axioms Yulang.GeneralDictionaryMixedCatalogExample.new_catalog_contains
+#print axioms Yulang.GeneralDictionaryMixedCatalogExample.generated_exact
+#print axioms Yulang.GeneralDictionaryMixedCatalogExample.strict_coverage
+#print axioms Yulang.GeneralDictionaryRequestCatalogEvidence.instance_of_catalog
+#print axioms Yulang.GeneralDictionaryRequestCatalogEvidence.structural
+#print axioms Yulang.GeneralDictionaryRequestCatalogEvidence.covered
+#print axioms Yulang.GeneralDictionaryRequestCatalogEvidence.dictionary_evidence

@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryComputedCatalogExample
+
+#print axioms Yulang.GeneralDictionaryRequestCatalogCompute.packet_exact
+#print axioms Yulang.GeneralDictionaryRequestCatalogCompute.catalog_exact
+#print axioms Yulang.GeneralDictionaryRequestCatalogCompute.coverage_exact
+#print axioms Yulang.GeneralDictionaryComputedCatalogExample.packet_computed
+#print axioms Yulang.GeneralDictionaryComputedCatalogExample.installed_computed
