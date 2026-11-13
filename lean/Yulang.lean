@@ -2399,3 +2399,13 @@ import Yulang.GeneralDictionarySemanticCollapse
 import Yulang.GeneralDictionarySemanticCollapseAllocation
 import Yulang.GeneralDictionaryPositiveNestedProjection
 import Yulang.GeneralDictionarySemanticCollapseSchema
+
+import Yulang.GeneralDictionaryPositiveNestedBranch
+
+import Yulang.GeneralDictionaryPositiveNestedInitial
+
+import Yulang.GeneralDictionarySemanticCollapseExample
+
+import Yulang.GeneralDictionarySemanticCollapseAllocationExample
+
+import Yulang.GeneralDictionarySemanticCollapseBranch

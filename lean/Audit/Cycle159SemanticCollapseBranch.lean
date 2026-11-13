@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySemanticCollapseBranch
+
+#print axioms Yulang.GeneralDictionarySemanticCollapseBranch.reports
+#print axioms Yulang.GeneralDictionarySemanticCollapseBranch.terminal_requests
+#print axioms Yulang.GeneralDictionarySemanticCollapseBranch.branch

@@ -24,3 +24,14 @@ needed for new propagation. `SemanticCollapseSchema` composes this with schema
 replay for a fixed schema whose input variables are the retained binder. Output
 variables are unrestricted. This is suitable for unchanged root output requests;
 newly emitted child targets are NOT identified by this theorem.
+
+## Terminal full-branch closure
+`GeneralDictionarySemanticCollapseBranch.branch` derives the current full
+`BranchModels` from the historical branch and current raw source model. It
+requires a terminal declaration, exactly one input binder, point leaf intervals,
+and a generated root schema whose nonoutput variables use that binder. The
+old outer descriptor interval may be nonpoint. It does not assume current
+private merges or current materialization. The theorem itself takes a `Shape`
+over a `Revision`, not a `Certified` or operational `Step`; the separate concrete
+fixture supplies a certified improving reachable revision. Prepared/selection,
+installation, emitted children, and general reobserve preservation remain open.

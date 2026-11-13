@@ -1,0 +1,10 @@
+import Yulang.GeneralDictionaryPositiveNestedInitial
+
+#print axioms Yulang.GeneralDictionaryPositiveNestedInitial.source_models
+#print axioms Yulang.GeneralDictionaryPositiveNestedInitial.source_formed
+#print axioms Yulang.GeneralDictionaryPositiveNestedInitial.initial_reachable
+#print axioms Yulang.GeneralDictionaryPositiveNestedInitial.initial_models
+#print axioms Yulang.GeneralDictionaryPositiveNestedInitial.report_transport
+#print axioms Yulang.GeneralDictionaryPositiveNestedInitial.generated_empty_current
+#print axioms Yulang.GeneralDictionaryPositiveNestedInitial.branch_models
+#print axioms Yulang.GeneralDictionaryPositiveNestedInitial.prepared_current
