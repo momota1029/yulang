@@ -1,7 +1,0 @@
-DEPENDENCY_CLOSURE 787 REBUILD 2
-START Yulang.GeneralNominalActualAgreedLocal
-END Yulang.GeneralNominalActualAgreedLocal 0
-START Yulang.GeneralNominalActualAgreedBoundary
-END Yulang.GeneralNominalActualAgreedBoundary 0
-PASS 2
-EXIT:0

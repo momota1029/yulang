@@ -470,8 +470,15 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle172: nested input discovery](2026-11-13-cycle172-nested-input-discovery.md) — actual finished inspection yields finite unary input certificate.
 - [Cycle173 actual-inspection evidence and ground composition](2026-11-13-cycle173-actual-evidence.md)
 - Cycle173 actual ground witness, concrete branching run and selected-edge schema: `2026-11-13-cycle173-actual-evidence.md` (conditional dictionary bridges; not full B4).
+- [Canonical hole transport and reduced-hole source producers](2026-11-14-canonical-hole-transport.md) — Exact shared substitution and mass transport, reduced-hole structural/point-nominal exposure, actual K2 occurs checking, and certified inventory/journal transition branches; universal unknown-hole source production remains open. No missing-provenance deferral is used.
+
+- [Explicit centers at the actual-inspection boundary](2026-11-14-centered-actual-boundary.md) — Center ledger, model equations, centered transition kernel, six V5 structural fields, and conditional compatibility/K2 bridges; full simulation and trigger execution remain open.
+- [Uniform source production through actual centers](2026-11-14-uniform-centered-source-production.md) — Nonpoint named-argument readback, uniform full-report captures and source-key exposure, shared packet substitution, uniform child emission, and scalar hole elimination; universal Simulation.next remains open.
 
 - [Cycle174 Actual agreed evidence](2026-11-14-cycle174-agreed-evidence.md) (Draft; scoped diagnostics and conditional dictionary bridges).
 - Cycle174 follow-up: `GeneralDictionaryAgreedComputed174`, `SearchOrder174`, `Uniform174` give a complete executable role-DAG certificate (not a language checker), search-order invariance, and finite selected-child depth. `Checked174` and `Uniform174` connect it to current-Local exactness of the noncomputable ground diagnostic. See `2026-11-14-cycle174-uniform-role-search.md`.
 - Cycle174 history review: `GeneralDictionaryAgreedHistoryObstruction174` shows ordinary Extension cannot survive genuine observation improvement with a recorded packet; `GeneralDictionaryAgreedRefresh174` transports current Evidence through one fixed-carrier/view actual refresh without post-refresh Extension. See `cycle174-refresh-obligations.md`.
 - Cycle174 completion: `GeneralDictionaryAgreedBounded174` supplies certified finite-depth outer recursion; `GeneralDictionaryAgreedRefiningTrace174` proves the current recorded-instance invariant from empty journal through arbitrarily interleaved actual ordinary/new-install and fixed-carrier/view refresh steps. See `2026-11-14-cycle174-bounded-diagnostic.md`, `cycle174-refining-trace.md`, and the current-Local readback bridge note. Unrestricted B4 is still open.
+
+- [Cycle175 recursive evidence after refining histories](2026-11-14-cycle175-dictionary-completion.md)
+- [Cycle175 table certificate](2026-11-14-cycle175-table-certificate.md)
