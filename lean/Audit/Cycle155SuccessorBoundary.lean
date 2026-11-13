@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryReservedSuccessorBoundary
+#print axioms Yulang.GeneralDictionaryReservedSuccessorBoundary.raw_equal
+#print axioms Yulang.GeneralDictionaryReservedSuccessorBoundary.no_target_slot
+#print axioms Yulang.GeneralDictionaryReservedSuccessorBoundary.output_not_known
+#print axioms Yulang.GeneralDictionaryReservedSuccessorBoundary.point_closed
+#print axioms Yulang.GeneralDictionaryReservedSuccessorBoundary.no_reobservation
+#print axioms Yulang.GeneralDictionaryReservedSuccessorBoundary.stable_excludes_output_refresh

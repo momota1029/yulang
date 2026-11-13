@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryReservedRefreshedEvidence
+#print axioms Yulang.GeneralDictionaryReservedRefreshedEvidence.metadata
+#print axioms Yulang.GeneralDictionaryReservedRefreshedEvidence.recorded
+#print axioms Yulang.GeneralDictionaryReservedRefreshedEvidence.requests_exact
+#print axioms Yulang.GeneralDictionaryReservedRefreshedEvidence.covered
+#print axioms Yulang.GeneralDictionaryReservedRefreshedEvidence.supported
+#print axioms Yulang.GeneralDictionaryReservedRefreshedEvidence.current_instance
+#print axioms Yulang.GeneralDictionaryReservedRefreshedEvidence.current_evidence
+#print axioms Yulang.GeneralDictionaryReservedRefreshedEvidence.reachable_inhabited_dictionary

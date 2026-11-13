@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryReservedNominalRefresh
+#print axioms Yulang.GeneralDictionaryReservedNominalRefresh.snapshot_models
+#print axioms Yulang.GeneralDictionaryReservedNominalRefresh.output_member
+#print axioms Yulang.GeneralDictionaryReservedNominalRefresh.output_known
+#print axioms Yulang.GeneralDictionaryReservedNominalRefresh.refresh_step
+#print axioms Yulang.GeneralDictionaryReservedNominalRefresh.equality_successor_not_stable
+#print axioms Yulang.GeneralDictionaryReservedNominalRefresh.refreshed_models
+#print axioms Yulang.GeneralDictionaryReservedNominalRefresh.refreshed_reachable
+#print axioms Yulang.GeneralDictionaryReservedNominalRefresh.refreshed_inhabited
