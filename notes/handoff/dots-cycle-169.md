@@ -172,3 +172,21 @@ I26のguardは弱めていない。semantic Evidenceの定義自体にはDecisio
 ## 最終source検証
 
 最終source `e791991e45150f47094f2b61289ea4622563427c`、tree `0fc79cb903ac5ff1bb270c1724bcc5a65114cbd0`。公開済みexact SHAを新しいworktreeへ取得し、12moduleの既存oleanを排除した別libraryへすべてtrust0で再コンパイル。15auditすべてexit0、5gate計218宣言PASS。53公開定理のprint監査missing0。依存libraryは既検証cacheを継承しており全repoのfresh buildではない。公開append-only gateはexit0、5 REVIEWは新規auditのみ。完全ログ・manifest・量化台帳を添付。
+
+## 最終読取レビューと次回引継ぎ
+
+公開sourceとローカルのNamedLeaf/NamedTree/NamedPersistenceの一致を再確認。NamedNodeはrecorded/scalar/spine/namedの一nodeだけとし、全MixedTreeをlocal coverageに埋め込まない。named leafは子なしなので有限journal rankの拡張が見込めるが、今回は未実装。鍵・子順序のcoherence、実Shared終了状態からの局所coverage存在が次の主な義務。詳細はnext-groundノート末尾に記録した。
+
+## 終盤のintegration更新
+
+17:12 UTC再確認でintegrationは `2433dc974cc71201cf22bd15782b977e112f1f4a` へ進んでいた。8新Astra moduleの差分・ground-factorizationノート・主要型を読み、inboxは同じI27 ACTIVEと確認。今回は基点b95で検証済みのsourceを保ち、終盤の追加は未merge・未build。次回最初に統合する。新しいbranching operational Accと有限capture意味ラベルは、実snapshotの辞書coverageを自動で供給しない。この差と具体的な次の接続をnext-ground末尾に記録。
+
+終了前空き容量37GiB/63GiB（39%使用）。開始時の正確な容量は本報告に保存できておらず不明。個別olean symlinkによる依存共有で巨大cacheの複製はしていない。
+
+## 最終整合性確認
+
+53定理すべてが量化台帳に存在し、12moduleのmanifest SHAが公開sourceと一致。既存Lean変更はYulang.lean末尾の12importのみ、その他27Lean pathは新規。新productionにsorry/admit/axiom/native_decide/unsafe/run_cmdなし。中間公開の検証worktree2個はdirtyなし・最終公開の祖先であることを確認して除去し、最終公開worktreeと再現ログは保持した。旧サイクル作業場には触れていない。
+
+## 終了台帳
+
+2026-11-13T17:17:26Z、最終検証完了（開始から49.4分）。最終公開sourceから5gateをもう一度実行し218宣言すべてPASS、exit0。公開report・JSONのreadback一致、最終notesまでLean差分なしを確認。全proof worker・compile終了、承認待ちなし。完了心拍とこの台帳を同一treeで公開する。55分上限内。

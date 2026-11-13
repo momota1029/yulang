@@ -1,0 +1,17 @@
+import Yulang.GeneralDictionary170NamedSpineExample
+#print axioms Yulang.GeneralDictionary170NamedSpineExample.checked
+#check @Yulang.GeneralDictionary170NamedSpineExample.checked
+#print axioms Yulang.GeneralDictionary170NamedSpineExample.metadata
+#check @Yulang.GeneralDictionary170NamedSpineExample.metadata
+#print axioms Yulang.GeneralDictionary170NamedSpineExample.actual_evidence
+#check @Yulang.GeneralDictionary170NamedSpineExample.actual_evidence
+#print axioms Yulang.GeneralDictionary170NamedSpineExample.nonvacuous
+#check @Yulang.GeneralDictionary170NamedSpineExample.nonvacuous
+#print axioms Yulang.GeneralDictionary170NamedSpineExample.registry_checked
+#check @Yulang.GeneralDictionary170NamedSpineExample.registry_checked
+#print axioms Yulang.GeneralDictionary170NamedSpineExample.initial_source
+#check @Yulang.GeneralDictionary170NamedSpineExample.initial_source
+#print axioms Yulang.GeneralDictionary170NamedSpineExample.no_current_local_node
+#check @Yulang.GeneralDictionary170NamedSpineExample.no_current_local_node
+#print axioms Yulang.GeneralDictionary170NamedSpineExample.coverage_gap
+#check @Yulang.GeneralDictionary170NamedSpineExample.coverage_gap

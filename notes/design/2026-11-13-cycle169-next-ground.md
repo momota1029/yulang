@@ -160,3 +160,43 @@ Crucially this still does **not** derive Coverage from Stable/Reachable, prove c
 ### Cycle169 late verification update
 
 The fixed-journal route in §6 was subsequently implemented and verified in the additive module `GeneralDictionary169CoverageAccessible`: `packet_child_above`, `child_rank`, `coverage_accessible`, `covered_tree`, `covered_dictionary`. The structural accessibility result needs Coverage alone, not SourceFormed or a model. The direct emitter inversion avoids new dependencies on the Astra ground modules. Consequently §6's proposed signature is now proved for the old Mixed Node Coverage. Earlier sections' externally supplied Acc obligation is removed for this precise certificate type, not for arbitrary named/local graphs or operational transitions. Local Coverage existence and the actual-observation/relocation obligations remain open. The named analogue is still a next step.
+
+## Final read-only review: concrete next NamedCoverage implementation
+
+The published `NamedTree` has three constructors, but `mixed` embeds an entire old recursive tree. Do **not** turn that whole-tree constructor into a purported local coverage premise. A suitable new local datatype has four alternatives: recorded packet with membership and current Relocates; scalar source leaf; spine source leaf; and the new `LeafShape` named terminal leaf. The last three have `children=[]`; the recorded constructor uses literal `packet.children`. This preserves the distinction between one-node coverage and an already-built whole dictionary.
+
+Implementation obligations (not proved in cycle169):
+
+1. Define the local node key/children and prove node assembly from `All₂ NamedTree children payloads`. Scalar/spine assemble through `NamedTree.mixed`; named assembles through `NamedTree.named`; recorded uses `NamedTree.recorded`. None stores semantic Evidence or requires prebuilt descendant trees in the node itself.
+2. Define a child-closed domain and its chosen local node function. Closure is essential: otherwise the induction cannot produce a node for every child. Duplicate children do not require deduplication; the ordered All₂ list must preserve their order and multiplicity.
+3. Reuse `CoverageAccessible.packet_child_above`. A recorded parent identity belongs to `state.current.packets.map (·.site.occurrence.identity)` and is bounded by its finite maximum. All source leaf alternatives have no children. Thus the same reverse rank applies even to an infinite domain. No operational well-foundedness or domain finiteness premise is needed.
+4. Prove accessibility and construct one finite NamedTree for each covered focus, with the payload existential outside the current-model quantifier. Add SourceFormed only for interpreting the finished tree via `NamedTree.current_evidence`, not for rank descent.
+5. Check the selected declaration key and ordered children against `GeneralDictionarySelectedInstanceCoherence` using the new leaf's `instance_of_shape` in the same current context/model. Do not use a cached model from an earlier snapshot.
+6. The substantial unresolved theorem is **existence of that local coverage** from actual Shared execution and its completion/selection properties. Stable can force a fully enabled guarded packet to be committed, but does not by itself produce membership of the packet in the journal, current Relocates, or actual finite source observations. The already committed yet unrecorded named source example illustrates why those cases must stay separate.
+
+Review result: the cycle169 finite observed named leaves are restricted structural sufficient conditions, not arbitrary named-output coverage. The final source/report were checked for this distinction and for ordinary-only persistence. No source file was modified during this review.
+
+## Late integration refresh at 17:12 UTC
+
+The integration head advanced during this cycle to `2433dc974cc71201cf22bd15782b977e112f1f4a` (eight new Astra branching-ground modules plus audit/design/imports). The inbox blob remains `df1d2623a16552048310f6bb6e8c7a21f676bf23`, I27 ACTIVE. The cycle169 verified source remains based on `b95d31b190`; the late batch was fetched and read, not merged or compiled in this cycle. The next run must integrate it before further source work.
+
+The new `GeneralNominalBranchingAccessibility.accessible` proves **operational** Acc from Checked, Branching (unary active roles, bounded query shape, variable child inputs), InitialSource, an active root with retained source origin, and a finite semantic root tree valid in every source model. Its `sites_paths` invariant follows all actual inspection Steps and retains paths for generated sites. This is a genuine advance over the earlier hypothetical ground factorization, but remains restricted by Branching and is not a dictionary coverage theorem.
+
+`GeneralNominalCompoundCapturePaths.simultaneous_captures` now gives a finite semantic tree label for each needed binder and CaptureValue across its usable occurrences. Its premises still include a ProjectableMany query fragment, retained explained root forest, root meanings in one packet model, GenerationGuard, and application-only child arguments. `explained_value` obtains subtree meaning from a path **and an observed endpoint**. These outputs remain semantic trees, not `GeneralDictionaryObservedFiniteRequests.Tree` snapshot certificates. In particular, no result says a semantic nominal label creates a catalogue key or a live descriptor.
+
+Consequences for the next bridge:
+
+- Keep the finite-journal dictionary rank separate from operational Acc. The former is already unconditional given local coverage and does not need Branching.
+- For named leaf coverage, use dynamic report-origin extraction where available, but still prove exact snapshot/source-slot representation and actual request coverage. Do not replace these with CaptureValue alone.
+- The late design note explicitly keeps general GroundCaptureFactorization, source-key-preserving reification, full record/variant handling, and the head-wide mass sum bound open. No claim here discharges any of these.
+- The Show(pair(list int) int) fixture has a closed inhabited operational Acc result, but the late author explicitly did not construct refresh/install or successful dictionary execution. Therefore it is not evidence that current NamedTree covers that fixture.
+
+### Exact selected-leaf handoff and nonvacuity caveat
+
+For a current `LeafShape registry context occurrence declaration checked`, the existing `instance_of_shape` additionally needs declaration visibility, current `Metadata`, and **one actual current source model**. `instance_selected` can then identify `declaration.id = selectedKey` and `[] = selectedChildren` for a Local.selected judgment at that exact occurrence. This is a direct composition, not an alias/identity transport theorem. Do not silently infer such a model from a universally quantified Evidence statement: if the model set is empty, uniform Evidence is vacuous. The nonvacuous named fixture already provides a concrete model; a general selected-coverage lemma must retain or derive its own satisfiability witness.
+
+For ordinary continuation, the current proof relies on unchanged slot/head/descriptor structure, interpretation and request generation under `GeneralDictionaryOrdinaryTrace.Extension`; it transports every actual observed request. A future refresh proof needs explicit new report/bindings/schema correspondence and shape transport. Equality of semantic values alone supplies neither. The planned NamedNode abstraction should not erase these representation obligations.
+
+### Quantitative consequence to prove next, not counted now
+
+The fixed-journal rank suggests a reusable bound on **dictionary edge-path length**, not on runtime: for every finite chosen-child path starting at focus, length ≤ `ceiling state + 1 - focus.identity`. A leaf may already have rank zero, so a node-count/height convention that counts the root needs an extra one. This distinction prevents an off-by-one false statement for an empty-journal scalar leaf. A length theorem would support explicit bounded dictionary construction, but cycle169 currently proves only Acc and existential finite-tree construction; no extraction/runtime bound is claimed.

@@ -456,4 +456,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Ground capture readback: recovery, source syntax, and record mass](2026-11-14-ground-capture-readback.md) — Actual missing-root recovery produces finite endpoint forests; source-key-preserving closed reification, record/variant projection inversion, exact checker mass, and reachable-only factorization reduction. General ground-root Acc remains conditional.
 
+- [Cycle170 local coverage and bounded assembly](2026-11-13-cycle170-local-assembly.md) — Draft auxiliary proof progress.
+
+- [Cycle170 next observation bridge](2026-11-13-cycle170-next-observation-bridge.md) — Draft; physical snapshot and semantic source readback obligations.
 - [Ground capture assembly after full-report readback (2026-11-14)](2026-11-14-ground-capture-assembly.md) — actual fallback readbacks, simultaneous source labels, normalized descent; general Acc remains conditional.

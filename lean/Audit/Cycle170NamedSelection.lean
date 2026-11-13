@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionary170NamedSelection
+#print axioms Yulang.GeneralDictionary170NamedSelection.leaf_selected
+#print axioms Yulang.GeneralDictionary170NamedSelection.tree_selected
+#print axioms Yulang.GeneralDictionary170NamedSelection.terminal_payload
+#print axioms Yulang.GeneralDictionary170NamedSelection.leaf_tree_unique
+#print axioms Yulang.GeneralDictionary170NamedSelection.actual_unique

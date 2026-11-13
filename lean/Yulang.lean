@@ -2655,6 +2655,7 @@ import Yulang.GeneralDictionary169NamedGap
 import Yulang.GeneralDictionary169NamedTree
 import Yulang.GeneralDictionary169NamedPersistence
 import Yulang.GeneralDictionary169CoverageAccessible
+
 import Yulang.GeneralNominalInspectionOrigins
 import Yulang.GeneralNominalGroundForests
 import Yulang.GeneralNominalGroundPacketForest
@@ -2665,6 +2666,17 @@ import Yulang.GeneralPatternRecordSubstitution
 import Yulang.GeneralNominalClosedPatternMass
 import Yulang.GeneralNominalRecordInversion
 import Yulang.GeneralNominalSourceProjection
+
+import Yulang.GeneralDictionary170AssemblyPersistence
+import Yulang.GeneralDictionary170AssemblySize
+import Yulang.GeneralDictionary170BoundedAssembly
+import Yulang.GeneralDictionary170NamedAccessible
+import Yulang.GeneralDictionary170NamedCoverage
+import Yulang.GeneralDictionary170NamedCoveragePersistence
+import Yulang.GeneralDictionary170NamedSelection
+import Yulang.GeneralDictionary170NamedSpine
+import Yulang.GeneralDictionary170NamedSpineExample
+import Yulang.GeneralDictionary170PathBound
 import Yulang.GeneralPatternConservativeSubstitution
 import Yulang.GeneralPatternHiddenJoin
 import Yulang.GeneralNominalNormalizedGround

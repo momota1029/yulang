@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionary170PathBound
+#print axioms Yulang.GeneralDictionary170PathBound.rank_budget
+#check @Yulang.GeneralDictionary170PathBound.rank_budget
+#print axioms Yulang.GeneralDictionary170PathBound.length_le_rank
+#check @Yulang.GeneralDictionary170PathBound.length_le_rank
+#print axioms Yulang.GeneralDictionary170PathBound.length_le_ceiling
+#check @Yulang.GeneralDictionary170PathBound.length_le_ceiling
+#print axioms Yulang.GeneralDictionary170PathBound.no_positive_cycle
+#check @Yulang.GeneralDictionary170PathBound.no_positive_cycle
+#print axioms Yulang.GeneralDictionary170PathBound.rank_zero_terminal
+#check @Yulang.GeneralDictionary170PathBound.rank_zero_terminal
+#print axioms Yulang.GeneralDictionary170PathBound.vertices_le_rank_succ
+#check @Yulang.GeneralDictionary170PathBound.vertices_le_rank_succ

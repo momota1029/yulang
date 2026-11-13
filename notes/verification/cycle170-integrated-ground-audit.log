@@ -1,0 +1,36 @@
+'Yulang.GeneralNominalInspectionOrigins.inspect_counted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalInspectionOrigins.many_counted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalInspectionOrigins.complete_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGroundForests.retained_forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGroundForests.recovered_forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGroundForests.safe_missing_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGroundForests.missing_constructor_meanings' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalGroundPacketForest.packet_forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGroundReachable.sites_bounded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGroundReachable.installed_depth_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGroundReachable.accessible_of_reachable_factorization' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalSourcePatternParts.child_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSourcePatternParts.closed_child_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSourcePatternParts.followed_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalClosedPatternNormal.quote_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalClosedPatternNormal.translated_normal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalClosedPatternNormal.closed_reification' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPatternRecordSubstitution.hide_substitution' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPatternRecordSubstitution.normalize_template' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPatternRecordSubstitution.counted_template' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPatternRecordSubstitution.mass_template' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalClosedPatternMass.record_sort_mass' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalClosedPatternMass.translated_mass' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalClosedPatternMass.closed_mass' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRecordInversion.record_signatures' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRecordInversion.record_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRecordInversion.variant_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSourceProjection.followed_pattern' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSourceProjection.actual_record_pattern' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSourceProjection.actual_variant_pattern' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

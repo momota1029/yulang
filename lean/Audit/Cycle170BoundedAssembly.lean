@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionary170BoundedAssembly
+#print axioms Yulang.GeneralDictionary170BoundedAssembly.enough_fuel
+#check @Yulang.GeneralDictionary170BoundedAssembly.enough_fuel
+#print axioms Yulang.GeneralDictionary170BoundedAssembly.successful_tree
+#check @Yulang.GeneralDictionary170BoundedAssembly.successful_tree
+#print axioms Yulang.GeneralDictionary170BoundedAssembly.build_succeeds
+#check @Yulang.GeneralDictionary170BoundedAssembly.build_succeeds
+#print axioms Yulang.GeneralDictionary170BoundedAssembly.build_dictionary
+#check @Yulang.GeneralDictionary170BoundedAssembly.build_dictionary
+#print axioms Yulang.GeneralDictionary170BoundedAssembly.zero_fuel
+#check @Yulang.GeneralDictionary170BoundedAssembly.zero_fuel
+#print axioms Yulang.GeneralDictionary170BoundedAssembly.actual_build
+#check @Yulang.GeneralDictionary170BoundedAssembly.actual_build

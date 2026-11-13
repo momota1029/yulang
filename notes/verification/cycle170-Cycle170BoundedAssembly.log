@@ -1,0 +1,51 @@
+'Yulang.GeneralDictionary170BoundedAssembly.enough_fuel' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.enough_fuel : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (fuel : Nat)
+  (focus : Subtype domain),
+  Yulang.GeneralDictionary170NamedAccessible.rank state focus.val < fuel →
+    ∃ payload,
+      Yulang.GeneralDictionary170BoundedAssembly.assemble coverage fuel focus = some payload ∧
+        Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload
+'Yulang.GeneralDictionary170BoundedAssembly.successful_tree' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.successful_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  {payload : Yulang.GeneralDictionaryReadback.Payload}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (fuel : Nat)
+  (focus : Subtype domain),
+  Yulang.GeneralDictionary170BoundedAssembly.assemble coverage fuel focus = some payload →
+    Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload
+'Yulang.GeneralDictionary170BoundedAssembly.build_succeeds' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.build_succeeds : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  ∃ payload,
+    Yulang.GeneralDictionary170BoundedAssembly.build coverage focus = some payload ∧
+      Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload
+'Yulang.GeneralDictionary170BoundedAssembly.build_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.build_dictionary : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    ∃ payload,
+      Yulang.GeneralDictionary170BoundedAssembly.build coverage focus = some payload ∧
+        Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus.val payload
+'Yulang.GeneralDictionary170BoundedAssembly.zero_fuel' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.zero_fuel : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Yulang.GeneralDictionary170BoundedAssembly.assemble coverage 0 focus = none
+'Yulang.GeneralDictionary170BoundedAssembly.actual_build' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary170BoundedAssembly.actual_build : Yulang.GeneralDictionary170BoundedAssembly.build
+    Yulang.GeneralDictionary170NamedAccessible.actual_coverage ⟨Yulang.GeneralDictionaryFiniteObservedExample.root, ⋯⟩ =
+  some
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryFiniteObservedExample.declaration.id [])
