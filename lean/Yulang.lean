@@ -2338,3 +2338,11 @@ import Yulang.GeneralDictionaryVariableRegistryIntervals
 import Yulang.GeneralDictionaryBindingSchemaReplay
 
 import Yulang.GeneralDictionaryMixedCapturedReplay
+
+import Yulang.GeneralDictionaryRecordedScalarIntervalEvidence
+
+import Yulang.GeneralDictionaryMixedCarrierRefresh
+
+import Yulang.GeneralDictionaryRequestCatalogCompute
+
+import Yulang.GeneralDictionaryComputedCatalogExample
