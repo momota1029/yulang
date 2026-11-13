@@ -1,0 +1,69 @@
+import Yulang.GeneralNominalActualInspectionSteps
+import Yulang.GeneralNominalPointCycleSource
+import Yulang.GeneralNominalPointCycleInspection
+import Yulang.GeneralNominalPointCycleBounds
+import Yulang.GeneralNominalActualInspectionExamples
+
+#print axioms Yulang.GeneralNominalActualInspectionSteps.point_argument_readback
+#print axioms Yulang.GeneralNominalActualInspectionSteps.nominal_alias_readback
+#print axioms Yulang.GeneralNominalActualInspectionSteps.at_shared
+#print axioms Yulang.GeneralNominalActualInspectionSteps.step_shared
+#print axioms Yulang.GeneralNominalActualInspectionSteps.formed_shared
+#print axioms Yulang.GeneralNominalActualInspectionSteps.tested_cycle_blocks
+#print axioms Yulang.GeneralNominalActualInspectionSteps.missing_location_blocks
+#print axioms Yulang.GeneralNominalActualInspectionSteps.missing_origin_blocks
+#print axioms Yulang.GeneralNominalActualInspectionSteps.alternative_cycle_blocks
+#print axioms Yulang.GeneralNominalActualInspectionSteps.safe_test
+#print axioms Yulang.GeneralNominalActualInspectionSteps.accessible_of_shared
+#print axioms Yulang.GeneralNominalPointCycleSource.declaration_checked
+#print axioms Yulang.GeneralNominalPointCycleSource.checked
+#print axioms Yulang.GeneralNominalPointCycleSource.source_member
+#print axioms Yulang.GeneralNominalPointCycleSource.initial_source
+#print axioms Yulang.GeneralNominalPointCycleSource.initial_point
+#print axioms Yulang.GeneralNominalPointCycleSource.alias_zero
+#print axioms Yulang.GeneralNominalPointCycleSource.loop_two
+#print axioms Yulang.GeneralNominalPointCycleSource.lower_three
+#print axioms Yulang.GeneralNominalPointCycleSource.upper_four
+#print axioms Yulang.GeneralNominalPointCycleSource.bottom_five
+#print axioms Yulang.GeneralNominalPointCycleSource.top_six
+#print axioms Yulang.GeneralNominalPointCycleSource.bottom_le
+#print axioms Yulang.GeneralNominalPointCycleSource.broad_bounds
+#print axioms Yulang.GeneralNominalPointCycleSource.refresh_models_forward
+#print axioms Yulang.GeneralNominalPointCycleSource.mu_equation
+#print axioms Yulang.GeneralNominalPointCycleSource.source_models
+#print axioms Yulang.GeneralNominalPointCycleSource.zero_unknown
+#print axioms Yulang.GeneralNominalPointCycleSource.refresh_step
+#print axioms Yulang.GeneralNominalPointCycleSource.refreshed_formed
+#print axioms Yulang.GeneralNominalPointCycleSource.refreshed_models
+#print axioms Yulang.GeneralNominalPointCycleInspection.old_inspected
+#print axioms Yulang.GeneralNominalPointCycleInspection.old_finished
+#print axioms Yulang.GeneralNominalPointCycleInspection.old_omits_cycle
+#print axioms Yulang.GeneralNominalPointCycleInspection.old_retains_origin
+#print axioms Yulang.GeneralNominalPointCycleInspection.old_capture
+#print axioms Yulang.GeneralNominalPointCycleInspection.recovered_inputs
+#print axioms Yulang.GeneralNominalPointCycleInspection.actual_tests
+#print axioms Yulang.GeneralNominalPointCycleInspection.actual_inspected
+#print axioms Yulang.GeneralNominalPointCycleInspection.argument_readback
+#print axioms Yulang.GeneralNominalPointCycleInspection.cycle_two
+#print axioms Yulang.GeneralNominalPointCycleInspection.actual_cycle
+#print axioms Yulang.GeneralNominalPointCycleInspection.first_round_blocked
+#print axioms Yulang.GeneralNominalPointCycleInspection.point_start
+#print axioms Yulang.GeneralNominalPointCycleInspection.actual_refresh
+#print axioms Yulang.GeneralNominalPointCycleInspection.actual_formed
+#print axioms Yulang.GeneralNominalPointCycleBounds.edge_avoids_inspected
+#print axioms Yulang.GeneralNominalPointCycleBounds.feedback_off_cycle
+#print axioms Yulang.GeneralNominalPointCycleBounds.raw_edge_feedback
+#print axioms Yulang.GeneralNominalPointCycleBounds.raw_path_feedback
+#print axioms Yulang.GeneralNominalPointCycleBounds.raw_off_cycle
+#print axioms Yulang.GeneralNominalPointCycleBounds.not_rootK2
+#print axioms Yulang.GeneralNominalPointCycleBounds.arguments_exact
+#print axioms Yulang.GeneralNominalPointCycleBounds.not_candidateK2
+#print axioms Yulang.GeneralNominalActualInspectionExamples.recovered
+#print axioms Yulang.GeneralNominalActualInspectionExamples.reports
+#print axioms Yulang.GeneralNominalActualInspectionExamples.acyclic
+#print axioms Yulang.GeneralNominalActualInspectionExamples.safe_alternative
+#print axioms Yulang.GeneralNominalActualInspectionExamples.safe_selected
+#print axioms Yulang.GeneralNominalActualInspectionExamples.alternatives_safe
+#print axioms Yulang.GeneralNominalActualInspectionExamples.display_guard
+#print axioms Yulang.GeneralNominalActualInspectionExamples.wrap_guard
+#print axioms Yulang.GeneralNominalActualInspectionExamples.display_step
