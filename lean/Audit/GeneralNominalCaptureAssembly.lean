@@ -1,0 +1,31 @@
+import Yulang.GeneralNominalCaptureAssembly
+import Yulang.GeneralPatternHiddenJoin
+
+#print axioms Yulang.GeneralPatternConservativeSubstitution.hide_size
+#print axioms Yulang.GeneralPatternConservativeSubstitution.substitution_bounds
+#print axioms Yulang.GeneralPatternConservativeSubstitution.substitutions_bounds
+#print axioms Yulang.GeneralPatternConservativeSubstitution.normalized_descent
+#print axioms Yulang.GeneralPatternConservativeSubstitution.checked_normalized_descent
+#print axioms Yulang.GeneralPatternHiddenJoin.raw_substitution_does_not_commute
+#print axioms Yulang.GeneralPatternHiddenJoin.normalized_mass
+#print axioms Yulang.GeneralPatternHiddenJoin.raw_mass
+#print axioms Yulang.GeneralNominalFiniteHeadInversion.record_not_exactEmpty
+#print axioms Yulang.GeneralNominalFiniteHeadInversion.test_equal
+#print axioms Yulang.GeneralNominalCanonicalPaths.observed_follows
+#print axioms Yulang.GeneralNominalCanonicalPaths.closed_pattern
+#print axioms Yulang.GeneralNominalReportPaths.inspect_rooted
+#print axioms Yulang.GeneralNominalReportPaths.many_rooted
+#print axioms Yulang.GeneralNominalReportPaths.capture_closed
+#print axioms Yulang.GeneralNominalFallbackReadback.source_child
+#print axioms Yulang.GeneralNominalFallbackReadback.missing_supported
+#print axioms Yulang.GeneralNominalFallbackReadback.inspect_supported
+#print axioms Yulang.GeneralNominalPacketCaptureReadback.locate_sources
+#print axioms Yulang.GeneralNominalPacketCaptureReadback.packet_capture
+#print axioms Yulang.GeneralNominalPacketCaptureReadback.usable_closed
+#print axioms Yulang.GeneralNominalSimultaneousCaptures.minimum_label
+#print axioms Yulang.GeneralNominalSimultaneousCaptures.simultaneous
+#print axioms Yulang.GeneralNominalNormalizedGround.installed_depth_bound
+#print axioms Yulang.GeneralNominalNormalizedGround.ground_accessible
+#print axioms Yulang.GeneralNominalCaptureAssembly.ready_captures
+#print axioms Yulang.GeneralNominalCaptureAssembly.factorization_of_assembly
+#print axioms Yulang.GeneralNominalCaptureAssembly.ground_accessible_of_assembly
