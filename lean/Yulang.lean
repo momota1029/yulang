@@ -2415,3 +2415,4 @@ import Yulang.GeneralDictionarySemanticCollapseBranchExample
 import Yulang.GeneralDictionarySemanticCollapseEvidenceExample
 
 import Yulang.GeneralDictionarySemanticCollapseOutputExample
+import Yulang.GeneralDictionarySemanticCollapsePointBoundary
