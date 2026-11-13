@@ -72,7 +72,7 @@ theorem boundary_whereAccessible (stratified : RoleStratified registry rank) (ro
     exact ih child ⟨key,children,
       (GeneralNominalActualAgreedBoundary.local_correspondence defer gap registry state parent _).mp selected,member⟩
 
-/-- Leaf registries admit the constant-zero role rank. -/
+/-- Leaf registries allow the constant-zero role rank. -/
 theorem leaves_stratified
     (leaves : ∀ declaration ∈ registry.declarations, declaration.requirements = []) :
     RoleStratified registry (fun _ => 0) := by
