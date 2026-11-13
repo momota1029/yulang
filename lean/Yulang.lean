@@ -2531,3 +2531,8 @@ import Yulang.GeneralDictionarySharedRecordedTree
 import Yulang.GeneralDictionarySharedSiblingPrefix
 import Yulang.GeneralDictionarySharedSemanticSettlement
 import Yulang.GeneralDictionaryRecursiveConsumerObstruction
+import Yulang.GeneralNominalSourceFrontier
+import Yulang.GeneralNominalIdentityLeaf
+import Yulang.GeneralNominalIdentityProvenance
+import Yulang.GeneralNominalIdentityBudget
+import Yulang.GeneralNominalIdentityExample
