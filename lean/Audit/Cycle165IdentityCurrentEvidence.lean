@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryIdentityCurrentEvidence
+#print axioms Yulang.GeneralDictionaryIdentityCurrentEvidence.rebase_outputs
+#print axioms Yulang.GeneralDictionaryIdentityCurrentEvidence.rebase_holds
+#print axioms Yulang.GeneralDictionaryIdentityCurrentEvidence.recorded_current_instance
+#print axioms Yulang.GeneralDictionaryIdentityCurrentEvidence.recorded_current_evidence

@@ -1,0 +1,15 @@
+import Yulang.GeneralDictionarySharedCapturedTargets
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.queries
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.captures
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.bindings
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.producer_signature
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.consumer_signature
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.capture_input
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.producer_output
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.consumer_input
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.output_use
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.output_equals_captured
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.registry_checked
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.initial_source
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.source_model
+#print axioms Yulang.GeneralDictionarySharedCapturedTargets.captured_unknown

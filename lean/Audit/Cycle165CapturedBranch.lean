@@ -1,0 +1,15 @@
+import Yulang.GeneralDictionarySharedCapturedGuards
+
+#print axioms Yulang.GeneralDictionarySharedCapturedModel.lo_fresh
+#print axioms Yulang.GeneralDictionarySharedCapturedModel.hi_fresh
+#print axioms Yulang.GeneralDictionarySharedCapturedModel.target_ne_lo
+#print axioms Yulang.GeneralDictionarySharedCapturedModel.target_ne_hi
+#print axioms Yulang.GeneralDictionarySharedCapturedModel.source_models
+#print axioms Yulang.GeneralDictionarySharedCapturedModel.report_exact
+#print axioms Yulang.GeneralDictionarySharedCapturedModel.schema_exact
+#print axioms Yulang.GeneralDictionarySharedCapturedModel.branch_models
+#print axioms Yulang.GeneralDictionarySharedCapturedGuards.prepared
+#print axioms Yulang.GeneralDictionarySharedCapturedGuards.survivor
+#print axioms Yulang.GeneralDictionarySharedCapturedGuards.usable
+#print axioms Yulang.GeneralDictionarySharedCapturedGuards.generation
+#print axioms Yulang.GeneralDictionarySharedCapturedGuards.coherent

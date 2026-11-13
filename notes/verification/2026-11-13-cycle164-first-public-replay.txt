@@ -1,0 +1,250 @@
+Yulang.GeneralDictionaryTerminalRefreshObstruction EXIT 0  
+Yulang.GeneralDictionaryExactRefreshChain EXIT 0  
+Yulang.GeneralDictionarySettledTerminalEvidence EXIT 0  
+Yulang.GeneralDictionarySharedInstallEvidence EXIT 0  
+Yulang.GeneralDictionarySharedCurrentEvidence EXIT 0  
+Yulang.GeneralDictionarySharedDisplayInstallation EXIT 0  
+Yulang.GeneralDictionarySharedEvidenceTrace EXIT 0  
+Yulang.GeneralDictionarySharedLenCommitted EXIT 0  
+Yulang.GeneralDictionarySharedRecordedEvidence EXIT 0  
+Yulang.GeneralDictionarySharedTerminalInstallation EXIT 0  
+Yulang.GeneralDictionarySharedRecordedTree EXIT 0  
+Yulang.GeneralDictionarySharedRecursiveExample EXIT 0  
+Yulang.GeneralDictionarySharedSemanticSettlement EXIT 0  
+Yulang.GeneralDictionarySharedSiblingPrefix EXIT 0  
+Yulang.GeneralDictionarySharedTerminalObstruction EXIT 0  
+Cycle164ExactRefreshChain.lean EXIT 0 'Yulang.GeneralDictionaryExactRefreshChain.step_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryExactRefreshChain.chain_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryExactRefreshChain.terminal_unknown' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryExactRefreshChain.known_requires_model_exclusion' depends on axioms: [propext, Quot.sound]
+ 
+Cycle164FinalDependencyGate.lean EXIT 0 AXIOM-GATE-PASS: 151 declarations
+ 
+Cycle164SharedCurrentEvidence.lean EXIT 0 'Yulang.GeneralDictionarySharedCurrentEvidence.private_extension' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCurrentEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCurrentEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCurrentEvidence.terminal_current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCurrentEvidence.actual_terminal_current_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedDisplayInstallation.lean EXIT 0 'Yulang.GeneralDictionarySharedDisplayInstallation.located' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.certified_child_site' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.generated_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedEvidenceTrace.lean EXIT 0 'Yulang.GeneralDictionarySharedEvidenceTrace.trace_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.stored_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.ordinary_trace_real' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.ordinary_trace_extension' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+ 
+Cycle164SharedInstallEvidence.lean EXIT 0 'Yulang.GeneralDictionarySharedInstallEvidence.stable_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.installed_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.installed_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.installed_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.terminal_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.actual_terminal_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.stable_terminal_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedRecordedEvidence.lean EXIT 0 'Yulang.GeneralDictionarySharedRecordedEvidence.formed_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.recorded_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.stored_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.recorded_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedRecordedTree.lean EXIT 0 'Yulang.GeneralDictionarySharedRecordedTree.discharged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.packet_settled' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.current_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.terminal_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.terminal_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.terminal_packet_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.terminal_certificate_and_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedRecursiveExample.lean EXIT 0 'Yulang.GeneralDictionarySharedRecursiveExample.initial_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.actual_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.parent_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.leaf_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.recursive_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.nonvacuous_recursive_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedSemanticSettlement.lean EXIT 0 'Yulang.GeneralDictionarySharedSemanticSettlement.no_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSemanticSettlement.parent_not_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSemanticSettlement.no_recorded_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSemanticSettlement.semantic_evidence_not_ledger_completion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedSiblingPrefix.lean EXIT 0 'Yulang.GeneralDictionarySharedSiblingPrefix.inherited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.usable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.generation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.input_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.origin_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.origin_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.child_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.child_site' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.parent_install_eq' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.parent_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.shared_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.shared_formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.reached_terminal_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedTerminalInstallation.lean EXIT 0 'Yulang.GeneralDictionarySharedTerminalInstallation.container_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.container_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.container_guard' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.current_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.genuine_terminal_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedLenCommitted.children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedLenCommitted.source_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedLenCommitted.committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedLenCommitted.no_novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+ 
+Cycle164SharedTerminalObstruction.lean EXIT 0 'Yulang.GeneralDictionarySharedTerminalObstruction.terminal_install_eq' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalObstruction.concrete_after_eq' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalObstruction.shared_unknown_after_exact_chain' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalObstruction.dictionary_and_obstruction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164TerminalEvidence.lean EXIT 0 'Yulang.GeneralDictionarySettledTerminalEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.nonempty_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.inhabited_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.evidence_without_output_readiness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.actual_terminal_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.ordinary_continuation_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164TerminalRefreshObstruction.lean EXIT 0 'Yulang.GeneralDictionaryTerminalRefreshObstruction.int_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.nominal_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.int_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.nominal_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.no_known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.refresh_unknown' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.refresh_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+ALL PASS 15
