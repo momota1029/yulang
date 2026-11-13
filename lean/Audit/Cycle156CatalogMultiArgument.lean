@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryCatalogMultiArgumentEvidence
+#print axioms Yulang.GeneralDictionaryCatalogMultiArgumentEvidence.instance_of_history
+#print axioms Yulang.GeneralDictionaryCatalogMultiArgumentEvidence.instance_of_catalog
+#print axioms Yulang.GeneralDictionaryCatalogMultiArgumentEvidence.structural
+#print axioms Yulang.GeneralDictionaryCatalogMultiArgumentEvidence.covered
+#print axioms Yulang.GeneralDictionaryCatalogMultiArgumentEvidence.dictionary_evidence

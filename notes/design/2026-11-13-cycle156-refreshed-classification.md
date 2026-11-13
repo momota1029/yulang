@@ -32,3 +32,14 @@ merge cannot be novel in a singleton site list.
 a positive current model, Known output2 and current Evidence in every model.
 This closes the finite reserved-output regression, not the general V5 evidenceNode
 field, general saturation termination, completeness, or principality.
+
+## Root diagnostic endpoint
+
+`GeneralDictionaryReservedCompletedRun` exposes the actual three Value edges and
+composes them into a path from the concrete empty-journal initial state. The
+stable endpoint has no outgoing Step, and any finite continuation ends at that
+same state. The independent diagnostic relation Resolves has exactly the selected
+leaf tree; its Completed projection has exactly the corresponding dictionary.
+The final assembled theorem includes the initial-state predicate, actual path,
+halted endpoint, completed diagnostic tree, positive model and all-model Evidence.
+It introduces no executor and makes no universal progress or B4 completion claim.

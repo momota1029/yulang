@@ -20,3 +20,22 @@ This is a finite operational-history interface for existing restricted request
 proofs, not the missing assertion that every generated request is collected or
 variable-free. Shared-variable requests and generic evidenceNode remain open.
 A concrete reserved-output installation/equality/refresh history tests the interface.
+
+## Stronger automatic reconstruction
+
+`safeCatalog` reads the actual packet journal in chronological order and retains
+exactly the emissions of syntactically variable-free packets. `safe_history`
+proves, for *every* actual reachable state, that this catalog has a Collected
+history. It requires no `Closed`, `Supported`, all-model validity or evidence
+premise. Unrestricted steps installing variable-bearing packets are followed but
+their requests are not collected. Thus this result does not restrict the entire
+trace to closed packets. `history` additionally recovers the unfiltered catalog
+when every final packet is variable-free.
+
+`CatalogEvidence` and `CatalogMultiArgumentEvidence` connect finite catalog
+membership to current scalar/nominal and arbitrary finite scalar-point heads,
+then to the actual recursive selected-payload classifier. They still require
+current head Shape and selected descendants' request inclusion. The latter is
+not shown automatically for all language syntax; general evidenceNode remains open.
+The actual reserved-output example checks exact catalog `[request]` and an
+inhabited current dictionary although that output had no initial observation.

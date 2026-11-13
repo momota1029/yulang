@@ -14,3 +14,14 @@ actual reachable request provenance. This certificate contains syntactic head
 facts, not all-model branch validity. Lift to the existing selected-node rule and
 recursive payload soundness without changing any classifier or Step definition.
 Generic coverage derivation and V5 evidenceNode remain open.
+
+## Root-only nonpoint extension
+
+The original InitialSource already requires each root argument's lower value to
+be below its upper value in every initial model. Actual Value steps preserve
+models backwards. Therefore these inequalities need not be assumed again at a
+reachable current state. Prove locate reconstruction to identify current carrier
+slots with the unchanged source demand endpoints. Use arbitrary scalar lower
+heads with no upper-head test: exactly the existing inspect rule. This permits
+nonpoint roots without changing semantics. Descendant initial interval invariants
+are not asserted; the extension is explicitly restricted to the original root.
