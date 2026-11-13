@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionarySettledRootEvidence
+#print axioms Yulang.GeneralDictionarySettledRootEvidence.stable_generated
+#print axioms Yulang.GeneralDictionarySettledRootEvidence.selected_descendant_generated
+#print axioms Yulang.GeneralDictionarySettledRootEvidence.nodeClosure_of_root_stable
+#print axioms Yulang.GeneralDictionarySettledRootEvidence.classified_evidence
+#print axioms Yulang.GeneralDictionarySettledRootEvidence.completed_evidence

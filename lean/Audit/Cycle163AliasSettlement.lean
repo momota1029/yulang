@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryAliasSettlement
+#print axioms Yulang.GeneralDictionaryAliasSettlement.exact_coverage
+#print axioms Yulang.GeneralDictionaryAliasSettlement.node_discharged
+#print axioms Yulang.GeneralDictionaryAliasSettlement.coverage_child
+#print axioms Yulang.GeneralDictionaryAliasSettlement.classified_discharged
+#print axioms Yulang.GeneralDictionaryAliasSettlement.children_discharged
+#print axioms Yulang.GeneralDictionaryAliasSettlement.completed_discharged
+#print axioms Yulang.GeneralDictionaryAliasSettlement.packet_settled
+#print axioms Yulang.GeneralDictionaryAliasSettlement.output_trusted

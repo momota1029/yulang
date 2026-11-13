@@ -1,0 +1,1046 @@
+Yulang.GeneralDictionarySettledCutExclusion.inspected_cut_no_dictionary {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {producer : Yulang.GeneralNominalSaturationState.Packet roles} {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  (point : Yulang.GeneralNominalSettledPump.InspectionPoint registry state root)
+  (cut : Yulang.GeneralNominalSettledPump.OutputCut state producer model)
+  (unfinished : Yulang.GeneralNominalSettledSupport.Unsettled state.current producer)
+  (scalar :
+    Eq.{1} (Prod.fst.{0, 0} (model (state.current.context.state.base.source point.slot)))
+      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int))
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary) :
+  ¬Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledCutExclusion.inspected_cut_no_completed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {producer : Yulang.GeneralNominalSaturationState.Packet roles} {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  (point : Yulang.GeneralNominalSettledPump.InspectionPoint registry state root)
+  (cut : Yulang.GeneralNominalSettledPump.OutputCut state producer model)
+  (unfinished : Yulang.GeneralNominalSettledSupport.Unsettled state.current producer)
+  (scalar :
+    Eq.{1} (Prod.fst.{0, 0} (model (state.current.context.state.base.source point.slot)))
+      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int))
+  (tree : Yulang.CommonRoleOutermostResolver.Tree) (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (resolved :
+    Yulang.CommonRoleOutermostResolver.Resolves.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+        registry state)
+      root tree) :
+  ¬Yulang.B4TargetV3.Completed tree (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledCutExclusion.descendant_cut_no_completed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {producer : Yulang.GeneralNominalSaturationState.Packet roles} {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (path :
+    Yulang.B4Target.Steps.{1}
+      (fun parent child =>
+        Yulang.CommonRoleOutermostResolver.Child.{0}
+          (Yulang.B4TargetV3.Local.{0}
+            (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+              (Yulang.GeneralNominalSettledBoundary.boundary roles))
+            registry state)
+          child parent)
+      root child)
+  (point : Yulang.GeneralNominalSettledPump.InspectionPoint registry state child)
+  (cut : Yulang.GeneralNominalSettledPump.OutputCut state producer model)
+  (unfinished : Yulang.GeneralNominalSettledSupport.Unsettled state.current producer)
+  (scalar :
+    Eq.{1} (Prod.fst.{0, 0} (model (state.current.context.state.base.source point.slot)))
+      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int))
+  (tree : Yulang.CommonRoleOutermostResolver.Tree) (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (resolved :
+    Yulang.CommonRoleOutermostResolver.Resolves.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+        registry state)
+      root tree) :
+  ¬Yulang.B4TargetV3.Completed tree (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledEvidence.stable_committed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.current root packet.site.occurrence)
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (guard : Yulang.GeneralNominalSettledSupport.PacketGuard state packet support) :
+  Yulang.GeneralNominalFeedbackSteps.Committed state.current packet
+Yulang.GeneralDictionarySettledEvidence.stable_site {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (linked : Yulang.GeneralNominalState.Linked state.current.context.state root.demand) :
+  Exists.{1} fun site => Membership.mem.{0, 0} state.current.sites site ∧ Eq.{1} site.occurrence root
+Yulang.GeneralDictionarySettledEvidence.selected_support {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (selected :
+    Yulang.GeneralNominalSettledBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)) :
+  Exists.{1} fun support => Yulang.GeneralNominalValueSupport.DecisionGuard registry state root support
+Yulang.GeneralDictionarySettledEvidence.stable_joint_packet {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (selected :
+    Yulang.GeneralNominalSettledBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (joint : Yulang.GeneralNominalJointCandidates.Joint registry state.current root key)
+  (merges :
+    ∀ (site : Yulang.GeneralNominalDemandMerging.Site roles),
+      Membership.mem.{0, 0} state.current.sites site →
+        Eq.{1} site.occurrence root → Yulang.GeneralNominalFeedbackSteps.MergesClosed state.current site) :
+  Exists.{1} fun packet =>
+    Eq.{1} packet.registry registry ∧
+      Eq.{1} packet.context state.current.context ∧
+        Eq.{1} packet.site.occurrence root ∧
+          Eq.{1} packet.declaration.id key ∧
+            Eq.{1} packet.children children ∧
+              Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet ∧
+                Yulang.GeneralNominalFeedbackSteps.Committed state.current packet
+Yulang.GeneralDictionarySettledEvidence.stable_joint_instance {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (selected :
+    Yulang.GeneralNominalSettledBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (joint : Yulang.GeneralNominalJointCandidates.Joint registry state.current root key)
+  (merges :
+    ∀ (site : Yulang.GeneralNominalDemandMerging.Site roles),
+      Membership.mem.{0, 0} state.current.sites site →
+        Eq.{1} site.occurrence root → Yulang.GeneralNominalFeedbackSteps.MergesClosed state.current site) :
+  (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models state.current model →
+        Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.current.context model root key children) ∧
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Membership.mem.{0, 0} children child → Yulang.GeneralNominalSaturationState.Generated state.current root child
+Yulang.GeneralDictionarySettledEvidence.stable_joint_evidence {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (selected :
+    Yulang.GeneralNominalSettledBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (joint : Yulang.GeneralNominalJointCandidates.Joint registry state.current root key)
+  (merges :
+    ∀ (site : Yulang.GeneralNominalDemandMerging.Site roles),
+      Membership.mem.{0, 0} state.current.sites site →
+        Eq.{1} site.occurrence root → Yulang.GeneralNominalFeedbackSteps.MergesClosed state.current site)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model)
+  (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload)
+  (given :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) children dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+Yulang.GeneralDictionarySettledEvidence.stable_merges_of_exact {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (exact : Yulang.GeneralNominalSupportSteps.Exact state)
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (first last : Yulang.GeneralNominalDemandMerging.Site roles) (one : Membership.mem.{0, 0} state.current.sites first)
+  (two : Membership.mem.{0, 0} state.current.sites last)
+  (reached : Yulang.GeneralNominalSaturationState.Generated state.current root first.occurrence)
+  (same : Yulang.GeneralNominalFeedbackSites.SameInputs state.current first last) :
+  Yulang.GeneralNominalSaturationState.Alias state.current first.occurrence.identity last.occurrence.identity
+Yulang.GeneralDictionarySettledEvidence.reachable_joint_instance {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles) registry root state)
+  (key : Nat) (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state focus)
+  (selected :
+    Yulang.GeneralNominalSettledBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (joint : Yulang.GeneralNominalJointCandidates.Joint registry state.current focus key) :
+  (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models state.current model →
+        Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.current.context model focus key children) ∧
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Membership.mem.{0, 0} children child → Yulang.GeneralNominalSaturationState.Generated state.current focus child
+Yulang.GeneralDictionarySettledEvidence.reachable_joint_evidence {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles) registry root state)
+  (key : Nat) (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state focus)
+  (selected :
+    Yulang.GeneralNominalSettledBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (joint : Yulang.GeneralNominalJointCandidates.Joint registry state.current focus key)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model)
+  (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload)
+  (given :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) children dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+Yulang.GeneralDictionarySettledEvidence.steps_reobservation {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (path : Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalSettledSteps.Step registry root) before after) :
+  Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalReobservationSteps.Step registry root) before.current after.current
+Yulang.GeneralDictionarySettledEvidence.reachable_reobservation {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles) registry root state) :
+  Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalReobservationBoundary.boundary roles) registry root
+    state.current
+Yulang.GeneralDictionarySettledEvidence.reachable_packetFree_terminal {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles) registry root state)
+  (empty : Eq.{1} state.current.packets List.nil.{0})
+  (reached : Eq.{1} focus root ∨ Yulang.GeneralNominalSaturationState.Generated state.current root focus) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state focus)
+  (selected :
+    Yulang.GeneralNominalSettledBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)) :
+  Eq.{1} children List.nil.{0} ∧
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models state.current model →
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+Yulang.GeneralDictionarySettledEvidence.reachable_packetFree_evidence {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles) registry root state)
+  (empty : Eq.{1} state.current.packets List.nil.{0})
+  (reached : Eq.{1} focus root ∨ Yulang.GeneralNominalSaturationState.Generated state.current root focus) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state focus)
+  (selected :
+    Yulang.GeneralNominalSettledBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model)
+  (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload)
+  (given :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) children dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+Yulang.GeneralDictionarySettledGuardClosure.old_child_is_new {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root child : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (classified :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (edge :
+    Yulang.CommonRoleOutermostResolver.Child.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+        registry state)
+      child root) :
+  Yulang.CommonRoleOutermostResolver.Child.{0}
+    (Yulang.B4TargetV3.Local.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state)
+    child root
+Yulang.GeneralDictionarySettledGuardClosure.old_descendant_selected {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root child : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (classified :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (path :
+    Yulang.B4Target.Steps.{1}
+      (fun parent child =>
+        Yulang.CommonRoleOutermostResolver.Child.{0}
+          (Yulang.B4TargetV3.Local.{0}
+            (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+              (Yulang.GeneralDictionarySettledProjection.old roles))
+            registry state)
+          child parent)
+      root child) :
+  Exists.{1} fun payload =>
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state child (Yulang.CommonRoleOutermostResolver.Result.selected payload)
+Yulang.GeneralDictionarySettledGuardClosure.guardClosure_of_classified {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (classified :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)) :
+  Yulang.GeneralDictionarySettledGuardedClassification.GuardClosure registry state root
+Yulang.GeneralDictionarySettledGuardClosure.selected_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary} :
+  Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) ↔
+    Yulang.B4TargetV3.Classify.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+        registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) ∧
+      Yulang.GeneralDictionarySettledGuardedClassification.GuardClosure registry state root
+Yulang.GeneralDictionarySettledGuardedClassification.guard_root {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (guard : Yulang.GeneralDictionarySettledGuardedClassification.GuardClosure registry state root) :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard registry state root
+Yulang.GeneralDictionarySettledGuardedClassification.guard_child {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root child : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (guard : Yulang.GeneralDictionarySettledGuardedClassification.GuardClosure registry state root)
+  (edge :
+    Yulang.CommonRoleOutermostResolver.Child.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+        registry state)
+      child root) :
+  Yulang.GeneralDictionarySettledGuardedClassification.GuardClosure registry state child
+Yulang.GeneralDictionarySettledGuardedClassification.selected_local_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)} :
+  Yulang.B4TargetV3.Local.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) ↔
+    Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+        registry state root (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) ∧
+      Yulang.GeneralNominalSettledSupport.DecisionGuard registry state root
+Yulang.GeneralDictionarySettledGuardedClassification.classified_of_guards {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (guard : Yulang.GeneralDictionarySettledGuardedClassification.GuardClosure registry state root)
+  (classified :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)) :
+  Yulang.B4TargetV3.Classify.{0}
+    (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+    registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledGuardedClassification.children_of_guards {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (dictionaries : List.{0} Yulang.CommonRoleOutermostResolver.Dictionary)
+  (roots : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (classified :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (fun root dictionary =>
+        Yulang.B4TargetV3.Classify.{0}
+          (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+          registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+      roots dictionaries)
+  (guards :
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Membership.mem.{0, 0} roots child →
+        Yulang.GeneralDictionarySettledGuardedClassification.GuardClosure registry state child) :
+  Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+    (fun root dictionary =>
+      Yulang.B4TargetV3.Classify.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+        registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+    roots dictionaries
+Yulang.GeneralDictionarySettledGuardedClassification.selected_iff_of_guards {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (guard : Yulang.GeneralDictionarySettledGuardedClassification.GuardClosure registry state root) :
+  Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) ↔
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledNamedExample.initial_decision :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.start
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+Yulang.GeneralDictionarySettledNamedExample.install_guard :
+  Yulang.GeneralNominalSettledSupport.PacketGuard Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.start
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.packet List.nil.{0}
+Yulang.GeneralDictionarySettledNamedExample.actual_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.start
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed
+Yulang.GeneralDictionarySettledNamedExample.reachable :
+  Yulang.B4TargetV5.Reachable.{0}
+    (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed
+Yulang.GeneralDictionarySettledNamedExample.stable :
+  Yulang.GeneralNominalSettledSteps.Stable Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+Yulang.GeneralDictionarySettledNamedExample.current_decision
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) (slot : Fin 2)
+  (args :
+    ∀ (index : Fin (Yulang.GeneralDeclarationExamples.roles focus.demand.role).arity),
+      Eq.{1} (focus.demand.arguments index) (Prod.mk.{0, 0} ↑slot ↑slot)) :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed focus
+Yulang.GeneralDictionarySettledNamedExample.parent_selected :
+  Yulang.GeneralNominalSettledBoundary.Local Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0}
+      Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.declaration.id
+      Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.children)
+Yulang.GeneralDictionarySettledNamedExample.child_selected :
+  Yulang.GeneralNominalSettledBoundary.Local Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalEvidence.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} Yulang.GeneralNominalExamples.intDisplay.id List.nil.{0})
+Yulang.GeneralDictionarySettledNamedExample.classified :
+  Yulang.B4TargetV3.Classify.{0}
+    (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+      (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles))
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected
+      Yulang.GeneralDictionaryFiniteObservedExampleNonterminalEvidence.payload)
+Yulang.GeneralDictionarySettledNamedExample.completed_named :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+      Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+      Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.start
+      Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed ∧
+    Yulang.B4TargetV5.Reachable.{0}
+        (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+        Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+        Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+        Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed ∧
+      Yulang.GeneralNominalSettledSteps.Stable Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+          Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed
+          Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root ∧
+        Yulang.GeneralNominalSaturationState.Models
+            Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed.current
+            Yulang.GeneralDictionaryFiniteObservedExample.model ∧
+          Ne.{1} Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root.demand.outputs List.nil.{0} ∧
+            Yulang.B4TargetV3.Classify.{0}
+                (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                  (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles))
+                Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+                Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed
+                Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+                (Yulang.CommonRoleOutermostResolver.Result.selected
+                  Yulang.GeneralDictionaryFiniteObservedExampleNonterminalEvidence.payload) ∧
+              ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalSaturationState.Models
+                    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed.current assignment →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence
+                    Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.registry
+                    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed.current.context
+                    assignment Yulang.GeneralDictionaryFiniteObservedExampleNonterminal.root
+                    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalEvidence.payload
+Yulang.GeneralDictionarySettledNamedExample.no_discharged
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) :
+  ¬Yulang.GeneralNominalSupport.Discharged
+      Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed.current focus
+Yulang.GeneralDictionarySettledNamedExample.named_packet_unsettled :
+  Yulang.GeneralNominalSettledSupport.Unsettled
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed.current
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.packet
+Yulang.GeneralDictionarySettledNamedExample.output_head_independent :
+  Yulang.GeneralNominalSettledSupport.HeadJustified
+    Yulang.GeneralDictionaryFiniteObservedExampleNonterminalInstallation.installed 0
+    (Yulang.GeneralNominalRecursiveInspection.Test.nominal
+      Yulang.GeneralDictionaryFiniteObservedExample.descriptor.declaration.name
+      (List.length.{0} Yulang.GeneralDictionaryFiniteObservedExample.descriptor.arguments))
+Yulang.GeneralDictionarySettledPendingExclusion.no_local_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (blocked : Yulang.GeneralNominalSettledSteps.SupportPending registry state root) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)) :
+  ¬Yulang.GeneralNominalSettledBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)
+Yulang.GeneralDictionarySettledPendingExclusion.no_boundary_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (blocked : Yulang.GeneralNominalSettledSteps.SupportPending registry state root) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)) :
+  ¬Yulang.B4TargetV3.Local.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)
+Yulang.GeneralDictionarySettledPendingExclusion.no_selected_classification {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (blocked : Yulang.GeneralNominalSettledSteps.SupportPending registry state root)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary) :
+  ¬Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledPendingExclusion.child_pending_no_parent_dictionary {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (selected :
+    Yulang.B4TargetV3.Local.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) (member : Membership.mem.{0, 0} children child)
+  (blocked : Yulang.GeneralNominalSettledSteps.SupportPending registry state child)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary) :
+  ¬Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledPendingExclusion.no_completed_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (blocked : Yulang.GeneralNominalSettledSteps.SupportPending registry state root)
+  (tree : Yulang.CommonRoleOutermostResolver.Tree) (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (resolved :
+    Yulang.CommonRoleOutermostResolver.Resolves.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+        registry state)
+      root tree) :
+  ¬Yulang.B4TargetV3.Completed tree (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledPendingExclusion.child_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (classified :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (edge :
+    Yulang.CommonRoleOutermostResolver.Child.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+        registry state)
+      child root) :
+  Exists.{1} fun payload =>
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state child (Yulang.CommonRoleOutermostResolver.Result.selected payload)
+Yulang.GeneralDictionarySettledPendingExclusion.descendant_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (classified :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (path :
+    Yulang.B4Target.Steps.{1}
+      (fun parent child =>
+        Yulang.CommonRoleOutermostResolver.Child.{0}
+          (Yulang.B4TargetV3.Local.{0}
+            (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+              (Yulang.GeneralNominalSettledBoundary.boundary roles))
+            registry state)
+          child parent)
+      root child) :
+  Exists.{1} fun payload =>
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state child (Yulang.CommonRoleOutermostResolver.Result.selected payload)
+Yulang.GeneralDictionarySettledPendingExclusion.descendant_pending_no_dictionary {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root child : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (path :
+    Yulang.B4Target.Steps.{1}
+      (fun parent child =>
+        Yulang.CommonRoleOutermostResolver.Child.{0}
+          (Yulang.B4TargetV3.Local.{0}
+            (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+              (Yulang.GeneralNominalSettledBoundary.boundary roles))
+            registry state)
+          child parent)
+      root child)
+  (blocked : Yulang.GeneralNominalSettledSteps.SupportPending registry state child)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary) :
+  ¬Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledPendingExclusion.descendant_pending_no_completed {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root child : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (path :
+    Yulang.B4Target.Steps.{1}
+      (fun parent child =>
+        Yulang.CommonRoleOutermostResolver.Child.{0}
+          (Yulang.B4TargetV3.Local.{0}
+            (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+              (Yulang.GeneralNominalSettledBoundary.boundary roles))
+            registry state)
+          child parent)
+      root child)
+  (blocked : Yulang.GeneralNominalSettledSteps.SupportPending registry state child)
+  (tree : Yulang.CommonRoleOutermostResolver.Tree) (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (resolved :
+    Yulang.CommonRoleOutermostResolver.Resolves.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalSettledBoundary.boundary roles))
+        registry state)
+      root tree) :
+  ¬Yulang.B4TargetV3.Completed tree (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledPendingExclusion.no_local_ambiguous {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (blocked : Yulang.GeneralNominalSettledSteps.SupportPending registry state root) :
+  ¬Yulang.GeneralNominalSettledBoundary.Local registry state root
+      Yulang.CommonRoleOutermostResolver.Frontier.ambiguous.{0}
+Yulang.GeneralDictionarySettledProjection.safe_old {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (safe :
+    Yulang.B4Target.SafeKnown.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root) :
+  Yulang.B4Target.SafeKnown.{0}
+    (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+    registry state root
+Yulang.GeneralDictionarySettledProjection.selected_local_old {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (selected :
+    Yulang.B4TargetV3.Local.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)) :
+  Yulang.B4TargetV3.Local.{0}
+    (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+    registry state root (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)
+Yulang.GeneralDictionarySettledProjection.selected_classification_old {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (selected :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)) :
+  Yulang.B4TargetV3.Classify.{0}
+    (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+    registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledProjection.selected_children_old {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (dictionaries : List.{0} Yulang.CommonRoleOutermostResolver.Dictionary)
+  (roots : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (selected :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (fun root dictionary =>
+        Yulang.B4TargetV3.Classify.{0}
+          (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+            (Yulang.GeneralDictionarySettledProjection.fresh roles))
+          registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+      roots dictionaries) :
+  Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+    (fun root dictionary =>
+      Yulang.B4TargetV3.Classify.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+        registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+    roots dictionaries
+Yulang.GeneralDictionarySettledProjection.completed_selected_old {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {tree : Yulang.CommonRoleOutermostResolver.Tree}
+  {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (resolved :
+    Yulang.CommonRoleOutermostResolver.Resolves.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+        registry state)
+      root tree)
+  (done : Yulang.B4TargetV3.Completed tree (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)) :
+  Yulang.B4TargetV3.Classify.{0}
+    (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+    registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionarySettledProjection.steps_old {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  (path :
+    Yulang.B4Target.Steps.{1}
+      (Yulang.B4Target.SourceBoundary.Step.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+        registry root)
+      before after) :
+  Yulang.B4Target.Steps.{1}
+    (Yulang.B4Target.SourceBoundary.Step.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+      registry root)
+    before after
+Yulang.GeneralDictionarySettledProjection.reachable_old {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles) registry root state) :
+  Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.old roles) registry root state
+Yulang.GeneralDictionarySettledProjection.evidence_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary) :
+  Yulang.B4Target.SourceBoundary.Evidence.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state model root dictionary ↔
+    Yulang.B4Target.SourceBoundary.Evidence.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+      registry state model root dictionary
+Yulang.GeneralDictionarySettledProjection.models_iff {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.B4Target.SourceBoundary.Models.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      state model ↔
+    Yulang.B4Target.SourceBoundary.Models.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.old roles))
+      state model
+Yulang.GeneralDictionarySettledRecursiveExample.initial_decision :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySupportRecursiveExample.start Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralDictionarySettledRecursiveExample.install_guard :
+  Yulang.GeneralNominalSettledSupport.PacketGuard Yulang.GeneralDictionarySupportRecursiveExample.start
+    Yulang.GeneralDictionarySupportRecursiveExample.packet List.nil.{0}
+Yulang.GeneralDictionarySettledRecursiveExample.actual_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionarySupportRecursiveExample.start
+    Yulang.GeneralDictionarySupportRecursiveExample.finish
+Yulang.GeneralDictionarySettledRecursiveExample.reachable :
+  Yulang.B4TargetV5.Reachable.{0}
+    (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralDictionarySupportRecursiveExample.finish
+Yulang.GeneralDictionarySettledRecursiveExample.stable :
+  Yulang.GeneralNominalSettledSteps.Stable Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySupportRecursiveExample.finish Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralDictionarySettledRecursiveExample.current_decision
+  (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) (slot : Fin 2)
+  (args :
+    ∀ (index : Fin (Yulang.GeneralDeclarationExamples.roles root.demand.role).arity),
+      Eq.{1} (root.demand.arguments index) (Prod.mk.{0, 0} ↑slot ↑slot)) :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySupportRecursiveExample.finish root
+Yulang.GeneralDictionarySettledRecursiveExample.parent_selected :
+  Yulang.GeneralNominalSettledBoundary.Local Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySupportRecursiveExample.finish Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 1
+      (List.cons.{0} Yulang.GeneralNominalExamples.displayChild List.nil.{0}))
+Yulang.GeneralDictionarySettledRecursiveExample.leaf_selected :
+  Yulang.GeneralNominalSettledBoundary.Local Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySupportRecursiveExample.finish Yulang.GeneralNominalExamples.displayChild
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} 3 List.nil.{0})
+Yulang.GeneralDictionarySettledRecursiveExample.classified :
+  Yulang.B4TargetV3.Classify.{0}
+    (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+      (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles))
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralDictionarySupportRecursiveExample.finish
+    Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Result.selected
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+        (List.cons.{0} (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 List.nil.{0}) List.nil.{0})))
+Yulang.GeneralDictionarySettledRecursiveExample.completed :
+  Yulang.B4TargetV5.Reachable.{0}
+      (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+      Yulang.GeneralDictionarySupportRecursiveExample.finish ∧
+    Yulang.GeneralNominalSettledSteps.Stable Yulang.GeneralNominalExamples.registry
+        Yulang.GeneralDictionarySupportRecursiveExample.finish Yulang.GeneralNominalExamples.displayRoot ∧
+      Ne.{1} Yulang.GeneralDictionarySupportRecursiveExample.finish.current.packets List.nil.{0} ∧
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySupportRecursiveExample.finish.current
+            Yulang.GeneralNominalExamples.model ∧
+          Yulang.B4TargetV3.Classify.{0}
+              (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles))
+              Yulang.GeneralNominalExamples.registry Yulang.GeneralDictionarySupportRecursiveExample.finish
+              Yulang.GeneralNominalExamples.displayRoot
+              (Yulang.CommonRoleOutermostResolver.Result.selected
+                (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+                  (List.cons.{0} (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 List.nil.{0}) List.nil.{0}))) ∧
+            ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySupportRecursiveExample.finish.current
+                  assignment →
+                Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+                  Yulang.GeneralDictionarySupportRecursiveExample.finish.current.context assignment
+                  Yulang.GeneralNominalExamples.displayRoot
+                  (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+                    (List.cons.{0} (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 List.nil.{0}) List.nil.{0}))
+Yulang.GeneralDictionarySettledRecursiveExample.no_discharge_without_terminal_packet {r : Yulang.Roles.RoleDecls}
+  (journal : Yulang.GeneralNominalSaturationState.State r)
+  (nonterminal :
+    ∀ (recorded : Yulang.GeneralNominalSaturationState.Packet r),
+      Membership.mem.{0, 0} journal.packets recorded → Ne.{1} recorded.children List.nil.{0})
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence r) : ¬Yulang.GeneralNominalSupport.Discharged journal focus
+Yulang.GeneralDictionarySettledRecursiveExample.no_discharged
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) :
+  ¬Yulang.GeneralNominalSupport.Discharged Yulang.GeneralDictionarySupportRecursiveExample.finish.current focus
+Yulang.GeneralDictionarySettledRecursiveExample.packet_unsettled :
+  Yulang.GeneralNominalSettledSupport.Unsettled Yulang.GeneralDictionarySupportRecursiveExample.finish.current
+    Yulang.GeneralDictionarySupportRecursiveExample.packet
+Yulang.GeneralDictionarySettledRecursiveExample.output_not_trusted
+  (facts : List.{0} (Yulang.GeneralNominalSupport.Fact Yulang.GeneralDeclarationExamples.roles))
+  (trusted : Yulang.GeneralNominalSettledSupport.Trusted Yulang.GeneralDictionarySupportRecursiveExample.finish facts)
+  (support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)) :
+  ¬Membership.mem.{0, 0} facts
+      (Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralDictionarySupportRecursiveExample.packet support)
+Yulang.GeneralDictionarySettledReservedExample.initial_decision :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard Yulang.GeneralDictionaryFiniteObservedExample.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleReserved.start
+    Yulang.GeneralDictionaryFiniteObservedExampleReserved.root
+Yulang.GeneralDictionarySettledReservedExample.install_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralDictionaryFiniteObservedExample.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleReserved.root
+    Yulang.GeneralDictionaryFiniteObservedExampleReserved.start
+    Yulang.GeneralDictionaryFiniteObservedExampleReservedPositive.installed
+Yulang.GeneralDictionarySettledReservedExample.equality_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralDictionaryFiniteObservedExample.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleReserved.root
+    Yulang.GeneralDictionaryFiniteObservedExampleReservedPositive.installed
+    Yulang.GeneralDictionaryReservedEqualityStep.after
+Yulang.GeneralDictionarySettledReservedExample.refresh_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralDictionaryFiniteObservedExample.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleReserved.root Yulang.GeneralDictionaryReservedEqualityStep.after
+    Yulang.GeneralDictionaryReservedNominalRefresh.refreshed
+Yulang.GeneralDictionarySettledReservedExample.reachable :
+  Yulang.B4TargetV5.Reachable.{0}
+    (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralDictionaryFiniteObservedExample.registry Yulang.GeneralDictionaryFiniteObservedExampleReserved.root
+    Yulang.GeneralDictionaryReservedNominalRefresh.refreshed
+Yulang.GeneralDictionarySettledReservedExample.formed :
+  Yulang.GeneralNominalSettledSteps.SourceFormed Yulang.GeneralDictionaryFiniteObservedExample.registry
+    Yulang.GeneralDictionaryFiniteObservedExampleReserved.root Yulang.GeneralDictionaryReservedNominalRefresh.refreshed
+Yulang.GeneralDictionarySettledReservedExample.stable :
+  Yulang.GeneralNominalSettledSteps.Stable Yulang.GeneralDictionaryFiniteObservedExample.registry
+    Yulang.GeneralDictionaryReservedNominalRefresh.refreshed Yulang.GeneralDictionaryFiniteObservedExampleReserved.root
+Yulang.GeneralDictionarySettledReservedExample.packet_settled :
+  Yulang.GeneralNominalSettledSupport.PacketSettled Yulang.GeneralDictionaryReservedNominalRefresh.refreshed.current
+    Yulang.GeneralDictionaryFiniteObservedExampleReservedPositive.packet
+Yulang.GeneralDictionarySettledReservedExample.not_unsettled :
+  ¬Yulang.GeneralNominalSettledSupport.Unsettled Yulang.GeneralDictionaryReservedNominalRefresh.refreshed.current
+      Yulang.GeneralDictionaryFiniteObservedExampleReservedPositive.packet
+Yulang.GeneralDictionarySettledReservedExample.output_trusted :
+  Exists.{1} fun support =>
+    Yulang.GeneralNominalSettledSupport.Trusted Yulang.GeneralDictionaryReservedNominalRefresh.refreshed
+      (List.cons.{0}
+        (Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralDictionaryFiniteObservedExampleReservedPositive.packet
+          support)
+        (List.cons.{0}
+          (Yulang.GeneralNominalSupport.Fact.inputs Yulang.GeneralDictionaryFiniteObservedExampleReservedPositive.packet
+            support)
+          List.nil.{0}))
+Yulang.GeneralDictionarySettledReservedExample.output_head_justified :
+  Yulang.GeneralNominalSettledSupport.HeadJustified Yulang.GeneralDictionaryReservedNominalRefresh.refreshed 2
+    (Yulang.GeneralNominalRecursiveInspection.Test.nominal 0 3)
+Yulang.GeneralDictionarySettledReservedExample.output_ready :
+  Yulang.GeneralNominalSettledSupport.ReadyAt Yulang.GeneralDictionaryReservedNominalRefresh.refreshed 2
+Yulang.GeneralDictionarySettledReservedExample.consumer_decision :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard Yulang.GeneralDictionaryFiniteObservedExample.registry
+    Yulang.GeneralDictionaryReservedNominalRefresh.refreshed Yulang.GeneralDictionarySettledReservedExample.consumer
+Yulang.GeneralDictionarySettledRootEvidence.stable_generated {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root child : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.current root child) :
+  Yulang.GeneralNominalSettledSteps.Stable registry state child
+Yulang.GeneralDictionarySettledRootEvidence.selected_descendant_generated {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {source root child : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles) registry source state)
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (joint : Yulang.GeneralDictionarySettledRootEvidence.JointClosure registry state root)
+  (path :
+    Yulang.B4Target.Steps.{1}
+      (fun parent child =>
+        Yulang.CommonRoleOutermostResolver.Child.{0}
+          (Yulang.B4TargetV3.Local.{0}
+            (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+              (Yulang.GeneralDictionarySettledProjection.fresh roles))
+            registry state)
+          child parent)
+      root child) :
+  Yulang.GeneralNominalSaturationState.Generated state.current root child
+Yulang.GeneralDictionarySettledRootEvidence.nodeClosure_of_root_stable {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {source root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles) registry source state)
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (joint : Yulang.GeneralDictionarySettledRootEvidence.JointClosure registry state root) :
+  Yulang.GeneralDictionarySettledTreeEvidence.NodeClosure registry state root
+Yulang.GeneralDictionarySettledRootEvidence.classified_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {source root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles) registry source state)
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (joint : Yulang.GeneralDictionarySettledRootEvidence.JointClosure registry state root)
+  (classified :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root dictionary
+Yulang.GeneralDictionarySettledRootEvidence.completed_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {source root : Yulang.GeneralSourceDictionaries.Occurrence roles} {tree : Yulang.CommonRoleOutermostResolver.Tree}
+  {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles) registry source state)
+  (stable : Yulang.GeneralNominalSettledSteps.Stable registry state root)
+  (joint : Yulang.GeneralDictionarySettledRootEvidence.JointClosure registry state root)
+  (resolved :
+    Yulang.CommonRoleOutermostResolver.Resolves.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+        registry state)
+      root tree)
+  (completed : Yulang.B4TargetV3.Completed tree (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root dictionary
+Yulang.GeneralDictionarySettledSourceGuard.head_of_empty_facts {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)} {identity : Nat}
+  {test : Yulang.GeneralNominalRecursiveInspection.Test} (empty : Eq.{1} state.facts List.nil.{0})
+  (given : Yulang.GeneralNominalSupport.HeadSupported state support identity test) :
+  Yulang.GeneralNominalSettledSupport.HeadJustified state identity test
+Yulang.GeneralDictionarySettledSourceGuard.ready_of_empty_facts {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)} {identity : Nat}
+  (empty : Eq.{1} state.facts List.nil.{0}) (given : Yulang.GeneralNominalSupport.ReadyAt state support identity) :
+  Yulang.GeneralNominalSettledSupport.ReadyAt state identity
+Yulang.GeneralDictionarySettledSourceGuard.base_decision_of_empty_facts {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)} (empty : Eq.{1} state.facts List.nil.{0})
+  (given : Yulang.GeneralNominalSupport.DecisionGuard state registry root support) :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard registry state root
+Yulang.GeneralDictionarySettledSourceGuard.decision_of_empty_facts {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)} (empty : Eq.{1} state.facts List.nil.{0})
+  (given : Yulang.GeneralNominalValueSupport.DecisionGuard registry state root support) :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard registry state root
+Yulang.GeneralDictionarySettledSourceGuard.initial_decision {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (given :
+    Yulang.GeneralNominalValueSupport.DecisionGuard registry (Yulang.GeneralNominalSupport.initial context root) focus
+      support) :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard registry (Yulang.GeneralNominalSupport.initial context root) focus
+Yulang.GeneralDictionarySettledSourceGuard.selected_of_empty_facts {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalValueBoundary.vocabulary roles)} {key : Nat}
+  {children : List.{0} (Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalValueBoundary.vocabulary roles))}
+  (empty : Eq.{1} state.facts List.nil.{0})
+  (selected :
+    Yulang.GeneralNominalValueBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)) :
+  Yulang.GeneralNominalSettledBoundary.Local registry state root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)
+Yulang.GeneralDictionarySettledSourceGuard.initial_selected {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry}
+  {focus : Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalValueBoundary.vocabulary roles)} {key : Nat}
+  {children : List.{0} (Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalValueBoundary.vocabulary roles))}
+  (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (selected :
+    Yulang.GeneralNominalValueBoundary.Local registry (Yulang.GeneralNominalSupport.initial context root) focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)) :
+  Yulang.GeneralNominalSettledBoundary.Local registry (Yulang.GeneralNominalSupport.initial context root) focus
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)
+Yulang.GeneralDictionarySettledSourceGuard.packet_guard_of_empty_facts {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {packet : Yulang.GeneralNominalSaturationState.Packet roles}
+  {support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)} (empty : Eq.{1} state.facts List.nil.{0})
+  (given : Yulang.GeneralNominalValueSupport.PacketGuard state packet support) :
+  Yulang.GeneralNominalSettledSupport.PacketGuard state packet support
+Yulang.GeneralDictionarySettledSourceGuard.at_of_empty_facts {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {after : Yulang.GeneralNominalSupport.Tracked roles}
+  (empty : Eq.{1} state.facts List.nil.{0}) (step : Yulang.GeneralNominalValueSteps.At registry state focus after) :
+  Yulang.GeneralNominalSettledSteps.At registry state focus after
+Yulang.GeneralDictionarySettledSourceGuard.step_of_empty_facts {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {after : Yulang.GeneralNominalSupport.Tracked roles}
+  (empty : Eq.{1} state.facts List.nil.{0}) (step : Yulang.GeneralNominalValueSteps.Step registry root state after) :
+  Yulang.GeneralNominalSettledSteps.Step registry root state after
+Yulang.GeneralDictionarySettledSourceGuard.initial_step_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {after : Yulang.GeneralNominalSupport.Tracked roles}
+  (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles) :
+  Yulang.GeneralNominalSettledSteps.Step registry root (Yulang.GeneralNominalSupport.initial context root) after ↔
+    Yulang.GeneralNominalValueSteps.Step registry root (Yulang.GeneralNominalSupport.initial context root) after
+Yulang.GeneralDictionarySettledTreeEvidence.nodeClosure_child {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root child : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (closed : Yulang.GeneralDictionarySettledTreeEvidence.NodeClosure registry state root)
+  (edge :
+    Yulang.CommonRoleOutermostResolver.Child.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+        registry state)
+      child root) :
+  Yulang.GeneralDictionarySettledTreeEvidence.NodeClosure registry state child
+Yulang.GeneralDictionarySettledTreeEvidence.classified_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (source root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles) registry source state)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (classified :
+    Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (closed : Yulang.GeneralDictionarySettledTreeEvidence.NodeClosure registry state root)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root dictionary
+Yulang.GeneralDictionarySettledTreeEvidence.children_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (source : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles) registry source state)
+  (dictionaries : List.{0} Yulang.CommonRoleOutermostResolver.Dictionary)
+  (roots : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (classified :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (fun root dictionary =>
+        Yulang.B4TargetV3.Classify.{0}
+          (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+            (Yulang.GeneralDictionarySettledProjection.fresh roles))
+          registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+      roots dictionaries)
+  (closed :
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Membership.mem.{0, 0} roots child → Yulang.GeneralDictionarySettledTreeEvidence.NodeClosure registry state child)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+    (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) roots dictionaries
+Yulang.GeneralDictionarySettledTreeEvidence.completed_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {source root : Yulang.GeneralSourceDictionaries.Occurrence roles} {tree : Yulang.CommonRoleOutermostResolver.Tree}
+  {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles) registry source state)
+  (resolved :
+    Yulang.CommonRoleOutermostResolver.Resolves.{0}
+      (Yulang.B4TargetV3.Local.{0}
+        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralDictionarySettledProjection.fresh roles))
+        registry state)
+      root tree)
+  (completed : Yulang.B4TargetV3.Completed tree (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (closed : Yulang.GeneralDictionarySettledTreeEvidence.NodeClosure registry state root)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root dictionary

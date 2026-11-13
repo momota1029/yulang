@@ -429,3 +429,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Unsettled output deferral](2026-11-13-unsettled-output-deferral.md) — Additive head-provenance guard and B4 boundary; conditional pump exclusion and finite-signature accessibility, source budget and concrete prefix certificate remain open.
 
 - [Settled-cover obstruction](2026-11-13-settled-cover-obstruction.md) — Two-role interval-sharing counterexecution on paper; checked declarations/source and exact leaf branch models, complete Step trace and SourceBudget remain open.
+- [Shared origins and lazy nonpoint readback](2026-11-13-nonpoint-provenance.md) — Additive provenance guard and emitter, concrete first-round deferral, finite symbolic settled readback, bounded term enumeration, and conditional accessibility; source refinement and SourceBudget remain open.
