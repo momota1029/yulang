@@ -1,0 +1,286 @@
+lean/Audit/Cycle160EmissionRequestIdentity.lean EXIT 0
+'Yulang.GeneralDictionaryEmissionRequestIdentity.output_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryEmissionRequestIdentity.input_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryEmissionRequestIdentity.emission_requests' depends on axioms: [propext, Quot.sound]
+
+lean/Audit/Cycle160FinalDependencyGate.lean EXIT 0
+AXIOM-GATE-PASS: 577 declarations
+
+lean/Audit/Cycle161ChildCaptureExample.lean EXIT 0
+'Yulang.GeneralDictionaryChildCaptureExample.clause_signature' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.parent_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.old_argument' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.current_argument' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.outputs_equal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.child_fits_strictly_enlarges' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.child_demands_differ' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.actual_old_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.actual_current_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.identity_equal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureExample.actual_nonterminal_boundary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161ChildCaptureTransport.lean EXIT 0
+'Yulang.GeneralDictionaryChildCaptureTransport.emitted_identity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureTransport.child_outputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureTransport.variable_argument' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureTransport.variable_argument_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureTransport.children_identities' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureTransport.collapsed_child_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureTransport.collapsed_child_outputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryChildCaptureTransport.collapsed_child_identity' depends on axioms: [propext, Quot.sound]
+
+lean/Audit/Cycle161DependencyGate.lean EXIT 0
+AXIOM-GATE-PASS: 252 declarations
+
+lean/Audit/Cycle161NonterminalCertified.lean EXIT 0
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.queries' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.children_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.captures_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.child_arguments' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf_query' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.child_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.child_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.parent_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.parent_ready' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.parent_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.full_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.positive_nonterminal_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.initial_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.certified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.improves' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.actual_value_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.result_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalCertifiedEvidence.reachable_nonterminal_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161NonterminalChild.lean EXIT 0
+'Yulang.GeneralDictionaryVariableIntervalLeaf.report_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryVariableIntervalLeaf.branch_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryVariableIntervalLeaf.instance_of_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.children_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.captures_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.child_arguments' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.leaf_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.leaf_query' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.child_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.child_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.parent_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.parent_ready' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.parent_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.full_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalChildEvidence.positive_nonterminal_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161NonterminalEvidence.lean EXIT 0
+'Yulang.GeneralDictionaryNonterminalNonpointEvidence.transport_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointEvidence.transport_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161NonterminalExample.lean EXIT 0
+'Yulang.GeneralDictionaryNonterminalNonpointExample.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.variable_clauses' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.names' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.root_request' depends on axioms: [propext]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.generated_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.nonempty' does not depend on any axioms
+'Yulang.GeneralDictionaryNonterminalNonpointExample.old_materialized' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.current_materialized' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.queries' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.report_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.generated_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.private_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.old_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.current_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointExample.positive_nonterminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161NonterminalNamedEvidence.lean EXIT 0
+'Yulang.GeneralDictionaryNonterminalNamedEvidence.transport_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedEvidence.transport_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161NonterminalNamedExample.lean EXIT 0
+'Yulang.GeneralDictionaryNonterminalNamedExample.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.variable_inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.output_normal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.names' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.root_request' depends on axioms: [propext]
+'Yulang.GeneralDictionaryNonterminalNamedExample.target_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.nonempty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.old_materialized' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.queries' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.report_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.requests_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.generated_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.private_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.old_branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.current_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNamedExample.positive_nonterminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161NonterminalOldObstruction.lean EXIT 0
+'Yulang.GeneralDictionaryNonterminalOldObstruction.children_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalOldObstruction.captures_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalOldObstruction.child_unlocated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalOldObstruction.child_no_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalOldObstruction.child_no_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalOldObstruction.root_no_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalOldObstruction.old_absent_current_present' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161NonterminalParent.lean EXIT 0
+'Yulang.GeneralDictionaryVariableWhereRequests.canonical_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryVariableWhereRequests.emission_actual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryVariableWhereRequests.canonical_actual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryVariableWhereRequests.requests_actual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryVariableWhereRequests.revision_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryVariableWhereRequests.bare_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointBranch.branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalNonpointBranch.bare_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161NonterminalScope.lean EXIT 0
+'Yulang.GeneralDictionaryNonterminalScope.normalized_outputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalScope.variable_outputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalScope.request_scope' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalScope.generated_scope' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalScope.branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalScope.normal_form_branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryNonterminalScope.variable_output_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161RecordedLeafPlans.lean EXIT 0
+'Yulang.GeneralDictionaryRecordedLeafPlans.evidence_from_leaf_plans' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161RecordedRevision.lean EXIT 0
+'Yulang.GeneralDictionaryNonterminalRecordedRevision.instance_from_trace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNonterminalRecordedRevision.evidence_from_trace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161RequestSnapshot.lean EXIT 0
+'Yulang.GeneralDictionaryRequestSnapshot.canonical_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestSnapshot.requests_bindings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestSnapshot.requests_revision' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestSnapshot.generated_revision' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestSnapshot.ready_revision' depends on axioms: [propext, Quot.sound]
+
+lean/Audit/Cycle161ValuePendingExclusion.lean EXIT 0
+'Yulang.GeneralDictionaryValuePendingExclusion.no_local_selected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryValuePendingExclusion.no_boundary_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryValuePendingExclusion.no_selected_classification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryValuePendingExclusion.child_pending_no_parent_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+lean/Audit/Cycle161VariableLeafPlans.lean EXIT 0
+'Yulang.GeneralDictionaryVariableLeafPlans.instance_of_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryVariableLeafPlans.evidence_of_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryVariableLeafPlans.children_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryVariableLeafPlans.parent_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryVariableLeafPlans.transport_parent_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

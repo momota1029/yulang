@@ -1,0 +1,3 @@
+import Yulang.GeneralDictionaryNonterminalRecordedRevision
+#print axioms Yulang.GeneralDictionaryNonterminalRecordedRevision.instance_from_trace
+#print axioms Yulang.GeneralDictionaryNonterminalRecordedRevision.evidence_from_trace

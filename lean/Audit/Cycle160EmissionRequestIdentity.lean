@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionaryEmissionRequestIdentity
+#print axioms Yulang.GeneralDictionaryEmissionRequestIdentity.output_target
+#print axioms Yulang.GeneralDictionaryEmissionRequestIdentity.input_requests
+#print axioms Yulang.GeneralDictionaryEmissionRequestIdentity.emission_requests

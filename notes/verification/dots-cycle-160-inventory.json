@@ -101,6 +101,16 @@
     ]
   },
   {
+    "path": "lean/Yulang/GeneralDictionaryEmissionRequestIdentity.lean",
+    "namespace": "Yulang.GeneralDictionaryEmissionRequestIdentity",
+    "sha256": "db3f32135a197ae3012e89668a03c6937d4881d610355a4c898f9099f4670dba",
+    "public_theorems": [
+      "output_target",
+      "input_requests",
+      "emission_requests"
+    ]
+  },
+  {
     "path": "lean/Yulang/GeneralDictionaryNonpointBranch.lean",
     "namespace": "Yulang.GeneralDictionaryNonpointBranch",
     "sha256": "7073396e2f75ed1b904a1a64af13329aba0085ecc321641f1af1d6ffc0d5baba",

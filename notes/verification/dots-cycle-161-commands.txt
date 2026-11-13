@@ -1,0 +1,26 @@
+Cycle161 verification commands (Lean4.35.0)
+
+Focused targets: git diff --name-only 5a85451dd03f4de2a048c0219fea41e4a9cd7508 HEAD -- lean/Yulang
+lake build <all listed new Yulang modules> --wfail
+Final all19 module targets:775jobs PASS; earlier OldObstruction750jobs and pending exclusion642jobs PASS.
+Final independent source replay:252declarations PASS (private/generated included).
+No full lake build, root Audit or full verify-lean run.
+
+All changed/new source modules recompiled into separate y161lib cache:
+lean --trust=0 -o <independent-cache>/<module>.olean <module>.lean
+then all public audit files, signatures and Cycle161DependencyGate.lean executed
+with LEAN_PATH=<independent-cache>. Standard axioms only.
+
+bash tools/verify-lean.sh . 62cba43b580c5f0740fafd873a740a8a709643d9 --no-build
+PASS after preserving final160 audit under new Cycle160FinalDependencyGate name.
+The two dependency-gate run_cmd blocks are report-only collectAxioms traversals;
+no declaration insertion or proof generation. Metaprogramming REVIEW remains visible.
+
+First diff-only attempt correctly failed because the prior published final160 gate
+changed integrated frozen audit lines. Kept original integration audit unchanged and
+preserved final160 gate as an additional new file. Rerun PASS; no source proof deleted.
+
+GitHub publications use create_blob/create_tree/create_commit/expected-sha update_ref,
+only work/dots-main. Frozen local tree versus fetched immutable published commit:
+first checkpoint ecce490e9693afa81306ff330bfe2fb35e07e64a: heartbeat only.
+second checkpoint79f3a8f4a1bc2bdcb7c03680e45758f8d9967aff: heartbeat only.
