@@ -1,9 +1,10 @@
 cycle: 159
-status: running
+status: active
 started: 2026-11-13T06:23:20Z
-updated: 2026-11-13T06:32:30Z
-elapsed_min: 9
-activity: Evidence semantic capture multiplicity/reobserve; depth2 projection collapse verified, allocator/schema bridge checking. V5 8/14open.
+updated: 2026-11-13T06:46:00Z
+elapsed_min: 22.7
+activity: First semantic allocation/schema checkpoint verified; positive checked initial nested witness audited. Integrating full terminal branch replay.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang159
-last_local_commit: 707d524c3
-resume_hint: New modules uncommitted; inspect /tmp/y159 logs. No whole build. Deadline07:18UTC.
+last_remote_commit: b9e7e1f505250c6e602cc75567b26206ce7c336d
+report: notes/handoff/dots-cycle-159.md
+resume_hint: Active cycle159 writer; no overlapping write. Hard stop07:18UTC.
