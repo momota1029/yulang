@@ -378,3 +378,51 @@ ok: lean/Audit/Recovery131135.lean only appended (plus top import lines)
 verify-lean: PASS (diff checks only, NO build)
 
 ```
+
+## Published commit gate
+
+Source ed34179dfc8d1db50064335a6de3eccfbcba2ac8; exacttree174fbd8ac21f34c5b50606b2ce380c261d89d774. Clean detached worktree; ancestry and whole-tree comparison exit0. Audit rerun exit0.
+
+```text
+verify-lean: /tmp/y152-published @ ed34179df (base dc145d71fdd50eaa7d02721c88af4afea5a1d7a5)
+ok: no removed lines in lean/ since dc145d71fdd50eaa7d02721c88af4afea5a1d7a5
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+ok: lean/Audit/AstraCanonicalCompletion.lean only appended (plus top import lines)
+ok: lean/Audit/AstraCanonicalView.lean only appended (plus top import lines)
+ok: lean/Audit/AstraConfluence.lean only appended (plus top import lines)
+ok: lean/Audit/AstraOrder.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle136.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle137.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle137Finished.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle137Followup.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Formation.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Joint.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Refresh.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Terminal.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle138Tree.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle139.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle139Followup.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle140.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle141.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle141Recorded.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle142.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle143.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle144.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle145.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle146.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle147.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle148.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle149.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle150.lean only appended (plus top import lines)
+ok: lean/Audit/Cycle151.lean only appended (plus top import lines)
+ok: lean/Audit/GeneralNominalDownstream.lean only appended (plus top import lines)
+ok: lean/Audit/GeneralNominalSupport.lean only appended (plus top import lines)
+ok: lean/Audit/GeneralNominalSupportOrder.lean only appended (plus top import lines)
+ok: lean/Audit/Recovery131135.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+
+```

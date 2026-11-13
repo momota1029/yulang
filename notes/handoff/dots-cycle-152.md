@@ -50,12 +50,18 @@ work/dots-auditをfetchし、ROLE-MORE-003/004のwhere/body prerequisite差と�
 第3checkpoint `89fd8b230fa957d0282d14aca5919626fcac5d23`、tree `afce93d6203ec70d64131508b3f657ff05b93ad4`全一致。Core CI43332813810・Lean CI43332814133ともsuccess。
 
 最終sourceは22modules・161公開定理。focused `lake build <22modules> --wfail` exit0、768jobs。`lake env lean --trust=0 Audit/Cycle152.lean` exit0。全宣言gateは436declarationsでexit0、許可依存はpropext/Classical.choice/Quot.soundのみ。完全型出力exit0。量化・前提の全文はtypes1〜8。独立read-onlyレビューもscalar完成例・closed/finite request全体に問題を検出せず。
-最終公開SHA/CIは次の追記で特定する。全体lake buildと全監査はstanding ordersに従いdotでは実行しない。
+最終source [`ed34179dfc8d1db50064335a6de3eccfbcba2ac8`](https://github.com/momota1029/yulang/commit/ed34179dfc8d1db50064335a6de3eccfbcba2ac8)、tree `174fbd8ac21f34c5b50606b2ce380c261d89d774`。remote取得後local全treeと一致、fresh integrationの祖先性もexit0。公開commitのclean worktreeでdiff-only gate再実行exit0。公開tree照合後のtrust0再監査exit0。
+
+最終sourceのCore CI[43333773515](https://github.com/momota1029/yulang/actions/runs/43333773515) success。同一treeの直前source `8b1c61bf67fbf613b529d4191c4372196fc31a1e`ではCore[43333503050](https://github.com/momota1029/yulang/actions/runs/43333503050)・Lean[43333503280](https://github.com/momota1029/yulang/actions/runs/43333503280)ともsuccess。最終source自体のLean runは一覧にないため、そのSHAでのLean CI成功とは記さない。全体lake buildと全監査はstanding ordersに従いdotでは実行しない。
 
 ## 制限・修正
-開始後の心拍で推定時刻23:37を記した誤りを実時計23:35のcheckpointで訂正し、以後dateから生成。初期に別ファイルを同一worktreeで分担したが、git-concurrency再読後ただちにisolated worktreeへ移し、親だけが統合・commit・公開。衝突や内容損失はない。差分verifyの初回は未commitのAudit/importを検出しFAIL、commit後に再実行PASS。第2checkpoint後の心拍更新は末尾改行差によるblob SHA409となり、remoteを再読して新SHAで同じ内容を更新した（成功）。全Lean証明にsorry/new axiom/native_decideなし。使用量枠は不明。
+開始後の心拍で推定時刻23:37を記した誤りを実時計23:35のcheckpointで訂正し、以後dateから生成。初期に別ファイルを同一worktreeで分担したが、git-concurrency再読後ただちにisolated worktreeへ移し、親だけが統合・commit・公開。衝突や内容損失はない。差分verifyの初回は未commitのAudit/importを検出しFAIL、commit後に再実行PASS。第2checkpoint後の心拍更新は末尾改行差によるblob SHA409となり、remoteを再読して新SHAで同じ内容を更新した（成功）。最終公開監査でremote履歴がfresh integrationを祖先に含まないことを検出し、同一treeの非force merge-parent commit ed34179で修正、公開commit自身の祖先性とdiff gateを再検証PASS。全Lean証明にsorry/new axiom/native_decideなし。使用量枠は不明。
 
 ## 次の候補
 1. 任意reachable stateでのalias selected-key整合を証明、またはdisjoint-output案の全反例義務を満たす。
 2. 既存source観測にないfresh named target、free binder・row・非point辺のmaterialization証明。
 3. ordinary-only制約を外すrefresh/reobserveのdictionary transportと構造coverage。
+
+## 完了
+
+最終文書・completed心拍を含む公開を最後に照合しwriterを解放する。全45files（integrationとの差分、Lean22modules＋imports＋audit＋設計/型/検証/報告/心拍）。cacheは既存未追跡物で公開対象外。新しい意味論の質問や承認待ちはない。証明追加は完了後に広げず、55分上限より前に検証・公開・報告まで終了。厳密な最終所要時間はcompleted心拍の値。
