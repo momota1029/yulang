@@ -2514,3 +2514,8 @@ import Yulang.GeneralNominalHoleObservation
 import Yulang.GeneralNominalHoleFacets
 import Yulang.GeneralNominalHoleMaterialization
 import Yulang.GeneralNominalHoleElimination
+import Yulang.GeneralNominalSourceFrontier
+import Yulang.GeneralNominalIdentityLeaf
+import Yulang.GeneralNominalIdentityProvenance
+import Yulang.GeneralNominalIdentityBudget
+import Yulang.GeneralNominalIdentityExample
