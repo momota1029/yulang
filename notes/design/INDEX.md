@@ -474,3 +474,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Explicit centers at the actual-inspection boundary](2026-11-14-centered-actual-boundary.md) — Center ledger, model equations, centered transition kernel, six V5 structural fields, and conditional compatibility/K2 bridges; full simulation and trigger execution remain open.
 
 - [Centered point-source bridges](2026-11-14-centered-point-bridges.md) — Exact initial agreement, a reachable ground counterexample to literal erasure with a matching raw execution, and selected inspection guards; unrestricted simulation and full installation availability remain open.
+
+- [Direct centered ground-root accessibility](2026-11-14-centered-direct-accessibility.md) — Unrestricted centered Step accessibility from ground point roots, actual terminal executions, six structural V5 transfers, namespace/nested-use invariants, and conditional selected-plan/where bridges; full guard availability and the P/W trace remain open.
