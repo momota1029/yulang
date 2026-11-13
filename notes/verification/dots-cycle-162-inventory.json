@@ -1,0 +1,179 @@
+[
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledCutExclusion.lean",
+    "namespace": "Yulang.GeneralDictionarySettledCutExclusion",
+    "sha256": "09156e4e89c699cbb3a95c188c414a5db12a8d21f464c7cb415e73175bfa58b1",
+    "public_theorems": [
+      "inspected_cut_no_dictionary",
+      "inspected_cut_no_completed",
+      "descendant_cut_no_completed"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledEvidence.lean",
+    "namespace": "Yulang.GeneralDictionarySettledEvidence",
+    "sha256": "9f23e16e884f2c8c173afb966309496d73c8d1f71d85b92c45ef20271463c483",
+    "public_theorems": [
+      "stable_committed",
+      "stable_site",
+      "selected_support",
+      "stable_joint_packet",
+      "stable_joint_instance",
+      "stable_joint_evidence",
+      "stable_merges_of_exact",
+      "reachable_joint_instance",
+      "reachable_joint_evidence",
+      "steps_reobservation",
+      "reachable_reobservation",
+      "reachable_packetFree_terminal",
+      "reachable_packetFree_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledGuardClosure.lean",
+    "namespace": "Yulang.GeneralDictionarySettledGuardClosure",
+    "sha256": "b433d52d29f07328b39f048fc7a24e6390031382e3f5142b8e7ebc517669e6a6",
+    "public_theorems": [
+      "old_child_is_new",
+      "old_descendant_selected",
+      "guardClosure_of_classified",
+      "selected_iff"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledGuardedClassification.lean",
+    "namespace": "Yulang.GeneralDictionarySettledGuardedClassification",
+    "sha256": "18777557a1397a1d70eaa30415594f5e2c93e07f5874c249ffb5fd36b476bb18",
+    "public_theorems": [
+      "guard_root",
+      "guard_child",
+      "selected_local_iff",
+      "classified_of_guards",
+      "children_of_guards",
+      "selected_iff_of_guards"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledNamedExample.lean",
+    "namespace": "Yulang.GeneralDictionarySettledNamedExample",
+    "sha256": "d7b2adb415052a7ad9c7a93cf77d94086d8a6dc67f3ddcf56a8657c49a2d4358",
+    "public_theorems": [
+      "initial_decision",
+      "install_guard",
+      "actual_step",
+      "reachable",
+      "stable",
+      "current_decision",
+      "parent_selected",
+      "child_selected",
+      "classified",
+      "completed_named",
+      "no_discharged",
+      "named_packet_unsettled",
+      "output_head_independent"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledPendingExclusion.lean",
+    "namespace": "Yulang.GeneralDictionarySettledPendingExclusion",
+    "sha256": "6127f44b106d073f848eaeaf4b1effc00927a6e992858ffe4664cdb9e1e520d9",
+    "public_theorems": [
+      "no_local_selected",
+      "no_boundary_selected",
+      "no_selected_classification",
+      "child_pending_no_parent_dictionary",
+      "no_completed_selected",
+      "child_selected",
+      "descendant_selected",
+      "descendant_pending_no_dictionary",
+      "descendant_pending_no_completed",
+      "no_local_ambiguous"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledProjection.lean",
+    "namespace": "Yulang.GeneralDictionarySettledProjection",
+    "sha256": "1950a57818727d64554738100c774d066fe377534aae432e2eea8d5e7114195d",
+    "public_theorems": [
+      "safe_old",
+      "selected_local_old",
+      "selected_classification_old",
+      "selected_children_old",
+      "completed_selected_old",
+      "steps_old",
+      "reachable_old",
+      "evidence_iff",
+      "models_iff"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledRecursiveExample.lean",
+    "namespace": "Yulang.GeneralDictionarySettledRecursiveExample",
+    "sha256": "29ecd3a3c24b076369f4993bc6fb276a30735f065235f984f42c86cc28ab7cc9",
+    "public_theorems": [
+      "initial_decision",
+      "install_guard",
+      "actual_step",
+      "reachable",
+      "stable",
+      "current_decision",
+      "parent_selected",
+      "leaf_selected",
+      "classified",
+      "completed",
+      "no_discharge_without_terminal_packet",
+      "no_discharged",
+      "packet_unsettled",
+      "output_not_trusted"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledReservedExample.lean",
+    "namespace": "Yulang.GeneralDictionarySettledReservedExample",
+    "sha256": "ec4ec310ba6691902b99ad41a1560492371e6e500ca50e4da73fb0696e4b5faa",
+    "public_theorems": [
+      "initial_decision",
+      "install_step",
+      "equality_step",
+      "refresh_step",
+      "reachable",
+      "formed",
+      "stable",
+      "packet_settled",
+      "not_unsettled",
+      "output_trusted",
+      "output_head_justified",
+      "output_ready",
+      "consumer_decision"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledSourceGuard.lean",
+    "namespace": "Yulang.GeneralDictionarySettledSourceGuard",
+    "sha256": "a66af1aad0f74ebdb6ee515de23f25b0613480464868233a4f472505770e8bb4",
+    "public_theorems": [
+      "head_of_empty_facts",
+      "ready_of_empty_facts",
+      "base_decision_of_empty_facts",
+      "decision_of_empty_facts",
+      "initial_decision",
+      "selected_of_empty_facts",
+      "initial_selected",
+      "packet_guard_of_empty_facts",
+      "at_of_empty_facts",
+      "step_of_empty_facts",
+      "initial_step_iff"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledTreeEvidence.lean",
+    "namespace": "Yulang.GeneralDictionarySettledTreeEvidence",
+    "sha256": "17b687b62c4cc3f00ab91ab50385f8268c7d46ef0706f479262900c8665ac6e9",
+    "public_theorems": [
+      "nodeClosure_child",
+      "classified_evidence",
+      "children_evidence",
+      "completed_evidence"
+    ]
+  }
+]

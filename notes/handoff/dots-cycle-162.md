@@ -80,3 +80,11 @@ Yulang2は既存Y2-ROLE-003/004とspec6§6.3/6.5を文書照合。区間中心�
 
 work/dots-mainのみ。checkpoint2d14f9f4c909cb367c6c4d8e0723674da9784b7bは
 Gitで再取得し、固定local955cd2615との差が意図した心拍だけと確認した。
+
+## 検証確定（09:53 UTC）
+
+新11module・公開100定理、公開名とauditの照合PASS、100型の出力EXIT0。
+独立cacheの全source trust0再compile PASS。private/generatedを含む132宣言の
+依存公理gate PASS。audit12本PASS、標準3公理以外なし。focused build最終788jobs PASS。
+差分限定verify-lean --no-buildはEXIT0。report-only collectAxiomsのrun_cmd1件を
+REVIEWとして記録した。宣言を挿入するメタプログラムではない。

@@ -1,0 +1,15 @@
+Yulang.GeneralDictionarySettledPendingExclusion 0  
+Yulang.GeneralDictionarySettledCutExclusion 0  
+Yulang.GeneralDictionarySettledProjection 0  
+Yulang.GeneralDictionarySettledEvidence 0  
+Yulang.GeneralDictionarySettledGuardedClassification 0  
+Yulang.GeneralDictionarySettledGuardClosure 0  
+Yulang.GeneralDictionarySettledRecursiveExample 0  
+Yulang.GeneralDictionarySettledNamedExample 0  
+Yulang.GeneralDictionarySettledSourceGuard 0  
+Yulang.GeneralDictionarySettledTreeEvidence 0  
+GATE 0 AXIOM-GATE-PASS: 114 declarations
+ 
+Reserved source direct trust0 EXIT0
+AXIOM-GATE-PASS: 132 declarations
+  EXIT 0
