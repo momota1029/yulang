@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionary169FiniteDisplay
+#print axioms Yulang.GeneralDictionary169FiniteDisplay.accessible
+#print axioms Yulang.GeneralDictionary169FiniteDisplay.uniform_dictionary
+#print axioms Yulang.GeneralDictionary169FiniteDisplay.nonvacuous
+#check @Yulang.GeneralDictionary169FiniteDisplay.accessible
+#check @Yulang.GeneralDictionary169FiniteDisplay.uniform_dictionary
+#check @Yulang.GeneralDictionary169FiniteDisplay.nonvacuous

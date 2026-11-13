@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionary169NamedGap
+#print axioms Yulang.GeneralDictionary169NamedGap.empty_named_not_mixed
+#print axioms Yulang.GeneralDictionary169NamedGap.actual_not_mixed
+#print axioms Yulang.GeneralDictionary169NamedGap.stable_named_coverage_gap
+#check @Yulang.GeneralDictionary169NamedGap.empty_named_not_mixed
+#check @Yulang.GeneralDictionary169NamedGap.actual_not_mixed
+#check @Yulang.GeneralDictionary169NamedGap.stable_named_coverage_gap

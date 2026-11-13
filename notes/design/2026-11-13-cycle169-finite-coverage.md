@@ -1,0 +1,13 @@
+# Cycle169: 局所coverageから有限の混合証拠木を組み立てる
+
+Status: Draft proof plan. 2026-11-13. Scope: Evidence helper, not termination semantics.
+
+任意のregistry・Shared状態・需要の部分集合に対して、集合内の各需要に一つの構造的node witness（記録packetとRelocates、またはscalar/spine source shape）を選ぶ。選ばれたnodeの子も集合内にあるとする。この選ばれた子関係について根がAccなら、有限MixedTreeとpayloadが存在することを帰納的に示す。子の順序と重複を保持する。
+
+全MixedTreeやEvidence/Instance/BranchModelsを仮定しない。SourceFormedを加えると、同じ一つのpayloadがすべての現在モデルでEvidenceを持つ。モデルごとに別のpayloadを選ばない。
+
+局所coverage、子closure、Accは明示的な未解決の前提で、Stable/Reachableから導いたとは主張しない。Astraの終了性やStep/Stableには手を加えず、V5境界にこの前提を追加しない。V5の未証明数は変わらない。
+
+## 実例
+
+既存のShared Display→Int installationの二需要domainについて、親に記録packetのnode、子に未記録scalar source nodeを選んだ。子関係は親→子だけで、Accは二段の構成で示す（自然数rankを新たに仮定しない）。既存MixedTreeを入力に使わず、一般accessible_treeとuniform_dictionaryから木と一つの全モデルpayloadを得た。現在モデルの存在も既存の実例から確認した。辞書自体と実行traceは既存のもので、新しい言語範囲やStableの正例ではない。

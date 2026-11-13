@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionary169CoverageAccessible
+#print axioms Yulang.GeneralDictionary169CoverageAccessible.packet_child_above
+#print axioms Yulang.GeneralDictionary169CoverageAccessible.child_rank
+#print axioms Yulang.GeneralDictionary169CoverageAccessible.coverage_accessible
+#print axioms Yulang.GeneralDictionary169CoverageAccessible.covered_tree
+#print axioms Yulang.GeneralDictionary169CoverageAccessible.covered_dictionary
+#check @Yulang.GeneralDictionary169CoverageAccessible.packet_child_above
+#check @Yulang.GeneralDictionary169CoverageAccessible.child_rank
+#check @Yulang.GeneralDictionary169CoverageAccessible.coverage_accessible
+#check @Yulang.GeneralDictionary169CoverageAccessible.covered_tree
+#check @Yulang.GeneralDictionary169CoverageAccessible.covered_dictionary

@@ -443,3 +443,15 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Ground-root Class P: finite input production](2026-11-14-ground-root-production.md) — Actual structural containment, shared capture and emitted-child meanings, recovered-input readback, and actual-Step Acc conditional on one local finite-capture factorization; inhabited branching Show source. Unconditional ground-root Acc remains open.
 
 - [Ground capture factorization: actual paths and closed branching Acc](2026-11-14-ground-factorization-progress.md) — Actual nested nominal/pair capture paths, simultaneous finite values, application-fragment counted substitution, and unconditional Show (pair (list int) int) accessibility; general GroundCaptureFactorization remains open.
+- [Cycle169 構造的辞書証明書の通常継続](2026-11-13-cycle169-certificate-persistence.md)
+- [Cycle169 選択された辞書節点](2026-11-13-cycle169-selected-evidence.md)
+- [Cycle169 有限局所coverage](2026-11-13-cycle169-finite-coverage.md)
+- [Cycle169 実際のShared安定例](2026-11-13-cycle169-shared-stable.md)
+- [Cycle169 名前付きleaf](2026-11-13-cycle169-named-leaf.md)
+- [Cycle169 coverage阻害](2026-11-13-cycle169-named-coverage-gap.md)
+- [Cycle169 名前付き混合木](2026-11-13-cycle169-named-tree.md)
+- [Cycle169 名前付き証明書の通常継続](2026-11-13-cycle169-named-persistence.md)
+- [Cycle169 有限journalの子accessibility](2026-11-13-cycle169-journal-accessibility.md)
+- [Cycle169 ground productionへの次の橋](2026-11-13-cycle169-next-ground.md)
+
+- [Ground capture readback: recovery, source syntax, and record mass](2026-11-14-ground-capture-readback.md) — Actual missing-root recovery produces finite endpoint forests; source-key-preserving closed reification, record/variant projection inversion, exact checker mass, and reachable-only factorization reduction. General ground-root Acc remains conditional.

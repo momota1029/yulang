@@ -1,0 +1,24 @@
+import Yulang.GeneralDictionary169RelocationComposition
+import Yulang.GeneralDictionary169LeafPersistence
+import Yulang.GeneralDictionary169MixedPersistence
+
+#print axioms Yulang.GeneralDictionary169RelocationComposition.report_comp
+#check @Yulang.GeneralDictionary169RelocationComposition.report_comp
+#print axioms Yulang.GeneralDictionary169RelocationComposition.at_trans
+#check @Yulang.GeneralDictionary169RelocationComposition.at_trans
+#print axioms Yulang.GeneralDictionary169RelocationComposition.packet_extension
+#check @Yulang.GeneralDictionary169RelocationComposition.packet_extension
+#print axioms Yulang.GeneralDictionary169LeafPersistence.spine_query
+#check @Yulang.GeneralDictionary169LeafPersistence.spine_query
+#print axioms Yulang.GeneralDictionary169MixedPersistence.packets_steps
+#check @Yulang.GeneralDictionary169MixedPersistence.packets_steps
+#print axioms Yulang.GeneralDictionary169MixedPersistence.extension
+#check @Yulang.GeneralDictionary169MixedPersistence.extension
+#print axioms Yulang.GeneralDictionary169MixedPersistence.ordinary_steps
+#check @Yulang.GeneralDictionary169MixedPersistence.ordinary_steps
+#print axioms Yulang.GeneralDictionary169MixedPersistence.current_evidence
+#check @Yulang.GeneralDictionary169MixedPersistence.current_evidence
+#print axioms Yulang.GeneralDictionary169MixedPersistence.source_formed_steps
+#check @Yulang.GeneralDictionary169MixedPersistence.source_formed_steps
+#print axioms Yulang.GeneralDictionary169MixedPersistence.source_dictionary_steps
+#check @Yulang.GeneralDictionary169MixedPersistence.source_dictionary_steps
