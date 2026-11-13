@@ -1,0 +1,3 @@
+'Cycle163CoverageSeparation.no_exact_upgrade' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Cycle163CoverageSeparation.no_alias_upgrade' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Cycle163CoverageSeparation.inhabited_evidence_and_unsettled' depends on axioms: [propext, Classical.choice, Quot.sound]

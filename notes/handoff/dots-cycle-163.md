@@ -228,3 +228,17 @@ private/generatedを含むgate対象は引き続き87宣言。
 source内容の不一致ではない。次のpublicationで同integrationをsecond parentに
 加え、検証済みtreeを変えずにancestryを修復する。修復後のimmutable commitで
 ancestor検査とdiff-only verifyを行い、結果を末尾に記録する。
+
+## ancestry修復後の公開commit検査（11:13 UTC）
+
+`2b40edc6e23d239faf4d06f2688932159a603023`はintegration50aをsecond parentに
+持つ。`merge-base --is-ancestor`はEXIT0。固定local31130c518との内容差は
+意図した心拍だけ。公開commit専用のclean worktreeで、integration50aをbaseに
+`verify-lean --no-build`を実施: EXIT0。REVIEWは4本の依存公理audit gateと
+コメントのsyntax/history行の計5件であり、全体buildと監督役レビューは別途必要。
+同public worktreeのaudit-only3回帰検査もtrust0でEXIT0、標準3公理のみ。
+
+今回のsource公開はcheckpoint1/2/3とancestry修復commitで段階的に行った。
+全writer・試験プロセスは終了しており、次cycleへの並行書込みは残さない。
+新しい意味論の決定はしていない。追加質問ノートはなく、失敗する構成と次の
+合法なconsumer配線の条件をnext-prefix-planに残した。
