@@ -2486,3 +2486,13 @@ import Yulang.GeneralDictionarySettledNamedExample
 import Yulang.GeneralDictionarySettledEvidence
 import Yulang.GeneralDictionarySettledTreeEvidence
 import Yulang.GeneralDictionarySettledReservedExample
+import Yulang.GeneralNominalOriginTerms
+import Yulang.GeneralNominalSharedCaptures
+import Yulang.GeneralNominalSharedEmission
+import Yulang.GeneralNominalSharedSupport
+import Yulang.GeneralNominalSharedSteps
+import Yulang.GeneralNominalSharedPump
+import Yulang.GeneralNominalSharedPositive
+import Yulang.GeneralNominalSharedExamples
+import Yulang.GeneralNominalSharedEnumeration
+import Yulang.GeneralNominalSharedBudget
