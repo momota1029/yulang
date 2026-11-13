@@ -94,3 +94,9 @@ V5の継承した会計は **8/14、未完** のまま。全Shared境界のevide
 今回だけの変更を統合時点db221e731から検査したdiff-only gateはPASS（audit-only run_cmdのREVIEW1件）。上流integration基準の継承差分による失敗も隠さず別ログを残した。本文記載の新規docstring誤検知は修正済みで、最終sourceには影響しない。全repo検証PASSは主張しない。
 
 定理担当の書き込み・検証処理は終了。最終contextの検査結果だけは再構成できたが、BranchModels/Evidenceの輸送とconsumerのtrusted aliasは次回へ残す。終了心拍とartifact公開の最終hashは会話の報告に記す。
+
+### 終了確認
+
+14:09 UTC、artifact公開 `84372c0f9af683bd508394f2fbd338b3b4e910c7` を取得し、local `d5d8e8c425e937515ed0c9dc598feac7e3d9d999` と心拍以外の全tree一致を確認。manifestの39 Leanファイル全てと、87定理の日本語索引の収録を再検査して成功した。前回165最終からの公開変更は心拍を含め58ファイル（監督役統合分を含む）。報告自体もGitHubから読戻した。
+
+実作業開始から約37分、起動時刻から約42分で検証・公開・報告台帳まで完了。55分上限を優先し、残る大きなEvidence輸送実験を再開せず、証明済み部分・失敗・次の有限分解を残した。終了心拍をcompletedへ更新し、並行writerは残さない。
