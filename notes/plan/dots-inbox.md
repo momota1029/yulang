@@ -266,3 +266,8 @@ spec 6 の K2 の決定に追記した: 根（または head の非変数 patter
 2. `B4SkeletonV5`: 状態を量化する各フィールド（`progress`・`execution`・`halted`・`closure`・`stepModels`・`frontierLocal`・`whereAccessible`・`completedReadback`/`treeExecution`・`canonicalLocalOrder`・`evidenceNode`）を、`Reachable r d s`（ある初期状態から `Steps (b.Step r d)` で到達）を前提に取る形にし、`b4_of_bridges` を示す。
 3. 具体的な境界では `Initial` = `InitialSource`（空 journal）、`Reachable` ⇒ `SourceFormed` を示し、サイクル 138 の正例（SourceFormed・Stable・現在の Evidence）を、V5 の `evidenceNode` の証明へつなぐ。Astra の 5 本（`closure`・`stepModels`・`frontierLocal`・`localIdentity`・`dictionaryRefl`）も V5 へ移す（前提が弱くなるだけなので、移し替えで通るはず）。
 - I-24 追記（2026-11-13）: 新しいモジュールは、必ず `lean/Yulang.lean` から import すること。`lean/Audit/*.lean` からだけ import すると `lake build` が組み立てず、監査ファイルの実行が失敗する（サイクル 153 で起きた。監督役が import を足して直した）。`tools/verify-lean.sh` もこれを検査するようにした。
+
+## I-26: 片付いていない impl の出力を根拠にした展開は保留（ユーザー決定 2026-11-13「遅延」）
+
+Astra の新しい終了性の分析（`notes/design/2026-11-13-termination-fresh-analysis.md`）が、輪にならない蓄積のポンプで、輪だけの保留（補遺 5・6）では需要が無限に増えることを示した。ユーザーの決定で、spec 6.3 と B4 草稿の補遺 7 に記録した: 片付いていない需要（impl を選んだが where の子に保留が残る）の関連型の出力は、ほかの需要の、候補を調べるのに要る入力の頭の根拠にしない。ソースの制約か片付いた需要の出力が根拠になれば再開する。等式は通常の制約・まとめ・K2 には使う。
+- Astra が終了性の側（ガードの実装と停止の証明）を担当する。dot の `Evidence` 側は、このガードで保留になった需要に辞書を作らないことだけ確かめればよい。`Stable` の定義が変わる場合は、Astra の新しいモジュールに合わせる（Astra の定義は消さない）。
