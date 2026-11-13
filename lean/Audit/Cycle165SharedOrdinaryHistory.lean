@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionarySharedOrdinaryHistory
+#print axioms Yulang.GeneralDictionarySharedOrdinaryHistory.source_formed
+#print axioms Yulang.GeneralDictionarySharedOrdinaryHistory.recorded_growth
+#print axioms Yulang.GeneralDictionarySharedOrdinaryHistory.current_evidence
+#print axioms Yulang.GeneralDictionarySharedOrdinaryHistory.install_extension
+#print axioms Yulang.GeneralDictionarySharedOrdinaryHistory.installed

@@ -430,3 +430,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Settled-cover obstruction](2026-11-13-settled-cover-obstruction.md) — Two-role interval-sharing counterexecution on paper; checked declarations/source and exact leaf branch models, complete Step trace and SourceBudget remain open.
 - [Shared origins and lazy nonpoint readback](2026-11-13-nonpoint-provenance.md) — Additive provenance guard and emitter, concrete first-round deferral, finite symbolic settled readback, bounded term enumeration, and conditional accessibility; source refinement and SourceBudget remain open.
+- [Hole elimination, observations, and interval facets](2026-11-13-hole-elimination.md) — Source-formed cyclic refresh, computed endpoint provenance, fixed-basis readback composition and conditional elimination budget; the actual source-to-elimination bridge and SourceBudget remain open.
+
+- [Source frontier and point identity leaves](2026-11-13-source-frontier.md) — Finite direct K2 paths and source-derived singleton signature cover with actual guarded installation and Acc for the explicit identity-leaf restriction; general SourceBudget remains open.
