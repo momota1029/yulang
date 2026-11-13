@@ -1,6 +1,6 @@
 # dots cycle175: recursive refresh evidence and shared role tables
 
-IN PROGRESS. Started 2026-11-13T22:29:15Z, hard cutoff23:24:15UTC;
+COMPLETED (publication and fetch-back verification reported in the conversation). Started 2026-11-13T22:29:15Z, hard cutoff23:24:15UTC;
 finish target23:19. Latest integration freshly fetched0d2ea504a4f16a8d29e6caf73559fcda43afb45b,
 standing orders and I-29 read, previous174 completed heartbeat/report verified,
 no active writer. Initial source inventory2715 files matched fresh base; the final extension-filtered check below distinguishes Lean sources from support files.
@@ -8,7 +8,7 @@ The new center representation remains Astra-owned; work targets I-28 Actual.
 
 ## First checkpoint
 
-- For every initial source, finite actual ordinary/fixed-carrier-view refining
+- For every Checked registry and initial source, finite actual ordinary/fixed-carrier-view refining
   trace and actual halted endpoint, independent selected Classify for a whole
   dictionary implies current-model Evidence for all endpoint models. Recursive
   child Evidence and historical Extension are not assumed. Classification
@@ -88,7 +88,7 @@ Initialはground executorでInitialSource ∧ PointSource ∧ GroundRootsに制�
 
 ## 追加の証明範囲（focused検証完了）
 
-- `NominalOnlyRefresh175`: 任意の固定carrier Observation と Refines、variables/nominalだけからなるqueryを取り、元のinspectionがFinishedなら、viewが同じでなくても最終report・bindings・順序付きchild occurrencesを保存。scalar/node/deferredは対象外。既存descriptor保持はRefinesの前提として残る。
+- `NominalOnlyRefresh175`: 任意の固定carrier Observation と Refines、variables/nominalだけからなるqueryを取り、元のinspectionがFinishedなら、viewが同じでなくてもreportを保存。宣言query族が条件を満たす場合はbindingsを介して順序付きchild occurrencesも保存。scalar/node/deferredは対象外。既存descriptor保持はRefinesの前提として残る。
 - `FlexibleTrace175`: 各refreshが「view等号または現在のregistry全queryがnominal-only」を満たす任意有限actual traceで、InitialSourceとempty journalからcurrent packet Instance不変量を構成。Instance/Evidenceはstepのguardではない。前サイクル174のtraceは新traceに包含される。
 - `FlexibleCompletion175`: 上のtrace、Checked、full actual halted、独立Classifyのselected成功、明示policyを仮定すると、任意の最終modelで全辞書Evidence。子Evidenceは再帰で導き、仮定しない。
 
@@ -106,7 +106,7 @@ Initialはground executorでInitialSource ∧ PointSource ∧ GroundRootsに制�
 
 ## 定理一覧と境界回帰
 
-追加各moduleの全公開定理名と省略なしの型は [declarations.md](../verification/cycle175/declarations.md) に記録。ここでtheorem数はpublic named theoremのみで、def・private・自動生成宣言を混ぜない。
+追加各moduleの全公開定理名とsource型抜粋は [declarations.md](../verification/cycle175/declarations.md) に記録。module外側のvariable宣言も含む完全elaboration型はtheorem-types.txtへ別に出力する。ここでtheorem数はpublic named theoremのみで、def・private・自動生成宣言を混ぜない。
 
 TableExamples175はempty graph全fuel、重複ID/role/edge、非連結cycle全fuel不成功、宣言とwhere両列のreverseを実際のReordersとして証明。4件の#evalはtrue,true,false,false。synthetic registryをChecked source programと主張しない。初回layout構文エラーを修正、失敗ログと最終PASSを区別。
 
@@ -155,3 +155,30 @@ import依存にあるEdge174の差分はdoc commentの一語（admit→allow）�
 中間treeでは.gitignore対象の前回log41件（173の4件を含む）が落ちていたことを検出した。内容は前174公開commit/ローカルに残っており、すべて明示stagingで復元した。新しい証明の成功として数えず、最終公開で旧112ファイルの保持をもう一度確認する。
 
 中心移行図にもf196のAstra追加7moduleを再読して追記した。named_projection/trusted_trees/promoted_labelled/discharge/install_extension等は追加済みとして扱い、未接続のcenter-alignment/actual Simulation.nextを区別。古い0d2図を最新欠落の主張として使わない。コード変更・中心側Lean検証は行っていない。
+
+## 最終到達性の再実行
+
+再現用toolがcompactをimportする最終版に変わったので、前5群も再実行して分母を7core/131へ統一した。最終値: whole-flexible61、whole-fixed6、table-certificate23、nominal-inspection9、diagnostic26、compact-certificate43、Main0（各/131）。全7群exit0。以前の100宣言snapshotはpre-compact/へ保存。最終の全9module axioms gate183と到達解析の7core131は別集計。
+
+## 型出力と最終独立点検
+
+72公開定理すべてのelaboration済み完全型をtools/TypesCycle175.leanから出力しexit0。source抜粋では見えないimplicit変数も含む。最初は表示用pp.width optionが未登録でexit1、当該optionだけ除去して再実行し成功。証明sourceの修正ではなく、失敗出力も保存した。
+
+最終scope点検でも一般B4完成・中心移行・全CI成功の過大主張なし。First checkpointのChecked前提を補足し、単query report保存と宣言query族を介したchildren保存を区別した。9sourceのSHA256を保存し、検証済みlocal checkpointからbyte変更なし。各root importは一度、小型audit登録漏れなし。
+
+## 最終まとめ
+
+- 【健全性】Checked、InitialSource、指定の有限actual履歴、full actual halted、明示policy、独立Classify成功から、任意の最終modelで全辞書Evidenceを構成。子Evidence/historical Extensionは仮定しない。
+- 【計算の等価】Table/Compact checkerは任意registry/fuelで元checkerとBool等価。元fuelを維持し、certificateが受理する範囲を変えない。
+- 【条件付きexactness】Checked、certificate、reachableを前提に有限診断と独立Resolves/Classifyを対応。飽和executorが指定履歴を実行する証明や成功辞書の存在は結論にない。
+- 【検証】9新module、72公開named theorem。全9module183宣言の公理gate、完全型出力、7群の最終到達解析はexit0。最初の3module namespace gateも再実行し43宣言PASS。全体build/CIは未実行。
+- 【未解決】一般ground agreed B4はpending3/14、complete4/14。evidenceNode/whereAccessible/canonicalLocalOrderとcomplete側generatedChildrenは一般には未完。中心側への移行は未実施、一般主型性の新定理なし。
+- 【保存】旧174公開の全4347 file pathsを最終予定treeと比較し欠落0。最終公開後にも再照合する。中間で落ちた旧log41件は第三checkpointで元hash通り復元済み。
+
+質問ノートは追加していない。意味論の新判断なし。使用量枠は取得できず不明。最終公開SHA・照合結果は会話へ報告する。
+
+## 完了処理記録
+
+最終公開処理開始: 2026-11-13T23:17:27Z（開始から48.2分）。最終はf196基準153差分ファイル（manifest自身を含む予定）。manifestには自身以外152ファイルのGit blob SHAを記録する。実公開の差分数・再取得照合・所要時間は会話へ確定報告する。9sourceは最終検証からbyte変更なし、稼働Lean/benchmarkなし。空き容量36GiB。
+
+最終公開後の照合が成功した時点でwriterを解放し、次サイクルまで新作業を始めない。旧log復元とintegration移し替えを含む最終内容の確認を優先し、新しい証明作業は終了。

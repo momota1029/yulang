@@ -1,0 +1,50 @@
+{
+  "checkpoint": "de5bbb90b11910c89a6cc0d1f7493990e52df50a",
+  "sources": [
+    {
+      "path": "lean/Yulang/GeneralDictionaryAgreedCertifiedEvidence175.lean",
+      "sha256": "5220702f4257b4e9bc767b3011daabc4f68cfb9658a3b04a9cf691b1ab4be1f1",
+      "matches_verified_checkpoint": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryAgreedCompactTable175.lean",
+      "sha256": "7675ae773ffc97c2910c87ea3a11ac25c38292e10f2a05dae78a7f1c0ce0c3bb",
+      "matches_verified_checkpoint": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryAgreedCompletion175.lean",
+      "sha256": "a594b9f4b72119d016fda03073b880fbd68589c245ca182442ae158aca861963",
+      "matches_verified_checkpoint": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryAgreedFlexibleCompletion175.lean",
+      "sha256": "ac573057b589982a24a203f724c7ff7fd6f1aa03dc8da13dac3e88243c830c3d",
+      "matches_verified_checkpoint": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryAgreedFlexibleTrace175.lean",
+      "sha256": "ad212c6af363318c68d3c97c248edf2042aa211daaee2dbf03daf11f20c87133",
+      "matches_verified_checkpoint": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryAgreedTable175.lean",
+      "sha256": "d5027e27090feb5900eedc87ad8829387a39f502745fa57c26ad89eb192b163f",
+      "matches_verified_checkpoint": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryAgreedTableExamples175.lean",
+      "sha256": "50bf5fa9424f7e9d1aba9c0b292bd9d7ff2155ab73ec35f1c69f3baae61846fc",
+      "matches_verified_checkpoint": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryNominalOnlyRefresh175.lean",
+      "sha256": "4cf7f4f15bae32523da614f3d2dc2e3716299894134e1b8dba3f4d86165577ab",
+      "matches_verified_checkpoint": true
+    },
+    {
+      "path": "lean/Yulang/GeneralDictionaryNominalViewRegression175.lean",
+      "sha256": "8b211c8206aeb907fe76f8fbbf7f06ae0cf4b346f3a9449bd48670ef762f85b9",
+      "matches_verified_checkpoint": true
+    }
+  ]
+}

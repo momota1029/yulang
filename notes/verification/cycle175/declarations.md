@@ -1,6 +1,6 @@
 # Cycle175 named theorem statements
 
-Exact public source signatures, not shortened. Definitions/private/generated declarations are excluded from the theorem count. Read source and trust-zero logs for proofs.
+Public source signature excerpts. Shared namespace opens and variable declarations are supplied by each module, so these excerpts alone are not standalone declarations. Fully elaborated types, including inferred implicit parameters, are in theorem-types.txt. Definitions/private/generated declarations are excluded from the theorem count. Read source and trust-zero logs for proofs.
 
 ## GeneralDictionaryAgreedCertifiedEvidence175
 

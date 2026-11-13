@@ -4,8 +4,9 @@
 
 For any fixed-carrier observation satisfying Refines and any translated query
 forest consisting only of variables and nominal constructors, a finished
-inspection retains exactly the same report, bindings, and ordered child
-occurrences even when the normalized view changes. Scalar, node, and deferred
+inspection retains exactly the same report even when the normalized view
+changes. For a declaration query family satisfying the fragment condition,
+bindings and ordered child occurrences are then preserved through that report. Scalar, node, and deferred
 queries are not members of this syntactic fragment. Refines still preserves all
 already-present nominal descriptors. This is not descriptor replacement.
 
