@@ -113,3 +113,11 @@ Scope独立レビューでも重大問題なし。特にRefiningTraceは終状�
 proofとは別に `tools/BenchCycle174.lean` でsynthetic role graphを実行した。これはCheckedなソース言語プログラムの例ではない。長さ4/8/12のchain（重複辺あり・なし）の6例はcertify=true、exit0。重複辺ありの単回粗測定は0/7/148 msだった。一方、長さ20まで含む拡大batchは60秒上限、別batchは45秒上限でtimeout(exit124)。途中stdoutがbufferされていたため、未完の個別caseの時刻は推測しない。
 
 したがって「実行可能」を「実用速度」とはしない。現在のheight計算は同じsubtreeを再計算し、memo化等は未実装。性能検査の最初のIO/BaseIO推論エラーも保存し、修正版の成功/拡大timeoutと区別した。証明ソース14本と公理監査のPASSには変更なし。詳細・実行入力・失敗ログは `notes/verification/cycle174/performance/`。
+
+## 完了記録
+
+完了処理開始: 2026-11-13T22:13:06Z（開始から50.2分）。55分hard cutoff 22:17:53 UTC以内に公開・再取得照合・報告まで完了する。証明・小型監査・型表示・到達性検査は終了、稼働Lean/benchmark processなし。source14本は最終検証からbyte変更なし、各importは1回。ローカル保存commitはd94626814f（この完了記録直前）。終了時空き容量36 GiB。
+
+途中成果・性能制限までの633a1f848bb86d680e7e50e5c3024a933e468ff8では、基準52cab5に対する111差分ファイルを再取得treeと照合し不一致0。最終はこの報告・completed心拍・publication-manifest.tsvを公開する。基準との差分総数は112（manifest自身を含む、新規107・既存5）。manifestには自身以外111ファイルのGit blob SHAを記録し、最終公開後にも再取得して照合する。最終commit SHAとその照合結果は会話へ報告する。
+
+一般B4はpending policy3/14、complete policy4/14未証明のまま。全体build/CIは未検証、拡大性能batchはtimeout。未公開の証明ソースなし。writerは最終照合後に解放し、次サイクルまで新作業を行わない。
