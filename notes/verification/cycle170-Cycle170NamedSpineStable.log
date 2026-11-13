@@ -1,0 +1,58 @@
+'Yulang.GeneralDictionary170NamedSpineStable.initial_models' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineStable.initial_models : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionary170NamedSpineStable.state✝ m →
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionary170NamedSpineExample.start.current m
+'Yulang.GeneralDictionary170NamedSpineStable.generated_root' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineStable.generated_root : ∀
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionary170NamedSpineExample.start.current
+      Yulang.GeneralDictionary170NamedSpineExample.root focus →
+    focus = Yulang.GeneralDictionary170NamedSpineExample.root
+'Yulang.GeneralDictionary170NamedSpineStable.installs_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary170NamedSpineStable.installs_committed : ∀
+  (p : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles),
+  Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionary170NamedSpineExample.start.current
+      Yulang.GeneralDictionary170NamedSpineExample.root p.site.occurrence →
+    Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralDictionary170NamedSpineExample.registry
+        Yulang.GeneralDictionary170NamedSpineExample.start.current p →
+      Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionary170NamedSpineExample.start.current p
+'Yulang.GeneralDictionary170NamedSpineStable.refresh_large_unknown' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary170NamedSpineStable.refresh_large_unknown : ∀
+  (next : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (certificate :
+    Yulang.GeneralNominalCycleSteps.Refresh Yulang.GeneralDictionary170NamedSpineExample.start.current next)
+  (id : Nat), 2 ≤ id → ¬Yulang.GeneralNominalState.Known next.state id
+'Yulang.GeneralDictionary170NamedSpineStable.feedback_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineStable.feedback_stable : Yulang.GeneralNominalFeedbackSteps.Stable
+  Yulang.GeneralDictionary170NamedSpineExample.registry Yulang.GeneralDictionary170NamedSpineExample.start.current
+  Yulang.GeneralDictionary170NamedSpineExample.root
+'Yulang.GeneralDictionary170NamedSpineStable.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineStable.stable : Yulang.GeneralNominalSupportSteps.Stable
+  Yulang.GeneralDictionary170NamedSpineExample.registry Yulang.GeneralDictionary170NamedSpineExample.start
+  Yulang.GeneralDictionary170NamedSpineExample.root
+'Yulang.GeneralDictionary170NamedSpineStable.shared_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineStable.shared_stable : Yulang.GeneralNominalSharedSteps.Stable
+  Yulang.GeneralDictionary170NamedSpineExample.registry Yulang.GeneralDictionary170NamedSpineExample.start
+  Yulang.GeneralDictionary170NamedSpineExample.root
+'Yulang.GeneralDictionary170NamedSpineStable.stable_coverage_gap' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary170NamedSpineStable.stable_coverage_gap : Yulang.GeneralNominalSharedSteps.SourceFormed
+    Yulang.GeneralDictionary170NamedSpineExample.registry Yulang.GeneralDictionary170NamedSpineExample.root
+    Yulang.GeneralDictionary170NamedSpineExample.start ∧
+  Yulang.GeneralNominalSharedSteps.Stable Yulang.GeneralDictionary170NamedSpineExample.registry
+      Yulang.GeneralDictionary170NamedSpineExample.start Yulang.GeneralDictionary170NamedSpineExample.root ∧
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionary170NamedSpineExample.start.current
+        Yulang.GeneralDictionary170NamedSpineStable.model✝ ∧
+      Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionary170NamedSpineExample.registry
+          Yulang.GeneralDictionary170NamedSpineExample.context Yulang.GeneralDictionary170NamedSpineStable.model✝
+          Yulang.GeneralDictionary170NamedSpineExample.root
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node
+            Yulang.GeneralDictionary170NamedSpineExample.declaration.id []) ∧
+        ¬Nonempty
+            (Yulang.GeneralDictionary170NamedCoverage.Node Yulang.GeneralDictionary170NamedSpineExample.registry
+              Yulang.GeneralDictionary170NamedSpineExample.start Yulang.GeneralDictionary170NamedSpineExample.root)

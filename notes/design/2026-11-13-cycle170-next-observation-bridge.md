@@ -68,3 +68,48 @@ chosen expanded dictionary tree. Astra's reachable factorization aims to bound
 new installations across all finite traces using semantic head mass. Neither
 bound supplies the other, and neither local observation plan closes general
 ReachableCaptureFactorization. V5 remains unproved8/14.
+
+## Final structural review: extension must include recursive trees
+
+At the final69-theorem source8d893bdc, simply adding a fifth Node alternative
+is not sufficient: `GeneralDictionary169NamedTree.NamedTree` also has a fixed
+inductive interface. Its recursive recorded constructor consumes its own old
+NamedTree children. A sum of an old whole tree and one new terminal leaf would
+still fail to represent a recorded parent containing the new leaf.
+
+A bounded next implementation should therefore add a NEW mutually recursive
+certificate with (a) an embedding of existing NamedTree, (b) recorded parents
+whose children use the new certificate, and (c) a terminal NamedSpine.Shape
+case. Add a corresponding local Node/Coverage version with a structural
+embedding of every old local node, rather than changing existing inductives.
+The recorded case keeps actual packet membership and current Relocates; the
+new leaf keeps declaration visibility and checkedness. No field should contain
+Instance, Evidence, or successful semantic selection.
+
+The interpreter induction has three separate obligations: old-tree delegation;
+recorded current_instance with the induction hypotheses in actual children
+order; and NamedSpine.evidence_of_shape with SourceFormed-derived metadata and
+one common current model. The Node-to-tree lemma must construct the new tree,
+not assert that the old tree can express the new leaf. Prove the singleton
+fixture has the new local coverage while preserving cycle170's theorem that
+it has no OLD local node. Those facts are consistent.
+
+Rank/accessibility should then be derived again for the new child relation.
+The new leaf has empty children; this makes its descent branch vacuous but does
+not automatically transport all theorems whose parameters mention the old
+Coverage type. Assembly, payload uniqueness and size bounds need an additive
+instance or explicit reproof against the new relation. Ordinary persistence
+additionally needs transport of the dependent Shape.slot, bounds, spine,
+normalized queries and Observed requests. Existing scalar-named persistence
+alone does not cover that constructor. General descriptor refresh is still out
+of scope. These are planned obligations, not completed declarations.
+
+The final source inspection identifies reusable transport pieces precisely:
+`GeneralDictionary169LeafPersistence.spine` and `.spine_query` transport the
+finite spine without changing its query; `GeneralDictionary169NamedPersistence.observed`
+transports finite named request observations. Its existing `.leaf` demonstrates
+the necessary `candidate_report_extended` and `bindings_report` rewrites, but
+has the scalar-input LeafShape type. A new NamedSpine.Shape transport should
+combine these helpers, retain `defined`, and check the dependent request term
+after the report/bindings rewrite. This composition has been identified by
+source inspection only, not compiled or counted among the69theorems.

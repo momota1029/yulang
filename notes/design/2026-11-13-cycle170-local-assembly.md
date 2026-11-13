@@ -80,3 +80,12 @@ this new spine leaf without a future extended node datatype. The negative fact
 is not a counterexample to V5 or to semantic dictionary existence. A follow-up
 should extend the local leaf interface and re-establish assembly once, rather
 than accumulate ad-hoc existential exceptions.
+
+### Late verified stability strengthening
+
+NamedSpineStable now derives actual Shared Stable for the new nominal-input
+initial fixture, by excluding actual feedback actions and using generic action
+containment. Reused model/point-closure lemmas concern the identical snapshot,
+not the old scalar-root execution. SourceFormed, Shared Stable, a current model,
+Evidence and absence of the four-alternative local Node coexist. This remains
+a zero-step terminal certificate gap, not a V5 counterexample.
