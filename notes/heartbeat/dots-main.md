@@ -1,9 +1,10 @@
 cycle: 171
-status: running
+status: completed
 started: 2026-11-13T18:24:41Z
-updated: 2026-11-13T19:00:40Z
-elapsed_min: 36
-activity: Recovered interrupted worker. 19 modules and 14 audits trust0 PASS, 415 declaration gate PASS. Publishing final source/report, then immutable readback.
+updated: 2026-11-13T19:03:54Z
+elapsed_min: 40
+activity: Final immutable source replay19 modules14 audits PASS; gate415. V5 remains8/14.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang159
-last_local_commit: b14c8d0aa8
-resume_hint: First checkpoint babc030cd5 public. Do not duplicate uncertain publication. Verify work/dots-main before continuing. V5 remains8/14.
+last_local_commit: e235af6ac3
+report: notes/handoff/dots-cycle-171.md
+resume_hint: Source3f93762066 verified; no active writer. Next cycle integrate late upstream e83e521, derive general Coverage and arbitrary refresh preservation.
