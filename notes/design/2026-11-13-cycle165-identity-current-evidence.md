@@ -1,3 +1,5 @@
 # Cycle 165: point identity leaf evidence in a current context
 
 For every checked unary variable-head leaf declaration whose associated right sides are variable zero, and every recorded packet at a point demand, transport its output equations to a newly located point slot for the same source identity. Quantify over every current state model. No ordinary-context extension is assumed: current state validity, current location and registry metadata remain explicit. Derive current Instance and terminal Evidence, using actual Shared history only for recorded metadata and committed outputs. This is a restricted fragment; general nominal heads and generated consumers remain open.
+
+After checking the actual refresh certificate, the current source-slot premise can also be discharged: every actual Shared step retains each prior type source through the certificate's source-preserving embedding or unchanged base. Induct on actual SourceFormed and journal membership to retain every recorded packet source. The final point identity leaf theorem should need only recorded membership, syntactic Shape/Point, and a current state model, not location, metadata or ordinary Extension.

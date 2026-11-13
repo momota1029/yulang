@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionarySharedSourceRetention
+#print axioms Yulang.GeneralDictionarySharedSourceRetention.retains_refl
+#print axioms Yulang.GeneralDictionarySharedSourceRetention.retains_trans
+#print axioms Yulang.GeneralDictionarySharedSourceRetention.step_retains
+#print axioms Yulang.GeneralDictionarySharedSourceRetention.recorded_sources
+#print axioms Yulang.GeneralDictionarySharedSourceRetention.identity_current_evidence

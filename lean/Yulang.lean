@@ -2546,3 +2546,13 @@ import Yulang.GeneralNominalIdentityExample
 
 import Yulang.GeneralDictionarySharedOrdinaryHistory
 import Yulang.GeneralDictionaryIdentityCurrentEvidence
+
+import Yulang.GeneralDictionarySharedMetadata
+import Yulang.GeneralDictionarySharedSourceRetention
+
+import Yulang.GeneralDictionarySharedCapturedModel
+import Yulang.GeneralDictionarySharedCapturedGuards
+import Yulang.GeneralDictionarySharedCapturedInstallable
+import Yulang.GeneralDictionarySharedCapturedInstallation
+
+import Yulang.GeneralDictionaryIdentityEvidenceExample
