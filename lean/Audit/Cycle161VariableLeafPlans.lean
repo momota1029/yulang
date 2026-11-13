@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryVariableLeafPlans
+#print axioms Yulang.GeneralDictionaryVariableLeafPlans.instance_of_plan
+#print axioms Yulang.GeneralDictionaryVariableLeafPlans.evidence_of_plan
+#print axioms Yulang.GeneralDictionaryVariableLeafPlans.children_evidence
+#print axioms Yulang.GeneralDictionaryVariableLeafPlans.parent_evidence
+#print axioms Yulang.GeneralDictionaryVariableLeafPlans.transport_parent_evidence

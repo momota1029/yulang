@@ -1,0 +1,270 @@
+[
+  {
+    "path": "lean/Yulang/GeneralDictionaryChildCaptureExample.lean",
+    "namespace": "Yulang.GeneralDictionaryChildCaptureExample",
+    "sha256": "24e616ab6a92369a57ec08c04467d6846ed18d2448b4757b929e8e321d9dd883",
+    "public_theorems": [
+      "clause_signature",
+      "parent_checked",
+      "old_argument",
+      "current_argument",
+      "outputs_equal",
+      "child_fits_strictly_enlarges",
+      "child_demands_differ",
+      "actual_old_children",
+      "actual_current_children",
+      "identity_equal",
+      "actual_nonterminal_boundary"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryChildCaptureTransport.lean",
+    "namespace": "Yulang.GeneralDictionaryChildCaptureTransport",
+    "sha256": "93fbefe7ec50bec8bf3f841b2f9abe56a3dea01569e40a4d602c12cd682e8d54",
+    "public_theorems": [
+      "emitted_identity",
+      "child_outputs",
+      "variable_argument",
+      "variable_argument_fits",
+      "children_identities",
+      "collapsed_child_fits",
+      "collapsed_child_outputs",
+      "collapsed_child_identity"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryEmissionRequestIdentity.lean",
+    "namespace": "Yulang.GeneralDictionaryEmissionRequestIdentity",
+    "sha256": "db3f32135a197ae3012e89668a03c6937d4881d610355a4c898f9099f4670dba",
+    "public_theorems": [
+      "output_target",
+      "input_requests",
+      "emission_requests"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalCertifiedEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalCertifiedEvidence",
+    "sha256": "fb473eed5b65b5bc68bd5b8f96645969035d667ff6411a1047eeea035fee5b78",
+    "public_theorems": [
+      "queries",
+      "children_exact",
+      "captures_exact",
+      "child_arguments",
+      "leaf_checked",
+      "metadata",
+      "leaf_query",
+      "child_instance",
+      "child_evidence",
+      "parent_branch",
+      "parent_ready",
+      "parent_instance",
+      "full_evidence",
+      "positive_nonterminal_evidence",
+      "registry_checked",
+      "initial_source",
+      "certified",
+      "improves",
+      "actual_value_step",
+      "formed",
+      "reachable",
+      "result_models",
+      "reachable_nonterminal_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalChildEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalChildEvidence",
+    "sha256": "93bc7607f7a438a5baba4f2226cd52854ffbc654a22d0c5303c6169435bc3344",
+    "public_theorems": [
+      "children_exact",
+      "captures_exact",
+      "child_arguments",
+      "leaf_checked",
+      "metadata",
+      "leaf_query",
+      "child_instance",
+      "child_evidence",
+      "parent_branch",
+      "parent_ready",
+      "parent_instance",
+      "full_evidence",
+      "positive_nonterminal_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalNamedEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalNamedEvidence",
+    "sha256": "0ec68ca0e6cc870f6d08fb19b86f125569f0983859ba2659ee0fc80dce20ba8c",
+    "public_theorems": [
+      "transport_instance",
+      "transport_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalNamedExample.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalNamedExample",
+    "sha256": "f536ff400026daa647c7f84f6b6b983d95aec3a0b16e15cb5a474e109a353027",
+    "public_theorems": [
+      "checked",
+      "variable_inputs",
+      "output_normal",
+      "names",
+      "root_request",
+      "target_value",
+      "nonempty",
+      "old_materialized",
+      "queries",
+      "report_exact",
+      "requests_exact",
+      "generated_exact",
+      "private_models",
+      "old_branch",
+      "current_branch",
+      "positive_nonterminal"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalNonpointBranch.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalNonpointBranch",
+    "sha256": "8d7fae56eb8c7b1ff19c23ee51e3a2cded165dff16244a2f0907970be88a3362",
+    "public_theorems": [
+      "branch",
+      "bare_branch"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalNonpointEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalNonpointEvidence",
+    "sha256": "43bbf9f9ef50b3bd26464cbe3b12be65909f3e1b24c34a3f9f68dd97d499709f",
+    "public_theorems": [
+      "transport_instance",
+      "transport_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalNonpointExample.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalNonpointExample",
+    "sha256": "eb7071138bded69ec62dd46cea4276a16e7d82c5e57c73f9e43687e3a4ab160c",
+    "public_theorems": [
+      "checked",
+      "variable_clauses",
+      "names",
+      "root_request",
+      "generated_body",
+      "nonempty",
+      "old_materialized",
+      "current_materialized",
+      "queries",
+      "report_exact",
+      "generated_exact",
+      "private_models",
+      "old_branch",
+      "current_branch",
+      "positive_nonterminal"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalOldObstruction.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalOldObstruction",
+    "sha256": "30eb423a3fa6b975ff3105959825208548d255e29e44c50192e0f91eff624532",
+    "public_theorems": [
+      "children_exact",
+      "captures_exact",
+      "child_unlocated",
+      "child_no_instance",
+      "child_no_evidence",
+      "root_no_evidence",
+      "old_absent_current_present"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalRecordedRevision.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalRecordedRevision",
+    "sha256": "13b921e314ebd164bb7aff3113a72f87d09f0d47f2c43732c599d1ee179c3039",
+    "public_theorems": [
+      "instance_from_trace",
+      "evidence_from_trace"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonterminalScope.lean",
+    "namespace": "Yulang.GeneralDictionaryNonterminalScope",
+    "sha256": "8bb9e0afc833e07f5549379a9ae4b814d9f652b478d91619aa96384346a99878",
+    "public_theorems": [
+      "normalized_outputs",
+      "variable_outputs",
+      "request_scope",
+      "generated_scope",
+      "branch",
+      "normal_form_branch",
+      "variable_output_branch"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRecordedLeafPlans.lean",
+    "namespace": "Yulang.GeneralDictionaryRecordedLeafPlans",
+    "sha256": "4187b2b60a02a14f4be2f0c864bb7f67c84199ac73d5bfbb1b8c14fd81c153a6",
+    "public_theorems": [
+      "evidence_from_leaf_plans"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRequestSnapshot.lean",
+    "namespace": "Yulang.GeneralDictionaryRequestSnapshot",
+    "sha256": "6973f0192edf177169d1b8133ef06403376a9b8534ea251b896d3ff40bd2cd39",
+    "public_theorems": [
+      "canonical_requests",
+      "requests_bindings",
+      "requests_revision",
+      "generated_revision",
+      "ready_revision"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryValuePendingExclusion.lean",
+    "namespace": "Yulang.GeneralDictionaryValuePendingExclusion",
+    "sha256": "6700ca769200edf350ba12ce97d5776e4339bf91f1f8ee95b1963ac2dbda2e24",
+    "public_theorems": [
+      "no_local_selected",
+      "no_boundary_selected",
+      "no_selected_classification",
+      "child_pending_no_parent_dictionary"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryVariableIntervalLeaf.lean",
+    "namespace": "Yulang.GeneralDictionaryVariableIntervalLeaf",
+    "sha256": "91680785c821c48a9e4fe15966dd2703ddd7ab1d0d8fa68536334329c9c28771",
+    "public_theorems": [
+      "report_exact",
+      "branch_models",
+      "instance_of_interval"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryVariableLeafPlans.lean",
+    "namespace": "Yulang.GeneralDictionaryVariableLeafPlans",
+    "sha256": "d60e0bcf85f5723976112e27d2b82433e6dd77e882fe9664eec7671e840817ef",
+    "public_theorems": [
+      "instance_of_plan",
+      "evidence_of_plan",
+      "children_evidence",
+      "parent_evidence",
+      "transport_parent_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryVariableWhereRequests.lean",
+    "namespace": "Yulang.GeneralDictionaryVariableWhereRequests",
+    "sha256": "6c25ba4d2ba57bf755c01e00799ff1f2f5ef6d24b37642f07d7fa8c02f8621ce",
+    "public_theorems": [
+      "canonical_requests",
+      "emission_actual",
+      "canonical_actual",
+      "requests_actual",
+      "revision_requests",
+      "bare_requests"
+    ]
+  }
+]

@@ -5,7 +5,6 @@ import Yulang.GeneralDictionaryActualSchemaScope
 import Yulang.GeneralDictionaryCertifiedNonpointEvidence
 import Yulang.GeneralDictionaryCheckedNonpointEvidence
 import Yulang.GeneralDictionaryCollapseReadiness
-import Yulang.GeneralDictionaryEmissionRequestIdentity
 import Yulang.GeneralDictionaryNonpointBranch
 import Yulang.GeneralDictionaryNonpointCertified
 import Yulang.GeneralDictionaryNonpointCertifiedOutput
@@ -23,7 +22,7 @@ open Lean Elab Command in
 run_cmd do
   let environment ← getEnv
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
-  let wanted : List Name := [`Yulang.GeneralDictionaryActualSchema, `Yulang.GeneralDictionaryActualSchemaOrigin, `Yulang.GeneralDictionaryActualSchemaOriginExample, `Yulang.GeneralDictionaryActualSchemaScope, `Yulang.GeneralDictionaryCertifiedNonpointEvidence, `Yulang.GeneralDictionaryCheckedNonpointEvidence, `Yulang.GeneralDictionaryCollapseReadiness, `Yulang.GeneralDictionaryEmissionRequestIdentity, `Yulang.GeneralDictionaryNonpointBranch, `Yulang.GeneralDictionaryNonpointCertified, `Yulang.GeneralDictionaryNonpointCertifiedOutput, `Yulang.GeneralDictionaryNonpointCollapse, `Yulang.GeneralDictionaryNonpointEvidence, `Yulang.GeneralDictionaryNonpointExample, `Yulang.GeneralDictionaryNonpointModeBoundary, `Yulang.GeneralDictionaryNonpointOperationalEvidence, `Yulang.GeneralDictionaryNonpointOutput, `Yulang.GeneralDictionaryNonpointStrict, `Yulang.GeneralDictionaryNonpointStrictEvidence, `Yulang.GeneralDictionaryNonpointStrictOutput]
+  let wanted : List Name := [`Yulang.GeneralDictionaryActualSchema, `Yulang.GeneralDictionaryActualSchemaOrigin, `Yulang.GeneralDictionaryActualSchemaOriginExample, `Yulang.GeneralDictionaryActualSchemaScope, `Yulang.GeneralDictionaryCertifiedNonpointEvidence, `Yulang.GeneralDictionaryCheckedNonpointEvidence, `Yulang.GeneralDictionaryCollapseReadiness, `Yulang.GeneralDictionaryNonpointBranch, `Yulang.GeneralDictionaryNonpointCertified, `Yulang.GeneralDictionaryNonpointCertifiedOutput, `Yulang.GeneralDictionaryNonpointCollapse, `Yulang.GeneralDictionaryNonpointEvidence, `Yulang.GeneralDictionaryNonpointExample, `Yulang.GeneralDictionaryNonpointModeBoundary, `Yulang.GeneralDictionaryNonpointOperationalEvidence, `Yulang.GeneralDictionaryNonpointOutput, `Yulang.GeneralDictionaryNonpointStrict, `Yulang.GeneralDictionaryNonpointStrictEvidence, `Yulang.GeneralDictionaryNonpointStrictOutput]
   let mut checked : Nat := 0
   for (name, _) in environment.constants.toList do
     if let some index := environment.getModuleIdxFor? name then

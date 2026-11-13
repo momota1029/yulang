@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryValuePendingExclusion
+
+#print axioms Yulang.GeneralDictionaryValuePendingExclusion.no_local_selected
+#print axioms Yulang.GeneralDictionaryValuePendingExclusion.no_boundary_selected
+#print axioms Yulang.GeneralDictionaryValuePendingExclusion.no_selected_classification
+#print axioms Yulang.GeneralDictionaryValuePendingExclusion.child_pending_no_parent_dictionary
