@@ -7,6 +7,10 @@ BindingSchemaReplay.replayは現在computed bindingsの一致とOriginsから、
 変数を含む現在の名前付きschemaのModelsを示す。
 MixedCarrierRefreshはこの二条件を実2→3carrier refreshで計算し、
 正のモデルとともに示した。一般の検査輸送はまだ証明していない。
+追記: 本cycle後半にUnaryRefinementCaptureを検証し、下記部分目標を
+単一nominal/単一変数queryについて閉じた。外側の入力はpoint、内部区間は任意。
+Refinesと解釈一致からbinding/origin一致を導出し、inputNames=[binder]なら
+現在BranchModels全体まで接続した。任意のnested treeについては残る。
 
 ## 既存の事実の用途
 

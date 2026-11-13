@@ -2346,3 +2346,5 @@ import Yulang.GeneralDictionaryMixedCarrierRefresh
 import Yulang.GeneralDictionaryRequestCatalogCompute
 
 import Yulang.GeneralDictionaryComputedCatalogExample
+
+import Yulang.GeneralDictionaryUnaryRefinementCapture

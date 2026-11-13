@@ -1,6 +1,6 @@
 # cycle157 module guide: Evidence / I-25
 
-この地図の対象は今回の22モジュールだけ。既存モジュール全体の分類ではない。
+この地図の対象は今回の23モジュールだけ。既存モジュール全体の分類ではない。
 すべて新規ファイルで、既存の言語規則・分類器・実ステップの定義は変更しない。
 
 ## 読む順序と量化範囲
@@ -28,7 +28,7 @@
 - ProvenanceGeneratedIntervals: 現在scalar interval Shape、実request provenance、現在selectionと上の生成区間条件をInstanceへ接続する。
 - VariableRegistryIntervals: registryの全宣言のwhere入力が変数へ正規化されるなら、実履歴からjournal条件が従う。headと名前付き出力はこの述語では制限しない。
 - GeneratedIntervalCoverage: 任意の実到達状態とその有限selected辞書について、上のregistry条件と選択経路の各節点のGenerated/現在scalar interval Shape/catalog所属からEvidenceを得る。端点順序やInstanceを前提にしない。ただし選択経路が自動的にGeneratedであることや、そのcoverage自体は未証明。
-- GeneratedIntervalExample: 実installで生じる非rootの子について、その生成・現在の区間・正のモデルを検証する。
+- GeneratedIntervalExample: 実installで生じる非rootの子について、その生成・現在の区間・正のモデルを検証する。実到達例はsingleton捕捉[(0,(1,1))]と点区間であり、繰返し/nonpointを実到達例で検証したとは言わない。
 
 このVariableRegistryは証明した断片の条件であり、compound where入力を言語から拒否する規則ではない。
 
@@ -39,6 +39,8 @@
 - RecordedScalarIntervalEvidence: 任意の実到達状態に記録されたpacket、VariableRegistry、現在scalar interval Shape、computed bindings一致から現在BranchModelsを示し、選択されたInstanceへ接続する。schema全体の変数なし条件と手動Supportedは要らない。ただしscalar Shapeは捕捉なしなので、一致条件はpacket.bindingsが空である場合に限る。下記nominal捕捉例をそのままこの完全Instanceの定理へ入れることはできない。
 - MixedCapturedReplay: 実install後の変更されたcontextで、現在の捕捉とrequestを具体的に再計算し、変数付きschemaのreplayを正のモデル付きで確認する。
 - MixedCarrierRefresh: 同じmixed fixtureで、未知の出力sourceをintとして公開する実Value refreshを構成する。carrier2→3、実到達性、正のモデル、capture binding/source origin保持、現在の変数付きschema全体のreplayを示す。Stableや全BranchModelsを示したものではない。
+
+- UnaryRefinementCapture: 任意のsource-preserving Refinesと同じ解釈について、1個のnominal型引数を1変数で捕捉するquery、過去のpacket.boundsが単一(slot,slot)である条件から、現在report・computed source-ID bindings・origin/nameの保存を導く。実到達状態に記録されたpacketのschema replayに接続する。さらにinputNames=[binder]ならprivate/projectionも含む現在BranchModelsを得る。captureされたnominal内部の区間は非点でもよいが、外側の検査入力はpoint。nested queryやreobserve全般は含まない。
 
 ## 今回で閉じないもの
 
@@ -53,7 +55,7 @@ evidenceNode, generatedChildren。
 
 ## 公開定理名の索引
 
-22モジュール、140公開定理。上記の各群の量化範囲・前提と合わせて読む。
+23モジュール、146公開定理。上記の各群の量化範囲・前提と合わせて読む。
 正確な型と各補助補題の前提は同名Leanファイルを参照。
 
 ### GeneralDictionaryBindingSchemaReplay
@@ -121,3 +123,6 @@ evidenceNode, generatedChildren。
 
 ### GeneralDictionaryVariableRegistryIntervals
 `journal`, `generated_intervals`, `selected_instance`
+
+### GeneralDictionaryUnaryRefinementCapture
+`queries_preserved`, `report_refined`, `bindings_preserved`, `origins_preserved`, `recorded_schema`, `recorded_branch`

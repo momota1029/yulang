@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryUnaryRefinementCapture
 import Yulang.GeneralDictionaryBindingSchemaReplay
 import Yulang.GeneralDictionaryCapturedChildIntervals
 import Yulang.GeneralDictionaryCapturedSchemaTransport
@@ -25,7 +26,7 @@ open Lean Elab Command in
 run_cmd do
   let environment ← getEnv
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
-  let wanted : List Name := [`Yulang.GeneralDictionaryBindingSchemaReplay, `Yulang.GeneralDictionaryCapturedChildIntervals, `Yulang.GeneralDictionaryCapturedSchemaTransport, `Yulang.GeneralDictionaryComputedCatalogExample, `Yulang.GeneralDictionaryGeneratedIntervalCoverage, `Yulang.GeneralDictionaryGeneratedIntervalExample, `Yulang.GeneralDictionaryGeneratedIntervals, `Yulang.GeneralDictionaryGeneratedOrigins, `Yulang.GeneralDictionaryMixedCapturedReplay, `Yulang.GeneralDictionaryMixedCarrierRefresh, `Yulang.GeneralDictionaryMixedCatalogExample, `Yulang.GeneralDictionaryMixedCatalogInhabited, `Yulang.GeneralDictionaryMixedCatalogReachable, `Yulang.GeneralDictionaryPersistentCatalog, `Yulang.GeneralDictionaryProvenanceGeneratedIntervals, `Yulang.GeneralDictionaryRecordedScalarIntervalEvidence, `Yulang.GeneralDictionaryRequestCatalog, `Yulang.GeneralDictionaryRequestCatalogCompute, `Yulang.GeneralDictionaryRequestCatalogEvidence, `Yulang.GeneralDictionaryVariableClauseCatalog, `Yulang.GeneralDictionaryVariableClauseCatalogExample, `Yulang.GeneralDictionaryVariableRegistryIntervals]
+  let wanted : List Name := [`Yulang.GeneralDictionaryUnaryRefinementCapture, `Yulang.GeneralDictionaryBindingSchemaReplay, `Yulang.GeneralDictionaryCapturedChildIntervals, `Yulang.GeneralDictionaryCapturedSchemaTransport, `Yulang.GeneralDictionaryComputedCatalogExample, `Yulang.GeneralDictionaryGeneratedIntervalCoverage, `Yulang.GeneralDictionaryGeneratedIntervalExample, `Yulang.GeneralDictionaryGeneratedIntervals, `Yulang.GeneralDictionaryGeneratedOrigins, `Yulang.GeneralDictionaryMixedCapturedReplay, `Yulang.GeneralDictionaryMixedCarrierRefresh, `Yulang.GeneralDictionaryMixedCatalogExample, `Yulang.GeneralDictionaryMixedCatalogInhabited, `Yulang.GeneralDictionaryMixedCatalogReachable, `Yulang.GeneralDictionaryPersistentCatalog, `Yulang.GeneralDictionaryProvenanceGeneratedIntervals, `Yulang.GeneralDictionaryRecordedScalarIntervalEvidence, `Yulang.GeneralDictionaryRequestCatalog, `Yulang.GeneralDictionaryRequestCatalogCompute, `Yulang.GeneralDictionaryRequestCatalogEvidence, `Yulang.GeneralDictionaryVariableClauseCatalog, `Yulang.GeneralDictionaryVariableClauseCatalogExample, `Yulang.GeneralDictionaryVariableRegistryIntervals]
   let mut checked : Nat := 0
   for (name, _) in environment.constants.toList do
     if let some index := environment.getModuleIdxFor? name then
