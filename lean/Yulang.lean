@@ -2560,3 +2560,7 @@ import Yulang.GeneralDictionaryIdentityEvidenceExample
 import Yulang.GeneralDictionaryIdentityRefreshExample
 
 import Yulang.GeneralDictionarySharedCapturedRefresh
+
+import Yulang.GeneralDictionarySharedCapturedInputReady
+
+import Yulang.GeneralDictionarySharedCapturedProducer

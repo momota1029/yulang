@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionarySharedCapturedInputReady
+#print axioms Yulang.GeneralDictionarySharedCapturedInputReady.input_trusted
+#print axioms Yulang.GeneralDictionarySharedCapturedInputReady.refreshed_trusted
+#print axioms Yulang.GeneralDictionarySharedCapturedInputReady.input_endpoint_equation
+#print axioms Yulang.GeneralDictionarySharedCapturedInputReady.lo_ready
+#print axioms Yulang.GeneralDictionarySharedCapturedInputReady.hi_ready

@@ -73,3 +73,11 @@ V5は継承した **8/14、未完** のまま。一般のsource-to-Evidence、�
 ### 第2公開の独立した再実行
 
 公開commit `5a169d5589edce69ca33a47b5824c1dc196c45d3` を別のdetached checkoutへ取得し、新しい出力用libraryで9新規moduleを全て `lean --trust=0` から再コンパイルした。全Cycle165 auditも成功。依存gateは157個のpublic/private/generated宣言を検査し、標準3公理のみ。全文ログは `notes/verification/2026-11-13-cycle165-first-public-replay.txt`。この時点の公開はまだidentity refresh/captured fresh-slot refreshより前であり、後続部分の検証と混同しない。
+
+### 最終追加：信頼された入力事実と producer branch
+
+`GeneralDictionarySharedCapturedInputReady` は親の `.inputs` 事実だけのTrusted sliceを構成し、lo/hiの実際の `SharedSupport.ReadyAt` を導いた。未settledの親 `.outputs` を信頼済みに昇格していない。従って次の課題は「readbackを全く作れていない」ではなく、この実際のreadinessをproducerの全DecisionGuardへ配線することである。
+
+`GeneralDictionarySharedCapturedProducer.branch_models` は重複capture（同じsource2、異なるlo/hi由来）を持つproducer packetについて、割当て先の区別、union/intersectionのmerge、二つのprojection、int出力schemaを含む**具体的な全BranchModels**を証明した。`output_int` は任意assignmentでそのcandidate.Holdsを仮定したときのtarget=int、`captured_int` はさらに現在のjournal Modelsを仮定したときのsource2=intである。いずれもproducerを実際にinstallした結果とは言わない。Fresh、Prepared、現在のJoint/Unique/merge closure、実際のInstallable・producer stepは未証明。次の手順を `notes/design/2026-11-13-cycle165-next-consumer-plan.md` に残した。
+
+追加support moduleの警告抑制を外した試験で未使用simp引数を1件検出し、引数自体を取り除いた。最終のfocused検証では警告を隠す設定を増やさず `--wfail` を用いる。
