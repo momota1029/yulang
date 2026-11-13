@@ -11,9 +11,14 @@ Frozen Audit.lean, README.md, lakefile/spec/transition/classifier definitions un
 Focused --wfail build906jobs: PASS
 Independent trust0 recompile26sources plus2last fixtures: PASS
 All28-module declaration dependency gate370declarations: PASS
-23public audit shards,157axiom records, no error/warning: PASS
+23public audit shards, all157public theorems plus1definition checked; completed is axiom-free; no error/warning: PASS
 Allowed axiom dependencies only propext,Classical.choice,Quot.sound.
 Full build/root audit/verify-lean intentionally NOT run per standing instructions.
 CI API on618fbf426 and1786fa124 returned workflow_runs:[]; wrapper only first page of PR-triggered runs. No full CI success claim.
 Publication correction:7dc0bd113 accidentally referenced two later module imports before uploading their files.618fbf426 repaired it; frozen-snapshot readback confirmed exact source. Never integrate7dc alone.
 Temporary isolated-cache copy exhausted /tmp; removed failed own copy and used workspace cache. Sources intact; independent verification restarted successfully.
+
+Exact157 qualified theorem-name set is covered by audit output (including axiom-free output): PASS
+All28 source SHA256 hashes remain equal to independent verification manifest: PASS
+Stored gate replay: Audit/Cycle158DependencyGate.lean --trust=0 exit0,370declarations.
+Audit/gate artifacts normalize trailing whitespace only.
