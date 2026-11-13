@@ -1,14 +1,14 @@
 # dots cycle175: recursive refresh evidence and shared role tables
 
-COMPLETED (publication and fetch-back verification reported in the conversation). Started 2026-11-13T22:29:15Z, hard cutoff23:24:15UTC;
+IN PROGRESS. Started 2026-11-13T22:29:15Z, hard cutoff23:24:15UTC;
 finish target23:19. Latest integration freshly fetched0d2ea504a4f16a8d29e6caf73559fcda43afb45b,
 standing orders and I-29 read, previous174 completed heartbeat/report verified,
-no active writer. Initial source inventory2715 files matched fresh base; the final extension-filtered check below distinguishes Lean sources from support files.
+no active writer. Source snapshot2715 existing Lean files matches fresh base.
 The new center representation remains Astra-owned; work targets I-28 Actual.
 
 ## First checkpoint
 
-- For every Checked registry and initial source, finite actual ordinary/fixed-carrier-view refining
+- For every initial source, finite actual ordinary/fixed-carrier-view refining
   trace and actual halted endpoint, independent selected Classify for a whole
   dictionary implies current-model Evidence for all endpoint models. Recursive
   child Evidence and historical Extension are not assumed. Classification
@@ -43,6 +43,10 @@ No new general principality theorem.
 Yulang2: fresh work/dots-audit x-oracle read; X1/2 confirm old oracle cannot
 serve as evidence for modern Paterson/Actual contracts. No new runtime claim.
 Usage quota unknown. Final completion/report and precise publication count follow.
+
+## Recovered final publication record (cycle176)
+
+Previous final publication is COMPLETED, not the integrated draft IN PROGRESS. Restored final report appendix follows without rewriting integrated lines.
 
 ## V5の14フィールド（一般ground agreed boundary）
 

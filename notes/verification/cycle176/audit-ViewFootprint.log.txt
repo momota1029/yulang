@@ -1,0 +1,5 @@
+'Yulang.GeneralDictionaryViewFootprint176.HeadObservation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.HeadObservation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.HeadObservation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.report_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.instance_refinement' depends on axioms: [propext, Quot.sound]

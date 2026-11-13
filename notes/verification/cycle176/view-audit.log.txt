@@ -1,0 +1,8 @@
+'Yulang.GeneralDictionaryViewFootprint176.HeadObservation.view' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.HeadObservation.observation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.Agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.AgreeMany' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.inspect_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.inspectMany_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.report_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.instance_refinement' depends on axioms: [propext, Quot.sound]

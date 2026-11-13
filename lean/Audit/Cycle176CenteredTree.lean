@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryCenteredTree176
+
+#print axioms Yulang.GeneralDictionaryCenteredTree176.current_evidence
+#print axioms Yulang.GeneralDictionaryCenteredTree176.initial_trace_evidence
+#print axioms Yulang.GeneralDictionaryCenteredTree176.initial_trace_certificate

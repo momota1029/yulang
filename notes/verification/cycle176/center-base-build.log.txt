@@ -1,0 +1,40 @@
+DEPENDENCY_CLOSURE 813 REBUILD 19
+START Yulang.GeneralNominalCenters
+END Yulang.GeneralNominalCenters 0
+START Yulang.GeneralNominalCenteredGraph
+END Yulang.GeneralNominalCenteredGraph 0
+START Yulang.GeneralNominalCenteredSupport
+END Yulang.GeneralNominalCenteredSupport 0
+START Yulang.GeneralNominalCenteredSteps
+END Yulang.GeneralNominalCenteredSteps 0
+START Yulang.GeneralNominalCenteredBoundary
+END Yulang.GeneralNominalCenteredBoundary 0
+START Yulang.GeneralNominalCenteredInspection
+END Yulang.GeneralNominalCenteredInspection 0
+START Yulang.GeneralNominalRelationalMatching
+END Yulang.GeneralNominalRelationalMatching 0
+START Yulang.GeneralNominalCenteredCaptureSchema
+END Yulang.GeneralNominalCenteredCaptureSchema 0
+START Yulang.GeneralNominalCenteredHeadMatching
+END Yulang.GeneralNominalCenteredHeadMatching 0
+START Yulang.GeneralNominalCenteredCaptureLabels
+END Yulang.GeneralNominalCenteredCaptureLabels 0
+START Yulang.GeneralPatternCoveredResult
+END Yulang.GeneralPatternCoveredResult 0
+START Yulang.GeneralNominalCenteredProduction
+END Yulang.GeneralNominalCenteredProduction 0
+START Yulang.GeneralNominalFiniteProgress
+END Yulang.GeneralNominalFiniteProgress 0
+START Yulang.GeneralNominalCenteredTrace
+END Yulang.GeneralNominalCenteredTrace 0
+START Yulang.GeneralNominalCenteredPointSource
+END Yulang.GeneralNominalCenteredPointSource 0
+START Yulang.GeneralNominalCenteredAncestry
+END Yulang.GeneralNominalCenteredAncestry 0
+START Yulang.GeneralNominalCenteredEnumeration
+END Yulang.GeneralNominalCenteredEnumeration 0
+START Yulang.GeneralNominalCenteredAccessibility
+END Yulang.GeneralNominalCenteredAccessibility 0
+START Yulang.GeneralNominalCenteredGroundBoundary
+END Yulang.GeneralNominalCenteredGroundBoundary 0
+PASS 19

@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryCenteredReady176
+
+#print axioms Yulang.GeneralDictionaryCenteredReady176.stable_committed
+#print axioms Yulang.GeneralDictionaryCenteredReady176.stable_instance
+#print axioms Yulang.GeneralDictionaryCenteredReady176.selected_instance
+#print axioms Yulang.GeneralDictionaryCenteredReady176.selected_evidence
+#print axioms Yulang.GeneralDictionaryCenteredReady176.ModeledSelectedInstallable
+#print axioms Yulang.GeneralDictionaryCenteredReady176.evidenceNode_of_modeledSelectedInstallable

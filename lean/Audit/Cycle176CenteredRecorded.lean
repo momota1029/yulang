@@ -1,0 +1,12 @@
+import Yulang.GeneralDictionaryCenteredRecorded176
+
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.Recorded
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.recorded_at
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.recorded_trace
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.initial_recorded
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.reachable_recorded
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.recorded_committed
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.stored_instance
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.reachable_stored_instance
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.stored_evidence
+#print axioms Yulang.GeneralDictionaryCenteredRecorded176.current_instance

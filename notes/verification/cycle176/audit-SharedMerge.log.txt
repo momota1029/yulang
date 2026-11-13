@@ -1,0 +1,10 @@
+'Yulang.GeneralDictionaryCenteredSharedMerge176.same_named_inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredSharedMerge176.recovered_observed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredSharedMerge176.named_merge_guard' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredSharedMerge176.stable_named_alias' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

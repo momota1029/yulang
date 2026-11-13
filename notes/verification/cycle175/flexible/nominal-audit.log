@@ -1,5 +1,0 @@
-'Yulang.GeneralDictionaryNominalOnlyRefresh175.inspect_finished' depends on axioms: [propext, Quot.sound]
-'Yulang.GeneralDictionaryNominalOnlyRefresh175.inspectMany_finished' depends on axioms: [propext, Quot.sound]
-'Yulang.GeneralDictionaryNominalOnlyRefresh175.report_finished' depends on axioms: [propext, Quot.sound]
-'Yulang.GeneralDictionaryNominalOnlyRefresh175.instance_refinement' depends on axioms: [propext, Quot.sound]
-'Yulang.GeneralDictionaryNominalOnlyRefresh175.evidence_refinement' depends on axioms: [propext, Quot.sound]

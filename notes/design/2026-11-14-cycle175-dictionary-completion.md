@@ -1,6 +1,6 @@
 # Cycle175: recursive evidence after refining histories
 
-Status: implemented and verified by focused trust-zero checks. I-28 actual Step/Stable, I-29 remains Astra-owned.
+Status: design before implementation. I-28 actual Step/Stable, I-29 remains Astra-owned.
 
 The previous producer derives each recorded current Instance after any finite
 ordinary/fixed-carrier-view refresh trace. Its final-node consumer still asks
@@ -19,3 +19,5 @@ restricted relation. General refresh/reobserve remains outside it.
 Independent performance work replaces repeated recursive role-height evaluation
 with a finite table, preserving the original checker extensionally. No language
 rejection or new role-DAG restriction is introduced.
+
+Cycle176 recovery note: cycle175 final publication recorded implementation and focused trust-zero verification complete. Integrated design lines above are retained unchanged.
