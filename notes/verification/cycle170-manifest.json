@@ -1,0 +1,74 @@
+[
+  {
+    "module": "GeneralDictionary170BoundedAssembly",
+    "theorems": [
+      "enough_fuel",
+      "successful_tree",
+      "build_succeeds",
+      "build_dictionary",
+      "zero_fuel",
+      "actual_build"
+    ],
+    "sha": "823014b874d01720508c13a21a1ac0d47246990e"
+  },
+  {
+    "module": "GeneralDictionary170NamedAccessible",
+    "theorems": [
+      "child_rank",
+      "coverage_accessible",
+      "covered_tree",
+      "covered_dictionary",
+      "actual_accessible",
+      "actual_uniform_dictionary",
+      "actual_nonvacuous",
+      "actual_no_old_coverage"
+    ],
+    "sha": "dd0dafe0a273a69b475477d070c8bb2e159ed1fe"
+  },
+  {
+    "module": "GeneralDictionary170NamedCoverage",
+    "theorems": [
+      "node_tree",
+      "accessible_tree",
+      "wellFounded_tree",
+      "uniform_dictionary"
+    ],
+    "sha": "f46ee2eb3d57a3b272b3e4562e1fa42dbdbdf0e1"
+  },
+  {
+    "module": "GeneralDictionary170NamedCoveragePersistence",
+    "theorems": [
+      "node_transport",
+      "node_children",
+      "node_key",
+      "child_iff",
+      "ordinary_children",
+      "ordinary_dictionary",
+      "ordinary_uniform_payload"
+    ],
+    "sha": "0d87fdb0c1fed82266c8d22531e70f6013ac44ab"
+  },
+  {
+    "module": "GeneralDictionary170NamedSelection",
+    "theorems": [
+      "leaf_selected",
+      "tree_selected",
+      "terminal_payload",
+      "leaf_tree_unique",
+      "actual_unique"
+    ],
+    "sha": "52c89ac3100d7d1253729dcb12b9c0a231f85228"
+  },
+  {
+    "module": "GeneralDictionary170PathBound",
+    "theorems": [
+      "rank_budget",
+      "length_le_rank",
+      "length_le_ceiling",
+      "no_positive_cycle",
+      "rank_zero_terminal",
+      "vertices_le_rank_succ"
+    ],
+    "sha": "c2b17438d1db7bead5c40df804176b4445a03114"
+  }
+]

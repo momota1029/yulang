@@ -453,3 +453,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle169 名前付き証明書の通常継続](2026-11-13-cycle169-named-persistence.md)
 - [Cycle169 有限journalの子accessibility](2026-11-13-cycle169-journal-accessibility.md)
 - [Cycle169 ground productionへの次の橋](2026-11-13-cycle169-next-ground.md)
+
+- [Cycle170 local coverage and bounded assembly](2026-11-13-cycle170-local-assembly.md) — Draft auxiliary proof progress.
