@@ -128,3 +128,14 @@ transport, final-context child Evidence to parent Evidence, and an ordinary
 initial trace followed by an actual improving refresh. Extension is required
 only **before** the refresh. Repeated refresh replay, arbitrary reobserve,
 carrier/view-changing refresh and the general B4 history field remain open.
+
+## Later same-cycle correction to follow-up status
+
+The restricted repeated-refresh replay mentioned as still open above is now
+implemented in `GeneralDictionaryAgreedRefiningTrace174`: arbitrary finite
+interleavings of actual ordinary rules and actual improving fixed-carrier,
+fixed-view refreshes derive a current-instance invariant from empty journal.
+New installations are included. Stable selected-node evidence at such endpoints
+uses this derived invariant, without post-refresh ordinary Extension.
+General descriptor reobserve and carrier/view-changing refresh remain excluded;
+the unrestricted B4 field is still open. See `cycle174-refining-trace.md`.
