@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryCheckedNonpointEvidence
+#print axioms Yulang.GeneralDictionaryCheckedNonpointEvidence.scope
+#print axioms Yulang.GeneralDictionaryCheckedNonpointEvidence.branch
+#print axioms Yulang.GeneralDictionaryCheckedNonpointEvidence.current_instance
+#print axioms Yulang.GeneralDictionaryCheckedNonpointEvidence.evidence

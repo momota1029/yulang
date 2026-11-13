@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryActualSchemaOriginExample
+
+#print axioms Yulang.GeneralDictionaryActualSchemaOriginExample.generated_body
+#print axioms Yulang.GeneralDictionaryActualSchemaOriginExample.changed_targets
+#print axioms Yulang.GeneralDictionaryActualSchemaOriginExample.literal_schema_differs
+#print axioms Yulang.GeneralDictionaryActualSchemaOriginExample.old_models
+#print axioms Yulang.GeneralDictionaryActualSchemaOriginExample.retargeted_models

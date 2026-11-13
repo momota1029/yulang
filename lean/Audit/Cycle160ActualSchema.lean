@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionaryActualSchema
+
+#print axioms Yulang.GeneralDictionaryActualSchema.empty_actual
+#print axioms Yulang.GeneralDictionaryActualSchema.append_actual
+#print axioms Yulang.GeneralDictionaryActualSchema.schema_actual
+#print axioms Yulang.GeneralDictionaryActualSchema.schemas_actual
+#print axioms Yulang.GeneralDictionaryActualSchema.fold_actual
+#print axioms Yulang.GeneralDictionaryActualSchema.generated_actual
+#print axioms Yulang.GeneralDictionaryActualSchema.root_request_actual
+#print axioms Yulang.GeneralDictionaryActualSchema.root_generated_actual
+#print axioms Yulang.GeneralDictionaryActualSchema.variable_replay
+#print axioms Yulang.GeneralDictionaryActualSchema.replay
+#print axioms Yulang.GeneralDictionaryActualSchema.capture_fits_subset

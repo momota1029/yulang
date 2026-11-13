@@ -1,0 +1,22 @@
+COMMAND: all19 changed modules recursively compiled with lean --trust=0 to isolated cache; then generated namespace gate
+Yulang.GeneralDictionaryActualSchema 0  
+Yulang.GeneralDictionaryActualSchemaOrigin 0  
+Yulang.GeneralDictionaryActualSchemaOriginExample 0  
+Yulang.GeneralDictionaryActualSchemaScope 0  
+Yulang.GeneralDictionaryNonpointCollapse 0  
+Yulang.GeneralDictionaryNonpointBranch 0  
+Yulang.GeneralDictionaryCollapseReadiness 0  
+Yulang.GeneralDictionaryNonpointEvidence 0  
+Yulang.GeneralDictionaryCheckedNonpointEvidence 0  
+Yulang.GeneralDictionaryCertifiedNonpointEvidence 0  
+Yulang.GeneralDictionaryNonpointStrict 0  
+Yulang.GeneralDictionaryNonpointStrictOutput 0  
+Yulang.GeneralDictionaryNonpointCertified 0  
+Yulang.GeneralDictionaryNonpointCertifiedOutput 0  
+Yulang.GeneralDictionaryNonpointExample 0  
+Yulang.GeneralDictionaryNonpointModeBoundary 0  
+Yulang.GeneralDictionaryNonpointOperationalEvidence 0  
+Yulang.GeneralDictionaryNonpointOutput 0  
+Yulang.GeneralDictionaryNonpointStrictEvidence 0  
+GATE 0 AXIOM-GATE-PASS: 574 declarations
+ 

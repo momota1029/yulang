@@ -1,0 +1,3 @@
+import Yulang.GeneralDictionaryNonpointEvidence
+#print axioms Yulang.GeneralDictionaryNonpointEvidence.transport_instance
+#print axioms Yulang.GeneralDictionaryNonpointEvidence.transport_evidence

@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionaryActualSchemaScope
+
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.queries_scoped_iff
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.query_scoped_mono
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.schema_scoped
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.schemas_scoped
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.plain_names
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.variables_args_member
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.translated_scoped
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.fold_scoped
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.generated_scoped
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.root_generated_scoped
+#print axioms Yulang.GeneralDictionaryActualSchemaScope.root_input_name

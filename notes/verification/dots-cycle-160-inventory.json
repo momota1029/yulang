@@ -1,0 +1,335 @@
+[
+  {
+    "path": "lean/Yulang/GeneralDictionaryActualSchema.lean",
+    "namespace": "Yulang.GeneralDictionaryActualSchema",
+    "sha256": "9d2a1d46b98c0a6afa898ec691801956574efcd9522df4f85d6c99e45e10ceb3",
+    "public_theorems": [
+      "empty_actual",
+      "append_actual",
+      "schema_actual",
+      "schemas_actual",
+      "fold_actual",
+      "generated_actual",
+      "root_request_actual",
+      "root_generated_actual",
+      "variable_replay",
+      "replay",
+      "capture_fits_subset"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryActualSchemaOrigin.lean",
+    "namespace": "Yulang.GeneralDictionaryActualSchemaOrigin",
+    "sha256": "2cfb2c396dc4a210ef2d9e51f2356ff34ed5f7de678c18dcb3cb4503bdc17e09",
+    "public_theorems": [
+      "rename_empty",
+      "rename_append",
+      "rename_test",
+      "schema_rename",
+      "schemas_rename",
+      "fold_rename",
+      "generated_rename",
+      "equivalent_trans",
+      "equivalent_symm",
+      "observes_pull",
+      "observes_push",
+      "test_transport",
+      "variable_equivalent",
+      "replay"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryActualSchemaOriginExample.lean",
+    "namespace": "Yulang.GeneralDictionaryActualSchemaOriginExample",
+    "sha256": "967ac0dd086dd9db0aa2b0e83329a393df5e50ee02b98e9aea6fcc9fbb16f050",
+    "public_theorems": [
+      "generated_body",
+      "changed_targets",
+      "literal_schema_differs",
+      "old_models",
+      "retargeted_models"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryActualSchemaScope.lean",
+    "namespace": "Yulang.GeneralDictionaryActualSchemaScope",
+    "sha256": "d3bfcaf324c3bfe7298ee25250c74ffaaf7df3bb3e0e0619bd503191366923bb",
+    "public_theorems": [
+      "queries_scoped_iff",
+      "query_scoped_mono",
+      "schema_scoped",
+      "schemas_scoped",
+      "plain_names",
+      "variables_args_member",
+      "translated_scoped",
+      "fold_scoped",
+      "generated_scoped",
+      "root_generated_scoped",
+      "root_input_name"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryCertifiedNonpointEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryCertifiedNonpointEvidence",
+    "sha256": "500d1c55182cf7d94bf5500b3a7109f3a97ec3131e0ec7e6c3f78bade2f5f876",
+    "public_theorems": [
+      "source_models",
+      "evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryCheckedNonpointEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryCheckedNonpointEvidence",
+    "sha256": "86963d49d50ee26d3ec013d9c846281f3a70164eb30b9bbb1c8c0349d00ec0b3",
+    "public_theorems": [
+      "scope",
+      "branch",
+      "current_instance",
+      "evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryCollapseReadiness.lean",
+    "namespace": "Yulang.GeneralDictionaryCollapseReadiness",
+    "sha256": "310250ec2412aa26595d1f1f31168ec497ce9bea1369e4a348fb638471c344dd",
+    "public_theorems": [
+      "arguments_same",
+      "metadata_same",
+      "finished",
+      "generated_same",
+      "ready_same"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointBranch.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointBranch",
+    "sha256": "7073396e2f75ed1b904a1a64af13329aba0085ecc321641f1af1d6ffc0d5baba",
+    "public_theorems": [
+      "footprint",
+      "replay",
+      "branch"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointCertified.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointCertified",
+    "sha256": "3d61807fad58615ef4b040f05d44501c2367d525483ff05c1ca6c98ddc4d4b3c",
+    "public_theorems": [
+      "raw_models",
+      "certified",
+      "improves",
+      "source_models",
+      "revised_models",
+      "initial_source",
+      "actual_value_step",
+      "formed",
+      "reachable",
+      "result_models",
+      "positive_transition",
+      "queries",
+      "report_exact",
+      "private_models",
+      "generated_empty",
+      "old_branch",
+      "current_branch",
+      "reachable_branch_replay"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointCertifiedOutput.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointCertifiedOutput",
+    "sha256": "39e0e87a9991cdde2738a51515689cac26829ca99631e7187653800595201d8d",
+    "public_theorems": [
+      "revised_models",
+      "checked",
+      "names",
+      "root_request",
+      "generated_body",
+      "nonempty",
+      "old_materialized",
+      "current_materialized",
+      "queries",
+      "report_exact",
+      "generated_exact",
+      "private_models",
+      "old_branch",
+      "current_branch",
+      "positive_nonpoint_output",
+      "positive_strict_output",
+      "certified",
+      "improves",
+      "initial_source",
+      "actual_value_step",
+      "formed",
+      "reachable",
+      "result_models",
+      "reachable_nonempty_branch_replay"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointCollapse.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointCollapse",
+    "sha256": "75b378f9bc9325e8ea140a91c0f796a752cf142e0588b0484b7e9987b0146899",
+    "public_theorems": [
+      "capture_fits",
+      "private_state"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointEvidence",
+    "sha256": "4eb8693e8c06d665d4968122da116ae7477e424e64611998ca3ba9fef776e614",
+    "public_theorems": [
+      "transport_instance",
+      "transport_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointExample.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointExample",
+    "sha256": "03dec2b02741b568852be7604782affd1e58cbe5b25406f4624acf9656a5e5dc",
+    "public_theorems": [
+      "at_lower",
+      "at_upper",
+      "at_merge_lower",
+      "at_merge_upper",
+      "bottom_leaf",
+      "source_models",
+      "revised_models",
+      "observed_parent",
+      "observed_leaf",
+      "leaf_unique",
+      "leaf_fit",
+      "old_projection",
+      "checked",
+      "queries",
+      "old_propagation",
+      "report_exact",
+      "private_models",
+      "generated_empty",
+      "old_branch",
+      "current_branch",
+      "nonpoint_leaf",
+      "positive_replay"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointModeBoundary.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointModeBoundary",
+    "sha256": "4ead6bfeb9062517e8d1d951ef9c7b3ff8ef7bac3757e09ea39bfce7c46f0241",
+    "public_theorems": [
+      "old_lower",
+      "current_lower_fails",
+      "old_schema",
+      "current_schema_fails"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointOperationalEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointOperationalEvidence",
+    "sha256": "b936a447dc817146fad338130db12c41312890d56d74a691f6d8e3613df3cfd3",
+    "public_theorems": [
+      "old_located",
+      "current_located",
+      "ready",
+      "metadata",
+      "old_instance",
+      "current_instance",
+      "old_evidence",
+      "current_evidence",
+      "positive_strict_output_evidence",
+      "registry_checked",
+      "reachable_nonempty_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointOutput.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointOutput",
+    "sha256": "7481d7937c0bf29cbe2156d1c91aef0d08109d9611db1b246dd6d3bf94bf1a9f",
+    "public_theorems": [
+      "checked",
+      "names",
+      "root_request",
+      "generated_body",
+      "nonempty",
+      "old_materialized",
+      "current_materialized",
+      "queries",
+      "report_exact",
+      "generated_exact",
+      "private_models",
+      "old_branch",
+      "current_branch",
+      "positive_nonpoint_output"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointStrict.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointStrict",
+    "sha256": "2fa2fa332622d1a937eb0f94c7566808cd8c0c911b8966300692ce10cf611a2a",
+    "public_theorems": [
+      "at_lower",
+      "at_upper",
+      "at_merge_lower",
+      "at_merge_upper",
+      "bottom_leaf",
+      "source_models",
+      "revised_models",
+      "observed_parent",
+      "observed_leaf",
+      "leaf_unique",
+      "leaf_fit",
+      "old_projection",
+      "checked",
+      "queries",
+      "old_propagation",
+      "report_exact",
+      "private_models",
+      "generated_empty",
+      "old_branch",
+      "current_branch",
+      "nonpoint_leaf",
+      "positive_replay",
+      "fits_strictly_enlarges",
+      "merged_lower_not_equivalent"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointStrictEvidence.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointStrictEvidence",
+    "sha256": "cbcac5d680cd61db78bb13faf9586c53d9839f253d04bce968c701f214fed341",
+    "public_theorems": [
+      "old_located",
+      "current_located",
+      "ready",
+      "metadata",
+      "old_instance",
+      "current_instance",
+      "old_evidence",
+      "current_evidence",
+      "positive_strict_output_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNonpointStrictOutput.lean",
+    "namespace": "Yulang.GeneralDictionaryNonpointStrictOutput",
+    "sha256": "e75b824db63055b5feb8c7887ab2f2e357df620c017fed43c71eafd6a13d09fb",
+    "public_theorems": [
+      "checked",
+      "names",
+      "root_request",
+      "generated_body",
+      "nonempty",
+      "old_materialized",
+      "current_materialized",
+      "queries",
+      "report_exact",
+      "generated_exact",
+      "private_models",
+      "old_branch",
+      "current_branch",
+      "positive_nonpoint_output",
+      "positive_strict_output"
+    ]
+  }
+]
