@@ -2616,3 +2616,8 @@ import Yulang.GeneralNominalReadbackFunctionality
 import Yulang.GeneralNominalCompoundRecovery
 import Yulang.GeneralNominalSpineOutputs
 import Yulang.GeneralNominalCompoundEmission
+import Yulang.GeneralNominalFiniteMeaning
+import Yulang.GeneralNominalStructuralContainment
+import Yulang.GeneralNominalGroundAccessibility
+import Yulang.GeneralNominalGroundProduction
+import Yulang.GeneralNominalGroundExamples

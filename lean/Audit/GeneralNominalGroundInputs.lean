@@ -1,0 +1,25 @@
+import Yulang.GeneralNominalGroundExamples
+
+#print axioms Yulang.GeneralNominalFiniteMeaning.assemble
+#print axioms Yulang.GeneralNominalFiniteMeaning.project_value
+#print axioms Yulang.GeneralNominalFiniteMeaning.closed_independent
+#print axioms Yulang.GeneralNominalFiniteMeaning.followed_readback
+#print axioms Yulang.GeneralNominalFiniteMeaning.followed_closed
+#print axioms Yulang.GeneralNominalStructuralContainment.schema_contains
+#print axioms Yulang.GeneralNominalStructuralContainment.compound_child_contains
+#print axioms Yulang.GeneralNominalGroundProduction.capture_value
+#print axioms Yulang.GeneralNominalGroundProduction.emitted_clause_unique
+#print axioms Yulang.GeneralNominalGroundProduction.argument_retained
+#print axioms Yulang.GeneralNominalGroundProduction.child_inputs
+#print axioms Yulang.GeneralNominalGroundProduction.recovered_inputs
+#print axioms Yulang.GeneralNominalGroundProduction.packet_production
+#print axioms Yulang.GeneralNominalGroundAccessibility.sites_bounded
+#print axioms Yulang.GeneralNominalGroundAccessibility.installed_depth_bound
+#print axioms Yulang.GeneralNominalGroundProduction.ground_accessible_of_capture_factorization
+#print axioms Yulang.GeneralNominalGroundExamples.checked
+#print axioms Yulang.GeneralNominalGroundExamples.ground
+#print axioms Yulang.GeneralNominalGroundExamples.initial_source
+#print axioms Yulang.GeneralNominalGroundExamples.point_source
+#print axioms Yulang.GeneralNominalGroundExamples.inhabited
+#print axioms Yulang.GeneralNominalGroundExamples.both_positions
+#print axioms Yulang.GeneralNominalGroundExamples.accessible
