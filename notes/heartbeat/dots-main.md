@@ -1,10 +1,9 @@
-cycle: 167
-status: completed
-started: 2026-11-13T14:33:00Z
-updated: 2026-11-13T15:13:24.804Z
-elapsed_min: 40
-activity: Completed10modules/76theorems; current producer Evidence, all-Trusted consumer delay, actual settled producer output promotion. Public replay33modules and gates177+14 pass.
+cycle: 168
+status: running
+started: 2026-11-13T15:30:00Z
+updated: 2026-11-13T15:34:00Z
+elapsed_min: 4
+activity: I-21 item5 Evidence; shrink V5 evidenceNode obligation through source-supported guarded consumer and generic report transport. Fresh integration11be97cb merged locally.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang159
-last_local_commit: 3a501d816a
-report: notes/handoff/dots-cycle-167.md
-resume_hint: Read fresh integration47da90ca or later next cycle; this verified cycle used8d83c0c. Source4e96f96 immutable replay passed. Routing alias coverage remains; no global deadlock claim or semantic change.
+last_local_commit: 0a97c6ed55
+resume_hint: Previous167 completed; two isolated additive proof tasks underway. Finish all verification/publication by16:22:19Z. Do not start overlapping writer.
