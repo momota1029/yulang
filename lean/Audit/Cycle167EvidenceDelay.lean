@@ -1,0 +1,2 @@
+import Yulang.GeneralDictionaryCapturedEvidenceDelay
+#print axioms Yulang.GeneralDictionaryCapturedEvidenceDelay.actual_evidence_with_trusted_delay
