@@ -1,6 +1,6 @@
 # dots cycle163: finite coverage, ledger settlement, and conditional consumer resumption
 
-## Scope and result (intermediate; verification/publication ledger below)
+## Scope and result
 
 I21 Evidence lane only. I26 actual Settled guard/Step/Stable definitions remain unchanged.
 V5 remains **8/14 open**; this is not general progress, completeness, principal typing,
@@ -82,7 +82,7 @@ Yulang2 implements I26 rules. Usage quota unknown.
 
 ## Publication and final evidence
 
-Pending below. Only work/dots-main is authorized. All intermediate checkpoints
+Only work/dots-main is authorized. All intermediate checkpoints
 must be fetched and compared to the fixed local source tree; heartbeat-only
 changes are separated from source comparisons.
 
@@ -190,3 +190,41 @@ noveltyの具体的countermodel、非空のfinal modelを確認した。
 
 初回のfocused Lake中断とは別に、メモリ余裕を確認し、11:01から9targetだけの
 focused Lakeを6分上限で再試行する。結果が下に確定するまでPASSとはしない。
+
+## focused Lake再試行の確定（11:03 UTC）
+
+`LEAN_NUM_THREADS=1 timeout 6m lake --wfail build` に、新9module名だけを
+明示したfocused build: **EXIT0,837 dependency jobs**。新9moduleすべてが
+Builtと記録され、warningsなし。全体targetを指定したbuildではない。
+独立source replayと別にLake経由の組立ても確認できた。
+最新diff-only検査もEXIT0。全文は `dots-cycle-163-lake.txt` と
+`dots-cycle-163-diff.txt`。初回中断をこの成功で隠してはいない。
+
+## 公開sourceそのものの再検証（11:05 UTC）
+
+checkpoint3 `2b21b5df005516ca66bbf2966d0faabbbe88bb3e`を取得し、
+固定local `68597267d`とのfull-tree差は意図した心拍だけと確認した。
+公開commitから新9sourceを抽出し、inventory SHA256を全件照合したうえで、
+抽出sourceを全件trust0再compileし、同commitの87宣言gateも再実行: EXIT0。
+`notes/verification/dots-cycle-163-public-replay.txt`に全文を保存する。
+その後も9つのLean sourceは変更していない。説明・検証ログと、下記のaudit-only回帰検査を追加した。
+
+## 通常Lake監査とcross-module回帰検査
+
+9target build後の通常 `lake env lean --trust=0 Audit/Cycle163*.lean` の
+11本もすべてEXIT0。独立cacheだけの成功ではない。
+さらにaudit-onlyの3検査を追加し、semantic finite coverageからrecorded exact/alias
+coverageへの無条件upgradeが、このactual非空journalの例で不可能であること、
+actual model・Evidence・Unsettledが共存することをkernelで確認した。EXIT0、
+標準3公理のみ。これは新しいlibrary moduleではなく受け入れ回帰検査である。
+したがってlibrary公開66定理にaudit-only3検査を別計上し、source9moduleの
+private/generatedを含むgate対象は引き続き87宣言。
+
+## 公開ancestryの追加検査と修正
+
+11:10に、公開treeは一致しても、従来のpublic parent chainに今回のintegration
+50a82661793b0a5b3739f0dd7136676826acd75aがancestorとして含まれていないことを
+確認した。これはGitHub publicationがremote parentのみで鎖を作ったためで、
+source内容の不一致ではない。次のpublicationで同integrationをsecond parentに
+加え、検証済みtreeを変えずにancestryを修復する。修復後のimmutable commitで
+ancestor検査とdiff-only verifyを行い、結果を末尾に記録する。

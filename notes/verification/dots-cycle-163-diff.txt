@@ -1,12 +1,12 @@
-verify-lean: . @ e8f0be525 (base origin/integration/m1-final)
+verify-lean: . @ 68597267d (base origin/integration/m1-final)
 ok: no removed lines in lean/ since origin/integration/m1-final
 ok: no sorry/native_decide/axiom-like constructs in added lines
 REVIEW: metaprogramming/#eval in added lines (a human must read these):
 14:+run_cmd do
 44:+run_cmd do
 78:+run_cmd do
-128:+run_cmd do
-744:+syntax/history coverage of the genuine settled root theorem. -/
+130:+run_cmd do
+841:+syntax/history coverage of the genuine settled root theorem. -/
 ok: lake config unchanged (or only SpecExamples*/Main* libs added)
 ok: new files are Yulang modules only
 ok: lean/Audit.lean only appended (plus top import lines)
