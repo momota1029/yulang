@@ -84,7 +84,7 @@ V5は継承した **8/14、未完** のまま。一般のsource-to-Evidence、�
 
 ### 最終sourceの公開後再実行
 
-凍結local `7092e30d417399bdb2d0933d343e3581906dcd51`（完全hashはsource manifest）、公開 `c6ed54f37da73fadedb159185f544f4b06a5e5b7`。公開treeを取得して心拍以外の全ファイル一致を確認。別出力libraryで **13新規module全部**を再コンパイルし、**15個のCycle165 audit全部**が `--trust=0` 成功。新規依存gateは **320宣言**、保存した前回gateは **291宣言**で、いずれも `propext / Classical.choice / Quot.sound` のみ。117個のpublic theoremの完全な型も出力して照合した。全文ログ・全変更Leanのgit blob/SHA256は `notes/verification/2026-11-13-cycle165-final-public-replay.txt` と `...-source-manifest.json`。
+凍結local `7092e30d417399bdb2d0933d343e3581906dcd51`（完全hashはsource manifest）、公開 `c6ed54f37da73fadedb159185f544f4b06a5e5b7`。source公開後のLean tree一致を確認。別出力libraryで **13新規module全部**を再コンパイルし、**15個のCycle165 audit全部**が `--trust=0` 成功。新規依存gateは **320宣言**、保存した前回gateは **291宣言**で、いずれも `propext / Classical.choice / Quot.sound` のみ。117個のpublic theoremの完全な型も出力して照合した。全文ログ・全変更Leanのgit blob/SHA256は `notes/verification/2026-11-13-cycle165-final-public-replay.txt` と `...-source-manifest.json`。
 
 焦点を絞った最終 `lake build ... --wfail` は721 cache-inclusive jobs、exit0。diff-only `bash tools/verify-lean.sh . origin/integration/m1-final --no-build` はexit0（依存監査run_cmdのREVIEW2件は読み取り専用）。全文 `...-focused-build.txt` / `...-diff-check.txt`。
 
@@ -95,3 +95,9 @@ GitHub workflow問い合わせでは、このsource commitのPR-triggered・firs
 最後に残っていたInstallable moduleのunused-simp抑制も外し、冗長引数を除去した。途中のsimp正規化不足による失敗を検出して修正し、warning-free focused buildを再実行した。最終sourceは上記c6ed54f37で、宣言の型・数学的範囲は変わらない。
 
 13:14 UTC、warning抑制除去後の公開source `c6ed54f37da73fadedb159185f544f4b06a5e5b7` を再取得し、Lean tree一致を確認。13module・15auditを再び独立出力で全実行し、exit0、320/291宣言のgate PASS。最終ログはこの再実行のもの。117定理の名前の索引も `notes/verification/2026-11-13-cycle165-theorem-index.md` に追加した。新規moduleは13個すべてYulang入口に明示importされている。
+
+## 終了時の台帳
+
+検証artifact公開 `edf28debdd276c9dbfbd733c207324c80c4ee30b` を取得し、local `795ba9640a4f0c0647bf2c10eebf26cdc89e48a7` と心拍以外の全tree一致を確認した。公開manifestの変更Lean30ファイル全てについてbyte数、git blob、SHA256が一致。新規13module、15audit、117public theorem、gate320宣言。統合後baseから心拍を除く変更は41ファイル。監督役integrationの祖先関係も確認した。
+
+証明・検証担当の書き込みは終了、作業ツリーに未公開の証明はない。最終heartbeatはcompletedへ切り替える。実際のproducer installとconsumer再開は次サイクルへ残す。最終報告の公開commitと読戻し時刻は会話の終了報告に記す。
