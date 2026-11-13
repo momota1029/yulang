@@ -1,0 +1,18 @@
+import Yulang.GeneralDictionaryMixedCatalogReachable
+
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.registry_checked
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.all_source_decisions
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.prepared
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.survivor
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.selected
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.enabled
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.packet_guard
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.novel
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.source
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.value_step
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.reachable
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.installed_model
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.recorded
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.old_catalog_empty
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.new_catalog_contains
+#print axioms Yulang.GeneralDictionaryMixedCatalogReachable.reachable_strict_coverage

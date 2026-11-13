@@ -2314,3 +2314,27 @@ import Yulang.GeneralDictionaryRequestCatalogEvidence
 
 import Yulang.GeneralDictionaryVariableClauseCatalog
 import Yulang.GeneralDictionaryVariableClauseCatalogExample
+
+import Yulang.GeneralDictionaryMixedCatalogInhabited
+
+import Yulang.GeneralDictionaryCapturedChildIntervals
+
+import Yulang.GeneralDictionaryCapturedSchemaTransport
+
+import Yulang.GeneralDictionaryGeneratedIntervalCoverage
+
+import Yulang.GeneralDictionaryGeneratedIntervalExample
+
+import Yulang.GeneralDictionaryGeneratedIntervals
+
+import Yulang.GeneralDictionaryGeneratedOrigins
+
+import Yulang.GeneralDictionaryMixedCatalogReachable
+
+import Yulang.GeneralDictionaryProvenanceGeneratedIntervals
+
+import Yulang.GeneralDictionaryVariableRegistryIntervals
+
+import Yulang.GeneralDictionaryBindingSchemaReplay
+
+import Yulang.GeneralDictionaryMixedCapturedReplay

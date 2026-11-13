@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryBindingSchemaReplay
+
+#print axioms Yulang.GeneralDictionaryBindingSchemaReplay.packet_seed
+#print axioms Yulang.GeneralDictionaryBindingSchemaReplay.capture_seed
+#print axioms Yulang.GeneralDictionaryBindingSchemaReplay.requests_seed
+#print axioms Yulang.GeneralDictionaryBindingSchemaReplay.replay

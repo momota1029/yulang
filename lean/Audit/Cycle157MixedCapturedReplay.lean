@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionaryMixedCapturedReplay
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.report_current
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.report_old
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.footprint
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.replay_current
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.requests_exact
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.current_schema
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.context_changed
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.nonvacuous
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.bindings_exact
+#print axioms Yulang.GeneralDictionaryMixedCapturedReplay.computed_reinspection
