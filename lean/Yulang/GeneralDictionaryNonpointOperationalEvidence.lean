@@ -53,7 +53,15 @@ theorem positive_strict_output_evidence :
     Evidence registry context model outputRoot (.node declaration.id []) ∧
     Evidence registry currentContext model outputRoot (.node declaration.id []) :=
   ⟨rfl,GeneralDictionaryNonpointStrict.nonpoint_leaf.1,old_evidence,current_evidence⟩
+theorem registry_checked : GeneralDeclarations.Checked registry := by
+  constructor
+  · simp
+  · intro d member
+    cases List.mem_singleton.mp member
+    exact checked
+
 theorem reachable_nonempty_evidence :
+    GeneralDeclarations.Checked registry ∧
     GeneralNominalValueSteps.Step registry outputRoot tracked after ∧
     B4TargetV5.Reachable (GeneralNominalValueBoundary.boundary GeneralDictionaryNonpointStrict.roles) registry outputRoot after ∧
     GeneralNominalValueSteps.SourceFormed registry outputRoot after ∧
@@ -61,5 +69,5 @@ theorem reachable_nonempty_evidence :
     body.variables.length = 1 ∧
     Evidence registry context model outputRoot (.node declaration.id []) ∧
     Evidence registry currentContext model outputRoot (.node declaration.id []) :=
-  ⟨actual_value_step,reachable,formed,result_models,rfl,old_evidence,current_evidence⟩
+  ⟨registry_checked,actual_value_step,reachable,formed,result_models,rfl,old_evidence,current_evidence⟩
 end Yulang.GeneralDictionaryNonpointOperationalEvidence

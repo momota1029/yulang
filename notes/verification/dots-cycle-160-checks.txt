@@ -1,0 +1,8 @@
+Existing modified paths: ['lean/Yulang.lean', 'notes/heartbeat/dots-main.md']
+Entry import coverage PASS 19modules
+No sorry/new axiom/native_decide in source PASS
+Public audit name coverage PASS 200
+Independent namespace dependency gate PASS 574
+Full build/root Audit/verify-lean NOT RUN
+PR-triggered workflow first-page for e1834b594c103ab53148a58b755d283614ca389f: []
+Standalone signatures unknown pp.width option removed; final output regenerated

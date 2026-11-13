@@ -1,0 +1,3 @@
+COMMAND: lake --wfail build Yulang.GeneralDictionaryNonpointOperationalEvidence Yulang.GeneralDictionaryActualSchemaOriginExample Yulang.GeneralDictionaryNonpointModeBoundary Yulang.GeneralDictionaryCertifiedNonpointEvidence
+✔ [749/749] Built Yulang.GeneralDictionaryNonpointOperationalEvidence (1.6s)
+Build completed successfully (749 jobs).
