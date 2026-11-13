@@ -1,10 +1,9 @@
-cycle: 157
-status: completed
-started: 2026-11-13T04:24:00Z
-updated: 2026-11-13T05:13:40.410930Z
-elapsed_min: 49.7
-activity: 23 new modules,146 public theorems;319-declaration trust0 gate and13 audits pass. V5 remains8/14 open.
-workspace: /workspace/scratch/1d0b4aaa3394/yulang157
-last_local_commit: 90ae52e4d
-report: notes/handoff/dots-cycle-157.md
-resume_hint: Fetch integration first. Source checkpoint11ff364d verified; report lists remaining nested transport and general Evidence bridges. Full build remains supervisor work.
+cycle: 158
+status: running
+started: 2026-11-13T05:27:20Z
+updated: 2026-11-13T05:29:00Z
+elapsed_min: 1.7
+activity: Evidence/V5 evidenceNode: nested nominal capture transport and recorded current coverage
+workspace: /workspace/scratch/1d0b4aaa3394/yulang158
+last_local_commit: f7c5fd1d5
+resume_hint: Read cycle157 report; no previous writer. Cycle158 work only new modules, focus audits, deadline06:22UTC.
