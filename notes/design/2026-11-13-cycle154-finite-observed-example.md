@@ -24,3 +24,21 @@ boundaries both classify the source as the exact selected leaf dictionary.
 This closes this concrete stable non-scalar output fixture, not general evidenceNode.
 There is no claim of a nonempty journal, nonzero execution, fresh-output allocation,
 general alias coverage, or full-language progress. General V5 remains 8/14 unresolved.
+
+## Nonterminal extension
+
+Use the same two-slot source with a checked ternary nominal head `N(a,b,c)`
+and one strictly smaller scalar child `Display a`. The three distinct binders
+capture the same scalar slot. The parent retains a named ternary output at the
+existing nominal slot. The actual guarded installation creates a child edge and
+a nonempty journal; the child is justified by a checked scalar declaration.
+
+The new nonterminal modules prove the complete initial → one Value Step →
+reached stable endpoint chain, independent recursive Classify and full two-node
+Evidence in every final model. A finite separating model rules out raw and
+feedback cycles, including equality-transported projection edges. A varying
+assignment rules out extra refresh knowledge at identities above the source.
+Ordinary constraints are exact, not replaced by the desired semantic conclusion.
+The output remains an already observed target, not fresh allocation.
+
+Both regression chains remain concrete examples, not the general V5 bridge.
