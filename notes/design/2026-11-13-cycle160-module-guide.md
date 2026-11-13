@@ -1,9 +1,9 @@
 # Cycle160 module guide and proof boundary
 
-All 19 modules are new. No candidate, Step, Stable or Evidence definition changes.
+All 20 modules are new. No candidate, Step, Stable or Evidence definition changes.
 Full theorem names and quantified Lean types are recorded in
 `notes/verification/dots-cycle-160-signatures.txt`; source hashes and public names
-are in the adjacent inventory JSON. Public count: 200.
+are in the adjacent inventory JSON. Public count: 203.
 
 ## General semantic transport (conditional soundness assistance)
 
@@ -82,3 +82,13 @@ The V5 remaining eight fields are unchanged.
 2. Generalize depth-two Shape to inspect/inspectMany simulation at arbitrary depth.
 3. Derive old BranchModels/Evidence for every current journal model from genuine
    selected-node recording history; then discharge general evidenceNode.
+
+## Final proved next step
+
+EmissionRequestIdentity (3 auxiliary theorems): for arbitrary roles, invocation,
+declaration, clause Signature, old/current captures with equal outputs and the
+same Allocation, emissionRequests after emit is literally equal. Input captures
+are unrestricted. `input_requests` drops normalized variable inputs and retains
+fixed allocated endpoints otherwise; `output_target` uses equal output captures.
+This is emitter-level identity, not canonicalEmit/request closure or child-demand
+semantics. It closes the first item of the next-nonterminal-map only.

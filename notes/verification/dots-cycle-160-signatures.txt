@@ -495,6 +495,31 @@ Yulang.GeneralDictionaryCollapseReadiness.ready_same {roles : Yulang.Roles.RoleD
       (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) ↔
     Yulang.GeneralNominalRecursiveCandidates.RequestReady registry state.context root declaration checked
       (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})
+Yulang.GeneralDictionaryEmissionRequestIdentity.output_target (declaration : Yulang.GeneralDeclarations.Declaration)
+  (old current : Yulang.GeneralDeclarationDemands.Capture) (same : Eq.{1} current.outputs old.outputs)
+  (allocate : Nat → Nat) (equation : Yulang.GeneralDeclarations.Equation) :
+  Eq.{1} (Yulang.GeneralDeclarationDemands.outputTarget declaration current allocate equation)
+    (Yulang.GeneralDeclarationDemands.outputTarget declaration old allocate equation)
+Yulang.GeneralDictionaryEmissionRequestIdentity.input_requests (old current : Yulang.GeneralDeclarationDemands.Capture)
+  (allocated : Yulang.GeneralSourceState.Interval) (pattern : Yulang.GeneralDeclarationPatterns.Pattern)
+  (position : Nat) :
+  Eq.{1}
+    (Yulang.GeneralNominalMaterialization.inputRequests
+      { position := position, pattern := pattern,
+        endpoints := Yulang.GeneralDeclarationDemands.inputInterval current allocated pattern })
+    (Yulang.GeneralNominalMaterialization.inputRequests
+      { position := position, pattern := pattern,
+        endpoints := Yulang.GeneralDeclarationDemands.inputInterval old allocated pattern })
+Yulang.GeneralDictionaryEmissionRequestIdentity.emission_requests (roles : Yulang.Roles.RoleDecls) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+  (old current : Yulang.GeneralDeclarationDemands.Capture) (same : Eq.{1} current.outputs old.outputs)
+  (allocation : Yulang.GeneralDeclarationDemands.Allocation roles clause) :
+  Eq.{1}
+    (Yulang.GeneralNominalMaterialization.emissionRequests
+      (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid current allocation))
+    (Yulang.GeneralNominalMaterialization.emissionRequests
+      (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid old allocation))
 Yulang.GeneralDictionaryNonpointBranch.footprint {roles : Yulang.Roles.RoleDecls}
   {state : Yulang.GeneralNominalSaturationState.State roles}
   {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
@@ -1154,6 +1179,8 @@ Yulang.GeneralDictionaryNonpointOperationalEvidence.positive_strict_output_evide
           Yulang.GeneralDictionaryNonpointStrict.model Yulang.GeneralDictionaryNonpointCertifiedOutput.outputRoot
           (Yulang.CommonRoleOutermostResolver.Dictionary.node
             Yulang.GeneralDictionaryNonpointCertifiedOutput.declaration.id List.nil.{0})
+Yulang.GeneralDictionaryNonpointOperationalEvidence.registry_checked :
+  Yulang.GeneralDeclarations.Checked Yulang.GeneralDictionaryNonpointCertifiedOutput.registry
 Yulang.GeneralDictionaryNonpointOperationalEvidence.reachable_nonempty_evidence :
   Yulang.GeneralDeclarations.Checked Yulang.GeneralDictionaryNonpointCertifiedOutput.registry ∧
     Yulang.GeneralNominalValueSteps.Step Yulang.GeneralDictionaryNonpointCertifiedOutput.registry
@@ -1560,5 +1587,3 @@ Yulang.GeneralDictionaryNonpointStrictOutput.positive_strict_output :
         ¬Yulang.CommonNominalFullCarrier.Equivalent
             (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model Yulang.GeneralDictionaryNonpointStrict.loId))
             (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 3))
-Yulang.GeneralDictionaryNonpointOperationalEvidence.registry_checked :
-  Yulang.GeneralDeclarations.Checked Yulang.GeneralDictionaryNonpointCertifiedOutput.registry

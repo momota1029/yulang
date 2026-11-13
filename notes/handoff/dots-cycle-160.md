@@ -29,7 +29,7 @@ Astraの宣言/State/Step/candidate laneへ書き込まず、dotのEvidence lane
 
 ## 主張・前提・位置づけ
 
-全200公開定理の名前と量化した型は
+全203公開定理の名前と量化した型は
 `notes/verification/dots-cycle-160-signatures.txt`、ファイル対応とSHA256は
 `dots-cycle-160-inventory.json`に記録。各moduleの日本語相当の意味、前提、
 狭い断片と次の境界は `notes/design/2026-11-13-cycle160-module-guide.md`。
@@ -67,6 +67,7 @@ terminal/深さ2/単一binderは証明断片の制限で、言語の拒否規則
 |CertifiedNonpointEvidence|2|健全性の条件付き輸送補助|
 |CheckedNonpointEvidence|4|健全性の条件付き輸送補助|
 |CollapseReadiness|5|健全性の条件付き輸送補助|
+|EmissionRequestIdentity|3|補助／次の非terminal分解|
 |NonpointBranch|3|健全性の条件付き輸送補助|
 |NonpointCertified|18|健全性の条件付き輸送補助|
 |NonpointCertifiedOutput|24|補助／正の回帰|
@@ -101,9 +102,9 @@ terminal/深さ2/単一binderは証明断片の制限で、言語の拒否規則
 
 ## 検証・失敗・公開制限
 
-Lean4.35.0。新19module、公開200定理。focused buildは全19新targetを指定して752jobs PASS。
-全19sourceを独立cacheへ `lean --trust=0` で再compileし、private/generatedも
-含む574宣言の依存公理gate PASS。公開定理auditと保存gateを独立cacheで実行。
+Lean4.35.0。新20module、公開203定理。focused buildは全20新targetを指定して753jobs PASS。
+全20sourceを独立cacheへ `lean --trust=0` で再compileし、private/generatedも
+含む577宣言の依存公理gate PASS。公開定理auditと保存gateを独立cacheで実行。
 公理はpropext/Classical.choice/Quot.sound以内。sorry/new axiom/native_decideなし。
 全moduleのentry import、git diff --check、既存source凍結を検査する。
 既存source変更はYulang.leanのimport追記だけ。root Audit/READMEは凍結。
@@ -153,3 +154,25 @@ inputRequestsが省き、他の入力は固定allocationを使う。ただしchi
 変わる。変数入力だけの1子fragmentで親BranchModelsを先に輸送し、子Evidenceは
 別に扱う方針を `notes/design/2026-11-13-cycle160-next-nonterminal-map.md` に残した。
 これは次の証明計画で、今回の完了定理には数えていない。
+
+08:10〜08:13に、次のrequest不変性の最初の一歩を実際に証明した。
+`EmissionRequestIdentity.emission_requests`: 任意のroles、invocation、宣言、
+Signatureを満たすclause、任意の旧・現captureについて、outputs関数が等しく
+同じAllocationなら、emitから得るmaterialization requestの全リストが等しい。
+入力captureは任意に変わってよい。input_requests/output_targetの2補助と合わせ
+3定理。子demandの区間や子Evidenceが等しいとは結論しない。
+次のmap全体は依然として計画だが、このemitter単体の等式は完了定理である。
+追加後に全20target focused753jobs、独立cache577宣言gateを再実行PASS。
+source checkpoint:1f5af85b4a1486e582052b102fb93cd47d130a9b。
+
+最終の公開名203と監査出力の対応は欠落なし。20監査（公開定理19本＋gate1本）PASS。
+型一覧203個の出力もEXIT0。追加sourceの不変commit全tree照合も心拍以外の差分なし。
+検証記録の行末空白は整形し、git diff --checkを再実行した。
+
+部分目標の時間帯（共同作業は重複あり）:
+- 07:30〜07:40 actual-mode/Fits輸送と非点capture分解。
+- 07:40〜07:50 Checked scope・厳密拡大の正例・旧現Evidence。
+- 07:50〜08:00 semantic originと実Certified非空出力/Evidence。
+- 08:00〜08:10 独立source監査・非terminal次目標の定義確認。
+- 08:10〜08:13 emitter request identityを証明し、再監査。
+終了は時間枠(a)。一般bridgeが閉じたための終了ではない。
