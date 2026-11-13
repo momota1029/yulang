@@ -1,9 +1,9 @@
 cycle: 154
-status: running
+status: completed
 started: 2026-11-13T01:25:00Z
-updated: 2026-11-13T02:04:34Z
-elapsed_min: 39.6
-activity: full 17-module validation running; reserved-output actual install regression compiled in helper, final check pending
-workspace: /workspace/scratch/1d0b4aaa3394/yulang154
-last_local_commit: 56aafaa51
-resume_hint: Cycle153 completed. New integration c10b05194 merged and published. Checkpoint4 adds verified recorded-request transport without initial target-slot/Observed premises. Reserved-target concrete regression is separate and not yet verified. General V5 remains 8/14 unresolved.
+updated: 2026-11-13T02:12:45Z
+elapsed_min: 47.8
+activity: 19 modules / 201 public theorems verified and published; 40 paths byte-readback matched
+last_published_commit: f64ae016091bf2778ec483171cf9b0ad2e4ff536
+writer: released
+resume_hint: Read cycle154 report. General V5 remains 8/14 unresolved. Actual nonterminal install is stable/classified; reserved unobserved output actual install yields recorded Models, not fresh allocation nor general evidenceNode.
