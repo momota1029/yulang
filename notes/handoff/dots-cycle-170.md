@@ -43,7 +43,7 @@ V5は**未証明8/14**のまま。全Shared evidenceNode、Reachable/Stableか�
 ## 検証
 
 - Lean4.35.0、`lake build Yulang.GeneralDictionary170… --wfail`（10moduleを個別列挙）: PASS、790jobs。全repo buildは重い過去障害のため実行していない。
-- 各新auditを `lean -j1 --trust=0` で実行: PASS。最終all-declaration gateは10moduleの**275宣言**（生成宣言・privateも含む）を検査し、許可公理propext/Classical.choice/Quot.soundのみ。
+- 各新auditを `lean -j1 --trust=0` で実行: PASS。中間all-declaration gateは10moduleの**275宣言**（生成宣言・privateも含む）を検査し、許可公理propext/Classical.choice/Quot.soundのみ。
 - 初回公開exact SHAを別worktreeに取得し、6moduleの既存oleanを排除した別libraryへすべて再コンパイル。全7audit PASS、159宣言gate PASS。依存cacheは再利用しており全repoのfresh buildではない。
 - `tools/verify-lean.sh . 898526b04164829e196293fee0128e756d41e208 --no-build`: PASS（diffのみ）。5 REVIEWは新規読取auditのrun_cmd。production宣言を生成するメタプログラムはない。
 - 統合したAstra群も `lake build Yulang.GeneralNominalSourceProjection Yulang.GeneralNominalGroundReachable Yulang.GeneralNominalGroundPacketForest Yulang.GeneralNominalClosedPatternMass Yulang.GeneralPatternRecordSubstitution Yulang.GeneralNominalRecordInversion --wfail`: PASS、746jobs。これを今回の61定理には加算しない。
@@ -155,7 +155,7 @@ work/dots-auditを再取得、`55574b6052ef1534fd0fc36d6d3617ebede59a0e` のnote
 - `no_current_local_node`【補助】: 同初期tracked状態・rootについて今回の四constructor Nodeは存在しない。
 - `coverage_gap`【補助】: InitialSource・実モデルとEvidence存在・同Node不存在を一つにまとめる。StableやV5反例は結論しない。
 
-## 最終公開sourceの独立検証
+## 中間61定理sourceの独立検証
 
 `9e1febb08784db6030756319bea1e3a682e65ddc` を新しいworktreeへ取得し、10moduleの既存oleanを取り除いた別libraryで全10moduleをtrust0再コンパイル、全14auditを実行してすべてexit0。275宣言gateも再度PASS。依存cacheは再利用している。61定理すべての公理出力と量化台帳の存在、manifestの10source blob SHAと公開SHAの一致を自動照合、missing0。統合Astraの小auditも30宣言を印字してexit0。
 
@@ -173,3 +173,12 @@ work/dots-auditを再取得、`55574b6052ef1534fd0fc36d6d3617ebede59a0e` のnote
 - `stable_coverage_gap`: 同じ状態にSourceFormed・Shared Stable・明示現在モデル・Evidenceがありながら四constructor局所Nodeは存在しない。一般V5反例でも新非終端実行でもない。
 
 後半の追加は、当初の「初期状態だけでStableとは限らない」という実質的な制限を解くために行った。旧10moduleの行を変更せず新moduleを追加した。一般NamedSpineの具体適用であり、固定例だけを独立したV5達成として数えない。
+
+
+## 最終69定理sourceの独立検証とT7b
+
+最終Lean sourceは `8d893bdc440a3e0255cd0bb8f742ac171ed3eb42`、tree `e6137cb47af49b30dbc07211fc867d032cfd7217`。新規11module・69公開定理。別worktreeの公開SHAから新規11moduleのoleanをすべて再生成してtrust0再コンパイルし、全16auditがexit0。CompleteGateは生成/privateを含む295宣言を検査してPASS。manifestの11blob SHA一致、69定理すべての公理出力存在を自動照合した。依存olean cacheは再利用しており全repository再buildではない。ログ: `notes/verification/cycle170-public-final-replay.log`。
+
+最初の最終replay先はtmpfs容量不足でworktree作成に失敗した。空のファイル集合を成功としてしまう旧helperの欠陥を検出し、その結果は採用しなかった。workspace上へ移し、11module・16auditの存在件数assertを入れたhelperで再実行して上記成功を確認した。他サイクルのファイルは削除していない。
+
+T7b read-only依存調査を実施。`dots-cycle-170-reachability.md`と`tools/ReachCycle170.lean`、3組のroots/TSV/summaryを保存した。抽象target rootsと既存conditional concrete rootから今回の295宣言への到達は各0、6個の今回entryから147/295（公開定理38）。これはV5接続の未達を明示するもので、未到達宣言の削除根拠ではない。V5は未証明、8/14未消去。調査用既存downstream moduleのfocused buildは682jobs PASS、各probeは120秒上限でexit0。
