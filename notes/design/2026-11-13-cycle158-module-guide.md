@@ -95,3 +95,9 @@ selected-path coverage, actual Value selections, Classify, Resolves and Complete
 The final every-model Evidence theorem invokes MixedHistoricalCoverage directly.
 This is a two-node unary-nominal/scalar tree, not a nested-depth operational test
 or a general classifier/executor completeness result.
+
+`RevisionBridgeExample` supplies nonvacuity on the existing actual certified
+improving `(2,3)` to `(2,2)` descriptor replacement: the journal has a positive
+model and a real reobservation step; Refines is impossible, yet the shared-value
+and cross-interval conclusions hold. This operational fixture uses the
+reobservation Step, not a newly proved guarded Value Step or completed dictionary.

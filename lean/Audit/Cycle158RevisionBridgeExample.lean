@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryRevisionBridgeExample
+#print axioms Yulang.GeneralDictionaryRevisionBridgeExample.positive_model
+#print axioms Yulang.GeneralDictionaryRevisionBridgeExample.no_refinement
+#print axioms Yulang.GeneralDictionaryRevisionBridgeExample.cross_checks
+#print axioms Yulang.GeneralDictionaryRevisionBridgeExample.parameter_covered
+#print axioms Yulang.GeneralDictionaryRevisionBridgeExample.shared_argument
+#print axioms Yulang.GeneralDictionaryRevisionBridgeExample.actual_positive_boundary

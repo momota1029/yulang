@@ -2388,3 +2388,5 @@ import Yulang.GeneralDictionaryRevisionArgumentBridge
 import Yulang.GeneralDictionaryRevisionParameterCoverage
 
 import Yulang.GeneralDictionaryMixedHistoricalExample
+
+import Yulang.GeneralDictionaryRevisionBridgeExample
