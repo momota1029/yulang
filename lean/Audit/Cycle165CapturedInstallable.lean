@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySharedCapturedInstallable
+#print axioms Yulang.GeneralDictionarySharedCapturedInstallable.selected_old
+#print axioms Yulang.GeneralDictionarySharedCapturedInstallable.enabled
+#print axioms Yulang.GeneralDictionarySharedCapturedInstallable.reads_exact
+#print axioms Yulang.GeneralDictionarySharedCapturedInstallable.decisions

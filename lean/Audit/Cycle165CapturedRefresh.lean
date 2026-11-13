@@ -1,0 +1,14 @@
+import Yulang.GeneralDictionarySharedCapturedRefresh
+
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.endpoint_equation
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.lo_ne_hi
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.identifiers_injective
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.refines
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.certificate
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.step
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.formed
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.models_exact
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.inhabited
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.producer_ready
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.consumer_pending
+#print axioms Yulang.GeneralDictionarySharedCapturedRefresh.shared_prefix

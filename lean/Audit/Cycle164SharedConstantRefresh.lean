@@ -1,0 +1,17 @@
+import Yulang.GeneralDictionarySharedConstantRefresh
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.source_ready_zero
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.decision
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.old_guard
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.guard
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.current_eq
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.novel
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.install_step
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.refresh_step
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.actual_prefix
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.source_formed
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.refreshed_current
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.newly_known
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.inhabited
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.current_dictionary
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.generated_only_root
+#print axioms Yulang.GeneralDictionarySharedConstantRefresh.no_generated_consumer

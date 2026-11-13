@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionarySharedConstantReady
+#print axioms Yulang.GeneralDictionarySharedConstantReady.facts
+#print axioms Yulang.GeneralDictionarySharedConstantReady.input_trusted
+#print axioms Yulang.GeneralDictionarySharedConstantReady.schema
+#print axioms Yulang.GeneralDictionarySharedConstantReady.recipe
+#print axioms Yulang.GeneralDictionarySharedConstantReady.recipes
+#print axioms Yulang.GeneralDictionarySharedConstantReady.certificate
+#print axioms Yulang.GeneralDictionarySharedConstantReady.output_trusted
+#print axioms Yulang.GeneralDictionarySharedConstantReady.refreshed_trusted
+#print axioms Yulang.GeneralDictionarySharedConstantReady.ready
+#print axioms Yulang.GeneralDictionarySharedConstantReady.ledger_inhabited

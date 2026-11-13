@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionarySharedSettlementResume
+#print axioms Yulang.GeneralDictionarySharedSettlementResume.terminal_discharged
+#print axioms Yulang.GeneralDictionarySharedSettlementResume.producer_settled
+#print axioms Yulang.GeneralDictionarySharedSettlementResume.producer_output
+#print axioms Yulang.GeneralDictionarySharedSettlementResume.leaf_step_and_readback
+#print axioms Yulang.GeneralDictionarySharedSettlementResume.producer_becomes_settled

@@ -1,0 +1,4 @@
+import Yulang.GeneralDictionarySharedMetadata
+#print axioms Yulang.GeneralDictionarySharedMetadata.formed_metadata
+#print axioms Yulang.GeneralDictionarySharedMetadata.locate_point
+#print axioms Yulang.GeneralDictionarySharedMetadata.identity_current_evidence

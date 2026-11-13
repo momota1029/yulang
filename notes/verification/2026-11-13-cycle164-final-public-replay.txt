@@ -1,0 +1,1467 @@
+Yulang.GeneralDictionaryTerminalRefreshObstruction EXIT 0  
+Yulang.GeneralDictionaryExactRefreshChain EXIT 0  
+Yulang.GeneralDictionarySettledTerminalEvidence EXIT 0  
+Yulang.GeneralDictionarySharedInstallEvidence EXIT 0  
+Yulang.GeneralDictionarySharedCurrentEvidence EXIT 0  
+Yulang.GeneralDictionarySharedTerminalInstallation EXIT 0  
+Yulang.GeneralDictionarySharedTerminalObstruction EXIT 0  
+Yulang.GeneralDictionarySharedBlockedOutput EXIT 0  
+Yulang.GeneralDictionarySharedOutputBinderScope EXIT 0  
+Yulang.GeneralDictionarySharedCapturedTargets EXIT 0  
+Yulang.GeneralDictionarySharedConstantRefresh EXIT 0  
+Yulang.GeneralDictionarySharedTrustTransport EXIT 0  
+Yulang.GeneralDictionarySharedConstantReady EXIT 0  
+Yulang.GeneralDictionarySharedDisplayInstallation EXIT 0  
+Yulang.GeneralDictionarySharedEvidenceTrace EXIT 0  
+Yulang.GeneralDictionarySharedLenCommitted EXIT 0  
+Yulang.GeneralDictionarySharedRecordedEvidence EXIT 0  
+Yulang.GeneralDictionarySharedRecordedTree EXIT 0  
+Yulang.GeneralDictionarySharedRecursiveExample EXIT 0  
+Yulang.GeneralDictionarySharedSemanticSettlement EXIT 0  
+Yulang.GeneralDictionarySharedSettlementResume EXIT 0  
+Yulang.GeneralDictionarySharedSiblingPrefix EXIT 0  
+Cycle164ExactRefreshChain.lean EXIT 0 'Yulang.GeneralDictionaryExactRefreshChain.step_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryExactRefreshChain.chain_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryExactRefreshChain.terminal_unknown' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryExactRefreshChain.known_requires_model_exclusion' depends on axioms: [propext, Quot.sound]
+ 
+Cycle164FinalDependencyGate.lean EXIT 0 AXIOM-GATE-PASS: 291 declarations
+ 
+Cycle164PublicTypes.lean EXIT 0 Yulang.GeneralDictionaryExactRefreshChain.step_models {roles✝ : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles✝}
+  (step : Yulang.GeneralDictionaryExactRefreshChain.ExactRefresh before after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalSaturationState.Models after model ↔ Yulang.GeneralNominalSaturationState.Models before model
+Yulang.GeneralDictionaryExactRefreshChain.chain_models {roles✝ : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSaturationState.State roles✝}
+  (path : Yulang.B4Target.Steps Yulang.GeneralDictionaryExactRefreshChain.ExactRefresh before after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalSaturationState.Models after model ↔ Yulang.GeneralNominalSaturationState.Models before model
+Yulang.GeneralDictionaryExactRefreshChain.terminal_unknown
+  (after : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles)
+  (path :
+    Yulang.B4Target.Steps Yulang.GeneralDictionaryExactRefreshChain.ExactRefresh
+      Yulang.GeneralNominalBudgetContainer.afterC.current after) :
+  ¬Yulang.GeneralNominalState.Known after.context.state Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionaryExactRefreshChain.known_requires_model_exclusion
+  (after : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles)
+  (known : Yulang.GeneralNominalState.Known after.context.state Yulang.GeneralNominalSupportSiblings.out) :
+  ¬(Yulang.GeneralNominalSaturationState.Models after (Yulang.GeneralNominalOutputGrowth.finiteModel 1) ∧
+      Yulang.GeneralNominalSaturationState.Models after Yulang.GeneralNominalDownstreamSiblingFixture.journalModel)
+Yulang.GeneralDictionarySettledTerminalEvidence.current_instance (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalBudgetContainer.afterC.current.context model Yulang.GeneralNominalSupportSiblings.kidC
+    Yulang.GeneralNominalSupportSiblings.c.id []
+Yulang.GeneralDictionarySettledTerminalEvidence.current_evidence (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalBudgetContainer.afterC.current.context model Yulang.GeneralNominalSupportSiblings.kidC
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySettledTerminalEvidence.nonempty_output :
+  Yulang.GeneralNominalSupportSiblings.kidC.demand.outputs ≠ []
+Yulang.GeneralDictionarySettledTerminalEvidence.inhabited_evidence :
+  ∃ model,
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current model ∧
+      Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+        Yulang.GeneralNominalBudgetContainer.afterC.current.context model Yulang.GeneralNominalSupportSiblings.kidC
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySettledTerminalEvidence.evidence_without_output_readiness :
+  (∃ model,
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current model ∧
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+          Yulang.GeneralNominalBudgetContainer.afterC.current.context model Yulang.GeneralNominalSupportSiblings.kidC
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])) ∧
+    ¬Yulang.GeneralNominalSettledSupport.ReadyAt Yulang.GeneralNominalBudgetContainer.afterC
+        Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionarySettledTerminalEvidence.actual_terminal_dictionary :
+  Yulang.B4Target.Steps
+      (Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+        Yulang.GeneralNominalSupportSiblings.root)
+      Yulang.GeneralNominalSupportSiblings.start Yulang.GeneralNominalBudgetContainer.afterC ∧
+    Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+        Yulang.GeneralNominalSupportSiblings.reg Yulang.GeneralNominalSupportSiblings.root
+        Yulang.GeneralNominalBudgetContainer.afterC ∧
+      Yulang.GeneralNominalSupportSiblings.kidC.demand.outputs ≠ [] ∧
+        (∃ model,
+            Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current model) ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+                Yulang.GeneralNominalBudgetContainer.afterC.current.context model
+                Yulang.GeneralNominalSupportSiblings.kidC
+                (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySettledTerminalEvidence.ordinary_continuation_evidence
+  (after : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles)
+  (path :
+    Yulang.B4Target.Steps
+      (Yulang.GeneralDictionaryOrdinaryTrace.OrdinaryStep Yulang.GeneralNominalSupportSiblings.reg
+        Yulang.GeneralNominalSupportSiblings.root)
+      Yulang.GeneralNominalBudgetContainer.afterC.current after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models after model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg after.context model
+    Yulang.GeneralNominalSupportSiblings.kidC
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySharedBlockedOutput.head_known {snapshot : Yulang.GeneralNominalState.State} {identity : Nat}
+  {test : Yulang.GeneralNominalRecursiveInspection.Test} {observation : Yulang.GeneralCanonicalObservations.Observation}
+  (head : Yulang.GeneralNominalSupport.Head snapshot identity test observation) :
+  Yulang.GeneralNominalState.Known snapshot identity
+Yulang.GeneralDictionarySharedBlockedOutput.unknown_not_ready {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSupport.Tracked roles) (identity : Nat)
+  (unknown : ¬Yulang.GeneralNominalState.Known state.current.context.state identity) :
+  ¬Yulang.GeneralNominalSharedSupport.ReadyAt state identity
+Yulang.GeneralDictionarySharedBlockedOutput.unknown_input_blocks {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (consumer : Yulang.GeneralSourceDictionaries.Occurrence roles) (index : Fin (roles consumer.demand.role).arity)
+  (unknown : ¬Yulang.GeneralNominalState.Known state.current.context.state (consumer.demand.arguments index).fst) :
+  ¬Yulang.GeneralNominalSharedSupport.DecisionGuard registry state consumer
+Yulang.GeneralDictionarySharedBlockedOutput.unknown_query_blocks {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (consumer : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (member : declaration ∈ registry.declarations) (role : declaration.role = consumer.demand.role)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds state.current.context.state))
+  (located : Yulang.GeneralNominalRecursiveCandidates.arguments state.current.context consumer = some bounds)
+  (slot : Fin state.current.context.state.base.slots)
+  (read :
+    slot ∈
+      Yulang.GeneralNominalSupport.readsMany state.current.context.state
+        (Yulang.GeneralNominalInspection.queries state.current.context.state state.current.context.interpretation
+          declaration)
+        bounds)
+  (unknown :
+    ¬Yulang.GeneralNominalState.Known state.current.context.state (state.current.context.state.base.source slot)) :
+  ¬Yulang.GeneralNominalSharedSupport.DecisionGuard registry state consumer
+Yulang.GeneralDictionarySharedBlockedOutput.output_blocks_packet (registry : Yulang.GeneralDeclarations.Registry)
+  (after : Yulang.GeneralNominalSupport.Tracked Yulang.GeneralDeclarationExamples.roles)
+  (path :
+    Yulang.B4Target.Steps Yulang.GeneralDictionaryExactRefreshChain.ExactRefresh
+      Yulang.GeneralDictionarySharedTerminalInstallation.after.current after.current)
+  (consumer : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles)
+  (index : Fin (Yulang.GeneralDeclarationExamples.roles consumer.site.occurrence.demand.role).arity)
+  (input : (consumer.site.occurrence.demand.arguments index).fst = Yulang.GeneralNominalSupportSiblings.out)
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry after.current consumer)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)) :
+  ¬Yulang.GeneralNominalSharedSteps.PacketGuard after consumer support
+Yulang.GeneralDictionarySharedBlockedOutput.no_output_install_contract (registry : Yulang.GeneralDeclarations.Registry)
+  (after : Yulang.GeneralNominalSupport.Tracked Yulang.GeneralDeclarationExamples.roles)
+  (path :
+    Yulang.B4Target.Steps Yulang.GeneralDictionaryExactRefreshChain.ExactRefresh
+      Yulang.GeneralDictionarySharedTerminalInstallation.after.current after.current)
+  (consumer : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles)
+  (index : Fin (Yulang.GeneralDeclarationExamples.roles consumer.site.occurrence.demand.role).arity)
+  (input : (consumer.site.occurrence.demand.arguments index).fst = Yulang.GeneralNominalSupportSiblings.out) :
+  ¬∃ support,
+      Yulang.GeneralNominalFeedbackSteps.Installable registry after.current consumer ∧
+        ¬Yulang.GeneralNominalFeedbackSteps.Committed after.current consumer ∧
+          Yulang.GeneralNominalSharedSteps.PacketGuard after consumer support
+Yulang.GeneralDictionarySharedCapturedTargets.queries :
+  Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionarySharedCapturedTargets.source
+      Yulang.GeneralDictionarySharedCapturedTargets.context.interpretation
+      Yulang.GeneralDictionarySharedOutputBinderScope.capturedProposal =
+    [Yulang.GeneralNominalInspection.Query.nominal 0
+        [Yulang.GeneralNominalInspection.Query.nominal 0 [Yulang.GeneralNominalInspection.Query.variables [0]]]]
+Yulang.GeneralDictionarySharedCapturedTargets.captures :
+  (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionarySharedCapturedTargets.packet).captures =
+    [{ name := 0, bounds := (2, 2), origin := some Yulang.GeneralDictionarySharedCapturedTargets.origin }]
+Yulang.GeneralDictionarySharedCapturedTargets.bindings :
+  Yulang.GeneralDictionarySharedCapturedTargets.packet.bindings = [(0, 2, 2)]
+Yulang.GeneralDictionarySharedCapturedTargets.producer_signature :
+  Yulang.GeneralDeclarations.Clause.Signature Yulang.GeneralDeclarationExamples.roles
+    Yulang.GeneralDictionarySharedOutputBinderScope.producerOnInput
+Yulang.GeneralDictionarySharedCapturedTargets.consumer_signature :
+  Yulang.GeneralDeclarations.Clause.Signature Yulang.GeneralDeclarationExamples.roles
+    Yulang.GeneralDictionarySharedOutputBinderScope.consumerOnInput
+Yulang.GeneralDictionarySharedCapturedTargets.capture_input :
+  (Yulang.GeneralNominalPacketSupport.capture Yulang.GeneralDictionarySharedCapturedTargets.packet).inputs 0 = (2, 2)
+Yulang.GeneralDictionarySharedCapturedTargets.producer_output :
+  Yulang.GeneralDictionarySharedCapturedTargets.producer.demand.outputs =
+    [{ name := 1, target := Yulang.GeneralDictionarySharedCapturedTargets.target }]
+Yulang.GeneralDictionarySharedCapturedTargets.consumer_input
+  (index :
+    Fin
+      (Yulang.GeneralDeclarationExamples.roles
+          Yulang.GeneralDictionarySharedCapturedTargets.consumer.demand.role).arity) :
+  Yulang.GeneralDictionarySharedCapturedTargets.consumer.demand.arguments index = (2, 2)
+Yulang.GeneralDictionarySharedCapturedTargets.output_use :
+  { name := 0,
+      origin :=
+        Yulang.GeneralNominalRecursiveInspection.Origin.source Yulang.GeneralDictionarySharedCapturedTargets.target,
+      mode := Yulang.GeneralNominalMaterialization.Mode.actual } ∈
+    (Yulang.GeneralNominalPacketSupport.namedSchema Yulang.GeneralDictionarySharedCapturedTargets.packet).variables
+Yulang.GeneralDictionarySharedCapturedTargets.output_equals_captured
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalPacketSupport.Outputs Yulang.GeneralDictionarySharedCapturedTargets.packet model) :
+  Yulang.CommonNominalFullCarrier.Equivalent (model Yulang.GeneralDictionarySharedCapturedTargets.target).fst
+    (model 2).fst
+Yulang.GeneralDictionarySharedCapturedTargets.registry_checked :
+  Yulang.GeneralDeclarations.Checked Yulang.GeneralDictionarySharedCapturedTargets.registry
+Yulang.GeneralDictionarySharedCapturedTargets.initial_source :
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralDictionarySharedCapturedTargets.registry
+    Yulang.GeneralDictionarySharedCapturedTargets.context Yulang.GeneralDictionarySharedCapturedTargets.root
+Yulang.GeneralDictionarySharedCapturedTargets.source_model :
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionarySharedCapturedTargets.source
+    (Yulang.GeneralNominalOutputGrowth.finiteModel 1)
+Yulang.GeneralDictionarySharedCapturedTargets.captured_unknown :
+  ¬Yulang.GeneralNominalState.Known Yulang.GeneralDictionarySharedCapturedTargets.source 2
+Yulang.GeneralDictionarySharedConstantReady.facts :
+  Yulang.GeneralDictionarySharedConstantRefresh.installed.facts =
+    [Yulang.GeneralDictionarySharedConstantReady.input, Yulang.GeneralDictionarySharedConstantReady.output]
+Yulang.GeneralDictionarySharedConstantReady.input_trusted :
+  Yulang.GeneralNominalSharedSupport.Trusted Yulang.GeneralDictionarySharedConstantRefresh.installed
+    [Yulang.GeneralDictionarySharedConstantReady.input] []
+Yulang.GeneralDictionarySharedConstantReady.schema :
+  Yulang.GeneralNominalPacketSupport.namedSchema Yulang.GeneralDictionaryCommittedEvidenceExamples.packet =
+    {
+      tests :=
+        [(Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            Yulang.GeneralNominalRecursiveInspection.Test.scalar Yulang.Inference.Base.int)] }
+Yulang.GeneralDictionarySharedConstantReady.recipe :
+  Yulang.GeneralNominalOriginTerms.Recipe
+    (Yulang.GeneralNominalPacketSupport.namedSchema Yulang.GeneralDictionaryCommittedEvidenceExamples.packet)
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source 1) Yulang.GeneralDictionarySharedConstantReady.term
+Yulang.GeneralDictionarySharedConstantReady.recipes :
+  Yulang.GeneralNominalSharedSupport.Recipes Yulang.GeneralDictionaryCommittedEvidenceExamples.packet
+Yulang.GeneralDictionarySharedConstantReady.output_trusted :
+  Yulang.GeneralNominalSharedSupport.Trusted Yulang.GeneralDictionarySharedConstantRefresh.installed
+    [Yulang.GeneralDictionarySharedConstantReady.output, Yulang.GeneralDictionarySharedConstantReady.input]
+    [(1,
+        Yulang.GeneralNominalOriginTerms.Expr.bind Yulang.GeneralDictionarySharedConstantReady.certificate.substitution
+          Yulang.GeneralDictionarySharedConstantReady.term)]
+Yulang.GeneralDictionarySharedConstantReady.refreshed_trusted :
+  Yulang.GeneralNominalSharedSupport.Trusted Yulang.GeneralDictionarySharedConstantRefresh.refreshed
+    [Yulang.GeneralDictionarySharedConstantReady.output, Yulang.GeneralDictionarySharedConstantReady.input]
+    [(1,
+        Yulang.GeneralNominalOriginTerms.Expr.bind Yulang.GeneralDictionarySharedConstantReady.certificate.substitution
+          Yulang.GeneralDictionarySharedConstantReady.term)]
+Yulang.GeneralDictionarySharedConstantReady.ready :
+  Yulang.GeneralNominalSharedSupport.ReadyAt Yulang.GeneralDictionarySharedConstantRefresh.refreshed 1
+Yulang.GeneralDictionarySharedConstantReady.ledger_inhabited :
+  Yulang.GeneralNominalSharedSupport.Models Yulang.GeneralDictionarySharedConstantRefresh.refreshed
+    [Yulang.GeneralDictionarySharedConstantReady.output, Yulang.GeneralDictionarySharedConstantReady.input]
+    Yulang.GeneralNominalExamples.model
+Yulang.GeneralDictionarySharedConstantRefresh.source_ready_zero :
+  Yulang.GeneralNominalSupport.ReadyAt Yulang.GeneralDictionarySharedConstantRefresh.start [] 0
+Yulang.GeneralDictionarySharedConstantRefresh.decision :
+  Yulang.GeneralNominalSupport.DecisionGuard Yulang.GeneralDictionarySharedConstantRefresh.start
+    Yulang.GeneralDictionaryRecursiveObstruction.registry Yulang.GeneralDictionaryRecursiveObstruction.root []
+Yulang.GeneralDictionarySharedConstantRefresh.old_guard :
+  Yulang.GeneralNominalSupportSteps.PacketGuard Yulang.GeneralDictionarySharedConstantRefresh.start
+    Yulang.GeneralDictionaryCommittedEvidenceExamples.packet []
+Yulang.GeneralDictionarySharedConstantRefresh.guard :
+  Yulang.GeneralNominalSharedSteps.PacketGuard Yulang.GeneralDictionarySharedConstantRefresh.start
+    Yulang.GeneralDictionaryCommittedEvidenceExamples.packet []
+Yulang.GeneralDictionarySharedConstantRefresh.current_eq :
+  Yulang.GeneralDictionarySharedConstantRefresh.installed.current = Yulang.GeneralDictionaryJournalTreeExamples.after
+Yulang.GeneralDictionarySharedConstantRefresh.novel :
+  ¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionarySharedConstantRefresh.start.current
+      Yulang.GeneralDictionaryCommittedEvidenceExamples.packet
+Yulang.GeneralDictionarySharedConstantRefresh.install_step :
+  Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionarySharedConstantRefresh.start
+    Yulang.GeneralDictionarySharedConstantRefresh.installed
+Yulang.GeneralDictionarySharedConstantRefresh.refresh_step :
+  Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionarySharedConstantRefresh.installed
+    Yulang.GeneralDictionarySharedConstantRefresh.refreshed
+Yulang.GeneralDictionarySharedConstantRefresh.actual_prefix :
+  Yulang.B4Target.Steps
+    (Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralDictionaryRecursiveObstruction.registry
+      Yulang.GeneralDictionaryRecursiveObstruction.root)
+    Yulang.GeneralDictionarySharedConstantRefresh.start Yulang.GeneralDictionarySharedConstantRefresh.refreshed
+Yulang.GeneralDictionarySharedConstantRefresh.source_formed :
+  Yulang.GeneralNominalSharedSteps.SourceFormed Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionaryRecursiveObstruction.root Yulang.GeneralDictionarySharedConstantRefresh.refreshed
+Yulang.GeneralDictionarySharedConstantRefresh.refreshed_current :
+  Yulang.GeneralDictionarySharedConstantRefresh.refreshed.current = Yulang.GeneralDictionaryTerminalRefresh.refreshed
+Yulang.GeneralDictionarySharedConstantRefresh.newly_known :
+  ¬Yulang.GeneralNominalState.Known Yulang.GeneralDictionarySharedConstantRefresh.installed.current.context.state 1 ∧
+    Yulang.GeneralNominalState.Known Yulang.GeneralDictionarySharedConstantRefresh.refreshed.current.context.state 1
+Yulang.GeneralDictionarySharedConstantRefresh.inhabited :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedConstantRefresh.refreshed.current
+    Yulang.GeneralNominalExamples.model
+Yulang.GeneralDictionarySharedConstantRefresh.current_dictionary (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedConstantRefresh.refreshed.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryRecursiveObstruction.registry
+    Yulang.GeneralDictionarySharedConstantRefresh.refreshed.current.context model
+    Yulang.GeneralDictionaryRecursiveObstruction.root (Yulang.CommonRoleOutermostResolver.Dictionary.node 40 [])
+Yulang.GeneralDictionarySharedConstantRefresh.generated_only_root
+  (child : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)
+  (generated :
+    Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionarySharedConstantRefresh.refreshed.current
+      Yulang.GeneralDictionaryRecursiveObstruction.root child) :
+  child = Yulang.GeneralDictionaryRecursiveObstruction.root
+Yulang.GeneralDictionarySharedConstantRefresh.no_generated_consumer
+  (child : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)
+  (different : child ≠ Yulang.GeneralDictionaryRecursiveObstruction.root) :
+  ¬Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionarySharedConstantRefresh.refreshed.current
+      Yulang.GeneralDictionaryRecursiveObstruction.root child
+Yulang.GeneralDictionarySharedCurrentEvidence.private_extension {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)) :
+  Yulang.GeneralDictionaryOrdinaryTrace.Extension packet.context
+    (Yulang.GeneralNominalSharedSteps.install state packet support).current.context
+Yulang.GeneralDictionarySharedCurrentEvidence.current_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalSharedSteps.install state packet support).current
+      model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry
+    (Yulang.GeneralNominalSharedSteps.install state packet support).current.context model packet.site.occurrence
+    packet.declaration.id packet.children
+Yulang.GeneralDictionarySharedCurrentEvidence.current_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalSharedSteps.install state packet support).current
+      model)
+  (dictionaries : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+        (Yulang.GeneralNominalSharedSteps.install state packet support).current.context model)
+      packet.children dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+    (Yulang.GeneralNominalSharedSteps.install state packet support).current.context model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id dictionaries)
+Yulang.GeneralDictionarySharedCurrentEvidence.terminal_current_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (terminal : packet.children = []) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalSharedSteps.install state packet support).current
+      model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+    (Yulang.GeneralNominalSharedSteps.install state packet support).current.context model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id [])
+Yulang.GeneralDictionarySharedCurrentEvidence.actual_terminal_current_dictionary {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.current root packet.site.occurrence)
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (novel : ¬Yulang.GeneralNominalFeedbackSteps.Committed state.current packet)
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard state packet support) (terminal : packet.children = []) :
+  Yulang.GeneralNominalSharedSteps.Step registry root state
+      (Yulang.GeneralNominalSharedSteps.install state packet support) ∧
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models
+          (Yulang.GeneralNominalSharedSteps.install state packet support).current model →
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+          (Yulang.GeneralNominalSharedSteps.install state packet support).current.context model packet.site.occurrence
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id [])
+Yulang.GeneralDictionarySharedDisplayInstallation.located :
+  Yulang.GeneralNominalRecursiveCandidates.arguments (Yulang.GeneralNominalExamples.context true)
+      Yulang.GeneralNominalExamples.displayRoot =
+    some [(0, 0)]
+Yulang.GeneralDictionarySharedDisplayInstallation.prepared :
+  Yulang.GeneralNominalRecursiveCandidates.Prepared Yulang.GeneralNominalExamples.registry
+    (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralDeclarationExamples.display Yulang.GeneralDeclarationExamples.display_checked
+Yulang.GeneralDictionarySharedDisplayInstallation.children :
+  (Yulang.GeneralNominalSharedExamples.packet false).children = [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralDictionarySharedDisplayInstallation.selected :
+  Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySharedDisplayInstallation.start.current Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected
+      (Yulang.GeneralNominalSharedExamples.packet false).declaration.id
+      (Yulang.GeneralNominalSharedExamples.packet false).children)
+Yulang.GeneralDictionarySharedDisplayInstallation.installable :
+  Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySharedDisplayInstallation.start.current (Yulang.GeneralNominalSharedExamples.packet false)
+Yulang.GeneralDictionarySharedDisplayInstallation.novel :
+  ¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionarySharedDisplayInstallation.start.current
+      (Yulang.GeneralNominalSharedExamples.packet false)
+Yulang.GeneralDictionarySharedDisplayInstallation.step :
+  Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralDictionarySharedDisplayInstallation.start Yulang.GeneralDictionarySharedDisplayInstallation.after
+Yulang.GeneralDictionarySharedDisplayInstallation.inhabited :
+  ∃ model,
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current model
+Yulang.GeneralDictionarySharedDisplayInstallation.certified_child_site :
+  Yulang.GeneralNominalSharedEmission.childSite (Yulang.GeneralNominalSharedExamples.packet false)
+      Yulang.GeneralNominalExamples.displayChild ∈
+    Yulang.GeneralDictionarySharedDisplayInstallation.after.current.sites
+Yulang.GeneralDictionarySharedDisplayInstallation.generated_child :
+  Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalExamples.displayChild
+Yulang.GeneralDictionarySharedEvidenceTrace.trace_models {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (path : Yulang.B4Target.Steps (Yulang.GeneralNominalSharedSteps.Step registry root) before after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models after.current model) :
+  Yulang.GeneralNominalSaturationState.Models before.current model
+Yulang.GeneralDictionarySharedEvidenceTrace.stored_instance {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry before.current packet)
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalSharedSteps.Step registry root)
+      (Yulang.GeneralNominalSharedSteps.install before packet support) after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models after.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry packet.context model packet.site.occurrence
+    packet.declaration.id packet.children
+Yulang.GeneralDictionarySharedEvidenceTrace.ordinary_trace_real {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (path : Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after) :
+  Yulang.B4Target.Steps (Yulang.GeneralNominalSharedSteps.Step registry root) before after
+Yulang.GeneralDictionarySharedEvidenceTrace.ordinary_trace_extension {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (path : Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after) :
+  Yulang.GeneralDictionaryOrdinaryTrace.Extension before.current.context after.current.context
+Yulang.GeneralDictionarySharedEvidenceTrace.current_instance {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry before.current packet)
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root)
+      (Yulang.GeneralNominalSharedSteps.install before packet support) after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models after.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry after.current.context model packet.site.occurrence
+    packet.declaration.id packet.children
+Yulang.GeneralDictionarySharedEvidenceTrace.current_evidence {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry before.current packet)
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root)
+      (Yulang.GeneralNominalSharedSteps.install before packet support) after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models after.current model)
+  (dictionaries : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model) packet.children
+      dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id dictionaries)
+Yulang.GeneralDictionarySharedEvidenceTrace.execution {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (before after : Yulang.GeneralNominalSupport.Tracked roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (generated : Yulang.GeneralNominalSaturationState.Generated before.current root packet.site.occurrence)
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry before.current packet)
+  (novel : ¬Yulang.GeneralNominalFeedbackSteps.Committed before.current packet)
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard before packet support)
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root)
+      (Yulang.GeneralNominalSharedSteps.install before packet support) after) :
+  Yulang.B4Target.Steps (Yulang.GeneralNominalSharedSteps.Step registry root) before after
+Yulang.GeneralDictionarySharedInstallEvidence.stable_committed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (stable : Yulang.GeneralNominalSharedSteps.Stable registry state root)
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.current root packet.site.occurrence)
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard state packet support) :
+  Yulang.GeneralNominalFeedbackSteps.Committed state.current packet
+Yulang.GeneralDictionarySharedInstallEvidence.installed_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalSharedSteps.install state packet support).current
+      model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry packet.context model packet.site.occurrence
+    packet.declaration.id packet.children
+Yulang.GeneralDictionarySharedInstallEvidence.installed_children {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) :
+  child ∈ packet.children →
+    Yulang.GeneralNominalSaturationState.Generated
+      (Yulang.GeneralNominalSharedSteps.install state packet support).current packet.site.occurrence child
+Yulang.GeneralDictionarySharedInstallEvidence.installed_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalSharedSteps.install state packet support).current
+      model)
+  (dictionaries : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry packet.context model) packet.children dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry packet.context model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id dictionaries)
+Yulang.GeneralDictionarySharedInstallEvidence.terminal_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (terminal : packet.children = []) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models (Yulang.GeneralNominalSharedSteps.install state packet support).current
+      model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry packet.context model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id [])
+Yulang.GeneralDictionarySharedInstallEvidence.actual_terminal_step {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.current root packet.site.occurrence)
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (novel : ¬Yulang.GeneralNominalFeedbackSteps.Committed state.current packet)
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard state packet support) (terminal : packet.children = []) :
+  Yulang.GeneralNominalSharedSteps.Step registry root state
+      (Yulang.GeneralNominalSharedSteps.install state packet support) ∧
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models
+          (Yulang.GeneralNominalSharedSteps.install state packet support).current model →
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry packet.context model packet.site.occurrence
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id [])
+Yulang.GeneralDictionarySharedInstallEvidence.stable_terminal_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (stable : Yulang.GeneralNominalSharedSteps.Stable registry state root)
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.current root packet.site.occurrence)
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet)
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard state packet support) (terminal : packet.children = [])
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id [])
+Yulang.GeneralDictionarySharedLenCommitted.children : Yulang.GeneralNominalSharedExamples.lenPacket.children = []
+Yulang.GeneralDictionarySharedLenCommitted.source_holds (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models Yulang.GeneralNominalMixedExamples.state model) :
+  Yulang.GeneralNominalSharedExamples.lenPacket.Holds model
+Yulang.GeneralDictionarySharedLenCommitted.committed :
+  Yulang.GeneralNominalFeedbackSteps.Committed
+    (Yulang.GeneralNominalSupport.initial Yulang.GeneralNominalMixedExamples.context
+        Yulang.GeneralNominalRecursiveExamples.lenRoot).current
+    Yulang.GeneralNominalSharedExamples.lenPacket
+Yulang.GeneralDictionarySharedLenCommitted.no_novel :
+  ¬¬Yulang.GeneralNominalFeedbackSteps.Committed
+        (Yulang.GeneralNominalSupport.initial Yulang.GeneralNominalMixedExamples.context
+            Yulang.GeneralNominalRecursiveExamples.lenRoot).current
+        Yulang.GeneralNominalSharedExamples.lenPacket
+Yulang.GeneralDictionarySharedOutputBinderScope.needed_is_input {roles : Yulang.Roles.RoleDecls}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (name : Nat)
+  (needed : Yulang.GeneralNominalSharedCaptures.Needed packet name) : name ∈ packet.declaration.inputNames
+Yulang.GeneralDictionarySharedOutputBinderScope.proposed_output :
+  2 ∈ Yulang.GeneralDictionarySharedOutputBinderScope.proposed.outputNames
+Yulang.GeneralDictionarySharedOutputBinderScope.proposed_consumer_input :
+  2 ∈ Yulang.GeneralDeclarationPatterns.variablesArgs Yulang.GeneralDictionarySharedOutputBinderScope.consumer.arguments
+Yulang.GeneralDictionarySharedOutputBinderScope.proposed_not_checked :
+  ¬Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDeclarationExamples.constructors
+      Yulang.GeneralDeclarationExamples.roles Yulang.GeneralDictionarySharedOutputBinderScope.proposed
+Yulang.GeneralDictionarySharedOutputBinderScope.no_checked_packet
+  (packet : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles)
+  (same : packet.declaration = Yulang.GeneralDictionarySharedOutputBinderScope.proposed)
+  (constructors : packet.registry.constructors = Yulang.GeneralDeclarationExamples.constructors) : False
+Yulang.GeneralDictionarySharedOutputBinderScope.captured_proposal_checked :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDeclarationExamples.constructors
+    Yulang.GeneralDeclarationExamples.roles Yulang.GeneralDictionarySharedOutputBinderScope.capturedProposal
+Yulang.GeneralDictionarySharedOutputBinderScope.captured_proposal_no_output_binders :
+  Yulang.GeneralDictionarySharedOutputBinderScope.capturedProposal.outputNames = []
+Yulang.GeneralDictionarySharedRecordedEvidence.formed_recorded {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (formed : Yulang.GeneralNominalSharedSteps.SourceFormed registry root state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  packet ∈ state.current.packets →
+    Yulang.GeneralDictionarySharedRecordedEvidence.Metadata registry packet ∧
+      ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        child ∈ packet.children → (packet.site.occurrence, child) ∈ state.current.edges
+Yulang.GeneralDictionarySharedRecordedEvidence.recorded_committed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (formed : Yulang.GeneralNominalSharedSteps.SourceFormed registry root state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (member : packet ∈ state.current.packets) :
+  Yulang.GeneralNominalFeedbackSteps.Committed state.current packet
+Yulang.GeneralDictionarySharedRecordedEvidence.stored_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (formed : Yulang.GeneralNominalSharedSteps.SourceFormed registry root state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (member : packet ∈ state.current.packets)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry packet.context model packet.site.occurrence
+    packet.declaration.id packet.children
+Yulang.GeneralDictionarySharedRecordedEvidence.recorded_children {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (formed : Yulang.GeneralNominalSharedSteps.SourceFormed registry root state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (member : packet ∈ state.current.packets)
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) :
+  child ∈ packet.children → Yulang.GeneralNominalSaturationState.Generated state.current packet.site.occurrence child
+Yulang.GeneralDictionarySharedRecordedEvidence.current_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (formed : Yulang.GeneralNominalSharedSteps.SourceFormed registry root state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (member : packet ∈ state.current.packets)
+  (extension : Yulang.GeneralDictionaryOrdinaryTrace.Extension packet.context state.current.context)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.current.context model packet.site.occurrence
+    packet.declaration.id packet.children
+Yulang.GeneralDictionarySharedRecordedEvidence.current_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (formed : Yulang.GeneralNominalSharedSteps.SourceFormed registry root state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (member : packet ∈ state.current.packets)
+  (extension : Yulang.GeneralDictionaryOrdinaryTrace.Extension packet.context state.current.context)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model)
+  (dictionaries : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) packet.children
+      dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id dictionaries)
+Yulang.GeneralDictionarySharedRecordedTree.discharged {roles✝ : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles✝}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles✝} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  (tree : Yulang.GeneralDictionarySharedRecordedTree.RecordedTree state occurrence payload) :
+  Yulang.GeneralNominalSupport.Discharged state occurrence
+Yulang.GeneralDictionarySharedRecordedTree.packet_settled {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {dictionaries : List Yulang.GeneralDictionaryReadback.Payload}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (member : packet ∈ state.packets)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDictionarySharedRecordedTree.RecordedTree state)
+      packet.children dictionaries) :
+  Yulang.GeneralNominalSettledSupport.PacketSettled state packet
+Yulang.GeneralDictionarySharedRecordedTree.current_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {payload : Yulang.GeneralDictionaryReadback.Payload} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  (formed : Yulang.GeneralNominalSharedSteps.SourceFormed registry root state)
+  (growth :
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ state.current.packets →
+        Yulang.GeneralDictionaryOrdinaryTrace.Extension packet.context state.current.context)
+  (tree : Yulang.GeneralDictionarySharedRecordedTree.RecordedTree state.current occurrence payload)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model occurrence payload
+Yulang.GeneralDictionarySharedRecordedTree.terminal_tree :
+  Yulang.GeneralDictionarySharedRecordedTree.RecordedTree
+    Yulang.GeneralDictionarySharedTerminalInstallation.after.current Yulang.GeneralNominalSupportSiblings.kidC
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySharedRecordedTree.terminal_discharged :
+  Yulang.GeneralNominalSupport.Discharged Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+    Yulang.GeneralNominalSupportSiblings.kidC
+Yulang.GeneralDictionarySharedRecordedTree.terminal_packet_settled :
+  Yulang.GeneralNominalSettledSupport.PacketSettled Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+    Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket
+Yulang.GeneralDictionarySharedRecordedTree.terminal_certificate_and_evidence :
+  Yulang.GeneralDictionarySharedRecordedTree.RecordedTree
+      Yulang.GeneralDictionarySharedTerminalInstallation.after.current Yulang.GeneralNominalSupportSiblings.kidC
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id []) ∧
+    (∃ model,
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+          model) ∧
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+            model →
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+            Yulang.GeneralDictionarySharedTerminalInstallation.after.current.context model
+            Yulang.GeneralNominalSupportSiblings.kidC
+            (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySharedRecursiveExample.initial_source :
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralNominalExamples.registry
+    (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralDictionarySharedRecursiveExample.formed :
+  Yulang.GeneralNominalSharedSteps.SourceFormed Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionarySharedDisplayInstallation.after
+Yulang.GeneralDictionarySharedRecursiveExample.actual_trace :
+  Yulang.B4Target.Steps
+    (Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalExamples.displayRoot)
+    Yulang.GeneralDictionarySharedDisplayInstallation.start Yulang.GeneralDictionarySharedDisplayInstallation.after
+Yulang.GeneralDictionarySharedRecursiveExample.parent_instance (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySharedDisplayInstallation.after.current.context model
+    Yulang.GeneralNominalExamples.displayRoot 1 [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralDictionarySharedRecursiveExample.leaf_evidence (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySharedDisplayInstallation.after.current.context model
+    Yulang.GeneralNominalExamples.displayChild (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+Yulang.GeneralDictionarySharedRecursiveExample.recursive_evidence (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionarySharedDisplayInstallation.after.current.context model
+    Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralDictionarySharedRecursiveExample.nonvacuous_recursive_dictionary :
+  Yulang.GeneralNominalSharedSteps.SourceFormed Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionarySharedDisplayInstallation.after ∧
+    Yulang.B4Target.Steps
+        (Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralNominalExamples.registry
+          Yulang.GeneralNominalExamples.displayRoot)
+        Yulang.GeneralDictionarySharedDisplayInstallation.start
+        Yulang.GeneralDictionarySharedDisplayInstallation.after ∧
+      (∃ model,
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+            model) ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+              model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+              Yulang.GeneralDictionarySharedDisplayInstallation.after.current.context model
+              Yulang.GeneralNominalExamples.displayRoot
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+                [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralDictionarySharedSemanticSettlement.no_discharged
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) :
+  ¬Yulang.GeneralNominalSupport.Discharged Yulang.GeneralDictionarySharedDisplayInstallation.after.current focus
+Yulang.GeneralDictionarySharedSemanticSettlement.parent_not_settled :
+  ¬Yulang.GeneralNominalSettledSupport.PacketSettled Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+      (Yulang.GeneralNominalSharedExamples.packet false)
+Yulang.GeneralDictionarySharedSemanticSettlement.no_recorded_tree
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)
+  (payload : Yulang.GeneralDictionaryReadback.Payload) :
+  ¬Yulang.GeneralDictionarySharedRecordedTree.RecordedTree
+      Yulang.GeneralDictionarySharedDisplayInstallation.after.current focus payload
+Yulang.GeneralDictionarySharedSemanticSettlement.semantic_evidence_not_ledger_completion :
+  Yulang.GeneralNominalSharedSteps.SourceFormed Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralDictionarySharedDisplayInstallation.after ∧
+    (∃ model,
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+          model) ∧
+      (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+              model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+              Yulang.GeneralDictionarySharedDisplayInstallation.after.current.context model
+              Yulang.GeneralNominalExamples.displayRoot
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+                [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])) ∧
+        ¬Yulang.GeneralNominalSettledSupport.PacketSettled
+              Yulang.GeneralDictionarySharedDisplayInstallation.after.current
+              (Yulang.GeneralNominalSharedExamples.packet false) ∧
+          ¬Yulang.GeneralDictionarySharedRecordedTree.RecordedTree
+              Yulang.GeneralDictionarySharedDisplayInstallation.after.current Yulang.GeneralNominalExamples.displayRoot
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+                [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralDictionarySharedSettlementResume.terminal_discharged {roles : Yulang.Roles.RoleDecls}
+  {before : Yulang.GeneralNominalSupport.Tracked roles} {leaf : Yulang.GeneralNominalSaturationState.Packet roles}
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)) (terminal : leaf.children = []) :
+  Yulang.GeneralNominalSupport.Discharged (Yulang.GeneralNominalSharedSteps.install before leaf support).current
+    leaf.site.occurrence
+Yulang.GeneralDictionarySharedSettlementResume.producer_settled {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before : Yulang.GeneralNominalSupport.Tracked roles}
+  {producer leaf : Yulang.GeneralNominalSaturationState.Packet roles}
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry before.current leaf)
+  (novel : ¬Yulang.GeneralNominalFeedbackSteps.Committed before.current leaf)
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard before leaf support) (terminal : leaf.children = [])
+  (present : producer ∈ before.current.packets)
+  (others :
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      child ∈ producer.children →
+        child ≠ leaf.site.occurrence → Yulang.GeneralNominalSupport.Discharged before.current child) :
+  Yulang.GeneralNominalSettledSupport.PacketSettled
+    (Yulang.GeneralNominalSharedSteps.install before leaf support).current producer
+Yulang.GeneralDictionarySharedSettlementResume.producer_becomes_settled {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before : Yulang.GeneralNominalSupport.Tracked roles}
+  {producer leaf : Yulang.GeneralNominalSaturationState.Packet roles}
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry before.current leaf)
+  (novel : ¬Yulang.GeneralNominalFeedbackSteps.Committed before.current leaf)
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard before leaf support) (terminal : leaf.children = [])
+  (present : producer ∈ before.current.packets) (child : leaf.site.occurrence ∈ producer.children)
+  (missing : ¬Yulang.GeneralNominalSupport.Discharged before.current leaf.site.occurrence)
+  (others :
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      child ∈ producer.children →
+        child ≠ leaf.site.occurrence → Yulang.GeneralNominalSupport.Discharged before.current child) :
+  Yulang.GeneralNominalSettledSupport.Unsettled before.current producer ∧
+    Yulang.GeneralNominalSettledSupport.PacketSettled
+      (Yulang.GeneralNominalSharedSteps.install before leaf support).current producer
+Yulang.GeneralDictionarySharedSettlementResume.producer_output {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before : Yulang.GeneralNominalSupport.Tracked roles}
+  {producer leaf : Yulang.GeneralNominalSaturationState.Packet roles}
+  {ledger : List (Yulang.GeneralNominalSupport.Fact roles)} {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks}
+  (support dependencies : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry before.current leaf)
+  (novel : ¬Yulang.GeneralNominalFeedbackSteps.Committed before.current leaf)
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard before leaf support) (terminal : leaf.children = [])
+  (present : producer ∈ before.current.packets)
+  (others :
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      child ∈ producer.children →
+        child ≠ leaf.site.occurrence → Yulang.GeneralNominalSupport.Discharged before.current child)
+  (trusted : Yulang.GeneralNominalSharedSupport.Trusted before ledger readbacks)
+  (input : Yulang.GeneralNominalSupport.Fact.inputs producer dependencies ∈ ledger)
+  (output : Yulang.GeneralNominalSupport.Fact.outputs producer dependencies ∈ before.facts)
+  (certificate : Yulang.GeneralNominalSharedSupport.OutputCertificate before ledger readbacks producer) (target : Nat)
+  (term : Yulang.GeneralNominalOriginTerms.Expr Nat)
+  (recipe :
+    Yulang.GeneralNominalOriginTerms.Recipe (Yulang.GeneralNominalPacketSupport.namedSchema producer)
+      (Yulang.GeneralNominalRecursiveInspection.Origin.source target) term) :
+  Yulang.GeneralNominalSharedSupport.Trusted (Yulang.GeneralNominalSharedSteps.install before leaf support)
+    (Yulang.GeneralNominalSupport.Fact.outputs producer dependencies :: ledger)
+    ((target, Yulang.GeneralNominalOriginTerms.Expr.bind certificate.substitution term) :: readbacks)
+Yulang.GeneralDictionarySharedSettlementResume.leaf_step_and_readback {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before : Yulang.GeneralNominalSupport.Tracked roles}
+  {producer leaf : Yulang.GeneralNominalSaturationState.Packet roles}
+  {ledger : List (Yulang.GeneralNominalSupport.Fact roles)} {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (support dependencies : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (generated : Yulang.GeneralNominalSaturationState.Generated before.current root leaf.site.occurrence)
+  (enabled : Yulang.GeneralNominalFeedbackSteps.Installable registry before.current leaf)
+  (novel : ¬Yulang.GeneralNominalFeedbackSteps.Committed before.current leaf)
+  (guard : Yulang.GeneralNominalSharedSteps.PacketGuard before leaf support) (terminal : leaf.children = [])
+  (present : producer ∈ before.current.packets)
+  (others :
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      child ∈ producer.children →
+        child ≠ leaf.site.occurrence → Yulang.GeneralNominalSupport.Discharged before.current child)
+  (trusted : Yulang.GeneralNominalSharedSupport.Trusted before ledger readbacks)
+  (input : Yulang.GeneralNominalSupport.Fact.inputs producer dependencies ∈ ledger)
+  (output : Yulang.GeneralNominalSupport.Fact.outputs producer dependencies ∈ before.facts)
+  (certificate : Yulang.GeneralNominalSharedSupport.OutputCertificate before ledger readbacks producer) (target : Nat)
+  (term : Yulang.GeneralNominalOriginTerms.Expr Nat)
+  (recipe :
+    Yulang.GeneralNominalOriginTerms.Recipe (Yulang.GeneralNominalPacketSupport.namedSchema producer)
+      (Yulang.GeneralNominalRecursiveInspection.Origin.source target) term) :
+  Yulang.GeneralNominalSharedSteps.Step registry root before
+      (Yulang.GeneralNominalSharedSteps.install before leaf support) ∧
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSharedSupport.Models (Yulang.GeneralNominalSharedSteps.install before leaf support)
+          (Yulang.GeneralNominalSupport.Fact.outputs producer dependencies :: ledger) model →
+        Yulang.GeneralNominalOriginTerms.Holds model
+          (Yulang.GeneralNominalOriginTerms.Expr.bind certificate.substitution term)
+          (Yulang.GeneralNominalRecursiveInspection.Origin.source target)
+Yulang.GeneralDictionarySharedSiblingPrefix.inherited :
+  (Yulang.GeneralNominalSharedCaptures.inheritedReport Yulang.GeneralNominalSupportSiblings.pk).captures =
+    [{ name := 0, bounds := (1, 1), origin := some Yulang.GeneralDictionarySharedSiblingPrefix.origin }]
+Yulang.GeneralDictionarySharedSiblingPrefix.usable :
+  Yulang.GeneralNominalSharedCaptures.Usable Yulang.GeneralNominalSupportSiblings.pk 0
+    Yulang.GeneralDictionarySharedSiblingPrefix.origin
+Yulang.GeneralDictionarySharedSiblingPrefix.generation :
+  Yulang.GeneralNominalSharedCaptures.GenerationGuard Yulang.GeneralNominalSupportSiblings.start
+    Yulang.GeneralNominalSupportSiblings.pk
+Yulang.GeneralDictionarySharedSiblingPrefix.input_empty :
+  Yulang.GeneralNominalPacketSupport.inputSchema Yulang.GeneralNominalSupportSiblings.pk = { }
+Yulang.GeneralDictionarySharedSiblingPrefix.guard :
+  Yulang.GeneralNominalSharedSteps.PacketGuard Yulang.GeneralNominalSupportSiblings.start
+    Yulang.GeneralNominalSupportSiblings.pk []
+Yulang.GeneralDictionarySharedSiblingPrefix.origin_iff
+  (child : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) (position : Nat)
+  (observed : Yulang.GeneralNominalRecursiveInspection.Origin) :
+  Yulang.GeneralNominalSharedEmission.OriginAt Yulang.GeneralNominalSupportSiblings.pk child position observed ↔
+    Yulang.GeneralNominalFeedbackSites.OriginAt Yulang.GeneralNominalSupportSiblings.pk child position observed
+Yulang.GeneralDictionarySharedSiblingPrefix.origin_unique
+  (child : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) (position : Nat)
+  (observed : Yulang.GeneralNominalRecursiveInspection.Origin)
+  (recorded :
+    Yulang.GeneralNominalFeedbackSites.OriginAt Yulang.GeneralNominalSupportSiblings.pk child position observed) :
+  observed = Yulang.GeneralDictionarySharedSiblingPrefix.origin
+Yulang.GeneralDictionarySharedSiblingPrefix.child_origin
+  (child : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)
+  (index : Fin (Yulang.GeneralDeclarationExamples.roles child.demand.role).arity) :
+  Yulang.GeneralNominalSharedEmission.childOrigin Yulang.GeneralNominalSupportSiblings.pk child index =
+    Yulang.GeneralNominalFeedbackSites.childOrigin Yulang.GeneralNominalSupportSiblings.pk child index
+Yulang.GeneralDictionarySharedSiblingPrefix.child_site
+  (child : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) :
+  Yulang.GeneralNominalSharedEmission.childSite Yulang.GeneralNominalSupportSiblings.pk child =
+    Yulang.GeneralNominalFeedbackSites.childSite Yulang.GeneralNominalSupportSiblings.pk child
+Yulang.GeneralDictionarySharedSiblingPrefix.parent_install_eq :
+  Yulang.GeneralNominalSharedSteps.install Yulang.GeneralNominalSupportSiblings.start
+      Yulang.GeneralNominalSupportSiblings.pk [] =
+    Yulang.GeneralNominalSupportSiblings.afterP
+Yulang.GeneralDictionarySharedSiblingPrefix.parent_step :
+  Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.root Yulang.GeneralNominalSupportSiblings.start
+    Yulang.GeneralNominalSupportSiblings.afterP
+Yulang.GeneralDictionarySharedSiblingPrefix.shared_prefix :
+  Yulang.B4Target.Steps
+    (Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+      Yulang.GeneralNominalSupportSiblings.root)
+    Yulang.GeneralNominalSupportSiblings.start Yulang.GeneralDictionarySharedTerminalInstallation.after
+Yulang.GeneralDictionarySharedSiblingPrefix.shared_formed :
+  Yulang.GeneralNominalSharedSteps.SourceFormed Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.root Yulang.GeneralDictionarySharedTerminalInstallation.after
+Yulang.GeneralDictionarySharedSiblingPrefix.reached_terminal_dictionary :
+  Yulang.B4Target.Steps
+      (Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+        Yulang.GeneralNominalSupportSiblings.root)
+      Yulang.GeneralNominalSupportSiblings.start Yulang.GeneralDictionarySharedTerminalInstallation.after ∧
+    (∃ model,
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+          model) ∧
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+            model →
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+            Yulang.GeneralDictionarySharedTerminalInstallation.after.current.context model
+            Yulang.GeneralNominalSupportSiblings.kidC
+            (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySharedTerminalInstallation.container_ready :
+  Yulang.GeneralNominalSharedSupport.ReadyAt Yulang.GeneralNominalSupportSiblings.afterP 1
+Yulang.GeneralDictionarySharedTerminalInstallation.container_decision :
+  Yulang.GeneralNominalSharedSupport.DecisionGuard Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.afterP Yulang.GeneralNominalSupportSiblings.kidC
+Yulang.GeneralDictionarySharedTerminalInstallation.container_guard :
+  Yulang.GeneralNominalSharedSteps.PacketGuard Yulang.GeneralNominalSupportSiblings.afterP
+    Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket []
+Yulang.GeneralDictionarySharedTerminalInstallation.step :
+  Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.root Yulang.GeneralNominalSupportSiblings.afterP
+    Yulang.GeneralDictionarySharedTerminalInstallation.after
+Yulang.GeneralDictionarySharedTerminalInstallation.inhabited :
+  ∃ model,
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current model
+Yulang.GeneralDictionarySharedTerminalInstallation.current_dictionary
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+      model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralDictionarySharedTerminalInstallation.after.current.context model
+    Yulang.GeneralNominalSupportSiblings.kidC
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySharedTerminalInstallation.genuine_terminal_step :
+  Yulang.GeneralNominalSharedSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+      Yulang.GeneralNominalSupportSiblings.root Yulang.GeneralNominalSupportSiblings.afterP
+      Yulang.GeneralDictionarySharedTerminalInstallation.after ∧
+    (∃ model,
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+          model) ∧
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+            model →
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+            Yulang.GeneralDictionarySharedTerminalInstallation.after.current.context model
+            Yulang.GeneralNominalSupportSiblings.kidC
+            (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])
+Yulang.GeneralDictionarySharedTerminalObstruction.terminal_install_eq {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalSupport.Tracked roles) (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)) (terminal : packet.children = []) :
+  Yulang.GeneralNominalSharedSteps.install state packet support =
+    Yulang.GeneralNominalSettledSteps.install state packet support
+Yulang.GeneralDictionarySharedTerminalObstruction.concrete_after_eq :
+  Yulang.GeneralDictionarySharedTerminalInstallation.after = Yulang.GeneralNominalBudgetContainer.afterC
+Yulang.GeneralDictionarySharedTerminalObstruction.shared_unknown_after_exact_chain
+  (after : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles)
+  (path :
+    Yulang.B4Target.Steps Yulang.GeneralDictionaryExactRefreshChain.ExactRefresh
+      Yulang.GeneralDictionarySharedTerminalInstallation.after.current after) :
+  ¬Yulang.GeneralNominalState.Known after.context.state Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionarySharedTerminalObstruction.dictionary_and_obstruction :
+  (∃ model,
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedTerminalInstallation.after.current
+          model ∧
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalSupportSiblings.reg
+          Yulang.GeneralDictionarySharedTerminalInstallation.after.current.context model
+          Yulang.GeneralNominalSupportSiblings.kidC
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralNominalSupportSiblings.c.id [])) ∧
+    ∀ (after : Yulang.GeneralNominalSaturationState.State Yulang.GeneralDeclarationExamples.roles),
+      Yulang.B4Target.Steps Yulang.GeneralDictionaryExactRefreshChain.ExactRefresh
+          Yulang.GeneralDictionarySharedTerminalInstallation.after.current after →
+        ¬Yulang.GeneralNominalState.Known after.context.state Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionarySharedTrustTransport.at_source {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after) : after.source = before.source
+Yulang.GeneralDictionarySharedTrustTransport.at_facts {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (fact : Yulang.GeneralNominalSupport.Fact roles) : fact ∈ before.facts → fact ∈ after.facts
+Yulang.GeneralDictionarySharedTrustTransport.at_packets {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  packet ∈ before.current.packets → packet ∈ after.current.packets
+Yulang.GeneralDictionarySharedTrustTransport.at_sites {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (site : Yulang.GeneralNominalDemandMerging.Site roles) : site ∈ before.current.sites → site ∈ after.current.sites
+Yulang.GeneralDictionarySharedTrustTransport.at_aliases {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after) (pair : Nat × Nat) :
+  pair ∈ before.current.aliases → pair ∈ after.current.aliases
+Yulang.GeneralDictionarySharedTrustTransport.at_alias {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {first last : Nat}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (related : Yulang.GeneralNominalSaturationState.Alias before.current first last) :
+  Yulang.GeneralNominalSaturationState.Alias after.current first last
+Yulang.GeneralDictionarySharedTrustTransport.at_discharged {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus producer : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (done : Yulang.GeneralNominalSupport.Discharged before.current producer) :
+  Yulang.GeneralNominalSupport.Discharged after.current producer
+Yulang.GeneralDictionarySharedTrustTransport.generated_at {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus root child : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (generated : Yulang.GeneralNominalSaturationState.Generated before.current root child) :
+  Yulang.GeneralNominalSaturationState.Generated after.current root child
+Yulang.GeneralDictionarySharedTrustTransport.at_settled {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {packet : Yulang.GeneralNominalSaturationState.Packet roles}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (done : Yulang.GeneralNominalSettledSupport.PacketSettled before.current packet) :
+  Yulang.GeneralNominalSettledSupport.PacketSettled after.current packet
+Yulang.GeneralDictionarySharedTrustTransport.trusted_monotone {roles : Yulang.Roles.RoleDecls}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles} {ledger : List (Yulang.GeneralNominalSupport.Fact roles)}
+  {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks} (source : after.source = before.source)
+  (facts : ∀ (fact : Yulang.GeneralNominalSupport.Fact roles), fact ∈ before.facts → fact ∈ after.facts)
+  (settlement :
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      Yulang.GeneralNominalSettledSupport.PacketSettled before.current packet →
+        Yulang.GeneralNominalSettledSupport.PacketSettled after.current packet)
+  (trusted : Yulang.GeneralNominalSharedSupport.Trusted before ledger readbacks) :
+  Yulang.GeneralNominalSharedSupport.Trusted after ledger readbacks
+Yulang.GeneralDictionarySharedTrustTransport.trusted_at {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {ledger : List (Yulang.GeneralNominalSupport.Fact roles)}
+  {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (trusted : Yulang.GeneralNominalSharedSupport.Trusted before ledger readbacks) :
+  Yulang.GeneralNominalSharedSupport.Trusted after ledger readbacks
+Yulang.GeneralDictionarySharedTrustTransport.trusted_steps {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {ledger : List (Yulang.GeneralNominalSupport.Fact roles)}
+  {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks}
+  (path : Yulang.B4Target.Steps (Yulang.GeneralNominalSharedSteps.Step registry root) before after)
+  (trusted : Yulang.GeneralNominalSharedSupport.Trusted before ledger readbacks) :
+  Yulang.GeneralNominalSharedSupport.Trusted after ledger readbacks
+Yulang.GeneralDictionarySharedTrustTransport.head_at {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {identity : Nat}
+  {test : Yulang.GeneralNominalRecursiveInspection.Test}
+  (update : Yulang.GeneralNominalSharedSteps.At registry before focus after)
+  (known : Yulang.GeneralNominalSharedSupport.HeadJustified before identity test) :
+  Yulang.GeneralNominalSharedSupport.HeadJustified after identity test
+Yulang.GeneralDictionarySharedTrustTransport.head_step {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {identity : Nat}
+  {test : Yulang.GeneralNominalRecursiveInspection.Test}
+  (update : Yulang.GeneralNominalSharedSteps.Step registry root before after)
+  (known : Yulang.GeneralNominalSharedSupport.HeadJustified before identity test) :
+  Yulang.GeneralNominalSharedSupport.HeadJustified after identity test
+Yulang.GeneralDictionarySharedTrustTransport.head_steps {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {identity : Nat}
+  {test : Yulang.GeneralNominalRecursiveInspection.Test}
+  (path : Yulang.B4Target.Steps (Yulang.GeneralNominalSharedSteps.Step registry root) before after)
+  (known : Yulang.GeneralNominalSharedSupport.HeadJustified before identity test) :
+  Yulang.GeneralNominalSharedSupport.HeadJustified after identity test
+Yulang.GeneralDictionaryTerminalRefreshObstruction.int_model :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current
+    (Yulang.GeneralNominalOutputGrowth.finiteModel 1)
+Yulang.GeneralDictionaryTerminalRefreshObstruction.nominal_model :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current
+    Yulang.GeneralNominalDownstreamSiblingFixture.journalModel
+Yulang.GeneralDictionaryTerminalRefreshObstruction.int_output :
+  (Yulang.GeneralNominalOutputGrowth.finiteModel 1 Yulang.GeneralNominalSupportSiblings.out).fst =
+    Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int
+Yulang.GeneralDictionaryTerminalRefreshObstruction.nominal_output :
+  (Yulang.GeneralNominalDownstreamSiblingFixture.journalModel Yulang.GeneralNominalSupportSiblings.out).fst =
+    Yulang.CommonNominalFullCarrier.nominal 0
+      [Sum.inl (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)]
+Yulang.GeneralDictionaryTerminalRefreshObstruction.no_known (state : Yulang.GeneralNominalState.State)
+  (one : Yulang.GeneralNominalState.Models state (Yulang.GeneralNominalOutputGrowth.finiteModel 1))
+  (two : Yulang.GeneralNominalState.Models state Yulang.GeneralNominalDownstreamSiblingFixture.journalModel) :
+  ¬Yulang.GeneralNominalState.Known state Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionaryTerminalRefreshObstruction.refresh_unknown (next : Yulang.GeneralNominalCandidates.Context)
+  (certificate : Yulang.GeneralNominalFeedbackSteps.Refresh Yulang.GeneralNominalBudgetContainer.afterC.current next) :
+  ¬Yulang.GeneralNominalState.Known next.state Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionaryTerminalRefreshObstruction.refresh_not_ready (next : Yulang.GeneralNominalCandidates.Context)
+  (certificate : Yulang.GeneralNominalFeedbackSteps.Refresh Yulang.GeneralNominalBudgetContainer.afterC.current next) :
+  ¬Yulang.GeneralNominalSettledSupport.ReadyAt
+      (have __src := Yulang.GeneralNominalBudgetContainer.afterC;
+      { source := __src.source,
+        current :=
+          have __src := Yulang.GeneralNominalBudgetContainer.afterC.current;
+          { context := next, packets := __src.packets, sites := __src.sites, edges := __src.edges,
+            aliases := __src.aliases },
+        facts := __src.facts })
+      Yulang.GeneralNominalSupportSiblings.out
+ 
+Cycle164SharedBlockedOutput.lean EXIT 0 'Yulang.GeneralDictionarySharedBlockedOutput.head_known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedBlockedOutput.unknown_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedBlockedOutput.unknown_input_blocks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedBlockedOutput.unknown_query_blocks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedBlockedOutput.output_blocks_packet' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedBlockedOutput.no_output_install_contract' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedCapturedTargets.lean EXIT 0 'Yulang.GeneralDictionarySharedCapturedTargets.queries' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.captures' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.bindings' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.producer_signature' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.consumer_signature' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.capture_input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.producer_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.consumer_input' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.output_use' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.output_equals_captured' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.registry_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.initial_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.source_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedTargets.captured_unknown' depends on axioms: [propext, Quot.sound]
+ 
+Cycle164SharedConstantReady.lean EXIT 0 'Yulang.GeneralDictionarySharedConstantReady.facts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.input_trusted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.recipe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.recipes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.output_trusted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.refreshed_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantReady.ledger_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedConstantRefresh.lean EXIT 0 'Yulang.GeneralDictionarySharedConstantRefresh.source_ready_zero' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.old_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.current_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.install_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.refresh_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.actual_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.source_formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.refreshed_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.newly_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.current_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.generated_only_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedConstantRefresh.no_generated_consumer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedCurrentEvidence.lean EXIT 0 'Yulang.GeneralDictionarySharedCurrentEvidence.private_extension' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCurrentEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCurrentEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCurrentEvidence.terminal_current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCurrentEvidence.actual_terminal_current_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedDisplayInstallation.lean EXIT 0 'Yulang.GeneralDictionarySharedDisplayInstallation.located' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.certified_child_site' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedDisplayInstallation.generated_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedEvidenceTrace.lean EXIT 0 'Yulang.GeneralDictionarySharedEvidenceTrace.trace_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.stored_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.ordinary_trace_real' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.ordinary_trace_extension' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedEvidenceTrace.execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+ 
+Cycle164SharedInstallEvidence.lean EXIT 0 'Yulang.GeneralDictionarySharedInstallEvidence.stable_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.installed_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.installed_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.installed_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.terminal_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.actual_terminal_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedInstallEvidence.stable_terminal_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedOutputBinderScope.lean EXIT 0 'Yulang.GeneralDictionarySharedOutputBinderScope.needed_is_input' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedOutputBinderScope.proposed_output' depends on axioms: [propext]
+'Yulang.GeneralDictionarySharedOutputBinderScope.proposed_consumer_input' depends on axioms: [propext]
+'Yulang.GeneralDictionarySharedOutputBinderScope.proposed_not_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedOutputBinderScope.no_checked_packet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedOutputBinderScope.captured_proposal_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedOutputBinderScope.captured_proposal_no_output_binders' does not depend on any axioms
+ 
+Cycle164SharedRecordedEvidence.lean EXIT 0 'Yulang.GeneralDictionarySharedRecordedEvidence.formed_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.recorded_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.stored_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.recorded_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedRecordedTree.lean EXIT 0 'Yulang.GeneralDictionarySharedRecordedTree.discharged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.packet_settled' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.current_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.terminal_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.terminal_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.terminal_packet_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecordedTree.terminal_certificate_and_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedRecursiveExample.lean EXIT 0 'Yulang.GeneralDictionarySharedRecursiveExample.initial_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.actual_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.parent_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.leaf_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.recursive_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedRecursiveExample.nonvacuous_recursive_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedSemanticSettlement.lean EXIT 0 'Yulang.GeneralDictionarySharedSemanticSettlement.no_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSemanticSettlement.parent_not_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSemanticSettlement.no_recorded_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSemanticSettlement.semantic_evidence_not_ledger_completion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedSettlementResume.lean EXIT 0 'Yulang.GeneralDictionarySharedSettlementResume.terminal_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSettlementResume.producer_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSettlementResume.producer_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSettlementResume.leaf_step_and_readback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSettlementResume.producer_becomes_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedSiblingPrefix.lean EXIT 0 'Yulang.GeneralDictionarySharedSiblingPrefix.inherited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.usable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.generation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.input_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.origin_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.origin_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.child_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.child_site' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.parent_install_eq' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.parent_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.shared_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.shared_formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedSiblingPrefix.reached_terminal_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedTerminalInstallation.lean EXIT 0 'Yulang.GeneralDictionarySharedTerminalInstallation.container_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.container_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.container_guard' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.current_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalInstallation.genuine_terminal_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedLenCommitted.children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedLenCommitted.source_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedLenCommitted.committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedLenCommitted.no_novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+ 
+Cycle164SharedTerminalObstruction.lean EXIT 0 'Yulang.GeneralDictionarySharedTerminalObstruction.terminal_install_eq' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalObstruction.concrete_after_eq' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalObstruction.shared_unknown_after_exact_chain' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTerminalObstruction.dictionary_and_obstruction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164SharedTrustTransport.lean EXIT 0 'Yulang.GeneralDictionarySharedTrustTransport.at_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.at_facts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.at_packets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.at_sites' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.at_aliases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.at_alias' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.at_discharged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.generated_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.at_settled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.trusted_monotone' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.trusted_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.trusted_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.head_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.head_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedTrustTransport.head_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+ 
+Cycle164TerminalEvidence.lean EXIT 0 'Yulang.GeneralDictionarySettledTerminalEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.nonempty_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.inhabited_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.evidence_without_output_readiness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.actual_terminal_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalEvidence.ordinary_continuation_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle164TerminalRefreshObstruction.lean EXIT 0 'Yulang.GeneralDictionaryTerminalRefreshObstruction.int_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.nominal_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.int_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.nominal_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.no_known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.refresh_unknown' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryTerminalRefreshObstruction.refresh_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+ALL PASS 22

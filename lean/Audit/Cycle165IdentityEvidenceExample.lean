@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryIdentityEvidenceExample
+#print axioms Yulang.GeneralDictionaryIdentityEvidenceExample.formed
+#print axioms Yulang.GeneralDictionaryIdentityEvidenceExample.current_model
+#print axioms Yulang.GeneralDictionaryIdentityEvidenceExample.current_evidence
+#print axioms Yulang.GeneralDictionaryIdentityEvidenceExample.nonvacuous_current_evidence
