@@ -1,10 +1,9 @@
-cycle: 171
-status: completed
-started: 2026-11-13T18:24:41Z
-updated: 2026-11-13T19:03:54Z
-elapsed_min: 40
-activity: Final immutable source replay19 modules14 audits PASS; gate415. V5 remains8/14.
-workspace: /workspace/scratch/1d0b4aaa3394/yulang159
-last_local_commit: e235af6ac3
-report: notes/handoff/dots-cycle-171.md
-resume_hint: Source3f93762066 verified; no active writer. Next cycle integrate late upstream e83e521, derive general Coverage and arbitrary refresh preservation.
+cycle: 172
+status: running
+started: 2026-11-13T19:32:16Z
+updated: 2026-11-13T19:38:00Z
+elapsed_min: 6
+activity: Fresh integration97c7533; previous171 completed. Evidence continuation.
+workspace: /workspace/scratch/1d0b4aaa3394/yulang172-public
+last_local_commit: 97c7533f89
+resume_hint: Inspect retained verification and worker state before recovering; no whole build.
