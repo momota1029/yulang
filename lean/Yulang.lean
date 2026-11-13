@@ -2697,3 +2697,9 @@ import Yulang.GeneralNominalClosedSubstitution
 import Yulang.GeneralNominalChildAssembly
 import Yulang.GeneralNominalMatchedAssembly
 import Yulang.GeneralNominalFiniteBracket
+import Yulang.GeneralNominalInspectionFiniteValues
+import Yulang.GeneralNominalInspectionAlignment
+import Yulang.GeneralNominalInspectionPositions
+import Yulang.GeneralNominalInspectionMatching
+import Yulang.GeneralNominalGroundHeadMatching
+import Yulang.GeneralNominalGroundHeadMatchingExample
