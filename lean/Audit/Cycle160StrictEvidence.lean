@@ -1,0 +1,10 @@
+import Yulang.GeneralDictionaryNonpointStrictEvidence
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.old_located
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.current_located
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.ready
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.metadata
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.old_instance
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.current_instance
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.old_evidence
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.current_evidence
+#print axioms Yulang.GeneralDictionaryNonpointStrictEvidence.positive_strict_output_evidence

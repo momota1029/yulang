@@ -1,0 +1,16 @@
+import Yulang.GeneralDictionaryNonpointStrictOutput
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.checked
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.names
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.root_request
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.generated_body
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.nonempty
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.old_materialized
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.current_materialized
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.queries
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.report_exact
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.generated_exact
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.private_models
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.old_branch
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.current_branch
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.positive_nonpoint_output
+#print axioms Yulang.GeneralDictionaryNonpointStrictOutput.positive_strict_output

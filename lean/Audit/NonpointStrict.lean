@@ -1,0 +1,25 @@
+import Yulang.GeneralDictionaryNonpointStrict
+#print axioms Yulang.GeneralDictionaryNonpointStrict.at_lower
+#print axioms Yulang.GeneralDictionaryNonpointStrict.at_upper
+#print axioms Yulang.GeneralDictionaryNonpointStrict.at_merge_lower
+#print axioms Yulang.GeneralDictionaryNonpointStrict.at_merge_upper
+#print axioms Yulang.GeneralDictionaryNonpointStrict.bottom_leaf
+#print axioms Yulang.GeneralDictionaryNonpointStrict.source_models
+#print axioms Yulang.GeneralDictionaryNonpointStrict.revised_models
+#print axioms Yulang.GeneralDictionaryNonpointStrict.observed_parent
+#print axioms Yulang.GeneralDictionaryNonpointStrict.observed_leaf
+#print axioms Yulang.GeneralDictionaryNonpointStrict.leaf_unique
+#print axioms Yulang.GeneralDictionaryNonpointStrict.leaf_fit
+#print axioms Yulang.GeneralDictionaryNonpointStrict.old_projection
+#print axioms Yulang.GeneralDictionaryNonpointStrict.checked
+#print axioms Yulang.GeneralDictionaryNonpointStrict.queries
+#print axioms Yulang.GeneralDictionaryNonpointStrict.old_propagation
+#print axioms Yulang.GeneralDictionaryNonpointStrict.report_exact
+#print axioms Yulang.GeneralDictionaryNonpointStrict.private_models
+#print axioms Yulang.GeneralDictionaryNonpointStrict.generated_empty
+#print axioms Yulang.GeneralDictionaryNonpointStrict.old_branch
+#print axioms Yulang.GeneralDictionaryNonpointStrict.current_branch
+#print axioms Yulang.GeneralDictionaryNonpointStrict.nonpoint_leaf
+#print axioms Yulang.GeneralDictionaryNonpointStrict.positive_replay
+#print axioms Yulang.GeneralDictionaryNonpointStrict.fits_strictly_enlarges
+#print axioms Yulang.GeneralDictionaryNonpointStrict.merged_lower_not_equivalent
