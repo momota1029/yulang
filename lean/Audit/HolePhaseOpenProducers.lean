@@ -1,0 +1,24 @@
+import Yulang.GeneralNominalSourceHoleExposure
+import Yulang.GeneralNominalOpenCaptureLabels
+
+#print axioms Yulang.GeneralNominalOpenPatternLabels.label_normal
+#print axioms Yulang.GeneralNominalOpenPatternLabels.filled_label
+#print axioms Yulang.GeneralNominalOpenPatternLabels.label_mass
+#print axioms Yulang.GeneralNominalOpenPatternLabels.matched_mass_eq
+#print axioms Yulang.GeneralNominalOpenPatternLabels.instantiated_bound
+#print axioms Yulang.GeneralNominalOpenInspectionMatching.inspect_matched_or_exposed
+#print axioms Yulang.GeneralNominalOpenInspectionMatching.many_matched_or_exposed
+#print axioms Yulang.GeneralNominalFrontierValuations.simultaneous_aliases
+#print axioms Yulang.GeneralNominalFrontierValuations.source_valuation
+#print axioms Yulang.GeneralNominalSourceHoleExposure.structural_readback
+#print axioms Yulang.GeneralNominalSourceHoleExposure.structural_replacement
+#print axioms Yulang.GeneralNominalSourceHoleExposure.structural_trace
+#print axioms Yulang.GeneralNominalSourceHoleExposure.nominal_replacement
+#print axioms Yulang.GeneralNominalOpenReification.followed_source_label
+#print axioms Yulang.GeneralNominalOpenChildProduction.child_argument
+#print axioms Yulang.GeneralNominalOpenChildProduction.child_descent
+#print axioms Yulang.GeneralNominalIndexedOutputProduction.recipe_canonical
+#print axioms Yulang.GeneralNominalIndexedOutputProduction.materialized_output
+#print axioms Yulang.GeneralNominalIndexedOutputProduction.promoted_output
+#print axioms Yulang.GeneralNominalOpenCaptureLabels.shared_capture_value
+#print axioms Yulang.GeneralNominalOpenCaptureLabels.inspect_labels_or_exposed
