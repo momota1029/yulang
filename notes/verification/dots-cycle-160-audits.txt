@@ -59,6 +59,14 @@ lean/Audit/Cycle160CheckedNonpointEvidence.lean EXIT 0
  Quot.sound]
 'Yulang.GeneralDictionaryCheckedNonpointEvidence.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
 
+lean/Audit/Cycle160DependencyGate.lean EXIT 0
+AXIOM-GATE-PASS: 577 declarations
+
+lean/Audit/Cycle160EmissionRequestIdentity.lean EXIT 0
+'Yulang.GeneralDictionaryEmissionRequestIdentity.output_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryEmissionRequestIdentity.input_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryEmissionRequestIdentity.emission_requests' depends on axioms: [propext, Quot.sound]
+
 lean/Audit/Cycle160ModeBoundary.lean EXIT 0
 'Yulang.GeneralDictionaryNonpointModeBoundary.old_lower' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralDictionaryNonpointModeBoundary.current_lower_fails' depends on axioms: [propext,
@@ -293,6 +301,3 @@ lean/Audit/NonpointStrictOutput.lean EXIT 0
 'Yulang.GeneralDictionaryNonpointStrictOutput.positive_strict_output' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
-
-lean/Audit/Cycle160DependencyGate.lean EXIT 0
-AXIOM-GATE-PASS: 574 declarations

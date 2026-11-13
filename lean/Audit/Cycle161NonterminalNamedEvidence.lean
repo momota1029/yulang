@@ -1,0 +1,3 @@
+import Yulang.GeneralDictionaryNonterminalNamedEvidence
+#print axioms Yulang.GeneralDictionaryNonterminalNamedEvidence.transport_instance
+#print axioms Yulang.GeneralDictionaryNonterminalNamedEvidence.transport_evidence

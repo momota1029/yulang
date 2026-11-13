@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryNonterminalNonpointBranch
+#print axioms Yulang.GeneralDictionaryVariableWhereRequests.canonical_requests
+#print axioms Yulang.GeneralDictionaryVariableWhereRequests.emission_actual
+#print axioms Yulang.GeneralDictionaryVariableWhereRequests.canonical_actual
+#print axioms Yulang.GeneralDictionaryVariableWhereRequests.requests_actual
+#print axioms Yulang.GeneralDictionaryVariableWhereRequests.revision_requests
+#print axioms Yulang.GeneralDictionaryVariableWhereRequests.bare_requests
+#print axioms Yulang.GeneralDictionaryNonterminalNonpointBranch.branch
+#print axioms Yulang.GeneralDictionaryNonterminalNonpointBranch.bare_branch

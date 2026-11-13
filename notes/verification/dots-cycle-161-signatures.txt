@@ -1,0 +1,1409 @@
+Yulang.GeneralDictionaryChildCaptureExample.clause_signature :
+  Yulang.GeneralDeclarations.Clause.Signature Yulang.GeneralDictionaryNonpointStrict.roles
+    Yulang.GeneralDictionaryChildCaptureExample.clause
+Yulang.GeneralDictionaryChildCaptureExample.parent_checked :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDictionaryChildCaptureExample.catalogue.constructors
+    Yulang.GeneralDictionaryNonpointStrict.roles Yulang.GeneralDictionaryChildCaptureExample.parent
+Yulang.GeneralDictionaryChildCaptureExample.old_argument :
+  Eq.{1} (Yulang.GeneralDictionaryChildCaptureExample.oldChild.arguments ⟨0, ⋯⟩)
+    (Prod.mk.{0, 0} Yulang.GeneralDictionaryNonpointStrict.loId Yulang.GeneralDictionaryNonpointStrict.hiId)
+Yulang.GeneralDictionaryChildCaptureExample.current_argument :
+  Eq.{1} (Yulang.GeneralDictionaryChildCaptureExample.currentChild.arguments ⟨0, ⋯⟩) (Prod.mk.{0, 0} 3 4)
+Yulang.GeneralDictionaryChildCaptureExample.outputs_equal :
+  Eq.{1} Yulang.GeneralDictionaryChildCaptureExample.currentChild.outputs
+    Yulang.GeneralDictionaryChildCaptureExample.oldChild.outputs
+Yulang.GeneralDictionaryChildCaptureExample.child_fits_strictly_enlarges :
+  Yulang.GeneralNominalCaptureMerges.Fits Yulang.GeneralDictionaryNonpointStrict.model
+      (Yulang.GeneralDictionaryChildCaptureExample.currentChild.arguments ⟨0, ⋯⟩)
+      Yulang.CommonNominalSyntax.Layer.bottom.{0, 0} ∧
+    ¬Yulang.GeneralNominalCaptureMerges.Fits Yulang.GeneralDictionaryNonpointStrict.model
+        (Yulang.GeneralDictionaryChildCaptureExample.oldChild.arguments ⟨0, ⋯⟩)
+        Yulang.CommonNominalSyntax.Layer.bottom.{0, 0}
+Yulang.GeneralDictionaryChildCaptureExample.child_demands_differ :
+  Ne.{1} Yulang.GeneralDictionaryChildCaptureExample.currentChild Yulang.GeneralDictionaryChildCaptureExample.oldChild
+Yulang.GeneralDictionaryChildCaptureExample.actual_old_children :
+  Eq.{1}
+    (Yulang.GeneralNominalAllocation.children Yulang.GeneralDictionaryNonpointStrict.source
+      Yulang.GeneralDictionaryChildCaptureExample.catalogue Yulang.GeneralDictionaryNonpointStrict.root
+      Yulang.GeneralDictionaryChildCaptureExample.parent Yulang.GeneralDictionaryChildCaptureExample.parent_checked
+      (Yulang.GeneralNominalRecursiveInspection.bindings Yulang.GeneralDictionaryNonpointStrict.start.context.state
+        (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNonpointStrict.start.context.state
+          (Yulang.GeneralDictionarySemanticCollapse.query Yulang.GeneralDictionaryNonpointStrict.shape)
+          (Prod.mk.{0, 0} Yulang.GeneralDictionaryNonpointStrict.shape.root
+            Yulang.GeneralDictionaryNonpointStrict.shape.root)
+          none.{0})))
+    (List.cons.{0} Yulang.GeneralDictionaryChildCaptureExample.oldOccurrence List.nil.{0})
+Yulang.GeneralDictionaryChildCaptureExample.actual_current_children :
+  Eq.{1}
+    (Yulang.GeneralNominalAllocation.children Yulang.GeneralDictionaryNonpointStrict.revision.snapshot
+      Yulang.GeneralDictionaryChildCaptureExample.catalogue Yulang.GeneralDictionaryNonpointStrict.root
+      Yulang.GeneralDictionaryChildCaptureExample.parent Yulang.GeneralDictionaryChildCaptureExample.parent_checked
+      (Yulang.GeneralNominalRecursiveInspection.bindings Yulang.GeneralDictionaryNonpointStrict.revision.snapshot
+        (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNonpointStrict.revision.snapshot
+          (Yulang.GeneralDictionarySemanticCollapse.query Yulang.GeneralDictionaryNonpointStrict.shape)
+          (Prod.mk.{0, 0} Yulang.GeneralDictionaryNonpointStrict.shape.root
+            Yulang.GeneralDictionaryNonpointStrict.shape.root)
+          none.{0})))
+    (List.cons.{0} Yulang.GeneralDictionaryChildCaptureExample.currentOccurrence List.nil.{0})
+Yulang.GeneralDictionaryChildCaptureExample.identity_equal :
+  Eq.{1} Yulang.GeneralDictionaryChildCaptureExample.currentOccurrence.identity
+    Yulang.GeneralDictionaryChildCaptureExample.oldOccurrence.identity
+Yulang.GeneralDictionaryChildCaptureExample.actual_nonterminal_boundary :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDictionaryChildCaptureExample.catalogue.constructors
+      Yulang.GeneralDictionaryNonpointStrict.roles Yulang.GeneralDictionaryChildCaptureExample.parent ∧
+    Eq.{1} Yulang.GeneralDictionaryChildCaptureExample.parent.requirements
+        (List.cons.{0} Yulang.GeneralDictionaryChildCaptureExample.clause List.nil.{0}) ∧
+      Eq.{1} Yulang.GeneralDictionaryChildCaptureExample.currentOccurrence.identity
+          Yulang.GeneralDictionaryChildCaptureExample.oldOccurrence.identity ∧
+        Ne.{1} Yulang.GeneralDictionaryChildCaptureExample.currentOccurrence.demand
+            Yulang.GeneralDictionaryChildCaptureExample.oldOccurrence.demand ∧
+          Yulang.GeneralNominalCaptureMerges.Fits Yulang.GeneralDictionaryNonpointStrict.model
+              (Yulang.GeneralDictionaryChildCaptureExample.currentChild.arguments ⟨0, ⋯⟩)
+              Yulang.CommonNominalSyntax.Layer.bottom.{0, 0} ∧
+            ¬Yulang.GeneralNominalCaptureMerges.Fits Yulang.GeneralDictionaryNonpointStrict.model
+                (Yulang.GeneralDictionaryChildCaptureExample.oldChild.arguments ⟨0, ⋯⟩)
+                Yulang.CommonNominalSyntax.Layer.bottom.{0, 0}
+Yulang.GeneralDictionaryChildCaptureTransport.emitted_identity {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+  (old current : Yulang.GeneralDeclarationDemands.Capture)
+  (allocation : Yulang.GeneralDeclarationDemands.Allocation roles clause)
+  (bindings : Yulang.GeneralNominalAllocation.Bindings) :
+  Eq.{1}
+    (Yulang.GeneralDictionaryEmissionPlans.occurrence
+        (Yulang.GeneralNominalAllocation.frame state registry invocation bindings)
+        (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid current allocation)).identity
+    (Yulang.GeneralDictionaryEmissionPlans.occurrence
+        (Yulang.GeneralNominalAllocation.frame state registry invocation bindings)
+        (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid old allocation)).identity
+Yulang.GeneralDictionaryChildCaptureTransport.child_outputs {roles : Yulang.Roles.RoleDecls}
+  (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+  (old current : Yulang.GeneralDeclarationDemands.Capture) (same : Eq.{1} current.outputs old.outputs)
+  (allocation : Yulang.GeneralDeclarationDemands.Allocation roles clause) :
+  Eq.{1} (Yulang.GeneralDeclarationDemands.childDemand declaration clause valid current allocation).outputs
+    (Yulang.GeneralDeclarationDemands.childDemand declaration clause valid old allocation).outputs
+Yulang.GeneralDictionaryChildCaptureTransport.variable_argument {roles : Yulang.Roles.RoleDecls}
+  (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+  (capture : Yulang.GeneralDeclarationDemands.Capture)
+  (allocation : Yulang.GeneralDeclarationDemands.Allocation roles clause) (index : Fin (roles clause.role).arity)
+  (name : Nat)
+  (isVar :
+    Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize (getElem.{0, 0, 0} clause.arguments ↑index ⋯))
+      (Yulang.GeneralDeclarationPatterns.Pattern.var name)) :
+  Eq.{1} ((Yulang.GeneralDeclarationDemands.childDemand declaration clause valid capture allocation).arguments index)
+    (capture.inputs name)
+Yulang.GeneralDictionaryChildCaptureTransport.variable_argument_fits {roles : Yulang.Roles.RoleDecls}
+  (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+  (old current : Yulang.GeneralDeclarationDemands.Capture)
+  (allocation : Yulang.GeneralDeclarationDemands.Allocation roles clause) (index : Fin (roles clause.role).arity)
+  (name : Nat) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (isVar :
+    Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize (getElem.{0, 0, 0} clause.arguments ↑index ⋯))
+      (Yulang.GeneralDeclarationPatterns.Pattern.var name))
+  (widen :
+    ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+      Yulang.GeneralNominalCaptureMerges.Fits model (old.inputs name) actual →
+        Yulang.GeneralNominalCaptureMerges.Fits model (current.inputs name) actual)
+  (actual : Yulang.CommonNominalFullCarrier.Ty)
+  (fits :
+    Yulang.GeneralNominalCaptureMerges.Fits model
+      ((Yulang.GeneralDeclarationDemands.childDemand declaration clause valid old allocation).arguments index) actual) :
+  Yulang.GeneralNominalCaptureMerges.Fits model
+    ((Yulang.GeneralDeclarationDemands.childDemand declaration clause valid current allocation).arguments index) actual
+Yulang.GeneralDictionaryChildCaptureTransport.children_identities {roles : Yulang.Roles.RoleDecls}
+  {constructors : Yulang.GeneralDeclarationPatterns.Constructors} (first last : Yulang.GeneralNominalState.State)
+  (sameSeed : Eq.{1} last.seed first.seed) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked constructors roles declaration)
+  (old current : Yulang.GeneralNominalAllocation.Bindings) :
+  Eq.{1}
+    (List.map.{0, 0} (fun child => child.identity)
+      (Yulang.GeneralNominalAllocation.children last registry root declaration checked current))
+    (List.map.{0, 0} (fun child => child.identity)
+      (Yulang.GeneralNominalAllocation.children first registry root declaration checked old))
+Yulang.GeneralDictionaryChildCaptureTransport.collapsed_child_fits {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (invocation : Nat) (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause) (index : Fin (roles clause.role).arity)
+  (isVar :
+    Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize (getElem.{0, 0, 0} clause.arguments ↑index ⋯))
+      (Yulang.GeneralDeclarationPatterns.Pattern.var s.binder))
+  (declared : Membership.mem.{0, 0} declaration.inputNames s.binder)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (propagated :
+    Yulang.GeneralNominalState.Models
+      (Yulang.GeneralNominalAllocation.propagate state.context.state registry invocation declaration
+        (Yulang.GeneralNominalRecursiveInspection.bindings state.context.state
+          (Yulang.GeneralNominalRecursiveInspection.inspect state.context.state
+            (Yulang.GeneralDictionarySemanticCollapse.query s) (Prod.mk.{0, 0} s.root s.root) none.{0})))
+      model)
+  (actual : Yulang.CommonNominalFullCarrier.Ty)
+  (fits :
+    Yulang.GeneralNominalCaptureMerges.Fits model
+      ((Yulang.GeneralDeclarationDemands.childDemand declaration clause valid
+            (Yulang.GeneralDictionarySemanticCollapseSchema.oldCapture s registry invocation declaration)
+            (Yulang.GeneralNominalAllocation.allocation state.context.state registry invocation declaration.id
+              clause)).arguments
+        index)
+      actual) :
+  Yulang.GeneralNominalCaptureMerges.Fits model
+    ((Yulang.GeneralDeclarationDemands.childDemand declaration clause valid
+          (Yulang.GeneralDictionarySemanticCollapseSchema.newCapture s registry invocation declaration)
+          (Yulang.GeneralNominalAllocation.allocation revision.snapshot registry invocation declaration.id
+            clause)).arguments
+      index)
+    actual
+Yulang.GeneralDictionaryChildCaptureTransport.collapsed_child_outputs {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (invocation : Nat) (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause) :
+  Eq.{1}
+    (Yulang.GeneralDeclarationDemands.childDemand declaration clause valid
+        (Yulang.GeneralDictionarySemanticCollapseSchema.newCapture s registry invocation declaration)
+        (Yulang.GeneralNominalAllocation.allocation revision.snapshot registry invocation declaration.id
+          clause)).outputs
+    (Yulang.GeneralDeclarationDemands.childDemand declaration clause valid
+        (Yulang.GeneralDictionarySemanticCollapseSchema.oldCapture s registry invocation declaration)
+        (Yulang.GeneralNominalAllocation.allocation state.context.state registry invocation declaration.id
+          clause)).outputs
+Yulang.GeneralDictionaryChildCaptureTransport.collapsed_child_identity {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (invocation : Nat) (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause) :
+  Eq.{1}
+    (Yulang.GeneralDictionaryEmissionPlans.occurrence
+        (Yulang.GeneralNominalAllocation.frame revision.snapshot registry invocation
+          (Yulang.GeneralNominalRecursiveInspection.bindings revision.snapshot
+            (Yulang.GeneralNominalRecursiveInspection.inspect revision.snapshot
+              (Yulang.GeneralDictionarySemanticCollapse.query s) (Prod.mk.{0, 0} s.root s.root) none.{0})))
+        (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid
+          (Yulang.GeneralDictionarySemanticCollapseSchema.newCapture s registry invocation declaration)
+          (Yulang.GeneralNominalAllocation.allocation revision.snapshot registry invocation declaration.id
+            clause))).identity
+    (Yulang.GeneralDictionaryEmissionPlans.occurrence
+        (Yulang.GeneralNominalAllocation.frame state.context.state registry invocation
+          (Yulang.GeneralNominalRecursiveInspection.bindings state.context.state
+            (Yulang.GeneralNominalRecursiveInspection.inspect state.context.state
+              (Yulang.GeneralDictionarySemanticCollapse.query s) (Prod.mk.{0, 0} s.root s.root) none.{0})))
+        (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid
+          (Yulang.GeneralDictionarySemanticCollapseSchema.oldCapture s registry invocation declaration)
+          (Yulang.GeneralNominalAllocation.allocation state.context.state registry invocation declaration.id
+            clause))).identity
+Yulang.GeneralDictionaryEmissionRequestIdentity.output_target (declaration : Yulang.GeneralDeclarations.Declaration)
+  (old current : Yulang.GeneralDeclarationDemands.Capture) (same : Eq.{1} current.outputs old.outputs)
+  (allocate : Nat → Nat) (equation : Yulang.GeneralDeclarations.Equation) :
+  Eq.{1} (Yulang.GeneralDeclarationDemands.outputTarget declaration current allocate equation)
+    (Yulang.GeneralDeclarationDemands.outputTarget declaration old allocate equation)
+Yulang.GeneralDictionaryEmissionRequestIdentity.input_requests (old current : Yulang.GeneralDeclarationDemands.Capture)
+  (allocated : Yulang.GeneralSourceState.Interval) (pattern : Yulang.GeneralDeclarationPatterns.Pattern)
+  (position : Nat) :
+  Eq.{1}
+    (Yulang.GeneralNominalMaterialization.inputRequests
+      { position := position, pattern := pattern,
+        endpoints := Yulang.GeneralDeclarationDemands.inputInterval current allocated pattern })
+    (Yulang.GeneralNominalMaterialization.inputRequests
+      { position := position, pattern := pattern,
+        endpoints := Yulang.GeneralDeclarationDemands.inputInterval old allocated pattern })
+Yulang.GeneralDictionaryEmissionRequestIdentity.emission_requests (roles : Yulang.Roles.RoleDecls) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+  (old current : Yulang.GeneralDeclarationDemands.Capture) (same : Eq.{1} current.outputs old.outputs)
+  (allocation : Yulang.GeneralDeclarationDemands.Allocation roles clause) :
+  Eq.{1}
+    (Yulang.GeneralNominalMaterialization.emissionRequests
+      (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid current allocation))
+    (Yulang.GeneralNominalMaterialization.emissionRequests
+      (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid old allocation))
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.queries :
+  Eq.{1}
+    (Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionaryNonpointCertifiedOutput.source
+      Yulang.GeneralDictionaryNonpointStrict.interpretation
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration)
+    (List.cons.{0}
+      (Yulang.GeneralDictionarySemanticCollapse.query Yulang.GeneralDictionaryNonpointCertifiedOutput.shape)
+      List.nil.{0})
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.children_exact :
+  Eq.{1}
+    (Yulang.GeneralNominalAllocation.children Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current.state
+      Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+      Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+      Yulang.GeneralDictionaryNonterminalNonpointExample.checked
+      Yulang.GeneralDictionaryNonterminalCertifiedEvidence.captures)
+    (List.cons.{0} Yulang.GeneralDictionaryNonterminalCertifiedEvidence.occurrence List.nil.{0})
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.captures_exact :
+  Eq.{1} Yulang.GeneralDictionaryNonterminalCertifiedEvidence.captures
+    (List.cons.{0} (Prod.mk.{0, 0} 7 (Prod.mk.{0, 0} 3 4)) List.nil.{0})
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.child_arguments :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.arguments Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current
+      Yulang.GeneralDictionaryNonterminalCertifiedEvidence.occurrence)
+    (some.{0} (List.cons.{0} (Prod.mk.{0, 0} 3 4) List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf_checked :
+  Yulang.GeneralDeclarations.DeclarationChecked
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry.constructors
+    Yulang.GeneralDictionaryNonpointStrict.roles Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.metadata :
+  Yulang.GeneralNominalRecursiveCandidates.Metadata Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf_query :
+  Eq.{1}
+    (Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current.state
+      Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current.interpretation
+      Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf)
+    (List.cons.{0} (Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} 8 List.nil.{0})) List.nil.{0})
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.child_instance :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.occurrence
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf.id List.nil.{0}
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.child_evidence :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf.id
+      List.nil.{0})
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.parent_branch :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+    Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointCertifiedOutput.bounds
+    Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.parent_ready :
+  Yulang.GeneralNominalRecursiveCandidates.RequestReady Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+    Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointCertifiedOutput.bounds
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.parent_instance :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.id
+    (List.cons.{0} Yulang.GeneralDictionaryNonterminalCertifiedEvidence.occurrence List.nil.{0})
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.full_evidence :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.id
+      (List.cons.{0}
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf.id
+          List.nil.{0})
+        List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.positive_nonterminal_evidence :
+  Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.requirements) 1 ∧
+    Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.body.variables) 1 ∧
+      Eq.{1}
+          (Yulang.GeneralNominalAllocation.children Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current.state
+            Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+            Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+            Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+            Yulang.GeneralDictionaryNonterminalNonpointExample.checked
+            Yulang.GeneralDictionaryNonterminalCertifiedEvidence.captures)
+          (List.cons.{0} Yulang.GeneralDictionaryNonterminalCertifiedEvidence.occurrence List.nil.{0}) ∧
+        Eq.{1}
+            (Yulang.GeneralNominalRecursiveCandidates.arguments
+              Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current
+              Yulang.GeneralDictionaryNonterminalCertifiedEvidence.occurrence)
+            (some.{0} (List.cons.{0} (Prod.mk.{0, 0} 3 4) List.nil.{0})) ∧
+          Ne.{1} (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 3))
+              (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 4)) ∧
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence
+              Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+              Yulang.GeneralDictionaryNonterminalCertifiedEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+              Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node
+                Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.id
+                (List.cons.{0}
+                  (Yulang.CommonRoleOutermostResolver.Dictionary.node
+                    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf.id List.nil.{0})
+                  List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry_checked :
+  Yulang.GeneralDeclarations.Checked Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.initial_source :
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonpointCertifiedOutput.context
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.certified :
+  Yulang.GeneralNominalReobservationSteps.Certified Yulang.GeneralDictionaryNonpointCertifiedOutput.revision
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.improves :
+  Yulang.GeneralNominalReobservationSteps.Improves Yulang.GeneralDictionaryNonpointCertifiedOutput.revision
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.actual_value_step :
+  Yulang.GeneralNominalValueSteps.Step Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.tracked
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.formed :
+  Yulang.GeneralNominalValueSteps.SourceFormed Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.reachable :
+  Yulang.B4TargetV5.Reachable.{0}
+    (Yulang.GeneralNominalValueBoundary.boundary Yulang.GeneralDictionaryNonpointStrict.roles)
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.result_models :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after.current
+    Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalCertifiedEvidence.reachable_nonterminal_evidence :
+  Yulang.GeneralDeclarations.Checked Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry ∧
+    Yulang.GeneralNominalValueSteps.Step Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+        Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+        Yulang.GeneralDictionaryNonterminalCertifiedEvidence.tracked
+        Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after ∧
+      Yulang.B4TargetV5.Reachable.{0}
+          (Yulang.GeneralNominalValueBoundary.boundary Yulang.GeneralDictionaryNonpointStrict.roles)
+          Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+          Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+          Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after ∧
+        Yulang.GeneralNominalValueSteps.SourceFormed Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+            Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+            Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after ∧
+          Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after.current
+              Yulang.GeneralDictionaryNonpointStrict.model ∧
+            Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.requirements) 1 ∧
+              Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.body.variables) 1 ∧
+                Ne.{1} (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 3))
+                    (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 4)) ∧
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence
+                    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+                    Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after.current.context
+                    Yulang.GeneralDictionaryNonpointStrict.model
+                    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node
+                      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.id
+                      (List.cons.{0}
+                        (Yulang.CommonRoleOutermostResolver.Dictionary.node
+                          Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf.id List.nil.{0})
+                        List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalChildEvidence.children_exact :
+  Eq.{1}
+    (Yulang.GeneralNominalAllocation.children Yulang.GeneralDictionaryNonterminalChildEvidence.current.state
+      Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+      Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+      Yulang.GeneralDictionaryNonterminalNonpointExample.checked
+      Yulang.GeneralDictionaryNonterminalChildEvidence.captures)
+    (List.cons.{0} Yulang.GeneralDictionaryNonterminalChildEvidence.occurrence List.nil.{0})
+Yulang.GeneralDictionaryNonterminalChildEvidence.captures_exact :
+  Eq.{1} Yulang.GeneralDictionaryNonterminalChildEvidence.captures
+    (List.cons.{0} (Prod.mk.{0, 0} 7 (Prod.mk.{0, 0} 3 4)) List.nil.{0})
+Yulang.GeneralDictionaryNonterminalChildEvidence.child_arguments :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.arguments Yulang.GeneralDictionaryNonterminalChildEvidence.current
+      Yulang.GeneralDictionaryNonterminalChildEvidence.occurrence)
+    (some.{0} (List.cons.{0} (Prod.mk.{0, 0} 3 4) List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalChildEvidence.leaf_checked :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDictionaryNonterminalChildEvidence.registry.constructors
+    Yulang.GeneralDictionaryNonpointStrict.roles Yulang.GeneralDictionaryNonterminalChildEvidence.leaf
+Yulang.GeneralDictionaryNonterminalChildEvidence.metadata :
+  Yulang.GeneralNominalRecursiveCandidates.Metadata Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+    Yulang.GeneralDictionaryNonterminalChildEvidence.current
+Yulang.GeneralDictionaryNonterminalChildEvidence.leaf_query :
+  Eq.{1}
+    (Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionaryNonterminalChildEvidence.current.state
+      Yulang.GeneralDictionaryNonterminalChildEvidence.current.interpretation
+      Yulang.GeneralDictionaryNonterminalChildEvidence.leaf)
+    (List.cons.{0} (Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} 8 List.nil.{0})) List.nil.{0})
+Yulang.GeneralDictionaryNonterminalChildEvidence.child_instance :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+    Yulang.GeneralDictionaryNonterminalChildEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+    Yulang.GeneralDictionaryNonterminalChildEvidence.occurrence Yulang.GeneralDictionaryNonterminalChildEvidence.leaf.id
+    List.nil.{0}
+Yulang.GeneralDictionaryNonterminalChildEvidence.child_evidence :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+    Yulang.GeneralDictionaryNonterminalChildEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+    Yulang.GeneralDictionaryNonterminalChildEvidence.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNonterminalChildEvidence.leaf.id
+      List.nil.{0})
+Yulang.GeneralDictionaryNonterminalChildEvidence.parent_branch :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+    Yulang.GeneralDictionaryNonterminalChildEvidence.current
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+    Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds
+    Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalChildEvidence.parent_ready :
+  Yulang.GeneralNominalRecursiveCandidates.RequestReady Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+    Yulang.GeneralDictionaryNonterminalChildEvidence.current
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+    Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds
+Yulang.GeneralDictionaryNonterminalChildEvidence.parent_instance :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+    Yulang.GeneralDictionaryNonterminalChildEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.id
+    (List.cons.{0} Yulang.GeneralDictionaryNonterminalChildEvidence.occurrence List.nil.{0})
+Yulang.GeneralDictionaryNonterminalChildEvidence.full_evidence :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+    Yulang.GeneralDictionaryNonterminalChildEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.id
+      (List.cons.{0}
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNonterminalChildEvidence.leaf.id
+          List.nil.{0})
+        List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalChildEvidence.positive_nonterminal_evidence :
+  Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.requirements) 1 ∧
+    Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.body.variables) 1 ∧
+      Eq.{1}
+          (Yulang.GeneralNominalAllocation.children Yulang.GeneralDictionaryNonterminalChildEvidence.current.state
+            Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+            Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+            Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+            Yulang.GeneralDictionaryNonterminalNonpointExample.checked
+            Yulang.GeneralDictionaryNonterminalChildEvidence.captures)
+          (List.cons.{0} Yulang.GeneralDictionaryNonterminalChildEvidence.occurrence List.nil.{0}) ∧
+        Eq.{1}
+            (Yulang.GeneralNominalRecursiveCandidates.arguments Yulang.GeneralDictionaryNonterminalChildEvidence.current
+              Yulang.GeneralDictionaryNonterminalChildEvidence.occurrence)
+            (some.{0} (List.cons.{0} (Prod.mk.{0, 0} 3 4) List.nil.{0})) ∧
+          Ne.{1} (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 3))
+              (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 4)) ∧
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalChildEvidence.registry
+              Yulang.GeneralDictionaryNonterminalChildEvidence.current Yulang.GeneralDictionaryNonpointStrict.model
+              Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node
+                Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.id
+                (List.cons.{0}
+                  (Yulang.CommonRoleOutermostResolver.Dictionary.node
+                    Yulang.GeneralDictionaryNonterminalChildEvidence.leaf.id List.nil.{0})
+                  List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalNamedEvidence.transport_instance {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (registryChecked : Yulang.GeneralDeclarations.Checked registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (outputs : Yulang.GeneralDictionaryNonterminalScope.NormalizedOutputScope declaration)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments state.context root)
+      (some.{0} (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (oldChildren : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (old :
+    Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.context model root declaration.id oldChildren)
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model root declaration.id
+    (Yulang.GeneralDictionaryNonterminalNonpointEvidence.currentChildren s registry root declaration checked)
+Yulang.GeneralDictionaryNonterminalNamedEvidence.transport_evidence {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (registryChecked : Yulang.GeneralDeclarations.Checked registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (outputs : Yulang.GeneralDictionaryNonterminalScope.NormalizedOutputScope declaration)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments state.context root)
+      (some.{0} (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload)
+  (old :
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.context model root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id dictionaries))
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+        (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model)
+      (Yulang.GeneralDictionaryNonterminalNonpointEvidence.currentChildren s registry root declaration checked)
+      dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id dictionaries)
+Yulang.GeneralDictionaryNonterminalNamedExample.checked :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDictionaryNonterminalNamedExample.registry.constructors
+    Yulang.GeneralDictionaryNonpointStrict.roles Yulang.GeneralDictionaryNonterminalNamedExample.declaration
+Yulang.GeneralDictionaryNonterminalNamedExample.variable_inputs :
+  Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs
+    Yulang.GeneralDictionaryNonterminalNamedExample.declaration
+Yulang.GeneralDictionaryNonterminalNamedExample.output_normal (c : Yulang.GeneralDeclarations.Clause) :
+  Membership.mem.{0, 0} Yulang.GeneralDictionaryNonterminalNamedExample.declaration.requirements c →
+    ∀ (eq : Yulang.GeneralDeclarations.Equation),
+      Membership.mem.{0, 0} c.outputs eq → Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize eq.rhs) eq.rhs
+Yulang.GeneralDictionaryNonterminalNamedExample.names :
+  Eq.{1} Yulang.GeneralDictionaryNonterminalNamedExample.declaration.inputNames (List.cons.{0} 7 List.nil.{0})
+Yulang.GeneralDictionaryNonterminalNamedExample.root_request :
+  Eq.{1}
+    (Yulang.GeneralNominalMaterialization.rootRequests Yulang.GeneralDictionaryNonterminalNamedExample.declaration
+      Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot)
+    (List.cons.{0}
+      { pattern := Yulang.GeneralDeclarationPatterns.Pattern.var 7, target := 4,
+        mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+      List.nil.{0})
+Yulang.GeneralDictionaryNonterminalNamedExample.target_value :
+  Eq.{1}
+    (Prod.fst.{0, 0}
+      (Yulang.GeneralDictionaryNonpointStrict.model Yulang.GeneralDictionaryNonterminalNamedExample.target))
+    Yulang.GeneralDictionaryNonpointStrict.leafValue
+Yulang.GeneralDictionaryNonterminalNamedExample.nonempty :
+  Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNamedExample.body.variables) 2
+Yulang.GeneralDictionaryNonterminalNamedExample.old_materialized :
+  Yulang.GeneralNominalMaterialization.Models Yulang.GeneralDictionaryNonpointStrict.source
+    Yulang.GeneralDictionaryNonterminalNamedExample.declaration
+    (Yulang.GeneralDictionarySemanticCollapseSchema.oldCapture Yulang.GeneralDictionaryNonpointStrict.shape
+      Yulang.GeneralDictionaryNonterminalNamedExample.registry
+      Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot.identity
+      Yulang.GeneralDictionaryNonterminalNamedExample.declaration)
+    (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNonpointStrict.source
+      (Yulang.GeneralDictionarySemanticCollapse.query Yulang.GeneralDictionaryNonpointStrict.shape) (Prod.mk.{0, 0} 0 0)
+      none.{0})
+    Yulang.GeneralDictionaryNonterminalNamedExample.body Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNamedExample.queries :
+  Eq.{1}
+    (Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionaryNonpointStrict.source
+      Yulang.GeneralDictionaryNonpointStrict.interpretation Yulang.GeneralDictionaryNonterminalNamedExample.declaration)
+    (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query Yulang.GeneralDictionaryNonpointStrict.shape)
+      List.nil.{0})
+Yulang.GeneralDictionaryNonterminalNamedExample.report_exact :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralDictionaryNonpointStrict.context
+      Yulang.GeneralDictionaryNonterminalNamedExample.declaration Yulang.GeneralDictionaryNonpointStrict.bounds)
+    (Yulang.GeneralDictionarySemanticCollapseBranch.oldRootReport Yulang.GeneralDictionaryNonpointStrict.shape)
+Yulang.GeneralDictionaryNonterminalNamedExample.requests_exact :
+  Eq.{1}
+    (Yulang.GeneralNominalMaterialization.requests Yulang.GeneralDictionaryNonpointStrict.source
+      Yulang.GeneralDictionaryNonterminalNamedExample.registry
+      Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot
+      Yulang.GeneralDictionaryNonterminalNamedExample.declaration
+      Yulang.GeneralDictionaryNonterminalNamedExample.checked
+      (Yulang.GeneralNominalRecursiveInspection.bindings Yulang.GeneralDictionaryNonpointStrict.source
+        (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralDictionaryNonpointStrict.context
+          Yulang.GeneralDictionaryNonterminalNamedExample.declaration Yulang.GeneralDictionaryNonpointStrict.bounds)))
+    (List.cons.{0}
+      { pattern := Yulang.GeneralDeclarationPatterns.Pattern.var 7, target := 4,
+        mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+      (List.cons.{0}
+        { pattern := Yulang.GeneralDeclarationPatterns.Pattern.var 7,
+          target := Yulang.GeneralDictionaryNonterminalNamedExample.target,
+          mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+        List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalNamedExample.generated_exact :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.generated Yulang.GeneralDictionaryNonterminalNamedExample.registry
+      Yulang.GeneralDictionaryNonpointStrict.context Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot
+      Yulang.GeneralDictionaryNonterminalNamedExample.declaration
+      Yulang.GeneralDictionaryNonterminalNamedExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds)
+    Yulang.GeneralDictionaryNonterminalNamedExample.body
+Yulang.GeneralDictionaryNonterminalNamedExample.private_models :
+  Yulang.GeneralNominalState.Models
+    (Yulang.GeneralNominalRecursiveCandidates.privateState Yulang.GeneralDictionaryNonterminalNamedExample.registry
+      Yulang.GeneralDictionaryNonpointStrict.context Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot
+      Yulang.GeneralDictionaryNonterminalNamedExample.declaration Yulang.GeneralDictionaryNonpointStrict.bounds)
+    Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNamedExample.old_branch :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalNamedExample.registry
+    Yulang.GeneralDictionaryNonpointStrict.context Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNamedExample.declaration Yulang.GeneralDictionaryNonterminalNamedExample.checked
+    Yulang.GeneralDictionaryNonpointStrict.bounds Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNamedExample.current_branch :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalNamedExample.registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext Yulang.GeneralDictionaryNonpointStrict.revision)
+    Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNamedExample.declaration Yulang.GeneralDictionaryNonterminalNamedExample.checked
+    Yulang.GeneralDictionaryNonpointStrict.bounds Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNamedExample.positive_nonterminal :
+  Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNamedExample.declaration.requirements) 1 ∧
+    Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNamedExample.body.variables) 2 ∧
+      Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalNamedExample.registry
+          Yulang.GeneralDictionaryNonpointStrict.context Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot
+          Yulang.GeneralDictionaryNonterminalNamedExample.declaration
+          Yulang.GeneralDictionaryNonterminalNamedExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds
+          Yulang.GeneralDictionaryNonpointStrict.model ∧
+        Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalNamedExample.registry
+            (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext
+              Yulang.GeneralDictionaryNonpointStrict.revision)
+            Yulang.GeneralDictionaryNonterminalNamedExample.outputRoot
+            Yulang.GeneralDictionaryNonterminalNamedExample.declaration
+            Yulang.GeneralDictionaryNonterminalNamedExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds
+            Yulang.GeneralDictionaryNonpointStrict.model ∧
+          Ne.{1} (Prod.fst.{0, 0} Yulang.GeneralDictionaryNonpointStrict.shape.first)
+              (Prod.snd.{0, 0} Yulang.GeneralDictionaryNonpointStrict.shape.first) ∧
+            Ne.{1} (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 3))
+              (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 4))
+Yulang.GeneralDictionaryNonterminalNonpointBranch.branch {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (scope :
+    ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+      Membership.mem.{0, 0}
+          (Yulang.GeneralNominalRecursiveCandidates.generated registry state.context root declaration checked
+              (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})).variables
+          entry →
+        ¬Membership.mem.{0, 0} declaration.outputNames entry.name → Eq.{1} entry.name s.binder)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (old :
+    Yulang.GeneralNominalRecursiveCandidates.BranchModels registry state.context root declaration checked
+      (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model)
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model) :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) root declaration checked
+    (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model
+Yulang.GeneralDictionaryNonterminalNonpointBranch.bare_branch {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableRequirements.VariableClauses declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (old :
+    Yulang.GeneralNominalRecursiveCandidates.BranchModels registry state.context root declaration checked
+      (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model)
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model) :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) root declaration checked
+    (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model
+Yulang.GeneralDictionaryNonterminalNonpointEvidence.transport_instance {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (registryChecked : Yulang.GeneralDeclarations.Checked registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableRequirements.VariableClauses declaration)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments state.context root)
+      (some.{0} (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (oldChildren : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (old :
+    Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.context model root declaration.id oldChildren)
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model root declaration.id
+    (Yulang.GeneralDictionaryNonterminalNonpointEvidence.currentChildren s registry root declaration checked)
+Yulang.GeneralDictionaryNonterminalNonpointEvidence.transport_evidence {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (registryChecked : Yulang.GeneralDeclarations.Checked registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableRequirements.VariableClauses declaration)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments state.context root)
+      (some.{0} (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload)
+  (old :
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.context model root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id dictionaries))
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+        (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model)
+      (Yulang.GeneralDictionaryNonterminalNonpointEvidence.currentChildren s registry root declaration checked)
+      dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id dictionaries)
+Yulang.GeneralDictionaryNonterminalNonpointExample.checked :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDictionaryNonterminalNonpointExample.registry.constructors
+    Yulang.GeneralDictionaryNonpointStrict.roles Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+Yulang.GeneralDictionaryNonterminalNonpointExample.variable_clauses :
+  Yulang.GeneralDictionaryVariableRequirements.VariableClauses
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+Yulang.GeneralDictionaryNonterminalNonpointExample.names :
+  Eq.{1} Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.inputNames (List.cons.{0} 7 List.nil.{0})
+Yulang.GeneralDictionaryNonterminalNonpointExample.root_request :
+  Eq.{1}
+    (Yulang.GeneralNominalMaterialization.rootRequests Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+      Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot)
+    (List.cons.{0}
+      { pattern := Yulang.GeneralDeclarationPatterns.Pattern.var 7, target := 4,
+        mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+      List.nil.{0})
+Yulang.GeneralDictionaryNonterminalNonpointExample.generated_body :
+  Eq.{1}
+    (Yulang.GeneralNominalMaterialization.generated Yulang.GeneralDictionaryNonpointStrict.source
+      Yulang.GeneralDictionaryNonpointStrict.interpretation
+      (Yulang.GeneralNominalMaterialization.rootRequests Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+        Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot))
+    Yulang.GeneralDictionaryNonterminalNonpointExample.body
+Yulang.GeneralDictionaryNonterminalNonpointExample.nonempty :
+  Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.body.variables) 1
+Yulang.GeneralDictionaryNonterminalNonpointExample.old_materialized :
+  Yulang.GeneralNominalMaterialization.Models Yulang.GeneralDictionaryNonpointStrict.source
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+    (Yulang.GeneralDictionarySemanticCollapseSchema.oldCapture Yulang.GeneralDictionaryNonpointStrict.shape
+      Yulang.GeneralDictionaryNonterminalNonpointExample.registry
+      Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot.identity
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration)
+    (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNonpointStrict.source
+      (Yulang.GeneralDictionarySemanticCollapse.query Yulang.GeneralDictionaryNonpointStrict.shape) (Prod.mk.{0, 0} 0 0)
+      none.{0})
+    Yulang.GeneralDictionaryNonterminalNonpointExample.body Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNonpointExample.current_materialized :
+  Yulang.GeneralNominalMaterialization.Models Yulang.GeneralDictionaryNonpointStrict.revision.snapshot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+    (Yulang.GeneralDictionarySemanticCollapseSchema.newCapture Yulang.GeneralDictionaryNonpointStrict.shape
+      Yulang.GeneralDictionaryNonterminalNonpointExample.registry
+      Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot.identity
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration)
+    (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNonpointStrict.revision.snapshot
+      (Yulang.GeneralDictionarySemanticCollapse.query Yulang.GeneralDictionaryNonpointStrict.shape) (Prod.mk.{0, 0} 0 0)
+      none.{0})
+    Yulang.GeneralDictionaryNonterminalNonpointExample.body Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNonpointExample.queries :
+  Eq.{1}
+    (Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionaryNonpointStrict.source
+      Yulang.GeneralDictionaryNonpointStrict.interpretation
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration)
+    (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query Yulang.GeneralDictionaryNonpointStrict.shape)
+      List.nil.{0})
+Yulang.GeneralDictionaryNonterminalNonpointExample.report_exact :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralDictionaryNonpointStrict.context
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration Yulang.GeneralDictionaryNonpointStrict.bounds)
+    (Yulang.GeneralDictionarySemanticCollapseBranch.oldRootReport Yulang.GeneralDictionaryNonpointStrict.shape)
+Yulang.GeneralDictionaryNonterminalNonpointExample.generated_exact :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.generated Yulang.GeneralDictionaryNonterminalNonpointExample.registry
+      Yulang.GeneralDictionaryNonpointStrict.context Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+      Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds)
+    Yulang.GeneralDictionaryNonterminalNonpointExample.body
+Yulang.GeneralDictionaryNonterminalNonpointExample.private_models :
+  Yulang.GeneralNominalState.Models
+    (Yulang.GeneralNominalRecursiveCandidates.privateState Yulang.GeneralDictionaryNonterminalNonpointExample.registry
+      Yulang.GeneralDictionaryNonpointStrict.context Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration Yulang.GeneralDictionaryNonpointStrict.bounds)
+    Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNonpointExample.old_branch :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalNonpointExample.registry
+    Yulang.GeneralDictionaryNonpointStrict.context Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+    Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds
+    Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNonpointExample.current_branch :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalNonpointExample.registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext Yulang.GeneralDictionaryNonpointStrict.revision)
+    Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+    Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+    Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds
+    Yulang.GeneralDictionaryNonpointStrict.model
+Yulang.GeneralDictionaryNonterminalNonpointExample.positive_nonterminal :
+  Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.requirements) 1 ∧
+    Eq.{1} (List.length.{0} Yulang.GeneralDictionaryNonterminalNonpointExample.body.variables) 1 ∧
+      Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNonterminalNonpointExample.registry
+          Yulang.GeneralDictionaryNonpointStrict.context Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+          Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+          Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds
+          Yulang.GeneralDictionaryNonpointStrict.model ∧
+        Yulang.GeneralNominalRecursiveCandidates.BranchModels
+            Yulang.GeneralDictionaryNonterminalNonpointExample.registry
+            (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext
+              Yulang.GeneralDictionaryNonpointStrict.revision)
+            Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+            Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+            Yulang.GeneralDictionaryNonterminalNonpointExample.checked Yulang.GeneralDictionaryNonpointStrict.bounds
+            Yulang.GeneralDictionaryNonpointStrict.model ∧
+          Ne.{1} (Prod.fst.{0, 0} Yulang.GeneralDictionaryNonpointStrict.shape.first)
+              (Prod.snd.{0, 0} Yulang.GeneralDictionaryNonpointStrict.shape.first) ∧
+            Ne.{1} (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 3))
+              (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNonpointStrict.model 4))
+Yulang.GeneralDictionaryNonterminalOldObstruction.children_exact :
+  Eq.{1}
+    (Yulang.GeneralNominalAllocation.children Yulang.GeneralDictionaryNonpointCertifiedOutput.context.state
+      Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+      Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+      Yulang.GeneralDictionaryNonterminalNonpointExample.declaration
+      Yulang.GeneralDictionaryNonterminalNonpointExample.checked
+      Yulang.GeneralDictionaryNonterminalOldObstruction.captures)
+    (List.cons.{0} Yulang.GeneralDictionaryNonterminalOldObstruction.occurrence List.nil.{0})
+Yulang.GeneralDictionaryNonterminalOldObstruction.captures_exact :
+  Eq.{1} Yulang.GeneralDictionaryNonterminalOldObstruction.captures
+    (List.cons.{0} (Prod.mk.{0, 0} 7 (Prod.mk.{0, 0} 3 4))
+      (List.cons.{0} (Prod.mk.{0, 0} 7 (Prod.mk.{0, 0} 4 4)) List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalOldObstruction.child_unlocated :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.arguments Yulang.GeneralDictionaryNonpointCertifiedOutput.context
+      Yulang.GeneralDictionaryNonterminalOldObstruction.occurrence)
+    none.{0}
+Yulang.GeneralDictionaryNonterminalOldObstruction.child_no_instance
+  (valuation : Yulang.GeneralNominalCommonBridge.Assignment) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDictionaryNonpointStrict.roles)) :
+  ¬Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+      Yulang.GeneralDictionaryNonpointCertifiedOutput.context valuation
+      Yulang.GeneralDictionaryNonterminalOldObstruction.occurrence key children
+Yulang.GeneralDictionaryNonterminalOldObstruction.child_no_evidence
+  (valuation : Yulang.GeneralNominalCommonBridge.Assignment) (payload : Yulang.GeneralDictionaryReadback.Payload) :
+  ¬Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+      Yulang.GeneralDictionaryNonpointCertifiedOutput.context valuation
+      Yulang.GeneralDictionaryNonterminalOldObstruction.occurrence payload
+Yulang.GeneralDictionaryNonterminalOldObstruction.root_no_evidence
+  (valuation : Yulang.GeneralNominalCommonBridge.Assignment) (payload : Yulang.GeneralDictionaryReadback.Payload) :
+  ¬Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+      Yulang.GeneralDictionaryNonpointCertifiedOutput.context valuation
+      Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot payload
+Yulang.GeneralDictionaryNonterminalOldObstruction.old_absent_current_present :
+  (∀ (payload : Yulang.GeneralDictionaryReadback.Payload),
+      ¬Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+          Yulang.GeneralDictionaryNonpointCertifiedOutput.context Yulang.GeneralDictionaryNonpointStrict.model
+          Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot payload) ∧
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNonterminalCertifiedEvidence.registry
+      Yulang.GeneralDictionaryNonterminalCertifiedEvidence.after.current.context
+      Yulang.GeneralDictionaryNonpointStrict.model Yulang.GeneralDictionaryNonterminalNonpointExample.outputRoot
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node
+        Yulang.GeneralDictionaryNonterminalNonpointExample.declaration.id
+        (List.cons.{0}
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node
+            Yulang.GeneralDictionaryNonterminalCertifiedEvidence.leaf.id List.nil.{0})
+          List.nil.{0}))
+Yulang.GeneralDictionaryNonterminalRecordedRevision.instance_from_trace {roles : Yulang.Roles.RoleDecls}
+  {before : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision before}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (registryChecked : Yulang.GeneralDeclarations.Checked registry)
+  (saturationRoot : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (initialContext : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryRecordedRevisionTrace.Step registry saturationRoot)
+      (Yulang.GeneralNominalSaturationState.initial initialContext saturationRoot) before)
+  (certificate : Yulang.GeneralNominalReobservationSteps.Certified revision)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (recorded : Membership.mem.{0, 0} before.packets packet)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (key : Eq.{1} packet.declaration.id declaration.id)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries before.context.state before.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableRequirements.VariableClauses declaration)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments before.context packet.site.occurrence)
+      (some.{0} (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models revision.result model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model packet.site.occurrence declaration.id
+    (Yulang.GeneralDictionaryNonterminalNonpointEvidence.currentChildren s registry packet.site.occurrence declaration
+      checked)
+Yulang.GeneralDictionaryNonterminalRecordedRevision.evidence_from_trace {roles : Yulang.Roles.RoleDecls}
+  {before : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision before}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (registryChecked : Yulang.GeneralDeclarations.Checked registry)
+  (saturationRoot : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (initialContext : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryRecordedRevisionTrace.Step registry saturationRoot)
+      (Yulang.GeneralNominalSaturationState.initial initialContext saturationRoot) before)
+  (certificate : Yulang.GeneralNominalReobservationSteps.Certified revision)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (recorded : Membership.mem.{0, 0} before.packets packet)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (key : Eq.{1} packet.declaration.id declaration.id)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries before.context.state before.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableRequirements.VariableClauses declaration)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments before.context packet.site.occurrence)
+      (some.{0} (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models revision.result model)
+  (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+        (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model)
+      (Yulang.GeneralDictionaryNonterminalNonpointEvidence.currentChildren s registry packet.site.occurrence declaration
+        checked)
+      dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id dictionaries)
+Yulang.GeneralDictionaryNonterminalScope.normalized_outputs (declaration : Yulang.GeneralDeclarations.Declaration)
+  (scope : declaration.Scoped)
+  (normal :
+    ∀ (clause : Yulang.GeneralDeclarations.Clause),
+      Membership.mem.{0, 0} declaration.requirements clause →
+        ∀ (equation : Yulang.GeneralDeclarations.Equation),
+          Membership.mem.{0, 0} clause.outputs equation →
+            Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize equation.rhs) equation.rhs) :
+  Yulang.GeneralDictionaryNonterminalScope.NormalizedOutputScope declaration
+Yulang.GeneralDictionaryNonterminalScope.variable_outputs (declaration : Yulang.GeneralDeclarations.Declaration)
+  (scope : declaration.Scoped)
+  (variables :
+    ∀ (clause : Yulang.GeneralDeclarations.Clause),
+      Membership.mem.{0, 0} declaration.requirements clause →
+        ∀ (equation : Yulang.GeneralDeclarations.Equation),
+          Membership.mem.{0, 0} clause.outputs equation →
+            Exists.{1} fun name =>
+              Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize equation.rhs)
+                (Yulang.GeneralDeclarationPatterns.Pattern.var name)) :
+  Yulang.GeneralDictionaryNonterminalScope.NormalizedOutputScope declaration
+Yulang.GeneralDictionaryNonterminalScope.request_scope {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (captures : Yulang.GeneralNominalAllocation.Bindings)
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (outputs : Yulang.GeneralDictionaryNonterminalScope.NormalizedOutputScope declaration)
+  (request : Yulang.GeneralNominalMaterialization.Request) :
+  Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.requests state registry root declaration checked captures)
+      request →
+    ∀ (name : Nat),
+      Membership.mem.{0, 0} (Yulang.GeneralDeclarationPatterns.normalize request.pattern).variables name →
+        Membership.mem.{0, 0} declaration.inputNames name ∨ Membership.mem.{0, 0} declaration.outputNames name
+Yulang.GeneralDictionaryNonterminalScope.generated_scope {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (bounds : List.{0} (Yulang.GeneralNominalInspection.Bounds context.state))
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (outputs : Yulang.GeneralDictionaryNonterminalScope.NormalizedOutputScope declaration)
+  (entry : Yulang.GeneralNominalMaterialization.Use) :
+  Membership.mem.{0, 0}
+      (Yulang.GeneralNominalRecursiveCandidates.generated registry context root declaration checked bounds).variables
+      entry →
+    Membership.mem.{0, 0} declaration.inputNames entry.name ∨ Membership.mem.{0, 0} declaration.outputNames entry.name
+Yulang.GeneralDictionaryNonterminalScope.branch {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (outputs : Yulang.GeneralDictionaryNonterminalScope.NormalizedOutputScope declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (old :
+    Yulang.GeneralNominalRecursiveCandidates.BranchModels registry state.context root declaration checked
+      (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model)
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model) :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) root declaration checked
+    (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model
+Yulang.GeneralDictionaryNonterminalScope.normal_form_branch {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (normal :
+    ∀ (clause : Yulang.GeneralDeclarations.Clause),
+      Membership.mem.{0, 0} declaration.requirements clause →
+        ∀ (equation : Yulang.GeneralDeclarations.Equation),
+          Membership.mem.{0, 0} clause.outputs equation →
+            Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize equation.rhs) equation.rhs)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (old :
+    Yulang.GeneralNominalRecursiveCandidates.BranchModels registry state.context root declaration checked
+      (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model)
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model) :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) root declaration checked
+    (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model
+Yulang.GeneralDictionaryNonterminalScope.variable_output_branch {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (outputs :
+    ∀ (clause : Yulang.GeneralDeclarations.Clause),
+      Membership.mem.{0, 0} declaration.requirements clause →
+        ∀ (equation : Yulang.GeneralDeclarations.Equation),
+          Membership.mem.{0, 0} clause.outputs equation →
+            Exists.{1} fun name =>
+              Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize equation.rhs)
+                (Yulang.GeneralDeclarationPatterns.Pattern.var name))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (old :
+    Yulang.GeneralNominalRecursiveCandidates.BranchModels registry state.context root declaration checked
+      (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model)
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model) :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) root declaration checked
+    (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0}) model
+Yulang.GeneralDictionaryRecordedLeafPlans.evidence_from_leaf_plans {roles : Yulang.Roles.RoleDecls}
+  {before : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision before}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (registryChecked : Yulang.GeneralDeclarations.Checked registry)
+  (saturationRoot : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (initialContext : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryRecordedRevisionTrace.Step registry saturationRoot)
+      (Yulang.GeneralNominalSaturationState.initial initialContext saturationRoot) before)
+  (certificate : Yulang.GeneralNominalReobservationSteps.Certified revision)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (recorded : Membership.mem.{0, 0} before.packets packet)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (key : Eq.{1} packet.declaration.id declaration.id)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries before.context.state before.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableRequirements.VariableClauses declaration)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments before.context packet.site.occurrence)
+      (some.{0} (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models revision.result model) (keys : List.{0} Nat)
+  (plans :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (fun child key =>
+        Nonempty.{1}
+          (Yulang.GeneralDictionaryVariableLeafPlans.LeafPlan registry
+            (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model child key))
+      (Yulang.GeneralDictionaryNonterminalNonpointEvidence.currentChildren s registry packet.site.occurrence declaration
+        checked)
+      keys) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id
+      (List.map.{0, 0} (fun key => Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0}) keys))
+Yulang.GeneralDictionaryRequestSnapshot.canonical_requests
+  {constructors : Yulang.GeneralDeclarationPatterns.Constructors} {roles : Yulang.Roles.RoleDecls}
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked constructors roles declaration) (invocation : Nat)
+  (old current : Yulang.GeneralDeclarationDemands.Capture) (outputs : Eq.{1} current.outputs old.outputs)
+  (allocate : (clause : Yulang.GeneralDeclarations.Clause) → Yulang.GeneralDeclarationDemands.Allocation roles clause) :
+  Eq.{1}
+    (List.flatMap.{0, 0} Yulang.GeneralNominalMaterialization.emissionRequests
+      (Yulang.GeneralCanonicalChildOrder.canonicalEmit invocation declaration checked current allocate))
+    (List.flatMap.{0, 0} Yulang.GeneralNominalMaterialization.emissionRequests
+      (Yulang.GeneralCanonicalChildOrder.canonicalEmit invocation declaration checked old allocate))
+Yulang.GeneralDictionaryRequestSnapshot.requests_bindings {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (old current : Yulang.GeneralNominalAllocation.Bindings) :
+  Eq.{1} (Yulang.GeneralNominalMaterialization.requests state registry root declaration checked current)
+    (Yulang.GeneralNominalMaterialization.requests state registry root declaration checked old)
+Yulang.GeneralDictionaryRequestSnapshot.requests_revision {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision state) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (old current : Yulang.GeneralNominalAllocation.Bindings) :
+  Eq.{1} (Yulang.GeneralNominalMaterialization.requests revision.snapshot registry root declaration checked current)
+    (Yulang.GeneralNominalMaterialization.requests state.context.state registry root declaration checked old)
+Yulang.GeneralDictionaryRequestSnapshot.generated_revision {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision state) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (old : List.{0} (Yulang.GeneralNominalInspection.Bounds state.context.state))
+  (current : List.{0} (Yulang.GeneralNominalInspection.Bounds revision.snapshot)) :
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveCandidates.generated registry
+      (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) root declaration checked current)
+    (Yulang.GeneralNominalRecursiveCandidates.generated registry state.context root declaration checked old)
+Yulang.GeneralDictionaryRequestSnapshot.ready_revision {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision state) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (old : List.{0} (Yulang.GeneralNominalInspection.Bounds state.context.state))
+  (current : List.{0} (Yulang.GeneralNominalInspection.Bounds revision.snapshot)) :
+  Yulang.GeneralNominalRecursiveCandidates.RequestReady registry
+      (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) root declaration checked current ↔
+    Yulang.GeneralNominalRecursiveCandidates.RequestReady registry state.context root declaration checked old
+Yulang.GeneralDictionaryValuePendingExclusion.no_local_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (blocked : Yulang.GeneralNominalValueBoundary.SupportPending registry state root) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)) :
+  ¬Yulang.GeneralNominalValueBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)
+Yulang.GeneralDictionaryValuePendingExclusion.no_boundary_selected {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (blocked : Yulang.GeneralNominalValueBoundary.SupportPending registry state root) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)) :
+  ¬Yulang.B4TargetV3.Local.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalValueBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children)
+Yulang.GeneralDictionaryValuePendingExclusion.no_selected_classification {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (blocked : Yulang.GeneralNominalValueBoundary.SupportPending registry state root)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary) :
+  ¬Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalValueBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionaryValuePendingExclusion.child_pending_no_parent_dictionary {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalSupport.Tracked roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (selected :
+    Yulang.B4TargetV3.Local.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalValueBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) (member : Membership.mem.{0, 0} children child)
+  (blocked : Yulang.GeneralNominalValueBoundary.SupportPending registry state child)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary) :
+  ¬Yulang.B4TargetV3.Classify.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0} (Yulang.GeneralNominalValueBoundary.boundary roles))
+      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)
+Yulang.GeneralDictionaryVariableIntervalLeaf.report_exact (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (name : Nat)
+  (pair : Yulang.GeneralNominalInspection.Bounds context.state)
+  (query :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} name List.nil.{0}))
+        List.nil.{0})) :
+  Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.report context declaration (List.cons.{0} pair List.nil.{0}))
+    (Yulang.GeneralDictionaryVariableIntervalLeaf.variableReport context name pair)
+Yulang.GeneralDictionaryVariableIntervalLeaf.branch_models {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration) (name : Nat)
+  (pair : Yulang.GeneralNominalInspection.Bounds context.state)
+  (query :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} name List.nil.{0})) List.nil.{0}))
+  (inputs : Eq.{1} declaration.inputNames (List.cons.{0} name List.nil.{0}))
+  (terminal : Eq.{1} declaration.requirements List.nil.{0}) (outputs : Eq.{1} root.demand.outputs List.nil.{0})
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralNominalState.Models context.state model)
+  (ordered :
+    Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source (Prod.fst.{0, 0} pair))))
+      (Prod.fst.{0, 0} (model (context.state.base.source (Prod.snd.{0, 0} pair))))) :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked
+    (List.cons.{0} pair List.nil.{0}) model
+Yulang.GeneralDictionaryVariableIntervalLeaf.instance_of_interval {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration) (name : Nat)
+  (pair : Yulang.GeneralNominalInspection.Bounds context.state)
+  (query :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} name List.nil.{0})) List.nil.{0}))
+  (inputs : Eq.{1} declaration.inputNames (List.cons.{0} name List.nil.{0}))
+  (terminal : Eq.{1} declaration.requirements List.nil.{0}) (outputs : Eq.{1} root.demand.outputs List.nil.{0})
+  (role : Eq.{1} declaration.role root.demand.role)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments context root)
+      (some.{0} (List.cons.{0} pair List.nil.{0})))
+  (metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata registry context)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralNominalState.Models context.state model)
+  (ordered :
+    Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source (Prod.fst.{0, 0} pair))))
+      (Prod.fst.{0, 0} (model (context.state.base.source (Prod.snd.{0, 0} pair))))) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry context model root declaration.id List.nil.{0}
+Yulang.GeneralDictionaryVariableLeafPlans.instance_of_plan {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata registry context)
+  (valid : Yulang.GeneralNominalState.Models context.state model)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (plan : Yulang.GeneralDictionaryVariableLeafPlans.LeafPlan registry context model root key) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry context model root key List.nil.{0}
+Yulang.GeneralDictionaryVariableLeafPlans.evidence_of_plan {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata registry context)
+  (valid : Yulang.GeneralNominalState.Models context.state model)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (plan : Yulang.GeneralDictionaryVariableLeafPlans.LeafPlan registry context model root key) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry context model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+Yulang.GeneralDictionaryVariableLeafPlans.children_evidence {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata registry context)
+  (valid : Yulang.GeneralNominalState.Models context.state model)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)) (keys : List.{0} Nat)
+  (plans :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (fun child key =>
+        Nonempty.{1} (Yulang.GeneralDictionaryVariableLeafPlans.LeafPlan registry context model child key))
+      children keys) :
+  Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+    (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry context model) children
+    (List.map.{0, 0} (fun key => Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0}) keys)
+Yulang.GeneralDictionaryVariableLeafPlans.parent_evidence {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata registry context)
+  (valid : Yulang.GeneralNominalState.Models context.state model)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)) (keys : List.{0} Nat)
+  (parent : Yulang.GeneralDictionaryRecursiveEvidence.Instance registry context model root key children)
+  (plans :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (fun child leafKey =>
+        Nonempty.{1} (Yulang.GeneralDictionaryVariableLeafPlans.LeafPlan registry context model child leafKey))
+      children keys) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry context model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key
+      (List.map.{0, 0} (fun leafKey => Yulang.CommonRoleOutermostResolver.Dictionary.node leafKey List.nil.{0}) keys))
+Yulang.GeneralDictionaryVariableLeafPlans.transport_parent_evidence {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  {revision : Yulang.GeneralNominalReobservationSteps.Revision state}
+  (s : Yulang.GeneralDictionarySemanticCollapse.Shape revision) (registry : Yulang.GeneralDeclarations.Registry)
+  (registryChecked : Yulang.GeneralDeclarations.Checked registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (visible : Membership.mem.{0, 0} registry.declarations declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (queries :
+    Eq.{1} (Yulang.GeneralNominalInspection.queries state.context.state state.context.interpretation declaration)
+      (List.cons.{0} (Yulang.GeneralDictionarySemanticCollapse.query s) List.nil.{0}))
+  (names : Eq.{1} declaration.inputNames (List.cons.{0} s.binder List.nil.{0}))
+  (variables : Yulang.GeneralDictionaryVariableRequirements.VariableClauses declaration)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments state.context root)
+      (some.{0} (List.cons.{0} (Prod.mk.{0, 0} s.root s.root) List.nil.{0})))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (oldChildren : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (old :
+    Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.context model root declaration.id oldChildren)
+  (current : Yulang.GeneralNominalState.Models revision.snapshot model)
+  (metadata :
+    Yulang.GeneralNominalRecursiveCandidates.Metadata registry
+      (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision))
+  (keys : List.{0} Nat)
+  (plans :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (fun child key =>
+        Nonempty.{1}
+          (Yulang.GeneralDictionaryVariableLeafPlans.LeafPlan registry
+            (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model child key))
+      (Yulang.GeneralDictionaryNonterminalNonpointEvidence.currentChildren s registry root declaration checked) keys) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+    (Yulang.GeneralDictionarySemanticCollapseBranch.currentContext revision) model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id
+      (List.map.{0, 0} (fun key => Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0}) keys))
+Yulang.GeneralDictionaryVariableWhereRequests.canonical_requests
+  {constructors : Yulang.GeneralDeclarationPatterns.Constructors} {roles : Yulang.Roles.RoleDecls} (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked constructors roles declaration)
+  (old current : Yulang.GeneralDeclarationDemands.Capture) (same : Eq.{1} current.outputs old.outputs)
+  (allocate : (clause : Yulang.GeneralDeclarations.Clause) → Yulang.GeneralDeclarationDemands.Allocation roles clause) :
+  Eq.{1}
+    (List.flatMap.{0, 0} Yulang.GeneralNominalMaterialization.emissionRequests
+      (Yulang.GeneralCanonicalChildOrder.canonicalEmit invocation declaration checked current allocate))
+    (List.flatMap.{0, 0} Yulang.GeneralNominalMaterialization.emissionRequests
+      (Yulang.GeneralCanonicalChildOrder.canonicalEmit invocation declaration checked old allocate))
+Yulang.GeneralDictionaryVariableWhereRequests.emission_actual {roles : Yulang.Roles.RoleDecls} (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (clause : Yulang.GeneralDeclarations.Clause)
+  (valid : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+  (capture : Yulang.GeneralDeclarationDemands.Capture)
+  (allocate : Yulang.GeneralDeclarationDemands.Allocation roles clause)
+  (variables :
+    ∀ (pattern : Yulang.GeneralDeclarationPatterns.Pattern),
+      Membership.mem.{0, 0} clause.arguments pattern →
+        Exists.{1} fun name =>
+          Eq.{1} (Yulang.GeneralDeclarationPatterns.normalize pattern)
+            (Yulang.GeneralDeclarationPatterns.Pattern.var name))
+  (request : Yulang.GeneralNominalMaterialization.Request) :
+  Membership.mem.{0, 0}
+      (Yulang.GeneralNominalMaterialization.emissionRequests
+        (Yulang.GeneralDeclarationDemands.emit invocation declaration clause valid capture allocate))
+      request →
+    Eq.{1} request.mode Yulang.GeneralNominalMaterialization.Mode.actual
+Yulang.GeneralDictionaryVariableWhereRequests.canonical_actual
+  {constructors : Yulang.GeneralDeclarationPatterns.Constructors} {roles : Yulang.Roles.RoleDecls} (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked constructors roles declaration)
+  (capture : Yulang.GeneralDeclarationDemands.Capture)
+  (allocate : (clause : Yulang.GeneralDeclarations.Clause) → Yulang.GeneralDeclarationDemands.Allocation roles clause)
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (request : Yulang.GeneralNominalMaterialization.Request) :
+  Membership.mem.{0, 0}
+      (List.flatMap.{0, 0} Yulang.GeneralNominalMaterialization.emissionRequests
+        (Yulang.GeneralCanonicalChildOrder.canonicalEmit invocation declaration checked capture allocate))
+      request →
+    Eq.{1} request.mode Yulang.GeneralNominalMaterialization.Mode.actual
+Yulang.GeneralDictionaryVariableWhereRequests.requests_actual {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (bindings : Yulang.GeneralNominalAllocation.Bindings)
+  (variables : Yulang.GeneralDictionaryVariableWhereRequests.VariableInputs declaration)
+  (request : Yulang.GeneralNominalMaterialization.Request) :
+  Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.requests state registry root declaration checked bindings)
+      request →
+    Eq.{1} request.mode Yulang.GeneralNominalMaterialization.Mode.actual
+Yulang.GeneralDictionaryVariableWhereRequests.revision_requests {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles}
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision state) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (old current : Yulang.GeneralNominalAllocation.Bindings) :
+  Eq.{1} (Yulang.GeneralNominalMaterialization.requests revision.snapshot registry root declaration checked current)
+    (Yulang.GeneralNominalMaterialization.requests state.context.state registry root declaration checked old)
+Yulang.GeneralDictionaryVariableWhereRequests.bare_requests {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalState.State) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (captures : Yulang.GeneralNominalAllocation.Bindings)
+  (variables : Yulang.GeneralDictionaryVariableRequirements.VariableClauses declaration) :
+  Eq.{1} (Yulang.GeneralNominalMaterialization.requests state registry root declaration checked captures)
+    (Yulang.GeneralNominalMaterialization.rootRequests declaration root)
