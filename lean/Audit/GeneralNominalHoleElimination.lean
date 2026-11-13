@@ -1,0 +1,58 @@
+import Yulang.GeneralNominalHoleReadback
+import Yulang.GeneralNominalHoleObservation
+import Yulang.GeneralNominalHoleFacets
+import Yulang.GeneralNominalHoleMaterialization
+import Yulang.GeneralNominalHoleElimination
+
+#print axioms Yulang.GeneralNominalHoleReadback.holds_bind
+#print axioms Yulang.GeneralNominalHoleReadback.compose
+#print axioms Yulang.GeneralNominalHoleReadback.identity_leaf
+#print axioms Yulang.GeneralNominalHoleReadback.alias
+#print axioms Yulang.GeneralNominalHoleReadback.project_readback
+#print axioms Yulang.GeneralNominalHoleReadback.restrict
+#print axioms Yulang.GeneralNominalHoleReadback.step_preserves
+#print axioms Yulang.GeneralNominalHoleReadback.trace_preserves
+#print axioms Yulang.GeneralNominalHoleReadback.refresh_exact
+#print axioms Yulang.GeneralNominalHoleReadback.reobservation_exact
+#print axioms Yulang.GeneralNominalHoleReadback.promoted_over_basis
+#print axioms Yulang.GeneralNominalHoleObservation.checked
+#print axioms Yulang.GeneralNominalHoleObservation.source
+#print axioms Yulang.GeneralNominalHoleObservation.inhabited
+#print axioms Yulang.GeneralNominalHoleObservation.unknown
+#print axioms Yulang.GeneralNominalHoleObservation.known
+#print axioms Yulang.GeneralNominalHoleObservation.actual_step
+#print axioms Yulang.GeneralNominalHoleObservation.source_formed
+#print axioms Yulang.GeneralNominalHoleObservation.self_edge
+#print axioms Yulang.GeneralNominalHoleObservation.cycle
+#print axioms Yulang.GeneralNominalHoleObservation.still_uses_hole
+#print axioms Yulang.GeneralNominalHoleObservation.not_elimination
+#print axioms Yulang.GeneralNominalHoleObservation.exposed_readback
+#print axioms Yulang.GeneralNominalHoleObservation.opaque_leaf_preserved
+#print axioms Yulang.GeneralNominalHoleObservation.empty_registry_accessible
+#print axioms Yulang.GeneralNominalHoleObservation.accessible
+#print axioms Yulang.GeneralNominalHoleFacets.leaves_bind
+#print axioms Yulang.GeneralNominalHoleFacets.eval_bind
+#print axioms Yulang.GeneralNominalHoleFacets.lower_eval
+#print axioms Yulang.GeneralNominalHoleFacets.upper_eval
+#print axioms Yulang.GeneralNominalHoleFacets.endpoint_leaves
+#print axioms Yulang.GeneralNominalHoleFacets.capture_endpoints
+#print axioms Yulang.GeneralNominalHoleFacets.compose
+#print axioms Yulang.GeneralNominalHoleFacets.packet_endpoints
+#print axioms Yulang.GeneralNominalHoleMaterialization.endpoint_use
+#print axioms Yulang.GeneralNominalHoleMaterialization.materialized_endpoint
+#print axioms Yulang.GeneralNominalHoleMaterialization.source_exact
+#print axioms Yulang.GeneralNominalHoleMaterialization.compose
+#print axioms Yulang.GeneralNominalHoleMaterialization.packet_lower
+#print axioms Yulang.GeneralNominalHoleMaterialization.packet_upper
+#print axioms Yulang.GeneralNominalHoleElimination.replacement_closed
+#print axioms Yulang.GeneralNominalHoleElimination.replacement_bounded
+#print axioms Yulang.GeneralNominalHoleElimination.eliminate_valid
+#print axioms Yulang.GeneralNominalHoleElimination.budget_succ
+#print axioms Yulang.GeneralNominalHoleElimination.budget_mono
+#print axioms Yulang.GeneralNominalHoleElimination.bounded_enlarge
+#print axioms Yulang.GeneralNominalHoleElimination.trace_count
+#print axioms Yulang.GeneralNominalHoleElimination.trace_depth
+#print axioms Yulang.GeneralNominalHoleElimination.trace_holes
+#print axioms Yulang.GeneralNominalHoleElimination.trace_valid
+#print axioms Yulang.GeneralNominalHoleElimination.trace_budget
+#print axioms Yulang.GeneralNominalHoleElimination.conditional_budget

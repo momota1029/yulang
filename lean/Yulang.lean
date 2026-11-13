@@ -2509,11 +2509,15 @@ import Yulang.GeneralNominalSharedPositive
 import Yulang.GeneralNominalSharedExamples
 import Yulang.GeneralNominalSharedEnumeration
 import Yulang.GeneralNominalSharedBudget
+import Yulang.GeneralNominalHoleReadback
+import Yulang.GeneralNominalHoleObservation
+import Yulang.GeneralNominalHoleFacets
+import Yulang.GeneralNominalHoleMaterialization
+import Yulang.GeneralNominalHoleElimination
 
 import Yulang.GeneralDictionarySharedInstallEvidence
 import Yulang.GeneralDictionarySettledTerminalEvidence
 import Yulang.GeneralDictionaryTerminalRefreshObstruction
-
 import Yulang.GeneralDictionarySharedCurrentEvidence
 import Yulang.GeneralDictionarySharedEvidenceTrace
 import Yulang.GeneralDictionarySharedDisplayInstallation
@@ -2526,5 +2530,4 @@ import Yulang.GeneralDictionarySharedRecursiveExample
 import Yulang.GeneralDictionarySharedRecordedTree
 import Yulang.GeneralDictionarySharedSiblingPrefix
 import Yulang.GeneralDictionarySharedSemanticSettlement
-
 import Yulang.GeneralDictionaryRecursiveConsumerObstruction
