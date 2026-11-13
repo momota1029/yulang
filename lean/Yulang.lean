@@ -2348,3 +2348,6 @@ import Yulang.GeneralDictionaryRequestCatalogCompute
 import Yulang.GeneralDictionaryComputedCatalogExample
 
 import Yulang.GeneralDictionaryUnaryRefinementCapture
+
+import Yulang.GeneralDictionaryUnaryCurrentEvidence
+import Yulang.GeneralDictionaryUnaryCurrentExample
