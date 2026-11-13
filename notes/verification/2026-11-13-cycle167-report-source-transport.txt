@@ -1,0 +1,11 @@
+'Yulang.GeneralNominalReportSourceTransport.bindings_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.selfChecks_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.finished_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.projections_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.materialization_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedReportTransport.exact_relocation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedReportTransport.projections_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

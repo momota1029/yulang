@@ -1,0 +1,714 @@
+Yulang.GeneralDictionarySharedCapturedProducer EXIT 0  
+Yulang.GeneralDictionarySharedCapturedInputReady EXIT 0  
+Yulang.GeneralDictionarySharedCapturedProducerGuard EXIT 0  
+Yulang.GeneralDictionarySharedCapturedPreparation EXIT 0  
+Yulang.GeneralDictionarySharedCapturedProducerEnabled EXIT 0  
+Yulang.GeneralDictionarySharedCapturedConsequences EXIT 0  
+Yulang.GeneralDictionarySharedCapturedProducerResolution EXIT 0  
+Yulang.GeneralDictionarySharedCapturedNovelty EXIT 0  
+Yulang.GeneralDictionaryCapturedScalarRefresh EXIT 0  
+Yulang.GeneralDictionarySharedCapturedResumption EXIT 0  
+Yulang.GeneralDictionarySharedCapturedProducerEvidence EXIT 0  
+Yulang.GeneralDictionarySharedCapturedFinalProducer EXIT 0  
+Yulang.GeneralDictionarySharedCapturedFinalEvidence EXIT 0  
+Yulang.GeneralDictionaryCapturedTrustedBoundary EXIT 0  
+Yulang.GeneralDictionaryCapturedSettlementBoundary EXIT 0  
+Yulang.GeneralDictionaryCapturedAliasCountermodel EXIT 0  
+Yulang.GeneralDictionaryCapturedInputCountermodel EXIT 0  
+Yulang.GeneralDictionaryCapturedInstallationBlocked EXIT 0  
+Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence EXIT 0  
+Yulang.GeneralNominalReportSourceTransport EXIT 0  
+Yulang.GeneralDictionarySharedCapturedReportTransport EXIT 0  
+Yulang.GeneralDictionaryCapturedEvidenceDelay EXIT 0  
+Yulang.GeneralDictionarySharedCapturedInstallable EXIT 0  
+Yulang.GeneralNominalRecipeBounds EXIT 0  
+Yulang.GeneralNominalPatersonLineage EXIT 0  
+Yulang.GeneralNominalSchemaBudget EXIT 0  
+Yulang.GeneralNominalSettledGrowth EXIT 0  
+Yulang.GeneralNominalSettlementHeight EXIT 0  
+Yulang.GeneralNominalSourceFactorization EXIT 0  
+Yulang.GeneralNominalSchemaVocabulary EXIT 0  
+Yulang.GeneralNominalStructuralReadback EXIT 0  
+Yulang.GeneralNominalFrontierReadback EXIT 0  
+Cycle167AllPublicAxioms.lean EXIT 0 'Yulang.GeneralDictionaryCapturedAliasCountermodel.target_above' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.old_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.source_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.output_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.slice_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.captured_not_int' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.alias_not_entailed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.source_slice_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.source_scalar_not_entailed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedEvidenceDelay.actual_evidence_with_trusted_delay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.model_old' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.model_lo' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.model_hi' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.source_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.mid_seen' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.captured_seen' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.mid_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.captured_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.private_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.projections' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.lo_seen' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.hi_seen' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.use_values' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.parent_materialized' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.parent_inputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.allocated_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.ordinary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.projections' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.inputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.trusted_member_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.recorded_except_parent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.every_trusted_slice' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.no_trusted_scalar_entailment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.current_head_scalar' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.scalar_head_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.consumer_input_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.consumer_decision_guard_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.raw_ready_not_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInstallationBlocked.installable_guard_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInstallationBlocked.consumer_packet_guard_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInstallationBlocked.no_guarded_consumer_installation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.alias_eq_of_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.discharged_identity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.trusted_output_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.consumer_not_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.parent_not_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.bounds' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.request_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.concrete_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.old_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.packet_seed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.seed_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.constructors_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.interpretation_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.ordinary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.projections' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.schema_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.branch_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedReportTransport.exact_relocation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedReportTransport.projections_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.bindings_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.selfChecks_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.finished_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.projections_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.materialization_iff' depends on axioms: [propext, Quot.sound]
+ 
+Cycle167CapturedAliasCountermodel.lean EXIT 0 'Yulang.GeneralDictionaryCapturedAliasCountermodel.source_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.output_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.slice_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.captured_not_int' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.alias_not_entailed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.source_slice_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedAliasCountermodel.source_scalar_not_entailed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle167CapturedInputCountermodel.lean EXIT 0 'Yulang.GeneralDictionaryCapturedInputCountermodel.parent_inputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.inputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.trusted_member_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.recorded_except_parent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.every_trusted_slice' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.no_trusted_scalar_entailment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.current_head_scalar' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.scalar_head_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.consumer_input_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.consumer_decision_guard_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInputCountermodel.raw_ready_not_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle167CapturedSettlement.lean EXIT 0 'Yulang.GeneralDictionaryCapturedSettlementBoundary.alias_eq_of_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.discharged_identity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.trusted_output_settled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.consumer_not_discharged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedSettlementBoundary.parent_not_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle167DependencyGate.lean EXIT 0 AXIOM-GATE-PASS: 177 declarations
+ 
+Cycle167EvidenceDelay.lean EXIT 0 'Yulang.GeneralDictionaryCapturedEvidenceDelay.actual_evidence_with_trusted_delay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle167FinalEvidence.lean EXIT 0 'Yulang.GeneralDictionarySharedCapturedFinalEvidence.old_branch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.packet_seed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.seed_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.constructors_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.interpretation_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.ordinary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.projections' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.schema_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalEvidence.branch_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.bounds' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.request_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.concrete_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle167InheritedCapturedCoverage.lean EXIT 0 'Yulang.GeneralDictionarySharedCapturedInputReady.old_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.facts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.input_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.refreshed_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.input_endpoint_equation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.lo_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedInputReady.hi_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.queries' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.bounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.schema_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.candidate_bindings' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.allocated_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.private_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.projections' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.materialized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.branch_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.output_int' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedProducer.captured_int' depends on axioms: [propext, Classical.choice, Quot.sound]
+ 
+Cycle167InstallationBlocked.lean EXIT 0 'Yulang.GeneralDictionaryCapturedInstallationBlocked.installable_guard_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInstallationBlocked.consumer_packet_guard_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedInstallationBlocked.no_guarded_consumer_installation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+Cycle167PublicTypes.lean EXIT 0 Yulang.GeneralDictionaryCapturedAliasCountermodel.target_above : 2 <
+  Yulang.GeneralDictionarySharedCapturedTargets.target
+Yulang.GeneralDictionaryCapturedAliasCountermodel.old_value : ∀ (i : Nat),
+  i ≤ 2 →
+    Yulang.GeneralDictionaryCapturedAliasCountermodel.model i =
+      Yulang.GeneralDictionaryCapturedAliasCountermodel.oldModel i
+Yulang.GeneralDictionaryCapturedAliasCountermodel.source_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralDictionarySharedCapturedTargets.source Yulang.GeneralDictionaryCapturedAliasCountermodel.model
+Yulang.GeneralDictionaryCapturedAliasCountermodel.output_models : Yulang.GeneralNominalPacketSupport.Outputs
+  Yulang.GeneralDictionarySharedCapturedProducer.candidate Yulang.GeneralDictionaryCapturedAliasCountermodel.model
+Yulang.GeneralDictionaryCapturedAliasCountermodel.slice_models : ∀
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+  Yulang.GeneralNominalSharedSupport.Models Yulang.GeneralDictionarySharedCapturedResumption.observed
+    [Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralDictionarySharedCapturedProducer.candidate support]
+    Yulang.GeneralDictionaryCapturedAliasCountermodel.model
+Yulang.GeneralDictionaryCapturedAliasCountermodel.captured_not_int : ¬Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.GeneralDictionaryCapturedAliasCountermodel.model 2).fst
+    (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+Yulang.GeneralDictionaryCapturedAliasCountermodel.alias_not_entailed : ∀
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+  ¬∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSharedSupport.Models Yulang.GeneralDictionarySharedCapturedResumption.observed
+          [Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralDictionarySharedCapturedProducer.candidate support]
+          m →
+        Yulang.CommonNominalFullCarrier.Equivalent (m Yulang.GeneralDictionarySharedCapturedTargets.target).fst
+          (m 2).fst
+Yulang.GeneralDictionaryCapturedAliasCountermodel.source_slice_trusted : Yulang.GeneralNominalSharedSupport.Trusted
+  Yulang.GeneralDictionarySharedCapturedResumption.observed [] []
+Yulang.GeneralDictionaryCapturedAliasCountermodel.source_scalar_not_entailed : ¬∀
+    (m : Yulang.GeneralNominalCommonBridge.Assignment),
+    Yulang.GeneralNominalSharedSupport.Models Yulang.GeneralDictionarySharedCapturedResumption.observed [] m →
+      Yulang.CommonNominalFullCarrier.Equivalent (m 2).fst
+        (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+Yulang.GeneralDictionaryCapturedEvidenceDelay.actual_evidence_with_trusted_delay : Yulang.GeneralNominalSharedSteps.SourceFormed
+    Yulang.GeneralDictionarySharedCapturedTargets.registry Yulang.GeneralDictionarySharedCapturedTargets.root
+    Yulang.GeneralDictionarySharedCapturedResumption.observed ∧
+  (∃ assignment,
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+        assignment) ∧
+    (∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+            assignment →
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionarySharedCapturedTargets.registry
+            Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context assignment
+            Yulang.GeneralDictionarySharedCapturedTargets.producer
+            (Yulang.CommonRoleOutermostResolver.Dictionary.node
+              Yulang.GeneralDictionarySharedCapturedProducer.declaration.id [])) ∧
+      ¬Yulang.GeneralNominalState.RootPending
+            Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context.state
+            Yulang.GeneralDictionarySharedCapturedTargets.consumer.demand ∧
+        ¬Yulang.GeneralNominalSharedSupport.ReadyAt Yulang.GeneralDictionarySharedCapturedResumption.observed 2
+Yulang.GeneralDictionaryCapturedInputCountermodel.model_old : ∀ (i : Nat),
+  i ≤ 2 →
+    Yulang.GeneralDictionaryCapturedInputCountermodel.model i =
+      Yulang.GeneralDictionaryCapturedInputCountermodel.finiteModel i
+Yulang.GeneralDictionaryCapturedInputCountermodel.model_lo : (Yulang.GeneralDictionaryCapturedInputCountermodel.model
+      Yulang.GeneralDictionarySharedCapturedModel.lo).fst =
+  Yulang.GeneralDictionaryCapturedInputCountermodel.tower 1
+Yulang.GeneralDictionaryCapturedInputCountermodel.model_hi : (Yulang.GeneralDictionaryCapturedInputCountermodel.model
+      Yulang.GeneralDictionarySharedCapturedModel.hi).fst =
+  Yulang.GeneralDictionaryCapturedInputCountermodel.tower 1
+Yulang.GeneralDictionaryCapturedInputCountermodel.source_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralDictionarySharedCapturedTargets.source Yulang.GeneralDictionaryCapturedInputCountermodel.model
+Yulang.GeneralDictionaryCapturedInputCountermodel.mid_seen : Yulang.GeneralNominalRecursiveInspection.Observes
+  Yulang.GeneralDictionaryCapturedInputCountermodel.model Yulang.GeneralDictionarySharedCapturedModel.mid
+  (Yulang.GeneralDictionaryCapturedInputCountermodel.tower 1)
+Yulang.GeneralDictionaryCapturedInputCountermodel.captured_seen : Yulang.GeneralNominalRecursiveInspection.Observes
+  Yulang.GeneralDictionaryCapturedInputCountermodel.model Yulang.GeneralDictionarySharedCapturedTargets.origin
+  (Yulang.GeneralDictionaryCapturedInputCountermodel.tower 0)
+Yulang.GeneralDictionaryCapturedInputCountermodel.mid_same : ∀ (t : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.Observes Yulang.GeneralDictionaryCapturedInputCountermodel.model
+      Yulang.GeneralDictionarySharedCapturedModel.mid t →
+    Yulang.CommonNominalFullCarrier.Equivalent t (Yulang.GeneralDictionaryCapturedInputCountermodel.tower 1)
+Yulang.GeneralDictionaryCapturedInputCountermodel.captured_same : ∀ (t : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.Observes Yulang.GeneralDictionaryCapturedInputCountermodel.model
+      Yulang.GeneralDictionarySharedCapturedTargets.origin t →
+    Yulang.CommonNominalFullCarrier.Equivalent t (Yulang.GeneralDictionaryCapturedInputCountermodel.tower 0)
+Yulang.GeneralDictionaryCapturedInputCountermodel.private_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralDictionarySharedCapturedTargets.packet.privateContext.state
+  Yulang.GeneralDictionaryCapturedInputCountermodel.model
+Yulang.GeneralDictionaryCapturedInputCountermodel.projections : Yulang.GeneralNominalRecursiveInspection.ProjectionModels
+  Yulang.GeneralDictionarySharedCapturedTargets.source
+  (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionarySharedCapturedTargets.packet)
+  Yulang.GeneralDictionaryCapturedInputCountermodel.model
+Yulang.GeneralDictionaryCapturedInputCountermodel.lo_seen : Yulang.GeneralNominalRecursiveInspection.Observes
+  Yulang.GeneralDictionaryCapturedInputCountermodel.model
+  ((Yulang.GeneralNominalRecursiveInspection.Origin.source Yulang.GeneralDictionarySharedCapturedModel.lo).nominal 0 0)
+  (Yulang.GeneralDictionaryCapturedInputCountermodel.tower 0)
+Yulang.GeneralDictionaryCapturedInputCountermodel.hi_seen : Yulang.GeneralNominalRecursiveInspection.Observes
+  Yulang.GeneralDictionaryCapturedInputCountermodel.model
+  ((Yulang.GeneralNominalRecursiveInspection.Origin.source Yulang.GeneralDictionarySharedCapturedModel.hi).nominal 0 0)
+  (Yulang.GeneralDictionaryCapturedInputCountermodel.tower 0)
+Yulang.GeneralDictionaryCapturedInputCountermodel.use_values : ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+  entry ∈
+      (Yulang.GeneralNominalPacketSupport.inputSchema Yulang.GeneralDictionarySharedCapturedTargets.packet).variables →
+    entry.name = 0 ∧
+      entry.mode = Yulang.GeneralNominalMaterialization.Mode.actual ∧
+        (∃ actual,
+            Yulang.GeneralNominalRecursiveInspection.Observes Yulang.GeneralDictionaryCapturedInputCountermodel.model
+              entry.origin actual) ∧
+          ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+            Yulang.GeneralNominalRecursiveInspection.Observes Yulang.GeneralDictionaryCapturedInputCountermodel.model
+                entry.origin actual →
+              Yulang.CommonNominalFullCarrier.Equivalent actual
+                (Yulang.GeneralDictionaryCapturedInputCountermodel.tower 0)
+Yulang.GeneralDictionaryCapturedInputCountermodel.parent_materialized : Yulang.GeneralNominalMaterialization.Models
+  Yulang.GeneralDictionarySharedCapturedTargets.packet.context.state
+  Yulang.GeneralDictionarySharedCapturedTargets.packet.declaration
+  (Yulang.GeneralNominalPacketSupport.capture Yulang.GeneralDictionarySharedCapturedTargets.packet)
+  (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionarySharedCapturedTargets.packet)
+  (Yulang.GeneralNominalPacketSupport.inputSchema Yulang.GeneralDictionarySharedCapturedTargets.packet)
+  Yulang.GeneralDictionaryCapturedInputCountermodel.model
+Yulang.GeneralDictionaryCapturedInputCountermodel.parent_inputs : Yulang.GeneralNominalPacketSupport.Inputs
+  Yulang.GeneralDictionarySharedCapturedTargets.packet Yulang.GeneralDictionaryCapturedInputCountermodel.model
+Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.allocated_value : ∀ (purpose owner position : Nat),
+  (Yulang.GeneralDictionaryCapturedInputCountermodel.model
+        (Yulang.GeneralNominalAllocation.source Yulang.GeneralDictionarySharedCapturedRefresh.snapshot
+          Yulang.GeneralDictionarySharedCapturedTargets.registry
+          Yulang.GeneralDictionarySharedCapturedTargets.producer.identity
+          (Yulang.GeneralNominalAllocation.origin Yulang.GeneralDictionarySharedCapturedTargets.producer.identity
+            Yulang.GeneralDictionarySharedCapturedProducer.declaration.id purpose owner position))).fst =
+    Yulang.GeneralDictionaryCapturedInputCountermodel.tower 0
+Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.ordinary : Yulang.GeneralNominalPacketSupport.Ordinary
+  Yulang.GeneralDictionarySharedCapturedProducer.candidate Yulang.GeneralDictionaryCapturedInputCountermodel.model
+Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.projections : Yulang.GeneralNominalRecursiveInspection.ProjectionModels
+  Yulang.GeneralDictionarySharedCapturedRefresh.snapshot
+  (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionarySharedCapturedProducer.candidate)
+  Yulang.GeneralDictionaryCapturedInputCountermodel.model
+Yulang.GeneralDictionaryCapturedInputCountermodel.Producer.inputs : Yulang.GeneralNominalPacketSupport.Inputs
+  Yulang.GeneralDictionarySharedCapturedProducer.candidate Yulang.GeneralDictionaryCapturedInputCountermodel.model
+@Yulang.GeneralDictionaryCapturedInputCountermodel.trusted_member_recorded : ∀ {rs : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked rs} {facts : List (Yulang.GeneralNominalSupport.Fact rs)}
+  {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks},
+  Yulang.GeneralNominalSharedSupport.Trusted state facts readbacks →
+    ∀ {fact : Yulang.GeneralNominalSupport.Fact rs}, fact ∈ facts → fact ∈ state.facts
+@Yulang.GeneralDictionaryCapturedInputCountermodel.recorded_except_parent : ∀
+  {fact : Yulang.GeneralNominalSupport.Fact Yulang.GeneralDeclarationExamples.roles},
+  fact ∈ Yulang.GeneralDictionarySharedCapturedResumption.observed.facts →
+    (∀ (support : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+        fact ≠ Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralDictionarySharedCapturedTargets.packet support) →
+      fact.Holds Yulang.GeneralDictionaryCapturedInputCountermodel.model
+@Yulang.GeneralDictionaryCapturedInputCountermodel.every_trusted_slice : ∀
+  {facts : List (Yulang.GeneralNominalSupport.Fact Yulang.GeneralDeclarationExamples.roles)}
+  {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks},
+  Yulang.GeneralNominalSharedSupport.Trusted Yulang.GeneralDictionarySharedCapturedResumption.observed facts readbacks →
+    Yulang.GeneralNominalSharedSupport.Models Yulang.GeneralDictionarySharedCapturedResumption.observed facts
+      Yulang.GeneralDictionaryCapturedInputCountermodel.model
+@Yulang.GeneralDictionaryCapturedInputCountermodel.no_trusted_scalar_entailment : ∀
+  {facts : List (Yulang.GeneralNominalSupport.Fact Yulang.GeneralDeclarationExamples.roles)}
+  {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks},
+  Yulang.GeneralNominalSharedSupport.Trusted Yulang.GeneralDictionarySharedCapturedResumption.observed facts readbacks →
+    ¬∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalSharedSupport.Models Yulang.GeneralDictionarySharedCapturedResumption.observed facts m →
+          Yulang.CommonNominalFullCarrier.Equivalent (m 2).fst
+            (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+@Yulang.GeneralDictionaryCapturedInputCountermodel.current_head_scalar : ∀ {identity : Nat}
+  {test : Yulang.GeneralNominalRecursiveInspection.Test}
+  {observation : Yulang.GeneralCanonicalObservations.Observation},
+  Yulang.GeneralNominalSupport.Head Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context.state
+      identity test observation →
+    identity = 2 → test = Yulang.GeneralNominalRecursiveInspection.Test.scalar Yulang.Inference.Base.int
+@Yulang.GeneralDictionaryCapturedInputCountermodel.scalar_head_holds : ∀ {snapshot : Yulang.GeneralNominalState.State}
+  {identity : Nat} {base : Yulang.Inference.Base} {observation : Yulang.GeneralCanonicalObservations.Observation}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment},
+  Yulang.GeneralNominalSupport.Head snapshot identity (Yulang.GeneralNominalRecursiveInspection.Test.scalar base)
+      observation →
+    observation.Holds m →
+      Yulang.CommonNominalFullCarrier.Equivalent (m identity).fst (Yulang.CommonNominalSyntax.Layer.base base)
+Yulang.GeneralDictionaryCapturedInputCountermodel.consumer_input_not_ready : ¬Yulang.GeneralNominalSharedSupport.ReadyAt
+    Yulang.GeneralDictionarySharedCapturedResumption.observed 2
+Yulang.GeneralDictionaryCapturedInputCountermodel.consumer_decision_guard_absent : ¬Yulang.GeneralNominalSharedSupport.DecisionGuard
+    Yulang.GeneralDictionarySharedCapturedTargets.registry Yulang.GeneralDictionarySharedCapturedResumption.observed
+    Yulang.GeneralDictionarySharedCapturedTargets.consumer
+Yulang.GeneralDictionaryCapturedInputCountermodel.raw_ready_not_trusted : ¬Yulang.GeneralNominalState.RootPending
+      Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context.state
+      Yulang.GeneralDictionarySharedCapturedTargets.consumer.demand ∧
+  ¬Yulang.GeneralNominalSharedSupport.ReadyAt Yulang.GeneralDictionarySharedCapturedResumption.observed 2
+@Yulang.GeneralDictionaryCapturedInstallationBlocked.installable_guard_current : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {packet : Yulang.GeneralNominalSaturationState.Packet roles}
+  {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)},
+  Yulang.GeneralNominalFeedbackSteps.Installable registry state.current packet →
+    Yulang.GeneralNominalSharedSteps.PacketGuard state packet support →
+      Yulang.GeneralNominalSharedSupport.DecisionGuard registry state packet.site.occurrence
+Yulang.GeneralDictionaryCapturedInstallationBlocked.consumer_packet_guard_absent : ∀
+  (packet : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+  Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralDictionarySharedCapturedTargets.registry
+      Yulang.GeneralDictionarySharedCapturedResumption.observed.current packet →
+    packet.site.occurrence = Yulang.GeneralDictionarySharedCapturedTargets.consumer →
+      ¬Yulang.GeneralNominalSharedSteps.PacketGuard Yulang.GeneralDictionarySharedCapturedResumption.observed packet
+          support
+Yulang.GeneralDictionaryCapturedInstallationBlocked.no_guarded_consumer_installation : ¬∃ packet support,
+    packet.site.occurrence = Yulang.GeneralDictionarySharedCapturedTargets.consumer ∧
+      Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralDictionarySharedCapturedTargets.registry
+          Yulang.GeneralDictionarySharedCapturedResumption.observed.current packet ∧
+        Yulang.GeneralNominalSharedSteps.PacketGuard Yulang.GeneralDictionarySharedCapturedResumption.observed packet
+          support
+@Yulang.GeneralDictionaryCapturedSettlementBoundary.alias_eq_of_empty : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles},
+  state.aliases = [] → ∀ {first last : Nat}, Yulang.GeneralNominalSaturationState.Alias state first last → first = last
+@Yulang.GeneralDictionaryCapturedSettlementBoundary.discharged_identity : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles},
+  state.aliases = [] →
+    ∀ {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles},
+      Yulang.GeneralNominalSupport.Discharged state occurrence →
+        ∃ p, p ∈ state.packets ∧ p.site.occurrence.identity = occurrence.identity
+@Yulang.GeneralDictionaryCapturedSettlementBoundary.trusted_output_settled : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {facts : List (Yulang.GeneralNominalSupport.Fact roles)}
+  {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks},
+  Yulang.GeneralNominalSharedSupport.Trusted state facts readbacks →
+    ∀ {p : Yulang.GeneralNominalSaturationState.Packet roles}
+      {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)},
+      Yulang.GeneralNominalSupport.Fact.outputs p support ∈ facts →
+        Yulang.GeneralNominalSettledSupport.PacketSettled state.current p
+Yulang.GeneralDictionaryCapturedSettlementBoundary.consumer_not_discharged : ¬Yulang.GeneralNominalSupport.Discharged
+    Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+    Yulang.GeneralDictionarySharedCapturedTargets.consumer
+@Yulang.GeneralDictionaryCapturedSettlementBoundary.parent_not_trusted : ∀
+  {facts : List (Yulang.GeneralNominalSupport.Fact Yulang.GeneralDeclarationExamples.roles)}
+  {readbacks : Yulang.GeneralNominalSharedSupport.Readbacks},
+  Yulang.GeneralNominalSharedSupport.Trusted Yulang.GeneralDictionarySharedCapturedResumption.observed facts readbacks →
+    ∀ (support : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)),
+      ¬Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralDictionarySharedCapturedTargets.packet support ∈ facts
+Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.bounds : Yulang.GeneralNominalRecursiveCandidates.arguments
+    Yulang.GeneralDictionaryCapturedScalarRefresh.scalarContext Yulang.GeneralDictionarySharedCapturedTargets.producer =
+  some [(3, 4)]
+Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.terminal : Yulang.GeneralDictionarySharedCapturedFinalProducer.finalPacket.children =
+  []
+Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.request_ready : Yulang.GeneralNominalRecursiveCandidates.RequestReady
+  Yulang.GeneralDictionarySharedCapturedTargets.registry Yulang.GeneralDictionaryCapturedScalarRefresh.scalarContext
+  Yulang.GeneralDictionarySharedCapturedTargets.producer Yulang.GeneralDictionarySharedCapturedProducer.declaration
+  Yulang.GeneralDictionaryRecursiveObstruction.declaration_checked [(3, 4)]
+Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.current_instance : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+      assignment →
+    Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralDictionarySharedCapturedTargets.registry
+      Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context assignment
+      Yulang.GeneralDictionarySharedCapturedTargets.producer
+      Yulang.GeneralDictionarySharedCapturedProducer.declaration.id []
+Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.current_evidence : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+      assignment →
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionarySharedCapturedTargets.registry
+      Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context assignment
+      Yulang.GeneralDictionarySharedCapturedTargets.producer
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionarySharedCapturedProducer.declaration.id
+        [])
+Yulang.GeneralDictionarySharedCapturedFinalCurrentEvidence.concrete_evidence : Yulang.GeneralDictionaryRecursiveEvidence.Evidence
+  Yulang.GeneralDictionarySharedCapturedTargets.registry
+  Yulang.GeneralDictionarySharedCapturedResumption.observed.current.context
+  Yulang.GeneralDictionarySharedCapturedModel.model Yulang.GeneralDictionarySharedCapturedTargets.producer
+  (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionarySharedCapturedProducer.declaration.id [])
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.old_branch : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+      assignment →
+    Yulang.GeneralDictionarySharedCapturedProducer.candidate.Holds assignment
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.packet_seed : ∀
+  (p : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles),
+  p.privateContext.state.seed = p.context.state.seed
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.seed_preserved : Yulang.GeneralDictionaryCapturedScalarRefresh.before.state.seed =
+  Yulang.GeneralDictionarySharedCapturedInstallation.after.current.context.state.seed
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.constructors_preserved : Yulang.GeneralDictionaryCapturedScalarRefresh.before.state.constructors =
+  Yulang.GeneralDeclarationExamples.constructors
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.interpretation_preserved : Yulang.GeneralDictionaryCapturedScalarRefresh.before.interpretation =
+  Yulang.GeneralNominalExamples.interpretation
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.ordinary : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+      assignment →
+    Yulang.GeneralNominalPacketSupport.Ordinary Yulang.GeneralDictionarySharedCapturedFinalProducer.finalPacket
+      assignment
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.projections : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+      assignment →
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels Yulang.GeneralDictionaryCapturedScalarRefresh.scalarState
+      (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionarySharedCapturedFinalProducer.finalPacket)
+      assignment
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.schema_exact : Yulang.GeneralNominalPacketSupport.namedSchema
+    Yulang.GeneralDictionarySharedCapturedFinalProducer.finalPacket =
+  {
+    tests :=
+      [(Yulang.GeneralNominalRecursiveInspection.Origin.source Yulang.GeneralDictionarySharedCapturedTargets.target,
+          Yulang.GeneralNominalRecursiveInspection.Test.scalar Yulang.Inference.Base.int)] }
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.outputs : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+      assignment →
+    Yulang.GeneralNominalPacketSupport.Outputs Yulang.GeneralDictionarySharedCapturedFinalProducer.finalPacket
+      assignment
+Yulang.GeneralDictionarySharedCapturedFinalEvidence.branch_models : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySharedCapturedResumption.observed.current
+      assignment →
+    Yulang.GeneralDictionarySharedCapturedFinalProducer.finalPacket.Holds assignment
+Yulang.GeneralDictionarySharedCapturedReportTransport.exact_relocation : Yulang.GeneralNominalPacketSupport.report
+    Yulang.GeneralDictionarySharedCapturedFinalProducer.finalPacket =
+  Yulang.GeneralNominalReportSourceTransport.moveReport (fun slot => slot)
+    (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionarySharedCapturedProducer.candidate)
+Yulang.GeneralDictionarySharedCapturedReportTransport.projections_equivalent : ∀
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveInspection.ProjectionModels Yulang.GeneralDictionaryCapturedScalarRefresh.scalarState
+      (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionarySharedCapturedFinalProducer.finalPacket)
+      model ↔
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels
+      Yulang.GeneralDictionarySharedCapturedProducer.candidate.context.state
+      (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionarySharedCapturedProducer.candidate) model
+@Yulang.GeneralNominalReportSourceTransport.bindings_preserved : ∀ {before after : Yulang.GeneralNominalState.State}
+  (slots : Fin before.base.slots → Fin after.base.slots),
+  (∀ (slot : Fin before.base.slots), after.base.source (slots slot) = before.base.source slot) →
+    ∀ (report : Yulang.GeneralNominalRecursiveInspection.Report before),
+      Yulang.GeneralNominalRecursiveInspection.bindings after
+          (Yulang.GeneralNominalReportSourceTransport.moveReport slots report) =
+        Yulang.GeneralNominalRecursiveInspection.bindings before report
+@Yulang.GeneralNominalReportSourceTransport.selfChecks_preserved : ∀ {before after : Yulang.GeneralNominalState.State}
+  (slots : Fin before.base.slots → Fin after.base.slots),
+  (∀ (slot : Fin before.base.slots), after.base.source (slots slot) = before.base.source slot) →
+    ∀ (report : Yulang.GeneralNominalRecursiveInspection.Report before),
+      Yulang.GeneralNominalRecursiveInspection.selfChecks after
+          (Yulang.GeneralNominalReportSourceTransport.moveReport slots report) =
+        Yulang.GeneralNominalRecursiveInspection.selfChecks before report
+@Yulang.GeneralNominalReportSourceTransport.finished_iff : ∀ {before after : Yulang.GeneralNominalState.State}
+  (slots : Fin before.base.slots → Fin after.base.slots)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report before),
+  Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalReportSourceTransport.moveReport slots report) ↔
+    Yulang.GeneralNominalRecursiveInspection.Finished report
+@Yulang.GeneralNominalReportSourceTransport.projections_iff : ∀ {before after : Yulang.GeneralNominalState.State}
+  (slots : Fin before.base.slots → Fin after.base.slots),
+  (∀ (slot : Fin before.base.slots), after.base.source (slots slot) = before.base.source slot) →
+    ∀ (report : Yulang.GeneralNominalRecursiveInspection.Report before)
+      (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalRecursiveInspection.ProjectionModels after
+          (Yulang.GeneralNominalReportSourceTransport.moveReport slots report) model ↔
+        Yulang.GeneralNominalRecursiveInspection.ProjectionModels before report model
+@Yulang.GeneralNominalReportSourceTransport.materialization_iff : ∀ {before after : Yulang.GeneralNominalState.State}
+  (slots : Fin before.base.slots → Fin after.base.slots)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report before)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (capture : Yulang.GeneralDeclarationDemands.Capture)
+  (schema : Yulang.GeneralNominalMaterialization.Schema) (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalMaterialization.Models after declaration capture
+      (Yulang.GeneralNominalReportSourceTransport.moveReport slots report) schema model ↔
+    Yulang.GeneralNominalMaterialization.Models before declaration capture report schema model
+ 
+Cycle167ReportTransport.lean EXIT 0 'Yulang.GeneralNominalReportSourceTransport.bindings_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.selfChecks_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.finished_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.projections_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSourceTransport.materialization_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedReportTransport.exact_relocation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySharedCapturedReportTransport.projections_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
+ALL PASS 32
