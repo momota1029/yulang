@@ -1,0 +1,397 @@
+[
+  [
+    "lean/Audit/Cycle174AgreedRefresh.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174AgreedRoleDescent.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174BoundedDiagnostic.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174CheckedExactness.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174CompletionGate.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174ComputedRoleDescent.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174ExtendedNamespaceGate.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174FinalNamespaceGate.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174GeneralDictionaryAgreedComposition174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174GeneralDictionaryAgreedEdge174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174GeneralDictionaryAgreedEvidence174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174GeneralDictionaryAgreedExact174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174GeneralDictionaryAgreedGround174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174GeneralDictionaryAgreedRoleExamples174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174HistoryObstruction.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174NamespaceGate.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174RefiningTrace.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174SearchOrder.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/Cycle174UniformCertificate.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Audit/SourceProducerClosure.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang.lean",
+    "preserve latest plus imports",
+    [
+      "import Yulang.GeneralDictionaryAgreedCompletion175",
+      "import Yulang.GeneralDictionaryAgreedTable175",
+      "import Yulang.GeneralDictionaryAgreedCertifiedEvidence175",
+      "import Yulang.GeneralDictionaryNominalOnlyRefresh175",
+      "import Yulang.GeneralDictionaryAgreedFlexibleTrace175",
+      "import Yulang.GeneralDictionaryAgreedFlexibleCompletion175",
+      "import Yulang.GeneralDictionaryNominalViewRegression175",
+      "import Yulang.GeneralDictionaryAgreedTableExamples175",
+      "import Yulang.GeneralDictionaryAgreedCompactTable175"
+    ]
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedBounded174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedChecked174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedComposition174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedComputed174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedEdge174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedEvidence174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedExact174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedGround174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedHistoryObstruction174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedRefiningTrace174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedRefresh174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedRoleExamples174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedSearchOrder174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralDictionaryAgreedUniform174.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralNominalCompatibleJournalExtension.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralNominalJournalSimulation.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralNominalLabelledExposureElimination.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralNominalLabelledOriginClosure.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralNominalScopedRecipeLabels.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralNominalSettledLabelledLedger.lean",
+    "latest integration"
+  ],
+  [
+    "lean/Yulang/GeneralNominalSourceProducerHandoff.lean",
+    "latest integration"
+  ],
+  [
+    "notes/design/2026-11-13-cycle173-actual-evidence.md",
+    "latest integration"
+  ],
+  [
+    "notes/design/2026-11-14-cycle174-agreed-evidence.md",
+    "latest integration"
+  ],
+  [
+    "notes/design/2026-11-14-cycle174-bounded-diagnostic.md",
+    "latest integration"
+  ],
+  [
+    "notes/design/2026-11-14-cycle174-uniform-role-search.md",
+    "latest integration"
+  ],
+  [
+    "notes/design/2026-11-14-source-producer-handoff.md",
+    "latest integration"
+  ],
+  [
+    "notes/design/INDEX.md",
+    "preserve latest plus unique lines",
+    [
+      "- [Cycle175 recursive evidence after refining histories](2026-11-14-cycle175-dictionary-completion.md)",
+      "- [Cycle175 table certificate](2026-11-14-cycle175-table-certificate.md)",
+      "- [Cycle175 nominal-only refresh scope](2026-11-14-cycle175-flexible-refresh.md)",
+      "- [Cycle175 table cost model and index plan](2026-11-14-cycle175-table-complexity.md)",
+      "- [Cycle175 centered migration map, read-only](2026-11-14-cycle175-centered-migration-map.md)",
+      "- [Cycle175 compact table](2026-11-14-cycle175-compact-table.md)"
+    ]
+  ],
+  [
+    "notes/design/cycle174-current-local-readback-bridge.md",
+    "latest integration"
+  ],
+  [
+    "notes/design/cycle174-refining-trace.md",
+    "latest integration"
+  ],
+  [
+    "notes/design/cycle174-refresh-obligations.md",
+    "latest integration"
+  ],
+  [
+    "notes/handoff/dots-cycle-173.md",
+    "latest integration"
+  ],
+  [
+    "notes/handoff/dots-cycle-174.md",
+    "latest integration"
+  ],
+  [
+    "notes/heartbeat/dots-main.md",
+    "keep own running heartbeat"
+  ],
+  [
+    "notes/verification/cycle173/failures/first-audits.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle173/failures/stable.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle173/failures/v5.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle173/final/interrupted-recovery-replay.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion-theorem-types.md",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/README.md",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/agreed-refresh-audit.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/agreed-refresh-build.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/bounded-audit.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/bounded.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/build.py",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/closure12.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/completion-names.txt",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/completion-types.lean",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/final14-audits.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/final14-closure.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/final14-types.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/history-obstruction-audit.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/history-obstruction-build.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/refining-trace-audit.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/refining-trace-build-final.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/replay.py",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/search-order-audit.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/search-order.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/source-validation.json",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/uniform-audit.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/uniform-bound.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/uniform-first.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/completion/uniform.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/composition.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/dependencies.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/edge.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/evidence-audit-final.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/exact.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/first-source-audits.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/ground.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/result.txt",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/role-audit.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/first/role-examples.log",
+    "latest integration"
+  ],
+  [
+    "notes/verification/cycle174/theorem-types.md",
+    "latest integration"
+  ]
+]

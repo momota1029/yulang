@@ -2783,15 +2783,10 @@ import Yulang.GeneralNominalUniformChildProduction
 import Yulang.GeneralNominalExposureSources
 
 import Yulang.GeneralDictionaryAgreedComposition174
-
 import Yulang.GeneralDictionaryAgreedEdge174
-
 import Yulang.GeneralDictionaryAgreedEvidence174
-
 import Yulang.GeneralDictionaryAgreedExact174
-
 import Yulang.GeneralDictionaryAgreedGround174
-
 import Yulang.GeneralDictionaryAgreedRoleExamples174
 import Yulang.GeneralDictionaryAgreedComputed174
 import Yulang.GeneralDictionaryAgreedChecked174
@@ -2801,16 +2796,20 @@ import Yulang.GeneralDictionaryAgreedHistoryObstruction174
 import Yulang.GeneralDictionaryAgreedRefresh174
 import Yulang.GeneralDictionaryAgreedBounded174
 import Yulang.GeneralDictionaryAgreedRefiningTrace174
+import Yulang.GeneralNominalLabelledOriginClosure
+import Yulang.GeneralNominalScopedRecipeLabels
+import Yulang.GeneralNominalSettledLabelledLedger
+import Yulang.GeneralNominalLabelledExposureElimination
+import Yulang.GeneralNominalJournalSimulation
+import Yulang.GeneralNominalCompatibleJournalExtension
+import Yulang.GeneralNominalSourceProducerHandoff
+
 import Yulang.GeneralDictionaryAgreedCompletion175
 import Yulang.GeneralDictionaryAgreedTable175
 import Yulang.GeneralDictionaryAgreedCertifiedEvidence175
-
 import Yulang.GeneralDictionaryNominalOnlyRefresh175
-
 import Yulang.GeneralDictionaryAgreedFlexibleTrace175
-
 import Yulang.GeneralDictionaryAgreedFlexibleCompletion175
-
 import Yulang.GeneralDictionaryNominalViewRegression175
-
 import Yulang.GeneralDictionaryAgreedTableExamples175
+import Yulang.GeneralDictionaryAgreedCompactTable175

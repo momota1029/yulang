@@ -3,7 +3,7 @@
 IN PROGRESS. Started 2026-11-13T22:29:15Z, hard cutoff23:24:15UTC;
 finish target23:19. Latest integration freshly fetched0d2ea504a4f16a8d29e6caf73559fcda43afb45b,
 standing orders and I-29 read, previous174 completed heartbeat/report verified,
-no active writer. Source snapshot2715 existing Lean files matches fresh base.
+no active writer. Initial source inventory2715 files matched fresh base; the final extension-filtered check below distinguishes Lean sources from support files.
 The new center representation remains Astra-owned; work targets I-28 Actual.
 
 ## First checkpoint
@@ -114,6 +114,44 @@ TableExamples175はempty graph全fuel、重複ID/role/edge、非連結cycle全fu
 
 新規8module、公開named theorem63本（def/private/generated除外）。NominalViewRegressionのrefinementはdefなのでtheorem数には入れず、監査対象10宣言に含める。全最終sourceをtrust0で検証し、小型named axiom監査の範囲では標準propext/Classical.choice/Quot.soundのみ。namespace全自動生成宣言gateの成功はこのcheckpointでは主張しない。
 
-初回FlexibleCompletionのinitial名前空間誤参照を修正。その後completed診断との橋を追加した最終sourceもexit0、3小型auditすべてexit0。過去のpublic proof source 2715本は不変更、root import追加のみ。
+初回FlexibleCompletionのinitial名前空間誤参照を修正。その後completed診断との橋を追加した最終sourceもexit0、3小型auditすべてexit0。既存Lean source 2709本（Yulang.lean除外）は最終hashで不変更、root import追加のみ。
 
 第一checkpoint ce10a12a2fe8623681f4b1e5cf5b726a83c62ae4 はGitから再取得し83差分blobのhash一致を確認。heartbeatは10e9c5e93a26f0d0b6b1e652e1ceadc32256b11cまで公開。今回増えたlogを含め次の公開後に再照合する。
+
+## 独立のread-only整理
+
+- Table計算量の構造とArray/index化の次の証明義務をdesignへ記録。D宣言、E辺、N=D+E、Ffuel、重複を数えたMで明示した粗上界。uniformのO(N^4)は単位Nat演算の非形式化上界であり、Leanのcost theoremや実測保証ではない。定理の意味やfuelは変えていない。
+- fresh integration0d2の中心表現・Stepを読取り、I28からの移行図をdesignへ記録。中心側Modelsから旧all-raw-model不変量は導けないこと、CompatibleStep消去だけでは旧restricted trace所属/旧haltedを導けないことを明示。既に旧raw不変量がある場合に中心modelへ適用できる方向とは区別する。centered codeは変更・コンパイルせず、I29の移行指示待ちを維持。
+- Revisionの局所footprint保存とuntracked traceは既存KeyedRevisionに存在すると確認。重複wrapper草稿は公開せず、Tracked実行への移送とguard producerを次の橋に限定した。
+
+集計訂正: 初期inventoryの2715を全てLean sourceと呼ばない。最終拡張子限定checkは2709本（root Yulang.lean除外）でhash全一致、差分はimport追記のみ。差6件はlean/.gitignore、README、REFERENCES、lake-manifest、lakefile、lean-toolchain。初期と最終の対象数を分けて記録した。
+
+## T7b と core axiom gate
+
+新規6core module由来100宣言（def/private/generatedを含む）について、typesとopaque proof bodyを辿るread-only到達解析を5root群で実施、全exit0。whole-flexible61/100、whole-fixed6/100、table-certificate23/100、nominal-inspection9/100、diagnostic26/100。正確なrootとmodule別表はverification/cycle175/reach。regression2moduleはこのcore集計に含めず個別監査。削除なし、到達性を仕様上不要/一般B4完了と解釈しない。
+
+core gateも100宣言すべての推移的公理を検査しexit0、許可はpropext/Classical.choice/Quot.soundのみ。先のnamespace gate未確認記述は当時のcheckpointの状態であり、今回module由来でprivate/generatedも含むgateの成功を追加記録する。
+
+## 重複roleを除いたcompact証明書
+
+`CompactTable175`: 一度だけeraseDupsしたrole inventoryを全roundへ固定して渡す。任意registry、任意fuelでcheckCompact=checkTable、さらにuniform certifyCompact=certifyTableを証明。fuelは元のroleNodes.lengthをそのまま保持。表長は任意nonzero fuelでunique inventory長。9公開定理追加で、現時点9新module/72公開named theorem。Array化や言語上の拒否規則変更はしていない。
+
+同じ重複chain、warmup+3対測定、60秒上限exit0。length12は36→13entry、中央値table13.01ms→compact3.07ms。length20は60→21entry、52.44ms→11.94ms。全Bool true。この2入力の改善であり普遍的速度/一般compiler改善ではない。前の測定9.50msと別batchの13.01msを混ぜて速度比を作らない。
+
+compactを含む7core module gateは131宣言すべて標準公理のみ、exit0。MainのB4Statement/statement_sound/statement_completeの3根からは0/131到達。これは抽象contract側の定義に新producerの名前が現れないという読取結果で、未到達=不要とはしない。Mainは変更していない。全9module gateは別途記録する。
+
+## 23:00のintegration再確認・移し替え
+
+作業中22:46にintegrationがf196a37fdf2f4f7d69aabc1dc07b8dd277796630へ進んでいた。standing orders/inboxは同一でSTOPなし。最新baseへ差分を重ね直し、Astraの追加を落とさず、Yulang.lean/INDEXは最新を保って新規import/linkだけ足した。前174の既公開report末尾はintegrationの内容がbyte-prefixだったので既公開追記を保持。
+
+import依存にあるEdge174の差分はdoc commentの一語（admit→allow）のみ。最新sourceを個別再コンパイルして全9module gateを再実行する。最新中心producer群はコードを保持するが今回のfocused proof closure外で、全体build/CIを通したとは主張しない。最終公開baseはf196、初期検証base0d2との区別を維持する。
+
+## 最新baseでの照合と以前の公開物保持
+
+最新f196に既存のLean source2750本（Yulang.lean除外）は全hash一致、こちらによる既存proof編集なし。最新Edge174個別buildと全9module183宣言のaxiom gateを再実行し、両exit0。
+
+前174最終公開62e2314の112差分ファイルも別に照合し、ローカル欠落0。差異は新import/INDEX、最新integrationのEdge doc一語、running heartbeatだけ。ignored logを明示stagingして旧検証記録を落とさず最終公開へ含める。中間treeの既知のgapは隣のcheckpoint2-prior-log-gap.jsonに記録し、最終treeで復元を検証する。
+
+中間treeでは.gitignore対象の前回log41件（173の4件を含む）が落ちていたことを検出した。内容は前174公開commit/ローカルに残っており、すべて明示stagingで復元した。新しい証明の成功として数えず、最終公開で旧112ファイルの保持をもう一度確認する。
+
+中心移行図にもf196のAstra追加7moduleを再読して追記した。named_projection/trusted_trees/promoted_labelled/discharge/install_extension等は追加済みとして扱い、未接続のcenter-alignment/actual Simulation.nextを区別。古い0d2図を最新欠落の主張として使わない。コード変更・中心側Lean検証は行っていない。

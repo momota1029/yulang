@@ -1,6 +1,6 @@
 # Cycle175 named theorem statements
 
-These are exact source signatures. Names and hypotheses are not shortened. The signatures are not separate proofs; the linked source and trust-zero logs provide verification. Private/generated helper declarations are not counted as public theorems.
+Exact public source signatures, not shortened. Definitions/private/generated declarations are excluded from the theorem count. Read source and trust-zero logs for proofs.
 
 ## GeneralDictionaryAgreedCertifiedEvidence175
 
@@ -53,6 +53,55 @@ theorem halted_completed_evidence
     (completed : B4TargetV3.Completed (diagnostic defer gap registry state root) (.selected dictionary))
     (model : GeneralNominalCommonBridge.Assignment) (valid : Models state.current model) :
     Evidence registry state.current.context model root dictionary
+```
+
+## GeneralDictionaryAgreedCompactTable175
+
+```lean
+theorem tableOn_correct (registry : Registry) (nodes : List Nat)
+    (covers : ∀ role ∈ roleNodes registry, role ∈ nodes)
+    (fuel : Nat) (present : role ∈ roleNodes registry) :
+    lookup (tableOn registry nodes fuel) role = computedHeight registry fuel role
+```
+
+```lean
+theorem compactNodes_covers (present : role ∈ roleNodes registry) :
+    role ∈ compactNodes registry
+```
+
+```lean
+theorem compactHeight_correct (registry : Registry) (fuel : Nat)
+    (present : role ∈ roleNodes registry) :
+    lookup (compactHeight registry fuel) role = computedHeight registry fuel role
+```
+
+```lean
+theorem checkCompact_eq (registry : Registry) (fuel : Nat) :
+    checkCompact registry fuel = checkTable registry fuel
+```
+
+```lean
+theorem certifyCompact_eq (registry : Registry) :
+    certifyCompact registry = certifyTable registry
+```
+
+```lean
+theorem certifyCompact_iff : certifyCompact registry = true ↔ ∃ rank, RoleStratified registry rank
+```
+
+```lean
+theorem certifyCompact_reorders (order : GeneralRegistryReordering.Reorders first last) :
+    certifyCompact first = certifyCompact last
+```
+
+```lean
+theorem tableOn_length (registry : Registry) (nodes : List Nat) (fuel : Nat) :
+    (tableOn registry nodes (fuel+1)).length = nodes.length
+```
+
+```lean
+theorem compactHeight_length (registry : Registry) (fuel : Nat) :
+    (compactHeight registry (fuel+1)).length = (compactNodes registry).length
 ```
 
 ## GeneralDictionaryAgreedCompletion175

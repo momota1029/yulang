@@ -11,6 +11,21 @@
     "count": 5
   },
   {
+    "module": "GeneralDictionaryAgreedCompactTable175",
+    "public_theorems": [
+      "tableOn_correct",
+      "compactNodes_covers",
+      "compactHeight_correct",
+      "checkCompact_eq",
+      "certifyCompact_eq",
+      "certifyCompact_iff",
+      "certifyCompact_reorders",
+      "tableOn_length",
+      "compactHeight_length"
+    ],
+    "count": 9
+  },
+  {
     "module": "GeneralDictionaryAgreedCompletion175",
     "public_theorems": [
       "selected_instance_of_recorded",
