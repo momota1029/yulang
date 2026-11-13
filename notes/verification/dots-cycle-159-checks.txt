@@ -1,0 +1,12 @@
+modules: 16
+public_theorems: 128
+audited_public_theorems: 128
+missing: []
+entry_imports: PASS
+existing_source_changes: only lean/Yulang.lean imports
+forbidden_proof_tokens: none
+saved_dependency_gate: PASS374 declarations, --trust=0 isolated new-source cache
+independent_scope_review: PASS; actual SourceFormed registry/root and current journal model match operational Branch/Evidence fixture
+named_output_scope: nonempty schema but outputRoot operational reachability not claimed
+point_boundary_scope: shared Fits alone insufficient; not a reobserve soundness counterexample
+source_checkpoint: a82c8f87a015917bc55f2cc618950ea24291ad91; git diff against fixed local c4601c007a6ea2602031f2602b48fb8fb481a356 exit0

@@ -1,0 +1,226 @@
+[
+  {
+    "path": "lean/Yulang/GeneralDictionaryCaptureMultiplicity.lean",
+    "sha256": "5d5face61a8d673cec7beebac8af139db4b1af561cce39f61d1afd24141326a3",
+    "public_theorems": [
+      "Yulang.GeneralDictionaryCaptureMultiplicity.capture_fits_of_membership",
+      "Yulang.GeneralDictionaryCaptureMultiplicity.duplicate_collapse",
+      "Yulang.GeneralDictionaryCaptureMultiplicity.duplicate_sources_differ",
+      "Yulang.GeneralDictionaryCaptureMultiplicity.endpoints_of_fits",
+      "Yulang.GeneralDictionaryCaptureMultiplicity.propagated_endpoints",
+      "Yulang.GeneralDictionaryCaptureMultiplicity.collapse_propagation",
+      "Yulang.GeneralDictionaryCaptureMultiplicity.collapse_endpoints"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryCaptureSemanticCollapse.lean",
+    "sha256": "d609456ab4b2afc5094f5864a1b4edc9e7665ffefd36b808f2ca8a5c539f758d",
+    "public_theorems": [
+      "Yulang.GeneralDictionaryCaptureSemanticCollapse.capture_fits",
+      "Yulang.GeneralDictionaryCaptureSemanticCollapse.endpoints",
+      "Yulang.GeneralDictionaryCaptureSemanticCollapse.propagation"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryPositiveNestedBranch.lean",
+    "sha256": "a19c0aea7b24870b14e82faa803d45602ae8f807598bb63100457ec9739d603a",
+    "public_theorems": [
+      "Yulang.GeneralDictionaryPositiveNestedBranch.checked",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.report_exact",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.captured",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.checked_intervals",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.private_models",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.generated_empty",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.branch_models",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.consistent",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.located",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.prepared",
+      "Yulang.GeneralDictionaryPositiveNestedBranch.survivor"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryPositiveNestedInitial.lean",
+    "sha256": "178dc855f81199606bf438e43c6b522ae5b908a11b6025661fa0a8930f472a1f",
+    "public_theorems": [
+      "Yulang.GeneralDictionaryPositiveNestedInitial.source_models",
+      "Yulang.GeneralDictionaryPositiveNestedInitial.source_formed",
+      "Yulang.GeneralDictionaryPositiveNestedInitial.initial_reachable",
+      "Yulang.GeneralDictionaryPositiveNestedInitial.initial_models",
+      "Yulang.GeneralDictionaryPositiveNestedInitial.report_transport",
+      "Yulang.GeneralDictionaryPositiveNestedInitial.generated_empty_current",
+      "Yulang.GeneralDictionaryPositiveNestedInitial.branch_models",
+      "Yulang.GeneralDictionaryPositiveNestedInitial.prepared_current"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryPositiveNestedProjection.lean",
+    "sha256": "270d73ae94ffe48e19a606c1c530fc64374bb8cc1b363ef4694e743c8f7fb763",
+    "public_theorems": [
+      "Yulang.GeneralDictionaryPositiveNestedProjection.parents_observed",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.leaves_observed",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.captures",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.anchors",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.tests",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.projection",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.positive",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.refined_projection",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.observed_leaves_general",
+      "Yulang.GeneralDictionaryPositiveNestedProjection.projection_requires_equal_leaves"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapse.lean",
+    "sha256": "df26d7757c0a9df61f43ce3d48b08f1c9be2982bec56813c3884498a5d6f7790",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapse.before_exact",
+      "Yulang.GeneralDictionarySemanticCollapse.after_exact",
+      "Yulang.GeneralDictionarySemanticCollapse.current_projection",
+      "Yulang.GeneralDictionarySemanticCollapse.capture_count_drops",
+      "Yulang.GeneralDictionarySemanticCollapse.both_finished",
+      "Yulang.GeneralDictionarySemanticCollapse.bindings_before",
+      "Yulang.GeneralDictionarySemanticCollapse.bindings_after"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapseAllocation.lean",
+    "sha256": "f37893d491b2fff916fbb9672145b0023c497e3ec74e29e8f5cc91fe3fe8c013",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapseAllocation.point_leaf_equivalent",
+      "Yulang.GeneralDictionarySemanticCollapseAllocation.current_propagation",
+      "Yulang.GeneralDictionarySemanticCollapseAllocation.capture_endpoints"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapseAllocationExample.lean",
+    "sha256": "3ffde1db8e6d35a76bccf0940893146297dac9c5103dfa72caadcd9eba7ead29",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapseAllocationExample.fresh_value",
+      "Yulang.GeneralDictionarySemanticCollapseAllocationExample.old_propagation",
+      "Yulang.GeneralDictionarySemanticCollapseAllocationExample.current_propagation",
+      "Yulang.GeneralDictionarySemanticCollapseAllocationExample.endpoints",
+      "Yulang.GeneralDictionarySemanticCollapseAllocationExample.capture_ids_differ"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapseBranch.lean",
+    "sha256": "1925fc653653d8d28eeef83ebaa9dba5df466a1b3e1a8d323bf88e5fa2c2feca",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapseBranch.reports",
+      "Yulang.GeneralDictionarySemanticCollapseBranch.terminal_requests",
+      "Yulang.GeneralDictionarySemanticCollapseBranch.branch"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapseBranchExample.lean",
+    "sha256": "c3f6ecec4d214e77377e8983a506aaedab0b15c5d9e80b1c175368709336bf4a",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.checked",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.queries",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.report_exact",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.captured",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.private_models",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.generated_empty",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.old_branch",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.current_branch",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.old_consistent",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.current_consistent",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.source_formed",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.reachable_branch_replay",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.located",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.prepared",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.current_generated_empty",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.current_report",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.current_located",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.current_prepared",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.children_empty",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.survivor",
+      "Yulang.GeneralDictionarySemanticCollapseBranchExample.current_survivor"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapseEvidenceExample.lean",
+    "sha256": "4de2580c2ab970fb56bd5af839f8b8b1ed22b9a859e4ee2c627ba1f48f8b43c7",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapseEvidenceExample.old_instance",
+      "Yulang.GeneralDictionarySemanticCollapseEvidenceExample.current_instance",
+      "Yulang.GeneralDictionarySemanticCollapseEvidenceExample.old_evidence",
+      "Yulang.GeneralDictionarySemanticCollapseEvidenceExample.current_evidence",
+      "Yulang.GeneralDictionarySemanticCollapseEvidenceExample.reachable_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapseExample.lean",
+    "sha256": "c3452e86d7d25d9dc2a89a0da43c53726b4cf78091f07d1aaf9ea447a505bf33",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapseExample.raw_models",
+      "Yulang.GeneralDictionarySemanticCollapseExample.certified",
+      "Yulang.GeneralDictionarySemanticCollapseExample.improves",
+      "Yulang.GeneralDictionarySemanticCollapseExample.source_models",
+      "Yulang.GeneralDictionarySemanticCollapseExample.revised_models",
+      "Yulang.GeneralDictionarySemanticCollapseExample.observed_parent",
+      "Yulang.GeneralDictionarySemanticCollapseExample.observed_leaf",
+      "Yulang.GeneralDictionarySemanticCollapseExample.parent_unique",
+      "Yulang.GeneralDictionarySemanticCollapseExample.leaf_unique",
+      "Yulang.GeneralDictionarySemanticCollapseExample.old_projection",
+      "Yulang.GeneralDictionarySemanticCollapseExample.new_projection",
+      "Yulang.GeneralDictionarySemanticCollapseExample.actual_reobserve",
+      "Yulang.GeneralDictionarySemanticCollapseExample.duplicate_binding_collapse",
+      "Yulang.GeneralDictionarySemanticCollapseExample.start_models",
+      "Yulang.GeneralDictionarySemanticCollapseExample.result_models",
+      "Yulang.GeneralDictionarySemanticCollapseExample.positive_collapse",
+      "Yulang.GeneralDictionarySemanticCollapseExample.initial_source",
+      "Yulang.GeneralDictionarySemanticCollapseExample.actual_value_step",
+      "Yulang.GeneralDictionarySemanticCollapseExample.value_formed",
+      "Yulang.GeneralDictionarySemanticCollapseExample.value_positive_collapse"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapseOutputExample.lean",
+    "sha256": "0538f0bb17864be40eb556092a8de31ba85cc0c64e34eace85ae211cf50bb8be",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.checked",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.names",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.root_request",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.generated_body",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.nonempty",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.old_materialized",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.current_materialized",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.queries",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.report_exact",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.generated_exact",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.private_models",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.old_branch",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.current_branch",
+      "Yulang.GeneralDictionarySemanticCollapseOutputExample.terminal_no_output_binders"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapsePointBoundary.lean",
+    "sha256": "22fbce6b289f27f2414afd7f845e74adb17aff7d9f9ecf395cc44b0fe1172c73",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapsePointBoundary.shared_actual_fits",
+      "Yulang.GeneralDictionarySemanticCollapsePointBoundary.lower_endpoints_differ",
+      "Yulang.GeneralDictionarySemanticCollapsePointBoundary.upper_endpoints_equal",
+      "Yulang.GeneralDictionarySemanticCollapsePointBoundary.first_nonpoint",
+      "Yulang.GeneralDictionarySemanticCollapsePointBoundary.shared_actual_not_endpoint_equivalence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticCollapseSchema.lean",
+    "sha256": "115d9b844383a41f264ef0e9d6f9ebb336570bc2aaaade29d0873722361c845d",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticCollapseSchema.footprint",
+      "Yulang.GeneralDictionarySemanticCollapseSchema.replay"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySemanticSchemaTransport.lean",
+    "sha256": "60338326a5458d633a381856f1d1aac7b5167ed3a97893cb10ce69b28ad9fa6f",
+    "public_theorems": [
+      "Yulang.GeneralDictionarySemanticSchemaTransport.equivalent_right",
+      "Yulang.GeneralDictionarySemanticSchemaTransport.fits_endpoints",
+      "Yulang.GeneralDictionarySemanticSchemaTransport.variable_meaning",
+      "Yulang.GeneralDictionarySemanticSchemaTransport.replay"
+    ]
+  }
+]
