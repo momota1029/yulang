@@ -1,9 +1,10 @@
 cycle: 173
-status: running
+status: completed
 started: 2026-11-13T20:23:42Z
-updated: 2026-11-13T20:53:17Z
-elapsed_min: 30
-activity: 9 modules and 95-declaration axiom gate PASS; recovery172-inclusive final replay954 closure39 rebuilds running
+updated: 2026-11-13T21:11:00Z
+elapsed_min: 47
+activity: verified checkpoint retained; final interrupted replay recorded as incomplete; writer released
+report: notes/handoff/dots-cycle-173.md
 workspace: /workspace/scratch/1d0b4aaa3394/yulang173-public
 last_local_commit: 8cfc8fe7fd
-resume_hint: Previous writer released. Preserve e299199 cycle172 checkpoint; fresh integration ca75f932. No general V5 completion claimed.
+resume_hint: Preserve e7087f60 source. Actual ground B4 still has four open fields. Final 954-closure replay incomplete after environment interruption; prior 941-closure/38 rebuild and 95-declaration gate passed.
