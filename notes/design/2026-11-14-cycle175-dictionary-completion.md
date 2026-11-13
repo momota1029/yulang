@@ -1,6 +1,6 @@
 # Cycle175: recursive evidence after refining histories
 
-Status: design before implementation. I-28 actual Step/Stable, I-29 remains Astra-owned.
+Status: implemented and verified by focused trust-zero checks. I-28 actual Step/Stable, I-29 remains Astra-owned.
 
 The previous producer derives each recorded current Instance after any finite
 ordinary/fixed-carrier-view refresh trace. Its final-node consumer still asks

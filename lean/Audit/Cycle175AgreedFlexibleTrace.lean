@@ -1,0 +1,17 @@
+import Yulang.GeneralDictionaryAgreedFlexibleTrace175
+
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.at_actual
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_actual
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.steps_actual
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_models
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_formed
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.at_instance
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_recorded
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_recorded
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.trace_formed_recorded
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_recorded
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_instance
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_evidence
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_at
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_step
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_steps

@@ -1,0 +1,25 @@
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.at_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.steps_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.at_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.trace_formed_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_steps' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryNominalOnlyRefresh175
+
+#print axioms Yulang.GeneralDictionaryNominalOnlyRefresh175.report_finished
+#print axioms Yulang.GeneralDictionaryNominalOnlyRefresh175.instance_refinement
+#print axioms Yulang.GeneralDictionaryNominalOnlyRefresh175.evidence_refinement
+
+#print axioms Yulang.GeneralDictionaryNominalOnlyRefresh175.inspect_finished
+#print axioms Yulang.GeneralDictionaryNominalOnlyRefresh175.inspectMany_finished

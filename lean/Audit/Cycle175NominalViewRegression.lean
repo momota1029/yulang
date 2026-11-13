@@ -1,0 +1,12 @@
+import Yulang.GeneralDictionaryNominalViewRegression175
+
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.view_changes
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.refinement
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.query_allowed
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.finished_before
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.report_preserved
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.finished_after
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.capture_before
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.capture_after
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.known_progress
+#print axioms Yulang.GeneralDictionaryNominalViewRegression175.models_nonempty

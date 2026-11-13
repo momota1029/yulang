@@ -1,0 +1,9 @@
+DEPENDENCY_CLOSURE 879 REBUILD 3
+START Yulang.GeneralDictionaryAgreedCompletion175
+END Yulang.GeneralDictionaryAgreedCompletion175 0
+START Yulang.GeneralDictionaryAgreedTable175
+END Yulang.GeneralDictionaryAgreedTable175 0
+START Yulang.GeneralDictionaryAgreedCertifiedEvidence175
+/workspace/scratch/1d0b4aaa3394/yulang175-public/lean/Yulang/GeneralDictionaryAgreedCertifiedEvidence175.lean:67:14: error(lean.unknownIdentifier): Unknown identifier `B4TargetV3.Result`
+/workspace/scratch/1d0b4aaa3394/yulang175-public/lean/Yulang/GeneralDictionaryAgreedCertifiedEvidence175.lean:81:8: warning: declaration uses `sorry`
+END Yulang.GeneralDictionaryAgreedCertifiedEvidence175 1

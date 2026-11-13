@@ -1,0 +1,14 @@
+'Yulang.GeneralDictionaryAgreedTableExamples175.empty_all_fuel' does not depend on any axioms
+'Yulang.GeneralDictionaryAgreedTableExamples175.empty_certified' does not depend on any axioms
+'Yulang.GeneralDictionaryAgreedTableExamples175.repeated_certified' does not depend on any axioms
+'Yulang.GeneralDictionaryAgreedTableExamples175.repeated_zero_fails' does not depend on any axioms
+'Yulang.GeneralDictionaryAgreedTableExamples175.repeated_one_passes' does not depend on any axioms
+'Yulang.GeneralDictionaryAgreedTableExamples175.disconnected_all_fuel' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAgreedTableExamples175.disconnected_not_certified' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAgreedTableExamples175.reverseGraph_reorders' depends on axioms: [propext]
+'Yulang.GeneralDictionaryAgreedTableExamples175.reverseGraph_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryAgreedTableExamples175.reversed_cycle_not_certified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

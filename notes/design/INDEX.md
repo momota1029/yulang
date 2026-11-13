@@ -482,3 +482,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle175 recursive evidence after refining histories](2026-11-14-cycle175-dictionary-completion.md)
 - [Cycle175 table certificate](2026-11-14-cycle175-table-certificate.md)
+
+- [Cycle175 nominal-only refresh scope](2026-11-14-cycle175-flexible-refresh.md)

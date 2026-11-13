@@ -1,0 +1,14 @@
+DEPENDENCY_CLOSURE 882 REBUILD 6
+START Yulang.GeneralDictionaryAgreedCompletion175
+END Yulang.GeneralDictionaryAgreedCompletion175 0
+START Yulang.GeneralDictionaryNominalOnlyRefresh175
+END Yulang.GeneralDictionaryNominalOnlyRefresh175 0
+START Yulang.GeneralDictionaryAgreedFlexibleTrace175
+END Yulang.GeneralDictionaryAgreedFlexibleTrace175 0
+START Yulang.GeneralDictionaryAgreedTable175
+END Yulang.GeneralDictionaryAgreedTable175 0
+START Yulang.GeneralDictionaryAgreedCertifiedEvidence175
+END Yulang.GeneralDictionaryAgreedCertifiedEvidence175 0
+START Yulang.GeneralDictionaryAgreedFlexibleCompletion175
+/workspace/scratch/1d0b4aaa3394/yulang175-public/lean/Yulang/GeneralDictionaryAgreedFlexibleCompletion175.lean:17:46: error(lean.unknownIdentifier): Unknown constant `Yulang.GeneralDictionaryAgreedRefiningTrace174.initial`
+END Yulang.GeneralDictionaryAgreedFlexibleCompletion175 1
