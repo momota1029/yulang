@@ -2487,3 +2487,15 @@ import Yulang.GeneralDictionarySettledEvidence
 import Yulang.GeneralDictionarySettledTreeEvidence
 import Yulang.GeneralDictionarySettledReservedExample
 import Yulang.GeneralDictionarySettledRootEvidence
+
+import Yulang.GeneralDictionaryRecordedSettlement
+import Yulang.GeneralDictionaryAliasSettlement
+
+import Yulang.GeneralDictionarySettlementExamples
+import Yulang.GeneralDictionarySettledConsumerResume
+
+import Yulang.GeneralDictionarySettledFiniteCoverage
+
+import Yulang.GeneralDictionarySettledReservationTimeline
+
+import Yulang.GeneralDictionarySettledFiniteCoverageExample

@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionarySettledFiniteCoverageExample
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverageExample.leaf_shape
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverageExample.leaf_covered
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverageExample.covered
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverageExample.growth
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverageExample.all_models
+#print axioms Yulang.GeneralDictionarySettledFiniteCoverageExample.realized

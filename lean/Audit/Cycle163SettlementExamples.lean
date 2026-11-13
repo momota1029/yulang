@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionarySettlementExamples
+#print axioms Yulang.GeneralDictionarySettlementExamples.terminal_path_eq
+#print axioms Yulang.GeneralDictionarySettlementExamples.terminal_coverage
+#print axioms Yulang.GeneralDictionarySettlementExamples.Reserved.selected
+#print axioms Yulang.GeneralDictionarySettlementExamples.Reserved.coverage
+#print axioms Yulang.GeneralDictionarySettlementExamples.Reserved.discharged
+#print axioms Yulang.GeneralDictionarySettlementExamples.Nonterminal.no_exact_coverage
+#print axioms Yulang.GeneralDictionarySettlementExamples.Nonterminal.no_alias_coverage
