@@ -470,5 +470,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle172: nested input discovery](2026-11-13-cycle172-nested-input-discovery.md) — actual finished inspection yields finite unary input certificate.
 - [Cycle173 actual-inspection evidence and ground composition](2026-11-13-cycle173-actual-evidence.md)
 - Cycle173 actual ground witness, concrete branching run and selected-edge schema: `2026-11-13-cycle173-actual-evidence.md` (conditional dictionary bridges; not full B4).
+- [Canonical hole transport and reduced-hole source producers](2026-11-14-canonical-hole-transport.md) — Exact shared substitution and mass transport, reduced-hole structural/point-nominal exposure, actual K2 occurs checking, and certified inventory/journal transition branches; universal unknown-hole source production remains open. No missing-provenance deferral is used.
 
 - [Explicit centers at the actual-inspection boundary](2026-11-14-centered-actual-boundary.md) — Center ledger, model equations, centered transition kernel, six V5 structural fields, and conditional compatibility/K2 bridges; full simulation and trigger execution remain open.
