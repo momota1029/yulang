@@ -19,3 +19,6 @@ Next compositional goal: recursively transport a whole existing Evidence tree th
 
 ## Journal connection goal
 For a source-formed Shared final state, existing `stored_instance` derives the stored semantic instance of every recorded packet from actual current models. Replace the old recorded-tree interpreter's ALL-packet ordinary-extension premise by explicit per-packet source-ID/seed/report/schema relocation, then recursively interpret the finite RecordedTree at the current context. This is a sufficient structural certificate, not a claim that arbitrary refresh or Stable supplies it. Mixed recorded/unrecorded source leaf coverage remains open.
+
+## Mixed Shared certificate (15:55 UTC)
+The inherited Display→Int state already had semantic Evidence but no RecordedTree. The new MixedTree is not a classifier: recorded nodes carry structural relocation and scalar/spine leaves carry existing current-context syntax/state shapes only. SourceFormed supplies metadata; its interpreter derives all-model Evidence. A concrete Display certificate proves this syntax strictly covers more than packet-only RecordedTree. The new ordinary→relocation lemma demonstrates backward compatibility with the old ordinary-only journal interpretation. No semantic Evidence or Instance is placed in a constructor.

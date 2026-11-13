@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryMixed168Tree
+import Yulang.GeneralDictionaryMixed168Display
+#print axioms Yulang.GeneralDictionaryMixed168Tree.current_evidence
+#print axioms Yulang.GeneralDictionaryMixed168Tree.of_relocated_tree
+#print axioms Yulang.GeneralDictionaryMixed168Display.parent_relocates
+#print axioms Yulang.GeneralDictionaryMixed168Display.structural_tree
+#print axioms Yulang.GeneralDictionaryMixed168Display.interpreted_dictionary
+#print axioms Yulang.GeneralDictionaryMixed168Display.mixed_not_recorded
+#print axioms Yulang.GeneralDictionaryMixed168Display.nonvacuous_interpretation

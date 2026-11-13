@@ -1,0 +1,14 @@
+'Yulang.GeneralDictionaryOrdinary168Relocation.report_is_move' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryOrdinary168Relocation.extension_at' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryOrdinary168Relocation.packet_relocates' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixed168Tree.current_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixed168Tree.of_relocated_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixed168Display.parent_relocates' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixed168Display.structural_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixed168Display.interpreted_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixed168Display.mixed_not_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixed168Display.nonvacuous_interpretation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

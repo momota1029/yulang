@@ -1,0 +1,12 @@
+import Yulang.GeneralDictionaryRecorded168Relocation
+import Yulang.GeneralDictionaryCapturedJournal168
+#print axioms Yulang.GeneralDictionaryRecorded168Relocation.current_instance
+#print axioms Yulang.GeneralDictionaryRecorded168Relocation.recorded_tree
+#print axioms Yulang.GeneralDictionaryRecorded168Relocation.current_evidence
+#print axioms Yulang.GeneralDictionaryRecorded168Relocation.of_recorded_tree
+#print axioms Yulang.GeneralDictionaryRecorded168Relocation.recorded_current_evidence
+#print axioms Yulang.GeneralDictionaryRecorded168Relocation.discharged
+#print axioms Yulang.GeneralDictionaryCapturedJournal168.relocation
+#print axioms Yulang.GeneralDictionaryCapturedJournal168.journal_tree
+#print axioms Yulang.GeneralDictionaryCapturedJournal168.current_dictionary
+#print axioms Yulang.GeneralDictionaryCapturedJournal168.nonvacuous_journal_replay
