@@ -435,3 +435,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Source frontier and point identity leaves](2026-11-13-source-frontier.md) — Finite direct K2 paths and source-derived singleton signature cover with actual guarded installation and Acc for the explicit identity-leaf restriction; general SourceBudget remains open.
 
 - [Point-class termination: finite covers from invocation ancestry](2026-11-13-point-class-invocation-budget.md) — Draft proof companion. Exact actual-Step signature cover and Acc from one invocation-depth bound; unconditional reachable-role-hierarchy Acc with a real Wrap installation. Arbitrary recursive Class P source producers remain open.
+
+- [Class P producer: recursive nominal peeling](2026-11-13-classp-recursive-peeling.md) — Draft proof companion. Dynamic inherited paths, fixed finite input readbacks, and unconditional actual-Step Acc for recursive unary peeling on finite ground spines; real Display installation and arbitrary-depth point sources. General ClassPProducer remains open.
+
+- [Class P: compound input producers and a larger recursive class](2026-11-14-classp-compound-inputs.md) — Unconditional actual-Step Acc for multi-argument recursion with a distinguished finite input, checked compound/output/binder source families, and actual nominal compound emission/readback/recovery; general ClassPProducer remains open.
