@@ -1,0 +1,90 @@
+DEPENDENCY_CLOSURE 818 REBUILD 44
+START Yulang.GeneralPatternConservativeSubstitution
+END Yulang.GeneralPatternConservativeSubstitution 0
+START Yulang.GeneralNominalNormalizedGround
+END Yulang.GeneralNominalNormalizedGround 0
+START Yulang.GeneralNominalFiniteHeadInversion
+END Yulang.GeneralNominalFiniteHeadInversion 0
+START Yulang.GeneralNominalCanonicalPaths
+END Yulang.GeneralNominalCanonicalPaths 0
+START Yulang.GeneralNominalReportPaths
+END Yulang.GeneralNominalReportPaths 0
+START Yulang.GeneralNominalFallbackReadback
+END Yulang.GeneralNominalFallbackReadback 0
+START Yulang.GeneralNominalPacketCaptureReadback
+END Yulang.GeneralNominalPacketCaptureReadback 0
+START Yulang.GeneralNominalSimultaneousCaptures
+END Yulang.GeneralNominalSimultaneousCaptures 0
+START Yulang.GeneralNominalCaptureAssembly
+END Yulang.GeneralNominalCaptureAssembly 0
+START Yulang.GeneralNominalHeadMatchMass
+END Yulang.GeneralNominalHeadMatchMass 0
+START Yulang.GeneralNominalTemplateSubstitution
+END Yulang.GeneralNominalTemplateSubstitution 0
+START Yulang.GeneralPatternNormalForm
+END Yulang.GeneralPatternNormalForm 0
+START Yulang.GeneralPatternVariableProvenance
+END Yulang.GeneralPatternVariableProvenance 0
+START Yulang.GeneralNominalRequestCompleteness
+END Yulang.GeneralNominalRequestCompleteness 0
+START Yulang.GeneralNominalCanonicalTemplates
+END Yulang.GeneralNominalCanonicalTemplates 0
+START Yulang.GeneralNominalClosedSubstitution
+END Yulang.GeneralNominalClosedSubstitution 0
+START Yulang.GeneralNominalChildAssembly
+END Yulang.GeneralNominalChildAssembly 0
+START Yulang.GeneralNominalMatchedAssembly
+END Yulang.GeneralNominalMatchedAssembly 0
+START Yulang.GeneralNominalFiniteBracket
+END Yulang.GeneralNominalFiniteBracket 0
+START Yulang.GeneralNominalInspectionFiniteValues
+END Yulang.GeneralNominalInspectionFiniteValues 0
+START Yulang.GeneralNominalInspectionAlignment
+END Yulang.GeneralNominalInspectionAlignment 0
+START Yulang.GeneralNominalInspectionPositions
+END Yulang.GeneralNominalInspectionPositions 0
+START Yulang.GeneralNominalInspectionMatching
+END Yulang.GeneralNominalInspectionMatching 0
+START Yulang.GeneralNominalGroundHeadMatching
+END Yulang.GeneralNominalGroundHeadMatching 0
+START Yulang.GeneralNominalActualBoundary
+END Yulang.GeneralNominalActualBoundary 0
+START Yulang.GeneralNominalSnapshotCover
+END Yulang.GeneralNominalSnapshotCover 0
+START Yulang.GeneralNominalPhaseLabels
+END Yulang.GeneralNominalPhaseLabels 0
+START Yulang.GeneralNominalHolePhases
+END Yulang.GeneralNominalHolePhases 0
+START Yulang.GeneralNominalRecipeBounds
+END Yulang.GeneralNominalRecipeBounds 0
+START Yulang.GeneralNominalSchemaBudget
+END Yulang.GeneralNominalSchemaBudget 0
+START Yulang.GeneralNominalSettledGrowth
+END Yulang.GeneralNominalSettledGrowth 0
+START Yulang.GeneralNominalSettlementHeight
+END Yulang.GeneralNominalSettlementHeight 0
+START Yulang.GeneralNominalSourceFactorization
+END Yulang.GeneralNominalSourceFactorization 0
+START Yulang.GeneralNominalHolePhaseSimulation
+END Yulang.GeneralNominalHolePhaseSimulation 0
+START Yulang.GeneralNominalIndexedHoleReadback
+END Yulang.GeneralNominalIndexedHoleReadback 0
+START Yulang.GeneralNominalPeelingOrigins
+END Yulang.GeneralNominalPeelingOrigins 0
+START Yulang.GeneralNominalPeelingAccessibility
+END Yulang.GeneralNominalPeelingAccessibility 0
+START Yulang.GeneralNominalRoleHierarchy
+END Yulang.GeneralNominalRoleHierarchy 0
+START Yulang.GeneralNominalActualInspectionExamples
+END Yulang.GeneralNominalActualInspectionExamples 0
+START Yulang.GeneralNominalHierarchyExamples
+END Yulang.GeneralNominalHierarchyExamples 0
+START Yulang.GeneralNominalPeelingExamples
+END Yulang.GeneralNominalPeelingExamples 0
+START Yulang.GeneralNominalPeelingSources
+END Yulang.GeneralNominalPeelingSources 0
+START Yulang.GeneralNominalGroundExamples
+END Yulang.GeneralNominalGroundExamples 0
+START Yulang.GeneralNominalActualPhaseBoundary
+END Yulang.GeneralNominalActualPhaseBoundary 0
+PASS 44

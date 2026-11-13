@@ -1,0 +1,5 @@
+union replay:941 closure/38 rebuild PASS exit0
+all-audits-final2:11 audit files PASS exit0
+namespace-gate:95 declarations PASS
+append-only/frozen/import/source-token checks:PASS9 modules
+Full build and verify-lean.sh NOT RUN.

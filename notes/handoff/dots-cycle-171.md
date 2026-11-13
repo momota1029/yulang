@@ -73,3 +73,9 @@ V5未証明8/14のまま。一般evidenceNode、生成/到達からのCoverage�
 - `GeneralDictionary171SpineExample`（補助／健全性補助）: `actual_tree`, `actual_accessible`, `actual_uniform_dictionary`, `actual_no_old_coverage`, `stable_strict_coverage`
 - `GeneralDictionary171SpinePersistence`（補助／健全性補助）: `tree_extension`, `tree_ordinary_steps`, `node_transport`, `node_children`, `node_key`, `child_iff`, `ordinary_children`, `ordinary_dictionary`, `ordinary_uniform_payload`
 - `GeneralDictionary171SpineTree`（補助／健全性補助）: `current_evidence`
+
+## 公開後の確認
+
+Source commit `3f93762066cfa8a6ca864d10fd8faa7cabf08fb0`、tree `906a5ea0dd90913ed187514d67852ce1212edad7`を公開。GitHub取得のimmutable treeはローカル凍結treeと完全一致。別worktreeとfresh libraryで19 modules/14 auditsを再実行し、すべてtrust=0 PASS、最終gate415宣言PASS。module数・audit数を明示assertした。append-only/import19件/diff --checkもPASS。公開sourceの新規sorry/axiom/native_decideなし。
+最初のbranch fetchは古いcheckpointを返したためtree差分で検出し、その検証を中止。明示SHAで取り直してから全検証を実行した。失敗した空/旧treeをPASSとして数えていない。
+GitHub Actionsの取得可能なPR-triggered runは空。CI成功とは報告しない。全体build未実行、V5未証明8/14、一般coverage/refreshは未解決。復旧後は範囲を広げず検証・公開・報告のみで終了した。
