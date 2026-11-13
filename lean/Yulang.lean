@@ -2509,3 +2509,8 @@ import Yulang.GeneralNominalSharedPositive
 import Yulang.GeneralNominalSharedExamples
 import Yulang.GeneralNominalSharedEnumeration
 import Yulang.GeneralNominalSharedBudget
+import Yulang.GeneralNominalHoleReadback
+import Yulang.GeneralNominalHoleObservation
+import Yulang.GeneralNominalHoleFacets
+import Yulang.GeneralNominalHoleMaterialization
+import Yulang.GeneralNominalHoleElimination
