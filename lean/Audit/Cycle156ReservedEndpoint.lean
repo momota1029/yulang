@@ -1,0 +1,12 @@
+import Yulang.GeneralDictionaryReservedCompletedRun
+
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.actual_stages
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.actual_path
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.initial
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.halted
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.continuation_eq
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.resolved
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.completed
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.resolves_iff
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.classify_iff
+#print axioms Yulang.GeneralDictionaryReservedCompletedRun.initial_terminal_sound_run

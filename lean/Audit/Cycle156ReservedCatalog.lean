@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryReservedCatalogEvidence
+#print axioms Yulang.GeneralDictionaryReservedCatalogEvidence.catalog_exact
+#print axioms Yulang.GeneralDictionaryReservedCatalogEvidence.automatic_history
+#print axioms Yulang.GeneralDictionaryReservedCatalogEvidence.current_instance
+#print axioms Yulang.GeneralDictionaryReservedCatalogEvidence.current_evidence
+#print axioms Yulang.GeneralDictionaryReservedCatalogEvidence.no_initial_output_observation_needed
