@@ -97,3 +97,53 @@ The exact-recorded positive fixture is terminal; alias coverage has no nontrivia
 positive alias fixture this cycle. The recursive finite-coverage application has
 an explicit current model and nonempty journal, so its semantic Evidence claim is
 nonvacuous, but still does not imply packet settlement.
+
+## 現在の13項目（定義の位置と一般橋の区別は前cycleから不変）
+
+|項目|現定義|残る区別|
+|---|---|---|
+|Checked|GeneralDeclarations.Checkedとroles一致|front-end adequacyとは別|
+|Models|SaturationState.Models(current)|意味論の定義|
+|Step|SettledSteps.Step|Astraの実guard使用、一般progress/execution未達|
+|Stable|SettledSteps.Stable|旧Value Stableを意味しない|
+|Generated|SaturationState.Generated|一般選択子bridge未達|
+|RootPending|NominalState.RootPending|現在context既知性|
+|RootK2|FeedbackK2.RootK2|K2拒否の優先維持|
+|CandidateK2|FeedbackK2.CandidateK2|既存規則|
+|InspectionPending|Value pendingまたはSettled SupportPending|選択排除は証明、意味論Evidence否定ではない|
+|Survivor|RecursiveCandidates.Survivor|一般Evidence接続未達|
+|Evidence|DictionaryRecursiveEvidence.Evidence|final contextのModelsに対する意味論|
+|Reorders|RegistryReordering.Reorders|canonicalLocalOrder未達|
+|DictionaryEquivalent|DictionaryPayloadOrder.Equivalent|主定理全体ではない|
+
+
+## 現時点で確定した検証（10:48 UTC）
+
+- 新7moduleの全sourceを独立cacheへ逐次 `lean --trust=0 -o ...` で再compile: EXIT0。
+- 公開48定理の型表示と公理監査: EXIT0。
+- private/generatedを含む64宣言の依存公理gate: EXIT0。
+- `verify-lean.sh . origin/integration/m1-final --no-build`: EXIT0（差分のみ）。
+  cache symlinkがuntrackedとして最初の検査を失敗させたため、local excludeへ
+  登録して再検査した。gateのrun_cmdは依存公理の収集・失敗判定だけを行い、
+  証明宣言を追加しない。コメント行のsyntax/historyもREVIEWに拾われたが構文拡張ではない。
+- checkpoint75466826a5f77c8bedee43a12c9df825141ba087をGit再取得し、
+  固定local b3ed97374795c5a83a1eac8982490ac7028e75c1との差は意図した心拍だけ。
+
+### 具体例の追加確認
+
+再帰・非空journalの例はactualモデルを明示し、新coverage定理からEvidenceを導出。
+terminal予約出力はinstall直後からTrusted/HeadJustifiedだが、install後もequate後も
+ReadyAtではなく、actual refresh後に初めて現在headが揃う。この差を3Stepの
+実timelineとして証明した。これをnonterminalな消費者の実再開とは呼ばない。
+
+## 追加の具体的阻害（10:52 UTC）
+
+`RecursiveConsumerObstruction`は、実finishで生成済みのdisplayChildについて、
+任意のInstallable packetがすでにCommittedであることを既存の具体的closureから
+導いた。したがってterminal childのnovel installを要する再開契約には証人がなく、
+actual I26 Stableから子の全Atも不可能。actual model・Classify・Unsettled・
+Generated・noAtが同時成立する。これはsource inconsistencyでも一般progressの
+反例でもなく、この既存fixtureへ再開契約を適用できない正確な理由である。
+
+この追加を含む8moduleの全source逐次trust0 replayとaudit10本がEXIT0。
+公開53定理、private/generatedを含む69宣言のgateがPASS。

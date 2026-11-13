@@ -2499,3 +2499,5 @@ import Yulang.GeneralDictionarySettledFiniteCoverage
 import Yulang.GeneralDictionarySettledReservationTimeline
 
 import Yulang.GeneralDictionarySettledFiniteCoverageExample
+
+import Yulang.GeneralDictionaryRecursiveConsumerObstruction
