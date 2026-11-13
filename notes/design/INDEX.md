@@ -476,3 +476,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered point-source bridges](2026-11-14-centered-point-bridges.md) — Exact initial agreement, a reachable ground counterexample to literal erasure with a matching raw execution, and selected inspection guards; unrestricted simulation and full installation availability remain open.
 
 - [Direct centered ground-root accessibility](2026-11-14-centered-direct-accessibility.md) — Unrestricted centered Step accessibility from ground point roots, actual terminal executions, six structural V5 transfers, namespace/nested-use invariants, and conditional selected-plan/where bridges; full guard availability and the P/W trace remain open.
+- [2026-11-14 Centered ground composition](2026-11-14-centered-ground-composition.md) — ten V5 fields, a reachable selection/installation obstruction, general center model extension, and conditional P/W ledger rejection; source execution remains open.
