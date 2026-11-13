@@ -1,0 +1,47 @@
+[
+  {
+    "path": "lean/Yulang/GeneralDictionaryAliasSettlement.lean",
+    "namespace": "Yulang.GeneralDictionaryAliasSettlement",
+    "sha256": "4458ae1f3d3fa495d1192fb9edd5d2d0c13326454095d10b0cf367f939189fdc"
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRecordedSettlement.lean",
+    "namespace": "Yulang.GeneralDictionaryRecordedSettlement",
+    "sha256": "b0125edb12ddf5d378f9f3db4dfb70fb21adfa4855ed4e6b013f1ade49e94f13"
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRecursiveConsumerObstruction.lean",
+    "namespace": "Yulang.GeneralDictionaryRecursiveConsumerObstruction",
+    "sha256": "819d86a322434a91959417f696b2ba1aff5d5fd977c88843747c7a72c37b3b97"
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledConsumerResume.lean",
+    "namespace": "Yulang.GeneralDictionarySettledConsumerResume",
+    "sha256": "94dd9f862d5e7808cc7442ad2d4df9ca914a06f8f64ceb85f7a1898dedf7b9b8"
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledFiniteCoverage.lean",
+    "namespace": "Yulang.GeneralDictionarySettledFiniteCoverage",
+    "sha256": "ffc7f34f8fb49a08dfdbf4b67f94ee68eba735766a74eb397f14a9c5859024b9"
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledFiniteCoverageExample.lean",
+    "namespace": "Yulang.GeneralDictionarySettledFiniteCoverageExample",
+    "sha256": "d3a391eabe66c521ed8f7fd7f507a830de82b93df6f9c189620e0a70888e2d95"
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledReservationTimeline.lean",
+    "namespace": "Yulang.GeneralDictionarySettledReservationTimeline",
+    "sha256": "31a2420cf7d64d0ae0726c12efefc02b2f7fbce6d263f1788555555cc340db0d"
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettledTerminalPrefix.lean",
+    "namespace": "Yulang.GeneralDictionarySettledTerminalPrefix",
+    "sha256": "e2a51d551b4040eb86cfd645747a928970f780148b6b6a2191ae0c16adc4131f"
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionarySettlementExamples.lean",
+    "namespace": "Yulang.GeneralDictionarySettlementExamples",
+    "sha256": "55be194fae0569ea62af52cf4955a6777a3127f15580c8641fd7c8ca48a769e0"
+  }
+]

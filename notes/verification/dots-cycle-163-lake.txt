@@ -1,0 +1,10 @@
+✔ [700/711] Built Yulang.GeneralDictionaryRecordedSettlement (2.4s)
+✔ [703/711] Built Yulang.GeneralDictionarySettledConsumerResume (967ms)
+✔ [704/711] Built Yulang.GeneralDictionaryAliasSettlement (1.4s)
+✔ [710/779] Built Yulang.GeneralDictionaryRecursiveConsumerObstruction (839ms)
+✔ [781/783] Built Yulang.GeneralDictionarySettledFiniteCoverage (1.4s)
+✔ [782/818] Built Yulang.GeneralDictionarySettledFiniteCoverageExample (907ms)
+✔ [819/824] Built Yulang.GeneralDictionarySettledReservationTimeline (875ms)
+✔ [824/837] Built Yulang.GeneralDictionarySettledTerminalPrefix (1.1s)
+✔ [837/837] Built Yulang.GeneralDictionarySettlementExamples (935ms)
+Build completed successfully (837 jobs).

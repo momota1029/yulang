@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySharedSemanticSettlement
+#print axioms Yulang.GeneralDictionarySharedSemanticSettlement.no_discharged
+#print axioms Yulang.GeneralDictionarySharedSemanticSettlement.parent_not_settled
+#print axioms Yulang.GeneralDictionarySharedSemanticSettlement.no_recorded_tree
+#print axioms Yulang.GeneralDictionarySharedSemanticSettlement.semantic_evidence_not_ledger_completion
