@@ -1,0 +1,241 @@
+'Yulang.GeneralDictionaryBindingSchemaReplay.packet_seed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryBindingSchemaReplay.capture_seed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryBindingSchemaReplay.requests_seed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryBindingSchemaReplay.replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPersistentCatalog.safeCatalog_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPersistentCatalog.safeCatalog_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPersistentCatalog.recorded_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalog.eligible_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalog.member_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalog.covered_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalog.safe_included' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalog.supported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalog.catalog_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalog.catalog_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalog.shape' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogExample.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogExample.emissions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogExample.closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogExample.mixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogExample.old_catalog_empty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogExample.new_catalog_contains' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogExample.generated_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogExample.strict_coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalogEvidence.instance_of_catalog' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalogEvidence.structural' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalogEvidence.covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalogEvidence.dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedChildIntervals.occurrences_member' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedChildIntervals.capture_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedChildIntervals.packet_capture_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedChildIntervals.clause_input_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedChildIntervals.variable_name' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedChildIntervals.clause_input_declared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedChildIntervals.child_origin' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedChildIntervals.child_intervals' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedOrigins.generated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedOrigins.monotone' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedOrigins.administrative' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedOrigins.installed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedOrigins.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedOrigins.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedOrigins.reachable_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervals.recorded_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervals.generated_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervals.located_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryProvenanceGeneratedIntervals.branch_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryProvenanceGeneratedIntervals.instance_of_shape' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryProvenanceGeneratedIntervals.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableRegistryIntervals.journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryVariableRegistryIntervals.generated_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableRegistryIntervals.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.capture_bindings' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.variable_inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.registry_fragment' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.nonroot' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.every_generated_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.positive_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalExample.actual_nonroot_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCapturedSchemaTransport.variable_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSchemaTransport.replay' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSchemaTransport.footprint_refl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCapturedSchemaTransport.recorded_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalCoverage.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalCoverage.dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalCoverage.dictionaries_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalCoverage.root_dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryGeneratedIntervalCoverage.completed_tree_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.report_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.report_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.footprint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.replay_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.requests_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.current_schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.context_changed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.bindings_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCapturedReplay.computed_reinspection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.target_fresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.output_int' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.snapshot_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.target_reserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.output_member' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.output_not_known' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.output_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.refresh_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.refreshed_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.refreshed_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.refreshed_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.report_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.bindings_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.origins' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.packet_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.carrier_changed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCarrierRefresh.nonvacuous_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+AXIOM-GATE-PASS: 73 declarations
+'Yulang.GeneralDictionaryMixedCatalogInhabited.target_nonzero' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogInhabited.query' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogInhabited.branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogInhabited.journal_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogInhabited.nonvacuous_strict_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.registry_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.all_source_decisions' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.packet_guard' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.value_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.installed_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.old_catalog_empty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.new_catalog_contains' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMixedCatalogReachable.reachable_strict_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecordedScalarIntervalEvidence.recorded_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecordedScalarIntervalEvidence.origins' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRecordedScalarIntervalEvidence.generated_known' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecordedScalarIntervalEvidence.branch_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecordedScalarIntervalEvidence.instance_of_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRecordedScalarIntervalEvidence.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalog.requests_independent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalog.current_covered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalog.scalar_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalog.recorded_visible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalog.selected_scalar_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalog.selected_root_interval_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalogExample.changed_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalogExample.coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalogExample.instance_after_refresh' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalogExample.evidence_after_refresh' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryVariableClauseCatalogExample.inhabited_changed_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalogCompute.packet_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalogCompute.catalog_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryRequestCatalogCompute.coverage_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryComputedCatalogExample.packet_computed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryComputedCatalogExample.installed_computed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
