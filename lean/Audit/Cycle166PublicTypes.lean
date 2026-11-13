@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionarySharedCapturedFinalProducer
 import Yulang.GeneralDictionaryCapturedScalarRefresh
 import Yulang.GeneralDictionaryCapturedTrustedBoundary
 import Yulang.GeneralDictionarySharedCapturedConsequences
@@ -92,3 +93,6 @@ import Yulang.GeneralDictionarySharedCapturedResumption
 #check Yulang.GeneralDictionarySharedCapturedResumption.scalar_consequence
 #check Yulang.GeneralDictionarySharedCapturedResumption.producer_recorded
 #check Yulang.GeneralDictionarySharedCapturedResumption.consumer_raw_ready
+#check Yulang.GeneralDictionarySharedCapturedFinalProducer.report_exact
+#check Yulang.GeneralDictionarySharedCapturedFinalProducer.finished
+#check Yulang.GeneralDictionarySharedCapturedFinalProducer.repeated_bindings

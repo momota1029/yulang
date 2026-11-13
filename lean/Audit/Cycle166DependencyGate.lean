@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionarySharedCapturedFinalProducer
 import Yulang.GeneralDictionaryCapturedScalarRefresh
 import Yulang.GeneralDictionaryCapturedTrustedBoundary
 import Yulang.GeneralDictionarySharedCapturedConsequences
@@ -13,7 +14,7 @@ open Lean Elab Command in
 run_cmd do
   let environment ← getEnv
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
-  let wanted : List Name := [`Yulang.GeneralDictionaryCapturedScalarRefresh, `Yulang.GeneralDictionaryCapturedTrustedBoundary, `Yulang.GeneralDictionarySharedCapturedConsequences, `Yulang.GeneralDictionarySharedCapturedNovelty, `Yulang.GeneralDictionarySharedCapturedPreparation, `Yulang.GeneralDictionarySharedCapturedProducerEnabled, `Yulang.GeneralDictionarySharedCapturedProducerEvidence, `Yulang.GeneralDictionarySharedCapturedProducerGuard, `Yulang.GeneralDictionarySharedCapturedProducerResolution, `Yulang.GeneralDictionarySharedCapturedResumption]
+  let wanted : List Name := [`Yulang.GeneralDictionarySharedCapturedFinalProducer, `Yulang.GeneralDictionaryCapturedScalarRefresh, `Yulang.GeneralDictionaryCapturedTrustedBoundary, `Yulang.GeneralDictionarySharedCapturedConsequences, `Yulang.GeneralDictionarySharedCapturedNovelty, `Yulang.GeneralDictionarySharedCapturedPreparation, `Yulang.GeneralDictionarySharedCapturedProducerEnabled, `Yulang.GeneralDictionarySharedCapturedProducerEvidence, `Yulang.GeneralDictionarySharedCapturedProducerGuard, `Yulang.GeneralDictionarySharedCapturedProducerResolution, `Yulang.GeneralDictionarySharedCapturedResumption]
   let mut checked : Nat := 0
   for (name, _) in environment.constants.toList do
     if let some index := environment.getModuleIdxFor? name then

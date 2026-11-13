@@ -1,0 +1,7 @@
+✔ [710/715] Built Yulang.GeneralDictionaryCapturedTrustedBoundary (3.6s)
+✔ [711/715] Built Yulang.GeneralDictionarySharedCapturedProducerGuard (3.7s)
+✔ [712/715] Built Yulang.GeneralDictionarySharedCapturedNovelty (3.8s)
+✔ [713/715] Built Yulang.GeneralDictionarySharedCapturedProducerResolution (2.3s)
+✔ [714/715] Built Yulang.GeneralDictionarySharedCapturedResumption (2.6s)
+✔ [715/715] Built Yulang.GeneralDictionarySharedCapturedProducerEvidence (2.6s)
+Build completed successfully (715 jobs).

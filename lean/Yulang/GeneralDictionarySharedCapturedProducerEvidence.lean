@@ -16,7 +16,7 @@ theorem terminal : candidate.children = [] := by
   simp only [List.mergeSort_nil]
   rfl
 
-/-- All successor models admit the leaf producer dictionary at the actual
+/-- All successor models have the leaf producer dictionary at the actual
 private successor context, not merely at the stored inspection context. -/
 theorem current_evidence (assignment : Assignment) (valid : Models installed.current assignment) :
     Evidence registry installed.current.context assignment producer (.node declaration.id []) :=
