@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryNonpointModeBoundary
+#print axioms Yulang.GeneralDictionaryNonpointModeBoundary.old_lower
+#print axioms Yulang.GeneralDictionaryNonpointModeBoundary.current_lower_fails
+#print axioms Yulang.GeneralDictionaryNonpointModeBoundary.old_schema
+#print axioms Yulang.GeneralDictionaryNonpointModeBoundary.current_schema_fails

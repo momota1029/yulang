@@ -1,0 +1,16 @@
+import Yulang.GeneralDictionaryActualSchemaOrigin
+
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.rename_empty
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.rename_append
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.rename_test
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.schema_rename
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.schemas_rename
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.fold_rename
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.generated_rename
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.equivalent_trans
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.equivalent_symm
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.observes_pull
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.observes_push
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.test_transport
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.variable_equivalent
+#print axioms Yulang.GeneralDictionaryActualSchemaOrigin.replay

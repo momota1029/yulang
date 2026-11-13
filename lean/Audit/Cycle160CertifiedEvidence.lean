@@ -1,0 +1,3 @@
+import Yulang.GeneralDictionaryCertifiedNonpointEvidence
+#print axioms Yulang.GeneralDictionaryCertifiedNonpointEvidence.source_models
+#print axioms Yulang.GeneralDictionaryCertifiedNonpointEvidence.evidence
