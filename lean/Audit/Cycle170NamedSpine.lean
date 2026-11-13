@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionary170NamedSpine
+#print axioms Yulang.GeneralDictionary170NamedSpine.branch_models
+#check @Yulang.GeneralDictionary170NamedSpine.branch_models
+#print axioms Yulang.GeneralDictionary170NamedSpine.ready
+#check @Yulang.GeneralDictionary170NamedSpine.ready
+#print axioms Yulang.GeneralDictionary170NamedSpine.instance_of_shape
+#check @Yulang.GeneralDictionary170NamedSpine.instance_of_shape
+#print axioms Yulang.GeneralDictionary170NamedSpine.evidence_of_shape
+#check @Yulang.GeneralDictionary170NamedSpine.evidence_of_shape

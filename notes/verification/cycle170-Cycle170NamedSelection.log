@@ -1,0 +1,5 @@
+'Yulang.GeneralDictionary170NamedSelection.leaf_selected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary170NamedSelection.tree_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary170NamedSelection.terminal_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary170NamedSelection.leaf_tree_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary170NamedSelection.actual_unique' depends on axioms: [propext, Classical.choice, Quot.sound]

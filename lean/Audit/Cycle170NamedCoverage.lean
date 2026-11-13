@@ -1,0 +1,26 @@
+import Yulang.GeneralDictionary170NamedCoverage
+import Yulang.GeneralDictionary170NamedAccessible
+#print axioms Yulang.GeneralDictionary170NamedCoverage.node_tree
+#check @Yulang.GeneralDictionary170NamedCoverage.node_tree
+#print axioms Yulang.GeneralDictionary170NamedCoverage.accessible_tree
+#check @Yulang.GeneralDictionary170NamedCoverage.accessible_tree
+#print axioms Yulang.GeneralDictionary170NamedCoverage.wellFounded_tree
+#check @Yulang.GeneralDictionary170NamedCoverage.wellFounded_tree
+#print axioms Yulang.GeneralDictionary170NamedCoverage.uniform_dictionary
+#check @Yulang.GeneralDictionary170NamedCoverage.uniform_dictionary
+#print axioms Yulang.GeneralDictionary170NamedAccessible.child_rank
+#check @Yulang.GeneralDictionary170NamedAccessible.child_rank
+#print axioms Yulang.GeneralDictionary170NamedAccessible.coverage_accessible
+#check @Yulang.GeneralDictionary170NamedAccessible.coverage_accessible
+#print axioms Yulang.GeneralDictionary170NamedAccessible.covered_tree
+#check @Yulang.GeneralDictionary170NamedAccessible.covered_tree
+#print axioms Yulang.GeneralDictionary170NamedAccessible.covered_dictionary
+#check @Yulang.GeneralDictionary170NamedAccessible.covered_dictionary
+#print axioms Yulang.GeneralDictionary170NamedAccessible.actual_accessible
+#check @Yulang.GeneralDictionary170NamedAccessible.actual_accessible
+#print axioms Yulang.GeneralDictionary170NamedAccessible.actual_uniform_dictionary
+#check @Yulang.GeneralDictionary170NamedAccessible.actual_uniform_dictionary
+#print axioms Yulang.GeneralDictionary170NamedAccessible.actual_nonvacuous
+#check @Yulang.GeneralDictionary170NamedAccessible.actual_nonvacuous
+#print axioms Yulang.GeneralDictionary170NamedAccessible.actual_no_old_coverage
+#check @Yulang.GeneralDictionary170NamedAccessible.actual_no_old_coverage

@@ -1,0 +1,41 @@
+'Yulang.GeneralDictionary170PathBound.rank_budget' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.rank_budget : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {start finish : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage start finish count →
+    count + Yulang.GeneralDictionary170NamedAccessible.rank state finish.val ≤
+      Yulang.GeneralDictionary170NamedAccessible.rank state start.val
+'Yulang.GeneralDictionary170PathBound.length_le_rank' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.length_le_rank : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {start finish : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage start finish count →
+    count ≤ Yulang.GeneralDictionary170NamedAccessible.rank state start.val
+'Yulang.GeneralDictionary170PathBound.length_le_ceiling' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.length_le_ceiling : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {start finish : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage start finish count →
+    count ≤ Yulang.GeneralDictionary170NamedAccessible.ceiling state + 1
+'Yulang.GeneralDictionary170PathBound.no_positive_cycle' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.no_positive_cycle : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {focus : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage focus focus count → count = 0
+'Yulang.GeneralDictionary170PathBound.rank_zero_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.rank_zero_terminal : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Yulang.GeneralDictionary170NamedAccessible.rank state focus.val = 0 → (coverage.node focus.val ⋯).children = []
+'Yulang.GeneralDictionary170PathBound.vertices_le_rank_succ' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.vertices_le_rank_succ : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {start finish : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage start finish count →
+    count + 1 ≤ Yulang.GeneralDictionary170NamedAccessible.rank state start.val + 1
