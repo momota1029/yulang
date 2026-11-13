@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryNonpointBranch
+#print axioms Yulang.GeneralDictionaryNonpointCollapse.capture_fits
+#print axioms Yulang.GeneralDictionaryNonpointCollapse.private_state
+#print axioms Yulang.GeneralDictionaryNonpointBranch.footprint
+#print axioms Yulang.GeneralDictionaryNonpointBranch.replay
+#print axioms Yulang.GeneralDictionaryNonpointBranch.branch

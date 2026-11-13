@@ -2416,3 +2416,9 @@ import Yulang.GeneralDictionarySemanticCollapseEvidenceExample
 
 import Yulang.GeneralDictionarySemanticCollapseOutputExample
 import Yulang.GeneralDictionarySemanticCollapsePointBoundary
+
+import Yulang.GeneralDictionaryActualSchema
+import Yulang.GeneralDictionaryNonpointCollapse
+import Yulang.GeneralDictionaryNonpointBranch
+import Yulang.GeneralDictionaryCollapseReadiness
+import Yulang.GeneralDictionaryNonpointEvidence

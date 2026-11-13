@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryCollapseReadiness
+#print axioms Yulang.GeneralDictionaryCollapseReadiness.arguments_same
+#print axioms Yulang.GeneralDictionaryCollapseReadiness.metadata_same
+#print axioms Yulang.GeneralDictionaryCollapseReadiness.finished
+#print axioms Yulang.GeneralDictionaryCollapseReadiness.generated_same
+#print axioms Yulang.GeneralDictionaryCollapseReadiness.ready_same
