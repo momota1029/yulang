@@ -1,0 +1,327 @@
+[
+  {
+    "path": "lean/Yulang/GeneralDictionaryHistoricalNominalCoverage.lean",
+    "sha256": "69f9a57135a5bf26e16de609d164d43a6eb44fc209f3ec8d7dd5eb01eabc7cb3",
+    "public_theorems": [
+      "selected_instance",
+      "supported_of_recorded"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryHistoricalNominalRefreshExample.lean",
+    "sha256": "34496db369e9fe5e801ebc43b4cdb5b969cee945cf5de55b7b294900d51553ff",
+    "public_theorems": [
+      "scope",
+      "supported",
+      "current_instance",
+      "positive_coverage",
+      "capture_nonempty",
+      "selected_instance",
+      "selected_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryHistoricalNominalTree.lean",
+    "sha256": "99c49b0893c51efb98ef91e9c1be9dafd0488a54491462765399b6fb76a5cb91",
+    "public_theorems": [
+      "dictionary_evidence",
+      "dictionaries_evidence",
+      "root_dictionary_evidence",
+      "completed_tree_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryHistoricalRefreshSelection.lean",
+    "sha256": "2d7740a50697cdab9eb0047dbe71144a912122e536a197b2fdaeb7acd57986d6",
+    "public_theorems": [
+      "feedback_acyclic",
+      "raw_acyclic",
+      "no_raw_recurs",
+      "no_root",
+      "no_candidate"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryMixedHistoricalCoverage.lean",
+    "sha256": "7e1562ca62e6f9af98ba20c442854c6d0e7a9f8a58dbe8c1decfddeeb56e3cc1",
+    "public_theorems": [
+      "selected_instance",
+      "dictionary_evidence",
+      "dictionaries_evidence",
+      "root_dictionary_evidence",
+      "completed_tree_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryMixedHistoricalExample.lean",
+    "sha256": "575e231269d0537a9b98652164567aac3e8be65d476ee19c6f27aaacac9f894b",
+    "public_theorems": [
+      "root_selected",
+      "fragment",
+      "root_supported",
+      "child_structural",
+      "path_cases",
+      "covered",
+      "classified",
+      "resolves",
+      "completed",
+      "every_model",
+      "actual_mixed_tree"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNestedBranchTransport.lean",
+    "sha256": "53abd684548055ef92ebeb2914a3237e452eb68b2783cc94a2a1e3a1def7efc4",
+    "public_theorems": [
+      "projection_map",
+      "selfChecks_map",
+      "merges_seed",
+      "private_refined",
+      "recorded_branch"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNestedCarrierExample.lean",
+    "sha256": "037c3cc5ae9b36c56b2f191ee388abf6ae8cae223d59bebd9d79489fe71d6868",
+    "public_theorems": [
+      "retained",
+      "model_preserved",
+      "carrier_strictly_larger",
+      "nested_report_transported",
+      "capture_sources_retained"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNestedCurrentEvidence.lean",
+    "sha256": "3fc3178d2128a08a0fe40e92e8fb2eec5445df669eadb141af9af005c0b1ff80",
+    "public_theorems": [
+      "current_instance",
+      "selected_instance",
+      "selected_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNestedRefinement.lean",
+    "sha256": "bdf739edd4c97461845063a337fbf71bc7aa75f0a5f5d021c03bb1d3bd38276d",
+    "public_theorems": [
+      "map_append",
+      "map_visit",
+      "embed_injective",
+      "typeArguments_map",
+      "inspect_refined",
+      "inspectMany_refined",
+      "bindings_map",
+      "origins_map",
+      "finished_map",
+      "bindings_refined",
+      "origins_refined"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNestedRefinementExamples.lean",
+    "sha256": "535005ee57a5f331d41a76cb83531fda63f9107a41086c760133d0cd9b85ff5f",
+    "public_theorems": [
+      "nested_scope",
+      "nested_finished",
+      "captures_two_sources",
+      "positive_nonpoint",
+      "arbitrary_refinement"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryNestedRefinementReplay.lean",
+    "sha256": "341d3e117a743d24ca801f39746e1e2baf3aecac5dbf37364ea8204b6597204a",
+    "public_theorems": [
+      "queries_preserved",
+      "report_refined",
+      "bindings_preserved",
+      "recorded_schema"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRecordedInspectionFacts.lean",
+    "sha256": "73c9ac7a5c4922291a2e451ca7e4f70b0fe421ff7e71dc6a005e9f6f43c0e72a",
+    "public_theorems": [
+      "prepared",
+      "located",
+      "role",
+      "finished",
+      "root_defined",
+      "metadata"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRefinedLocations.lean",
+    "sha256": "081d1676fc80b0fd360b0767ea6e59daa5b061dad4c34180a6296fc78c757cc4",
+    "public_theorems": [
+      "source_slot",
+      "locate_cons",
+      "locate",
+      "arguments",
+      "metadata"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryReobservationRefinementGap.lean",
+    "sha256": "43eeea64aea6d5aa077a0a5ef5b606c1036962d8b5c4265eb44f3b5f58e60071",
+    "public_theorems": [
+      "embedding_identity",
+      "point_preserved_backwards",
+      "improving_not_refines"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRevisionArgumentBridge.lean",
+    "sha256": "927dd8ba8856c4706892dfe44ec0d815233203015803de857dde3c0165576460",
+    "public_theorems": [
+      "descriptor_name",
+      "shared_argument",
+      "cross_checks"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRevisionBridgeExample.lean",
+    "sha256": "22a9d027abc8d2d00bd3e58d3ba77b4542d293afeba81f2778f6688b0d1247a2",
+    "public_theorems": [
+      "positive_model",
+      "no_refinement",
+      "cross_checks",
+      "parameter_covered",
+      "shared_argument",
+      "actual_positive_boundary"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryRevisionParameterCoverage.lean",
+    "sha256": "9b61984440527e45d5cfaa85bfcc510960c6c3c03f8851e69c584c2cd066ed37",
+    "public_theorems": [
+      "arity",
+      "parameter_covered"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryScalarChildEvidence.lean",
+    "sha256": "8ba84c943a9a708ccd181d444cb397379625c760d476c9e47b0c13ba0554833a",
+    "public_theorems": [
+      "branch_models",
+      "instance_of_shape",
+      "selected_instance"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryScalarChildExample.lean",
+    "sha256": "d489c7b3bf2bfc733e26767cfa5d8b4b1c5012988f82a3f5115b28a900f08f76",
+    "public_theorems": [
+      "checked",
+      "endpoint_nonzero",
+      "endpoints_distinct",
+      "query",
+      "schema_exact",
+      "branch",
+      "actual_child_order",
+      "child_member",
+      "endpoints_exact",
+      "nonvacuous_emitted_order"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryScalarChildIntervals.lean",
+    "sha256": "107c300c963a6155f052b7ce415cd51672234e6310be5ab155ed5f617ad859fc",
+    "public_theorems": [
+      "scalar_request",
+      "emission_request",
+      "clause_scalar_order",
+      "variable_inputs_included",
+      "child_intervals",
+      "generated_intervals",
+      "located_intervals"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryScalarChildReachable.lean",
+    "sha256": "b4047d1a3358a81ed372b57c717845811ed5060ed80d44de3aab9866a0286999",
+    "public_theorems": [
+      "registry_checked",
+      "all_source_decisions",
+      "prepared",
+      "survivor",
+      "selected",
+      "enabled",
+      "packet_guard",
+      "novel",
+      "source",
+      "value_step",
+      "reachable",
+      "installed_model",
+      "recorded",
+      "generated",
+      "actual_reachable_scalar_child"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryScalarGeneratedCoverage.lean",
+    "sha256": "c85e915571daff9ebc5a36a649b6b5976351f911c34f619fcfa72cebaae1b2c8",
+    "public_theorems": [
+      "selected_instance",
+      "dictionary_evidence",
+      "dictionaries_evidence",
+      "root_dictionary_evidence",
+      "completed_tree_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryScalarRegistryExample.lean",
+    "sha256": "d669aa89120166ec3a7b13851d69b5b71d3fd68211b2a60a8a3e80cd45ec7d7d",
+    "public_theorems": [
+      "fragment",
+      "all_generated_intervals",
+      "not_variable_registry",
+      "strict_extension"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryScalarRegistryIntervals.lean",
+    "sha256": "c741e28c706b6781970d626869a13fddda679b516c453c22e49aebe6714850ff",
+    "public_theorems": [
+      "at_interpretation",
+      "coherent_at",
+      "coherent_trace",
+      "reachable_coherent",
+      "journal",
+      "generated_intervals",
+      "selected_instance"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryUnaryCurrentEvidence.lean",
+    "sha256": "4c9e30de75f43a4023baee8c6d956802f188bd95cba295e668a3c4c011504bdc",
+    "public_theorems": [
+      "current_bindings",
+      "current_finished",
+      "current_branch",
+      "current_instance",
+      "selected_instance",
+      "selected_evidence"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryUnaryCurrentExample.lean",
+    "sha256": "21b901740c1a0d89b40619b0175b68b50ec511314ed88e2c7a2cfecf3290a0e1",
+    "public_theorems": [
+      "current_instance",
+      "positive_instance",
+      "nonterminal"
+    ]
+  },
+  {
+    "path": "lean/Yulang/GeneralDictionaryValueRecordedCoverageLimit.lean",
+    "sha256": "f140c246b15cc1f6479922156ff0f3b08f47387eb7d1faf91aa41b8af77f9bd1",
+    "public_theorems": [
+      "value_step",
+      "reachable",
+      "stable",
+      "leaf_selected",
+      "stable_selected_unrecorded"
+    ]
+  }
+]

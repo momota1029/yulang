@@ -101,3 +101,10 @@ improving `(2,3)` to `(2,2)` descriptor replacement: the journal has a positive
 model and a real reobservation step; Refines is impossible, yet the shared-value
 and cross-interval conclusions hold. This operational fixture uses the
 reobservation Step, not a newly proved guarded Value Step or completed dictionary.
+
+The nonpoint/repeated nested regression's positive assertion is Models+Finished,
+not a positive BranchModels/ProjectionModels witness. Its chosen distinct leaves
+do not satisfy the repeated-capture semantic condition. The existing 8-to-9
+extension is not an enabled Refresh: new source8 is not reserved and remains
+unknown. The accompanying operational-gap note lists the exact replacement
+fixture obligations; no operational or branch nonvacuity is inferred from it.
