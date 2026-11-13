@@ -2677,3 +2677,4 @@ import Yulang.GeneralDictionary170NamedSelection
 import Yulang.GeneralDictionary170NamedSpine
 import Yulang.GeneralDictionary170NamedSpineExample
 import Yulang.GeneralDictionary170PathBound
+import Yulang.GeneralDictionary170NamedSpineStable

@@ -109,6 +109,20 @@
     "sha": "985d6b6e20f8318385e8eaeb8598eaa61160408c"
   },
   {
+    "module": "GeneralDictionary170NamedSpineStable",
+    "theorems": [
+      "initial_models",
+      "generated_root",
+      "installs_committed",
+      "refresh_large_unknown",
+      "feedback_stable",
+      "stable",
+      "shared_stable",
+      "stable_coverage_gap"
+    ],
+    "sha": "6f05c2ca28dcf98f4af1053ab640601ee75b254c"
+  },
+  {
     "module": "GeneralDictionary170PathBound",
     "theorems": [
       "rank_budget",
