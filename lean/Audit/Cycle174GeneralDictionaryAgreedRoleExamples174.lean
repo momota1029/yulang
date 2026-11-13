@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryAgreedRoleExamples174
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.roleRank
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly_checked
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly_nonleaf
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly_stratified
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly_accessible
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.display_not_stratified
