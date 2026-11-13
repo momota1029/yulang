@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionarySettledProjection
+
+#print axioms Yulang.GeneralDictionarySettledProjection.safe_old
+#print axioms Yulang.GeneralDictionarySettledProjection.selected_local_old
+#print axioms Yulang.GeneralDictionarySettledProjection.selected_classification_old
+#print axioms Yulang.GeneralDictionarySettledProjection.selected_children_old
+#print axioms Yulang.GeneralDictionarySettledProjection.completed_selected_old
+#print axioms Yulang.GeneralDictionarySettledProjection.steps_old
+#print axioms Yulang.GeneralDictionarySettledProjection.reachable_old
+#print axioms Yulang.GeneralDictionarySettledProjection.evidence_iff
+#print axioms Yulang.GeneralDictionarySettledProjection.models_iff

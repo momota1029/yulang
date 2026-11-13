@@ -1,0 +1,15 @@
+import Yulang.GeneralDictionarySettledReservedExample
+
+#print axioms Yulang.GeneralDictionarySettledReservedExample.initial_decision
+#print axioms Yulang.GeneralDictionarySettledReservedExample.install_step
+#print axioms Yulang.GeneralDictionarySettledReservedExample.equality_step
+#print axioms Yulang.GeneralDictionarySettledReservedExample.refresh_step
+#print axioms Yulang.GeneralDictionarySettledReservedExample.reachable
+#print axioms Yulang.GeneralDictionarySettledReservedExample.formed
+#print axioms Yulang.GeneralDictionarySettledReservedExample.stable
+#print axioms Yulang.GeneralDictionarySettledReservedExample.packet_settled
+#print axioms Yulang.GeneralDictionarySettledReservedExample.not_unsettled
+#print axioms Yulang.GeneralDictionarySettledReservedExample.output_trusted
+#print axioms Yulang.GeneralDictionarySettledReservedExample.output_head_justified
+#print axioms Yulang.GeneralDictionarySettledReservedExample.output_ready
+#print axioms Yulang.GeneralDictionarySettledReservedExample.consumer_decision

@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySettledGuardClosure
+#print axioms Yulang.GeneralDictionarySettledGuardClosure.old_child_is_new
+#print axioms Yulang.GeneralDictionarySettledGuardClosure.old_descendant_selected
+#print axioms Yulang.GeneralDictionarySettledGuardClosure.guardClosure_of_classified
+#print axioms Yulang.GeneralDictionarySettledGuardClosure.selected_iff

@@ -1,0 +1,15 @@
+import Yulang.GeneralDictionarySettledNamedExample
+
+#print axioms Yulang.GeneralDictionarySettledNamedExample.initial_decision
+#print axioms Yulang.GeneralDictionarySettledNamedExample.install_guard
+#print axioms Yulang.GeneralDictionarySettledNamedExample.actual_step
+#print axioms Yulang.GeneralDictionarySettledNamedExample.reachable
+#print axioms Yulang.GeneralDictionarySettledNamedExample.stable
+#print axioms Yulang.GeneralDictionarySettledNamedExample.current_decision
+#print axioms Yulang.GeneralDictionarySettledNamedExample.parent_selected
+#print axioms Yulang.GeneralDictionarySettledNamedExample.child_selected
+#print axioms Yulang.GeneralDictionarySettledNamedExample.classified
+#print axioms Yulang.GeneralDictionarySettledNamedExample.completed_named
+#print axioms Yulang.GeneralDictionarySettledNamedExample.no_discharged
+#print axioms Yulang.GeneralDictionarySettledNamedExample.named_packet_unsettled
+#print axioms Yulang.GeneralDictionarySettledNamedExample.output_head_independent
