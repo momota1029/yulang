@@ -414,3 +414,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Item 4k: captured-value provenance](2026-11-13-general-nominal-value-provenance.md) — Partial: exact checked/source fixture, additive child-value guard, all-Step depth-zero preservation; stress execution and budget remain open.
 - [Captured-value provenance module guide](2026-11-13-general-nominal-value-provenance-module-guide.md) — Ten additive modules and their audit part.
+
+- [Item 4l: concrete provenance checkpoint](2026-11-13-general-nominal-provenance-checkpoint.md) — Partial: actual four-Step P/ExtractA prefix and concrete paired exclusion; the full source checkpoint bridge and L5–L7 remain open.
+- [Provenance checkpoint module guide](2026-11-13-general-nominal-provenance-checkpoint-module-guide.md) — Eight additive modules and a separate audit part.
