@@ -101,3 +101,15 @@ Initialはground executorでInitialSource ∧ PointSource ∧ GroundRootsに制�
 Scope独立レビューでも重大問題なし。特にRefiningTraceは終状態modelを後→前に運んで同じmodelの帰納仮定を使う。modelの存在自体は保証せず、親Evidenceには全子Evidence、selected endpointにはStable/policyが残る。今回、主型性の新しい一般定理はない。
 
 基準52cab5に既存のファイルで変わったのはYulang.lean、design INDEX、前173の公開済み追記report/design、およびheartbeatだけ。4つの非heartbeat既存ファイルについて基準内容がbyte-prefixで保存されることを再取得で確認。frozen proof/Audit/README/spec/plan/lakefileに不一致なし。公開済み173の追記は回収であり、本サイクルの新成果ではない。
+
+## T7b: 主入口からの依存到達性（読取のみ）
+
+`tools/ReachCycle174.lean`を新設し、型とopaque proof bodyの両方を辿った。条件付きB4、certified diagnostic、certificate完全性/順序、refining履歴Evidence、history障壁の5 root群を別々に検査し、すべてexit 0。module由来261宣言（private/generated含む）の到達表と正確なrootsは `notes/verification/cycle174/reach/README.md`。namespace公理gate243とは集計対象が異なる。
+
+未到達を不要と判定せず、削除・整理変更はしていない。特にconditional B4の依存閉包が通ることはRemainingのproducerがある証明ではなく、診断correctnessからcertificate完全性が未到達でも完全性の定理が無用という意味ではない。RoleExamplesは回帰testとして分離される。
+
+## 実行可能certificateの性能制限
+
+proofとは別に `tools/BenchCycle174.lean` でsynthetic role graphを実行した。これはCheckedなソース言語プログラムの例ではない。長さ4/8/12のchain（重複辺あり・なし）の6例はcertify=true、exit0。重複辺ありの単回粗測定は0/7/148 msだった。一方、長さ20まで含む拡大batchは60秒上限、別batchは45秒上限でtimeout(exit124)。途中stdoutがbufferされていたため、未完の個別caseの時刻は推測しない。
+
+したがって「実行可能」を「実用速度」とはしない。現在のheight計算は同じsubtreeを再計算し、memo化等は未実装。性能検査の最初のIO/BaseIO推論エラーも保存し、修正版の成功/拡大timeoutと区別した。証明ソース14本と公理監査のPASSには変更なし。詳細・実行入力・失敗ログは `notes/verification/cycle174/performance/`。
