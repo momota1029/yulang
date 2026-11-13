@@ -2471,3 +2471,7 @@ import Yulang.GeneralNominalSettledSteps
 import Yulang.GeneralNominalSettledPump
 import Yulang.GeneralNominalSettledBudget
 import Yulang.GeneralNominalSettledBoundary
+import Yulang.GeneralNominalSettledIntervalDeclarations
+import Yulang.GeneralNominalSettledIntervalSource
+import Yulang.GeneralNominalSettledIntervalOutputs
+import Yulang.GeneralNominalSettledIntervalObstruction
