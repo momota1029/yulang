@@ -81,3 +81,17 @@ V5は継承した **8/14、未完** のまま。一般のsource-to-Evidence、�
 `GeneralDictionarySharedCapturedProducer.branch_models` は重複capture（同じsource2、異なるlo/hi由来）を持つproducer packetについて、割当て先の区別、union/intersectionのmerge、二つのprojection、int出力schemaを含む**具体的な全BranchModels**を証明した。`output_int` は任意assignmentでそのcandidate.Holdsを仮定したときのtarget=int、`captured_int` はさらに現在のjournal Modelsを仮定したときのsource2=intである。いずれもproducerを実際にinstallした結果とは言わない。Fresh、Prepared、現在のJoint/Unique/merge closure、実際のInstallable・producer stepは未証明。次の手順を `notes/design/2026-11-13-cycle165-next-consumer-plan.md` に残した。
 
 追加support moduleの警告抑制を外した試験で未使用simp引数を1件検出し、引数自体を取り除いた。最終のfocused検証では警告を隠す設定を増やさず `--wfail` を用いる。
+
+### 最終sourceの公開後再実行
+
+凍結local `7092e30d417399bdb2d0933d343e3581906dcd51`（完全hashはsource manifest）、公開 `c6ed54f37da73fadedb159185f544f4b06a5e5b7`。公開treeを取得して心拍以外の全ファイル一致を確認。別出力libraryで **13新規module全部**を再コンパイルし、**15個のCycle165 audit全部**が `--trust=0` 成功。新規依存gateは **320宣言**、保存した前回gateは **291宣言**で、いずれも `propext / Classical.choice / Quot.sound` のみ。117個のpublic theoremの完全な型も出力して照合した。全文ログ・全変更Leanのgit blob/SHA256は `notes/verification/2026-11-13-cycle165-final-public-replay.txt` と `...-source-manifest.json`。
+
+焦点を絞った最終 `lake build ... --wfail` は721 cache-inclusive jobs、exit0。diff-only `bash tools/verify-lean.sh . origin/integration/m1-final --no-build` はexit0（依存監査run_cmdのREVIEW2件は読み取り専用）。全文 `...-focused-build.txt` / `...-diff-check.txt`。
+
+追加の監督役統合差分10moduleも別出力でsourceから再コンパイルし、HoleElimination/SourceFrontierの2 auditが成功。初回は未cachedのStructuralProjectionLaws依存で停止したため、その限定targetをbuildしてから再実行し成功した。全repo buildに切り替えていない。全文 `...-upstream-focused-replay.txt`。
+
+GitHub workflow問い合わせでは、このsource commitのPR-triggered・first-page結果は空だった。全CIの成功/不存在は主張しない。終了前のinbox再照会blobは開始時と同じ `466fa189c71441df601f03a6139c309b385b42f2`。gitでの追加head確認は30秒で打ち切り、新しいintegration headを取得できたとは主張しない。
+
+最後に残っていたInstallable moduleのunused-simp抑制も外し、冗長引数を除去した。途中のsimp正規化不足による失敗を検出して修正し、warning-free focused buildを再実行した。最終sourceは上記c6ed54f37で、宣言の型・数学的範囲は変わらない。
+
+13:14 UTC、warning抑制除去後の公開source `c6ed54f37da73fadedb159185f544f4b06a5e5b7` を再取得し、Lean tree一致を確認。13module・15auditを再び独立出力で全実行し、exit0、320/291宣言のgate PASS。最終ログはこの再実行のもの。117定理の名前の索引も `notes/verification/2026-11-13-cycle165-theorem-index.md` に追加した。新規moduleは13個すべてYulang入口に明示importされている。
