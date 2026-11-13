@@ -1,0 +1,14 @@
+import Yulang.GeneralDictionaryValueEvidence
+
+#print axioms Yulang.GeneralDictionaryValueEvidence.stable_site
+#print axioms Yulang.GeneralDictionaryValueEvidence.selected_support
+#print axioms Yulang.GeneralDictionaryValueEvidence.stable_joint_packet
+#print axioms Yulang.GeneralDictionaryValueEvidence.stable_joint_instance
+#print axioms Yulang.GeneralDictionaryValueEvidence.stable_joint_evidence
+#print axioms Yulang.GeneralDictionaryValueEvidence.stable_merges_of_exact
+#print axioms Yulang.GeneralDictionaryValueEvidence.reachable_joint_instance
+#print axioms Yulang.GeneralDictionaryValueEvidence.reachable_joint_evidence
+#print axioms Yulang.GeneralDictionaryValueEvidence.steps_reobservation
+#print axioms Yulang.GeneralDictionaryValueEvidence.reachable_reobservation
+#print axioms Yulang.GeneralDictionaryValueEvidence.reachable_packetFree_terminal
+#print axioms Yulang.GeneralDictionaryValueEvidence.reachable_packetFree_evidence

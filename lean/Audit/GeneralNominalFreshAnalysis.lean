@@ -1,0 +1,21 @@
+import Yulang.GeneralNominalFreshPump
+import Yulang.GeneralNominalInfiniteInstallations
+
+#print axioms Yulang.GeneralNominalFreshPumpDeclarations.p_checked
+#print axioms Yulang.GeneralNominalFreshPumpDeclarations.w_checked
+#print axioms Yulang.GeneralNominalFreshPumpDeclarations.c_checked
+#print axioms Yulang.GeneralNominalFreshPumpDeclarations.extract_checked
+#print axioms Yulang.GeneralNominalFreshPumpDeclarations.checked
+#print axioms Yulang.GeneralNominalFreshPumpDeclarations.shared_outputs
+#print axioms Yulang.GeneralNominalFreshPumpDeclarations.recursive_emission
+#print axioms Yulang.GeneralNominalFreshPump.source_models
+#print axioms Yulang.GeneralNominalFreshPump.initial_source
+#print axioms Yulang.GeneralNominalFreshPump.formed
+#print axioms Yulang.GeneralNominalFreshPump.initial_models
+#print axioms Yulang.GeneralNominalFreshPump.pump_round
+#print axioms Yulang.GeneralNominalFreshPump.iterate_tower
+#print axioms Yulang.GeneralNominalFreshPump.finite_prefix
+#print axioms Yulang.GeneralNominalFreshPump.accumulators_distinct
+#print axioms Yulang.GeneralNominalFreshPump.distinct_pending_inputs
+#print axioms Yulang.GeneralNominalFreshPump.no_finite_accumulator_basis
+#print axioms Yulang.GeneralNominalInfiniteInstallations.infinitely_often_installation
