@@ -31,3 +31,30 @@ The next concrete test should add a specified associated output and an actual
 consumer, while retaining the terminal-leaf/no-packet shape. If it blocks a
 spec-required resume, report that implementation alignment issue to Astra;
 no new user semantic choice is assumed or proposed here.
+
+## Nonempty associated-output regression
+
+`GeneralDictionarySettledNamedExample` strengthens the source-supported positive
+case to an actual ternary nominal producer with one generated child and a
+nonempty named output request. Its exact new Settled installation reaches a
+Stable state with selected recursive Classify and every-model Evidence. It
+still has no `Discharged` occurrence and its packet is `Unsettled`.
+The named output target is identity 0, which was already a nominal source head;
+`output_head_independent` proves its independent justification. Thus this is
+not an actual blocked consumer: an output-only newly learned head and a distinct
+consumer are not constructed here. Do not present it as that stronger failure.
+
+## Reserved output: complementary positive case
+
+The existing reserved-output fixture differs materially: its producer packet
+has **no children**, not an unrecorded terminal child. The new
+`GeneralDictionarySettledReservedExample` transfers its actual installation,
+equality feedback and carrier-extension refresh into Settled steps, reaching
+a stable, inhabited state. Its packet is settled vacuously. A concrete trusted
+input/output ledger justifies the fresh nominal head at identity 2, and a
+distinct consumer query at that identity passes the new DecisionGuard.
+That query is not claimed to be enqueued/generated or to have a consumer
+installation. This fixture cannot establish a wrongful blocked resume:
+it instead checks that settled outputs are genuinely usable after refresh.
+An output-only nonterminal producer with an unrecorded terminal leaf plus an
+actually generated distinct consumer remains the precise missing experiment.

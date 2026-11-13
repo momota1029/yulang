@@ -14,3 +14,17 @@ under the new guard. No source-budget hypothesis is invented.
 All carriers/registries are quantified in general bridges. Concrete fixture
 results are explicitly separate. Prior syntax/replay results remain restricted;
 new I26 guard does not itself prove their coverage.
+
+## Completed new-stability Evidence adapter
+
+`GeneralDictionarySettledEvidence` uses the actual I26 Stable predicate, not
+Value Stable. Its stable commit lemma supplies both guards to the real install
+constructor. Selected-key Joint is explicit in the general evidence theorem;
+only the existing packet-free terminal root/generated specialization discharges
+it. New reachability supplies source exactness and support reobservation, without
+claiming every current child has source identity or model truth.
+
+`GeneralDictionarySettledTreeEvidence` lifts this condition along the selected
+child graph. Stable and Joint are needed at selected nodes, not arbitrary unrelated
+demands; no child Evidence is assumed. This is conditional semantic closure, not
+an unconditional source-to-saturation selector or convergence theorem.

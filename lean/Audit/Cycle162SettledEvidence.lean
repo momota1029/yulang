@@ -1,0 +1,14 @@
+import Yulang.GeneralDictionarySettledEvidence
+#print axioms Yulang.GeneralDictionarySettledEvidence.stable_committed
+#print axioms Yulang.GeneralDictionarySettledEvidence.stable_site
+#print axioms Yulang.GeneralDictionarySettledEvidence.selected_support
+#print axioms Yulang.GeneralDictionarySettledEvidence.stable_joint_packet
+#print axioms Yulang.GeneralDictionarySettledEvidence.stable_joint_instance
+#print axioms Yulang.GeneralDictionarySettledEvidence.stable_joint_evidence
+#print axioms Yulang.GeneralDictionarySettledEvidence.stable_merges_of_exact
+#print axioms Yulang.GeneralDictionarySettledEvidence.reachable_joint_instance
+#print axioms Yulang.GeneralDictionarySettledEvidence.reachable_joint_evidence
+#print axioms Yulang.GeneralDictionarySettledEvidence.steps_reobservation
+#print axioms Yulang.GeneralDictionarySettledEvidence.reachable_reobservation
+#print axioms Yulang.GeneralDictionarySettledEvidence.reachable_packetFree_terminal
+#print axioms Yulang.GeneralDictionarySettledEvidence.reachable_packetFree_evidence

@@ -22,3 +22,14 @@ new classification, hence a root DecisionGuard. This establishes an exact
 old-classified AND GuardClosure criterion, not a guard for unrelated demands or
 a semantic Evidence theorem. The module depends on the parent's projection and
 guarded classification modules; it does not modify their definitions.
+
+## Conditional full-tree Evidence
+
+The general new-boundary node rule still needs Joint. For a finite selected
+classification, recursively lift this rule to Evidence, demanding actual settled
+Stable and selected-key Joint only along the new selected-child graph. NodeClosure
+is explicit and includes the root; inherited child closure follows by path
+concatenation. Reachability is shared for the whole final tracked state and removes
+merge closure through the parent's new rule. No child Evidence is assumed in the
+full-tree theorem. Models are final-context models, never all original models.
+This is conditional soundness, not a completed unconditional boundary EvidenceNode.

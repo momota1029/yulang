@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionarySettledTreeEvidence
+#print axioms Yulang.GeneralDictionarySettledTreeEvidence.nodeClosure_child
+#print axioms Yulang.GeneralDictionarySettledTreeEvidence.classified_evidence
+#print axioms Yulang.GeneralDictionarySettledTreeEvidence.children_evidence
+#print axioms Yulang.GeneralDictionarySettledTreeEvidence.completed_evidence
