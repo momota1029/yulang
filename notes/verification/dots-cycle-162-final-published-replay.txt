@@ -1,0 +1,15 @@
+PUBLIC SOURCE SHA256 MATCH 12
+Yulang.GeneralDictionarySettledPendingExclusion 0  
+Yulang.GeneralDictionarySettledCutExclusion 0  
+Yulang.GeneralDictionarySettledProjection 0  
+Yulang.GeneralDictionarySettledEvidence 0  
+Yulang.GeneralDictionarySettledGuardedClassification 0  
+Yulang.GeneralDictionarySettledGuardClosure 0  
+Yulang.GeneralDictionarySettledRecursiveExample 0  
+Yulang.GeneralDictionarySettledNamedExample 0  
+Yulang.GeneralDictionarySettledReservedExample 0  
+Yulang.GeneralDictionarySettledTreeEvidence 0  
+Yulang.GeneralDictionarySettledRootEvidence 0  
+Yulang.GeneralDictionarySettledSourceGuard 0  
+PUBLISHED GATE 0 AXIOM-GATE-PASS: 138 declarations
+ 
