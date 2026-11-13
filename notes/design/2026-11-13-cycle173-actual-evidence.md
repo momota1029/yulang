@@ -34,3 +34,24 @@ that fallback is claimed. Ten ground V5 fields are supplied (including existing
 Astra fields); whereAccessible, canonicalLocalOrder, evidenceNode and
 generatedChildren remain unproved. Three explicit properties package those four
 residual fields. This is not new full-language termination or B4 completion.
+
+## Actual where-edge descent, and the remaining rank gap
+
+`GeneralDictionaryActualEdge173.selected_child_schema` now connects each actual
+Local selected child to an emitted checked declaration clause. For every capture,
+its substituted argument mass is strictly smaller than its parent head mass.
+This needs no groundness, reachability, stability, or model-existence assumption.
+It does NOT construct a common rank on occurrences: the capture on one edge is
+not yet coherent with the capture chosen on the next edge.
+
+A complete whereAccessible producer still needs root-relative labels coherent
+when the same occurrence is a child on one edge and a parent on another, plus a
+bound of that parent's head mass by its inherited label mass. GroundRoots is
+universal over models, not an existence theorem. Prepared.Consistent witnesses
+a private source model, not a model of the entire current packet journal. Thus
+neither fact may silently supply Models state.current for sites_bounded.
+
+A concrete Show(pair(list(int),int)) regression uses the actual ground executor
+without GroundCaptureFactorization. It proves an actual Step path, halted final
+state, stable root and generated children, and backward model preservation. It
+does not compute the noncomputable chosen final state or claim a dictionary.

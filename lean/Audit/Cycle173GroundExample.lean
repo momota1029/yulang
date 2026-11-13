@@ -1,0 +1,3 @@
+import Yulang.GeneralDictionaryActualGroundExample173
+#print axioms Yulang.GeneralDictionaryActualGroundExample173.source_initial
+#print axioms Yulang.GeneralDictionaryActualGroundExample173.actual_run

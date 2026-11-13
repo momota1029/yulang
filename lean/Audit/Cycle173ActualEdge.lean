@@ -1,0 +1,2 @@
+import Yulang.GeneralDictionaryActualEdge173
+#print axioms Yulang.GeneralDictionaryActualEdge173.selected_child_schema
