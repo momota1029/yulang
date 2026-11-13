@@ -46,8 +46,8 @@ V5は**未証明8/14**のまま。全Shared evidenceNode、Reachable/Stableか�
 - 各新auditを `lean -j1 --trust=0` で実行: PASS。中間all-declaration gateは10moduleの**275宣言**（生成宣言・privateも含む）を検査し、許可公理propext/Classical.choice/Quot.soundのみ。
 - 初回公開exact SHAを別worktreeに取得し、6moduleの既存oleanを排除した別libraryへすべて再コンパイル。全7audit PASS、159宣言gate PASS。依存cacheは再利用しており全repoのfresh buildではない。
 - `tools/verify-lean.sh . 898526b04164829e196293fee0128e756d41e208 --no-build`: PASS（diffのみ）。5 REVIEWは新規読取auditのrun_cmd。production宣言を生成するメタプログラムはない。
-- 統合したAstra群も `lake build Yulang.GeneralNominalSourceProjection Yulang.GeneralNominalGroundReachable Yulang.GeneralNominalGroundPacketForest Yulang.GeneralNominalClosedPatternMass Yulang.GeneralPatternRecordSubstitution Yulang.GeneralNominalRecordInversion --wfail`: PASS、746jobs。これを今回の61定理には加算しない。
-- 独立read-only reviewで全10moduleの量化、同一現在モデル、rank/fuel、実計算、全node数とruntimeの区別、新実例とcoverage gapの位置づけを確認、問題なし。
+- 統合したAstra群も `lake build Yulang.GeneralNominalSourceProjection Yulang.GeneralNominalGroundReachable Yulang.GeneralNominalGroundPacketForest Yulang.GeneralNominalClosedPatternMass Yulang.GeneralPatternRecordSubstitution Yulang.GeneralNominalRecordInversion --wfail`: PASS、746jobs。これを今回の69定理には加算しない。
+- 独立read-only reviewで中間10moduleと追加NamedSpineStableの量化、同一現在モデル、rank/fuel、実計算、全node数とruntimeの区別、新実例とcoverage gapの位置づけを確認、問題なし。
 
 最終公開exact SHAの独立replay結果は下の終了台帳に追記する。sourceのmanifestと全定理型・公理ログはnotes/verification/cycle170-*へ保存する。
 
@@ -181,4 +181,8 @@ work/dots-auditを再取得、`55574b6052ef1534fd0fc36d6d3617ebede59a0e` のnote
 
 最初の最終replay先はtmpfs容量不足でworktree作成に失敗した。空のファイル集合を成功としてしまう旧helperの欠陥を検出し、その結果は採用しなかった。workspace上へ移し、11module・16auditの存在件数assertを入れたhelperで再実行して上記成功を確認した。他サイクルのファイルは削除していない。
 
-T7b read-only依存調査を実施。`dots-cycle-170-reachability.md`と`tools/ReachCycle170.lean`、3組のroots/TSV/summaryを保存した。抽象target rootsと既存conditional concrete rootから今回の295宣言への到達は各0、6個の今回entryから147/295（公開定理38）。これはV5接続の未達を明示するもので、未到達宣言の削除根拠ではない。V5は未証明、8/14未消去。調査用既存downstream moduleのfocused buildは682jobs PASS、各probeは120秒上限でexit0。
+T7b read-only依存調査を実施。`dots-cycle-170-reachability.md`と`tools/ReachCycle170.lean`、3組のroots/TSV/summaryを保存した。抽象target rootsと既存conditional concrete rootから今回の295宣言への到達は各0、6個の今回entryから147/295（公開定理38）。これは選んだrootとの構文的依存接続がないことの確認で、未到達宣言の削除根拠ではない。V5未証明についてはRemainingの8項を別途確認した。V5は未証明、8/14未消去。調査用既存downstream moduleのfocused buildは682jobs PASS、各probeは120秒上限でexit0。
+
+最終diff gateもPASS（6 REVIEWは読取専用audit内run_cmd）。18:12再取得のintegrationは `afbd591366cc90e027141ea6e5ef2ac619840bfe`、今回の中間報告commitで既にworkの祖先。standing orders/inboxを再読し、STOPなし・I27継続。最終read-only reviewで11moduleの量化と報告を再確認、重大問題なし。全69台帳項目の存在、source8dからLean差分なし、3個のreachability profileが同一295宣言集合を列挙することも自動照合した。
+
+最終構造reviewで、次回の新leaf対応にはNodeだけでなくrecursive treeの新versionも必要と確認した。旧NamedTreeのrecorded親は旧childしか受け取れないため、単純な旧tree+新leafのsumでは不十分。新recursive証明書・interpreter・rank・assembly・依存Shapeのordinary transportを分けた未証明の計画をnext-observation-bridgeノート末尾へ追記した。公開sourceのCompleteGateも再実行して295宣言PASS。
