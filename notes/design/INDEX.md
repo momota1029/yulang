@@ -411,3 +411,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle152 closed observed requests](2026-11-12-cycle152-closed-observed-requests.md) — conditional non-scalar materialization.
 
 - [Cycle152 arbitrary finite arity requests](2026-11-12-cycle152-finite-arity-observed-requests.md) — materialization only.
+
+- [Item 4k: captured-value provenance](2026-11-13-general-nominal-value-provenance.md) — Partial: exact checked/source fixture, additive child-value guard, all-Step depth-zero preservation; stress execution and budget remain open.
+- [Captured-value provenance module guide](2026-11-13-general-nominal-value-provenance-module-guide.md) — Ten additive modules and their audit part.
