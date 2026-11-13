@@ -1,0 +1,93 @@
+import Yulang.GeneralNominalInvocationAncestry
+import Yulang.GeneralNominalReportErasure
+import Yulang.GeneralNominalReportEnumeration
+import Yulang.GeneralNominalPacketCodes
+import Yulang.GeneralNominalAllocationSupport
+import Yulang.GeneralNominalActualTraceSupport
+import Yulang.GeneralNominalOccurrenceEnumeration
+import Yulang.GeneralNominalActualBudget
+import Yulang.GeneralNominalRoleHierarchy
+import Yulang.GeneralNominalHierarchyExamples
+
+#print axioms Yulang.GeneralNominalInvocationAncestry.frontier_mono
+#print axioms Yulang.GeneralNominalInvocationAncestry.ancestry_enumerated
+#print axioms Yulang.GeneralNominalInvocationAncestry.bounded_enumerated
+#print axioms Yulang.GeneralNominalInvocationAncestry.child_identity
+#print axioms Yulang.GeneralNominalInvocationAncestry.seed_step
+#print axioms Yulang.GeneralNominalInvocationAncestry.seed_trace
+#print axioms Yulang.GeneralNominalInvocationAncestry.sites_ancestry
+#print axioms Yulang.GeneralNominalInvocationAncestry.installed_parents_finite
+#print axioms Yulang.GeneralNominalInvocationAncestry.allocation_member
+#print axioms Yulang.GeneralNominalInvocationAncestry.reservations_finite
+#print axioms Yulang.GeneralNominalReportErasure.erase_empty
+#print axioms Yulang.GeneralNominalReportErasure.erase_append
+#print axioms Yulang.GeneralNominalReportErasure.erase_visit
+#print axioms Yulang.GeneralNominalReportErasure.bindings_exact
+#print axioms Yulang.GeneralNominalReportErasure.checks_exact
+#print axioms Yulang.GeneralNominalReportErasure.projections_exact
+#print axioms Yulang.GeneralNominalReportErasure.materialized_exact
+#print axioms Yulang.GeneralNominalReportErasure.actual_capture_retained
+#print axioms Yulang.GeneralNominalReportErasure.packet_delta_exact
+#print axioms Yulang.GeneralNominalReportEnumeration.interval_member
+#print axioms Yulang.GeneralNominalReportEnumeration.product_member
+#print axioms Yulang.GeneralNominalReportEnumeration.inspect_enumerated
+#print axioms Yulang.GeneralNominalReportEnumeration.many_enumerated
+#print axioms Yulang.GeneralNominalReportEnumeration.list_enumerated
+#print axioms Yulang.GeneralNominalReportEnumeration.report_enumerated
+#print axioms Yulang.GeneralNominalPacketCodes.capture_seed
+#print axioms Yulang.GeneralNominalPacketCodes.allocation_seed
+#print axioms Yulang.GeneralNominalPacketCodes.frame_seed
+#print axioms Yulang.GeneralNominalPacketCodes.merges_seed
+#print axioms Yulang.GeneralNominalPacketCodes.requests_seed
+#print axioms Yulang.GeneralNominalPacketCodes.encode_represents
+#print axioms Yulang.GeneralNominalPacketCodes.locate_length
+#print axioms Yulang.GeneralNominalPacketCodes.encoded_member
+#print axioms Yulang.GeneralNominalAllocationSupport.slot_source
+#print axioms Yulang.GeneralNominalAllocationSupport.report_endpoints
+#print axioms Yulang.GeneralNominalAllocationSupport.occurrences_endpoints
+#print axioms Yulang.GeneralNominalAllocationSupport.lower_sources
+#print axioms Yulang.GeneralNominalAllocationSupport.upper_sources
+#print axioms Yulang.GeneralNominalAllocationSupport.equation_sources
+#print axioms Yulang.GeneralNominalAllocationSupport.cross_sources
+#print axioms Yulang.GeneralNominalAllocationSupport.input_key
+#print axioms Yulang.GeneralNominalAllocationSupport.output_key
+#print axioms Yulang.GeneralNominalAllocationSupport.clause_output_key
+#print axioms Yulang.GeneralNominalAllocationSupport.reservation
+#print axioms Yulang.GeneralNominalAllocationSupport.merges_sources
+#print axioms Yulang.GeneralNominalAllocationSupport.checks_sources
+#print axioms Yulang.GeneralNominalAllocationSupport.extend_sources
+#print axioms Yulang.GeneralNominalAllocationSupport.private_sources
+#print axioms Yulang.GeneralNominalAllocationSupport.child_output_reserved
+#print axioms Yulang.GeneralNominalActualTraceSupport.configuration_step
+#print axioms Yulang.GeneralNominalActualTraceSupport.configuration_trace
+#print axioms Yulang.GeneralNominalActualTraceSupport.administrative_support
+#print axioms Yulang.GeneralNominalActualTraceSupport.formed_trace
+#print axioms Yulang.GeneralNominalActualTraceSupport.source_pool
+#print axioms Yulang.GeneralNominalActualTraceSupport.slot_pool
+#print axioms Yulang.GeneralNominalOccurrenceEnumeration.children_identity
+#print axioms Yulang.GeneralNominalOccurrenceEnumeration.child_enumerated
+#print axioms Yulang.GeneralNominalOccurrenceEnumeration.checkedFor
+#print axioms Yulang.GeneralNominalOccurrenceEnumeration.sites_enumerated
+#print axioms Yulang.GeneralNominalActualBudget.formed_step_cases
+#print axioms Yulang.GeneralNominalActualBudget.accessible_of_signature_cover
+#print axioms Yulang.GeneralNominalActualBudget.accessible_of_installed_depth_bound
+#print axioms Yulang.GeneralNominalActualBudget.sourceBudget_of_invocation_bound
+#print axioms Yulang.GeneralNominalActualBudget.class_p_accessible
+#print axioms Yulang.GeneralNominalRoleHierarchy.child_role
+#print axioms Yulang.GeneralNominalRoleHierarchy.child_rank
+#print axioms Yulang.GeneralNominalRoleHierarchy.sites_ranked
+#print axioms Yulang.GeneralNominalRoleHierarchy.installed_depth_bound
+#print axioms Yulang.GeneralNominalRoleHierarchy.accessible
+#print axioms Yulang.GeneralNominalHierarchyExamples.hierarchy
+#print axioms Yulang.GeneralNominalHierarchyExamples.initial_source
+#print axioms Yulang.GeneralNominalHierarchyExamples.point_source
+#print axioms Yulang.GeneralNominalHierarchyExamples.wrap_accessible
+#print axioms Yulang.GeneralNominalHierarchyExamples.prepared
+#print axioms Yulang.GeneralNominalHierarchyExamples.children
+#print axioms Yulang.GeneralNominalHierarchyExamples.selected
+#print axioms Yulang.GeneralNominalHierarchyExamples.installable
+#print axioms Yulang.GeneralNominalHierarchyExamples.novel
+#print axioms Yulang.GeneralNominalHierarchyExamples.wrap_step
+#print axioms Yulang.GeneralNominalHierarchyExamples.child_is_named
+#print axioms Yulang.GeneralNominalHierarchyExamples.after_wrap_accessible
+#print axioms Yulang.GeneralNominalActualBudget.signatureCover
