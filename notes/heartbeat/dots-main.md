@@ -1,8 +1,9 @@
 cycle: 156
 status: running
 started: 2026-11-13T03:27:19Z
-updated: 2026-11-13T03:36:00Z
-elapsed_min: 8.7
-activity: I-25 evidenceNode:10new modules audited; arbitrary multiargument scalar head pipeline, reachable journal request histories, real refreshed Stable/Classify.
+updated: 2026-11-13T04:08:00Z
+elapsed_min: 40.7
+activity: Recovery: published checkpoint c1eac48b verified; no prior writer; rechecking retained endpoint/catalog additions. Full build not run.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang154
-resume_hint: Check cycle156 focused logs /tmp/y156*.log; root interval extension uncommitted/in progress; final deadline04:22:19UTC.
+last_local_commit: 015ff345e
+resume_hint: Recovery cache /tmp/y156-recover; unpublished interval-root drafts excluded unless audited; final deadline 04:22:19 UTC.
