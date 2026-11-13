@@ -1,5 +1,30 @@
 [
   {
+    "module": "GeneralDictionary170AssemblyPersistence",
+    "theorems": [
+      "collect_congr",
+      "assemble_congr",
+      "extension_assemble",
+      "ordinary_assemble",
+      "collect_unique",
+      "successful_fuel_unique",
+      "extension_build",
+      "ordinary_build"
+    ],
+    "sha": "011298b58800964f3252a0d7b98fd3507d881978"
+  },
+  {
+    "module": "GeneralDictionary170AssemblySize",
+    "theorems": [
+      "node_degree",
+      "collect_bound",
+      "successful_bound",
+      "build_bound",
+      "actual_one_node"
+    ],
+    "sha": "4168113a04d803f92ad2a338243fff2ba97b0e6b"
+  },
+  {
     "module": "GeneralDictionary170BoundedAssembly",
     "theorems": [
       "enough_fuel",
@@ -58,6 +83,30 @@
       "actual_unique"
     ],
     "sha": "52c89ac3100d7d1253729dcb12b9c0a231f85228"
+  },
+  {
+    "module": "GeneralDictionary170NamedSpine",
+    "theorems": [
+      "branch_models",
+      "ready",
+      "instance_of_shape",
+      "evidence_of_shape"
+    ],
+    "sha": "25d7a5d9998881f4069be056d24822fe324d4580"
+  },
+  {
+    "module": "GeneralDictionary170NamedSpineExample",
+    "theorems": [
+      "checked",
+      "metadata",
+      "actual_evidence",
+      "nonvacuous",
+      "registry_checked",
+      "initial_source",
+      "no_current_local_node",
+      "coverage_gap"
+    ],
+    "sha": "985d6b6e20f8318385e8eaeb8598eaa61160408c"
   },
   {
     "module": "GeneralDictionary170PathBound",

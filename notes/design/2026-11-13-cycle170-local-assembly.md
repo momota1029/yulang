@@ -55,3 +55,28 @@ Derive the local Coverage witness from actual reachable Shared completion,
 including current packet relocation and exact source/request observations. Semantic
 nominal labels from Astra's ground factorization are not snapshot certificates.
 No new V5 general bridge is closed by these structural auxiliaries.
+
+## Verified extensions in the same cycle
+
+AssemblyPersistence proves exact Option-result equality for every common fuel
+under transported Coverage. Any two successful fuels yield identical payloads;
+therefore build is preserved even if the journal-derived rank ceilings differ.
+AssemblySize derives B, the maximum actual packet-child-list length in the fixed
+journal, and bounds the total expanded payload node count by cap(B,fuel), with
+cap(B,0)=0 and cap(B,n+1)=1+B*cap(B,n). This counts duplicate subtrees separately;
+it is not a runtime or memory bound for Lean or the language evaluator.
+
+NamedSpine combines arbitrary finite nominal input spines with actual finite
+named-output observations. It derives branch validity/Instance/Evidence, without
+assuming these conclusions in the shape. A new inhabited example has a ternary
+nominal input with three binders and a nonempty nominal named output, not the
+previous scalar input. It is an InitialSource example, not a new Stable execution.
+
+The same example has no Node of this cycle's four-alternative NamedCoverage:
+its journal is empty, old scalar/spine leaves require empty outputs, and the new
+scalar-named leaf requires inputNames=[], contradicted by its three binders.
+Thus coverage discovery remains open and the current assembler cannot consume
+this new spine leaf without a future extended node datatype. The negative fact
+is not a counterexample to V5 or to semantic dictionary existence. A follow-up
+should extend the local leaf interface and re-establish assembly once, rather
+than accumulate ad-hoc existential exceptions.

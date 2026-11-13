@@ -1,0 +1,41 @@
+'Yulang.GeneralDictionary170NamedSpine.branch_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170NamedSpine.branch_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionary170NamedSpine.Shape registry context root declaration checked)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models context.state model →
+    Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked
+      [(shape.slot, shape.slot)] model
+'Yulang.GeneralDictionary170NamedSpine.ready' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170NamedSpine.ready : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionary170NamedSpine.Shape registry context root declaration checked),
+  Yulang.GeneralNominalRecursiveCandidates.RequestReady registry context root declaration checked
+    [(shape.slot, shape.slot)]
+'Yulang.GeneralDictionary170NamedSpine.instance_of_shape' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170NamedSpine.instance_of_shape : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration),
+  declaration ∈ registry.declarations →
+    ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+      (shape : Yulang.GeneralDictionary170NamedSpine.Shape registry context root declaration checked),
+      Yulang.GeneralNominalRecursiveCandidates.Metadata registry context →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalState.Models context.state model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Instance registry context model root declaration.id []
+'Yulang.GeneralDictionary170NamedSpine.evidence_of_shape' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170NamedSpine.evidence_of_shape : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration),
+  declaration ∈ registry.declarations →
+    ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+      (shape : Yulang.GeneralDictionary170NamedSpine.Shape registry context root declaration checked),
+      Yulang.GeneralNominalRecursiveCandidates.Metadata registry context →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalState.Models context.state model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry context model root
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node declaration.id [])

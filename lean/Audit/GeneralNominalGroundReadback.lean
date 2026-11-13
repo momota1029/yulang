@@ -1,0 +1,35 @@
+import Yulang.GeneralNominalSourceProjection
+import Yulang.GeneralNominalGroundReachable
+import Yulang.GeneralNominalGroundPacketForest
+import Yulang.GeneralPatternRecordSubstitution
+
+#print axioms Yulang.GeneralNominalInspectionOrigins.inspect_counted
+#print axioms Yulang.GeneralNominalInspectionOrigins.many_counted
+#print axioms Yulang.GeneralNominalInspectionOrigins.complete_root
+#print axioms Yulang.GeneralNominalGroundForests.retained_forest
+#print axioms Yulang.GeneralNominalGroundForests.recovered_forest
+#print axioms Yulang.GeneralNominalGroundForests.safe_missing_root
+#print axioms Yulang.GeneralNominalGroundForests.missing_constructor_meanings
+#print axioms Yulang.GeneralNominalGroundPacketForest.packet_forest
+#print axioms Yulang.GeneralNominalGroundReachable.sites_bounded
+#print axioms Yulang.GeneralNominalGroundReachable.installed_depth_bound
+#print axioms Yulang.GeneralNominalGroundReachable.accessible_of_reachable_factorization
+#print axioms Yulang.GeneralNominalSourcePatternParts.child_source
+#print axioms Yulang.GeneralNominalSourcePatternParts.closed_child_source
+#print axioms Yulang.GeneralNominalSourcePatternParts.followed_source
+#print axioms Yulang.GeneralNominalClosedPatternNormal.quote_closed
+#print axioms Yulang.GeneralNominalClosedPatternNormal.translated_normal
+#print axioms Yulang.GeneralNominalClosedPatternNormal.closed_reification
+#print axioms Yulang.GeneralPatternRecordSubstitution.hide_substitution
+#print axioms Yulang.GeneralPatternRecordSubstitution.normalize_template
+#print axioms Yulang.GeneralPatternRecordSubstitution.counted_template
+#print axioms Yulang.GeneralPatternRecordSubstitution.mass_template
+#print axioms Yulang.GeneralNominalClosedPatternMass.record_sort_mass
+#print axioms Yulang.GeneralNominalClosedPatternMass.translated_mass
+#print axioms Yulang.GeneralNominalClosedPatternMass.closed_mass
+#print axioms Yulang.GeneralNominalRecordInversion.record_signatures
+#print axioms Yulang.GeneralNominalRecordInversion.record_projection
+#print axioms Yulang.GeneralNominalRecordInversion.variant_projection
+#print axioms Yulang.GeneralNominalSourceProjection.followed_pattern
+#print axioms Yulang.GeneralNominalSourceProjection.actual_record_pattern
+#print axioms Yulang.GeneralNominalSourceProjection.actual_variant_pattern

@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionary170AssemblySize
+#print axioms Yulang.GeneralDictionary170AssemblySize.node_degree
+#check @Yulang.GeneralDictionary170AssemblySize.node_degree
+#print axioms Yulang.GeneralDictionary170AssemblySize.collect_bound
+#check @Yulang.GeneralDictionary170AssemblySize.collect_bound
+#print axioms Yulang.GeneralDictionary170AssemblySize.successful_bound
+#check @Yulang.GeneralDictionary170AssemblySize.successful_bound
+#print axioms Yulang.GeneralDictionary170AssemblySize.build_bound
+#check @Yulang.GeneralDictionary170AssemblySize.build_bound
+#print axioms Yulang.GeneralDictionary170AssemblySize.actual_one_node
+#check @Yulang.GeneralDictionary170AssemblySize.actual_one_node

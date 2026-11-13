@@ -1,0 +1,320 @@
+
+MODULE GeneralDictionary170NamedSelection exit=0
+
+MODULE GeneralDictionary170NamedCoverage exit=0
+
+MODULE GeneralDictionary170NamedAccessible exit=0
+
+MODULE GeneralDictionary170BoundedAssembly exit=0
+
+MODULE GeneralDictionary170PathBound exit=0
+
+MODULE GeneralDictionary170NamedCoveragePersistence exit=0
+AXIOM-GATE-PASS: 159 declarations
+
+AUDIT Cycle170AllGate exit=0
+'Yulang.GeneralDictionary170BoundedAssembly.enough_fuel' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.enough_fuel : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (fuel : Nat)
+  (focus : Subtype domain),
+  Yulang.GeneralDictionary170NamedAccessible.rank state focus.val < fuel →
+    ∃ payload,
+      Yulang.GeneralDictionary170BoundedAssembly.assemble coverage fuel focus = some payload ∧
+        Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload
+'Yulang.GeneralDictionary170BoundedAssembly.successful_tree' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.successful_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  {payload : Yulang.GeneralDictionaryReadback.Payload}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (fuel : Nat)
+  (focus : Subtype domain),
+  Yulang.GeneralDictionary170BoundedAssembly.assemble coverage fuel focus = some payload →
+    Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload
+'Yulang.GeneralDictionary170BoundedAssembly.build_succeeds' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.build_succeeds : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  ∃ payload,
+    Yulang.GeneralDictionary170BoundedAssembly.build coverage focus = some payload ∧
+      Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload
+'Yulang.GeneralDictionary170BoundedAssembly.build_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.build_dictionary : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    ∃ payload,
+      Yulang.GeneralDictionary170BoundedAssembly.build coverage focus = some payload ∧
+        Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus.val payload
+'Yulang.GeneralDictionary170BoundedAssembly.zero_fuel' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170BoundedAssembly.zero_fuel : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Yulang.GeneralDictionary170BoundedAssembly.assemble coverage 0 focus = none
+'Yulang.GeneralDictionary170BoundedAssembly.actual_build' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary170BoundedAssembly.actual_build : Yulang.GeneralDictionary170BoundedAssembly.build
+    Yulang.GeneralDictionary170NamedAccessible.actual_coverage ⟨Yulang.GeneralDictionaryFiniteObservedExample.root, ⋯⟩ =
+  some
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryFiniteObservedExample.declaration.id [])
+
+AUDIT Cycle170BoundedAssembly exit=0
+'Yulang.GeneralDictionary170NamedCoverage.node_tree' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170NamedCoverage.node_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (node : Yulang.GeneralDictionary170NamedCoverage.Node registry state occurrence)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload),
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDictionary169NamedTree.NamedTree registry state) node.children
+      payloads →
+    Yulang.GeneralDictionary169NamedTree.NamedTree registry state occurrence
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node node.key payloads)
+'Yulang.GeneralDictionary170NamedCoverage.accessible_tree' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170NamedCoverage.accessible_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (root : Subtype domain),
+  Acc (Yulang.GeneralDictionary170NamedCoverage.Child coverage) root →
+    ∃ payload, Yulang.GeneralDictionary169NamedTree.NamedTree registry state root.val payload
+'Yulang.GeneralDictionary170NamedCoverage.wellFounded_tree' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170NamedCoverage.wellFounded_tree : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  WellFounded (Yulang.GeneralDictionary170NamedCoverage.Child coverage) →
+    ∀ (root : Subtype domain), ∃ payload, Yulang.GeneralDictionary169NamedTree.NamedTree registry state root.val payload
+'Yulang.GeneralDictionary170NamedCoverage.uniform_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170NamedCoverage.uniform_dictionary : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Acc (Yulang.GeneralDictionary170NamedCoverage.Child coverage) focus →
+    Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+      ∃ payload,
+        Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus.val payload
+'Yulang.GeneralDictionary170NamedAccessible.child_rank' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170NamedAccessible.child_rank : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (child parent : Subtype domain),
+  Yulang.GeneralDictionary170NamedCoverage.Child coverage child parent →
+    Yulang.GeneralDictionary170NamedAccessible.rank state child.val <
+      Yulang.GeneralDictionary170NamedAccessible.rank state parent.val
+'Yulang.GeneralDictionary170NamedAccessible.coverage_accessible' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170NamedAccessible.coverage_accessible : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Acc (Yulang.GeneralDictionary170NamedCoverage.Child coverage) focus
+'Yulang.GeneralDictionary170NamedAccessible.covered_tree' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170NamedAccessible.covered_tree : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  ∃ payload, Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload
+'Yulang.GeneralDictionary170NamedAccessible.covered_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary170NamedAccessible.covered_dictionary : ∀ {roles : Yulang.Roles.RoleDecls}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Yulang.GeneralNominalSharedSteps.SourceFormed registry root state →
+    ∃ payload,
+      Yulang.GeneralDictionary169NamedTree.NamedTree registry state focus.val payload ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalSaturationState.Models state.current model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus.val payload
+'Yulang.GeneralDictionary170NamedAccessible.actual_accessible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary170NamedAccessible.actual_accessible : Acc
+  (Yulang.GeneralDictionary170NamedCoverage.Child Yulang.GeneralDictionary170NamedAccessible.actual_coverage)
+  ⟨Yulang.GeneralDictionaryFiniteObservedExample.root, ⋯⟩
+'Yulang.GeneralDictionary170NamedAccessible.actual_uniform_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary170NamedAccessible.actual_uniform_dictionary : ∃ payload,
+  Yulang.GeneralDictionary169NamedTree.NamedTree Yulang.GeneralDictionaryFiniteObservedExample.registry
+      Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root payload ∧
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryFiniteObservedExample.start.current
+          assignment →
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryFiniteObservedExample.registry
+          Yulang.GeneralDictionaryFiniteObservedExample.start.current.context assignment
+          Yulang.GeneralDictionaryFiniteObservedExample.root payload
+'Yulang.GeneralDictionary170NamedAccessible.actual_nonvacuous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary170NamedAccessible.actual_nonvacuous : ∃ payload,
+  Yulang.GeneralDictionary169NamedTree.NamedTree Yulang.GeneralDictionaryFiniteObservedExample.registry
+      Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionaryFiniteObservedExample.root payload ∧
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionaryFiniteObservedExample.start.current
+        Yulang.GeneralDictionaryFiniteObservedExample.model ∧
+      Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryFiniteObservedExample.registry
+        Yulang.GeneralDictionaryFiniteObservedExample.start.current.context
+        Yulang.GeneralDictionaryFiniteObservedExample.model Yulang.GeneralDictionaryFiniteObservedExample.root payload
+'Yulang.GeneralDictionary170NamedAccessible.actual_no_old_coverage' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary170NamedAccessible.actual_no_old_coverage : ¬Nonempty
+    (Yulang.GeneralDictionary169FiniteCoverage.Coverage Yulang.GeneralDictionaryFiniteObservedExample.registry
+      Yulang.GeneralDictionaryFiniteObservedExample.start Yulang.GeneralDictionary170NamedAccessible.actual_domain)
+
+AUDIT Cycle170NamedCoverage exit=0
+AXIOM-GATE-PASS: 92 declarations
+
+AUDIT Cycle170NamedCoverageGate exit=0
+'Yulang.GeneralDictionary170NamedCoveragePersistence.node_transport' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170NamedCoveragePersistence.node_transport : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  (∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ before.current.packets → packet ∈ after.current.packets) →
+    Yulang.GeneralDictionaryOrdinaryTrace.Extension before.current.context after.current.context →
+      ∀ {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles}
+        (node : Yulang.GeneralDictionary170NamedCoverage.Node registry before occurrence),
+        ∃ next, next.children = node.children ∧ next.key = node.key
+'Yulang.GeneralDictionary170NamedCoveragePersistence.node_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary170NamedCoveragePersistence.node_children : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  (members :
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ before.current.packets → packet ∈ after.current.packets)
+  (growth : Yulang.GeneralDictionaryOrdinaryTrace.Extension before.current.context after.current.context)
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (node : Yulang.GeneralDictionary170NamedCoverage.Node registry before occurrence),
+  (Yulang.GeneralDictionary170NamedCoveragePersistence.nodeExtension members growth node).children = node.children
+'Yulang.GeneralDictionary170NamedCoveragePersistence.node_key' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary170NamedCoveragePersistence.node_key : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  (members :
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ before.current.packets → packet ∈ after.current.packets)
+  (growth : Yulang.GeneralDictionaryOrdinaryTrace.Extension before.current.context after.current.context)
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (node : Yulang.GeneralDictionary170NamedCoverage.Node registry before occurrence),
+  (Yulang.GeneralDictionary170NamedCoveragePersistence.nodeExtension members growth node).key = node.key
+'Yulang.GeneralDictionary170NamedCoveragePersistence.child_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary170NamedCoveragePersistence.child_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {registry : Yulang.GeneralDeclarations.Registry}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  (members :
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      packet ∈ before.current.packets → packet ∈ after.current.packets)
+  (growth : Yulang.GeneralDictionaryOrdinaryTrace.Extension before.current.context after.current.context)
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry before domain) (child parent : Subtype domain),
+  Yulang.GeneralDictionary170NamedCoverage.Child
+      (Yulang.GeneralDictionary170NamedCoveragePersistence.extension members growth coverage) child parent ↔
+    Yulang.GeneralDictionary170NamedCoverage.Child coverage child parent
+'Yulang.GeneralDictionary170NamedCoveragePersistence.ordinary_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary170NamedCoveragePersistence.ordinary_children : ∀ {roles : Yulang.Roles.RoleDecls}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {before after : Yulang.GeneralNominalSupport.Tracked roles}
+  (path : Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after)
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry before domain) (child parent : Subtype domain),
+  Yulang.GeneralDictionary170NamedCoverage.Child
+      (Yulang.GeneralDictionary170NamedCoveragePersistence.ordinarySteps path coverage) child parent ↔
+    Yulang.GeneralDictionary170NamedCoverage.Child coverage child parent
+'Yulang.GeneralDictionary170NamedCoveragePersistence.ordinary_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary170NamedCoveragePersistence.ordinary_dictionary : ∀ {roles : Yulang.Roles.RoleDecls}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after →
+    ∀ (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry before domain) (focus : Subtype domain),
+      Yulang.GeneralNominalSharedSteps.SourceFormed registry root after →
+        ∃ payload,
+          Yulang.GeneralDictionary169NamedTree.NamedTree registry after focus.val payload ∧
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalSaturationState.Models after.current model →
+                Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model focus.val
+                  payload
+'Yulang.GeneralDictionary170NamedCoveragePersistence.ordinary_uniform_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralDictionary170NamedCoveragePersistence.ordinary_uniform_payload : ∀ {roles : Yulang.Roles.RoleDecls}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps (Yulang.GeneralDictionarySharedEvidenceTrace.OrdinaryStep registry root) before after →
+    ∀ (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry before domain) (focus : Subtype domain),
+      Yulang.GeneralNominalSharedSteps.SourceFormed registry root after →
+        ∃ payload,
+          Yulang.GeneralDictionary169NamedTree.NamedTree registry before focus.val payload ∧
+            Yulang.GeneralDictionary169NamedTree.NamedTree registry after focus.val payload ∧
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalSaturationState.Models after.current model →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model focus.val
+                    payload
+
+AUDIT Cycle170NamedCoveragePersistence exit=0
+'Yulang.GeneralDictionary170NamedSelection.leaf_selected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary170NamedSelection.tree_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary170NamedSelection.terminal_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionary170NamedSelection.leaf_tree_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionary170NamedSelection.actual_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+AUDIT Cycle170NamedSelection exit=0
+'Yulang.GeneralDictionary170PathBound.rank_budget' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.rank_budget : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {start finish : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage start finish count →
+    count + Yulang.GeneralDictionary170NamedAccessible.rank state finish.val ≤
+      Yulang.GeneralDictionary170NamedAccessible.rank state start.val
+'Yulang.GeneralDictionary170PathBound.length_le_rank' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.length_le_rank : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {start finish : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage start finish count →
+    count ≤ Yulang.GeneralDictionary170NamedAccessible.rank state start.val
+'Yulang.GeneralDictionary170PathBound.length_le_ceiling' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.length_le_ceiling : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {start finish : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage start finish count →
+    count ≤ Yulang.GeneralDictionary170NamedAccessible.ceiling state + 1
+'Yulang.GeneralDictionary170PathBound.no_positive_cycle' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.no_positive_cycle : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {focus : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage focus focus count → count = 0
+'Yulang.GeneralDictionary170PathBound.rank_zero_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.rank_zero_terminal : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  Yulang.GeneralDictionary170NamedAccessible.rank state focus.val = 0 → (coverage.node focus.val ⋯).children = []
+'Yulang.GeneralDictionary170PathBound.vertices_le_rank_succ' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170PathBound.vertices_le_rank_succ : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop} {start finish : Subtype domain} {count : Nat}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain),
+  Yulang.GeneralDictionary170PathBound.Path coverage start finish count →
+    count + 1 ≤ Yulang.GeneralDictionary170NamedAccessible.rank state start.val + 1
+
+AUDIT Cycle170PathBound exit=0

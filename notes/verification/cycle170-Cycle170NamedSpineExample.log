@@ -1,0 +1,52 @@
+'Yulang.GeneralDictionary170NamedSpineExample.checked' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineExample.checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDictionary170NamedSpineExample.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralDictionary170NamedSpineExample.declaration
+'Yulang.GeneralDictionary170NamedSpineExample.metadata' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineExample.metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata
+  Yulang.GeneralDictionary170NamedSpineExample.registry Yulang.GeneralDictionary170NamedSpineExample.context
+'Yulang.GeneralDictionary170NamedSpineExample.actual_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionary170NamedSpineExample.actual_evidence : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionary170NamedSpineExample.source assignment →
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionary170NamedSpineExample.registry
+      Yulang.GeneralDictionary170NamedSpineExample.context assignment Yulang.GeneralDictionary170NamedSpineExample.root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionary170NamedSpineExample.declaration.id
+        [])
+'Yulang.GeneralDictionary170NamedSpineExample.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineExample.nonvacuous : Yulang.GeneralDictionary170NamedSpineExample.root.demand.outputs ≠
+    [] ∧
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionary170NamedSpineExample.source
+      Yulang.GeneralDictionaryFiniteObservedExample.model ∧
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionary170NamedSpineExample.registry
+      Yulang.GeneralDictionary170NamedSpineExample.context Yulang.GeneralDictionaryFiniteObservedExample.model
+      Yulang.GeneralDictionary170NamedSpineExample.root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionary170NamedSpineExample.declaration.id
+        [])
+'Yulang.GeneralDictionary170NamedSpineExample.registry_checked' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineExample.registry_checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralDictionary170NamedSpineExample.registry
+'Yulang.GeneralDictionary170NamedSpineExample.initial_source' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineExample.initial_source : Yulang.GeneralNominalSourceFormation.InitialSource
+  Yulang.GeneralDictionary170NamedSpineExample.registry Yulang.GeneralDictionary170NamedSpineExample.context
+  Yulang.GeneralDictionary170NamedSpineExample.root
+'Yulang.GeneralDictionary170NamedSpineExample.no_current_local_node' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineExample.no_current_local_node : ¬Nonempty
+    (Yulang.GeneralDictionary170NamedCoverage.Node Yulang.GeneralDictionary170NamedSpineExample.registry
+      Yulang.GeneralDictionary170NamedSpineExample.start Yulang.GeneralDictionary170NamedSpineExample.root)
+'Yulang.GeneralDictionary170NamedSpineExample.coverage_gap' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary170NamedSpineExample.coverage_gap : Yulang.GeneralNominalSourceFormation.InitialSource
+    Yulang.GeneralDictionary170NamedSpineExample.registry Yulang.GeneralDictionary170NamedSpineExample.context
+    Yulang.GeneralDictionary170NamedSpineExample.root ∧
+  (∃ assignment,
+      Yulang.GeneralNominalState.Models Yulang.GeneralDictionary170NamedSpineExample.source assignment ∧
+        Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionary170NamedSpineExample.registry
+          Yulang.GeneralDictionary170NamedSpineExample.context assignment
+          Yulang.GeneralDictionary170NamedSpineExample.root
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node
+            Yulang.GeneralDictionary170NamedSpineExample.declaration.id [])) ∧
+    ¬Nonempty
+        (Yulang.GeneralDictionary170NamedCoverage.Node Yulang.GeneralDictionary170NamedSpineExample.registry
+          Yulang.GeneralDictionary170NamedSpineExample.start Yulang.GeneralDictionary170NamedSpineExample.root)

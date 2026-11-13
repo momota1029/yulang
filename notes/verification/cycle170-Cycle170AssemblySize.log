@@ -1,0 +1,51 @@
+'Yulang.GeneralDictionary170AssemblySize.node_degree' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170AssemblySize.node_degree : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (node : Yulang.GeneralDictionary170NamedCoverage.Node registry state occurrence),
+  node.children.length ≤ Yulang.GeneralDictionary170AssemblySize.branching state
+'Yulang.GeneralDictionary170AssemblySize.collect_bound' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170AssemblySize.collect_bound : ∀ {roles : Yulang.Roles.RoleDecls}
+  {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  (sites : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (run :
+    (child : Yulang.GeneralSourceDictionaries.Occurrence roles) →
+      child ∈ sites → Option Yulang.GeneralDictionaryReadback.Payload)
+  (bound : Nat),
+  (∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles) (member : child ∈ sites)
+      (payload : Yulang.GeneralDictionaryReadback.Payload),
+      run child member = some payload → Yulang.GeneralDictionary170AssemblySize.nodes payload ≤ bound) →
+    Yulang.GeneralDictionary170BoundedAssembly.collect sites run = some payloads →
+      Yulang.GeneralDictionary170AssemblySize.nodesList payloads ≤ sites.length * bound
+'Yulang.GeneralDictionary170AssemblySize.successful_bound' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralDictionary170AssemblySize.successful_bound : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  {payload : Yulang.GeneralDictionaryReadback.Payload}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (fuel : Nat)
+  (focus : Subtype domain),
+  Yulang.GeneralDictionary170BoundedAssembly.assemble coverage fuel focus = some payload →
+    Yulang.GeneralDictionary170AssemblySize.nodes payload ≤
+      Yulang.GeneralDictionary170AssemblySize.cap (Yulang.GeneralDictionary170AssemblySize.branching state) fuel
+'Yulang.GeneralDictionary170AssemblySize.build_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralDictionary170AssemblySize.build_bound : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {domain : Yulang.GeneralSourceDictionaries.Occurrence roles → Prop}
+  (coverage : Yulang.GeneralDictionary170NamedCoverage.Coverage registry state domain) (focus : Subtype domain),
+  ∃ payload,
+    Yulang.GeneralDictionary170BoundedAssembly.build coverage focus = some payload ∧
+      Yulang.GeneralDictionary170AssemblySize.nodes payload ≤
+        Yulang.GeneralDictionary170AssemblySize.cap (Yulang.GeneralDictionary170AssemblySize.branching state)
+          (Yulang.GeneralDictionary170NamedAccessible.rank state focus.val + 1)
+'Yulang.GeneralDictionary170AssemblySize.actual_one_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionary170AssemblySize.actual_one_node : Yulang.GeneralDictionary170BoundedAssembly.build
+      Yulang.GeneralDictionary170NamedAccessible.actual_coverage
+      ⟨Yulang.GeneralDictionaryFiniteObservedExample.root, ⋯⟩ =
+    some
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryFiniteObservedExample.declaration.id
+        []) ∧
+  Yulang.GeneralDictionary170AssemblySize.nodes
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryFiniteObservedExample.declaration.id
+          []) =
+      1 ∧
+    Yulang.GeneralDictionary170AssemblySize.branching Yulang.GeneralDictionaryFiniteObservedExample.start = 0
