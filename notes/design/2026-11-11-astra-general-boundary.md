@@ -12873,3 +12873,24 @@ fields. No infinite guarded trace or new language restriction is asserted.
 See the [Item 4j results, theorem statements, ledger, unverified stress test,
 and checks](2026-11-13-general-nominal-budget.md) and
 [module guide](2026-11-13-general-nominal-budget-module-guide.md).
+
+## Item 4k — captured-value provenance (2026-11-13)
+
+The exact six-role stress registry is Checked, and its eight-slot initial source,
+models, read sets and blocked C/D reports are now proved. Its actual guarded
+execution has not been constructed or excluded; the requested decision remains
+open. A source PacketGuard is not treated as Installable or Step.
+
+An additive value-support contract follows known subterm heads through generated
+child inputs and journal-identified retained origins. It requires a real
+generation edge, avoiding an unjustified dependency on a producer's own unused
+capture. Old-step embedding, source/discharged preservation and earlier actual
+positive regressions are proved. Strict nonpoint origins without an equivalent
+source identity and the concrete paired-stress exclusion remain unproved.
+
+Per-head depth zero now persists through every Step; arbitrary depths transport
+through observation-only views. Full L5, L6/L7 and unconditional progress remain
+open. Both the unchanged downstream boundary and the additive value boundary
+have six unconditional V5 fields. See the [Item 4k design, theorem statements,
+ledger and checks](2026-11-13-general-nominal-value-provenance.md) and
+[module guide](2026-11-13-general-nominal-value-provenance-module-guide.md).
