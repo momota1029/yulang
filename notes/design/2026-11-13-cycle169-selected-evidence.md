@@ -37,6 +37,13 @@ not a reason to weaken the guard or count `evidenceNode` as closed.
 The finite list lemma constructs payloads from separate per-child existential
 Evidence, preserving the list order and repeated occurrences. The actual successor
 assembly helper uses the existing Shared current-instance theorem, not stability.
-The existing Display installation and its inhabited model instantiate this helper
-using independently source-derived Int child Evidence. This demonstrates the new
+The existing Display installation and its inhabited model instantiate current successor assembly
+using independently source-derived Int child Evidence. The conclusion explicitly
+requires a payload list of length one. This demonstrates a nonterminal
 existential assembly route but is not a new dictionary or new source trace.
+
+Follow-up within cycle169: `GeneralDictionary169SharedStable` now constructs a
+concrete Shared Stable fixture by enabled-action contradiction from the existing
+Value-stable initial fixture. It has a nonempty named output request but terminal
+children and zero steps. The negative search above describes the starting point,
+not the final cycle. It still does not instantiate the nonterminal stable helper.

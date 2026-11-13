@@ -1,0 +1,7 @@
+# Cycle169: 名前付き出力を持つ構造的leafの混合
+
+Status: Draft proof plan. Evidence/evidenceNode, 2026-11-13.
+
+既存MixedTreeの未記録leafはoutputs=[]を要求する。このため空journalの初期状態に名前付き出力がある場合、Stableとsemantic Evidenceが成立してもMixedTreeはない。新しいNamedTreeは既存MixedTreeを保持し、実際のrequestを有限source観察木で覆うscalar入力のterminal leafを追加する。記録nodeの子も新NamedTreeを使える。shapeにはRootDefined、実際の計算reportから作ったrequestsのObservedだけを置き、Instance/Evidence/BranchModelsは置かない。
+
+任意のSourceFormed状態と現在モデルについてNamedTreeを同じpayloadのEvidenceへ解釈する。実際の三引数nominal named-output初期例を新しい一般leaf定理から構築し、旧MixedTreeには入らないことを示す。意味論やclassifierは変更せず、任意のStableからNamedTreeが存在するとは主張しない。通常継続における新leafの構造的保存は別義務。

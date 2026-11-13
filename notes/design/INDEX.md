@@ -444,3 +444,9 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle169 構造的辞書証明書の通常継続](2026-11-13-cycle169-certificate-persistence.md)
 - [Cycle169 選択された辞書節点](2026-11-13-cycle169-selected-evidence.md)
+- [Cycle169 有限局所coverage](2026-11-13-cycle169-finite-coverage.md)
+- [Cycle169 実際のShared安定例](2026-11-13-cycle169-shared-stable.md)
+- [Cycle169 名前付きleaf](2026-11-13-cycle169-named-leaf.md)
+- [Cycle169 coverage阻害](2026-11-13-cycle169-named-coverage-gap.md)
+- [Cycle169 名前付き混合木](2026-11-13-cycle169-named-tree.md)
+- [Cycle169 名前付き証明書の通常継続](2026-11-13-cycle169-named-persistence.md)

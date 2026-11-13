@@ -1,0 +1,13 @@
+import Yulang.GeneralDictionary169NamedLeaf
+#print axioms Yulang.GeneralDictionary169NamedLeaf.report_exact
+#print axioms Yulang.GeneralDictionary169NamedLeaf.branch_models
+#print axioms Yulang.GeneralDictionary169NamedLeaf.ready
+#print axioms Yulang.GeneralDictionary169NamedLeaf.instance_of_shape
+#print axioms Yulang.GeneralDictionary169NamedLeaf.evidence_of_shape
+#print axioms Yulang.GeneralDictionary169NamedLeaf.actual_shape
+#print axioms Yulang.GeneralDictionary169NamedLeaf.actual_evidence
+#print axioms Yulang.GeneralDictionary169NamedLeaf.actual_nonempty_output
+#check @Yulang.GeneralDictionary169NamedLeaf.LeafShape
+#check @Yulang.GeneralDictionary169NamedLeaf.instance_of_shape
+#check @Yulang.GeneralDictionary169NamedLeaf.evidence_of_shape
+#check @Yulang.GeneralDictionary169NamedLeaf.actual_nonempty_output

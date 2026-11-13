@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionary169SharedStable
+#print axioms Yulang.GeneralDictionary169SharedStable.value_action_exists
+#print axioms Yulang.GeneralDictionary169SharedStable.of_value
+#print axioms Yulang.GeneralDictionary169SharedStable.actual_stable
+#print axioms Yulang.GeneralDictionary169SharedStable.actual_formed
+#print axioms Yulang.GeneralDictionary169SharedStable.actual_stable_named_dictionary
+#check @Yulang.GeneralDictionary169SharedStable.value_action_exists
+#check @Yulang.GeneralDictionary169SharedStable.of_value
+#check @Yulang.GeneralDictionary169SharedStable.actual_stable_named_dictionary
