@@ -459,3 +459,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle170 local coverage and bounded assembly](2026-11-13-cycle170-local-assembly.md) — Draft auxiliary proof progress.
 
 - [Cycle170 next observation bridge](2026-11-13-cycle170-next-observation-bridge.md) — Draft; physical snapshot and semantic source readback obligations.
+
+- [Cycle171 recursive named-spine coverage](2026-11-13-cycle171-spine-coverage.md) — Draft: recursive certificate and ordinary transport.
