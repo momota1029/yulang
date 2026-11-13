@@ -1,0 +1,10 @@
+import Yulang.GeneralDictionaryCapturedScalarRefresh
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.raw_models
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.certificate
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.newly_known
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.step
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.models_exact
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.source_formed
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.packets_retained
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.not_ordinary_extension
+#print axioms Yulang.GeneralDictionaryCapturedScalarRefresh.consumer_raw_ready

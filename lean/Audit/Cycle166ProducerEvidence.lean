@@ -1,0 +1,3 @@
+import Yulang.GeneralDictionarySharedCapturedProducerEvidence
+#print axioms Yulang.GeneralDictionarySharedCapturedProducerEvidence.terminal
+#print axioms Yulang.GeneralDictionarySharedCapturedProducerEvidence.current_evidence
