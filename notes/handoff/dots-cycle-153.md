@@ -324,3 +324,25 @@ Build completed successfully (747 jobs).
 ```text
 FOCUSED-AXIOM-PASS: 62 declarations in cycle153 modules
 ```
+
+## Boundary inventory
+| Item | Status |
+|---|---|
+| Checked | General nominal declaration definition; full-language fidelity separate |
+| Models | General definition |
+| RootPending | General definition |
+| RootK2 | General definition |
+| CandidateK2 | General definition |
+| InspectionPending | General definition |
+| Survivor | General nominal candidate definition |
+| Reorders | General definition |
+| DictionaryEquivalent | General definition |
+| Step | General definition, Astra-owned and unchanged |
+| Stable | General definition, unchanged |
+| Generated | General definition, unchanged |
+| Evidence | General definition; general evidenceNode bridge open |
+
+Remaining eight: progress, execution, halted, whereAccessible, treeExecution, canonicalLocalOrder, evidenceNode, generatedChildren.
+
+## Publication readback
+Source/report checkpoint a4c726e262a8fa0d712172c564447d1851cdb6b9 was published non-force with expected head ab59232e. Its tree is 18253e9551e630704be12bf21708e474cfbad697. All ten changed paths were retrieved byte-for-byte and match. The local INDEX-only four-line addition was omitted; the new audit imports all four modules directly. There are 24 new theorem declarations and 26 explicit audit checks; the complete dependency gate checks 62 declarations including definitions. No full CI claim is made.

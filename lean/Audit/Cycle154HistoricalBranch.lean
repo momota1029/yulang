@@ -1,0 +1,9 @@
+import Yulang.GeneralDictionaryHistoricalTreeBranch
+
+#print axioms Yulang.GeneralDictionaryHistoricalTreeBranch.branch_models
+#print axioms Yulang.GeneralDictionaryHistoricalTreeBranch.ready
+#print axioms Yulang.GeneralDictionaryHistoricalTreeBranch.instance_of_shape
+#print axioms Yulang.GeneralDictionaryHistoricalTreeBranch.selected_instance
+#print axioms Yulang.GeneralDictionaryHistoricalTreeBranch.selected_branch
+#print axioms Yulang.GeneralDictionaryHistoricalTreeBranch.value_selected_branch
+#print axioms Yulang.GeneralDictionaryHistoricalTreeBranch.value_node_evidence
