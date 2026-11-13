@@ -18,8 +18,9 @@ Astraが追加したI26の実Settled guard/Step/Stableを使い、選択済み�
 - **実Settled Stable**から、selected-key Jointを明示して全final-model Evidenceを
   導いた。新Stableから旧Stableを導く誤った経路は使わない。packet-free terminalな
   root/generatedの場合のみ、既存source形状からJointを解消した。
-- 辞書tree全体では、選択descendant各点のStableとselected-key JointからEvidenceを
-  導いた。child Evidenceを仮定して結論を言い換えたものではないが、一般Jointは未解決。
+- 最終的にはrootの実Settled Stableと選択descendantのselected-key JointClosureだけで
+  tree全体のEvidenceを導いた。各descendantのGeneratedとStableを途中で証明し、
+  child Evidenceは仮定しない。一般JointClosureは未解決。
 
 ## 正例と意味論上の境界
 
@@ -153,3 +154,11 @@ trust0で再compileし、138宣言gateを実行してEXIT0。root bridgeを含�
 残す。既存の証明・guard・設定の削除なし。全実装workerは終了し、新機能作業は終了。
 最終公開はこの検証済みsourceと報告・ログだけ。次回はJointClosureの一般証明と、
 実際に生成されたconsumerの再現を混同せず、最新Astraの共有provenance境界も再読する。
+
+## 最終報告treeの照合
+
+a5361e14a35f595b7a1ae63693cb7a6ee990e541を再取得し、固定dccfc6947との差は
+心拍だけ。公開されたMergedDependencyGateそのものを読み直してtrust0実行し、
+254宣言PASSを確認した。CI wrapperはこのcommitでも空一覧で、CI成功の主張なし。
+継承した局所interval定理も本文と照合し、固定endpointのbranch-model族の存在を
+無限Step traceのLean証明として扱っていないことを再確認した。
