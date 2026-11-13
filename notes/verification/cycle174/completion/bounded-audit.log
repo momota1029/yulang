@@ -1,3 +1,0 @@
-'Yulang.GeneralDictionaryAgreedBounded174.runFuel_resolves' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Yulang.GeneralDictionaryAgreedBounded174.certified_resolves' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Yulang.GeneralDictionaryAgreedBounded174.certified_final_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
