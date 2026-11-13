@@ -118,6 +118,100 @@ Yulang.GeneralDictionarySettlementExamples.Nonterminal.no_exact_coverage :
 Yulang.GeneralDictionarySettlementExamples.Nonterminal.no_alias_coverage :
   ¬Yulang.GeneralDictionaryAliasSettlement.AliasCoverage Yulang.GeneralNominalExamples.registry
       Yulang.GeneralDictionarySupportRecursiveExample.finish Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralDictionaryRecursiveConsumerObstruction.child_generated :
+  Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionarySupportRecursiveExample.finish.current
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalExamples.displayChild
+Yulang.GeneralDictionaryRecursiveConsumerObstruction.child_installable_committed
+  (leaf : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles)
+  (site : leaf.site.occurrence = Yulang.GeneralNominalExamples.displayChild)
+  (enabled :
+    Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralDictionarySupportRecursiveExample.finish.current leaf) :
+  Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionarySupportRecursiveExample.finish.current leaf
+Yulang.GeneralDictionaryRecursiveConsumerObstruction.no_child_install_contract :
+  ¬∃ leaf support,
+      leaf.site.occurrence = Yulang.GeneralNominalExamples.displayChild ∧
+        leaf.children = [] ∧
+          Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalExamples.registry
+              Yulang.GeneralDictionarySupportRecursiveExample.finish.current leaf ∧
+            ¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionarySupportRecursiveExample.finish.current
+                  leaf ∧
+              Yulang.GeneralNominalSettledSteps.PacketGuard Yulang.GeneralDictionarySupportRecursiveExample.finish leaf
+                support
+Yulang.GeneralDictionaryRecursiveConsumerObstruction.no_child_at
+  (after : Yulang.GeneralNominalSupport.Tracked Yulang.GeneralDeclarationExamples.roles) :
+  ¬Yulang.GeneralNominalSettledSteps.At Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralDictionarySupportRecursiveExample.finish Yulang.GeneralNominalExamples.displayChild after
+Yulang.GeneralDictionaryRecursiveConsumerObstruction.realized :
+  Yulang.GeneralNominalSaturationState.Models Yulang.GeneralDictionarySupportRecursiveExample.finish.current
+      Yulang.GeneralNominalExamples.model ∧
+    Yulang.B4TargetV3.Classify
+        (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles).toSourceBoundary
+        Yulang.GeneralNominalExamples.registry Yulang.GeneralDictionarySupportRecursiveExample.finish
+        Yulang.GeneralNominalExamples.displayRoot
+        (Yulang.CommonRoleOutermostResolver.Result.selected
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+            [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])) ∧
+      Yulang.GeneralNominalSettledSupport.Unsettled Yulang.GeneralDictionarySupportRecursiveExample.finish.current
+          Yulang.GeneralDictionarySupportRecursiveExample.packet ∧
+        Yulang.GeneralNominalSaturationState.Generated Yulang.GeneralDictionarySupportRecursiveExample.finish.current
+            Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalExamples.displayChild ∧
+          ∀ (after : Yulang.GeneralNominalSupport.Tracked Yulang.GeneralDeclarationExamples.roles),
+            ¬Yulang.GeneralNominalSettledSteps.At Yulang.GeneralNominalExamples.registry
+                Yulang.GeneralDictionarySupportRecursiveExample.finish Yulang.GeneralNominalExamples.displayChild after
+Yulang.GeneralDictionarySettledTerminalPrefix.container_ready :
+  Yulang.GeneralNominalSettledSupport.ReadyAt Yulang.GeneralNominalSupportSiblings.afterP 1
+Yulang.GeneralDictionarySettledTerminalPrefix.container_decision :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.afterP Yulang.GeneralNominalSupportSiblings.kidC
+Yulang.GeneralDictionarySettledTerminalPrefix.parent_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.root Yulang.GeneralNominalSupportSiblings.start
+    Yulang.GeneralNominalSupportSiblings.afterP
+Yulang.GeneralDictionarySettledTerminalPrefix.container_guard :
+  Yulang.GeneralNominalSettledSupport.PacketGuard Yulang.GeneralNominalSupportSiblings.afterP
+    Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket []
+Yulang.GeneralDictionarySettledTerminalPrefix.container_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.root Yulang.GeneralNominalSupportSiblings.afterP
+    Yulang.GeneralNominalBudgetContainer.afterC
+Yulang.GeneralDictionarySettledTerminalPrefix.actual_prefix :
+  Yulang.B4Target.Steps
+    (Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+      Yulang.GeneralNominalSupportSiblings.root)
+    Yulang.GeneralNominalSupportSiblings.start Yulang.GeneralNominalBudgetContainer.afterC
+Yulang.GeneralDictionarySettledTerminalPrefix.reachable :
+  Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalSupportSiblings.reg Yulang.GeneralNominalSupportSiblings.root
+    Yulang.GeneralNominalBudgetContainer.afterC
+Yulang.GeneralDictionarySettledTerminalPrefix.child_settled :
+  Yulang.GeneralNominalSettledSupport.PacketSettled Yulang.GeneralNominalBudgetContainer.afterC.current
+    Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket
+Yulang.GeneralDictionarySettledTerminalPrefix.child_output_trusted :
+  ∃ support,
+    Yulang.GeneralNominalSettledSupport.Trusted Yulang.GeneralNominalBudgetContainer.afterC
+      [Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket support,
+        Yulang.GeneralNominalSupport.Fact.inputs Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket support]
+Yulang.GeneralDictionarySettledTerminalPrefix.output_above_slots : 2 < Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionarySettledTerminalPrefix.output_not_ready :
+  ¬Yulang.GeneralNominalSettledSupport.ReadyAt Yulang.GeneralNominalBudgetContainer.afterC
+      Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionarySettledTerminalPrefix.inhabited :
+  ∃ model, Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current model
+Yulang.GeneralDictionarySettledTerminalPrefix.genuine_terminal_prefix :
+  Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalSupportSiblings.reg
+      Yulang.GeneralNominalSupportSiblings.afterP.current
+      Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket ∧
+    ¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralNominalSupportSiblings.afterP.current
+          Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket ∧
+      Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket.children = [] ∧
+        Yulang.GeneralNominalSupportSiblings.kidC.demand.outputs ≠ [] ∧
+          Yulang.B4Target.Steps
+              (Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+                Yulang.GeneralNominalSupportSiblings.root)
+              Yulang.GeneralNominalSupportSiblings.start Yulang.GeneralNominalBudgetContainer.afterC ∧
+            Yulang.GeneralNominalSettledSupport.PacketSettled Yulang.GeneralNominalBudgetContainer.afterC.current
+              Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket
 Yulang.GeneralDictionarySettledFiniteCoverage.selected_support {roles : Yulang.Roles.RoleDecls}
   {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
   {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
@@ -498,3 +592,4 @@ Yulang.GeneralDictionaryAliasSettlement.output_trusted {roles : Yulang.Roles.Rol
     ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
       child ∈ packet.children → Yulang.GeneralDictionaryAliasSettlement.AliasCoverage registry state child) :
   Yulang.GeneralNominalSettledSupport.Trusted state (Yulang.GeneralNominalSupport.Fact.outputs packet support :: facts)
+ 

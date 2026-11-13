@@ -5,13 +5,14 @@ import Yulang.GeneralDictionarySettledConsumerResume
 import Yulang.GeneralDictionarySettledFiniteCoverage
 import Yulang.GeneralDictionarySettledFiniteCoverageExample
 import Yulang.GeneralDictionarySettledReservationTimeline
+import Yulang.GeneralDictionarySettledTerminalPrefix
 import Yulang.GeneralDictionarySettlementExamples
 import Lean
 open Lean Elab Command in
 run_cmd do
   let environment ← getEnv
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
-  let wanted : List Name := [`Yulang.GeneralDictionaryAliasSettlement, `Yulang.GeneralDictionaryRecordedSettlement, `Yulang.GeneralDictionaryRecursiveConsumerObstruction, `Yulang.GeneralDictionarySettledConsumerResume, `Yulang.GeneralDictionarySettledFiniteCoverage, `Yulang.GeneralDictionarySettledFiniteCoverageExample, `Yulang.GeneralDictionarySettledReservationTimeline, `Yulang.GeneralDictionarySettlementExamples]
+  let wanted : List Name := [`Yulang.GeneralDictionaryAliasSettlement, `Yulang.GeneralDictionaryRecordedSettlement, `Yulang.GeneralDictionaryRecursiveConsumerObstruction, `Yulang.GeneralDictionarySettledConsumerResume, `Yulang.GeneralDictionarySettledFiniteCoverage, `Yulang.GeneralDictionarySettledFiniteCoverageExample, `Yulang.GeneralDictionarySettledReservationTimeline, `Yulang.GeneralDictionarySettledTerminalPrefix, `Yulang.GeneralDictionarySettlementExamples]
   let mut checked : Nat := 0
   for (name, _) in environment.constants.toList do
     if let some index := environment.getModuleIdxFor? name then

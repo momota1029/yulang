@@ -35,6 +35,11 @@
     "sha256": "31a2420cf7d64d0ae0726c12efefc02b2f7fbce6d263f1788555555cc340db0d"
   },
   {
+    "path": "lean/Yulang/GeneralDictionarySettledTerminalPrefix.lean",
+    "namespace": "Yulang.GeneralDictionarySettledTerminalPrefix",
+    "sha256": "e2a51d551b4040eb86cfd645747a928970f780148b6b6a2191ae0c16adc4131f"
+  },
+  {
     "path": "lean/Yulang/GeneralDictionarySettlementExamples.lean",
     "namespace": "Yulang.GeneralDictionarySettlementExamples",
     "sha256": "55be194fae0569ea62af52cf4955a6777a3127f15580c8641fd7c8ca48a769e0"

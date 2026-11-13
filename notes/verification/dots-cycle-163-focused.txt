@@ -5,6 +5,7 @@ Yulang.GeneralDictionarySettledConsumerResume EXIT 0
 Yulang.GeneralDictionarySettledFiniteCoverage EXIT 0  
 Yulang.GeneralDictionarySettledFiniteCoverageExample EXIT 0  
 Yulang.GeneralDictionarySettledReservationTimeline EXIT 0  
+Yulang.GeneralDictionarySettledTerminalPrefix EXIT 0  
 Yulang.GeneralDictionarySettlementExamples EXIT 0  
 Cycle163AliasSettlement.lean EXIT 0 'Yulang.GeneralDictionaryAliasSettlement.exact_coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralDictionaryAliasSettlement.node_discharged' depends on axioms: [propext, Quot.sound]
@@ -40,7 +41,7 @@ Cycle163ConsumerResume.lean EXIT 0 'Yulang.GeneralDictionarySettledConsumerResum
  Classical.choice,
  Quot.sound]
  
-Cycle163FinalDependencyGate.lean EXIT 0 AXIOM-GATE-PASS: 69 declarations
+Cycle163FinalDependencyGate.lean EXIT 0 AXIOM-GATE-PASS: 87 declarations
  
 Cycle163PublicTypes.lean EXIT 0 Yulang.GeneralDictionaryRecordedSettlement.coverage_child {roles : Yulang.Roles.RoleDecls}
   {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
@@ -203,6 +204,59 @@ Yulang.GeneralDictionaryRecursiveConsumerObstruction.realized :
           ∀ (after : Yulang.GeneralNominalSupport.Tracked Yulang.GeneralDeclarationExamples.roles),
             ¬Yulang.GeneralNominalSettledSteps.At Yulang.GeneralNominalExamples.registry
                 Yulang.GeneralDictionarySupportRecursiveExample.finish Yulang.GeneralNominalExamples.displayChild after
+Yulang.GeneralDictionarySettledTerminalPrefix.container_ready :
+  Yulang.GeneralNominalSettledSupport.ReadyAt Yulang.GeneralNominalSupportSiblings.afterP 1
+Yulang.GeneralDictionarySettledTerminalPrefix.container_decision :
+  Yulang.GeneralNominalSettledSupport.DecisionGuard Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.afterP Yulang.GeneralNominalSupportSiblings.kidC
+Yulang.GeneralDictionarySettledTerminalPrefix.parent_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.root Yulang.GeneralNominalSupportSiblings.start
+    Yulang.GeneralNominalSupportSiblings.afterP
+Yulang.GeneralDictionarySettledTerminalPrefix.container_guard :
+  Yulang.GeneralNominalSettledSupport.PacketGuard Yulang.GeneralNominalSupportSiblings.afterP
+    Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket []
+Yulang.GeneralDictionarySettledTerminalPrefix.container_step :
+  Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+    Yulang.GeneralNominalSupportSiblings.root Yulang.GeneralNominalSupportSiblings.afterP
+    Yulang.GeneralNominalBudgetContainer.afterC
+Yulang.GeneralDictionarySettledTerminalPrefix.actual_prefix :
+  Yulang.B4Target.Steps
+    (Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+      Yulang.GeneralNominalSupportSiblings.root)
+    Yulang.GeneralNominalSupportSiblings.start Yulang.GeneralNominalBudgetContainer.afterC
+Yulang.GeneralDictionarySettledTerminalPrefix.reachable :
+  Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalSettledBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalSupportSiblings.reg Yulang.GeneralNominalSupportSiblings.root
+    Yulang.GeneralNominalBudgetContainer.afterC
+Yulang.GeneralDictionarySettledTerminalPrefix.child_settled :
+  Yulang.GeneralNominalSettledSupport.PacketSettled Yulang.GeneralNominalBudgetContainer.afterC.current
+    Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket
+Yulang.GeneralDictionarySettledTerminalPrefix.child_output_trusted :
+  ∃ support,
+    Yulang.GeneralNominalSettledSupport.Trusted Yulang.GeneralNominalBudgetContainer.afterC
+      [Yulang.GeneralNominalSupport.Fact.outputs Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket support,
+        Yulang.GeneralNominalSupport.Fact.inputs Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket support]
+Yulang.GeneralDictionarySettledTerminalPrefix.output_above_slots : 2 < Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionarySettledTerminalPrefix.output_not_ready :
+  ¬Yulang.GeneralNominalSettledSupport.ReadyAt Yulang.GeneralNominalBudgetContainer.afterC
+      Yulang.GeneralNominalSupportSiblings.out
+Yulang.GeneralDictionarySettledTerminalPrefix.inhabited :
+  ∃ model, Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalBudgetContainer.afterC.current model
+Yulang.GeneralDictionarySettledTerminalPrefix.genuine_terminal_prefix :
+  Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralNominalSupportSiblings.reg
+      Yulang.GeneralNominalSupportSiblings.afterP.current
+      Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket ∧
+    ¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralNominalSupportSiblings.afterP.current
+          Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket ∧
+      Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket.children = [] ∧
+        Yulang.GeneralNominalSupportSiblings.kidC.demand.outputs ≠ [] ∧
+          Yulang.B4Target.Steps
+              (Yulang.GeneralNominalSettledSteps.Step Yulang.GeneralNominalSupportSiblings.reg
+                Yulang.GeneralNominalSupportSiblings.root)
+              Yulang.GeneralNominalSupportSiblings.start Yulang.GeneralNominalBudgetContainer.afterC ∧
+            Yulang.GeneralNominalSettledSupport.PacketSettled Yulang.GeneralNominalBudgetContainer.afterC.current
+              Yulang.GeneralNominalDownstreamSiblingFixture.containerPacket
 Yulang.GeneralDictionarySettledFiniteCoverage.selected_support {roles : Yulang.Roles.RoleDecls}
   {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
   {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
@@ -669,6 +723,34 @@ Cycle163SettledFiniteCoverageExample.lean EXIT 0 'Yulang.GeneralDictionarySettle
  Classical.choice,
  Quot.sound]
  
+Cycle163SettledTerminalPrefix.lean EXIT 0 'Yulang.GeneralDictionarySettledTerminalPrefix.container_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.container_decision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.parent_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.container_guard' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.container_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.actual_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.child_settled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.child_output_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.output_above_slots' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.output_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySettledTerminalPrefix.genuine_terminal_prefix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+ 
 Cycle163SettlementExamples.lean EXIT 0 'Yulang.GeneralDictionarySettlementExamples.terminal_path_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralDictionarySettlementExamples.terminal_coverage' depends on axioms: [propext,
  Classical.choice,
@@ -689,4 +771,4 @@ Cycle163SettlementExamples.lean EXIT 0 'Yulang.GeneralDictionarySettlementExampl
  Classical.choice,
  Quot.sound]
  
-ALL PASS 8
+ALL PASS 9

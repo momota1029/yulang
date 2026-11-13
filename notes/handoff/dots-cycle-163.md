@@ -147,3 +147,46 @@ Generated・noAtが同時成立する。これはsource inconsistencyでも一�
 
 この追加を含む8moduleの全source逐次trust0 replayとaudit10本がEXIT0。
 公開53定理、private/generatedを含む69宣言のgateがPASS。
+
+Checkpoint2 `968e587a558bbb44df6f202f88b603ac20bc4b3c` was fetched.
+Its full tree differs from fixed local `ce26e782ec824955850aab15a2a21c794df08a12`
+only at the intended heartbeat. Every one of its8 published module sources
+matches the inventory SHA256. Final published-source replay is recorded below.
+
+## actual novel terminal-child正例（11:00 UTC）
+
+`SettledTerminalPrefix`は既存のchecked sibling fixtureをI26へ移し、
+InitialSourceからparent Pの実install、生成されたContainer子の実installまでを
+証明した。子はInstallableかつ未Committed、terminalで、名前つき出力を持つ。
+子packetがSettledとなり、その出力を含むTrusted ledgerが存在する。final modelも
+存在するので空虚な成功ではない。出力identityは現在の全slotより大きく、
+Trustedでも現在のReadyAtはまだ成立しない。
+
+重要な限定: root Pの名前つき出力requestは空である。非空の名前つき出力は
+terminal Container子のもの。Pには他の兄弟義務がある。Pの片付け、nonterminalな
+名前つき出力producerの完成、consumerの実再開は証明していない。
+
+### 追加主要定理の読み方
+
+- `parent_step`, `container_step`, `actual_prefix`, `reachable`: 固定された
+  checked registry/root/startから、実Settledの2StepでafterCに到達する。
+- `container_ready`, `container_decision`, `container_guard`: この子の入力headと
+  inspectionは暫定出力ではなく元のsourceで正当化される。
+- `child_settled`, `child_output_trusted`: 新terminal packetの実記録と子の空リスト、
+  実input/output factsから片付けと出力trustを導く。
+- `output_above_slots`, `output_not_ready`: 出力identityは元の0,1,2slot外で、
+  現在headはまだ存在しない。異なる意味論値を意味しない。
+- `inhabited`, `genuine_terminal_prefix`: 独立のcountermodelによるnoveltyを維持し、
+  実到達列と最終model存在を伴う正例。
+
+全公開名はmodule-guide、完全な型は検証ログに記載する。
+
+## 固定source最終検証（11:01 UTC）
+
+新9module、公開66定理、private/generatedを含む87宣言。全新sourceの
+独立cache逐次trust0再compile、audit11本（型表示とgateを含む）はEXIT0。
+TerminalPrefixの別担当read-only reviewもPASS。actual sourceによるguard、
+noveltyの具体的countermodel、非空のfinal modelを確認した。
+
+初回のfocused Lake中断とは別に、メモリ余裕を確認し、11:01から9targetだけの
+focused Lakeを6分上限で再試行する。結果が下に確定するまでPASSとはしない。
