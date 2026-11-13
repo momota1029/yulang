@@ -1,0 +1,23 @@
+{
+  "modules": 14,
+  "named_theorems": 125,
+  "named_declarations": 153,
+  "missing_imports": [],
+  "forbidden_tokens": [],
+  "source_sha": {
+    "lean/Yulang/GeneralDictionaryAgreedBounded174.lean": "ffd3eebb76e0337e3ee22f65483d117fc1ebef37",
+    "lean/Yulang/GeneralDictionaryAgreedChecked174.lean": "c92d867944da41a0526861c24e7d2a17a8f334ec",
+    "lean/Yulang/GeneralDictionaryAgreedComposition174.lean": "ea1ccb851d41f4b586b12e3c7118249aeff464f8",
+    "lean/Yulang/GeneralDictionaryAgreedComputed174.lean": "fdbaf92d2fecd139fcd3986dcf9ca9e8bb91d096",
+    "lean/Yulang/GeneralDictionaryAgreedEdge174.lean": "79f32acad8a9af3816f0e7505fbbac4784306f1c",
+    "lean/Yulang/GeneralDictionaryAgreedEvidence174.lean": "98a255eb8df6724fa2f0d60313337a0db3f84453",
+    "lean/Yulang/GeneralDictionaryAgreedExact174.lean": "4cf15bfd9eb8d92abb7882cd4ab00ff6cb485dcb",
+    "lean/Yulang/GeneralDictionaryAgreedGround174.lean": "57a3fbd8bdfd9c4d9a753a68278bea6c9d24812b",
+    "lean/Yulang/GeneralDictionaryAgreedHistoryObstruction174.lean": "b3965bb9a19debefe29d8f5b85c113a0cc34710f",
+    "lean/Yulang/GeneralDictionaryAgreedRefiningTrace174.lean": "02e9c2c92b5a41b38272935e69f3faeab025e7a8",
+    "lean/Yulang/GeneralDictionaryAgreedRefresh174.lean": "509bf917dbae3c2aaf81354acfd4d1e6e4148d8c",
+    "lean/Yulang/GeneralDictionaryAgreedRoleExamples174.lean": "b718b2be1ee48bef9373fd3091283166f48b9dee",
+    "lean/Yulang/GeneralDictionaryAgreedSearchOrder174.lean": "df55c3d96eba3c0f48fde26b41f4253dad761ce2",
+    "lean/Yulang/GeneralDictionaryAgreedUniform174.lean": "84e40ed4f927d017575139e25d3df86707800415"
+  }
+}

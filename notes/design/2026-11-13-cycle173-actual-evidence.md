@@ -55,3 +55,8 @@ A concrete Show(pair(list(int),int)) regression uses the actual ground executor
 without GroundCaptureFactorization. It proves an actual Step path, halted final
 state, stable root and generated children, and backward model preservation. It
 does not compute the noncomputable chosen final state or claim a dictionary.
+
+Clarification: the edge lemma's emitted clause is from the selected candidate's
+children calculation. It does not assert an actual installation Step, recorded
+packet, Installable or Committed. `treeExecution` is proved with precisely its
+FrontierExact and Child-Acc arguments; it does not discharge whereAccessible.
