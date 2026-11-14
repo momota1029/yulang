@@ -1,0 +1,84 @@
+import Yulang.GeneralNominalNonleafInstallation193
+import Yulang.GeneralNominalNonleafLocal193
+import Yulang.GeneralNominalNonleafPlan193
+
+#check Yulang.GeneralNominalNonleafInstallation193.installed_requests_empty
+#print axioms Yulang.GeneralNominalNonleafInstallation193.installed_requests_empty
+#check Yulang.GeneralNominalNonleafInstallation193.installation_models
+#print axioms Yulang.GeneralNominalNonleafInstallation193.installation_models
+#check Yulang.GeneralNominalNonleafInstallation193.enabled
+#print axioms Yulang.GeneralNominalNonleafInstallation193.enabled
+#check Yulang.GeneralNominalNonleafInstallation193.novel
+#print axioms Yulang.GeneralNominalNonleafInstallation193.novel
+#check Yulang.GeneralNominalNonleafInstallation193.actual_step
+#print axioms Yulang.GeneralNominalNonleafInstallation193.actual_step
+#check Yulang.GeneralNominalNonleafInstallation193.reachable
+#print axioms Yulang.GeneralNominalNonleafInstallation193.reachable
+#check Yulang.GeneralNominalNonleafInstallation193.final_model
+#print axioms Yulang.GeneralNominalNonleafInstallation193.final_model
+#check Yulang.GeneralNominalNonleafInstallation193.child_generated
+#print axioms Yulang.GeneralNominalNonleafInstallation193.child_generated
+#check Yulang.GeneralNominalNonleafInstallation193.leaf_evidence
+#print axioms Yulang.GeneralNominalNonleafInstallation193.leaf_evidence
+#check Yulang.GeneralNominalNonleafInstallation193.recursive_evidence
+#print axioms Yulang.GeneralNominalNonleafInstallation193.recursive_evidence
+#check Yulang.GeneralNominalNonleafInstallation193.source_recursive_sound
+#print axioms Yulang.GeneralNominalNonleafInstallation193.source_recursive_sound
+#check Yulang.GeneralNominalNonleafInstallation193.final_models_iff
+#print axioms Yulang.GeneralNominalNonleafInstallation193.final_models_iff
+#check Yulang.GeneralNominalNonleafInstallation193.initial_recursive_evidence
+#print axioms Yulang.GeneralNominalNonleafInstallation193.initial_recursive_evidence
+#check Yulang.GeneralNominalNonleafInstallation193.source_not_stable
+#print axioms Yulang.GeneralNominalNonleafInstallation193.source_not_stable
+#check Yulang.GeneralNominalNonleafLocal193.prepared
+#print axioms Yulang.GeneralNominalNonleafLocal193.prepared
+#check Yulang.GeneralNominalNonleafLocal193.frame
+#print axioms Yulang.GeneralNominalNonleafLocal193.frame
+#check Yulang.GeneralNominalNonleafLocal193.known
+#print axioms Yulang.GeneralNominalNonleafLocal193.known
+#check Yulang.GeneralNominalNonleafLocal193.survivor
+#print axioms Yulang.GeneralNominalNonleafLocal193.survivor
+#check Yulang.GeneralNominalNonleafLocal193.wrong_failed
+#print axioms Yulang.GeneralNominalNonleafLocal193.wrong_failed
+#check Yulang.GeneralNominalNonleafLocal193.unique
+#print axioms Yulang.GeneralNominalNonleafLocal193.unique
+#check Yulang.GeneralNominalNonleafLocal193.requests_empty
+#print axioms Yulang.GeneralNominalNonleafLocal193.requests_empty
+#check Yulang.GeneralNominalNonleafLocal193.effects_ready
+#print axioms Yulang.GeneralNominalNonleafLocal193.effects_ready
+#check Yulang.GeneralNominalNonleafLocal193.no_output_conflict
+#print axioms Yulang.GeneralNominalNonleafLocal193.no_output_conflict
+#check Yulang.GeneralNominalNonleafLocal193.safe
+#print axioms Yulang.GeneralNominalNonleafLocal193.safe
+#check Yulang.GeneralNominalNonleafLocal193.selected
+#print axioms Yulang.GeneralNominalNonleafLocal193.selected
+#check Yulang.GeneralNominalNonleafPlan193.query
+#print axioms Yulang.GeneralNominalNonleafPlan193.query
+#check Yulang.GeneralNominalNonleafPlan193.raw_report
+#print axioms Yulang.GeneralNominalNonleafPlan193.raw_report
+#check Yulang.GeneralNominalNonleafPlan193.inherited
+#print axioms Yulang.GeneralNominalNonleafPlan193.inherited
+#check Yulang.GeneralNominalNonleafPlan193.bindings
+#print axioms Yulang.GeneralNominalNonleafPlan193.bindings
+#check Yulang.GeneralNominalNonleafPlan193.binder_zero
+#print axioms Yulang.GeneralNominalNonleafPlan193.binder_zero
+#check Yulang.GeneralNominalNonleafPlan193.named_empty
+#print axioms Yulang.GeneralNominalNonleafPlan193.named_empty
+#check Yulang.GeneralNominalNonleafPlan193.input_empty
+#print axioms Yulang.GeneralNominalNonleafPlan193.input_empty
+#check Yulang.GeneralNominalNonleafPlan193.head_schema
+#print axioms Yulang.GeneralNominalNonleafPlan193.head_schema
+#check Yulang.GeneralNominalNonleafPlan193.first_child
+#print axioms Yulang.GeneralNominalNonleafPlan193.first_child
+#check Yulang.GeneralNominalNonleafPlan193.equations
+#print axioms Yulang.GeneralNominalNonleafPlan193.equations
+#check Yulang.GeneralNominalNonleafPlan193.branch
+#print axioms Yulang.GeneralNominalNonleafPlan193.branch
+#check Yulang.GeneralNominalNonleafPlan193.holds
+#print axioms Yulang.GeneralNominalNonleafPlan193.holds
+#check Yulang.GeneralNominalNonleafPlan193.children_exact
+#print axioms Yulang.GeneralNominalNonleafPlan193.children_exact
+#check Yulang.GeneralNominalNonleafPlan193.initial_source
+#print axioms Yulang.GeneralNominalNonleafPlan193.initial_source
+#check Yulang.GeneralNominalNonleafPlan193.source_models
+#print axioms Yulang.GeneralNominalNonleafPlan193.source_models
