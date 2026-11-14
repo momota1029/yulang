@@ -1,0 +1,188 @@
+'Yulang.GeneralNominalLedgerPermutation.Related.merge_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.merge_alternatives' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.merged_facts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.merge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.change_current' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.administrative' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.refresh_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.refresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.merge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.merge_action' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.at_transport_or_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.PlanPair.left' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.PlanPair.right' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.fact_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.fact_left' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.fact_right' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.fact_members' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.facts_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.readback' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredLedgerPermutation.Related.trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.RebasedPacket' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.packet_observation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.paired' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.Corresponds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.packet_free_refl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.initialAt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.initial' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.at_transport_or_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.step_transport_or_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.packet_free_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredPermutationRepresentation.reachable_packet_free' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredPlanLedgerReordering.inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanLedgerReordering.outputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanLedgerReordering.paired' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.argument' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.structural' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.edge' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.path' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.cycle' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.recursAt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.recover' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.sameInputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.committed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Metadata.replace' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Metadata.Same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.PacketPair.refl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.PacketPair.symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.PacketPair.rebase' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.ContextPair.refl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.ContextPair.symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.ContextPair.replace_form' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.refl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.packet_left' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.packet_right' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.journal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.alias' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.generated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.discharged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.waiting' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.regenerate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.reobserve' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.equate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.enqueue' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.equal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.rawEqual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.Related.administrative' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.All₂' does not depend on any axioms
+'Yulang.GeneralNominalLedgerPermutation.Reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.PacketObservation.refl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.PacketObservation.symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.PacketObservation.rebase' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.all₂_left' depends on axioms: [propext]
+'Yulang.GeneralNominalLedgerPermutation.all₂_right' depends on axioms: [propext]
+'Yulang.GeneralNominalLedgerPermutation.Coherent.fact_left' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Coherent.fact_right' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Coherent.holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Coherent.dependencies' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Coherent.fact_members' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Coherent.facts_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Coherent.symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.slice' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.packet_settled' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.readback' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.merge_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.trusted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.pool' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.head_supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.available' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.ready' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.settled_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.replace' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.Same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.refl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.trans' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.pending' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.sources' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.linked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.fresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.refines_left' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.refines_right' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMetadataEquivalence.extend' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataInspection.head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataInspection.reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataInspection.readsMany' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataInspection.queries' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalMetadataInspection.arguments' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.rebase' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.bindings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.named_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.input_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.ordinary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.materialization' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.outputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.inherited_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketMetadata.observation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.append' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.visit' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.inspect' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.many' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.bindings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.selfChecks' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportMetadata.projectionModels' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.input_explanation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.output_certificate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.shared_trusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalJournalPermutation.ContextPair.inspection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.downstream_need_forward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.downstream_need' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.proper_waiting' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.value_need_forward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.value_need' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.grounded_forward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.grounded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalLedgerPermutation.Related.supported' depends on axioms: [propext, Classical.choice, Quot.sound]

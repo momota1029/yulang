@@ -160,3 +160,4 @@ theorem nonterminal_install_of_three
   exact ⟨updated,combined,_,all,afterJournal,coverageAfter⟩
 
 end Yulang.GeneralNominalCenteredSourceLiveProduction
+

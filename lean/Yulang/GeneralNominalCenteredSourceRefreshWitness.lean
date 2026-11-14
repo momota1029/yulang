@@ -1853,3 +1853,4 @@ theorem stepR : Step registry root refreshed afterR :=
   ⟨emittedChild.occurrence,generatedR,.install planR [] enabledR novelR guardR⟩
 
 end Yulang.GeneralNominalCenteredSourceRefreshWitness
+

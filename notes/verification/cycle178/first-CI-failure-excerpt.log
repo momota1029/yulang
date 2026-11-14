@@ -1,0 +1,8 @@
+2026-11-14T01:41:22.3542843Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-14T01:41:46.1350411Z info: Yulang/SpecConformanceIndex.lean:124:0: Yulang.SpecExamples.x20_phantom_unused :
+2026-11-14T01:41:46.1355648Z       [(0, CommonDeclaredNominalVariance.Variance.unused)]
+2026-11-14T01:41:51.4364235Z warning: Yulang/GeneralDictionaryCenteredNominalExample178.lean:55:10: This simp argument is unused:
+2026-11-14T01:41:51.4365810Z Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+2026-11-14T01:42:07.8553505Z error: build failed
+2026-11-14T01:42:07.8670154Z ##[error] lake build failed
+2026-11-14T01:42:08.1522424Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

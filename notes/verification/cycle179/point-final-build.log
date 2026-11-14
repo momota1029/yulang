@@ -1,0 +1,45 @@
+BUILD GeneralDictionaryCenteredPointReadback179
+PASS exit 0
+BUILD GeneralDictionaryCenteredPointJoint179
+PASS exit 0
+BUILD GeneralDictionaryCenteredPointCandidate179
+PASS exit 0
+BUILD GeneralDictionaryCenteredPointInstall179
+PASS exit 0
+BUILD GeneralDictionaryCenteredPointExample179
+PASS exit 0
+BUILD GeneralDictionaryCenteredPointAudit179
+'Yulang.GeneralDictionaryCenteredPointReadback179.head_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointReadback179.holds_iff_readback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointJoint179.capture_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointJoint179.binder_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointJoint179.readback_extension' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointJoint179.joint_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointCandidate179.discovered_shape' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointCandidate179.initial_joint' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointInstall179.raw_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointInstall179.value_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointInstall179.installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointInstall179.initial_source_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointInstall179.initial_source_stable_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointInstall179.initial_source_bad_model_not_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointInstall179.initial_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointExample179.joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredPointExample179.enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+PASS exit 0

@@ -1,0 +1,8 @@
+# final delta 7; total unique source/checkpoint/final paths 80 (heartbeat commits separately)
+path	git_blob
+notes/handoff/dots-cycle-179.md	3bdb8f003b3cc158c25ba1139e0b83fd36e4acba
+notes/heartbeat/dots-main.md	d79bc1068a2b5c045ba5053c1e6152572b5b24cb
+notes/verification/cycle179/precompletion-gate.log	73210c1e584b7cc672d8dc6a83004aec99e4c86f
+notes/verification/cycle179/precompletion-source.log	fa24aec97c875874275c990abeea84d4a319691b
+notes/verification/cycle179/all-source-fetchback.log	c112ff3020c86cb0b002a617944e864490382cee
+notes/verification/cycle179/all-tree-fetchback.log	8b858039da6c5c3977443de3a1cf12f787983954

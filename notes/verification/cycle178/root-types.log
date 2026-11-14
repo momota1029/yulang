@@ -1,0 +1,60 @@
+Yulang.GeneralDictionaryCenteredRootNominal178.root_point {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state)
+  (index : Fin (roles root.demand.role).arity) :
+  Eq.{1} (Prod.fst.{0, 0} (root.demand.arguments index)) (Prod.snd.{0, 0} (root.demand.arguments index))
+Yulang.GeneralDictionaryCenteredRootNominal178.located_point {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (point :
+    ∀ (index : Fin (roles root.demand.role).arity),
+      Eq.{1} (Prod.fst.{0, 0} (root.demand.arguments index)) (Prod.snd.{0, 0} (root.demand.arguments index)))
+  (lower upper : Fin context.state.base.slots)
+  (located :
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments context root)
+      (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0}))) :
+  Eq.{1} lower upper
+Yulang.GeneralDictionaryCenteredRootNominal178.reachable_root_point_bounds {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state)
+  (candidate : Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state root key children plan)
+  (q : Yulang.GeneralNominalInspection.Query)
+  (query :
+    Eq.{1}
+      (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+        plan.packet.declaration)
+      (List.cons.{0} q List.nil.{0})) :
+  Exists.{1} fun slot =>
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+      (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} slot slot) List.nil.{0}))
+Yulang.GeneralDictionaryCenteredRootNominal178.LinearTerminalAt (registry : Yulang.GeneralDeclarations.Registry)
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (role : Nat) : Prop
+Yulang.GeneralDictionaryCenteredRootNominal178.point_linear_evidence_at_G_root {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (reachable :
+    Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state)
+  (selected :
+    Yulang.GeneralNominalCenteredBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children))
+  (format :
+    Yulang.GeneralDictionaryCenteredRootNominal178.LinearTerminalAt registry state.erased.current.context
+      root.demand.role)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralNominalCenteredSteps.Models state model)
+  (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload)
+  (given :
+    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model) children
+      dictionaries) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)

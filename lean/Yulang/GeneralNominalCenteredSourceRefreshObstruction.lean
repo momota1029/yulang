@@ -201,3 +201,4 @@ theorem strengthened_counterexample :
   ⟨checked,initial_source,point,refreshed_reachable,stepR,liveStart.holes,liveStart.valid,⟨liveStart.coverage⟩,not_input_readback_and_origins⟩
 
 end Yulang.GeneralNominalCenteredSourceRefreshObstruction
+
