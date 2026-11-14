@@ -32,3 +32,8 @@ theorem not_universal_selected_build : ¬ (∀ (r : GeneralDeclarations.Registry
   exact no_build payload after certificate
 
 end Yulang.GeneralNominalForestBoundary192
+
+/- Scope clarification: the preceding phrase about EvidenceNode describes
+intended use, not a proved logical implication between propositions. The
+formal negative theorem concerns only the explicitly displayed universal
+installation-certificate producer. -/
