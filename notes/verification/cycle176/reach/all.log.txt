@@ -1,0 +1,1 @@
+REACH: 5 roots; 48/72 cycle176 declarations reachable

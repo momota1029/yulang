@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionaryCenteredLedger176
+
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.ExactLedger
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.exact_at
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.exact_trace
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.initial_exact
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.reachable_exact
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.packet_member
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.packet_has_plan
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.plan_instance
+#print axioms Yulang.GeneralDictionaryCenteredLedger176.plan_evidence

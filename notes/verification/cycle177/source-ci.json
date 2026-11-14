@@ -1,0 +1,18 @@
+{
+  "commit": "5577c92ae4a0612111d7aa5c62ab8b0052a104b7",
+  "checks": [
+    {
+      "name": "core",
+      "conclusion": "success",
+      "job_id": 132268993461,
+      "url": "https://github.com/momota1029/yulang/actions/runs/43537212224/job/132268993461"
+    },
+    {
+      "name": "proof",
+      "conclusion": "success",
+      "job_id": 132268993280,
+      "url": "https://github.com/momota1029/yulang/actions/runs/43537212168/job/132268993280",
+      "steps": "Lean action, complete Audit, executable examples all success"
+    }
+  ]
+}
