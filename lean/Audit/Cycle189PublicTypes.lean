@@ -5,7 +5,6 @@ import Yulang.GeneralNominalInitialLeafStep189
 import Yulang.GeneralNominalInitialLeafEvidence189
 import Yulang.GeneralNominalInitialOutputExact189
 
-set_option pp.universes true
 #check Yulang.GeneralNominalHeadLeafPlan189.emitted_empty
 #print axioms Yulang.GeneralNominalHeadLeafPlan189.emitted_empty
 #check Yulang.GeneralNominalHeadLeafPlan189.input_schema_empty

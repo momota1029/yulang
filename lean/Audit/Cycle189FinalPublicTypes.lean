@@ -12,7 +12,6 @@ import Yulang.GeneralNominalSingleVariableModels189
 import Yulang.GeneralNominalSourceVariableEvidence189
 import Yulang.GeneralNominalSourceVariableInstall189
 
-set_option pp.universes true
 #check Yulang.GeneralNominalHeadLeafPlan189.emitted_empty
 #print axioms Yulang.GeneralNominalHeadLeafPlan189.emitted_empty
 #check Yulang.GeneralNominalHeadLeafPlan189.input_schema_empty
