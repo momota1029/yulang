@@ -491,3 +491,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered reachable permutation: correspondence and installation obligation](2026-11-14-centered-reachable-permutation.md) — concrete coherent packet pairing, reachable packet-free initialization, administrative/refresh/merge transport, trusted ledgers and value support; full installation transport and final Local agreement remain open.
 
 - [Centered permutation simulation and canonical local order](2026-11-14-centered-permutation-simulation.md) — complete reversible installation transport, coherent table extension, fixed-target Local correspondence, and unconditional canonical executor order; V5 composition has only evidenceNode and generatedChildren as inputs.
+
+- [Centered completion: reachable alias-class obstruction](2026-11-14-centered-completion-alias-obstruction.md) — actual inhabited ground installation/merge trace with merge-closed G′ selection and impossible Joint; stability and the general generatedChildren field remain open.
