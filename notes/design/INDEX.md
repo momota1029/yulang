@@ -588,7 +588,14 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Total semantic labels and successor ancestry](2026-11-15-centered-head-mat-semantic-depth.md) — full-carrier normalization and corrected child-center readback, original ground-source conversion, and unrestricted retrospective ancestry conditional on finite enabled-head captures and their mass bound; unconditional depth and progress remain open.
 
 - [Ground head readback for total materialization](2026-11-15-centered-head-mat-head-readback.md) — semantic projection and head-mass inversion for arbitrary counted labels, finite center captures from the actual head-only frame, and unconditional ground depth, finite cover, accessibility and progress for the unrestricted successor Step.
+
+- [Canonical exits and live class retention for total materialization](2026-11-15-centered-head-mat-canonical-closure.md) — unrestricted two-way permutation simulation, unconditional canonical exit lifting and order laws, and reachable installation request invariance discharging all future live effects; head baseline, corrected packet assembly, choice agreement, and exhaustive K2 projections remain open.
+
+- [Output targets lose their clause identity](2026-11-15-centered-head-mat-output-target-collision.md) — checked WF ground initial counterexample: two distinct child clauses reuse a locally valid output equation ID, so total materialization gives one target incompatible meanings; stable selected parent refutes PacketAssembly and generated-child production.
 - [Cycle195 mixed readback catalogue](2026-11-14-cycle195-reuse-catalogue.md) and [module guide](2026-11-14-cycle195-catalogue-module-guide.md).
 - [Cycle195 current completion and limits](2026-11-14-cycle195-current-completion-guide.md).
-
 - [Cycle196 descriptor-changing reinspection transport](2026-11-14-cycle196-view-transport.md): exact same-model source dictionary/readback transport through fixed-skeleton view replacement and actual WF refresh; variable-only automatic reinspection and inhabited descriptor-change regression. Unrestricted refresh and current-Frame production remain open.
+- [Cycle196 executable descriptor insertion](2026-11-14-cycle196-executable-view.md) — actual WF refresh and same-model readback.
+
+- [Cycle196 rooted reinspection](2026-11-14-cycle196-rooted-view.md) — finite dictionary support.
+- [Cycle196 strict locality regression](2026-11-14-cycle196-rooted-example.md) — local support without global report agreement.

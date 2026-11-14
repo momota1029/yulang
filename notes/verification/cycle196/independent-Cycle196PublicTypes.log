@@ -1,0 +1,198 @@
+Yulang.GeneralNominalViewTransport196.bindings_report (state : Yulang.GeneralNominalState.State)
+  (next : Yulang.GeneralNominalViewTransport196.View state)
+  (value : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralNominalRecursiveInspection.bindings (Yulang.GeneralNominalViewTransport196.replace state next)
+      (Yulang.GeneralNominalViewTransport196.report next value) =
+    Yulang.GeneralNominalRecursiveInspection.bindings state value
+Yulang.GeneralNominalViewTransport196.selfChecks_report (state : Yulang.GeneralNominalState.State)
+  (next : Yulang.GeneralNominalViewTransport196.View state)
+  (value : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralNominalRecursiveInspection.selfChecks (Yulang.GeneralNominalViewTransport196.replace state next)
+      (Yulang.GeneralNominalViewTransport196.report next value) =
+    Yulang.GeneralNominalRecursiveInspection.selfChecks state value
+Yulang.GeneralNominalViewTransport196.projection_report (state : Yulang.GeneralNominalState.State)
+  (next : Yulang.GeneralNominalViewTransport196.View state)
+  (value : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalRecursiveInspection.ProjectionModels (Yulang.GeneralNominalViewTransport196.replace state next)
+      (Yulang.GeneralNominalViewTransport196.report next value) model ↔
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels state value model
+Yulang.GeneralNominalViewTransport196.materialization_report (state : Yulang.GeneralNominalState.State)
+  (next : Yulang.GeneralNominalViewTransport196.View state)
+  (value : Yulang.GeneralNominalRecursiveInspection.Report state) (decl : Yulang.GeneralDeclarations.Declaration)
+  (captured : Yulang.GeneralDeclarationDemands.Capture) (schema : Yulang.GeneralNominalMaterialization.Schema)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalMaterialization.Models (Yulang.GeneralNominalViewTransport196.replace state next) decl captured
+      (Yulang.GeneralNominalViewTransport196.report next value) schema model ↔
+    Yulang.GeneralNominalMaterialization.Models state decl captured value schema model
+Yulang.GeneralNominalViewTransport196.finished_report (state : Yulang.GeneralNominalState.State)
+  (next : Yulang.GeneralNominalViewTransport196.View state)
+  (value : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralNominalRecursiveInspection.Finished (Yulang.GeneralNominalViewTransport196.report next value) ↔
+    Yulang.GeneralNominalRecursiveInspection.Finished value
+Yulang.GeneralNominalViewTransport196.generated_eq {old : Yulang.GeneralNominalCandidates.Context}
+  {next : Yulang.GeneralNominalViewTransport196.View old.state} {declaration : Yulang.GeneralDeclarations.Declaration}
+  {bounds : List (Yulang.GeneralNominalInspection.Bounds old.state)} {roles : Yulang.Roles.RoleDecls}
+  (checkedReport : Yulang.GeneralNominalViewTransport196.Rechecked old next declaration bounds)
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration) :
+  Yulang.GeneralNominalRecursiveCandidates.generated registry (Yulang.GeneralNominalViewTransport196.context old next)
+      root declaration checked bounds =
+    Yulang.GeneralNominalRecursiveCandidates.generated registry old root declaration checked bounds
+Yulang.GeneralNominalViewTransport196.branch_transport {old : Yulang.GeneralNominalCandidates.Context}
+  {next : Yulang.GeneralNominalViewTransport196.View old.state} {declaration : Yulang.GeneralDeclarations.Declaration}
+  {bounds : List (Yulang.GeneralNominalInspection.Bounds old.state)} {roles : Yulang.Roles.RoleDecls}
+  (checkedReport : Yulang.GeneralNominalViewTransport196.Rechecked old next declaration bounds)
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalViewTransport196.replace old.state next) model)
+  (branch : Yulang.GeneralNominalRecursiveCandidates.BranchModels registry old root declaration checked bounds model) :
+  Yulang.GeneralNominalRecursiveCandidates.BranchModels registry
+    (Yulang.GeneralNominalViewTransport196.context old next) root declaration checked bounds model
+Yulang.GeneralNominalViewTransport196.instance_transport {old : Yulang.GeneralNominalCandidates.Context}
+  {next : Yulang.GeneralNominalViewTransport196.View old.state} {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (rechecked : Yulang.GeneralNominalViewTransport196.Rechecks registry old next)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalViewTransport196.replace old.state next) model)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (source : Yulang.GeneralDictionaryRecursiveEvidence.Instance registry old model root key children) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry (Yulang.GeneralNominalViewTransport196.context old next)
+    model root key children
+Yulang.GeneralNominalViewTransport196.evidence_transport {old : Yulang.GeneralNominalCandidates.Context}
+  {next : Yulang.GeneralNominalViewTransport196.View old.state} {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (rechecked : Yulang.GeneralNominalViewTransport196.Rechecks registry old next)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalViewTransport196.replace old.state next) model)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (payload : Yulang.GeneralDictionaryReadback.Payload)
+  (source : Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry old model root payload) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry (Yulang.GeneralNominalViewTransport196.context old next)
+    model root payload
+Yulang.GeneralNominalViewRefresh196.evidence_refresh {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {next : Yulang.GeneralNominalViewTransport196.View state.core.erased.current.context.state}
+  (rechecked : Yulang.GeneralNominalViewTransport196.Rechecks registry state.core.erased.current.context next)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models
+      (Yulang.GeneralNominalCenteredHeadStepKernel.refresh state
+        (Yulang.GeneralNominalViewTransport196.context state.core.erased.current.context next))
+      model)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (payload : Yulang.GeneralDictionaryReadback.Payload)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root payload) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry
+    (Yulang.GeneralNominalCenteredHeadStepKernel.refresh state
+      (Yulang.GeneralNominalViewTransport196.context state.core.erased.current.context next))
+    model root payload
+Yulang.GeneralNominalViewRefresh196.universal_refresh {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {next : Yulang.GeneralNominalViewTransport196.View state.core.erased.current.context.state}
+  (certificate :
+    Yulang.GeneralNominalCenteredSteps.Refresh state.core
+      (Yulang.GeneralNominalViewTransport196.context state.core.erased.current.context next))
+  (rechecked : Yulang.GeneralNominalViewTransport196.Rechecks registry state.core.erased.current.context next)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (payload : Yulang.GeneralDictionaryReadback.Payload)
+  (source :
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root payload)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models
+      (Yulang.GeneralNominalCenteredHeadStepKernel.refresh state
+        (Yulang.GeneralNominalViewTransport196.context state.core.erased.current.context next))
+      model →
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry
+      (Yulang.GeneralNominalCenteredHeadStepKernel.refresh state
+        (Yulang.GeneralNominalViewTransport196.context state.core.erased.current.context next))
+      model root payload
+Yulang.GeneralNominalViewRefresh196.reusable_instance_refresh {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {next : Yulang.GeneralNominalViewTransport196.View state.core.erased.current.context.state}
+  (certificate :
+    Yulang.GeneralNominalCenteredSteps.Refresh state.core
+      (Yulang.GeneralNominalViewTransport196.context state.core.erased.current.context next))
+  (rechecked : Yulang.GeneralNominalViewTransport196.Rechecks registry state.core.erased.current.context next)
+  {plan : Yulang.GeneralNominalCenters.Plan roles}
+  (reuse : Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models
+      (Yulang.GeneralNominalCenteredHeadStepKernel.refresh state
+        (Yulang.GeneralNominalViewTransport196.context state.core.erased.current.context next))
+      model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry
+    (Yulang.GeneralNominalViewTransport196.context state.core.erased.current.context next) model
+    plan.packet.site.occurrence plan.packet.declaration.id plan.packet.children
+Yulang.GeneralNominalVariableView196.inspect_variable (state : Yulang.GeneralNominalState.State)
+  (next : Yulang.GeneralNominalViewTransport196.View state) (names : List Nat)
+  (bounds : Yulang.GeneralNominalInspection.Bounds state)
+  (origin : Option Yulang.GeneralNominalRecursiveInspection.Origin) :
+  Yulang.GeneralNominalRecursiveInspection.inspect (Yulang.GeneralNominalViewTransport196.replace state next)
+      (Yulang.GeneralNominalInspection.Query.variables names) bounds origin =
+    Yulang.GeneralNominalViewTransport196.report next
+      (Yulang.GeneralNominalRecursiveInspection.inspect state (Yulang.GeneralNominalInspection.Query.variables names)
+        bounds origin)
+Yulang.GeneralNominalVariableView196.report_append (state : Yulang.GeneralNominalState.State)
+  (next : Yulang.GeneralNominalViewTransport196.View state)
+  (first last : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralNominalViewTransport196.report next (first.append last) =
+    (Yulang.GeneralNominalViewTransport196.report next first).append
+      (Yulang.GeneralNominalViewTransport196.report next last)
+Yulang.GeneralNominalVariableView196.inspect_variables (state : Yulang.GeneralNominalState.State)
+  (next : Yulang.GeneralNominalViewTransport196.View state) (names : List (List Nat))
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds state))
+  (origins : Nat → Option Yulang.GeneralNominalRecursiveInspection.Origin) (index : Nat) :
+  Yulang.GeneralNominalRecursiveInspection.inspectMany (Yulang.GeneralNominalViewTransport196.replace state next)
+      (List.map Yulang.GeneralNominalInspection.Query.variables names) bounds origins index =
+    Yulang.GeneralNominalViewTransport196.report next
+      (Yulang.GeneralNominalRecursiveInspection.inspectMany state
+        (List.map Yulang.GeneralNominalInspection.Query.variables names) bounds origins index)
+Yulang.GeneralNominalVariableView196.rechecked_variables (old : Yulang.GeneralNominalCandidates.Context)
+  (next : Yulang.GeneralNominalViewTransport196.View old.state) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (names : List (List Nat))
+  (shape :
+    Yulang.GeneralNominalInspection.queries old.state old.interpretation declaration =
+      List.map Yulang.GeneralNominalInspection.Query.variables names)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds old.state)) :
+  Yulang.GeneralNominalViewTransport196.Rechecked old next declaration bounds
+Yulang.GeneralNominalVariableView196.rechecks_variables (registry : Yulang.GeneralDeclarations.Registry)
+  (old : Yulang.GeneralNominalCandidates.Context) (next : Yulang.GeneralNominalViewTransport196.View old.state)
+  (shape :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        ∃ names,
+          Yulang.GeneralNominalInspection.queries old.state old.interpretation declaration =
+            List.map Yulang.GeneralNominalInspection.Query.variables names) :
+  Yulang.GeneralNominalViewTransport196.Rechecks registry old next
+Yulang.GeneralNominalViewExample196.descriptor_changed :
+  Yulang.GeneralNominalViewExample196.before.state.nominals 0 = none ∧
+    Yulang.GeneralNominalViewExample196.after.state.nominals ⟨0, ⋯⟩ = some Yulang.GeneralNominalExamples.listDescriptor
+Yulang.GeneralNominalViewExample196.before_models :
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalViewExample196.before.state Yulang.GeneralNominalExamples.model
+Yulang.GeneralNominalViewExample196.after_models :
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalViewExample196.after.state Yulang.GeneralNominalExamples.model
+Yulang.GeneralNominalViewExample196.variable_query :
+  Yulang.GeneralNominalInspection.queries Yulang.GeneralNominalViewExample196.before.state
+      Yulang.GeneralNominalViewExample196.before.interpretation Yulang.GeneralNominalViewExample196.declaration =
+    [Yulang.GeneralNominalInspection.Query.variables [0]]
+Yulang.GeneralNominalViewExample196.rechecked
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds Yulang.GeneralNominalViewExample196.before.state)) :
+  Yulang.GeneralNominalViewTransport196.Rechecked Yulang.GeneralNominalViewExample196.before
+    Yulang.GeneralNominalViewExample196.next Yulang.GeneralNominalViewExample196.declaration bounds
+Yulang.GeneralNominalViewExample196.not_ordinary_extension :
+  ¬Yulang.GeneralDictionaryOrdinaryTrace.Extension Yulang.GeneralNominalViewExample196.before
+      Yulang.GeneralNominalViewExample196.after
+Yulang.GeneralNominalViewExample196.inhabited_change :
+  Yulang.GeneralNominalViewExample196.before.state.nominals 0 ≠
+      Yulang.GeneralNominalViewExample196.after.state.nominals ⟨0, ⋯⟩ ∧
+    Yulang.GeneralNominalState.Models Yulang.GeneralNominalViewExample196.before.state
+        Yulang.GeneralNominalExamples.model ∧
+      Yulang.GeneralNominalState.Models Yulang.GeneralNominalViewExample196.after.state
+          Yulang.GeneralNominalExamples.model ∧
+        Yulang.GeneralNominalViewTransport196.Rechecked Yulang.GeneralNominalViewExample196.before
+            Yulang.GeneralNominalViewExample196.next Yulang.GeneralNominalViewExample196.declaration [(0, 0), (1, 1)] ∧
+          ¬Yulang.GeneralDictionaryOrdinaryTrace.Extension Yulang.GeneralNominalViewExample196.before
+              Yulang.GeneralNominalViewExample196.after
