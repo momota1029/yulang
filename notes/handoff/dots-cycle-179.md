@@ -107,3 +107,27 @@ not realization of colliding new values or new Plan.Holds. Independent review
 checked every dependency category and warned that source seed freshness alone
 does not exclude collisions with historical journal binders/private identities.
 The actual-candidate overlap/coherence producer remains open.
+
+## Interruption recovery and final small extension
+
+The environment interrupted the second checkpoint's tree preparation. On
+recovery at03:11 the branch was still0a0d5fc8 (the02:51 heartbeat), no second
+source ref update had occurred and no old writer/build was running. The03:01
+heartbeat was missed during this interruption. A recovery heartbeat was sent
+immediately. Immutable tree preparation was retried only after branch inspection.
+The second source995169a35355428c7dce7c074a334ccbb23a56f0 then published44 paths,
+all fetched-tree hashes matching. It includes integration00bdd63 as an ancestor.
+
+The final fifteenth source module constructs a finite nominal model extension
+on an arbitrary existing centered journal: previous Models, finite linked
+origins/endpoints, Fits/readback values, collision coherence and old-footprint
+value retention imply one extended model preserving the whole old Models and
+realizing every supplied nominal argument. No new Plan.Holds or common-model
+premise is assumed. The actual selected-candidate overlap/readback producer is
+still missing, so this does not close unrestricted G.EvidenceNode.
+
+At03:14 integration had advanced to059e217e5a57780874baf7393e7208debe012a8c.
+That newly discovered integration is deferred to the next cycle rather than
+unverified last-minute rebasing. This cycle incorporated and tested00bdd63;
+its own prior files remain intact. Fresh inbox was reread at03:16: I30 unchanged,
+no STOP. The final deadline remains03:26:09,55 minutes after actual start.

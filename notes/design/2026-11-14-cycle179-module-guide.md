@@ -91,3 +91,13 @@ footprint 外なら任意の型値を書き込む有限更新を許す。row 値
 Plan.Holds の成立は別途必要。source 名の seed 上界だけでは、過去の fresh binder も
 含む fullSources との分離は導けない。前節の課題2の frame 定理自体は今回成立したが、
 実 candidate の更新がその前提を満たす生産は課題1・3として残る。
+
+## 任意の既存 journal 上の有限 nominal extension
+
+`GeneralNominalCenteredJournalExtension179.nominal_extension` は任意の centered state、
+有限 NominalArgument 列、元の Models と型値列を量化する。必要条件は各端点・観察根が
+旧 fullSources にあること、各値の Fits/readback、同じ center への値の一致、旧 footprint
+内に再使用する center の元の値保持。これらの局所的有限条件から、旧 Models を保ち、
+旧 footprint の全 Assignment を保存し、指定した全 center の型値と NominalArgument.Holds
+を同時に実現する extended モデルを構成する。新 Plan.Holds や共通モデルを仮定しない。
+実 Candidate がこれらの overlap/readback 条件を供給することは引き続き未証明。

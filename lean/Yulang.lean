@@ -2984,3 +2984,4 @@ import Yulang.GeneralDictionaryCenteredSharedAny179
 import Yulang.GeneralNominalCenteredFrame179
 import Yulang.GeneralNominalCenteredEmptyFrame179
 import Yulang.GeneralNominalRawFrame179
+import Yulang.GeneralNominalCenteredJournalExtension179
