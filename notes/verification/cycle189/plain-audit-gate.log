@@ -1,0 +1,3 @@
+TYPES_EXIT:0
+complete-public-types.log printed 138 parser_bad ['Classical.choice.{u}', 'Quot.sound.{u}']
+plain-public-types.log printed 138 parser_bad []

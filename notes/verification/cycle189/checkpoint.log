@@ -1,0 +1,5 @@
+✔ [1052/1052] Built Yulang.GeneralNominalOutputCoverage189 (1.5s)
+Build completed successfully (1052 jobs).
+BUILD_EXIT:0
+AXIOM-GATE-PASS: 7 declarations including generated/private
+GATE_EXIT:0
