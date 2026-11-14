@@ -493,3 +493,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered permutation simulation and canonical local order](2026-11-14-centered-permutation-simulation.md) — complete reversible installation transport, coherent table extension, fixed-target Local correspondence, and unconditional canonical executor order; V5 composition has only evidenceNode and generatedChildren as inputs.
 
 - [Centered completion: reachable alias-class obstruction](2026-11-14-centered-completion-alias-obstruction.md) — actual inhabited ground installation/merge trace with merge-closed G′ selection and impossible Joint; stability and the general generatedChildren field remain open.
+
+- [Centered class-wide applicability and the unchanged installation guard](2026-11-14-centered-class-local.md) — G″ filters candidates by joint alias-class requests and retains twelve V5 fields; the earlier snapshot enables equality feedback, and a new reachable feasible class selection is blocked by the frozen per-occurrence uniqueness guard. Stable child production remains conditional.
