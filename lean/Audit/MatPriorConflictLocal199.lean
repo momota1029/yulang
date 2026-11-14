@@ -1,0 +1,14 @@
+import Yulang.GeneralDictionaryMatPriorConflictLocal199
+
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.known
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.survivor
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.unique
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.frame
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.frame_plan
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.head_schema
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.head_equations
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.scalar_no_edge
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.scalar_acyclic
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.inspection_exact
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.administrative_ready
+#print axioms Yulang.GeneralDictionaryMatPriorConflictLocal199.safe

@@ -1,0 +1,21 @@
+import Yulang.GeneralDictionaryMatPriorConflict199
+
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.output_request
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.no_packet
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.no_install
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.generated_only_root
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.stable
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.requested_nominal
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.no_instance
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.no_evidence
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.children_empty
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.not_prior_evidenceNode
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.request_here
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.request_exact
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.ready
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.no_effects
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.output_conflict
+#print axioms Yulang.GeneralDictionaryMatPriorConflict199.rejected
+
+#check @Yulang.GeneralDictionaryMatPriorConflict199.not_prior_evidenceNode
+#check @Yulang.GeneralDictionaryMatPriorConflict199.rejected
