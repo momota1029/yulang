@@ -1,0 +1,3 @@
+AXIOM-GATE-PASS: 136 declarations
+'Yulang.GeneralNominalInspectionTrace197.trace_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalInspectionTrace197.traces_report' depends on axioms: [propext, Quot.sound]
