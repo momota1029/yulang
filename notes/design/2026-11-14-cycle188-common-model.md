@@ -38,3 +38,17 @@ head lists, retaining syntactic output schema coverage. When the root has no
 named output requests, coverage is derived and no readiness premise remains.
 This is existential feasibility, not universal dictionary soundness, Plan.Holds,
 installation or child materialization.
+
+Mixed-root extension: arbitrary finite interleavings of variable, scalar and
+nominal queries now share one proof. Repeated names may cross different root
+kinds. Raw compatibility supplies the previously absent variable-source cross
+constraints. Nominal descendants stay unrestricted. Structural root projection
+has a separate semantic correspondence to the real child source slot, derived
+from the canonical source shape rather than a caller-provided equality.
+
+Witness scope: initial_extension returns one model satisfying current Models,
+HeadEquations, HeadModels and centered ProjectionModels. selected_effects then
+uses V6's no-output-conflict rule to obtain a ChosenClassEffects model. That
+second existential witness need not be the first witness; the theorem does not
+assert its HeadModels/projection properties. Nor does it imply every current
+model satisfies a chosen candidate or dictionary.
