@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryAgreedComposition174
+#print axioms Yulang.GeneralDictionaryAgreedComposition174.Remaining
+#print axioms Yulang.GeneralDictionaryAgreedComposition174.policy_at
+#print axioms Yulang.GeneralDictionaryAgreedComposition174.evidenceNode
+#print axioms Yulang.GeneralDictionaryAgreedComposition174.generatedChildren
+#print axioms Yulang.GeneralDictionaryAgreedComposition174.generatedChildren_pending
+#print axioms Yulang.GeneralDictionaryAgreedComposition174.bridges
+#print axioms Yulang.GeneralDictionaryAgreedComposition174.statement

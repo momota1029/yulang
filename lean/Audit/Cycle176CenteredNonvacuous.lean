@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryCenteredNonvacuous176
+
+#print axioms Yulang.GeneralDictionaryCenteredNonvacuous176.Step
+#print axioms Yulang.GeneralDictionaryCenteredNonvacuous176.revision_trace
+#print axioms Yulang.GeneralDictionaryCenteredNonvacuous176.aligned_trace
+#print axioms Yulang.GeneralDictionaryCenteredNonvacuous176.actual_trace
+#print axioms Yulang.GeneralDictionaryCenteredNonvacuous176.initial_dictionary_nonvacuous

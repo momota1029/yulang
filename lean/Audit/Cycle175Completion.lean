@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryAgreedCompletion175
+
+#print axioms Yulang.GeneralDictionaryAgreedCompletion175.dictionary_evidence
+#print axioms Yulang.GeneralDictionaryAgreedCompletion175.dictionaries_evidence
+#print axioms Yulang.GeneralDictionaryAgreedCompletion175.halted_dictionary_evidence
+#print axioms Yulang.GeneralDictionaryAgreedCompletion175.halted_pending_dictionary_evidence
+#print axioms Yulang.GeneralDictionaryAgreedCompletion175.selected_instance_of_recorded
+#print axioms Yulang.GeneralDictionaryAgreedCompletion175.selected_evidence_of_recorded
