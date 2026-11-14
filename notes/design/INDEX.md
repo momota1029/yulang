@@ -574,3 +574,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle191 WF installed trees](2026-11-14-cycle191-wf-installed-trees.md): ordinary trace transport and finite installed forests; certificate existence is explicit.
 - [Cycle191 quantified claims](2026-11-14-cycle191-claims-ja.md): exact installation/certificate premises and the remaining existence gap.
+
+- [Cycle192 committed-or-installed forests](2026-11-14-cycle192-committed-forest.md) — Draft, I32 certificate boundary.
