@@ -1,0 +1,16 @@
+{
+  "new_modules": 9,
+  "root_import_counts": {
+    "GeneralDictionaryAgreedCertifiedEvidence175": 1,
+    "GeneralDictionaryAgreedCompactTable175": 1,
+    "GeneralDictionaryAgreedCompletion175": 1,
+    "GeneralDictionaryAgreedFlexibleCompletion175": 1,
+    "GeneralDictionaryAgreedFlexibleTrace175": 1,
+    "GeneralDictionaryAgreedTable175": 1,
+    "GeneralDictionaryAgreedTableExamples175": 1,
+    "GeneralDictionaryNominalOnlyRefresh175": 1,
+    "GeneralDictionaryNominalViewRegression175": 1
+  },
+  "audit_import_missing": [],
+  "checked_local_links_missing": []
+}

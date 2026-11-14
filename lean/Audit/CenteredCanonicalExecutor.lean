@@ -1,0 +1,85 @@
+import Yulang.GeneralCanonicalRegistry
+import Yulang.GeneralNominalCenteredRegistryPassive
+import Yulang.GeneralNominalPacketReordering
+import Yulang.GeneralNominalCenteredPlanReordering
+import Yulang.GeneralNominalCenteredCanonicalExecutor
+import Yulang.GeneralNominalCenteredCanonicalTransport
+
+#print axioms Yulang.GeneralCanonicalRegistry.reorders_canonical
+#print axioms Yulang.GeneralCanonicalRegistry.class_iff
+#print axioms Yulang.GeneralCanonicalRegistry.canonical_eq
+#print axioms Yulang.GeneralCanonicalRegistry.canonical_idempotent
+#print axioms Yulang.GeneralCanonicalRegistry.canonical_checked
+#print axioms Yulang.GeneralCanonicalRegistry.constructors
+#print axioms Yulang.GeneralCanonicalRegistry.roles
+#print axioms Yulang.GeneralCanonicalRegistry.canonical_eq_iff
+
+#print axioms Yulang.GeneralNominalCenteredRegistryPassive.administrative
+#print axioms Yulang.GeneralNominalCenteredRegistryPassive.packet_free_at
+#print axioms Yulang.GeneralNominalCenteredRegistryPassive.packet_free_step
+#print axioms Yulang.GeneralNominalCenteredRegistryPassive.packet_free_steps
+#print axioms Yulang.GeneralNominalCenteredRegistryPassive.packet_free_reachable
+#print axioms Yulang.GeneralNominalCenteredRegistryPassive.canonical_reachable
+
+#print axioms Yulang.GeneralNominalPacketReordering.bindings
+#print axioms Yulang.GeneralNominalPacketReordering.capture
+#print axioms Yulang.GeneralNominalPacketReordering.children
+#print axioms Yulang.GeneralNominalPacketReordering.private_models
+#print axioms Yulang.GeneralNominalPacketReordering.holds
+#print axioms Yulang.GeneralNominalPacketReordering.named_schema
+#print axioms Yulang.GeneralNominalPacketReordering.input_requests
+#print axioms Yulang.GeneralNominalPacketReordering.input_schema
+#print axioms Yulang.GeneralNominalPacketReordering.ordinary
+#print axioms Yulang.GeneralNominalPacketReordering.inputs
+#print axioms Yulang.GeneralNominalPacketReordering.outputs
+#print axioms Yulang.GeneralNominalPacketReordering.allocated_membership
+#print axioms Yulang.GeneralNominalPacketReordering.reserved_membership
+#print axioms Yulang.GeneralNominalPacketReordering.clause_child
+#print axioms Yulang.GeneralNominalPacketReordering.usable
+#print axioms Yulang.GeneralNominalPacketReordering.shared_origin
+#print axioms Yulang.GeneralNominalPacketReordering.fallback_origin
+#print axioms Yulang.GeneralNominalPacketReordering.fallback_child_origin
+#print axioms Yulang.GeneralNominalPacketReordering.shared_child_origin
+#print axioms Yulang.GeneralNominalPacketReordering.shared_child_site
+#print axioms Yulang.GeneralNominalPacketReordering.shared_emitted_sites
+
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.binder
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.head_schema
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.schema_holds
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.emitted_center
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.child_site
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.child_requests
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.needed
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.equations
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.holds
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.emitted_mem
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.emitted_perm
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.child_schema
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.tests_mem
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.inspection
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.safe
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.installed_models
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.installed_raw_sites
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.installed_edges
+#print axioms Yulang.GeneralNominalCenteredPlanReordering.installed_center_sites
+
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.canonical_checked
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.lifted_exit_of_canonical
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.final_exit
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.final_nonempty
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.final_lifted
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.execution
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.halted
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.treeExecution
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.canonicalLocalOrder
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.final_models
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.final_stable
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.bridges
+#print axioms Yulang.GeneralNominalCenteredCanonicalExecutor.composition
+
+#print axioms Yulang.GeneralNominalCenteredCanonicalTransport.steps_backward
+#print axioms Yulang.GeneralNominalCenteredCanonicalTransport.halt_reflects
+#print axioms Yulang.GeneralNominalCenteredCanonicalTransport.lifted_exit_of_simulation
+#print axioms Yulang.GeneralNominalCenteredCanonicalTransport.canonical_exit_lifting
+#print axioms Yulang.GeneralNominalCenteredCanonicalTransport.canonicalLocalOrder
+#print axioms Yulang.GeneralNominalCenteredCanonicalTransport.composition
