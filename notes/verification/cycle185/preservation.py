@@ -17,3 +17,8 @@ for p in sorted(Path('lean/Yulang').glob('*185.lean')):
  assert Path('lean/Yulang.lean').read_text().count('import Yulang.'+p.stem+'\n')==1,p
 print('PASS: all',len(paths),'upstream paths retained; old Lean exact except appended root; INDEX prefix; checkpoint1 proof sources unchanged; all new modules imported exactly once')
 Path('notes/verification/cycle185/source-hashes.tsv').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'\t'+str(p)+'\n' for p in sorted(Path('lean/Yulang').glob('*185.lean'))))
+for checkpoint in ['ac2399ac4dd73d9bdb9a0ffaef7b10950c01a404','be65cec80b135558472440834a499de3a39f1a5e']:
+ for path in git('ls-tree','-r','--name-only',checkpoint).decode().splitlines():
+  if path.startswith('lean/') and path.endswith('185.lean'):
+   assert Path(path).read_bytes()==git('show',checkpoint+':'+path),(checkpoint,path)
+print('PASS: all published checkpoint2/3 cycle185 proof sources unchanged')

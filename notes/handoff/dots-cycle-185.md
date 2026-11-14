@@ -99,3 +99,38 @@ not a new counterexample by this cycle, and does not invalidate the support
 lemmas above. It prevents claiming that these lemmas complete the current
 general boundary. Definition/production repair belongs to the supervisor's
 Astra assignment; no unauthorized boundary/spec rewrite was made.
+
+## 最終成果と受入条件
+
+最終追加はHeadSemanticTransport185の6定理。HeadのSame移送、投影の観測同値、共通Expr構造の対応leaf SameによるHolds移送。投影Sameに必要な観測存在・coherenceは明示した。generated-demandのschema対応まで証明したとは数えない。
+
+合計 **20新規モジュール、107公開定理、147宣言の公理gate**。I32の実WF/head Stepへ支持・由来・root有限拡張を移した。I24/I31のroot末尾importとI27の既存source保存を監査。一般EvidenceNodeの新規閉鎖は0、全候補Jointも未達。13定義の棚卸し・日本語の量化子付き主張・3つの次橋は `notes/design/2026-11-14-cycle185-claims-ja.md`。全定理型は `notes/verification/cycle185/theorem-signatures.md` と `public-types.txt`、追加分 `semantic-types.txt`。
+
+最終の一般3root到達検査は **0/147**、局所5rootは **118/147**。型とopaque proof bodyの定数依存を含めた構文的な到達検査であり、一般B4接続や意味論の適合を保証する数字ではない。
+
+### 検証と再現
+
+リポジトリrootから、固定Lean4.35.0のPATHを設定して:
+
+```bash
+bash notes/verification/cycle185/reproduce.sh
+```
+
+- `lake build --wfail` の焦点target: HeadRootExtension185、HeadHistoricalExtension185、HeadSemanticTransport185、既存HeadWFJoinCounterexample。最終1060jobs PASS（大半はcache、全体buildではない）。
+- `lake env lean --trust=0 -DwarningAsError=true Audit/Cycle185ReleaseGate.lean`: PASS147宣言。許可はpropext/Classical.choice/Quot.soundのみ。新公理なし。
+- 公開101型＋追加6型の出力、全20sourceのtrust0/warningsAsErrors検証、preservationと到達検査を同スクリプトで再実行。
+- `preservation.py`: fresh integrationの5298pathを保持、既存Leanはroot末尾追記以外byte一致、INDEX prefix保存、checkpoint1/2/3の公開済み185proof source不変。
+- コマンド全文・出力・exitは `notes/verification/cycle185/`。旧checkpointの138宣言ログも履歴として残し、最新147宣言結果と混同しない。
+- 全体 `lake build`、`tools/verify-lean.sh`、全CI、Yulang2実機の新規実行はしていない。常設指示の全体検証禁止に従い、監督側の検証が必要。
+
+### 失敗・制限・引継ぎ
+
+初期のPrepared→full-output Linkedという強過ぎる読み替えはコンパイルで失敗し、実source poolとraw登録から必要な歴史targetリンクを導出して修正。並行delegateの未公開重複moduleは検出・除外してから統一版を検証。公開済みproofは修正していない。副次的なstyle整理や既存import並替えもない。
+
+最新integrationは09時台の再取得でもfa34ca1e4935de2b8fa0fa5d44ee9645878d2e6e。前サイクル184はcompletedで報告あり、開始時に実行中writer/buildなし。今回は唯一の公開writerとし、内部delegateは新規moduleのみ分担した。新しい意味論判断/質問ノートなし。使用量枠は不明。承認待ちなし。
+
+公開は全てGitHub appのexpected-head leaseを使いwork/dots-mainだけ。checkpoint3 be65cec80b135558472440834a499de3a39f1a5eの全tree照合PASS。09:04:48心拍37a77dd817f08e065517ed50f33d753ed325e530も取得・内容照合PASS。最終commit/treeはこの報告とcompleted心拍を含め、公開後に取得照合して会話へ返す。
+
+最終再現スクリプトの全文ログ `release-reproduce.txt`、終了コード `release-reproduce.exit` = 0。検証・scopeレビュー完了 2026-11-14T09:08:59Z、開始から約33.9分。55分上限（監督側の保守的締切09:22）内に最終公開へ進む。長い実行時間を求める旧文書より、この上限を優先した。
+
+前cycle184の最終公開からの最終差分は 93ファイル（取り込んだintegration差分を含む）。一覧は `notes/verification/cycle185/publication-files.txt`。新規Lean proof modulesは20、rootは末尾20importのみ。

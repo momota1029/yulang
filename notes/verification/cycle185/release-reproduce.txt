@@ -1,0 +1,1503 @@
+PASS: all 5298 upstream paths retained; old Lean exact except appended root; INDEX prefix; checkpoint1 proof sources unchanged; all new modules imported exactly once
+PASS: all published checkpoint2/3 cycle185 proof sources unchanged
+Build completed successfully (1060 jobs).
+AXIOM-GATE-PASS: 147 declarations (definitions/private/generated included)
+Yulang.GeneralNominalHeadBinderIdentity185.registered_binder_identity {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (name : Nat)
+  (equal :
+    Eq.{1} (plan.binder name)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Eq.{1} name owner ∧
+    Eq.{1} position 0 ∧
+      Eq.{1} plan.packet.site.occurrence.identity invocation ∧
+        Eq.{1} plan.packet.declaration.id declaration ∧
+          ¬Membership.mem.{0, 0} plan.packet.declaration.outputNames name ∧
+            Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture plan.packet).inputs name))
+              (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture plan.packet).inputs name))
+Yulang.GeneralNominalHeadCandidateReadback185.registered_inputs {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Membership.mem.{0, 0} state.core.plans plan → Membership.mem.{0, 0} state.core.sites plan.input
+Yulang.GeneralNominalHeadCandidateReadback185.wf_registered_input {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (member : Membership.mem.{0, 0} state.core.plans plan) :
+  Membership.mem.{0, 0} state.core.sites plan.input
+Yulang.GeneralNominalHeadCandidateReadback185.wf_input_equal {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (registered : Membership.mem.{0, 0} state.core.sites candidate.input)
+  (same : Eq.{1} candidate.packet.site.occurrence historical.packet.site.occurrence) :
+  Eq.{1} candidate.input historical.input
+Yulang.GeneralNominalHeadCandidateReadback185.candidate_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (registered : Membership.mem.{0, 0} state.core.sites candidate.input)
+  (same : Eq.{1} candidate.packet.site.occurrence historical.packet.site.occurrence)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (present : Membership.mem.{0, 0} candidate.headSchema.variables entry)
+  (actual : Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalOriginTerms.Same model entry.origin
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source (historical.binder entry.name))
+Yulang.GeneralNominalHeadCandidateReadback185.candidate_nonpoint_overlap {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (registered : Membership.mem.{0, 0} state.core.sites candidate.input)
+  (same : Eq.{1} candidate.packet.site.occurrence historical.packet.site.occurrence)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (present : Membership.mem.{0, 0} candidate.headSchema.variables entry)
+  (actual : Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual)
+  (input : ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames entry.name)
+  (candidateNonpoint :
+    Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name))
+      (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name)))
+  (historicalNonpoint :
+    Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture historical.packet).inputs entry.name))
+      (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture historical.packet).inputs entry.name)))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalOriginTerms.Same model entry.origin
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source (candidate.binder entry.name))
+Yulang.GeneralNominalHeadCoreCoverage185.registered_finished {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {context : Yulang.GeneralNominalCandidates.Context}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Membership.mem.{0, 0} state.core.plans plan →
+    Yulang.GeneralNominalRecursiveInspection.Finished (Yulang.GeneralNominalQueryProvenance183.headInspection plan)
+Yulang.GeneralNominalHeadCoreCoverage185.site_needed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (member : Membership.mem.{0, 0} state.core.sites site)
+  (index : Fin (roles site.occurrence.demand.role).arity)
+  (center :
+    Eq.{1} (site.center index)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun plan =>
+    Membership.mem.{0, 0} state.core.plans plan ∧
+      Exists.{1} fun name =>
+        Yulang.GeneralNominalSharedCaptures.Needed plan.packet name ∧ Eq.{1} (plan.binder name) (site.center index)
+Yulang.GeneralNominalHeadCoreCoverage185.registered_input_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {context : Yulang.GeneralNominalCandidates.Context}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (name : Nat) (named : Membership.mem.{0, 0} plan.packet.declaration.inputNames name) :
+  Exists.{1} fun origin => Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core (plan.binder name) origin
+Yulang.GeneralNominalHeadCoreCoverage185.registered_capture_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {context : Yulang.GeneralNominalCandidates.Context}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (name : Nat)
+  (needed :
+    Membership.mem.{0, 0} plan.packet.declaration.inputNames name ∨
+      Yulang.GeneralNominalSharedCaptures.Needed plan.packet name) :
+  Exists.{1} fun origin => Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core (plan.binder name) origin
+Yulang.GeneralNominalHeadCoreCoverage185.wf_capture_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (name : Nat)
+  (needed :
+    Membership.mem.{0, 0} plan.packet.declaration.inputNames name ∨
+      Yulang.GeneralNominalSharedCaptures.Needed plan.packet name) :
+  Exists.{1} fun origin => Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core (plan.binder name) origin
+Yulang.GeneralNominalHeadCoreCoverage185.uniform_wf_capture_readback {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (name : Nat)
+  (needed :
+    Membership.mem.{0, 0} plan.packet.declaration.inputNames name ∨
+      Yulang.GeneralNominalSharedCaptures.Needed plan.packet name) :
+  Exists.{1} fun origin =>
+    Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core (plan.binder name) origin ∧
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+          Yulang.GeneralNominalOriginTerms.Same model origin
+            (Yulang.GeneralNominalRecursiveInspection.Origin.source (plan.binder name))
+Yulang.GeneralNominalHeadCoreCoverage185.uniform_wf_site_readback {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (member : Membership.mem.{0, 0} state.core.sites site)
+  (index : Fin (roles site.occurrence.demand.role).arity)
+  (center :
+    Eq.{1} (site.center index)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin =>
+    Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core (site.center index) origin ∧
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+          Yulang.GeneralNominalOriginTerms.Same model origin
+            (Yulang.GeneralNominalRecursiveInspection.Origin.source (site.center index))
+Yulang.GeneralNominalHeadCoreOverlap185.registered_packets {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {context : Yulang.GeneralNominalCandidates.Context}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Membership.mem.{0, 0} state.core.plans plan → Membership.mem.{0, 0} state.core.erased.current.packets plan.packet
+Yulang.GeneralNominalHeadCoreOverlap185.capture_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (member : Membership.mem.{0, 0} state.core.erased.current.packets packet) (high : LE.le.{0} 7 purpose) (name : Nat) :
+  Ne.{1}
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)
+      ((Yulang.GeneralNominalPacketSupport.capture packet).outputs name) ∧
+    Ne.{1}
+        (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+          owner position)
+        (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture packet).inputs name)) ∧
+      Ne.{1}
+        (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+          owner position)
+        (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture packet).inputs name))
+Yulang.GeneralNominalHeadCoreOverlap185.site_endpoint_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (registered : Membership.mem.{0, 0} state.core.sites site)
+  (index : Fin (roles site.occurrence.demand.role).arity) (high : LE.le.{0} 7 purpose) :
+  Ne.{1}
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)
+      (Prod.fst.{0, 0} (site.occurrence.demand.arguments index)) ∧
+    Ne.{1}
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)
+      (Prod.snd.{0, 0} (site.occurrence.demand.arguments index))
+Yulang.GeneralNominalHeadCoreOverlap185.site_source_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {name invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (registered : Membership.mem.{0, 0} state.core.sites site)
+  (source : Yulang.GeneralNominalSupportProvenance182.SiteSource site name)
+  (allocated :
+    Eq.{1} name
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin => Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core name origin
+Yulang.GeneralNominalHeadCoreOverlap185.registered_emitted {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {context : Yulang.GeneralNominalCandidates.Context}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Membership.mem.{0, 0} state.core.plans plan →
+    ∀ (site : Yulang.GeneralNominalCenters.Site roles),
+      Membership.mem.{0, 0} plan.emitted site → Membership.mem.{0, 0} state.core.sites site
+Yulang.GeneralNominalHeadCoreOverlap185.wf_child_registered {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (clause : Yulang.GeneralDeclarations.Clause)
+  (member : Membership.mem.{0, 0} plan.packet.declaration.requirements clause)
+  (signature : Yulang.GeneralDeclarations.Clause.Signature roles clause) :
+  Membership.mem.{0, 0} state.core.sites (plan.childSite clause signature)
+Yulang.GeneralNominalHeadCoreOverlap185.head_roots {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Yulang.GeneralNominalGeneratedSupport184.Roots plan.headSchema
+    (HAppend.hAppend.{0, 0, 0} (List.ofFn.{0} plan.input.center) (List.cons.{0} 0 List.nil.{0}))
+Yulang.GeneralNominalHeadCoreOverlap185.input_requests_subset {roles : Yulang.Roles.RoleDecls}
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Subset.{0} (Yulang.GeneralNominalPacketSupport.inputRequests packet)
+    (Yulang.GeneralNominalMaterialization.requests packet.context.state packet.registry packet.site.occurrence
+      packet.declaration ⋯ packet.bindings)
+Yulang.GeneralNominalHeadCoreOverlap185.wf_request_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (request : Yulang.GeneralNominalMaterialization.Request)
+  (present :
+    Membership.mem.{0, 0}
+      (Yulang.GeneralNominalMaterialization.requests plan.packet.context.state plan.packet.registry
+        plan.packet.site.occurrence plan.packet.declaration ⋯ plan.packet.bindings)
+      request)
+  (high : LE.le.{0} 7 purpose) :
+  Ne.{1}
+    (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+      owner position)
+    request.target
+Yulang.GeneralNominalHeadCoreOverlap185.center_list_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {name invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (registered : Membership.mem.{0, 0} state.core.sites site)
+  (member :
+    Membership.mem.{0, 0} (HAppend.hAppend.{0, 0, 0} (List.ofFn.{0} site.center) (List.cons.{0} 0 List.nil.{0})) name)
+  (allocated :
+    Eq.{1} name
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin => Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core name origin
+Yulang.GeneralNominalHeadCoreOverlap185.schema_root_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {body : Yulang.GeneralNominalMaterialization.Schema} {name invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (location : Yulang.GeneralNominalRegisteredReadback182.SchemaLocation plan body)
+  (rootMember :
+    (Exists.{1} fun test =>
+        Membership.mem.{0, 0} body.tests test ∧
+          Eq.{1} (Yulang.GeneralNominalCenteredModelExtension.originSource (Prod.fst.{0, 0} test)) name) ∨
+      Exists.{1} fun entry =>
+        Membership.mem.{0, 0} body.variables entry ∧
+          Eq.{1} (Yulang.GeneralNominalCenteredModelExtension.originSource entry.origin) name)
+  (allocated :
+    Eq.{1} name
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin => Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core name origin
+Yulang.GeneralNominalHeadCoreOverlap185.wf_registered_packet {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan) :
+  Membership.mem.{0, 0} state.core.erased.current.packets plan.packet
+Yulang.GeneralNominalHeadCoreOverlap185.schema_source_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {body : Yulang.GeneralNominalMaterialization.Schema} {name invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (location : Yulang.GeneralNominalRegisteredReadback182.SchemaLocation plan body)
+  (source : Yulang.GeneralNominalSupportProvenance182.SchemaSource plan body name)
+  (allocated :
+    Eq.{1} name
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin => Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core name origin
+Yulang.GeneralNominalHeadCoreOverlap185.plan_source_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {name invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (source : Yulang.GeneralNominalSupportProvenance182.PlanSource plan name)
+  (allocated :
+    Eq.{1} name
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin => Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core name origin
+Yulang.GeneralNominalHeadCoreOverlap185.wf_overlap_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (member :
+    Membership.mem.{0, 0} (Yulang.GeneralNominalModeLedger181.fullSources state.core)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin =>
+    Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)
+      origin
+Yulang.GeneralNominalHeadCoreOverlap185.uniform_wf_overlap_readback {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (member :
+    Membership.mem.{0, 0} (Yulang.GeneralNominalModeLedger181.fullSources state.core)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin =>
+    Yulang.GeneralNominalSupportProvenance182.ActualBinder state.core
+        (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+          position)
+        origin ∧
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+          Yulang.GeneralNominalOriginTerms.Same model origin
+            (Yulang.GeneralNominalRecursiveInspection.Origin.source
+              (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8
+                owner position))
+Yulang.GeneralNominalHeadEffectCore185.head_sources_subset {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Subset.{0} (Yulang.GeneralNominalHeadLedgerFrame182.headSources plan)
+    (Yulang.GeneralNominalModeLedger181.equationSources plan)
+Yulang.GeneralNominalHeadEffectCore185.effect_plan_registered {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.B4Target.Vocabulary.Registry.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {root : Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) : Membership.mem.{0, 0} state.core.plans effect.plan
+Yulang.GeneralNominalHeadEffectCore185.effect_head_in_core {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.B4Target.Vocabulary.Registry.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {root : Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) :
+  Subset.{0} (Yulang.GeneralNominalHeadLedgerFrame182.headSources effect.plan)
+    (Yulang.GeneralNominalModeLedger181.fullSources state.core)
+Yulang.GeneralNominalHeadEffectReadback185.wf_request_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence roles) (output : Yulang.GeneralSourceState.Output)
+  (member : Membership.mem.{0, 0} (Yulang.GeneralNominalCenteredHeadOutputs.requests state.core focus) output)
+  (high : LE.le.{0} 7 purpose) :
+  Ne.{1}
+    (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+      owner position)
+    output.target
+Yulang.GeneralNominalHeadEffectReadback185.wf_effect_packet_seed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) :
+  Eq.{1} effect.plan.packet.context.state.seed state.core.erased.current.context.state.seed
+Yulang.GeneralNominalHeadEffectReadback185.wf_effect_context_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources effect.plan.packet.context.state)
+      (Yulang.GeneralNominalCenters.fresh effect.plan.packet.context.state.seed invocation declaration purpose owner
+        position)
+Yulang.GeneralNominalHeadEffectReadback185.wf_live_overlap_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) (high : LE.le.{0} 7 purpose) :
+  Membership.mem.{0, 0}
+      (Yulang.GeneralNominalHeadLedgerFrame182.outputSources state.core effect.plan.packet.site.occurrence effect.plan)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position) ↔
+    Exists.{1} fun entry =>
+      Membership.mem.{0, 0}
+          (Yulang.GeneralNominalCenteredHeadOutputs.outputSchema state.core effect.plan.packet.site.occurrence
+              effect.plan).variables
+          entry ∧
+        Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual ∧
+          Eq.{1}
+            (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration
+              purpose owner position)
+            (effect.plan.binder entry.name)
+Yulang.GeneralNominalHeadEffectReadback185.wf_live_overlap_readback {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) (high : LE.le.{0} 7 purpose)
+  (overlap :
+    Membership.mem.{0, 0}
+      (Yulang.GeneralNominalHeadLedgerFrame182.outputSources state.core effect.plan.packet.site.occurrence effect.plan)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)) :
+  Exists.{1} fun entry =>
+    Membership.mem.{0, 0}
+        (Yulang.GeneralNominalCenteredHeadOutputs.outputSchema state.core effect.plan.packet.site.occurrence
+            effect.plan).variables
+        entry ∧
+      Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual ∧
+        Eq.{1}
+            (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration
+              purpose owner position)
+            (effect.plan.binder entry.name) ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+              Yulang.GeneralNominalOriginTerms.Same model entry.origin
+                (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                  (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation
+                    declaration purpose owner position))
+Yulang.GeneralNominalHeadEffectReadback185.wf_snapshot_overlap_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) (high : LE.le.{0} 7 purpose) :
+  Membership.mem.{0, 0}
+      (Yulang.GeneralNominalHeadLedgerFrame182.outputSources effect.snapshot effect.plan.packet.site.occurrence
+        effect.plan)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position) ↔
+    Exists.{1} fun entry =>
+      Membership.mem.{0, 0}
+          (Yulang.GeneralNominalCenteredHeadOutputs.outputSchema effect.snapshot effect.plan.packet.site.occurrence
+              effect.plan).variables
+          entry ∧
+        Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual ∧
+          Eq.{1}
+            (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration
+              purpose owner position)
+            (effect.plan.binder entry.name)
+Yulang.GeneralNominalHeadEffectReadback185.wf_snapshot_overlap_readback {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) (high : LE.le.{0} 7 purpose)
+  (overlap :
+    Membership.mem.{0, 0}
+      (Yulang.GeneralNominalHeadLedgerFrame182.outputSources effect.snapshot effect.plan.packet.site.occurrence
+        effect.plan)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)) :
+  Exists.{1} fun entry =>
+    Membership.mem.{0, 0}
+        (Yulang.GeneralNominalCenteredHeadOutputs.outputSchema effect.snapshot effect.plan.packet.site.occurrence
+            effect.plan).variables
+        entry ∧
+      Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual ∧
+        Eq.{1}
+            (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration
+              purpose owner position)
+            (effect.plan.binder entry.name) ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+              Yulang.GeneralNominalOriginTerms.Same model entry.origin
+                (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                  (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation
+                    declaration purpose owner position))
+Yulang.GeneralNominalHeadEffectsOrigin185.trace_plans_effects {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state) :
+  Eq.{1} state.core.plans (List.map.{0, 0} Yulang.GeneralNominalCenteredHeadStepEffects.Effect.plan state.effects)
+Yulang.GeneralNominalHeadEffectsOrigin185.trace_effect_origin {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles) :
+  Membership.mem.{0, 0} state.effects effect →
+    Exists.{1} fun before =>
+      Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+          (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) before ∧
+        Eq.{1} effect.snapshot before.core ∧
+          Eq.{1} effect.plan.packet.context before.core.erased.current.context ∧ Eq.{1} effect.registry registry
+Yulang.GeneralNominalHeadEffectsOrigin185.trace_effect_configuration {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) :
+  Eq.{1} effect.snapshot.erased.current.context.state.seed context.state.seed ∧
+    Eq.{1} effect.snapshot.erased.current.context.state.constructors context.state.constructors ∧
+      Eq.{1} effect.snapshot.erased.current.context.interpretation context.interpretation
+Yulang.GeneralNominalHeadEffectsOrigin185.trace_effect_plan_configuration {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) :
+  Eq.{1} effect.plan.packet.context.state.seed context.state.seed ∧
+    Eq.{1} effect.plan.packet.context.state.constructors context.state.constructors ∧
+      Eq.{1} effect.plan.packet.context.interpretation context.interpretation
+Yulang.GeneralNominalHeadEffectsOrigin185.trace_registered_plan_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Membership.mem.{0, 0} state.core.plans plan ↔
+    Exists.{1} fun effect => Membership.mem.{0, 0} state.effects effect ∧ Eq.{1} effect.plan plan
+Yulang.GeneralNominalHeadEffectsOrigin185.wf_plans_effects {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state) :
+  Eq.{1} state.core.plans (List.map.{0, 0} Yulang.GeneralNominalCenteredHeadStepEffects.Effect.plan state.effects)
+Yulang.GeneralNominalHeadEffectsOrigin185.wf_effect_snapshot_reachable {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) :
+  Exists.{1} fun before =>
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root before ∧
+      Eq.{1} effect.snapshot before.core ∧ Eq.{1} effect.registry registry
+Yulang.GeneralNominalHeadEffectsOrigin185.wf_effect_seed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles)
+  (member : Membership.mem.{0, 0} state.effects effect) :
+  Eq.{1} effect.snapshot.erased.current.context.state.seed state.core.erased.current.context.state.seed
+Yulang.GeneralNominalHeadFullOverlap185.wf_full_overlap_readback {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (member :
+    Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun origin =>
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+        Yulang.GeneralNominalOriginTerms.Same model origin
+          (Yulang.GeneralNominalRecursiveInspection.Origin.source
+            (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8
+              owner position))
+Yulang.GeneralNominalHeadFullOverlap185.wf_historical_witnesses {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {count : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (names : Fin count → Nat) (allocated : Yulang.GeneralNominalHeadFullOverlap185.BinderNames state names) :
+  Exists.{1} fun historical =>
+    ∀ (index : Fin count),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state) (names index) →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+            Yulang.GeneralNominalOriginTerms.Same model (historical index)
+              (Yulang.GeneralNominalRecursiveInspection.Origin.source (names index))
+Yulang.GeneralNominalHeadFullProducer185.wf_full_producer {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (member :
+    Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8 owner
+        position)) :
+  Exists.{1} fun plan =>
+    Membership.mem.{0, 0} state.core.plans plan ∧
+      Exists.{1} fun name =>
+        Eq.{1} (plan.binder name)
+          (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration 8
+            owner position)
+Yulang.GeneralNominalHeadHistoricalExtension185.historical_agreement_iff
+  {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {historical candidate : Yulang.GeneralNominalRecursiveInspection.Origin} {name : Nat}
+  (recorded :
+    Yulang.GeneralNominalOriginTerms.Same model historical
+      (Yulang.GeneralNominalRecursiveInspection.Origin.source name)) :
+  ((Exists.{1} fun value => Yulang.GeneralNominalRecursiveInspection.Observes model candidate value) ∧
+      ∀ (value : Yulang.CommonNominalFullCarrier.Ty),
+        Yulang.GeneralNominalRecursiveInspection.Observes model candidate value →
+          Yulang.CommonNominalFullCarrier.Equivalent value (Prod.fst.{0, 0} (model name))) ↔
+    Yulang.GeneralNominalOriginTerms.Same model candidate historical
+Yulang.GeneralNominalHeadHistoricalExtension185.wf_extension_iff_historical {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {count : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (arguments : Fin count → Yulang.GeneralNominalCenters.NominalArgument)
+  (allocated : Yulang.GeneralNominalHeadFullOverlap185.BinderNames state fun index => (arguments index).argument.center)
+  (previous : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state previous)
+  (linked :
+    ∀ (i : Fin count),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+          (Prod.fst.{0, 0} (arguments i).argument.endpoints) ∧
+        Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+            (Prod.snd.{0, 0} (arguments i).argument.endpoints) ∧
+          Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+            (Yulang.GeneralNominalCenteredModelExtension.originSource (arguments i).origin)) :
+  Exists.{1} fun historical =>
+    (∀ (i : Fin count),
+        Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+            (arguments i).argument.center →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+              Yulang.GeneralNominalOriginTerms.Same model (historical i)
+                (Yulang.GeneralNominalRecursiveInspection.Origin.source (arguments i).argument.center)) ∧
+      ((Exists.{1} fun extended =>
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+            (∀ (name : Nat),
+                Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state) name →
+                  Eq.{1} (extended name) (previous name)) ∧
+              ∀ (i : Fin count), (arguments i).Holds extended) ↔
+        (∀ (i : Fin count),
+            Exists.{1} fun actual =>
+              Yulang.GeneralNominalRecursiveInspection.Observes previous (arguments i).origin actual) ∧
+          (∀ (i : Fin count) (actual : Yulang.CommonNominalFullCarrier.Ty),
+              Yulang.GeneralNominalRecursiveInspection.Observes previous (arguments i).origin actual →
+                Yulang.GeneralNominalCaptureMerges.Fits previous (arguments i).argument.endpoints actual) ∧
+            (∀ (i j : Fin count) (first last : Yulang.CommonNominalFullCarrier.Ty),
+                Eq.{1} (arguments i).argument.center (arguments j).argument.center →
+                  Yulang.GeneralNominalRecursiveInspection.Observes previous (arguments i).origin first →
+                    Yulang.GeneralNominalRecursiveInspection.Observes previous (arguments j).origin last →
+                      Yulang.CommonNominalFullCarrier.Equivalent first last) ∧
+              ∀ (i : Fin count),
+                Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+                    (arguments i).argument.center →
+                  Yulang.GeneralNominalOriginTerms.Same previous (arguments i).origin (historical i))
+Yulang.GeneralNominalHeadOutputSupport185.output_roots {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Yulang.GeneralNominalGeneratedSupport184.Roots (Yulang.GeneralNominalCenteredHeadOutputs.outputSchema state root plan)
+    (List.map.{0, 0} (fun x => x.target) (Yulang.GeneralNominalCenteredHeadOutputs.requests state root))
+Yulang.GeneralNominalHeadOutputSupport185.output_overlap_iff {roles : Yulang.Roles.RoleDecls}
+  {purpose invocation declaration owner position : Nat} (state : Yulang.GeneralNominalCenteredSteps.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (plan : Yulang.GeneralNominalCenters.Plan roles)
+  (high : LE.le.{0} 7 purpose)
+  (outside :
+    ¬Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources plan.packet.context.state)
+        (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose owner
+          position))
+  (targets :
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalCenteredHeadOutputs.requests state root) output →
+        Ne.{1}
+          (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose owner
+            position)
+          output.target) :
+  Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.outputSources state root plan)
+      (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose owner
+        position) ↔
+    Exists.{1} fun entry =>
+      Membership.mem.{0, 0} (Yulang.GeneralNominalCenteredHeadOutputs.outputSchema state root plan).variables entry ∧
+        Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual ∧
+          Eq.{1}
+            (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose owner
+              position)
+            (plan.binder entry.name)
+Yulang.GeneralNominalHeadOutputSupport185.output_overlap_readback {roles : Yulang.Roles.RoleDecls}
+  {purpose invocation declaration owner position : Nat} (state : Yulang.GeneralNominalCenteredSteps.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (plan : Yulang.GeneralNominalCenters.Plan roles)
+  (high : LE.le.{0} 7 purpose)
+  (outside :
+    ¬Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources plan.packet.context.state)
+        (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose owner
+          position))
+  (targets :
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalCenteredHeadOutputs.requests state root) output →
+        Ne.{1}
+          (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose owner
+            position)
+          output.target)
+  (overlap :
+    Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.outputSources state root plan)
+      (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose owner
+        position)) :
+  Exists.{1} fun entry =>
+    Membership.mem.{0, 0} (Yulang.GeneralNominalCenteredHeadOutputs.outputSchema state root plan).variables entry ∧
+      Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual ∧
+        Eq.{1}
+            (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose owner
+              position)
+            (plan.binder entry.name) ∧
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations state root plan model →
+              Yulang.GeneralNominalOriginTerms.Same model entry.origin
+                (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                  (Yulang.GeneralNominalCenters.fresh plan.packet.context.state.seed invocation declaration purpose
+                    owner position))
+Yulang.GeneralNominalHeadPacketSupport185.packet_context_pool {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Membership.mem.{0, 0} state.core.erased.current.packets packet →
+    Subset.{0} (Yulang.GeneralNominalState.sources packet.context.state)
+      (Yulang.GeneralNominalActualTraceSupport.pool registry context root limit)
+Yulang.GeneralNominalHeadPacketSupport185.packet_report_pool {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (member : Membership.mem.{0, 0} state.core.erased.current.packets packet) :
+  Subset.{0}
+    (Yulang.GeneralNominalRawFrame179.reportSources packet.context.state
+      (Yulang.GeneralNominalRecursiveCandidates.report packet.context packet.declaration packet.bounds))
+    (Yulang.GeneralNominalActualTraceSupport.pool registry context root limit)
+Yulang.GeneralNominalHeadPacketSupport185.fresh_outside_packet_report {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (member : Membership.mem.{0, 0} state.core.erased.current.packets packet) (centerPurpose : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0}
+      (Yulang.GeneralNominalRawFrame179.reportSources packet.context.state
+        (Yulang.GeneralNominalRecursiveCandidates.report packet.context packet.declaration packet.bounds))
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration purpose owner position)
+Yulang.GeneralNominalHeadPacketSupport185.packet_private_pool {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Membership.mem.{0, 0} state.core.erased.current.packets packet →
+    Subset.{0} (Yulang.GeneralNominalState.sources packet.privateContext.state)
+      (Yulang.GeneralNominalActualTraceSupport.pool registry context root limit)
+Yulang.GeneralNominalHeadPacketSupport185.packet_seed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Membership.mem.{0, 0} state.core.erased.current.packets packet → Eq.{1} packet.context.state.seed context.state.seed
+Yulang.GeneralNominalHeadPacketSupport185.historical_private_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (member : Membership.mem.{0, 0} state.core.erased.current.packets packet) (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources packet.privateContext.state)
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration purpose owner position)
+Yulang.GeneralNominalHeadPacketSupport185.packet_outputs_pool {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) :
+  Membership.mem.{0, 0} state.core.erased.current.packets packet →
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      Membership.mem.{0, 0} packet.site.occurrence.demand.outputs output →
+        Membership.mem.{0, 0} (Yulang.GeneralNominalActualTraceSupport.pool registry context root limit) output.target
+Yulang.GeneralNominalHeadPacketSupport185.packet_request_separate {roles : Yulang.Roles.RoleDecls}
+  {purpose invocation declaration owner position : Nat} (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (high : LE.le.{0} 7 purpose)
+  (outputs :
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      Membership.mem.{0, 0} packet.site.occurrence.demand.outputs output →
+        Ne.{1}
+          (Yulang.GeneralNominalCenters.fresh packet.context.state.seed invocation declaration purpose owner position)
+          output.target)
+  (outside :
+    ¬Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources packet.context.state)
+        (Yulang.GeneralNominalCenters.fresh packet.context.state.seed invocation declaration purpose owner position))
+  (request : Yulang.GeneralNominalMaterialization.Request)
+  (member :
+    Membership.mem.{0, 0}
+      (Yulang.GeneralNominalMaterialization.requests packet.context.state packet.registry packet.site.occurrence
+        packet.declaration ⋯ packet.bindings)
+      request) :
+  Ne.{1} (Yulang.GeneralNominalCenters.fresh packet.context.state.seed invocation declaration purpose owner position)
+    request.target
+Yulang.GeneralNominalHeadPacketSupport185.packet_generated_separate {roles : Yulang.Roles.RoleDecls}
+  {purpose invocation declaration owner position : Nat} (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (high : LE.le.{0} 7 purpose)
+  (outputs :
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      Membership.mem.{0, 0} packet.site.occurrence.demand.outputs output →
+        Ne.{1}
+          (Yulang.GeneralNominalCenters.fresh packet.context.state.seed invocation declaration purpose owner position)
+          output.target)
+  (outside :
+    ¬Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources packet.context.state)
+        (Yulang.GeneralNominalCenters.fresh packet.context.state.seed invocation declaration purpose owner position)) :
+  ¬Membership.mem.{0, 0}
+      (Yulang.GeneralNominalRawFrame179.generatedSources (Yulang.GeneralNominalPacketSupport.capture packet)
+        (Yulang.GeneralNominalRecursiveCandidates.generated packet.registry packet.context packet.site.occurrence
+          packet.declaration ⋯ packet.bounds))
+      (Yulang.GeneralNominalCenters.fresh packet.context.state.seed invocation declaration purpose owner position)
+Yulang.GeneralNominalHeadPacketSupport185.historical_generated_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (member : Membership.mem.{0, 0} state.core.erased.current.packets packet) (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0}
+      (Yulang.GeneralNominalRawFrame179.generatedSources (Yulang.GeneralNominalPacketSupport.capture packet)
+        (Yulang.GeneralNominalRecursiveCandidates.generated packet.registry packet.context packet.site.occurrence
+          packet.declaration ⋯ packet.bounds))
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration purpose owner position)
+Yulang.GeneralNominalHeadPacketSupport185.historical_packet_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (member : Membership.mem.{0, 0} state.core.erased.current.packets packet) (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0} (Yulang.GeneralNominalRawFrame179.packetSources packet)
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration purpose owner position)
+Yulang.GeneralNominalHeadRawSeparation185.trace_raw_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0} (Yulang.GeneralNominalRawFrame179.rawSources state.core.erased.current)
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration purpose owner position)
+Yulang.GeneralNominalHeadRawSeparation185.wf_raw_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0} (Yulang.GeneralNominalRawFrame179.rawSources state.core.erased.current)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)
+Yulang.GeneralNominalHeadRawSeparation185.wf_overlap_iff_residual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (high : LE.le.{0} 7 purpose) :
+  Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position) ↔
+    Membership.mem.{0, 0} (Yulang.GeneralNominalHeadRawSeparation185.residualSources state)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)
+Yulang.GeneralNominalHeadRawSeparation185.wf_raw_assign {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {count : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (names : Fin count → Nat) (values : Fin count → Yulang.CommonNominalFullCarrier.Ty)
+  (allocated : Yulang.GeneralNominalHeadRawSeparation185.Allocated state names)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalSaturationState.Models state.core.erased.current model) :
+  Yulang.GeneralNominalSaturationState.Models state.core.erased.current
+    (Yulang.GeneralNominalCenteredModelExtension.assign model names values)
+Yulang.GeneralNominalHeadRawSeparation185.wf_models_assign {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {count : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (names : Fin count → Nat) (values : Fin count → Yulang.CommonNominalFullCarrier.Ty)
+  (allocated : Yulang.GeneralNominalHeadRawSeparation185.Allocated state names)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (kept :
+    ∀ (index : Fin count),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalHeadRawSeparation185.residualSources state) (names index) →
+        Eq.{1} (values index) (Prod.fst.{0, 0} (model (names index)))) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models state
+    (Yulang.GeneralNominalCenteredModelExtension.assign model names values)
+Yulang.GeneralNominalHeadReadback185.registered_initial_configuration {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Membership.mem.{0, 0} state.core.plans plan →
+    Eq.{1} plan.packet.context.state.seed context.state.seed ∧
+      Eq.{1} plan.packet.context.state.constructors context.state.constructors ∧
+        Eq.{1} plan.packet.context.interpretation context.interpretation
+Yulang.GeneralNominalHeadReadback185.registered_current_configuration {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (member : Membership.mem.{0, 0} state.core.plans plan) :
+  Eq.{1} plan.packet.context.state.seed state.core.erased.current.context.state.seed ∧
+    Eq.{1} plan.packet.context.state.constructors state.core.erased.current.context.state.constructors ∧
+      Eq.{1} plan.packet.context.interpretation state.core.erased.current.context.interpretation
+Yulang.GeneralNominalHeadReadback185.wf_registered_configuration {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (member : Membership.mem.{0, 0} state.core.plans plan) :
+  Eq.{1} plan.packet.context.state.seed state.core.erased.current.context.state.seed ∧
+    Eq.{1} plan.packet.context.state.constructors state.core.erased.current.context.state.constructors ∧
+      Eq.{1} plan.packet.context.interpretation state.core.erased.current.context.interpretation
+Yulang.GeneralNominalHeadReadback185.registered_head_schema_eq {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (centers : Eq.{1} (List.ofFn.{0} candidate.input.center) (List.ofFn.{0} historical.input.center)) :
+  Eq.{1} candidate.headSchema historical.headSchema
+Yulang.GeneralNominalHeadReadback185.wf_head_schema_eq {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (centers : Eq.{1} (List.ofFn.{0} candidate.input.center) (List.ofFn.{0} historical.input.center)) :
+  Eq.{1} candidate.headSchema historical.headSchema
+Yulang.GeneralNominalHeadReadback185.wf_candidate_actual {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (centers : Eq.{1} (List.ofFn.{0} candidate.input.center) (List.ofFn.{0} historical.input.center))
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (present : Membership.mem.{0, 0} candidate.headSchema.variables entry)
+  (actual : Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalOriginTerms.Same model entry.origin
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source (historical.binder entry.name))
+Yulang.GeneralNominalHeadReadback185.wf_candidate_readback {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (centers : Eq.{1} (List.ofFn.{0} candidate.input.center) (List.ofFn.{0} historical.input.center))
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (present : Membership.mem.{0, 0} candidate.headSchema.variables entry)
+  (actual : Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) (value : Yulang.CommonNominalFullCarrier.Ty)
+  (seen : Yulang.GeneralNominalRecursiveInspection.Observes model entry.origin value) :
+  Yulang.CommonNominalFullCarrier.Equivalent value (Prod.fst.{0, 0} (model (historical.binder entry.name)))
+Yulang.GeneralNominalHeadReadback185.wf_candidate_overlap {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (centers : Eq.{1} (List.ofFn.{0} candidate.input.center) (List.ofFn.{0} historical.input.center))
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (present : Membership.mem.{0, 0} candidate.headSchema.variables entry)
+  (actual : Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual)
+  (binder : Eq.{1} (candidate.binder entry.name) (historical.binder entry.name))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalOriginTerms.Same model entry.origin
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source (candidate.binder entry.name))
+Yulang.GeneralNominalHeadReadback185.wf_nonpoint_binder_eq {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (invocation : Eq.{1} candidate.packet.site.occurrence.identity historical.packet.site.occurrence.identity)
+  (name : Nat) (input : ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames name)
+  (candidateNonpoint :
+    Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name))
+      (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name)))
+  (historicalNonpoint :
+    Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture historical.packet).inputs name))
+      (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture historical.packet).inputs name))) :
+  Eq.{1} (candidate.binder name) (historical.binder name)
+Yulang.GeneralNominalHeadReadback185.wf_candidate_nonpoint_overlap {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (member : Membership.mem.{0, 0} state.core.plans historical)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (declaration : Eq.{1} candidate.packet.declaration historical.packet.declaration)
+  (invocation : Eq.{1} candidate.packet.site.occurrence.identity historical.packet.site.occurrence.identity)
+  (centers : Eq.{1} (List.ofFn.{0} candidate.input.center) (List.ofFn.{0} historical.input.center))
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (present : Membership.mem.{0, 0} candidate.headSchema.variables entry)
+  (actual : Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual)
+  (input : ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames entry.name)
+  (candidateNonpoint :
+    Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name))
+      (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name)))
+  (historicalNonpoint :
+    Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture historical.packet).inputs entry.name))
+      (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture historical.packet).inputs entry.name)))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalOriginTerms.Same model entry.origin
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source (candidate.binder entry.name))
+Yulang.GeneralNominalHeadRootExtension185.root_extension_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {count : Nat}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (registered : Membership.mem.{0, 0} state.core.sites candidate.input)
+  (atRoot : Eq.{1} candidate.packet.site.occurrence root)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (visible : Membership.mem.{0, 0} registry.declarations candidate.packet.declaration)
+  (entries : Fin count → Yulang.GeneralNominalMaterialization.Use)
+  (present : ∀ (i : Fin count), Membership.mem.{0, 0} candidate.headSchema.variables (entries i))
+  (actual : ∀ (i : Fin count), Eq.{1} (entries i).mode Yulang.GeneralNominalMaterialization.Mode.actual)
+  (input : ∀ (i : Fin count), ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames (entries i).name)
+  (nonpoint :
+    ∀ (i : Fin count),
+      Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs (entries i).name))
+        (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs (entries i).name)))
+  (previous : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state previous)
+  (linked :
+    ∀ (i : Fin count),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+          (Prod.fst.{0, 0} (Yulang.GeneralNominalRootExtension184.argument candidate (entries i)).argument.endpoints) ∧
+        Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+            (Prod.snd.{0, 0}
+              (Yulang.GeneralNominalRootExtension184.argument candidate (entries i)).argument.endpoints) ∧
+          Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+            (Yulang.GeneralNominalCenteredModelExtension.originSource (entries i).origin)) :
+  (Exists.{1} fun extended =>
+      Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+        (∀ (name : Nat),
+            Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state) name →
+              Eq.{1} (extended name) (previous name)) ∧
+          ∀ (i : Fin count), (Yulang.GeneralNominalRootExtension184.argument candidate (entries i)).Holds extended) ↔
+    (∀ (i : Fin count),
+        Exists.{1} fun value => Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin value) ∧
+      (∀ (i : Fin count) (value : Yulang.CommonNominalFullCarrier.Ty),
+          Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin value →
+            Yulang.GeneralNominalCaptureMerges.Fits previous
+              ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs (entries i).name) value) ∧
+        ∀ (i j : Fin count) (first last : Yulang.CommonNominalFullCarrier.Ty),
+          Eq.{1} (candidate.binder (entries i).name) (candidate.binder (entries j).name) →
+            Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin first →
+              Yulang.GeneralNominalRecursiveInspection.Observes previous (entries j).origin last →
+                Yulang.CommonNominalFullCarrier.Equivalent first last
+Yulang.GeneralNominalHeadRootOverlap185.trace_root_identity {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (registered : Membership.mem.{0, 0} state.core.sites site)
+  (identity : Eq.{1} site.occurrence.identity root.identity) : Eq.{1} site.occurrence root
+Yulang.GeneralNominalHeadRootOverlap185.wf_plan_root_identity {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (member : Membership.mem.{0, 0} state.core.plans plan)
+  (identity : Eq.{1} plan.packet.site.occurrence.identity root.identity) : Eq.{1} plan.packet.site.occurrence root
+Yulang.GeneralNominalHeadRootOverlap185.wf_plan_visible {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (member : Membership.mem.{0, 0} state.core.plans plan) :
+  Membership.mem.{0, 0} registry.declarations plan.packet.declaration
+Yulang.GeneralNominalHeadRootOverlap185.candidate_root_overlap {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (registered : Membership.mem.{0, 0} state.core.sites candidate.input)
+  (atRoot : Eq.{1} candidate.packet.site.occurrence root)
+  (current : Eq.{1} candidate.packet.context state.core.erased.current.context)
+  (visible : Membership.mem.{0, 0} registry.declarations candidate.packet.declaration)
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (present : Membership.mem.{0, 0} candidate.headSchema.variables entry)
+  (actual : Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual)
+  (input : ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames entry.name)
+  (nonpoint :
+    Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name))
+      (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name)))
+  (overlap :
+    Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state) (candidate.binder entry.name))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalOriginTerms.Same model entry.origin
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source (candidate.binder entry.name))
+Yulang.GeneralNominalHeadSiteCoherence185.registered_producers {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state) :
+  (∀ (site : Yulang.GeneralNominalCenters.Site roles),
+      Membership.mem.{0, 0} state.core.sites site → LE.le.{0} root.identity site.occurrence.identity) ∧
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      Membership.mem.{0, 0} state.core.plans plan →
+        LE.le.{0} root.identity plan.packet.site.occurrence.identity ∧
+          Membership.mem.{0, 0} registry.declarations plan.packet.declaration
+Yulang.GeneralNominalHeadSiteCoherence185.emitted_not_root {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (registered : Membership.mem.{0, 0} state.core.plans plan)
+  (site : Yulang.GeneralNominalCenters.Site roles) (emitted : Membership.mem.{0, 0} plan.emitted site) :
+  Ne.{1} site.occurrence root
+Yulang.GeneralNominalHeadSiteCoherence185.trace_site_unique {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (first last : Yulang.GeneralNominalCenters.Site roles) (one : Membership.mem.{0, 0} state.core.sites first)
+  (two : Membership.mem.{0, 0} state.core.sites last) (same : Eq.{1} first.occurrence last.occurrence) :
+  Eq.{1} first last
+Yulang.GeneralNominalHeadSiteCoherence185.wf_site_unique {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (first last : Yulang.GeneralNominalCenters.Site roles) (one : Membership.mem.{0, 0} state.core.sites first)
+  (two : Membership.mem.{0, 0} state.core.sites last) (same : Eq.{1} first.occurrence last.occurrence) :
+  Eq.{1} first last
+Yulang.GeneralNominalHeadSiteOrigin185.site_origin {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path : Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root) before after)
+  (site : Yulang.GeneralNominalCenters.Site roles) :
+  Membership.mem.{0, 0} after.core.sites site →
+    Membership.mem.{0, 0} before.core.sites site ∨
+      Exists.{1} fun plan => Membership.mem.{0, 0} after.core.plans plan ∧ Membership.mem.{0, 0} plan.emitted site
+Yulang.GeneralNominalHeadSiteOrigin185.initial_site_origin {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (member : Membership.mem.{0, 0} state.core.sites site) :
+  Eq.{1} site (Yulang.GeneralNominalCenters.rootSite context.state.seed root) ∨
+    Exists.{1} fun plan => Membership.mem.{0, 0} state.core.plans plan ∧ Membership.mem.{0, 0} plan.emitted site
+Yulang.GeneralNominalHeadSiteOrigin185.plan_seed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) :
+  Membership.mem.{0, 0} state.core.plans plan → Eq.{1} plan.packet.context.state.seed context.state.seed
+Yulang.GeneralNominalHeadSiteOrigin185.root_not_eight {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (index : Fin (roles root.demand.role).arity) :
+  Ne.{1} ((Yulang.GeneralNominalCenters.rootSite context.state.seed root).center index)
+    (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration 8 owner position)
+Yulang.GeneralNominalHeadSiteOrigin185.purpose_eight_site_binder {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (member : Membership.mem.{0, 0} state.core.sites site)
+  (index : Fin (roles site.occurrence.demand.role).arity)
+  (center :
+    Eq.{1} (site.center index)
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration 8 owner position)) :
+  Exists.{1} fun plan =>
+    Membership.mem.{0, 0} state.core.plans plan ∧ Exists.{1} fun name => Eq.{1} (plan.binder name) (site.center index)
+Yulang.GeneralNominalHeadSiteOrigin185.purpose_eight_site_needed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (member : Membership.mem.{0, 0} state.core.sites site)
+  (index : Fin (roles site.occurrence.demand.role).arity)
+  (center :
+    Eq.{1} (site.center index)
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration 8 owner position)) :
+  Exists.{1} fun plan =>
+    Membership.mem.{0, 0} state.core.plans plan ∧
+      Exists.{1} fun name =>
+        Yulang.GeneralNominalSharedCaptures.Needed plan.packet name ∧ Eq.{1} (plan.binder name) (site.center index)
+Yulang.GeneralNominalHeadSiteOrigin185.purpose_eight_site_fits {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {invocation declaration owner position : Nat} {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (site : Yulang.GeneralNominalCenters.Site roles) (member : Membership.mem.{0, 0} state.core.sites site)
+  (index : Fin (roles site.occurrence.demand.role).arity)
+  (center :
+    Eq.{1} (site.center index)
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration 8 owner position))
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Exists.{1} fun plan =>
+    Membership.mem.{0, 0} state.core.plans plan ∧
+      Exists.{1} fun name =>
+        Yulang.GeneralNominalSharedCaptures.Needed plan.packet name ∧
+          Eq.{1} (plan.binder name) (site.center index) ∧
+            Yulang.GeneralNominalCaptureMerges.Fits model
+              ((Yulang.GeneralNominalPacketSupport.capture plan.packet).inputs name)
+              (Prod.fst.{0, 0} (model (site.center index)))
+Yulang.GeneralNominalHeadSiteSupport185.trace_sources_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources state.core.erased.current.context.state)
+      (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration purpose owner position)
+Yulang.GeneralNominalHeadSiteSupport185.trace_sites_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {limit : Nat}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {purpose invocation declaration owner position : Nat}
+  (source : Yulang.GeneralNominalSourceFormation.InitialSource registry context root)
+  (bound : Yulang.GeneralNominalCenteredHeadStepAncestry.InstalledDepthBound registry context root limit)
+  (path :
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (high : LE.le.{0} 7 purpose) (site : Yulang.GeneralNominalDemandMerging.Site roles) :
+  Membership.mem.{0, 0} state.core.erased.current.sites site →
+    ¬Membership.mem.{0, 0} (Yulang.GeneralNominalCenteredEmptyFrame179.rawSiteSources site)
+        (Yulang.GeneralNominalCenters.fresh context.state.seed invocation declaration purpose owner position)
+Yulang.GeneralNominalHeadSiteSupport185.wf_sources_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources state.core.erased.current.context.state)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)
+Yulang.GeneralNominalHeadSiteSupport185.wf_sites_separate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (site : Yulang.GeneralNominalDemandMerging.Site roles)
+  (member : Membership.mem.{0, 0} state.core.erased.current.sites site) (high : LE.le.{0} 7 purpose) :
+  ¬Membership.mem.{0, 0} (Yulang.GeneralNominalCenteredEmptyFrame179.rawSiteSources site)
+      (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration purpose
+        owner position)
+Yulang.GeneralNominalHeadSemanticTransport185.head_transport {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin} {test : Yulang.GeneralNominalRecursiveInspection.Test}
+  (same : Yulang.GeneralNominalOriginTerms.Same model first last)
+  (valid : Yulang.GeneralNominalOriginTerms.Head model first test) :
+  Yulang.GeneralNominalOriginTerms.Head model last test
+Yulang.GeneralNominalHeadSemanticTransport185.project_observes {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin} {value : Yulang.CommonNominalFullCarrier.Ty}
+  (same : Yulang.GeneralNominalOriginTerms.Same model first last) (test : Yulang.GeneralNominalRecursiveInspection.Test)
+  (index : Fin (Yulang.GeneralNominalOriginTerms.arity test))
+  (seen :
+    Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalOriginTerms.project first test index)
+      value) :
+  Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalOriginTerms.project last test index)
+    value
+Yulang.GeneralNominalHeadSemanticTransport185.project_observes_iff
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} {first last : Yulang.GeneralNominalRecursiveInspection.Origin}
+  (same : Yulang.GeneralNominalOriginTerms.Same model first last) (test : Yulang.GeneralNominalRecursiveInspection.Test)
+  (index : Fin (Yulang.GeneralNominalOriginTerms.arity test)) (value : Yulang.CommonNominalFullCarrier.Ty) :
+  Iff
+    (Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalOriginTerms.project first test index)
+      value)
+    (Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalOriginTerms.project last test index)
+      value)
+Yulang.GeneralNominalHeadSemanticTransport185.project_same {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin}
+  (same : Yulang.GeneralNominalOriginTerms.Same model first last) (test : Yulang.GeneralNominalRecursiveInspection.Test)
+  (index : Fin (Yulang.GeneralNominalOriginTerms.arity test))
+  (valid :
+    Yulang.GeneralNominalOriginTerms.Same model (Yulang.GeneralNominalOriginTerms.project first test index)
+      (Yulang.GeneralNominalOriginTerms.project first test index)) :
+  Yulang.GeneralNominalOriginTerms.Same model (Yulang.GeneralNominalOriginTerms.project first test index)
+    (Yulang.GeneralNominalOriginTerms.project last test index)
+Yulang.GeneralNominalHeadSemanticTransport185.holds_leaves {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {α : Type} {root : Yulang.GeneralNominalRecursiveInspection.Origin} (term : Yulang.GeneralNominalOriginTerms.Expr α)
+  (first last : α → Yulang.GeneralNominalRecursiveInspection.Origin)
+  (leaves :
+    ∀ (name : α),
+      @Membership.mem.{0, 0} α (List.{0} α) (@List.instMembership.{0} α)
+          (@Yulang.GeneralNominalOriginTerms.Expr.leaves α term) name →
+        Yulang.GeneralNominalOriginTerms.Same model (first name) (last name))
+  (valid :
+    Yulang.GeneralNominalOriginTerms.Holds model
+      (@Yulang.GeneralNominalOriginTerms.Expr.bind α Yulang.GeneralNominalRecursiveInspection.Origin
+        (fun (name : α) =>
+          @Yulang.GeneralNominalOriginTerms.Expr.leaf Yulang.GeneralNominalRecursiveInspection.Origin (first name))
+        term)
+      root) :
+  Yulang.GeneralNominalOriginTerms.Holds model
+    (@Yulang.GeneralNominalOriginTerms.Expr.bind α Yulang.GeneralNominalRecursiveInspection.Origin
+      (fun (name : α) =>
+        @Yulang.GeneralNominalOriginTerms.Expr.leaf Yulang.GeneralNominalRecursiveInspection.Origin (last name))
+      term)
+    root
+Yulang.GeneralNominalHeadSemanticTransport185.holds_leaves_and_root
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} {α : Type}
+  {root target : Yulang.GeneralNominalRecursiveInspection.Origin} (term : Yulang.GeneralNominalOriginTerms.Expr α)
+  (first last : α → Yulang.GeneralNominalRecursiveInspection.Origin)
+  (leaves :
+    ∀ (name : α),
+      @Membership.mem.{0, 0} α (List.{0} α) (@List.instMembership.{0} α)
+          (@Yulang.GeneralNominalOriginTerms.Expr.leaves α term) name →
+        Yulang.GeneralNominalOriginTerms.Same model (first name) (last name))
+  (roots : Yulang.GeneralNominalOriginTerms.Same model root target)
+  (valid :
+    Yulang.GeneralNominalOriginTerms.Holds model
+      (@Yulang.GeneralNominalOriginTerms.Expr.bind α Yulang.GeneralNominalRecursiveInspection.Origin
+        (fun (name : α) =>
+          @Yulang.GeneralNominalOriginTerms.Expr.leaf Yulang.GeneralNominalRecursiveInspection.Origin (first name))
+        term)
+      root) :
+  Yulang.GeneralNominalOriginTerms.Holds model
+    (@Yulang.GeneralNominalOriginTerms.Expr.bind α Yulang.GeneralNominalRecursiveInspection.Origin
+      (fun (name : α) =>
+        @Yulang.GeneralNominalOriginTerms.Expr.leaf Yulang.GeneralNominalRecursiveInspection.Origin (last name))
+      term)
+    target
+REACH: 3 roots; 0/147 cycle185 declarations reachable
+REACH: 5 roots; 118/147 cycle185 declarations reachable

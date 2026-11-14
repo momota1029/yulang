@@ -3185,3 +3185,4 @@ import Yulang.GeneralNominalHeadHistoricalExtension185
 import Yulang.GeneralNominalHeadBinderIdentity185
 import Yulang.GeneralNominalHeadRootExtension185
 import Yulang.GeneralNominalHeadRootOverlap185
+import Yulang.GeneralNominalHeadSemanticTransport185
