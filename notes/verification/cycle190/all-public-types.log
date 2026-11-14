@@ -1,0 +1,1432 @@
+Yulang.GeneralNominalAvailableNonvacuity190.available :
+  Yulang.GeneralNominalInstallationSound190.Available Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.start Yulang.GeneralNominalTwoHeadFixture190.root
+'Yulang.GeneralNominalAvailableNonvacuity190.available' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalAvailableNonvacuity190.classified :
+  Yulang.B4TargetV6.Classify
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles)
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []))
+'Yulang.GeneralNominalAvailableNonvacuity190.classified' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalAvailableNonvacuity190.recursive_evidence :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles).Evidence
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.model Yulang.GeneralNominalTwoHeadFixture190.root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralNominalAvailableNonvacuity190.recursive_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallableEvidence190.request_ready {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support) :
+  Yulang.GeneralNominalRecursiveCandidates.RequestReady plan.packet.registry plan.packet.context
+    plan.packet.site.occurrence plan.packet.declaration ⋯ plan.packet.bounds
+'Yulang.GeneralNominalInstallableEvidence190.request_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalInstallableEvidence190.generated_committed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (stable : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry state root)
+  (generated :
+    Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root plan.packet.site.occurrence)
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support) :
+  Yulang.GeneralNominalFeedbackSteps.Committed state.core.erased.current plan.packet
+'Yulang.GeneralNominalInstallableEvidence190.generated_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallableEvidence190.committed_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support)
+  (committed : Yulang.GeneralNominalFeedbackSteps.Committed state.core.erased.current plan.packet)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.core.erased.current.context model
+    plan.packet.site.occurrence plan.packet.declaration.id plan.packet.children
+'Yulang.GeneralNominalInstallableEvidence190.committed_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallableEvidence190.generated_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (stable : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry state root)
+  (generated :
+    Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root plan.packet.site.occurrence)
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (dictionaries : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) plan.packet.children
+      dictionaries) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model plan.packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node plan.packet.declaration.id dictionaries)
+'Yulang.GeneralNominalInstallableEvidence190.generated_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallationBoundary190.known_source_not_available :
+  ¬Yulang.GeneralNominalInstallationSound190.Available Yulang.GeneralNominalCenteredHeadWFJoinSource.registry
+      Yulang.GeneralNominalCenteredHeadWFJoinSource.start Yulang.GeneralNominalCenteredHeadWFJoinSource.root
+'Yulang.GeneralNominalInstallationBoundary190.known_source_not_available' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallationBoundary190.not_universal_available :
+  ¬∀ (r : Yulang.GeneralDeclarations.Registry),
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Checked
+          r →
+        ∀
+          (state :
+            (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).State)
+          (root :
+            (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Demand),
+          Yulang.B4TargetV6.Reachable
+              (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+              r root state →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary
+                    Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Stable
+                r state root →
+              Yulang.GeneralNominalInstallationSound190.Available r state root
+'Yulang.GeneralNominalInstallationBoundary190.not_universal_available' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallationSound190.Available {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) : Prop
+'Yulang.GeneralNominalInstallationSound190.Available' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalInstallationSound190.generated_children {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {key : Nat} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (root focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (stable : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry state root)
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root focus)
+  (plan : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key plan)
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support)
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) :
+  child ∈ plan.packet.children → Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root child
+'Yulang.GeneralNominalInstallationSound190.generated_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallationSound190.dictionary_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (stable : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry state root)
+  (available : Yulang.GeneralNominalInstallationSound190.Available registry state root)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (dictionary : Yulang.CommonRoleOutermostResolver.Dictionary)
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root focus)
+  (derived :
+    Yulang.B4TargetV6.Classify (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry state focus
+      (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model focus dictionary
+'Yulang.GeneralNominalInstallationSound190.dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallationSound190.dictionaries_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (stable : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry state root)
+  (available : Yulang.GeneralNominalInstallationSound190.Available registry state root)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (dictionaries : List Yulang.CommonRoleOutermostResolver.Dictionary)
+  (demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (generated :
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      child ∈ demands → Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root child)
+  (derived :
+    Yulang.CommonRoleOutermostResolver.All₂
+      (fun d dictionary =>
+        Yulang.B4TargetV6.Classify (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry state d
+          (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+      demands dictionaries) :
+  Yulang.CommonRoleOutermostResolver.All₂
+    ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) demands dictionaries
+'Yulang.GeneralNominalInstallationSound190.dictionaries_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallationSound190.dictionary_sound {roles : Yulang.Roles.RoleDecls}
+  (executor : Yulang.B4TargetV3.Executor (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles))
+  (stable :
+    ∀ (registry : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Registry),
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Checked registry →
+        ∀ (state : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).State)
+          (root : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand),
+          (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry
+              (executor.run registry state root).fst root)
+  (available :
+    ∀ (registry : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Registry),
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Checked registry →
+        ∀ (state : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).State)
+          (root : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand),
+          (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state →
+            Yulang.GeneralNominalInstallationSound190.Available registry (executor.run registry state root).fst root) :
+  Yulang.B4TargetV6.DictionarySound (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) executor
+'Yulang.GeneralNominalInstallationSound190.dictionary_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalLeafWitnessInstall190.installable_of_named_witness {roles : Yulang.Roles.RoleDecls} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (leaf : candidate.packet.declaration.requirements = [])
+  (ready : Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady state.core root candidate)
+  (witness :
+    ∃ model,
+      Yulang.GeneralNominalCenteredHeadStepEffects.Models state model ∧
+        candidate.Holds model ∧
+          Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations state.core root candidate model) :
+  ∃ support, Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state candidate support
+'Yulang.GeneralNominalLeafWitnessInstall190.installable_of_named_witness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.roles : Yulang.Roles.RoleDecls
+'Yulang.GeneralNominalRepeatedFixture190.roles' does not depend on any axioms
+Yulang.GeneralNominalRepeatedFixture190.declaration : Yulang.GeneralDeclarations.Declaration
+'Yulang.GeneralNominalRepeatedFixture190.declaration' does not depend on any axioms
+Yulang.GeneralNominalRepeatedFixture190.registry : Yulang.GeneralDeclarations.Registry
+'Yulang.GeneralNominalRepeatedFixture190.registry' does not depend on any axioms
+Yulang.GeneralNominalRepeatedFixture190.context : Yulang.GeneralNominalCandidates.Context
+'Yulang.GeneralNominalRepeatedFixture190.context' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.snapshot : Yulang.GeneralNominalState.State
+'Yulang.GeneralNominalRepeatedFixture190.snapshot' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.root :
+  Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralNominalRepeatedFixture190.roles
+'Yulang.GeneralNominalRepeatedFixture190.root' depends on axioms: [propext]
+Yulang.GeneralNominalRepeatedFixture190.start :
+  Yulang.GeneralNominalCenteredHeadStepEffects.State Yulang.GeneralNominalRepeatedFixture190.roles
+'Yulang.GeneralNominalRepeatedFixture190.start' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.model : Yulang.GeneralNominalCommonBridge.Assignment
+'Yulang.GeneralNominalRepeatedFixture190.model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.declaration_checked :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDeclarationExamples.constructors
+    Yulang.GeneralNominalRepeatedFixture190.roles Yulang.GeneralNominalRepeatedFixture190.declaration
+'Yulang.GeneralNominalRepeatedFixture190.declaration_checked' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.checked :
+  Yulang.GeneralDeclarations.Checked Yulang.GeneralNominalRepeatedFixture190.registry
+'Yulang.GeneralNominalRepeatedFixture190.checked' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.source :
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root
+'Yulang.GeneralNominalRepeatedFixture190.source' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.ground :
+  Yulang.GeneralNominalGroundAccessibility.GroundRoots Yulang.GeneralNominalRepeatedFixture190.context
+    Yulang.GeneralNominalRepeatedFixture190.root
+    [Yulang.GeneralDeclarationPatterns.Pattern.app 2 [], Yulang.GeneralDeclarationPatterns.Pattern.app 2 []]
+'Yulang.GeneralNominalRepeatedFixture190.ground' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.coverage :
+  Yulang.GeneralNominalCenteredHeadWFSource.Coverage Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context.interpretation
+'Yulang.GeneralNominalRepeatedFixture190.coverage' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.initial_source :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles).Initial
+    Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root
+    Yulang.GeneralNominalRepeatedFixture190.start
+'Yulang.GeneralNominalRepeatedFixture190.initial_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.reachable :
+  Yulang.B4TargetV6.Reachable
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles)
+    Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root
+    Yulang.GeneralNominalRepeatedFixture190.start
+'Yulang.GeneralNominalRepeatedFixture190.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.source_model :
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalRepeatedFixture190.snapshot
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedFixture190.source_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.inhabited :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalRepeatedFixture190.start
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedFixture190.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.packet :
+  Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralNominalRepeatedFixture190.roles
+'Yulang.GeneralNominalRepeatedFixture190.packet' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.plan :
+  Yulang.GeneralNominalCenters.Plan Yulang.GeneralNominalRepeatedFixture190.roles
+'Yulang.GeneralNominalRepeatedFixture190.plan' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.children :
+  List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralNominalRepeatedFixture190.roles)
+'Yulang.GeneralNominalRepeatedFixture190.children' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.query :
+  Yulang.GeneralNominalInspection.queries Yulang.GeneralNominalRepeatedFixture190.snapshot
+      Yulang.GeneralNominalRepeatedFixture190.context.interpretation
+      Yulang.GeneralNominalRepeatedFixture190.declaration =
+    [Yulang.GeneralNominalInspection.Query.variables [0], Yulang.GeneralNominalInspection.Query.variables [0]]
+'Yulang.GeneralNominalRepeatedFixture190.query' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.report_exact :
+  Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralNominalRepeatedFixture190.context
+      Yulang.GeneralNominalRepeatedFixture190.declaration [(1, 1), (1, 1)] =
+    { captures := [{ name := 0, bounds := (1, 1), origin := none }, { name := 0, bounds := (1, 1), origin := none }],
+      checked := [(1, 1), (1, 1), (1, 1), (1, 1)] }
+'Yulang.GeneralNominalRepeatedFixture190.report_exact' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.model_fresh (purpose owner position : Nat) :
+  (Yulang.GeneralNominalRepeatedFixture190.model
+        (Yulang.GeneralNominalCenters.fresh Yulang.GeneralNominalRepeatedFixture190.snapshot.seed
+          Yulang.GeneralNominalRepeatedFixture190.root.identity Yulang.GeneralNominalRepeatedFixture190.declaration.id
+          purpose owner position)).fst =
+    Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int
+'Yulang.GeneralNominalRepeatedFixture190.model_fresh' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.bindings_exact :
+  Yulang.GeneralNominalRepeatedFixture190.packet.bindings = [(0, 1, 1), (0, 1, 1)]
+'Yulang.GeneralNominalRepeatedFixture190.bindings_exact' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.capture_zero :
+  (Yulang.GeneralNominalPacketSupport.capture Yulang.GeneralNominalRepeatedFixture190.packet).inputs 0 =
+    (Yulang.GeneralNominalCenters.fresh Yulang.GeneralNominalRepeatedFixture190.snapshot.seed
+        Yulang.GeneralNominalRepeatedFixture190.root.identity Yulang.GeneralNominalRepeatedFixture190.declaration.id 0 0
+        0,
+      Yulang.GeneralNominalCenters.fresh Yulang.GeneralNominalRepeatedFixture190.snapshot.seed
+        Yulang.GeneralNominalRepeatedFixture190.root.identity Yulang.GeneralNominalRepeatedFixture190.declaration.id 1 0
+        0)
+'Yulang.GeneralNominalRepeatedFixture190.capture_zero' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.merges_model :
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model Yulang.GeneralNominalRepeatedFixture190.model
+    (Yulang.GeneralNominalAllocation.merges Yulang.GeneralNominalRepeatedFixture190.snapshot
+      Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root.identity
+      Yulang.GeneralNominalRepeatedFixture190.declaration Yulang.GeneralNominalRepeatedFixture190.packet.bindings)
+'Yulang.GeneralNominalRepeatedFixture190.merges_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.head_model :
+  Yulang.GeneralNominalCenteredHeadCandidates.HeadModels Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root
+    Yulang.GeneralNominalRepeatedFixture190.declaration [(1, 1), (1, 1)] Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedFixture190.head_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.prepared :
+  Yulang.GeneralNominalCenteredHeadCandidates.Prepared Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root
+    Yulang.GeneralNominalRepeatedFixture190.declaration
+'Yulang.GeneralNominalRepeatedFixture190.prepared' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.known :
+  ¬Yulang.GeneralNominalState.RootPending Yulang.GeneralNominalRepeatedFixture190.snapshot
+      Yulang.GeneralNominalRepeatedFixture190.root.demand
+'Yulang.GeneralNominalRepeatedLocal190.known' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.survivor :
+  Yulang.GeneralNominalCenteredHeadCandidates.Survivor Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root 3
+    Yulang.GeneralNominalRepeatedFixture190.children
+'Yulang.GeneralNominalRepeatedLocal190.survivor' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.unique :
+  Yulang.GeneralNominalCenteredHeadCandidates.Unique Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root 3
+    Yulang.GeneralNominalRepeatedFixture190.children
+'Yulang.GeneralNominalRepeatedLocal190.unique' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.frame :
+  Yulang.GeneralNominalCenteredHeadOutputs.Frame Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.start.core Yulang.GeneralNominalRepeatedFixture190.root 3
+    Yulang.GeneralNominalRepeatedFixture190.plan
+'Yulang.GeneralNominalRepeatedLocal190.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.requests_exact :
+  Yulang.GeneralNominalCenteredHeadOutputs.requests Yulang.GeneralNominalRepeatedFixture190.start.core
+      Yulang.GeneralNominalRepeatedFixture190.root =
+    [{ name := 0, target := 1 }]
+'Yulang.GeneralNominalRepeatedLocal190.requests_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.binder_zero :
+  Yulang.GeneralNominalRepeatedFixture190.plan.binder 0 =
+    Yulang.GeneralNominalCenters.fresh Yulang.GeneralNominalRepeatedFixture190.snapshot.seed
+      Yulang.GeneralNominalRepeatedFixture190.root.identity Yulang.GeneralNominalRepeatedFixture190.declaration.id 8 0 0
+'Yulang.GeneralNominalRepeatedLocal190.binder_zero' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.head_schema :
+  Yulang.GeneralNominalRepeatedFixture190.plan.headSchema =
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual },
+          { name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+'Yulang.GeneralNominalRepeatedLocal190.head_schema' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.output_schema :
+  Yulang.GeneralNominalCenteredHeadOutputs.outputSchema Yulang.GeneralNominalRepeatedFixture190.start.core
+      Yulang.GeneralNominalRepeatedFixture190.root Yulang.GeneralNominalRepeatedFixture190.plan =
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+'Yulang.GeneralNominalRepeatedLocal190.output_schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.effects_ready :
+  Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady Yulang.GeneralNominalRepeatedFixture190.start.core
+    Yulang.GeneralNominalRepeatedFixture190.root Yulang.GeneralNominalRepeatedFixture190.plan
+'Yulang.GeneralNominalRepeatedLocal190.effects_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.source_binder_same :
+  Yulang.GeneralNominalOriginTerms.Same Yulang.GeneralNominalRepeatedFixture190.model
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source 1)
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source (Yulang.GeneralNominalRepeatedFixture190.plan.binder 0))
+'Yulang.GeneralNominalRepeatedLocal190.source_binder_same' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.self_schema :
+  Yulang.GeneralNominalRepeatedFixture190.plan.SchemaHolds
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedLocal190.self_schema' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.head_equations :
+  Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations Yulang.GeneralNominalRepeatedFixture190.plan
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedLocal190.head_equations' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.output_equations :
+  Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations Yulang.GeneralNominalRepeatedFixture190.start.core
+    Yulang.GeneralNominalRepeatedFixture190.root Yulang.GeneralNominalRepeatedFixture190.plan
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedLocal190.output_equations' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.common_effects :
+  ∃ assignment,
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalRepeatedFixture190.start assignment ∧
+      Yulang.GeneralNominalCenteredHeadOutputs.ChosenClassEffects Yulang.GeneralNominalRepeatedFixture190.registry
+        Yulang.GeneralNominalRepeatedFixture190.start.core Yulang.GeneralNominalRepeatedFixture190.root 3 assignment
+'Yulang.GeneralNominalRepeatedLocal190.common_effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.no_output_conflict :
+  ¬Yulang.GeneralNominalCenteredHeadStepBoundary.OutputConflict Yulang.GeneralNominalRepeatedFixture190.registry
+      Yulang.GeneralNominalRepeatedFixture190.start Yulang.GeneralNominalRepeatedFixture190.root 3
+'Yulang.GeneralNominalRepeatedLocal190.no_output_conflict' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.feedback_acyclic (identity : Nat) :
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralNominalRepeatedFixture190.start.core.erased.current identity
+'Yulang.GeneralNominalRepeatedLocal190.feedback_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.no_raw_recurs
+  (slot : Fin Yulang.GeneralNominalRepeatedFixture190.snapshot.base.slots) :
+  ¬Yulang.GeneralNominalCycleK2.RecursAt Yulang.GeneralNominalRepeatedFixture190.snapshot slot
+'Yulang.GeneralNominalRepeatedLocal190.no_raw_recurs' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.centered_acyclic (origin : Yulang.GeneralNominalRecursiveInspection.Origin) :
+  ¬Yulang.GeneralNominalCenteredSteps.Cyclic Yulang.GeneralNominalRepeatedFixture190.start.core origin
+'Yulang.GeneralNominalRepeatedLocal190.centered_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.decision :
+  Yulang.GeneralNominalCenteredSteps.DecisionGuard Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.start.core Yulang.GeneralNominalRepeatedFixture190.root
+'Yulang.GeneralNominalRepeatedLocal190.decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.safe :
+  Yulang.B4TargetV6.SafeKnown
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles)
+    Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.start
+    Yulang.GeneralNominalRepeatedFixture190.root
+'Yulang.GeneralNominalRepeatedLocal190.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.selected :
+  Yulang.GeneralNominalCenteredHeadWFBoundary.Local Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.start Yulang.GeneralNominalRepeatedFixture190.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected 3 Yulang.GeneralNominalRepeatedFixture190.children)
+'Yulang.GeneralNominalRepeatedLocal190.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.installable :
+  ∃ support,
+    Yulang.GeneralNominalCenteredHeadStepKernel.Installable Yulang.GeneralNominalRepeatedFixture190.registry
+      Yulang.GeneralNominalRepeatedFixture190.start Yulang.GeneralNominalRepeatedFixture190.plan support
+'Yulang.GeneralNominalRepeatedLocal190.installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.mergeLower : Nat
+'Yulang.GeneralNominalRepeatedLocal190.mergeLower' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.badModel : Yulang.GeneralNominalCommonBridge.Assignment
+'Yulang.GeneralNominalRepeatedLocal190.badModel' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.lower_above :
+  Yulang.GeneralNominalRepeatedFixture190.snapshot.seed < Yulang.GeneralNominalRepeatedLocal190.mergeLower
+'Yulang.GeneralNominalRepeatedLocal190.lower_above' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_preserves_source (identity : Nat)
+  (member : identity ∈ Yulang.GeneralNominalState.sources Yulang.GeneralNominalRepeatedFixture190.snapshot) :
+  Yulang.GeneralNominalRepeatedLocal190.badModel identity = Yulang.GeneralNominalRepeatedFixture190.model identity
+'Yulang.GeneralNominalRepeatedLocal190.bad_preserves_source' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_source_model :
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalRepeatedFixture190.snapshot
+    Yulang.GeneralNominalRepeatedLocal190.badModel
+'Yulang.GeneralNominalRepeatedLocal190.bad_source_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_inhabited :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalRepeatedFixture190.start
+    Yulang.GeneralNominalRepeatedLocal190.badModel
+'Yulang.GeneralNominalRepeatedLocal190.bad_inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_lower :
+  (Yulang.GeneralNominalRepeatedLocal190.badModel Yulang.GeneralNominalRepeatedLocal190.mergeLower).fst =
+    Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.bool
+'Yulang.GeneralNominalRepeatedLocal190.bad_lower' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_one :
+  (Yulang.GeneralNominalRepeatedLocal190.badModel 1).fst =
+    Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int
+'Yulang.GeneralNominalRepeatedLocal190.bad_one' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bool_not_below_int :
+  ¬Yulang.CommonNominalFullCarrier.Subtype (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.bool)
+      (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+'Yulang.GeneralNominalRepeatedLocal190.bool_not_below_int' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_packet :
+  ¬Yulang.GeneralNominalRepeatedFixture190.packet.Holds Yulang.GeneralNominalRepeatedLocal190.badModel
+'Yulang.GeneralNominalRepeatedLocal190.bad_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.not_committed :
+  ¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralNominalRepeatedFixture190.start.core.erased.current
+      Yulang.GeneralNominalRepeatedFixture190.packet
+'Yulang.GeneralNominalRepeatedLocal190.not_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.inhabited_step :
+  ∃ after,
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles).Step
+        Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root
+        Yulang.GeneralNominalRepeatedFixture190.start after ∧
+      ∃ assignment, Yulang.GeneralNominalCenteredHeadStepEffects.Models after assignment
+'Yulang.GeneralNominalRepeatedLocal190.inhabited_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.not_stable :
+  ¬(Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles).Stable
+      Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.start
+      Yulang.GeneralNominalRepeatedFixture190.root
+'Yulang.GeneralNominalRepeatedLocal190.not_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedNamedPlan190.named_plan {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (leaf : candidate.packet.declaration.requirements = []) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (branch :
+    Yulang.GeneralNominalCenteredHeadCandidates.HeadModels candidate.packet.registry candidate.packet.context
+      candidate.packet.site.occurrence candidate.packet.declaration candidate.packet.bounds model)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model)
+  (outputs : candidate.SchemaHolds (Yulang.GeneralNominalPacketSupport.namedSchema candidate.packet) model) :
+  candidate.Holds model
+'Yulang.GeneralNominalRepeatedNamedPlan190.named_plan' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedNamedPlan190.selected_named_plan {roles : Yulang.Roles.RoleDecls} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (names : candidate.packet.declaration.inputNames = List.map Prod.fst entries)
+  (leaf : candidate.packet.declaration.requirements = [])
+  (ready : Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady state.core root candidate) :
+  ∃ model,
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models state model ∧
+      candidate.Holds model ∧ Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations state.core root candidate model
+'Yulang.GeneralNominalRepeatedNamedPlan190.selected_named_plan' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedNamedPlan190.selected_named_installable {roles : Yulang.Roles.RoleDecls} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (names : candidate.packet.declaration.inputNames = List.map Prod.fst entries)
+  (leaf : candidate.packet.declaration.requirements = [])
+  (ready : Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady state.core root candidate) :
+  ∃ support, Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state candidate support
+'Yulang.GeneralNominalRepeatedNamedPlan190.selected_named_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.schema_variable_at (names : List Nat)
+  (origins : Nat → Yulang.GeneralNominalRecursiveInspection.Origin) (offset index name : Nat)
+  (found : names[index]? = some name) :
+  { name := name, origin := origins (offset + index), mode := Yulang.GeneralNominalMaterialization.Mode.actual } ∈
+    (Yulang.GeneralNominalMaterialization.schemas
+        (List.map (fun name => Yulang.GeneralNominalInspection.Query.variables [name]) names) origins
+        Yulang.GeneralNominalMaterialization.Mode.actual offset).variables
+'Yulang.GeneralNominalRepeatedPointRepair190.schema_variable_at' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.source_equivalent {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model)
+  (entry : Nat × Fin candidate.packet.context.state.base.slots) (member : entry ∈ entries) :
+  Yulang.CommonNominalFullCarrier.Equivalent (model (candidate.packet.context.state.base.source entry.snd)).fst
+    (model (candidate.binder entry.fst)).fst
+'Yulang.GeneralNominalRepeatedPointRepair190.source_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repeated_sources_equivalent {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model)
+  (first last : Nat × Fin candidate.packet.context.state.base.slots) (one : first ∈ entries) (two : last ∈ entries)
+  (equal : first.fst = last.fst) :
+  Yulang.CommonNominalFullCarrier.Equivalent (model (candidate.packet.context.state.base.source first.snd)).fst
+    (model (candidate.packet.context.state.base.source last.snd)).fst
+'Yulang.GeneralNominalRepeatedPointRepair190.repeated_sources_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.bindings_eq {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries) :
+  candidate.packet.bindings =
+    List.map
+      (fun entry =>
+        (entry.fst, candidate.packet.context.state.base.source entry.snd,
+          candidate.packet.context.state.base.source entry.snd))
+      entries
+'Yulang.GeneralNominalRepeatedPointRepair190.bindings_eq' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.cross_compatible {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model) :
+  Yulang.GeneralNominalAllocation.Compatible candidate.packet.bindings model
+'Yulang.GeneralNominalRepeatedPointRepair190.cross_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.occurrence_equivalent {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key name : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model)
+  (pair : Yulang.GeneralSourceState.Interval)
+  (member : pair ∈ Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name) :
+  Yulang.CommonNominalFullCarrier.Equivalent (model pair.fst).fst (model (candidate.binder name)).fst ∧
+    Yulang.CommonNominalFullCarrier.Equivalent (model pair.snd).fst (model (candidate.binder name)).fst
+'Yulang.GeneralNominalRepeatedPointRepair190.occurrence_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.computed_extrema {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key name : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model)
+  (nonempty : Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name ≠ []) :
+  Yulang.CommonNominalFullCarrier.Equivalent
+      (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalAllocation.lower
+          (Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name)))
+      (model (candidate.binder name)).fst ∧
+    Yulang.CommonNominalFullCarrier.Equivalent
+      (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalAllocation.upper
+          (Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name)))
+      (model (candidate.binder name)).fst
+'Yulang.GeneralNominalRepeatedPointRepair190.computed_extrema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.mergeAssignments {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) : List (Nat × Nat)
+'Yulang.GeneralNominalRepeatedPointRepair190.mergeAssignments' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCommonBridge.Assignment
+'Yulang.GeneralNominalRepeatedPointRepair190.repair' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_assigned {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (assignment : Nat × Nat)
+  (member : assignment ∈ Yulang.GeneralNominalRepeatedPointRepair190.mergeAssignments candidate) :
+  (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model assignment.fst).fst =
+    (model (candidate.binder assignment.snd)).fst
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_assigned' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_outside {roles : Yulang.Roles.RoleDecls} {name : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (outside :
+    ∀ (assignment : Nat × Nat),
+      assignment ∈ Yulang.GeneralNominalRepeatedPointRepair190.mergeAssignments candidate → assignment.fst ≠ name) :
+  Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model name = model name
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_outside' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_below_seed {roles : Yulang.Roles.RoleDecls} {name : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (below : name ≤ candidate.packet.context.state.seed) :
+  Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model name = model name
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_below_seed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_current_source {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key name : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (member : name ∈ Yulang.GeneralNominalState.sources candidate.packet.context.state) :
+  Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model name = model name
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_current_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_models {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models state
+    (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.occurrences_nonempty {roles : Yulang.Roles.RoleDecls} {name : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (names : candidate.packet.declaration.inputNames = List.map Prod.fst entries)
+  (declared : name ∈ candidate.packet.declaration.inputNames) :
+  Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name ≠ []
+'Yulang.GeneralNominalRepeatedPointRepair190.occurrences_nonempty' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_extrema_terms {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (name : Nat) :
+  Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model
+        (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model)
+        (Yulang.GeneralNominalAllocation.lower
+          (Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name)) =
+      Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalAllocation.lower
+          (Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name)) ∧
+    Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model
+        (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model)
+        (Yulang.GeneralNominalAllocation.upper
+          (Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name)) =
+      Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalAllocation.upper
+          (Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name))
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_extrema_terms' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_merges {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (names : candidate.packet.declaration.inputNames = List.map Prod.fst entries)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model) :
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model
+    (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model)
+    (Yulang.GeneralNominalAllocation.merges candidate.packet.context.state candidate.packet.registry
+      candidate.packet.site.occurrence.identity candidate.packet.declaration candidate.packet.bindings)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_merges' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_other_namespace {roles : Yulang.Roles.RoleDecls}
+  {purpose invocation declaration owner position : Nat} (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (differentZero : purpose ≠ 0) (differentOne : purpose ≠ 1) :
+  Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model
+      (Yulang.GeneralNominalCenters.fresh candidate.packet.context.state.seed invocation declaration purpose owner
+        position) =
+    model
+      (Yulang.GeneralNominalCenters.fresh candidate.packet.context.state.seed invocation declaration purpose owner
+        position)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_other_namespace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_binder {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (name : Nat) :
+  Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model (candidate.binder name) =
+    model (candidate.binder name)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_binder' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_actual_schema {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (body : Yulang.GeneralNominalMaterialization.Schema)
+  (actual : Yulang.GeneralDictionaryActualSchema.ActualOnly body)
+  (roots :
+    Yulang.GeneralNominalGeneratedSupport184.Roots body
+      (Yulang.GeneralNominalState.sources candidate.packet.context.state)) :
+  candidate.SchemaHolds body (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model) ↔
+    candidate.SchemaHolds body model
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_actual_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_head_schema {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  candidate.SchemaHolds candidate.headSchema (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model) ↔
+    candidate.SchemaHolds candidate.headSchema model
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_head_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_capture_fit {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key name : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model)
+  (declared : name ∈ candidate.packet.declaration.inputNames)
+  (nonempty : Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name ≠ []) :
+  Yulang.GeneralNominalCaptureMerges.Fits (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model)
+    ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name)
+    (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model (candidate.binder name)).fst
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_capture_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_head_equations {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (names : candidate.packet.declaration.inputNames = List.map Prod.fst entries)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model) :
+  Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate
+    (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_head_equations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.initial_output_source {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {output : Yulang.GeneralSourceState.Output}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (member : output ∈ root.demand.outputs) :
+  output.target ∈ Yulang.GeneralNominalState.sources candidate.packet.context.state
+'Yulang.GeneralNominalRepeatedPointRepair190.initial_output_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_named_schema {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (leaf : candidate.packet.declaration.requirements = []) (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  candidate.SchemaHolds (Yulang.GeneralNominalPacketSupport.namedSchema candidate.packet)
+      (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model) ↔
+    candidate.SchemaHolds (Yulang.GeneralNominalPacketSupport.namedSchema candidate.packet) model
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_named_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_outputs {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (leaf : candidate.packet.declaration.requirements = []) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (outputs : Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations state.core root candidate model) :
+  Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations state.core root candidate
+    (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_head_models {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate)
+  (entries : List (Nat × Fin candidate.packet.context.state.base.slots))
+  (query :
+    Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries)
+  (bounds : candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries)
+  (names : candidate.packet.declaration.inputNames = List.map Prod.fst entries)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (head : Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate model) :
+  Yulang.GeneralNominalCenteredHeadCandidates.HeadModels candidate.packet.registry candidate.packet.context
+    candidate.packet.site.occurrence candidate.packet.declaration candidate.packet.bounds
+    (Yulang.GeneralNominalRepeatedPointRepair190.repair candidate model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_head_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceLinearEvidence190.selected_installable {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate) (names : List Nat)
+  (distinct : names.Nodup)
+  (head : candidate.packet.declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names)
+  (leaf : candidate.packet.declaration.requirements = [])
+  (coverage :
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      output ∈ root.demand.outputs →
+        ∃ equation, equation ∈ candidate.packet.declaration.associated ∧ equation.name = output.name)
+  (translated :
+    ∀ (equation : Yulang.GeneralDeclarations.Equation),
+      equation ∈ candidate.packet.declaration.associated →
+        Yulang.GeneralNominalHeadMatchMass.Complete
+          (Yulang.GeneralNominalInspection.translate candidate.packet.context.state.constructors
+            candidate.packet.context.interpretation (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  ∃ support, Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state candidate support
+'Yulang.GeneralNominalSourceLinearEvidence190.selected_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceLinearEvidence190.selected_source_candidate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        declaration.id = key →
+          (∃ names, names.Nodup ∧ declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) ∧
+            declaration.requirements = [] ∧
+              (∀ (output : Yulang.GeneralSourceState.Output),
+                  output ∈ root.demand.outputs →
+                    ∃ equation, equation ∈ declaration.associated ∧ equation.name = output.name) ∧
+                ∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  equation ∈ declaration.associated →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate state.core.erased.current.context.state.constructors
+                        state.core.erased.current.context.interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  ∃ candidate support,
+    Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate ∧
+      candidate.packet.children = children ∧
+        Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state candidate support
+'Yulang.GeneralNominalSourceLinearEvidence190.selected_source_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceLinearEvidence190.stable_selected_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (stable : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry state root)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        declaration.id = key →
+          (∃ names, names.Nodup ∧ declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) ∧
+            declaration.requirements = [] ∧
+              (∀ (output : Yulang.GeneralSourceState.Output),
+                  output ∈ root.demand.outputs →
+                    ∃ equation, equation ∈ declaration.associated ∧ equation.name = output.name) ∧
+                ∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  equation ∈ declaration.associated →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate state.core.erased.current.context.state.constructors
+                        state.core.erased.current.context.interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  children = [] ∧
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node key [])
+'Yulang.GeneralNominalSourceLinearEvidence190.stable_selected_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceLinearShape190.normalize_variables (names : List Nat) :
+  Yulang.GeneralDeclarationPatterns.normalizeArgs (List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) =
+    List.map Yulang.GeneralDeclarationPatterns.Pattern.var names
+'Yulang.GeneralNominalSourceLinearShape190.normalize_variables' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSourceLinearShape190.variables_variables (names : List Nat) :
+  Yulang.GeneralDeclarationPatterns.variablesArgs (List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) = names
+'Yulang.GeneralNominalSourceLinearShape190.variables_variables' depends on axioms: [propext]
+Yulang.GeneralNominalSourceLinearShape190.source_shape {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (names : List Nat)
+  (head : candidate.packet.declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) :
+  Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+        candidate.packet.declaration =
+      List.map (fun name => Yulang.GeneralNominalInspection.Query.variables [name]) names ∧
+    candidate.packet.declaration.inputNames = names
+'Yulang.GeneralNominalSourceLinearShape190.source_shape' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSourceLinearShape190.initial_entries {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate) (names : List Nat)
+  (head : candidate.packet.declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) :
+  ∃ entries,
+    List.map Prod.fst entries = names ∧
+      candidate.packet.bounds = List.map (fun entry => (entry.snd, entry.snd)) entries ∧
+        Yulang.GeneralNominalInspection.queries candidate.packet.context.state candidate.packet.context.interpretation
+              candidate.packet.declaration =
+            List.map (fun entry => Yulang.GeneralNominalInspection.Query.variables [entry.fst]) entries ∧
+          candidate.packet.declaration.inputNames = List.map Prod.fst entries
+'Yulang.GeneralNominalSourceLinearShape190.initial_entries' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalSourceOutputReady190.source_effects_ready {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (coverage :
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      output ∈ root.demand.outputs →
+        ∃ equation, equation ∈ candidate.packet.declaration.associated ∧ equation.name = output.name)
+  (translated :
+    ∀ (equation : Yulang.GeneralDeclarations.Equation),
+      equation ∈ candidate.packet.declaration.associated →
+        Yulang.GeneralNominalHeadMatchMass.Complete
+          (Yulang.GeneralNominalInspection.translate candidate.packet.context.state.constructors
+            candidate.packet.context.interpretation (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady state.core root candidate
+'Yulang.GeneralNominalSourceOutputReady190.source_effects_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceRepeatedEvidence190.selected_installable {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate) (names : List Nat)
+  (head : candidate.packet.declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names)
+  (leaf : candidate.packet.declaration.requirements = [])
+  (coverage :
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      output ∈ root.demand.outputs →
+        ∃ equation, equation ∈ candidate.packet.declaration.associated ∧ equation.name = output.name)
+  (translated :
+    ∀ (equation : Yulang.GeneralDeclarations.Equation),
+      equation ∈ candidate.packet.declaration.associated →
+        Yulang.GeneralNominalHeadMatchMass.Complete
+          (Yulang.GeneralNominalInspection.translate candidate.packet.context.state.constructors
+            candidate.packet.context.interpretation (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  ∃ support, Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state candidate support
+'Yulang.GeneralNominalSourceRepeatedEvidence190.selected_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceRepeatedEvidence190.selected_source_candidate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        declaration.id = key →
+          (∃ names, declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) ∧
+            declaration.requirements = [] ∧
+              (∀ (output : Yulang.GeneralSourceState.Output),
+                  output ∈ root.demand.outputs →
+                    ∃ equation, equation ∈ declaration.associated ∧ equation.name = output.name) ∧
+                ∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  equation ∈ declaration.associated →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate state.core.erased.current.context.state.constructors
+                        state.core.erased.current.context.interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  ∃ candidate support,
+    Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate ∧
+      candidate.packet.children = children ∧
+        Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state candidate support
+'Yulang.GeneralNominalSourceRepeatedEvidence190.selected_source_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceRepeatedEvidence190.stable_selected_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (stable : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry state root)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        declaration.id = key →
+          (∃ names, declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) ∧
+            declaration.requirements = [] ∧
+              (∀ (output : Yulang.GeneralSourceState.Output),
+                  output ∈ root.demand.outputs →
+                    ∃ equation, equation ∈ declaration.associated ∧ equation.name = output.name) ∧
+                ∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  equation ∈ declaration.associated →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate state.core.erased.current.context.state.constructors
+                        state.core.erased.current.context.interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  children = [] ∧
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node key [])
+'Yulang.GeneralNominalSourceRepeatedEvidence190.stable_selected_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceRepeatedEvidence190.committed_or_inhabited_step {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root state)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        declaration.id = key →
+          (∃ names, declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) ∧
+            declaration.requirements = [] ∧
+              (∀ (output : Yulang.GeneralSourceState.Output),
+                  output ∈ root.demand.outputs →
+                    ∃ equation, equation ∈ declaration.associated ∧ equation.name = output.name) ∧
+                ∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  equation ∈ declaration.associated →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate state.core.erased.current.context.state.constructors
+                        state.core.erased.current.context.interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  ∃ candidate,
+    Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key candidate ∧
+      (Yulang.GeneralNominalFeedbackSteps.Committed state.core.erased.current candidate.packet ∨
+        ∃ after,
+          (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Step registry root state after ∧
+            ∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models after model)
+'Yulang.GeneralNominalSourceRepeatedEvidence190.committed_or_inhabited_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.roles : Yulang.Roles.RoleDecls
+'Yulang.GeneralNominalTwoHeadFixture190.roles' does not depend on any axioms
+Yulang.GeneralNominalTwoHeadFixture190.declaration : Yulang.GeneralDeclarations.Declaration
+'Yulang.GeneralNominalTwoHeadFixture190.declaration' does not depend on any axioms
+Yulang.GeneralNominalTwoHeadFixture190.registry : Yulang.GeneralDeclarations.Registry
+'Yulang.GeneralNominalTwoHeadFixture190.registry' does not depend on any axioms
+Yulang.GeneralNominalTwoHeadFixture190.context : Yulang.GeneralNominalCandidates.Context
+'Yulang.GeneralNominalTwoHeadFixture190.context' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.snapshot : Yulang.GeneralNominalState.State
+'Yulang.GeneralNominalTwoHeadFixture190.snapshot' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.root :
+  Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralNominalTwoHeadFixture190.roles
+'Yulang.GeneralNominalTwoHeadFixture190.root' depends on axioms: [propext]
+Yulang.GeneralNominalTwoHeadFixture190.start :
+  Yulang.GeneralNominalCenteredHeadStepEffects.State Yulang.GeneralNominalTwoHeadFixture190.roles
+'Yulang.GeneralNominalTwoHeadFixture190.start' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.model : Yulang.GeneralNominalCommonBridge.Assignment
+'Yulang.GeneralNominalTwoHeadFixture190.model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.declaration_checked :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDeclarationExamples.constructors
+    Yulang.GeneralNominalTwoHeadFixture190.roles Yulang.GeneralNominalTwoHeadFixture190.declaration
+'Yulang.GeneralNominalTwoHeadFixture190.declaration_checked' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.checked :
+  Yulang.GeneralDeclarations.Checked Yulang.GeneralNominalTwoHeadFixture190.registry
+'Yulang.GeneralNominalTwoHeadFixture190.checked' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.source :
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.context Yulang.GeneralNominalTwoHeadFixture190.root
+'Yulang.GeneralNominalTwoHeadFixture190.source' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.ground :
+  Yulang.GeneralNominalGroundAccessibility.GroundRoots Yulang.GeneralNominalTwoHeadFixture190.context
+    Yulang.GeneralNominalTwoHeadFixture190.root
+    [Yulang.GeneralDeclarationPatterns.Pattern.app 2 [], Yulang.GeneralDeclarationPatterns.Pattern.app 2 []]
+'Yulang.GeneralNominalTwoHeadFixture190.ground' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.coverage :
+  Yulang.GeneralNominalCenteredHeadWFSource.Coverage Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.context.interpretation
+'Yulang.GeneralNominalTwoHeadFixture190.coverage' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.initial_source :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles).Initial
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.root
+    Yulang.GeneralNominalTwoHeadFixture190.start
+'Yulang.GeneralNominalTwoHeadFixture190.initial_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.reachable :
+  Yulang.B4TargetV6.Reachable
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles)
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.root
+    Yulang.GeneralNominalTwoHeadFixture190.start
+'Yulang.GeneralNominalTwoHeadFixture190.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.source_model :
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalTwoHeadFixture190.snapshot
+    Yulang.GeneralNominalTwoHeadFixture190.model
+'Yulang.GeneralNominalTwoHeadFixture190.source_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.inhabited :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.model
+'Yulang.GeneralNominalTwoHeadFixture190.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.packet :
+  Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralNominalTwoHeadFixture190.roles
+'Yulang.GeneralNominalTwoHeadFixture190.packet' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.plan :
+  Yulang.GeneralNominalCenters.Plan Yulang.GeneralNominalTwoHeadFixture190.roles
+'Yulang.GeneralNominalTwoHeadFixture190.plan' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.children :
+  List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralNominalTwoHeadFixture190.roles)
+'Yulang.GeneralNominalTwoHeadFixture190.children' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.query :
+  Yulang.GeneralNominalInspection.queries Yulang.GeneralNominalTwoHeadFixture190.snapshot
+      Yulang.GeneralNominalTwoHeadFixture190.context.interpretation Yulang.GeneralNominalTwoHeadFixture190.declaration =
+    [Yulang.GeneralNominalInspection.Query.variables [0], Yulang.GeneralNominalInspection.Query.variables [1]]
+'Yulang.GeneralNominalTwoHeadFixture190.query' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.report_exact :
+  Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralNominalTwoHeadFixture190.context
+      Yulang.GeneralNominalTwoHeadFixture190.declaration [(1, 1), (1, 1)] =
+    { captures := [{ name := 0, bounds := (1, 1), origin := none }, { name := 1, bounds := (1, 1), origin := none }],
+      checked := [(1, 1), (1, 1), (1, 1), (1, 1)] }
+'Yulang.GeneralNominalTwoHeadFixture190.report_exact' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.head_model :
+  Yulang.GeneralNominalCenteredHeadCandidates.HeadModels Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.context Yulang.GeneralNominalTwoHeadFixture190.root
+    Yulang.GeneralNominalTwoHeadFixture190.declaration [(1, 1), (1, 1)] Yulang.GeneralNominalTwoHeadFixture190.model
+'Yulang.GeneralNominalTwoHeadFixture190.head_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadFixture190.prepared :
+  Yulang.GeneralNominalCenteredHeadCandidates.Prepared Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.context Yulang.GeneralNominalTwoHeadFixture190.root
+    Yulang.GeneralNominalTwoHeadFixture190.declaration
+'Yulang.GeneralNominalTwoHeadFixture190.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.known :
+  ¬Yulang.GeneralNominalState.RootPending Yulang.GeneralNominalTwoHeadFixture190.snapshot
+      Yulang.GeneralNominalTwoHeadFixture190.root.demand
+'Yulang.GeneralNominalTwoHeadNonvacuity190.known' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.survivor :
+  Yulang.GeneralNominalCenteredHeadCandidates.Survivor Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.context Yulang.GeneralNominalTwoHeadFixture190.root 3
+    Yulang.GeneralNominalTwoHeadFixture190.children
+'Yulang.GeneralNominalTwoHeadNonvacuity190.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.unique :
+  Yulang.GeneralNominalCenteredHeadCandidates.Unique Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.context Yulang.GeneralNominalTwoHeadFixture190.root 3
+    Yulang.GeneralNominalTwoHeadFixture190.children
+'Yulang.GeneralNominalTwoHeadNonvacuity190.unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.frame :
+  Yulang.GeneralNominalCenteredHeadOutputs.Frame Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.start.core Yulang.GeneralNominalTwoHeadFixture190.root 3
+    Yulang.GeneralNominalTwoHeadFixture190.plan
+'Yulang.GeneralNominalTwoHeadNonvacuity190.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.requests_exact :
+  Yulang.GeneralNominalCenteredHeadOutputs.requests Yulang.GeneralNominalTwoHeadFixture190.start.core
+      Yulang.GeneralNominalTwoHeadFixture190.root =
+    [{ name := 0, target := 1 }]
+'Yulang.GeneralNominalTwoHeadNonvacuity190.requests_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.capture_names (name : Nat) (member : name ∈ [0, 1]) :
+  (Yulang.GeneralNominalPacketSupport.capture Yulang.GeneralNominalTwoHeadFixture190.plan.packet).inputs name = (1, 1)
+'Yulang.GeneralNominalTwoHeadNonvacuity190.capture_names' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.binder_names (name : Nat) (member : name ∈ [0, 1]) :
+  Yulang.GeneralNominalTwoHeadFixture190.plan.binder name = 1
+'Yulang.GeneralNominalTwoHeadNonvacuity190.binder_names' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.head_schema :
+  Yulang.GeneralNominalTwoHeadFixture190.plan.headSchema =
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual },
+          { name := 1, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+'Yulang.GeneralNominalTwoHeadNonvacuity190.head_schema' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.output_schema :
+  Yulang.GeneralNominalCenteredHeadOutputs.outputSchema Yulang.GeneralNominalTwoHeadFixture190.start.core
+      Yulang.GeneralNominalTwoHeadFixture190.root Yulang.GeneralNominalTwoHeadFixture190.plan =
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+'Yulang.GeneralNominalTwoHeadNonvacuity190.output_schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.effects_ready :
+  Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady Yulang.GeneralNominalTwoHeadFixture190.start.core
+    Yulang.GeneralNominalTwoHeadFixture190.root Yulang.GeneralNominalTwoHeadFixture190.plan
+'Yulang.GeneralNominalTwoHeadNonvacuity190.effects_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.self_schema (assignment : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalTwoHeadFixture190.plan.SchemaHolds
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+    assignment
+'Yulang.GeneralNominalTwoHeadNonvacuity190.self_schema' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.universal_head (assignment : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations Yulang.GeneralNominalTwoHeadFixture190.plan assignment
+'Yulang.GeneralNominalTwoHeadNonvacuity190.universal_head' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.output_equations :
+  Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations Yulang.GeneralNominalTwoHeadFixture190.start.core
+    Yulang.GeneralNominalTwoHeadFixture190.root Yulang.GeneralNominalTwoHeadFixture190.plan
+    Yulang.GeneralNominalTwoHeadFixture190.model
+'Yulang.GeneralNominalTwoHeadNonvacuity190.output_equations' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.common_effects :
+  ∃ assignment,
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalTwoHeadFixture190.start assignment ∧
+      Yulang.GeneralNominalCenteredHeadOutputs.ChosenClassEffects Yulang.GeneralNominalTwoHeadFixture190.registry
+        Yulang.GeneralNominalTwoHeadFixture190.start.core Yulang.GeneralNominalTwoHeadFixture190.root 3 assignment
+'Yulang.GeneralNominalTwoHeadNonvacuity190.common_effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.no_output_conflict :
+  ¬Yulang.GeneralNominalCenteredHeadStepBoundary.OutputConflict Yulang.GeneralNominalTwoHeadFixture190.registry
+      Yulang.GeneralNominalTwoHeadFixture190.start Yulang.GeneralNominalTwoHeadFixture190.root 3
+'Yulang.GeneralNominalTwoHeadNonvacuity190.no_output_conflict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.feedback_acyclic (identity : Nat) :
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralNominalTwoHeadFixture190.start.core.erased.current identity
+'Yulang.GeneralNominalTwoHeadNonvacuity190.feedback_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.no_raw_recurs
+  (slot : Fin Yulang.GeneralNominalTwoHeadFixture190.snapshot.base.slots) :
+  ¬Yulang.GeneralNominalCycleK2.RecursAt Yulang.GeneralNominalTwoHeadFixture190.snapshot slot
+'Yulang.GeneralNominalTwoHeadNonvacuity190.no_raw_recurs' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.centered_acyclic (origin : Yulang.GeneralNominalRecursiveInspection.Origin) :
+  ¬Yulang.GeneralNominalCenteredSteps.Cyclic Yulang.GeneralNominalTwoHeadFixture190.start.core origin
+'Yulang.GeneralNominalTwoHeadNonvacuity190.centered_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.decision :
+  Yulang.GeneralNominalCenteredSteps.DecisionGuard Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.start.core Yulang.GeneralNominalTwoHeadFixture190.root
+'Yulang.GeneralNominalTwoHeadNonvacuity190.decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.safe :
+  Yulang.B4TargetV6.SafeKnown
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles)
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.root
+'Yulang.GeneralNominalTwoHeadNonvacuity190.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.selected :
+  Yulang.GeneralNominalCenteredHeadWFBoundary.Local Yulang.GeneralNominalTwoHeadFixture190.registry
+    Yulang.GeneralNominalTwoHeadFixture190.start Yulang.GeneralNominalTwoHeadFixture190.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected 3 Yulang.GeneralNominalTwoHeadFixture190.children)
+'Yulang.GeneralNominalTwoHeadNonvacuity190.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.packet_models (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models Yulang.GeneralNominalTwoHeadFixture190.snapshot assignment) :
+  Yulang.GeneralNominalTwoHeadFixture190.packet.Holds assignment
+'Yulang.GeneralNominalTwoHeadNonvacuity190.packet_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.candidate_packet {key : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan Yulang.GeneralNominalTwoHeadFixture190.roles)
+  (framed :
+    Yulang.GeneralNominalCenteredHeadOutputs.Frame Yulang.GeneralNominalTwoHeadFixture190.registry
+      Yulang.GeneralNominalTwoHeadFixture190.start.core Yulang.GeneralNominalTwoHeadFixture190.root key candidate) :
+  candidate.packet = Yulang.GeneralNominalTwoHeadFixture190.packet
+'Yulang.GeneralNominalTwoHeadNonvacuity190.candidate_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.candidate_committed {key : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan Yulang.GeneralNominalTwoHeadFixture190.roles)
+  (framed :
+    Yulang.GeneralNominalCenteredHeadOutputs.Frame Yulang.GeneralNominalTwoHeadFixture190.registry
+      Yulang.GeneralNominalTwoHeadFixture190.start.core Yulang.GeneralNominalTwoHeadFixture190.root key candidate) :
+  Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralNominalTwoHeadFixture190.start.core.erased.current
+    candidate.packet
+'Yulang.GeneralNominalTwoHeadNonvacuity190.candidate_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.stable :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles).Stable
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.root
+'Yulang.GeneralNominalTwoHeadNonvacuity190.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.evidence :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles).Evidence
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.model Yulang.GeneralNominalTwoHeadFixture190.root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralNominalTwoHeadNonvacuity190.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalTwoHeadNonvacuity190.inhabited_stable_selected :
+  Yulang.GeneralDeclarations.Checked Yulang.GeneralNominalTwoHeadFixture190.registry ∧
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles).Initial
+        Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.root
+        Yulang.GeneralNominalTwoHeadFixture190.start ∧
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles).Stable
+          Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+          Yulang.GeneralNominalTwoHeadFixture190.root ∧
+        Yulang.GeneralNominalCenteredHeadWFBoundary.Local Yulang.GeneralNominalTwoHeadFixture190.registry
+            Yulang.GeneralNominalTwoHeadFixture190.start Yulang.GeneralNominalTwoHeadFixture190.root
+            (Yulang.CommonRoleOutermostResolver.Frontier.selected 3 []) ∧
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalTwoHeadFixture190.start
+              Yulang.GeneralNominalTwoHeadFixture190.model ∧
+            (Yulang.GeneralNominalTwoHeadFixture190.roles
+                    Yulang.GeneralNominalTwoHeadFixture190.root.demand.role).arity =
+                2 ∧
+              Yulang.GeneralNominalTwoHeadFixture190.root.demand.outputs ≠ [] ∧
+                (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary
+                      Yulang.GeneralNominalTwoHeadFixture190.roles).Evidence
+                  Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+                  Yulang.GeneralNominalTwoHeadFixture190.model Yulang.GeneralNominalTwoHeadFixture190.root
+                  (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralNominalTwoHeadNonvacuity190.inhabited_stable_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

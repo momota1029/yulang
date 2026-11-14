@@ -1,0 +1,13 @@
+Lean 4.35.0; PATH=/tmp/yulang183-toolchain/lean-4.35.0-linux/bin:$PATH
+From lean/:
+lake build --wfail Yulang.GeneralNominalRepeatedFixture190 Yulang.GeneralNominalRepeatedLocal190
+for f in Yulang/*190.lean; do lake env lean --trust=0 -DwarningAsError=true "$f"; done
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle190FinalGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle190AllPublicTypes.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle190RegressionTypes.lean
+for f in Cycle189PublicTypes Cycle189FinalPublicTypes Cycle189CompletePublicTypes; do lake env lean --trust=0 -DwarningAsError=true Audit/$f.lean; done
+YULANG_REACH_ROOTS=<absolute general/local-roots.txt> YULANG_REACH_OUTPUT=<absolute general/local-reach.tsv> lake env lean --trust=0 -DwarningAsError=true ../tools/ReachCycle190.lean
+From repo root:
+timeout 4m bash tools/verify-lean.sh . origin/integration/m1-final --no-build
+git diff --check
+All commands passed. No full build or full verification was run. Gates use collectAxioms read-only; ReachCycle190 walks constant types and values including opaque bodies, no proof generation or mutation.

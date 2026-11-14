@@ -68,3 +68,13 @@ Added GeneralNominalRepeatedFixture190 and GeneralNominalRepeatedLocal190: a con
 Fresh integration d5696a2ea39565b1475f6d0ceded1fb75b09b726 was merged. Upstream commit 00b8f9ffd removes the offending pp.universes setting in the three historical Cycle189 audit files; earlier notes describing that parser defect are historical and superseded by this upstream repair. No local rewrite of those published proofs was performed.
 
 Current full cycle190 gate: 243 declarations including generated/private, standard axioms only. Fifteen proof modules; public declaration inventory and reachability are being frozen separately. No general field was closed; Available is a genuine extra premise and is refuted universally by the known upstream counterexample. Independent full review was unavailable; author-level checks and concrete positive/negative regressions do not substitute for it.
+
+## 完全な公開inventory（13:59 UTC、監査時点）
+
+15 proof modules に公開 theorem 144、本体定義4、abbrev23、計171。従来の checkpoint の56/94等はその監査で列挙した宣言数であり、全公開定義数ではない。Cycle190AllPublicTypes が相互再帰内の2定理も含む171宣言の完全型と公理を列挙する。kernel gate は生成・private を含む243。これらは一般field完了数ではない。
+
+RepeatedFixture190/RepeatedLocal190 の50定理は、固定例のChecked・Initial・selected・Installable・意味的非Committed・実Stepとその後状態のinhabited・初期非Stableの構成と補助である。2入力distinct名の40定理は別の固定例であり、そのInitial/Stable/selected/Evidenceの同時成立を示す。AvailableNonvacuity190の3定理は前者とは別のdistinct例に対するAvailable/Classify/Evidenceを示す。これらは任意到達状態の一般化ではない。
+
+一般3root(exact/saturationTotal/orderIndependent)のconstant type/value閉包からは新規243中0、局所7rootからは243中221が到達。opaque証明本体を含めた構文依存であり、意味的最小性や一般仕様への適合をこの数字だけでは主張しない。
+
+著者再点検: repaired modelの存在はInstallableを得るためだけに使用する。stable_selected_evidenceは受け取った任意current Modelsの同じmodelでCommittedからInstanceを得る。DictionarySoundは任意executorに対し最終StableとAvailableを別々に要求し、Availableは既知反例で一般的には偽。実repeated例にはStableを付けず、むしろnot_stableを示す。独立した全体レビューは枠不足で未実施。
