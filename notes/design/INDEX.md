@@ -577,3 +577,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle192 committed-or-installed forests](2026-11-14-cycle192-committed-forest.md) — Draft, I32 certificate boundary.
 - [Centered total-materialization trusted caches](2026-11-15-centered-head-mat-trusted-cache.md) — justified refresh/reobservation, actual successor cache and metadata invariants, nine unconditional law shapes, and conditional availability/order composition; concrete fixture, progress, common models, and full K2 projection coverage remain open.
+- [Centered total-materialization refresh regression](2026-11-15-centered-head-mat-refresh-regression.md) — actual justified-refresh trace with R pending, finite-progress reduction, centered head descent, and fixed-context total-packet rebasing; general cover, exit lifting, model extension, and exhaustive K2 remain open.
