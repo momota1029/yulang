@@ -3227,3 +3227,6 @@ import Yulang.GeneralNominalCaptureEnrichment188
 import Yulang.GeneralNominalMixedOriginEnrichment188
 import Yulang.GeneralNominalHeadMixedExtension188
 import Yulang.GeneralNominalStructuralOrigin188
+import Yulang.GeneralNominalReportTransport188
+import Yulang.GeneralNominalInspectionTransport188
+import Yulang.GeneralNominalStructuralEnrichment188

@@ -52,3 +52,13 @@ uses V6's no-output-conflict rule to obtain a ChosenClassEffects model. That
 second existential witness need not be the first witness; the theorem does not
 assert its HeadModels/projection properties. Nor does it imply every current
 model satisfies a chosen candidate or dictionary.
+
+### Semantic transport and structural checkpoint
+
+The recursive inspector now transports full projection constraints through semantic
+origin relations for arbitrary queries and nonpoint intervals. Structural source
+aliases are derived from actual State.Models and the recorded structural head.
+A structural point root with immediate variable/scalar/nominal queries (arbitrary
+nominal descendants) can therefore enrich raw projection constraints to the actual
+source origin. Repeated capture names are retained across the complete report.
+The actual initial-Frame composition is still being assembled at this checkpoint.
