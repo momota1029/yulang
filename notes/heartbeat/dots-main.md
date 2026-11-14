@@ -1,11 +1,10 @@
 # dots-main heartbeat
-cycle: 190
-status: completed
-started: 2026-11-14T13:27:44Z
-updated: 2026-11-14T14:17:33Z
-elapsed_min: 49.8
-activity: cycle190 completed; repeated source repair and actual successor Evidence verified and published
+cycle: 191
+status: running
+started: 2026-11-14T14:31:09Z
+updated: 2026-11-14T14:33:00Z
+elapsed_min: 2
+activity: item5 actual WF install/trace Evidence; fresh I32 read, previous190 completed
 workspace: /workspace/scratch/1d0b4aaa3394/yulang183
-last_local_commit: 10e42fcfc
-resume_hint: Read cycle190 handoff and fresh integration/inbox. 17 proof modules verified; general field closure0. Next: reachable installation enablement and same-final-model nonleaf child Evidence.
-report: notes/handoff/dots-cycle-190.md
+last_local_commit: 95552b1a
+resume_hint: Continue cycle191; prior190 is clean and complete. No overlapping writer. Deadline15:22 UTC.
