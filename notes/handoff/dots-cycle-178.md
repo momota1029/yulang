@@ -114,3 +114,55 @@ The read-only dependency report reaches 257/327 new declarations from seven
 fragment consumers and 50/327 from the restricted nullary G consumer alone.
 The unchanged unrestricted composition reaches 0/327: no completion is claimed.
 All three reach scans, the final 327-declaration axiom gate and type checks exit0.
+
+## Final-source verification checkpoint
+
+Commit cfb568e868a0938875c17f779a67376f1342e648 was fetched back: all 27
+changed paths match. Core CI run43544084384 and proof run43544084478 both
+completed success. Proof includes Lean action, every-declaration audit and
+source/value/regular/semantic examples, all success. This is remote CI;
+no local full lake build or verify-lean run is claimed.
+
+The prior-cycle immutable-prefix check found changes only to lean/Yulang.lean
+and notes/design/INDEX.md, both exact append-only; no prior content was removed.
+The latest integration still60373c8 includes the new upstream additions.
+
+Commands (focused runs use Lean4.35.0, LEAN_PATH=cycle178 dependency cache):
+- python cycle178-verification/build.py <16 cycle178 module roots>: exit0,
+  sequential --trust=0 -DwarningAsError=true; final-focused.log records all16.
+- lean -j1 --trust=0 -DwarningAsError=true Audit/Cycle178FinalGate.lean: exit0,
+  all327 declarations allowed-standard-axioms only.
+- same flags tools/TypesCycle178.lean: exit0,155 public type checks.
+- same flags tools/ReachCycle178.lean with each roots/output environment pair:
+  all three exit0; raw log and per-declaration TSV retained.
+- check-source.py: all imports/base/published paths retained, frozen configs,
+  no forbidden source constructs and no trailing whitespace; exit0.
+- git diff --check: exit0. Raw focused upstream build also exit0 (70 modules).
+
+See notes/design/2026-11-14-cycle178-module-guide.md for Japanese statements,
+quantifiers, explicit premises, and distinction of raw/centered/current models.
+No unresolved language-design choice was decided, so no new question note was
+needed. Usage budget remaining: unknown.
+
+## Last source extension: actual G original-root consumer
+
+The seventeenth source module GeneralDictionaryCenteredRootNominal178 connects
+the finite linear point producer to the actual G original root. Reachability
+recovers the unchanged original root's point-input property; actual lookup and
+source injectivity force singleton bounds to one slot. A role-local finite
+linear terminal nominal format then yields root Evidence in the supplied
+current model. No Stable, Installable or alternate joint-model premise is used.
+It does not cover generated children or unrestricted declarations, and the
+EvidenceNode field remains OPEN. Independent source review checked the root
+versus generated distinction and direct current-model use.
+
+At02:08 fresh fetch found integration9adc7227ebbe1f428005e2158794c9ffcd58b383.
+Its23 new files and two append-only indexes were incorporated without replacing
+any prior content. These are Astra's canonical-executor/reachable-permutation
+additions; they do not remove the current EvidenceNode obligation.
+
+Final root-focused build and trust-zero/warning-as-error gate passed. The gate
+now covers332 declarations across17 modules. Five additional public types bring
+the type-check inventory to160. Original-root G consumer reaches10/332 new
+symbols; unrestricted composition still0/332. This low dependency count reflects
+reuse of existing point-spine theorems, not a measure of semantic coverage.

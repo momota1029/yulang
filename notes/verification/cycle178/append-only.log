@@ -1,0 +1,1 @@
+PASS prior-cycle append-only check; changed=['lean/Yulang.lean', 'notes/design/INDEX.md']; violations=[]
