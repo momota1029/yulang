@@ -1,0 +1,27 @@
+'Yulang.GeneralNominalChildSemantic186.child_centers' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalChildSemantic186.child_centers_list' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.related_symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.related_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.structural_related' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.nominal_related' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.schema_correspondence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.schemas_correspondence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.head_correspondence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.input_use' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadSchemaSemantic186.binder_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadIdentityInduction186.centers_self' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalHeadIdentityInduction186.trace_identity_centers' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalHeadIdentityCenters186.trace_registered_binders' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalHeadIdentityCenters186.trace_registered_identity_centers_same' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalHeadIdentityCenters186.registered_identity_centers_same' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalHeadIdentityCenters186.registered_identity_binders_same' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
