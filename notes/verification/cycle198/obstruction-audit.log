@@ -1,0 +1,10 @@
+'Yulang.GeneralNominalMixedObstruction198.no_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedObstruction198.no_selected_completion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalMixedObstruction198.no_total_completion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalMixedObstruction198.stable_selected_missing_completion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
