@@ -62,3 +62,16 @@ A structural point root with immediate variable/scalar/nominal queries (arbitrar
 nominal descendants) can therefore enrich raw projection constraints to the actual
 source origin. Repeated capture names are retained across the complete report.
 The actual initial-Frame composition is still being assembled at this checkpoint.
+
+### Final unrestricted initial-head bridge
+
+Semantic capture links compose newly inserted point-source origins with arbitrary
+Similar-origin transport. A size-decreasing mutual recursion now handles every
+finite Query tree and list, not only Supported heads. The raw Finished/projection
+and real Compatible constraints derive the actual centered ProjectionModels.
+HeadRecursiveExtension188.initial_extension therefore constructs one common
+current/head/equation/projection model from Checked + Initial + actual Frame,
+without any query-shape restriction. selected_without_outputs needs only Checked,
+Initial, actual Local.selected and an empty root output list; it concludes
+existential current Models and ChosenClassEffects. This does not prove general
+reachable-state feasibility, fixed-frame effects, installation or EvidenceNode.

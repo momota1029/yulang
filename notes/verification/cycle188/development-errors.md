@@ -15,3 +15,11 @@ inodes7% used. No proof cache was deleted. The already-extracted Lean4.35 archiv
 its contents, and /tmp returned to686MB free. Normal shell execution resumed at11:43:26.
 The nominal enrichment work had been saved and was recoverable. No published
 checkpoint was lost or overwritten. This was capacity, not a Lean proof failure.
+
+A focused structural-extension build was launched before a pending fetch/import
+chain completed: target file absent (exit1), not a proof failure. Its output is
+preserved as structural-extension-before-import.txt. After import/cherry-pick,
+focused target passed. An extra cherry-pick was empty and skipped; an unpublished
+duplicate root import was removed before publication. The explicit work branch
+fetch updates FETCH_HEAD, not the configured integration-only tracking ref;
+checkpoint tree comparison against FETCH_HEAD passed with zero differences.
