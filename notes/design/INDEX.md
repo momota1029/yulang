@@ -511,3 +511,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Total materialization of the current WF declaration language](2026-11-14-centered-head-total-materialization.md) — exhaustive Pattern/default equation compiler, emitted and child-center coverage, default effects and fresh-target model extension; corrected packet/observation consumers and successor-boundary law transfers remain open.
 
 - [Centered total-materialization journal integration](2026-11-14-centered-head-mat-journal.md) — corrected packet/journal equations, class-request and center-recording invariants, repeated-target extension, and the row installation model; operational guards, successor Step and boundary-law transfers remain open.
+
+- [Centered total-materialization trusted caches](2026-11-15-centered-head-mat-trusted-cache.md) — justified refresh/reobservation, actual successor cache and metadata invariants, nine unconditional law shapes, and conditional availability/order composition; concrete fixture, progress, common models, and full K2 projection coverage remain open.
