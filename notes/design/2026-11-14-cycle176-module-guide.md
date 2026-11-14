@@ -123,3 +123,8 @@ by the module-based final axiom gate, not by this human-facing list.
 
 ### GeneralDictionaryViewFootprint176
 `HeadObservation`, `HeadObservation.view`, `HeadObservation.observation`, `report_finished`, `instance_refinement`
+
+## 最終追加2module
+- `GeneralDictionaryCenteredLeafRegression176`: 空journalの実際の点入力sourceにモデルとscalar Evidenceが存在。RecordedTreeなし。既にCommittedなのでinstall noveltyは得られない。
+- `GeneralDictionaryCenteredGroundLeaf176`: 同じsourceの正確なG.Initial、G.ReachableとEvidence/モデル/非RecordedTree bundle。4公開定理、Stable主張なし。
+全16moduleの推移的公理監査319宣言PASS。先の14module/247宣言と区別する。

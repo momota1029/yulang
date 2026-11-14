@@ -43,3 +43,5 @@ module root imports present; no removed/replaced old Lean lines; source hashes
 of the published checkpoint match unchanged local sources. Broad substring
 search matched English 'admitted', but the actual forbidden-token word-boundary
 regex passed. The full verifier remains the supervisor's responsibility.
+
+Final publication: compile GroundLeaf176 into cleanlib; run Audit/Cycle176PublicationGate.lean and Audit/Cycle176GroundLeaf.lean with lean -j1 --trust=0. All exit0. PublicationGate audits all16module319declarations; the earlier14module247 gate and112public-type record are retained unchanged.

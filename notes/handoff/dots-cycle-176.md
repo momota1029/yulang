@@ -243,3 +243,20 @@ RecordedTree はない。このleaf packetは全初期モデルで既にCommitte
 したがって今回のRecordedTree consumerは十分条件であって完全な証明書ではない。
 一般evidenceNodeには、未記録でも既にCommittedな候補を扱う経路が必要。
 この回帰の段階ではStableや一般executorの最終性は主張していない。
+
+## 最終検証と完了（2026-11-14 00:17 UTC）
+
+開始23:27:21 UTC。50分時点で検証・完了報告をまとめ、55分上限00:22:21より前に公開する。
+最終成果は16新規module。`Cycle176PublicationGate` で319宣言（定義・private・generatedを含む）を推移的に監査しPASS/exit0。許容公理はpropext/Classical.choice/Quot.soundのみ。14moduleは独立cacheで依存込み34module再構築PASS。追加leafとground-leafは同cacheで個別source再構築PASS、個別auditもPASS。全体build/verifyは実行していない。
+
+最後の `GeneralDictionaryCenteredGroundLeaf176` は、scalar leaf例が正確なGのInitial/Reachableであることまで証明した。G到達可能・モデル・Evidenceがあっても空journalにRecordedTreeはない。Stableや一般executor完了の反例ではない。記録treeによるconsumerだけで一般fieldを閉じることはできず、既にCommittedな非記録leafを扱うproducer経路が必要。
+
+00:13にintegrationを再取得し `ba7ccbc53fb262cb30d6e47ad779d906eed29e4b` の追加を保全。standing-orders/inboxを再読、STOPなし、I30の担当変更なし。新しい行政分類G′の既存 `evidenceNode_of_ground` はGのEvidenceNodeを移送するが、その前提は未証明。G′のwhereAccessible等は監督役の成果であり本サイクルの証明数に加えない。最新integrationの7追加moduleの検証は監督役報告に依存し、このサイクルでは再buildしていない。
+
+一般GのEvidenceNodeの新規閉鎖は0本。Gの14field表の10/14と残4/14は変更なし。条件付きexact field・実際のcentered有限履歴の同一モデルEvidence・非空モデル保存・観測footprint・有限RecordedTree消費を整理した。次は、独立witnessを混同しないcommon-model producer、raw merge分類との対応、非記録Committed候補とchanged-current-childを扱う証明が必要。
+
+中間公開e8e201eとa97a973はそれぞれ165/249pathをfetch-back照合し差分0。最終commitと照合結果は会話報告に記載する。公開済みLean変更なし、protected paths変更なし、16module root import確認。作業状態: COMPLETED（一般fieldは未完）。
+
+追加2moduleの明示public宣言16個について型表示・個別公理表示もPASS/exit0（定義を含む）。最終保存チェックはprotected33path、既公開Lean変更0、root-import漏れ0。公開manifestは最新integrationを基準に262path（前サイクル保全・監査ログ含む）。
+
+最後のground-leaf bundleの読取依存解析も追加: 11/319宣言に依存、exit0。独立した具体回帰であり一般producerへの接続ではない。TSV・root・logをpublication-reachに保存。追加後の最終manifestは267path。
