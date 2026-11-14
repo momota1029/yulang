@@ -515,3 +515,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle177 current committed candidates](2026-11-14-cycle177-committed-candidates.md): direct scalar/named current-model consumers; exact G general producer remains open.
 - [Centered permutation simulation and canonical local order](2026-11-14-centered-permutation-simulation.md) — complete reversible installation transport, coherent table extension, fixed-target Local correspondence, and unconditional canonical executor order; V5 composition has only evidenceNode and generatedChildren as inputs.
 - [Centered completion: reachable alias-class obstruction](2026-11-14-centered-completion-alias-obstruction.md) — actual inhabited ground installation/merge trace with merge-closed G′ selection and impossible Joint; stability and the general generatedChildren field remain open.
+
+- [An unsettled-output refresh changes an actual centered decision](2026-11-14-centered-source-unsettled-refresh.md) — Checked unknown-input source, paired equal-model refreshes, source-supported pending versus actual selected/install, and an unsupported descriptor link; owner repair proposed, Step unchanged.
