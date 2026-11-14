@@ -1,0 +1,9 @@
+import Yulang.GeneralNominalJournalAccessibility194
+#check Yulang.GeneralNominalJournalAccessibility194.child_rank
+#print axioms Yulang.GeneralNominalJournalAccessibility194.child_rank
+#check Yulang.GeneralNominalJournalAccessibility194.accessible
+#print axioms Yulang.GeneralNominalJournalAccessibility194.accessible
+#check Yulang.GeneralNominalJournalAccessibility194.recorded_tree
+#print axioms Yulang.GeneralNominalJournalAccessibility194.recorded_tree
+#check Yulang.GeneralNominalJournalAccessibility194.uniform_dictionary
+#print axioms Yulang.GeneralNominalJournalAccessibility194.uniform_dictionary

@@ -1,0 +1,136 @@
+Yulang.GeneralNominalSemanticNode194.instance_of_frame {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {key : Nat} (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key plan)
+  (ready :
+    Yulang.GeneralNominalRecursiveCandidates.RequestReady plan.packet.registry plan.packet.context
+      plan.packet.site.occurrence plan.packet.declaration ⋯ plan.packet.bounds)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (branch : plan.packet.Holds model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.core.erased.current.context model root key
+    plan.packet.children
+'Yulang.GeneralNominalSemanticNode194.instance_of_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalSemanticNode194.request_ready {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {key : Nat} (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key plan)
+  (effects : Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady state.core root plan)
+  (materialized :
+    (Yulang.GeneralNominalRecursiveCandidates.generated plan.packet.registry plan.packet.context
+          plan.packet.site.occurrence plan.packet.declaration ⋯ plan.packet.bounds).unknown =
+      false) :
+  Yulang.GeneralNominalRecursiveCandidates.RequestReady plan.packet.registry plan.packet.context
+    plan.packet.site.occurrence plan.packet.declaration ⋯ plan.packet.bounds
+'Yulang.GeneralNominalSemanticNode194.request_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalSemanticNode194.evidence_of_frame {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {key : Nat} (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key plan)
+  (ready :
+    Yulang.GeneralNominalRecursiveCandidates.RequestReady plan.packet.registry plan.packet.context
+      plan.packet.site.occurrence plan.packet.declaration ⋯ plan.packet.bounds)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (branch : plan.packet.Holds model)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) plan.packet.children
+      payloads) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key payloads)
+'Yulang.GeneralNominalSemanticNode194.evidence_of_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalSemanticNode194.evidence_of_recorded {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {key : Nat} (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key plan)
+  (ready :
+    Yulang.GeneralNominalRecursiveCandidates.RequestReady plan.packet.registry plan.packet.context
+      plan.packet.site.occurrence plan.packet.declaration ⋯ plan.packet.bounds)
+  (recorded : plan.packet ∈ state.core.erased.current.packets) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) plan.packet.children
+      payloads) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key payloads)
+'Yulang.GeneralNominalSemanticNode194.evidence_of_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalSemanticNode194.trace_evidence_of_recorded {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {key : Nat} {after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (traceRoot : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core root key plan)
+  (ready :
+    Yulang.GeneralNominalRecursiveCandidates.RequestReady plan.packet.registry plan.packet.context
+      plan.packet.site.occurrence plan.packet.declaration ⋯ plan.packet.bounds)
+  (path : Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry traceRoot) state after)
+  (recorded : plan.packet ∈ after.core.erased.current.packets) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models after model)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model) plan.packet.children
+      payloads) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key payloads)
+'Yulang.GeneralNominalSemanticNode194.trace_evidence_of_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalOrdinaryJournal194.packet_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) after)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles) (recorded : packet ∈ after.core.erased.current.packets)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models after model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry after.core.erased.current.context model
+    packet.site.occurrence packet.declaration.id packet.children
+'Yulang.GeneralNominalOrdinaryJournal194.packet_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalOrdinaryJournal194.recorded_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models after model)
+  (demand : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (recorded : Yulang.GeneralDictionaryJournalTree.Recorded after.core.erased.current demand key children) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry after.core.erased.current.context model demand key
+    children
+'Yulang.GeneralNominalOrdinaryJournal194.recorded_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalOrdinaryJournal194.recorded_tree_sound {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) after)
+  (tree : Yulang.GeneralSourceDictionaries.Dictionary roles)
+  (syntactic :
+    Yulang.GeneralSourceDictionaries.Evidence (Yulang.GeneralDictionaryJournalTree.Recorded after.core.erased.current)
+      tree)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models after model) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model tree.root
+    (Yulang.GeneralSourceDictionaries.erase tree)
+'Yulang.GeneralNominalOrdinaryJournal194.recorded_tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalOrdinaryJournal194.uniform_dictionary {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) after)
+  (covered : Yulang.GeneralDictionaryJournalTree.Covered after.core.erased.current root)
+  (accessible : Acc (Yulang.GeneralDictionaryJournalTree.Child after.core.erased.current) root) :
+  ∃ tree,
+    tree.root = root ∧
+      Yulang.GeneralSourceDictionaries.Evidence (Yulang.GeneralDictionaryJournalTree.Recorded after.core.erased.current)
+          tree ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models after model →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model root
+              (Yulang.GeneralSourceDictionaries.erase tree)
+'Yulang.GeneralNominalOrdinaryJournal194.uniform_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]

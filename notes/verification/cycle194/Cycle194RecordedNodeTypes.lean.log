@@ -1,0 +1,40 @@
+Yulang.GeneralNominalRecordedNode194.evidence_node {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (recorded : ∃ packet, packet ∈ state.core.erased.current.packets ∧ packet.site.occurrence = focus) {key : Nat}
+  {children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload)
+  (childEvidence :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) children payloads) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model focus
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key payloads)
+'Yulang.GeneralNominalRecordedNode194.evidence_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRecordedNode194.child_packet_missing
+  (item : Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles) :
+  item ∈ Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current.packets →
+    item.site.occurrence ≠ Yulang.GeneralNominalExamples.displayChild
+'Yulang.GeneralNominalRecordedNode194.child_packet_missing' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRecordedNode194.child_reached :
+  Yulang.GeneralDictionaryJournalTree.Reach Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalExamples.displayChild
+'Yulang.GeneralNominalRecordedNode194.child_reached' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRecordedNode194.not_covered :
+  ¬Yulang.GeneralDictionaryJournalTree.Covered Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+      Yulang.GeneralNominalExamples.displayRoot
+'Yulang.GeneralNominalRecordedNode194.not_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRecordedNode194.stable_not_covered :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Stable
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish
+      Yulang.GeneralNominalExamples.displayRoot ∧
+    ¬Yulang.GeneralDictionaryJournalTree.Covered Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+        Yulang.GeneralNominalExamples.displayRoot
+'Yulang.GeneralNominalRecordedNode194.stable_not_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
