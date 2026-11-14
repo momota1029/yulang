@@ -585,3 +585,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - Cycle194 structural refinement: module guide now includes 4 further journal-accessibility theorems (39 total); ordinary readback needs coverage but no independent Acc certificate.
 - Cycle194 selected-payload refinement: module guide now includes 7 further theorems (46 total), deriving actual selected Classify payload Evidence from ordinary execution and journal coverage.
 - Cycle194 final local boundary: 51 total theorems; recorded-node Evidence and concrete Stable-but-not-journal-Covered witness distinguish successful reuse from missing semantic evidence.
+
+- [Cycle195 mixed readback catalogue](2026-11-14-cycle195-reuse-catalogue.md) and [module guide](2026-11-14-cycle195-catalogue-module-guide.md).
+- [Cycle195 current completion and limits](2026-11-14-cycle195-current-completion-guide.md).

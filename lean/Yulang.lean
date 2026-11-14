@@ -3334,3 +3334,8 @@ import Yulang.GeneralNominalRecordedNode194
 import Yulang.GeneralNominalReuseCatalogue195
 import Yulang.GeneralNominalSelectedCatalogue195
 import Yulang.GeneralNominalNonleafCatalogue195
+
+import Yulang.GeneralNominalCurrentCompletion195
+import Yulang.GeneralNominalCompletionObstruction195
+import Yulang.GeneralNominalCurrentTree195
+import Yulang.GeneralNominalNonleafCurrent195

@@ -1,0 +1,27 @@
+import Yulang.GeneralNominalCurrentCompletion195
+import Yulang.GeneralNominalCompletionObstruction195
+import Yulang.GeneralNominalCurrentTree195
+import Yulang.GeneralNominalNonleafCurrent195
+
+#print axioms Yulang.GeneralNominalCurrentCompletion195.selected_instance
+#print axioms Yulang.GeneralNominalCurrentCompletion195.dictionary_evidence
+#print axioms Yulang.GeneralNominalCurrentCompletion195.dictionaries_evidence
+#print axioms Yulang.GeneralNominalCurrentCompletion195.selected_sound
+#print axioms Yulang.GeneralNominalCurrentCompletion195.evidence_node
+#print axioms Yulang.GeneralNominalCompletionObstruction195.no_reusable
+#print axioms Yulang.GeneralNominalCompletionObstruction195.no_selected_completion
+#print axioms Yulang.GeneralNominalCompletionObstruction195.stable_selected_missing_completion
+#print axioms Yulang.GeneralNominalCurrentTree195.child_rank
+#print axioms Yulang.GeneralNominalCurrentTree195.tree_exists
+#print axioms Yulang.GeneralNominalCurrentTree195.uniform_dictionary
+#print axioms Yulang.GeneralNominalCurrentTree195.selected_completion
+#print axioms Yulang.GeneralNominalNonleafCurrent195.current_instance
+#print axioms Yulang.GeneralNominalNonleafCurrent195.current_branch
+#print axioms Yulang.GeneralNominalNonleafCurrent195.lift_raw_model
+#print axioms Yulang.GeneralNominalNonleafCurrent195.parent_children
+#print axioms Yulang.GeneralNominalNonleafCurrent195.parent_committed
+#print axioms Yulang.GeneralNominalNonleafCurrent195.parent_reusable
+#print axioms Yulang.GeneralNominalNonleafCurrent195.generated_cases
+#print axioms Yulang.GeneralNominalNonleafCurrent195.total_completion
+#print axioms Yulang.GeneralNominalNonleafCurrent195.uniform_current_dictionary
+#print axioms Yulang.GeneralNominalNonleafCurrent195.selected_current_sound
