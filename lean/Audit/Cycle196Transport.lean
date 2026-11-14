@@ -1,0 +1,29 @@
+import Yulang.GeneralNominalViewTransport196
+import Yulang.GeneralNominalViewRefresh196
+import Yulang.GeneralNominalVariableView196
+import Yulang.GeneralNominalViewExample196
+
+#print axioms Yulang.GeneralNominalViewTransport196.bindings_report
+#print axioms Yulang.GeneralNominalViewTransport196.selfChecks_report
+#print axioms Yulang.GeneralNominalViewTransport196.projection_report
+#print axioms Yulang.GeneralNominalViewTransport196.materialization_report
+#print axioms Yulang.GeneralNominalViewTransport196.finished_report
+#print axioms Yulang.GeneralNominalViewTransport196.generated_eq
+#print axioms Yulang.GeneralNominalViewTransport196.branch_transport
+#print axioms Yulang.GeneralNominalViewTransport196.instance_transport
+#print axioms Yulang.GeneralNominalViewTransport196.evidence_transport
+#print axioms Yulang.GeneralNominalViewRefresh196.evidence_refresh
+#print axioms Yulang.GeneralNominalViewRefresh196.universal_refresh
+#print axioms Yulang.GeneralNominalViewRefresh196.reusable_instance_refresh
+#print axioms Yulang.GeneralNominalVariableView196.inspect_variable
+#print axioms Yulang.GeneralNominalVariableView196.report_append
+#print axioms Yulang.GeneralNominalVariableView196.inspect_variables
+#print axioms Yulang.GeneralNominalVariableView196.rechecked_variables
+#print axioms Yulang.GeneralNominalVariableView196.rechecks_variables
+#print axioms Yulang.GeneralNominalViewExample196.descriptor_changed
+#print axioms Yulang.GeneralNominalViewExample196.before_models
+#print axioms Yulang.GeneralNominalViewExample196.after_models
+#print axioms Yulang.GeneralNominalViewExample196.variable_query
+#print axioms Yulang.GeneralNominalViewExample196.rechecked
+#print axioms Yulang.GeneralNominalViewExample196.not_ordinary_extension
+#print axioms Yulang.GeneralNominalViewExample196.inhabited_change

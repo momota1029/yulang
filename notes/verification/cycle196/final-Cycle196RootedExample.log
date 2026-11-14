@@ -1,0 +1,10 @@
+Yulang.GeneralNominalRootedViewExample196.supported :
+  Yulang.GeneralNominalRootedView196.Support Yulang.GeneralNominalRootedViewExample196.registry
+    Yulang.GeneralNominalViewExample196.before Yulang.GeneralNominalViewExample196.next
+    Yulang.GeneralNominalRootedViewExample196.tree
+'Yulang.GeneralNominalRootedViewExample196.supported' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRootedViewExample196.not_global :
+  ¬Yulang.GeneralNominalViewTransport196.Rechecks Yulang.GeneralNominalRootedViewExample196.registry
+      Yulang.GeneralNominalViewExample196.before Yulang.GeneralNominalViewExample196.next
+'Yulang.GeneralNominalRootedViewExample196.not_global' depends on axioms: [propext, Quot.sound]
+AXIOM-GATE-PASS: 90 declarations

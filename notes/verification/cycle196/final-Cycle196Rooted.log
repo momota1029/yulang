@@ -1,0 +1,60 @@
+Yulang.GeneralNominalRootedView196.node_transport {registry : Yulang.GeneralDeclarations.Registry}
+  {old : Yulang.GeneralNominalCandidates.Context} {next : Yulang.GeneralNominalViewTransport196.View old.state}
+  {roles✝ : Yulang.Roles.RoleDecls} {root : Yulang.GeneralSourceDictionaries.Occurrence roles✝} {key : Nat}
+  {children : List (Yulang.GeneralSourceDictionaries.Occurrence roles✝)}
+  (agreement : Yulang.GeneralNominalRootedView196.AtNode registry old next root key)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalViewTransport196.replace old.state next) model)
+  (source : Yulang.GeneralDictionaryRecursiveEvidence.Instance registry old model root key children) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry (Yulang.GeneralNominalViewTransport196.context old next)
+    model root key children
+'Yulang.GeneralNominalRootedView196.node_transport' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRootedView196.tree_transport {registry : Yulang.GeneralDeclarations.Registry}
+  {old : Yulang.GeneralNominalCandidates.Context} {next : Yulang.GeneralNominalViewTransport196.View old.state}
+  {roles✝ : Yulang.Roles.RoleDecls} {tree : Yulang.GeneralSourceDictionaries.Dictionary roles✝}
+  (support : Yulang.GeneralNominalRootedView196.Support registry old next tree)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalViewTransport196.replace old.state next) model)
+  (source :
+    Yulang.GeneralSourceDictionaries.Evidence (Yulang.GeneralDictionaryRecursiveEvidence.Instance registry old model)
+      tree) :
+  Yulang.GeneralSourceDictionaries.Evidence
+    (Yulang.GeneralDictionaryRecursiveEvidence.Instance registry
+      (Yulang.GeneralNominalViewTransport196.context old next) model)
+    tree
+'Yulang.GeneralNominalRootedView196.tree_transport' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRootedView196.readback_transport {registry : Yulang.GeneralDeclarations.Registry}
+  {old : Yulang.GeneralNominalCandidates.Context} {next : Yulang.GeneralNominalViewTransport196.View old.state}
+  {roles✝ : Yulang.Roles.RoleDecls} {tree : Yulang.GeneralSourceDictionaries.Dictionary roles✝}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles✝} {payload : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (support : Yulang.GeneralNominalRootedView196.Support registry old next tree)
+  (readback : Yulang.GeneralSourceDictionaries.Readback root payload tree)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalViewTransport196.replace old.state next) model)
+  (source :
+    Yulang.GeneralSourceDictionaries.Evidence (Yulang.GeneralDictionaryRecursiveEvidence.Instance registry old model)
+      tree) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry (Yulang.GeneralNominalViewTransport196.context old next)
+    model root payload
+'Yulang.GeneralNominalRootedView196.readback_transport' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRootedView196.node_of_variables {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {old : Yulang.GeneralNominalCandidates.Context}
+  {next : Yulang.GeneralNominalViewTransport196.View old.state}
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (shape :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        declaration.id = key →
+          ∃ names,
+            Yulang.GeneralNominalInspection.queries old.state old.interpretation declaration =
+              List.map Yulang.GeneralNominalInspection.Query.variables names) :
+  Yulang.GeneralNominalRootedView196.AtNode registry old next root key
+'Yulang.GeneralNominalRootedView196.node_of_variables' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRootedView196.support_of_global {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {old : Yulang.GeneralNominalCandidates.Context}
+  {next : Yulang.GeneralNominalViewTransport196.View old.state}
+  (agreement : Yulang.GeneralNominalViewTransport196.Rechecks registry old next)
+  (tree : Yulang.GeneralSourceDictionaries.Dictionary roles) :
+  Yulang.GeneralNominalRootedView196.Support registry old next tree
+'Yulang.GeneralNominalRootedView196.support_of_global' depends on axioms: [propext, Quot.sound]
+AXIOM-GATE-PASS: 63 declarations
