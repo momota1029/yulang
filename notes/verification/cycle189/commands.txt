@@ -16,3 +16,14 @@ lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189NamedGate.lean
 lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189PublicTypes.lean
 # Dependency traversal via tools/ReachCycle189.lean, explicit local/general roots.
 # Bytewise all-old-path preservation via preservation.py; git diff --check.
+# Final focused builds and exact per-source checks:
+lake build Yulang.GeneralNominalInitialNamedNonvacuity189 Yulang.GeneralNominalLinearNamedEvidence189 --wfail
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189CompleteGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189CompletePublicTypes.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189PlainPublicTypes.lean
+# All 19 listed complete-modules.txt sources individually checked with --trust=0 -DwarningAsError=true.
+# Logs: all-sources-strict.log (first13), last-six-strict.log (last6).
+# Reach: YULANG_REACH_ROOTS=complete-local-roots.txt / general-roots.txt,
+# YULANG_REACH_OUTPUT=complete-local-reach.tsv / complete-general-reach.tsv,
+# lake env lean --trust=0 ../tools/ReachCycle189Complete.lean
+# All old5672paths compared bytewise, only root/design index append and heartbeat replacement allowed.

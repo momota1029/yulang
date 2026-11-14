@@ -1,0 +1,12 @@
+CHECK GeneralNominalLinearVariableModels189
+EXIT 0
+CHECK GeneralNominalLinearNamedPlan189
+EXIT 0
+CHECK GeneralNominalLinearNamedEvidence189
+EXIT 0
+CHECK GeneralNominalInitialNamedFixture189
+EXIT 0
+CHECK GeneralNominalInitialNamedLocal189
+EXIT 0
+CHECK GeneralNominalInitialNamedNonvacuity189
+EXIT 0
