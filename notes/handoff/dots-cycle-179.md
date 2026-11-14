@@ -131,3 +131,50 @@ That newly discovered integration is deferred to the next cycle rather than
 unverified last-minute rebasing. This cycle incorporated and tested00bdd63;
 its own prior files remain intact. Fresh inbox was reread at03:16: I30 unchanged,
 no STOP. The final deadline remains03:26:09,55 minutes after actual start.
+
+## Final verification inventory
+
+- Focused Lean4.35.0 compilation:15 own source modules, --trust=0,
+  -DwarningAsError=true, serial -j1. Earlier local elaboration issues were
+  corrected before publication. No unfinished proof code was published.
+- Final all-new-declaration gate:174 definitions/theorems including private
+  and generated constants, only propext/Classical.choice/Quot.sound; exit0.
+- Public declaration type checks:109, with full names/universes; exit0.
+- Dependency scan: five fragment/extension roots reach79/174 declarations.
+  Unchanged G composition reaches0/174. This is kernel dependency, not coverage.
+- All15 own source blobs match final sourcefefa67c5234d2dcfd1f0177c645db70a10d2f44a.
+- Precompletion source check: all4647 incorporated-base and4997 published
+  blobs retained, frozen configs unchanged; previous Lean files unchanged
+  except append-only lean/Yulang.lean. git diff --check passes.
+- Focused eight-module upstream check passed. Local full build not performed.
+- Available disk at recorded mid/final check:35GB of63GB; usage remaining unknown.
+
+Second source995169a passed Core CI43550563726 and Lean CI43550563714.
+The final small extension has its own CI run, checked separately at completion.
+Independent review compiled all three finite-frame modules against the prior
+cache and confirmed the finite dependency footprint, with no circular Models
+premise. Preservation concerns Models only, not support guards or Local/Step.
+
+Next cycle must fetch newest integration (059e217 observed) and inbox before
+writing, merge supervisor updates, then address actual-candidate overlap and
+readback obligations. Exact remaining general fields:4/14, including dot's
+EvidenceNode. No new general field was completed this cycle.
+
+Final sourcefefa67c5234d2dcfd1f0177c645db70a10d2f44a passed both Core
+CI43550921030 and Lean inference kernel43550921028. Lean action, all-declaration
+audit and executable examples completed success. This includes all15 own source
+modules. A comparison of every published blob found only the intentionally
+pending final report and heartbeat differed locally before completion.
+
+## Completion (supersedes in-progress heading)
+
+Completed at 2026-11-14T03:21:18Z, elapsed 50.17 minutes before final publication.
+All15 source modules and174-declaration gate passed; sourcefefa67c is CI-successful.
+No build/writer remains active. Final publication is documentation/verification
+logs and completed heartbeat only. The next writer may resume after fetching
+this report and current integration. G.EvidenceNode remains OPEN (0 new fields).
+
+Source checkpoint deltas:19,44,17 paths (overlaps included). Final delta and total
+unique published-path count are recorded in final-publication-manifest.tsv.
+The only operational interruption was environment loss during tree preparation;
+03:01 heartbeat missed,03:11 recovery verified no ref update and resumed safely.
