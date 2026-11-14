@@ -1,0 +1,5 @@
+'Yulang.GeneralNominalTraceEvidence197.current_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTraceEvidence197.source_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTraceEvidence197.source_payload' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTraceEvidence197.final_payload' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTraceEvidence197.inhabited_complete' depends on axioms: [propext, Classical.choice, Quot.sound]

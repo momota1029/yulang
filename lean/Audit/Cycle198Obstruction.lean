@@ -1,0 +1,5 @@
+import Yulang.GeneralNominalMixedObstruction198
+#print axioms Yulang.GeneralNominalMixedObstruction198.no_node
+#print axioms Yulang.GeneralNominalMixedObstruction198.no_selected_completion
+#print axioms Yulang.GeneralNominalMixedObstruction198.no_total_completion
+#print axioms Yulang.GeneralNominalMixedObstruction198.stable_selected_missing_completion

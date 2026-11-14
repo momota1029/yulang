@@ -1,0 +1,11 @@
+import Yulang.GeneralNominalRefinementExample197
+#print axioms Yulang.GeneralNominalRefinementTrace197.embedding_identity
+#print axioms Yulang.GeneralNominalRefinementTrace197.rename_identity
+#print axioms Yulang.GeneralNominalRefinementTrace197.nominal_preserved
+#print axioms Yulang.GeneralNominalRefinementTrace197.traced
+#print axioms Yulang.GeneralNominalRefinementTrace197.tracedMany
+#print axioms Yulang.GeneralNominalRefinementTrace197.rechecked
+#print axioms Yulang.GeneralNominalRefinementTrace197.tree_traced
+#print axioms Yulang.GeneralNominalRefinementTrace197.universal_refresh
+#print axioms Yulang.GeneralNominalRefinementExample197.final_payload
+#print axioms Yulang.GeneralNominalRefinementExample197.interval_report

@@ -1,0 +1,6 @@
+import Yulang.GeneralNominalTraceEvidence197
+#print axioms Yulang.GeneralNominalTraceEvidence197.current_instance
+#print axioms Yulang.GeneralNominalTraceEvidence197.source_tree
+#print axioms Yulang.GeneralNominalTraceEvidence197.source_payload
+#print axioms Yulang.GeneralNominalTraceEvidence197.final_payload
+#print axioms Yulang.GeneralNominalTraceEvidence197.inhabited_complete

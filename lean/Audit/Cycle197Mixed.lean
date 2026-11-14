@@ -1,0 +1,16 @@
+import Yulang.GeneralNominalMixedExample197
+#print axioms Yulang.GeneralNominalMixedJournal197.steps
+#print axioms Yulang.GeneralNominalMixedJournal197.instance_update
+#print axioms Yulang.GeneralNominalMixedJournal197.universal_evidence
+#print axioms Yulang.GeneralNominalMixedJournal197.packet_instance
+#print axioms Yulang.GeneralNominalMixedJournal197.recorded_tree_sound
+#print axioms Yulang.GeneralNominalMixedJournal197.uniform_dictionary
+#print axioms Yulang.GeneralNominalMixedExample197.enqueue_step
+#print axioms Yulang.GeneralNominalMixedExample197.ordinary_step
+#print axioms Yulang.GeneralNominalMixedExample197.refresh_step
+#print axioms Yulang.GeneralNominalMixedExample197.mixed_path
+#print axioms Yulang.GeneralNominalMixedExample197.actual_path
+#print axioms Yulang.GeneralNominalMixedExample197.source_payload
+#print axioms Yulang.GeneralNominalMixedExample197.final_payload
+#print axioms Yulang.GeneralNominalMixedExample197.real_changes
+#print axioms Yulang.GeneralNominalMixedExample197.inhabited

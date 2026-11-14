@@ -1,0 +1,29 @@
+'Yulang.GeneralNominalRefiningJournal198.old_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningJournal198.refresh_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningJournal198.steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningJournal198.instance_update' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningJournal198.universal_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningJournal198.packet_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningJournal198.recorded_tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningJournal198.uniform_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.node_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.packet_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.children_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.selected_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.dictionaries_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.evidence_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningCompletion198.selected_completion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalRefiningTree198.tree_exists' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRefiningTree198.uniform_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
