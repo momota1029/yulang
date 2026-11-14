@@ -55,3 +55,55 @@ consumer. Missing/wrong target tests deny only the structural Observed
 certificate, not general semantic acceptance or all possible Evidence.
 A fresh diff-only verification passed, with read-only audit commands flagged
 for review. Final kernel/type/dependency reports are in progress.
+
+## Final-snapshot validation and remaining work
+
+The frozen fifteen-module kernel gate passed: 182 declarations including
+definitions/private/generated declarations, only the three permitted standard
+axioms. Full public types compiled successfully. T7b read-only analysis reaches
+155/182 from thirteen named consumers/regressions and 0/182 from exact G
+composition. No declaration was removed. The zero result records that the
+general field has not been supplied, rather than concealing it in a count.
+
+Exactly one assigned field remains: unrestricted G EvidenceNode. A sufficient
+installation route still needs three general producer components for novel
+candidates: Joint, value-support certificates, and a common model of the
+centered state and plan. This is a sufficient decomposition, not a proved
+minimal number of lemmas. Direct same-model inspection can bypass installation
+in the fragments proved here. GeneratedChildren and the other Astra fields
+were not taken over.
+
+## Latest integration and CI
+
+At 01:02 UTC fresh integration advanced to d636750ce44de9271ebf328a5ab27ad4955cb845.
+I-30 was unchanged. Its seven Astra modules and notes were retained; fifteen
+cycle177 source files stayed byte-identical. Focused upstream compilation passed.
+The new registered-root terminal fork differs from the earlier observer fork:
+its selected child lists differ, but the scalar children have no matching
+declaration, so it is still not an EvidenceNode counterexample with child
+Evidence. The new PacketFreeJoint supplies Joint for reachable empty-journal
+snapshots; general post-installation Joint and the other production residuals
+remain open. These are upstream results, not additional cycle177 proofs.
+
+GitHub Actions for cycle177 source commit 5577c92ae4a0612111d7aa5c62ab8b0052a104b7
+reported core and proof success. The proof job's Lean build action, complete
+Audit and executable-example steps all succeeded. This is separate from local
+focused validation; local whole-library build/Audit was not run.
+
+The next-nominal note identifies the fresh merged-capture equation obstacle.
+The planning-only tool Cycle177NextNominalGoal.lean defines and typechecks a
+proposed TerminalPairResidual proposition; it provides NO proof or axiom and
+is not imported into the library. Do not count it as a completed producer.
+The coverage matrix records the output-certificate's nominal arity-0/1/2 and
+existing-target limitations, distinct from arbitrary finite scalar input lists.
+
+## 01:07 UTC verification summary
+
+Latest-integration focused build and both added upstream audits passed, as did
+the final append-only/import/frozen-config diff gate. All fifteen cycle177
+modules remained byte-identical to source commit 5577c92; their 182-declaration
+axiom gate and full-type outputs remain applicable. New upstream imports were
+appended without removing any line of the previously published aggregator.
+All baseline and published files were retained. The only deliberate replaceable
+file is the periodic heartbeat. No local full build, Yulang2 oracle run, branch
+merge to integration, or general theorem completion is claimed.
