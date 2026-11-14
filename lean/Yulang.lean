@@ -3241,3 +3241,6 @@ import Yulang.GeneralNominalInitialLeafStep189
 import Yulang.GeneralNominalInitialFrameUnique189
 import Yulang.GeneralNominalInitialLeafEvidence189
 import Yulang.GeneralNominalInitialOutputExact189
+import Yulang.GeneralNominalInitialLeafFixture189
+import Yulang.GeneralNominalInitialLeafLocal189
+import Yulang.GeneralNominalInitialLeafNonvacuity189
