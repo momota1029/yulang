@@ -3205,3 +3205,9 @@ import Yulang.GeneralNominalHeadTestSemantic186
 
 import Yulang.GeneralNominalCaptureBounds187
 import Yulang.GeneralNominalHeadRawBounds187
+import Yulang.GeneralNominalHeadDeclaredBounds187
+import Yulang.GeneralNominalCaptureOrigins187
+import Yulang.GeneralNominalSchemaCapture187
+import Yulang.GeneralNominalHeadProjectionBounds187
+import Yulang.GeneralNominalSchemaTests187
+import Yulang.GeneralNominalHeadInitialExtension187
