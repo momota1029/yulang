@@ -528,7 +528,16 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Centered output conflicts: head selection, failed equations, and V5](2026-11-14-centered-output-conflict.md) — corrects G″'s output-based candidate filtering, locates installation consistency gates and the missing error contract, distinguishes the nonstable fixture from its unclassified stable extension, and proposes an additive head/effect split with field-by-field proof impact.
 
+- [Centered head choice and post-choice output errors: V6](2026-11-14-centered-head-output-v6.md) — head-only candidates, retained alias-class requests, covered post-choice output conflicts, V6 local laws and seven structural/local bridge analogues; complete effect interpretation, installation and V6 composition remain open.
+
+- [Centered head-only installation and class effects](2026-11-14-centered-head-step.md) — successor Step and live class-effect ledger, V6 installation agreement, model restriction, stable closure, unrestricted ground-point progress and terminal traces, preserved output coverage and all-state local child accessibility; schema/default, feedback, merge-error and final composition obligations remain.
+
+- [Centered V6 availability and canonical execution](2026-11-14-centered-head-availability-order.md) — complete head-step/effect-ledger permutation simulation and unconditional V6 canonical executor order, execution and exactness; selected availability reduced to explicit extension obligations, a source-formed defaults gap and positional schema interface, and the empty-model conflict limitation.
+
+
 - [Cycle 181: semantic readback compatibility](2026-11-14-cycle181-semantic-overlap.md) — Draft proof engineering; exact finite semantic extension and registered-use overlap.
 - [Cycle 181 module guide](2026-11-14-cycle181-module-guide.md) — Draft; finite semantic extension, alias transport, ledger provenance and mode-sensitive frames.
 - [Cycle181 日本語の主張・量化子と前提](2026-11-14-cycle181-claims-ja.md)
 - [Cycle181 late V6/head-step upstream review](2026-11-14-cycle181-late-upstream-review.md)
+
+- [Cycle182 effect-ledger frames and registered readback](2026-11-14-cycle182-ledger-frames.md) — Draft; original G remains open.

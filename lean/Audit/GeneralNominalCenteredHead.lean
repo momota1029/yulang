@@ -1,0 +1,54 @@
+import Yulang.B4TargetV6
+import Yulang.GeneralNominalCenteredHeadCandidates
+import Yulang.GeneralNominalCenteredHeadOutputs
+import Yulang.GeneralNominalCenteredHeadBoundary
+import Yulang.GeneralNominalCenteredHeadTransfers
+
+#print axioms Yulang.B4TargetV6.prior_rejection
+#print axioms Yulang.B4TargetV6.output_conflict_rejected
+#print axioms Yulang.B4TargetV6.inspection_not_rejected
+#print axioms Yulang.B4TargetV6.ambiguous_not_rejected
+#print axioms Yulang.B4TargetV6.selected_not_rejected
+#print axioms Yulang.B4TargetV6.local_total
+#print axioms Yulang.B4TargetV6.local_functional
+#print axioms Yulang.B4TargetV6.ambiguous_only
+#print axioms Yulang.B4TargetV6.selected_clear
+
+#print axioms Yulang.GeneralNominalCenteredHeadCandidates.inputs_idempotent
+#print axioms Yulang.GeneralNominalCenteredHeadCandidates.prepared_headReady
+#print axioms Yulang.GeneralNominalCenteredHeadCandidates.prepared_ignores_outputs
+#print axioms Yulang.GeneralNominalCenteredHeadCandidates.survivor_ignores_outputs
+#print axioms Yulang.GeneralNominalCenteredHeadCandidates.old_prepared_head
+#print axioms Yulang.GeneralNominalCenteredHeadCandidates.old_survivor_head
+#print axioms Yulang.GeneralNominalCenteredHeadCandidates.survivor_children_functional
+#print axioms Yulang.GeneralNominalCenteredHeadCandidates.unique_excludes_two
+
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.mem_requests_iff
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.request_retained
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.same_class_requests
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.one_sided_request
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.effects_head
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.conflict_inhabited
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.conflict_not_preexisting
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.conflict_unique
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.conflict_excludes_ambiguity
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.effects_equal_outputs
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.no_conflict_iff_effects
+#print axioms Yulang.GeneralNominalCenteredHeadOutputs.empty_outputs_no_conflict
+
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.reachable_iff
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.local_functional
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.local_total
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.selected_head
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.selected_no_output_conflict
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.selected_has_effects
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.output_conflict_rejected
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.ambiguous_only
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.frontierLocal
+#print axioms Yulang.GeneralNominalCenteredHeadBoundary.localIdentity
+
+#print axioms Yulang.GeneralNominalCenteredHeadTransfers.progress
+#print axioms Yulang.GeneralNominalCenteredHeadTransfers.closure
+#print axioms Yulang.GeneralNominalCenteredHeadTransfers.stepModels
+#print axioms Yulang.GeneralNominalCenteredHeadTransfers.dictionaryRefl
+#print axioms Yulang.GeneralNominalCenteredHeadTransfers.initialReorders
