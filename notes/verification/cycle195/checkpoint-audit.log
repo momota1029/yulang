@@ -1,0 +1,21 @@
+'Yulang.GeneralNominalReuseCatalogue195.reusable_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalReuseCatalogue195.packet_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalReuseCatalogue195.uniform_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalReuseCatalogue195.evidence_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSelectedCatalogue195.selected_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSelectedCatalogue195.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSelectedCatalogue195.dictionary_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalSelectedCatalogue195.dictionaries_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.reusable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.packets_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.child_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.reached_cases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.ordinary_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.genuine_reuse' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.uniform_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalNonleafCatalogue195.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]

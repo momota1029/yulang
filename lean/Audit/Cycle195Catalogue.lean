@@ -1,0 +1,21 @@
+import Yulang.GeneralNominalReuseCatalogue195
+import Yulang.GeneralNominalSelectedCatalogue195
+import Yulang.GeneralNominalNonleafCatalogue195
+
+#print axioms Yulang.GeneralNominalReuseCatalogue195.reusable_instance
+#print axioms Yulang.GeneralNominalReuseCatalogue195.packet_instance
+#print axioms Yulang.GeneralNominalReuseCatalogue195.uniform_dictionary
+#print axioms Yulang.GeneralNominalReuseCatalogue195.evidence_node
+#print axioms Yulang.GeneralNominalSelectedCatalogue195.selected_recorded
+#print axioms Yulang.GeneralNominalSelectedCatalogue195.selected_sound
+#print axioms Yulang.GeneralNominalSelectedCatalogue195.dictionary_evidence
+#print axioms Yulang.GeneralNominalSelectedCatalogue195.dictionaries_evidence
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.reusable
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.packets_exact
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.child_empty
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.reached_cases
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.covered
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.ordinary_path
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.genuine_reuse
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.uniform_dictionary
+#print axioms Yulang.GeneralNominalNonleafCatalogue195.selected_sound
