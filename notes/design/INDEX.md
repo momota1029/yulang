@@ -585,3 +585,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - Cycle194 structural refinement: module guide now includes 4 further journal-accessibility theorems (39 total); ordinary readback needs coverage but no independent Acc certificate.
 - Cycle194 selected-payload refinement: module guide now includes 7 further theorems (46 total), deriving actual selected Classify payload Evidence from ordinary execution and journal coverage.
 - Cycle194 final local boundary: 51 total theorems; recorded-node Evidence and concrete Stable-but-not-journal-Covered witness distinguish successful reuse from missing semantic evidence.
+- [Total semantic labels and successor ancestry](2026-11-15-centered-head-mat-semantic-depth.md) — full-carrier normalization and corrected child-center readback, original ground-source conversion, and unrestricted retrospective ancestry conditional on finite enabled-head captures and their mass bound; unconditional depth and progress remain open.
+
+- [Ground head readback for total materialization](2026-11-15-centered-head-mat-head-readback.md) — semantic projection and head-mass inversion for arbitrary counted labels, finite center captures from the actual head-only frame, and unconditional ground depth, finite cover, accessibility and progress for the unrestricted successor Step.
