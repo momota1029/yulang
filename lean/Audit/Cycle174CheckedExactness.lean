@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryAgreedChecked174
+
+#print axioms Yulang.GeneralDictionaryAgreedChecked174.run_resolves_iff
+#print axioms Yulang.GeneralDictionaryAgreedChecked174.completed_iff
+#print axioms Yulang.GeneralDictionaryAgreedChecked174.initial_run_resolves_iff
+#print axioms Yulang.GeneralDictionaryAgreedChecked174.accepted_fuels_same_spec

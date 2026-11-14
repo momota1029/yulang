@@ -470,13 +470,30 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle172: nested input discovery](2026-11-13-cycle172-nested-input-discovery.md) — actual finished inspection yields finite unary input certificate.
 - [Cycle173 actual-inspection evidence and ground composition](2026-11-13-cycle173-actual-evidence.md)
 - Cycle173 actual ground witness, concrete branching run and selected-edge schema: `2026-11-13-cycle173-actual-evidence.md` (conditional dictionary bridges; not full B4).
+- [Canonical hole transport and reduced-hole source producers](2026-11-14-canonical-hole-transport.md) — Exact shared substitution and mass transport, reduced-hole structural/point-nominal exposure, actual K2 occurs checking, and certified inventory/journal transition branches; universal unknown-hole source production remains open. No missing-provenance deferral is used.
 
 - [Explicit centers at the actual-inspection boundary](2026-11-14-centered-actual-boundary.md) — Center ledger, model equations, centered transition kernel, six V5 structural fields, and conditional compatibility/K2 bridges; full simulation and trigger execution remain open.
+- [Uniform source production through actual centers](2026-11-14-uniform-centered-source-production.md) — Nonpoint named-argument readback, uniform full-report captures and source-key exposure, shared packet substitution, uniform child emission, and scalar hole elimination; universal Simulation.next remains open.
 
+- [Cycle174 Actual agreed evidence](2026-11-14-cycle174-agreed-evidence.md) (Draft; scoped diagnostics and conditional dictionary bridges).
+- Cycle174 follow-up: `GeneralDictionaryAgreedComputed174`, `SearchOrder174`, `Uniform174` give a complete executable role-DAG certificate (not a language checker), search-order invariance, and finite selected-child depth. `Checked174` and `Uniform174` connect it to current-Local exactness of the noncomputable ground diagnostic. See `2026-11-14-cycle174-uniform-role-search.md`.
+- Cycle174 history review: `GeneralDictionaryAgreedHistoryObstruction174` shows ordinary Extension cannot survive genuine observation improvement with a recorded packet; `GeneralDictionaryAgreedRefresh174` transports current Evidence through one fixed-carrier/view actual refresh without post-refresh Extension. See `cycle174-refresh-obligations.md`.
+- Cycle174 completion: `GeneralDictionaryAgreedBounded174` supplies certified finite-depth outer recursion; `GeneralDictionaryAgreedRefiningTrace174` proves the current recorded-instance invariant from empty journal through arbitrarily interleaved actual ordinary/new-install and fixed-carrier/view refresh steps. See `2026-11-14-cycle174-bounded-diagnostic.md`, `cycle174-refining-trace.md`, and the current-Local readback bridge note. Unrestricted B4 is still open.
+
+- [Source producer closure and exact simulation handoff](2026-11-14-source-producer-handoff.md) — Explicit-center projection closure, actual settled binder-ledger labels, graph-backed elimination and compatible journal extension; source extraction and universal next remain open, with compiled handoff goal types.
 - [Centered point-source bridges](2026-11-14-centered-point-bridges.md) — Exact initial agreement, a reachable ground counterexample to literal erasure with a matching raw execution, and selected inspection guards; unrestricted simulation and full installation availability remain open.
-
 - [Direct centered ground-root accessibility](2026-11-14-centered-direct-accessibility.md) — Unrestricted centered Step accessibility from ground point roots, actual terminal executions, six structural V5 transfers, namespace/nested-use invariants, and conditional selected-plan/where bridges; full guard availability and the P/W trace remain open.
+- [Cycle175 recursive evidence after refining histories](2026-11-14-cycle175-dictionary-completion.md)
+- [Cycle175 table certificate](2026-11-14-cycle175-table-certificate.md)
+
+- [Cycle175 nominal-only refresh scope](2026-11-14-cycle175-flexible-refresh.md)
+- [Cycle175 table cost model and index plan](2026-11-14-cycle175-table-complexity.md)
+- [Cycle175 centered migration map, read-only](2026-11-14-cycle175-centered-migration-map.md)
+- [Cycle175 compact table](2026-11-14-cycle175-compact-table.md)
+
+- [Cycle176 centered evidence](2026-11-14-cycle176-centered-evidence.md): actual centered recorded-source and current-context scope.
 - [2026-11-14 Centered ground composition](2026-11-14-centered-ground-composition.md) — ten V5 fields, a reachable selection/installation obstruction, general center model extension, and conditional P/W ledger rejection; source execution remains open.
+- [Source syntax extraction and finite capture refinement](2026-11-14-source-syntax-refinement.md) — Unrestricted request templates/canonicality, coarse-ledger composition, finite simultaneous capture refinement, and conditional historical label extension; reachable source production and universal next remain open.
 
 - [Centered administrative ground composition](2026-11-14-centered-administrative-composition.md) — merge-aware Local, eleven unconditional V5 fields, all-state where accessibility, fixed-snapshot reordering, and explicit production/final-observation residuals.
 
