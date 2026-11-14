@@ -502,6 +502,13 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered completion and registered terminal confluence](2026-11-14-centered-completion-registered-confluence.md) — initial Joint/value-support proofs, exact generated/unregistered Local split, and actual inhabited terminal executions refuting literal Local confluence at a generated root; semantic child inputs agree and general production remains open.
 
 - [Centered final Local agreement: fixed choice](2026-11-14-centered-final-local-agreement.md) — exact exit-choice normalization, packet-free order residual, concrete unequal exit predicates under reordered registries, and reachable packet-free Joint; fixed-executor order remains open.
+
+- [Cycle176 module guide](2026-11-14-cycle176-module-guide.md): exact declaration inventory and fragment limits.
+- [Cycle177 current committed candidates](2026-11-14-cycle177-committed-candidates.md): direct scalar/named current-model consumers; exact G general producer remains open.
+
+- [Cycle177 next nominal research](2026-11-14-cycle177-next-nominal.md): unproved two-endpoint merge residual and exact reusable lemmas.
+
+- [Cycle 178: same-model nominal residual](2026-11-14-cycle178-nominal-residual.md)
 - [Centered source continuation and historical journal compatibility](2026-11-14-centered-source-continuation.md) — Identity-based historical labels, exact coarse-ledger persistence, fixed-hole constructor assembly, and the full centered phase/journal accessibility reduction; universal source production remains explicit and unproved.
 - [Concrete centered source invariant](2026-11-14-centered-source-invariant.md) — Root initialization, all noninstall and terminal-install preservation, exact child source values and global replacement; full centered Simulation and Acc reduced to one explicit nonterminal-install obligation.
 - [Centered nonterminal installation: preservation-contract counterexample](2026-11-14-centered-nonterminal-install.md) — Three sufficient source obligations and their composition; a checked InitialSource with an actual centered install refutes the current universal inventory-preservation contract. Class P accessibility remains open; branch-owned source trace renamed for integration.

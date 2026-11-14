@@ -1,0 +1,487 @@
+@Yulang.GeneralDictionaryCenteredGuard177.candidate_headReady : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    Yulang.GeneralNominalRecursiveCandidates.HeadReady registry plan.packet.context focus plan.packet.declaration
+@Yulang.GeneralDictionaryCenteredGuard177.candidate_structural_guards : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+      Yulang.GeneralNominalCenteredSteps.DecisionGuard registry state focus ∧
+        ¬Yulang.GeneralNominalCenteredSteps.RootCycle state focus ∧
+          ¬Yulang.GeneralNominalCenteredSteps.CandidateCycle registry state focus ∧
+            Yulang.GeneralNominalCenteredSteps.Safe state plan ∧
+              Yulang.GeneralNominalCenteredSteps.AlternativesSafe registry state plan.input
+@Yulang.GeneralDictionaryCenteredGuard177.candidate_guard_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+      ∀ (support : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+        Yulang.GeneralNominalCenteredSteps.PacketGuard state plan support ↔
+          Yulang.GeneralNominalValueSupport.PacketGuard state.erased plan.packet support ∧
+            Exists.{1} fun model => Yulang.GeneralNominalCenteredSteps.Models state model ∧ plan.Holds model
+@Yulang.GeneralDictionaryCenteredNamed177.selected_named : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (declaration : Yulang.GeneralDeclarations.Declaration),
+  Membership.mem.{0, 0} registry.declarations declaration →
+    ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+      (input : Yulang.GeneralDictionary171SpineDiscovery.Input state.erased.current.context focus declaration),
+      Yulang.GeneralDictionary171SpineDiscovery.RequestsFinished registry state.erased.current.context focus declaration
+          checked input →
+        Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+            (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredSteps.Models state model →
+              Eq.{1} declaration.id key ∧
+                Eq.{1} children List.nil.{0} ∧
+                  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model focus
+                      key List.nil.{0} ∧
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                      (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+@Yulang.GeneralDictionaryCenteredNamed177.checked_named : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (declaration : Yulang.GeneralDeclarations.Declaration),
+  Membership.mem.{0, 0} registry.declarations declaration →
+    ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+      (input : Yulang.GeneralDictionary171SpineDiscovery.Input state.erased.current.context focus declaration),
+      Eq.{1}
+          (Yulang.GeneralDictionary171CheckedSpine.check registry state.erased.current.context focus declaration checked
+            input)
+          Bool.true →
+        Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+            (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredSteps.Models state model →
+              Eq.{1} declaration.id key ∧
+                Eq.{1} children List.nil.{0} ∧
+                  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model focus
+                      key List.nil.{0} ∧
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                      (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+@Yulang.GeneralDictionaryCenteredNamed177.Covered : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralDeclarations.Registry →
+    Yulang.GeneralNominalCenteredSteps.State roles → Yulang.GeneralSourceDictionaries.Occurrence roles → Prop
+@Yulang.GeneralDictionaryCenteredNamed177.covered_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)},
+  Yulang.GeneralDictionaryCenteredNamed177.Covered registry state focus →
+    Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredSteps.Models state model →
+          ∀ (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload),
+            Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model)
+                children dictionaries →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+@Yulang.GeneralDictionaryCenteredNovel177.committed_or_installable_instance : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    Yulang.GeneralNominalCenteredSteps.Stable registry state focus →
+      Yulang.GeneralNominalFeedbackSteps.Committed state.erased.current plan.packet ∨
+          Yulang.GeneralNominalCenteredBoundary.Installable registry state plan →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredSteps.Models state model →
+            Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model focus key
+              children
+@Yulang.GeneralDictionaryCenteredNovel177.committed_or_installable_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    Yulang.GeneralNominalCenteredSteps.Stable registry state focus →
+      Yulang.GeneralNominalFeedbackSteps.Committed state.erased.current plan.packet ∨
+          Yulang.GeneralNominalCenteredBoundary.Installable registry state plan →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredSteps.Models state model →
+            ∀ (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload),
+              Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                  (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model)
+                  children dictionaries →
+                Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                  (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+Yulang.GeneralDictionaryCenteredNovel177.NovelInstallable : Yulang.Roles.RoleDecls → Prop
+@Yulang.GeneralDictionaryCenteredNovel177.evidenceNode_of_novelInstallable : ∀ {roles : Yulang.Roles.RoleDecls},
+  Yulang.GeneralDictionaryCenteredNovel177.NovelInstallable roles →
+    Yulang.B4SkeletonV5.EvidenceNode.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles)
+@Yulang.GeneralDictionaryCenteredNovel177.novelInstallable_of_modeledSelectedInstallable : ∀
+  {roles : Yulang.Roles.RoleDecls},
+  Yulang.GeneralDictionaryCenteredReady176.ModeledSelectedInstallable roles →
+    Yulang.GeneralDictionaryCenteredNovel177.NovelInstallable roles
+@Yulang.GeneralDictionaryCenteredNovel177.administrative_evidenceNode_of_novelInstallable : ∀
+  {roles : Yulang.Roles.RoleDecls},
+  Yulang.GeneralDictionaryCenteredNovel177.NovelInstallable roles →
+    Yulang.B4SkeletonV5.EvidenceNode.{0} (Yulang.GeneralNominalCenteredAdministrativeLocal.boundary roles)
+Yulang.GeneralDictionaryCenteredRootExample177.declaration : Yulang.GeneralDeclarations.Declaration
+Yulang.GeneralDictionaryCenteredRootExample177.registry : Yulang.GeneralDeclarations.Registry
+Yulang.GeneralDictionaryCenteredRootExample177.root : Yulang.GeneralSourceDictionaries.Occurrence
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredRootExample177.start : Yulang.GeneralNominalCenteredSteps.State
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredRootExample177.checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDictionaryFiniteObservedExample.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralDictionaryCenteredRootExample177.declaration
+Yulang.GeneralDictionaryCenteredRootExample177.source : Yulang.GeneralNominalSourceFormation.InitialSource
+  Yulang.GeneralDictionaryCenteredRootExample177.registry Yulang.GeneralDictionaryFiniteObservedExample.context
+  Yulang.GeneralDictionaryCenteredRootExample177.root
+Yulang.GeneralDictionaryCenteredRootExample177.shape : Yulang.GeneralDictionaryScalarLeaf.ScalarLeafShape
+  Yulang.GeneralDictionaryFiniteObservedExample.context Yulang.GeneralDictionaryCenteredRootExample177.root
+  Yulang.GeneralDictionaryCenteredRootExample177.declaration
+Yulang.GeneralDictionaryCenteredRootExample177.packet : Yulang.GeneralNominalSaturationState.Packet
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredRootExample177.plan : Yulang.GeneralNominalCenters.Plan
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredRootExample177.prepared : Yulang.GeneralNominalRecursiveCandidates.Prepared
+  Yulang.GeneralDictionaryCenteredRootExample177.registry Yulang.GeneralDictionaryFiniteObservedExample.context
+  Yulang.GeneralDictionaryCenteredRootExample177.root Yulang.GeneralDictionaryCenteredRootExample177.declaration
+  Yulang.GeneralDictionaryCenteredRootExample177.checked
+Yulang.GeneralDictionaryCenteredRootExample177.candidate : Yulang.GeneralDictionaryCenteredCandidate176.Candidate
+  Yulang.GeneralDictionaryCenteredRootExample177.registry Yulang.GeneralDictionaryCenteredRootExample177.start
+  Yulang.GeneralDictionaryCenteredRootExample177.root Yulang.GeneralDictionaryCenteredRootExample177.declaration.id
+  List.nil.{0} Yulang.GeneralDictionaryCenteredRootExample177.plan
+Yulang.GeneralDictionaryCenteredRootExample177.term : Yulang.GeneralNominalOriginTerms.Expr Nat
+Yulang.GeneralDictionaryCenteredRootExample177.ground : Yulang.GeneralNominalGroundAccessibility.GroundRoots
+  Yulang.GeneralDictionaryFiniteObservedExample.context Yulang.GeneralDictionaryCenteredRootExample177.root
+  (List.cons.{0} (Yulang.GeneralDeclarationPatterns.Pattern.app 2 List.nil.{0}) List.nil.{0})
+Yulang.GeneralDictionaryCenteredRootExample177.reachable : Yulang.B4TargetV5.Reachable.{0}
+  (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary Yulang.GeneralDeclarationExamples.roles)
+  Yulang.GeneralDictionaryCenteredRootExample177.registry Yulang.GeneralDictionaryCenteredRootExample177.root
+  Yulang.GeneralDictionaryCenteredRootExample177.start
+Yulang.GeneralDictionaryCenteredRootExample177.inhabited : Yulang.GeneralNominalCenteredSteps.Models
+  Yulang.GeneralDictionaryCenteredRootExample177.start Yulang.GeneralDictionaryFiniteObservedExample.model
+Yulang.GeneralDictionaryCenteredRootExample177.evidence : Yulang.GeneralDictionaryRecursiveEvidence.Evidence
+  Yulang.GeneralDictionaryCenteredRootExample177.registry Yulang.GeneralDictionaryFiniteObservedExample.context
+  Yulang.GeneralDictionaryFiniteObservedExample.model Yulang.GeneralDictionaryCenteredRootExample177.root
+  (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryCenteredRootExample177.declaration.id
+    List.nil.{0})
+Yulang.GeneralDictionaryCenteredRootExample177.empty_journal : Eq.{1}
+    Yulang.GeneralDictionaryCenteredRootExample177.start.plans List.nil.{0} ∧
+  Eq.{1} Yulang.GeneralDictionaryCenteredRootExample177.start.erased.current.packets List.nil.{0} ∧
+    Eq.{1} Yulang.GeneralDictionaryCenteredRootExample177.start.erased.current.edges List.nil.{0} ∧
+      Eq.{1} Yulang.GeneralDictionaryCenteredRootExample177.start.erased.current.aliases List.nil.{0}
+Yulang.GeneralDictionaryCenteredRootExample177.regression : Yulang.B4TargetV5.Reachable.{0}
+    (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralDictionaryCenteredRootExample177.registry Yulang.GeneralDictionaryCenteredRootExample177.root
+    Yulang.GeneralDictionaryCenteredRootExample177.start ∧
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate Yulang.GeneralDictionaryCenteredRootExample177.registry
+      Yulang.GeneralDictionaryCenteredRootExample177.start Yulang.GeneralDictionaryCenteredRootExample177.root
+      Yulang.GeneralDictionaryCenteredRootExample177.declaration.id List.nil.{0}
+      Yulang.GeneralDictionaryCenteredRootExample177.plan ∧
+    Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralDictionaryCenteredRootExample177.start
+        Yulang.GeneralDictionaryFiniteObservedExample.model ∧
+      Eq.{1} Yulang.GeneralDictionaryCenteredRootExample177.start.plans List.nil.{0} ∧
+        Eq.{1} Yulang.GeneralDictionaryCenteredRootExample177.start.erased.current.packets List.nil.{0} ∧
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryCenteredRootExample177.registry
+            Yulang.GeneralDictionaryFiniteObservedExample.context Yulang.GeneralDictionaryFiniteObservedExample.model
+            Yulang.GeneralDictionaryCenteredRootExample177.root
+            (Yulang.CommonRoleOutermostResolver.Dictionary.node
+              Yulang.GeneralDictionaryCenteredRootExample177.declaration.id List.nil.{0})
+@Yulang.GeneralDictionaryCenteredRootScalar177.root_point : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles},
+  Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state →
+    ∀ (index : Fin (roles root.demand.role).arity),
+      Eq.{1} (Prod.fst.{0, 0} (root.demand.arguments index)) (Prod.snd.{0, 0} (root.demand.arguments index))
+@Yulang.GeneralDictionaryCenteredRootScalar177.candidate_point : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state →
+    Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state root key children plan →
+      ∀ (base : Yulang.Inference.Base),
+        Eq.{1}
+            (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+              plan.packet.declaration)
+            (List.cons.{0} (Yulang.GeneralNominalInspection.Query.scalar base) List.nil.{0}) →
+          Exists.{1} fun slot =>
+            Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+              (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} slot slot) List.nil.{0}))
+@Yulang.GeneralDictionaryCenteredRootScalar177.root_committed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state →
+    Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state root key children plan →
+      ∀ (base : Yulang.Inference.Base),
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+              Eq.{1}
+                  (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                    plan.packet.declaration)
+                  (List.cons.{0} (Yulang.GeneralNominalInspection.Query.scalar base) List.nil.{0}) →
+                Yulang.GeneralNominalFeedbackSteps.Committed state.erased.current plan.packet
+@Yulang.GeneralDictionaryCenteredRootScalar177.root_instance : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state →
+    Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state root key children plan →
+      ∀ (base : Yulang.Inference.Base),
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+              Eq.{1}
+                  (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                    plan.packet.declaration)
+                  (List.cons.{0} (Yulang.GeneralNominalInspection.Query.scalar base) List.nil.{0}) →
+                ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                  Yulang.GeneralNominalCenteredSteps.Models state model →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model root
+                      key children
+@Yulang.GeneralDictionaryCenteredRootScalar177.root_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state →
+    Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state root key children plan →
+      ∀ (base : Yulang.Inference.Base),
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+              Eq.{1}
+                  (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                    plan.packet.declaration)
+                  (List.cons.{0} (Yulang.GeneralNominalInspection.Query.scalar base) List.nil.{0}) →
+                ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                  Yulang.GeneralNominalCenteredSteps.Models state model →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model root
+                      (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+@Yulang.GeneralDictionaryCenteredScalar177.candidate_instance_of_holds : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      plan.packet.Holds model →
+        Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model focus key
+          children
+@Yulang.GeneralDictionaryCenteredScalar177.committed_candidate_instance : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    Yulang.GeneralNominalFeedbackSteps.Committed state.erased.current plan.packet →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredSteps.Models state model →
+          Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model focus key
+            children
+@Yulang.GeneralDictionaryCenteredScalar177.scalar_candidate_committed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀
+      (shape :
+        Yulang.GeneralDictionaryScalarLeaf.ScalarLeafShape plan.packet.context plan.packet.site.occurrence
+          plan.packet.declaration),
+      Yulang.GeneralNominalFeedbackSteps.Committed state.erased.current plan.packet
+@Yulang.GeneralDictionaryCenteredScalar177.selected_scalar : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {declaration : Yulang.GeneralDeclarations.Declaration},
+  Membership.mem.{0, 0} registry.declarations declaration →
+    Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration →
+      ∀ (shape : Yulang.GeneralDictionaryScalarLeaf.ScalarLeafShape state.erased.current.context focus declaration),
+        Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+            (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredSteps.Models state model →
+              Eq.{1} declaration.id key ∧
+                Eq.{1} children List.nil.{0} ∧
+                  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model focus
+                      key List.nil.{0} ∧
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                      (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+@Yulang.GeneralDictionaryCenteredScalar177.scalar_coverage : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)},
+  Yulang.GeneralDictionaryScalarLeaf.HasScalarLeaf registry state.erased.current.context focus →
+    Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredSteps.Models state model →
+          Eq.{1} children List.nil.{0} ∧
+            Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model focus key
+                List.nil.{0} ∧
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+@Yulang.GeneralDictionaryCenteredScalar177.scalar_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)},
+  Yulang.GeneralDictionaryScalarLeaf.HasScalarLeaf registry state.erased.current.context focus →
+    Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredSteps.Models state model →
+          ∀ (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload),
+            Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model)
+                children dictionaries →
+              Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+Yulang.GeneralDictionaryCenteredScalar177.ScalarOrInstallable : Yulang.Roles.RoleDecls → Prop
+@Yulang.GeneralDictionaryCenteredScalar177.evidenceNode_of_scalarOrInstallable : ∀ {roles : Yulang.Roles.RoleDecls},
+  Yulang.GeneralDictionaryCenteredScalar177.ScalarOrInstallable roles →
+    Yulang.B4SkeletonV5.EvidenceNode.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles)
+Yulang.GeneralDictionaryCenteredScalarDiscovery177.scalar_finished : ∀ (state : Yulang.GeneralNominalState.State)
+  (slot : Fin state.base.slots) (base : Yulang.Inference.Base)
+  (origin : Option.{0} Yulang.GeneralNominalRecursiveInspection.Origin),
+  Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveInspection.inspect state (Yulang.GeneralNominalInspection.Query.scalar base)
+        (Prod.mk.{0, 0} slot slot) origin) →
+    Eq.{1} (state.nominals slot) Option.none.{0} ∧
+      Eq.{1} (state.view.heads slot) (Yulang.GeneralNormalizedObservation.Head.scalar base)
+@Yulang.GeneralDictionaryCenteredScalarDiscovery177.discover_shape : {roles : Yulang.Roles.RoleDecls} →
+  {registry : Yulang.GeneralDeclarations.Registry} →
+    {state : Yulang.GeneralNominalCenteredSteps.State roles} →
+      {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} →
+        {key : Nat} →
+          {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)} →
+            {plan : Yulang.GeneralNominalCenters.Plan roles} →
+              Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+                (slot : Fin plan.packet.context.state.base.slots) →
+                  (base : Yulang.Inference.Base) →
+                    Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+                      Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+                        Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+                          Eq.{1}
+                              (Yulang.GeneralNominalInspection.queries plan.packet.context.state
+                                plan.packet.context.interpretation plan.packet.declaration)
+                              (List.cons.{0} (Yulang.GeneralNominalInspection.Query.scalar base) List.nil.{0}) →
+                            Eq.{1}
+                                (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context
+                                  plan.packet.site.occurrence)
+                                (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} slot slot) List.nil.{0})) →
+                              Yulang.GeneralDictionaryScalarLeaf.ScalarLeafShape plan.packet.context
+                                plan.packet.site.occurrence plan.packet.declaration
+@Yulang.GeneralDictionaryCenteredScalarDiscovery177.discovered_committed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (slot : Fin plan.packet.context.state.base.slots) (base : Yulang.Inference.Base),
+      Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+        Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+          Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+            Eq.{1}
+                (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                  plan.packet.declaration)
+                (List.cons.{0} (Yulang.GeneralNominalInspection.Query.scalar base) List.nil.{0}) →
+              Eq.{1}
+                  (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                  (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} slot slot) List.nil.{0})) →
+                Yulang.GeneralNominalFeedbackSteps.Committed state.erased.current plan.packet
+@Yulang.GeneralDictionaryCenteredScalarDiscovery177.discovered_instance : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (slot : Fin plan.packet.context.state.base.slots) (base : Yulang.Inference.Base),
+      Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+        Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+          Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+            Eq.{1}
+                (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                  plan.packet.declaration)
+                (List.cons.{0} (Yulang.GeneralNominalInspection.Query.scalar base) List.nil.{0}) →
+              Eq.{1}
+                  (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                  (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} slot slot) List.nil.{0})) →
+                ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                  Yulang.GeneralNominalCenteredSteps.Models state model →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.erased.current.context model focus
+                      key children
+@Yulang.GeneralDictionaryCenteredScalarDiscovery177.discovered_children_empty : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    Eq.{1} plan.packet.declaration.requirements List.nil.{0} → Eq.{1} children List.nil.{0}
+@Yulang.GeneralDictionaryCenteredScalarDiscovery177.discovered_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (slot : Fin plan.packet.context.state.base.slots) (base : Yulang.Inference.Base),
+      Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+        Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+          Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+            Eq.{1}
+                (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                  plan.packet.declaration)
+                (List.cons.{0} (Yulang.GeneralNominalInspection.Query.scalar base) List.nil.{0}) →
+              Eq.{1}
+                  (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                  (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} slot slot) List.nil.{0})) →
+                ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                  Yulang.GeneralNominalCenteredSteps.Models state model →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                      (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+Yulang.GeneralDictionaryCenteredScalarRegression177.shape : (n : Nat) →
+  Yulang.GeneralDictionaryScalarLeaf.ScalarLeafShape
+    Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore.erased.current.context
+    (Yulang.GeneralDictionaryEarlyMergeScalarExample.child n) Yulang.GeneralNominalExamples.intDisplay
+Yulang.GeneralDictionaryCenteredScalarRegression177.inhabited : Yulang.GeneralNominalCenteredSteps.Models
+  Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore Yulang.GeneralNominalExamples.model
+Yulang.GeneralDictionaryCenteredScalarRegression177.direct_evidence : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore assignment →
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryEarlyMergeScalarExample.registry
+      Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore.erased.current.context assignment
+      (Yulang.GeneralDictionaryEarlyMergeScalarExample.child 10)
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 List.nil.{0})
+Yulang.GeneralDictionaryCenteredScalarRegression177.evidence_without_installability : Yulang.B4TargetV5.Reachable.{0}
+    (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralDictionaryEarlyMergeScalarExample.registry Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore ∧
+  Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore
+      Yulang.GeneralNominalExamples.model ∧
+    Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryEarlyMergeScalarExample.registry
+        Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore.erased.current.context
+        Yulang.GeneralNominalExamples.model (Yulang.GeneralDictionaryEarlyMergeScalarExample.child 10)
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 List.nil.{0}) ∧
+      ¬Yulang.GeneralNominalCenteredWhere.Available Yulang.GeneralDictionaryEarlyMergeScalarExample.registry
+            Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore
+            (Yulang.GeneralDictionaryEarlyMergeScalarExample.child 10) ∧
+        ¬Yulang.GeneralNominalCenteredSteps.Stable Yulang.GeneralDictionaryEarlyMergeScalarExample.registry
+            Yulang.GeneralNominalCenteredSelectionCounterexample.cbefore Yulang.GeneralNominalExamples.displayRoot
