@@ -130,4 +130,3 @@ theorem Retention.eliminated_not_live (retained : Retention registry context roo
   fun live => distinct.not_mem_erase ((retained.replace replacement vocabulary).live_mem live)
 
 end Yulang.GeneralNominalCenteredSourceLiveReadbacks
-

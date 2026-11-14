@@ -155,4 +155,3 @@ theorem Replacements.transport
     exact ih (Coverage'.replace coverage ⟨op.pattern,op.tree,⟨label,raw⟩,allowed⟩ vocabulary op.extra) facts
 
 end Yulang.GeneralNominalCenteredSourceLiveTransport
-

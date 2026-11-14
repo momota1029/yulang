@@ -95,4 +95,3 @@ theorem class_p_source_production (produce : ClassPInstallPreservation' roles) :
   exact simulation source point (produce registry checked context root source point)
 
 end Yulang.GeneralNominalCenteredSourceLiveConstruction
-

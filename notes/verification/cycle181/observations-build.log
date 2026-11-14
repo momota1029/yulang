@@ -1,0 +1,6 @@
+DEPENDENCY_CLOSURE 819 REBUILD 2
+START Yulang.GeneralNominalSemanticCompatibility181
+END Yulang.GeneralNominalSemanticCompatibility181 0
+START Yulang.GeneralNominalObservationExtension181
+END Yulang.GeneralNominalObservationExtension181 0
+PASS 2

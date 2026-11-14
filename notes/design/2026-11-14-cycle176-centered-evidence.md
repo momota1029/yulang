@@ -36,3 +36,14 @@ our candidate/stored/current-history proofs on that exact example: parent
 current Instance after its real installation, selected child candidate whose
 installation is blocked until merging, and explicit failure of stability.
 No declaration or language decision is changed.
+
+## Nonvacuous finite-history consumer
+
+Combine actual revision/footprint history with the independently proved
+syntactic output-aligned merge fragment on the SAME sequence of states.
+From a point root and an inhabited source context, the final centered model
+set remains inhabited. Given existing finite RecordedTree syntax at the final
+state, derive its whole current Evidence in every model and in at least one
+model, plus structural Discharged. The tree's existence and unrestricted
+executor membership remain separate. This is a readable final soundness
+consumer, not a new classifier or an EvidenceNode field closure.

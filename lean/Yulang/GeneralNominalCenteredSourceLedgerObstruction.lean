@@ -216,4 +216,3 @@ theorem counterexample :
   exact no_trusted_readbackR trusted readback
 
 end Yulang.GeneralNominalCenteredSourceLedgerObstruction
-
