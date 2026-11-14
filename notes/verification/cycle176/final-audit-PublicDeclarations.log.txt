@@ -1,0 +1,164 @@
+'Yulang.GeneralDictionaryCenteredCandidate176.Candidate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredCandidate176.selected_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredCandidate176.reachable_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.At' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.Step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.at_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.steps_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.step_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.at_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.RecordedCurrent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.step_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.initial_recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.trace_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.initial_trace_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.initial_trace_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredFlexible176.initial_trace_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.RecordedFootprints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.At' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.Step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.at_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.steps_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.flexible_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.flexible_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.refresh_instance' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.step_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.trace_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.initial_trace_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.initial_trace_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.OutputsAligned' does not depend on any axioms
+'Yulang.GeneralDictionaryCenteredInhabited176.MergeAligned' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.aligned_output_atoms' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.aligned_merge_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.at_inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.AlignedStep' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.step_inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.trace_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredInhabited176.trace_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.ExactLedger' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.exact_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.exact_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.initial_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.reachable_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.packet_member' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.packet_has_plan' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.plan_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLedger176.plan_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.Step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.revision_trace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.aligned_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.actual_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.initial_dictionary_nonvacuous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.stable_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.stable_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.selected_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.selected_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.ModeledSelectedInstallable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.evidenceNode_of_modeledSelectedInstallable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.Recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.recorded_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.recorded_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.initial_recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.reachable_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.recorded_committed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.stored_instance' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.reachable_stored_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.stored_evidence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.current_instance' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.first_flexible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.parent_current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.exact_ledger' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.selected_candidate_not_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.premerge_not_stable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.RecordedFootprints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.At' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.Step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.at_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.steps_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.footprint_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.footprint_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.revision_instance' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.step_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.trace_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.initial_trace_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRevision176.initial_trace_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredSharedMerge176.same_named_inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredSharedMerge176.recovered_observed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredSharedMerge176.named_merge_guard' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredSharedMerge176.stable_named_alias' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredTree176.current_evidence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredTree176.initial_trace_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredTree176.initial_trace_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.context' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.next' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.query' does not depend on any axioms
+'Yulang.GeneralDictionaryHeadFootprintRegression176.bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.view_changes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.model_nonempty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.refinement' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.report_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.scalar_not_nominal_only' does not depend on any axioms
+'Yulang.GeneralDictionaryViewFootprint176.HeadObservation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.HeadObservation.view' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.HeadObservation.observation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.report_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewFootprint176.instance_refinement' depends on axioms: [propext, Quot.sound]

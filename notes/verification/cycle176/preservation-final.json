@@ -1,0 +1,10 @@
+{
+  "base": "19462b5a9adc1c4158a437cb69471f2b7b2dbe61",
+  "lean_sources": 2793,
+  "prefix_failures": [
+    "lean/Yulang.lean"
+  ],
+  "protected_changed": [],
+  "note": "Yulang.lean contains additions from two branches; full-prefix test fails but git diff confirms no deleted/replaced lines.",
+  "lean_deletions": []
+}
