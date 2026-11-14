@@ -3220,3 +3220,6 @@ import Yulang.GeneralNominalPointProjection188
 import Yulang.GeneralNominalHeadPointBounds188
 import Yulang.GeneralNominalHeadInitialFrame188
 import Yulang.GeneralNominalHeadVariableExtension188
+import Yulang.GeneralNominalHeadInitialEffects188
+import Yulang.GeneralNominalPointOriginEnrichment188
+import Yulang.GeneralNominalHeadNominalExtension188

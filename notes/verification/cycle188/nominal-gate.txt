@@ -1,0 +1,3 @@
+✔ [1044/1044] Built Yulang.GeneralNominalHeadNominalExtension188 (1.1s)
+Build completed successfully (1044 jobs).
+AXIOM-GATE-PASS: 63 declarations including generated/private
