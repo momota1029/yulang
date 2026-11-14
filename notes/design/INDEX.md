@@ -530,3 +530,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle 181: semantic readback compatibility](2026-11-14-cycle181-semantic-overlap.md) — Draft proof engineering; exact finite semantic extension and registered-use overlap.
 - [Cycle 181 module guide](2026-11-14-cycle181-module-guide.md) — Draft; finite semantic extension, alias transport, ledger provenance and mode-sensitive frames.
+- [Cycle181 日本語の主張・量化子と前提](2026-11-14-cycle181-claims-ja.md)
+- [Cycle181 late V6/head-step upstream review](2026-11-14-cycle181-late-upstream-review.md)
