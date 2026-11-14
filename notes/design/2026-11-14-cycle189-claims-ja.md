@@ -100,3 +100,17 @@ initial_schemaでleafのnamedSchemaと実outputSchemaが等しいことを導く
 Frame、slot、query列、inputNames、EffectsReady、model存在、Committedを追加前提にしていない。出力要求は任意有限個で空とは限らない。StableとInitialは保持。任意reachableやnonleafへの一般化はしていない。
 
 反復captureを含むheadではraw merge endpoint等式の再構成が別途必要になる。今回それを一般に導いておらず、同じassignmentのHeadEquationsからraw private equationsを自動的に結論しない。これは依存関係の分析であり、新しいLean反例や意味論E2を発見したという報告ではない。
+
+## 有限個の相異なる変数headへの拡張
+
+LinearVariableModels189.head_modelsは、任意有限entries : List(name × slot)について、名前がNodup、queriesがそのsingleton-variable列、boundsがそのpoint-bound列、inputNamesが名前列なら、任意source Modelsの**同じassignment**でprivate HeadModelsを導く。singleton occurrenceへの絞り込み、merge atomsなし、point self-check、originなしProjectionModelsを内部で示す。反復名は含めない。
+
+LinearNamedPlan189のnamed_plan / selected_named_plan / selected_named_installableは、この有限linear条件で単一変数版を拡張する。leaf requirements=[]、実Initial/selected/Frame、EffectsReadyを保持して、非空named outputsの同model Plan.Holdsと実Installableを導く。
+
+LinearNamedEvidence189.stable_selected_evidenceは同条件に実Stableを加え、任意current Modelsのactual WF Evidenceを導く。任意有限head長（0を含む）を扱うが、この外側は明示的なFrame/entries/query/bounds/inputNames/readyをまだ持つ。source宣言だけからplumbingを導く外側は前節の単一変数版であり、両者の量化子を混同しない。
+
+## 非空named-outputの実回帰
+
+InitialNamedFixture189/InitialNamedLocal189/InitialNamedNonvacuity189は、新しい明示的なidentity-output宣言（head=[var0], associated output0=var0, whereなし）と既存scalar sourceを用いる。既存intDisplayを再使用したという説明ではない。rootのnamed output0のtargetはpoint inputと同じsource1。
+
+inhabited_stable_selectedはChecked、actual Initial、actual Stable、actual Local.selected、Modelsのwitness、root.outputs≠[]、actual boundary.Evidenceを同時に証明。EvidenceはSourceVariableEvidence189の一般機構を実際に使う。これら回帰補助42定理は一般橋の閉鎖本数に数えない。
