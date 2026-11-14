@@ -577,3 +577,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle192 committed-or-installed forests](2026-11-14-cycle192-committed-forest.md) — Draft, I32 certificate boundary.
 - [Centered total-materialization trusted caches](2026-11-15-centered-head-mat-trusted-cache.md) — justified refresh/reobservation, actual successor cache and metadata invariants, nine unconditional law shapes, and conditional availability/order composition; concrete fixture, progress, common models, and full K2 projection coverage remain open.
+
+- [Cycle194 final classification design](2026-11-14-cycle194-final-classification.md): concrete WF nonleaf completion and general ordinary journal readback; general EvidenceNode remains open.
+- [Cycle194 quantified module guide](2026-11-14-cycle194-module-guide.md): 35 theorem statements and explicit remaining contracts.
