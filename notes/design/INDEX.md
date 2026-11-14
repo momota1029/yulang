@@ -594,13 +594,11 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Output targets lose their clause identity](2026-11-15-centered-head-mat-output-target-collision.md) — checked WF ground initial counterexample: two distinct child clauses reuse a locally valid output equation ID, so total materialization gives one target incompatible meanings; stable selected parent refutes PacketAssembly and generated-child production.
 - [Cycle195 mixed readback catalogue](2026-11-14-cycle195-reuse-catalogue.md) and [module guide](2026-11-14-cycle195-catalogue-module-guide.md).
 - [Cycle195 current completion and limits](2026-11-14-cycle195-current-completion-guide.md).
-- [Cycle196 descriptor-changing reinspection transport](2026-11-14-cycle196-view-transport.md): exact same-model source dictionary/readback transport through fixed-skeleton view replacement and actual WF refresh; variable-only automatic reinspection and inhabited descriptor-change regression. Unrestricted refresh and current-Frame production remain open.
-- [Cycle196 executable descriptor insertion](2026-11-14-cycle196-executable-view.md) — actual WF refresh and same-model readback.
-
-- [Cycle196 rooted reinspection](2026-11-14-cycle196-rooted-view.md) — finite dictionary support.
-- [Cycle196 strict locality regression](2026-11-14-cycle196-rooted-example.md) — local support without global report agreement.
 
 - [Clause-aware child-output allocation](2026-11-15-centered-head-allocation.md) — additive paired clause/equation allocation, unchanged source contract and shared output binders, twelve closed successor laws, actual two-child collision repair, and independent private-output model extension; general completion retains three named hypotheses.
 - [A required merge can empty the journal before completion](2026-11-15-centered-head-merge-conflict.md) — checked WF ground source, inhabited parent installation, actual same-input merge, and stable generated R selection with an empty full journal; refutes unconditional HeadBaseline and SelectedCompletion, without claiming a GeneratedChildren or Statement counterexample.
-
+- [Cycle196 descriptor-changing reinspection transport](2026-11-14-cycle196-view-transport.md): exact same-model source dictionary/readback transport through fixed-skeleton view replacement and actual WF refresh; variable-only automatic reinspection and inhabited descriptor-change regression. Unrestricted refresh and current-Frame production remain open.
+- [Cycle196 executable descriptor insertion](2026-11-14-cycle196-executable-view.md) — actual WF refresh and same-model readback.
+- [Cycle196 rooted reinspection](2026-11-14-cycle196-rooted-view.md) — finite dictionary support.
+- [Cycle196 strict locality regression](2026-11-14-cycle196-rooted-example.md) — local support without global report agreement.
 - [Cycle197 nominal observation and mixed journal recovery](../handoff/dots-cycle-197.md) — finite traces, premise-free same-slot nominal syntax refresh transport, and actual mixed-execution packet Instances; general EvidenceNode remains open.

@@ -1,0 +1,13 @@
+import Yulang.GeneralNominalMixedTree198
+#print axioms Yulang.GeneralNominalMixedCompletion198.node_instance
+#print axioms Yulang.GeneralNominalMixedCompletion198.packet_edges
+#print axioms Yulang.GeneralNominalMixedCompletion198.children_generated
+#print axioms Yulang.GeneralNominalMixedCompletion198.selected_instance
+#print axioms Yulang.GeneralNominalMixedCompletion198.dictionary_evidence
+#print axioms Yulang.GeneralNominalMixedCompletion198.dictionaries_evidence
+#print axioms Yulang.GeneralNominalMixedCompletion198.selected_sound
+#print axioms Yulang.GeneralNominalMixedCompletion198.evidence_node
+#print axioms Yulang.GeneralNominalMixedCompletion198.selected_completion
+#print axioms Yulang.GeneralNominalMixedTree198.child_rank
+#print axioms Yulang.GeneralNominalMixedTree198.tree_exists
+#print axioms Yulang.GeneralNominalMixedTree198.uniform_dictionary
