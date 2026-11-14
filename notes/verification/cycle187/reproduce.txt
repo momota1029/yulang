@@ -1,0 +1,410 @@
+PRESERVATION-PASS 5515 old paths; root append-only, heartbeat replaced
+✔ [1033/1033] Built Yulang.GeneralNominalHeadInitialExtension187 (1.8s)
+Build completed successfully (1033 jobs).
+AXIOM-GATE-PASS: 91 declarations including generated/private
+Yulang.GeneralNominalCaptureBounds187.occurrence_iff (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state) (name : Nat)
+  (pair : Yulang.GeneralSourceState.Interval) :
+  pair ∈
+      Yulang.GeneralNominalAllocation.occurrences (Yulang.GeneralNominalRecursiveInspection.bindings state report)
+        name ↔
+    ∃ captured,
+      captured ∈ report.captures ∧
+        captured.name = name ∧ (state.base.source captured.bounds.fst, state.base.source captured.bounds.snd) = pair
+'Yulang.GeneralNominalCaptureBounds187.occurrence_iff' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureBounds187.occurrence_nonempty (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (captured : Yulang.GeneralNominalRecursiveInspection.Capture state) (present : captured ∈ report.captures) :
+  Yulang.GeneralNominalAllocation.occurrences (Yulang.GeneralNominalRecursiveInspection.bindings state report)
+      captured.name ≠
+    []
+'Yulang.GeneralNominalCaptureBounds187.occurrence_nonempty' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureBounds187.merged_iff_raw (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state) (registry : Yulang.GeneralDeclarations.Registry)
+  (invocation : Nat) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (recorded :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges state registry invocation declaration
+        (Yulang.GeneralNominalRecursiveInspection.bindings state report)))
+  (name : Nat) (declared : name ∈ declaration.inputNames)
+  (nonempty :
+    Yulang.GeneralNominalAllocation.occurrences (Yulang.GeneralNominalRecursiveInspection.bindings state report) name ≠
+      [])
+  (value : Yulang.CommonNominalFullCarrier.Ty) :
+  Yulang.GeneralNominalCaptureMerges.Fits model
+      ((Yulang.GeneralNominalAllocation.capture state registry invocation declaration.id
+            (Yulang.GeneralNominalRecursiveInspection.bindings state report)).inputs
+        name)
+      value ↔
+    ∀ (captured : Yulang.GeneralNominalRecursiveInspection.Capture state),
+      captured ∈ report.captures →
+        captured.name = name → Yulang.GeneralNominalRecursiveInspection.Fits state model captured.bounds value
+'Yulang.GeneralNominalCaptureBounds187.merged_iff_raw' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureBounds187.projected_merged (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state) (registry : Yulang.GeneralDeclarations.Registry)
+  (invocation : Nat) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (projection : Yulang.GeneralNominalRecursiveInspection.ProjectionModels state report model)
+  (recorded :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges state registry invocation declaration
+        (Yulang.GeneralNominalRecursiveInspection.bindings state report)))
+  (captured : Yulang.GeneralNominalRecursiveInspection.Capture state) (present : captured ∈ report.captures)
+  (declared : captured.name ∈ declaration.inputNames) (origin : Yulang.GeneralNominalRecursiveInspection.Origin)
+  (source : captured.origin = some origin) (value : Yulang.CommonNominalFullCarrier.Ty)
+  (seen : Yulang.GeneralNominalRecursiveInspection.Observes model origin value) :
+  Yulang.GeneralNominalCaptureMerges.Fits model
+    ((Yulang.GeneralNominalAllocation.capture state registry invocation declaration.id
+          (Yulang.GeneralNominalRecursiveInspection.bindings state report)).inputs
+      captured.name)
+    value
+'Yulang.GeneralNominalCaptureBounds187.projected_merged' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureBounds187.fits_equivalent (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (bounds : Yulang.GeneralSourceState.Interval) (one two : Yulang.CommonNominalFullCarrier.Ty)
+  (same : Yulang.CommonNominalFullCarrier.Equivalent one two) :
+  Yulang.GeneralNominalCaptureMerges.Fits model bounds one ↔ Yulang.GeneralNominalCaptureMerges.Fits model bounds two
+'Yulang.GeneralNominalCaptureBounds187.fits_equivalent' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureOrigins187.shape_visit {state : Yulang.GeneralNominalState.State}
+  (bounds : Yulang.GeneralNominalInspection.Bounds state)
+  (origin : Option Yulang.GeneralNominalRecursiveInspection.Origin)
+  (test : Yulang.GeneralNominalRecursiveInspection.Test)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralNominalCaptureOrigins187.shape
+      (Yulang.GeneralNominalRecursiveInspection.Report.visit bounds origin test report) =
+    Yulang.GeneralNominalCaptureOrigins187.shape report
+'Yulang.GeneralNominalCaptureOrigins187.shape_visit' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureOrigins187.shape_append {state : Yulang.GeneralNominalState.State}
+  (one two : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralNominalCaptureOrigins187.shape (one.append two) =
+    Yulang.GeneralNominalCaptureOrigins187.shape one ++ Yulang.GeneralNominalCaptureOrigins187.shape two
+'Yulang.GeneralNominalCaptureOrigins187.shape_append' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureOrigins187.inspect_shape (state : Yulang.GeneralNominalState.State)
+  (query : Yulang.GeneralNominalInspection.Query) (bounds : Yulang.GeneralNominalInspection.Bounds state)
+  (first last : Option Yulang.GeneralNominalRecursiveInspection.Origin) :
+  Yulang.GeneralNominalCaptureOrigins187.shape
+      (Yulang.GeneralNominalRecursiveInspection.inspect state query bounds first) =
+    Yulang.GeneralNominalCaptureOrigins187.shape
+      (Yulang.GeneralNominalRecursiveInspection.inspect state query bounds last)
+'Yulang.GeneralNominalCaptureOrigins187.inspect_shape' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureOrigins187.many_shape (state : Yulang.GeneralNominalState.State)
+  (queries : List Yulang.GeneralNominalInspection.Query) (bounds : List (Yulang.GeneralNominalInspection.Bounds state))
+  (first last : Nat → Option Yulang.GeneralNominalRecursiveInspection.Origin) (one two : Nat) :
+  Yulang.GeneralNominalCaptureOrigins187.shape
+      (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds first one) =
+    Yulang.GeneralNominalCaptureOrigins187.shape
+      (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds last two)
+'Yulang.GeneralNominalCaptureOrigins187.many_shape' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureOrigins187.bindings_shape (state : Yulang.GeneralNominalState.State)
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state) :
+  Yulang.GeneralNominalRecursiveInspection.bindings state report =
+    List.map (fun entry => (entry.fst, state.base.source entry.snd.fst, state.base.source entry.snd.snd))
+      (Yulang.GeneralNominalCaptureOrigins187.shape report)
+'Yulang.GeneralNominalCaptureOrigins187.bindings_shape' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalCaptureOrigins187.many_bindings (state : Yulang.GeneralNominalState.State)
+  (queries : List Yulang.GeneralNominalInspection.Query) (bounds : List (Yulang.GeneralNominalInspection.Bounds state))
+  (first last : Nat → Option Yulang.GeneralNominalRecursiveInspection.Origin) (one two : Nat) :
+  Yulang.GeneralNominalRecursiveInspection.bindings state
+      (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds first one) =
+    Yulang.GeneralNominalRecursiveInspection.bindings state
+      (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds last two)
+'Yulang.GeneralNominalCaptureOrigins187.many_bindings' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalHeadDeclaredBounds187.frame_name_use {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate) (name : Nat)
+  (declared : name ∈ candidate.packet.declaration.inputNames) :
+  ∃ index, (Yulang.GeneralNominalHeadEquationExtension186.uses candidate index).name = name
+'Yulang.GeneralNominalHeadDeclaredBounds187.frame_name_use' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalHeadDeclaredBounds187.raw_iff_declared {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalHeadRawBounds187.RawHistoricalFits historical candidate model ↔
+    Yulang.GeneralNominalHeadDeclaredBounds187.DeclaredRawFits historical candidate model
+'Yulang.GeneralNominalHeadDeclaredBounds187.raw_iff_declared' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalHeadDeclaredBounds187.revisit_extension_iff_declared {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles) (member : historical ∈ state.core.plans)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate)
+  (identity : candidate.packet.site.occurrence.identity = historical.packet.site.occurrence.identity)
+  (declaration : candidate.packet.declaration = historical.packet.declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (merges :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges candidate.packet.context.state candidate.packet.registry
+        candidate.packet.site.occurrence.identity candidate.packet.declaration candidate.packet.bindings)) :
+  (∃ extended,
+      Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+        (∀ (name : Nat),
+            name ∈
+                Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                  (Yulang.GeneralNominalHeadEquationExtension186.uses candidate) →
+              extended name = model name) ∧
+          Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate extended) ↔
+    Yulang.GeneralNominalHeadDeclaredBounds187.DeclaredRawFits historical candidate model
+'Yulang.GeneralNominalHeadDeclaredBounds187.revisit_extension_iff_declared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalHeadInitialExtension187.projection_compatible {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (reachable :
+    Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (projection :
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels candidate.packet.context.state
+      (Yulang.GeneralNominalQueryProvenance183.headInspection candidate) model)
+  (merges :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges candidate.packet.context.state candidate.packet.registry
+        candidate.packet.site.occurrence.identity candidate.packet.declaration candidate.packet.bindings)) :
+  Yulang.GeneralNominalHeadEquationExtension186.Compatible candidate model
+'Yulang.GeneralNominalHeadInitialExtension187.projection_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalHeadInitialExtension187.frame_extension_of_projection {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (projection :
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels candidate.packet.context.state
+      (Yulang.GeneralNominalQueryProvenance183.headInspection candidate) model)
+  (merges :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges candidate.packet.context.state candidate.packet.registry
+        candidate.packet.site.occurrence.identity candidate.packet.declaration candidate.packet.bindings)) :
+  ∃ extended,
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+      (∀ (name : Nat),
+          name ∈
+              Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                (Yulang.GeneralNominalHeadEquationExtension186.uses candidate) →
+            extended name = model name) ∧
+        Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate extended
+'Yulang.GeneralNominalHeadInitialExtension187.frame_extension_of_projection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalHeadProjectionBounds187.head_bindings {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) :
+  Yulang.GeneralNominalRecursiveInspection.bindings candidate.packet.context.state
+      (Yulang.GeneralNominalQueryProvenance183.headInspection candidate) =
+    candidate.packet.bindings
+'Yulang.GeneralNominalHeadProjectionBounds187.head_bindings' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalHeadProjectionBounds187.projection_bounds {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (projection :
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels candidate.packet.context.state
+      (Yulang.GeneralNominalQueryProvenance183.headInspection candidate) model)
+  (merges :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges candidate.packet.context.state candidate.packet.registry
+        candidate.packet.site.occurrence.identity candidate.packet.declaration candidate.packet.bindings)) :
+  Yulang.GeneralNominalHeadRevisitExtension186.BoundsFit candidate model
+'Yulang.GeneralNominalHeadProjectionBounds187.projection_bounds' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalHeadProjectionBounds187.revisit_extension_of_projection {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles) (member : historical ∈ state.core.plans)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate)
+  (identity : candidate.packet.site.occurrence.identity = historical.packet.site.occurrence.identity)
+  (declaration : candidate.packet.declaration = historical.packet.declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (projection :
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels candidate.packet.context.state
+      (Yulang.GeneralNominalQueryProvenance183.headInspection candidate) model)
+  (merges :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges candidate.packet.context.state candidate.packet.registry
+        candidate.packet.site.occurrence.identity candidate.packet.declaration candidate.packet.bindings)) :
+  ∃ extended,
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+      (∀ (name : Nat),
+          name ∈
+              Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                (Yulang.GeneralNominalHeadEquationExtension186.uses candidate) →
+            extended name = model name) ∧
+        Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate extended
+'Yulang.GeneralNominalHeadProjectionBounds187.revisit_extension_of_projection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalHeadRawBounds187.frame_occurrences_nonempty {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate) (name : Nat)
+  (declared : name ∈ candidate.packet.declaration.inputNames) :
+  Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name ≠ []
+'Yulang.GeneralNominalHeadRawBounds187.frame_occurrences_nonempty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalHeadRawBounds187.bounds_iff_raw {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles) (member : historical ∈ state.core.plans)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate)
+  (identity : candidate.packet.site.occurrence.identity = historical.packet.site.occurrence.identity)
+  (declaration : candidate.packet.declaration = historical.packet.declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (merges :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges candidate.packet.context.state candidate.packet.registry
+        candidate.packet.site.occurrence.identity candidate.packet.declaration candidate.packet.bindings)) :
+  Yulang.GeneralNominalHeadRevisitExtension186.BoundsFit candidate model ↔
+    Yulang.GeneralNominalHeadRawBounds187.RawHistoricalFits historical candidate model
+'Yulang.GeneralNominalHeadRawBounds187.bounds_iff_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalHeadRawBounds187.revisit_extension_iff_raw {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state)
+  (historical candidate : Yulang.GeneralNominalCenters.Plan roles) (member : historical ∈ state.core.plans)
+  (frame : Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate)
+  (identity : candidate.packet.site.occurrence.identity = historical.packet.site.occurrence.identity)
+  (declaration : candidate.packet.declaration = historical.packet.declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (merges :
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges candidate.packet.context.state candidate.packet.registry
+        candidate.packet.site.occurrence.identity candidate.packet.declaration candidate.packet.bindings)) :
+  (∃ extended,
+      Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+        (∀ (name : Nat),
+            name ∈
+                Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                  (Yulang.GeneralNominalHeadEquationExtension186.uses candidate) →
+              extended name = model name) ∧
+          Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate extended) ↔
+    Yulang.GeneralNominalHeadRawBounds187.RawHistoricalFits historical candidate model
+'Yulang.GeneralNominalHeadRawBounds187.revisit_extension_iff_raw' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSchemaCapture187.schema_capture (state : Yulang.GeneralNominalState.State)
+  (query : Yulang.GeneralNominalInspection.Query) (bounds : Yulang.GeneralNominalInspection.Bounds state)
+  (origin : Yulang.GeneralNominalRecursiveInspection.Origin)
+  (finished :
+    Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveInspection.inspect state query bounds (some origin)))
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (member :
+    entry ∈
+      (Yulang.GeneralNominalMaterialization.schema query origin
+          Yulang.GeneralNominalMaterialization.Mode.actual).variables) :
+  ∃ captured,
+    captured ∈ (Yulang.GeneralNominalRecursiveInspection.inspect state query bounds (some origin)).captures ∧
+      captured.name = entry.name ∧ captured.origin = some entry.origin
+'Yulang.GeneralNominalSchemaCapture187.schema_capture' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSchemaCapture187.schemas_capture (state : Yulang.GeneralNominalState.State)
+  (queries : List Yulang.GeneralNominalInspection.Query) (bounds : List (Yulang.GeneralNominalInspection.Bounds state))
+  (origins : Nat → Yulang.GeneralNominalRecursiveInspection.Origin) (offset : Nat)
+  (finished :
+    Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds (fun i => some (origins i)) offset))
+  (entry : Yulang.GeneralNominalMaterialization.Use)
+  (member :
+    entry ∈
+      (Yulang.GeneralNominalMaterialization.schemas queries origins Yulang.GeneralNominalMaterialization.Mode.actual
+          offset).variables) :
+  ∃ captured,
+    captured ∈
+        (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds (fun i => some (origins i))
+            offset).captures ∧
+      captured.name = entry.name ∧ captured.origin = some entry.origin
+'Yulang.GeneralNominalSchemaCapture187.schemas_capture' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSchemaTests187.visit_root {state : Yulang.GeneralNominalState.State}
+  (report : Yulang.GeneralNominalRecursiveInspection.Report state)
+  (bounds : Yulang.GeneralNominalInspection.Bounds state) (origin : Yulang.GeneralNominalRecursiveInspection.Origin)
+  (test : Yulang.GeneralNominalRecursiveInspection.Test) :
+  Yulang.GeneralNominalSchemaTests187.Witness
+    (Yulang.GeneralNominalRecursiveInspection.Report.visit bounds (some origin) test report) (origin, test)
+'Yulang.GeneralNominalSchemaTests187.visit_root' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSchemaTests187.visit_retained {state✝ : Yulang.GeneralNominalState.State}
+  {report : Yulang.GeneralNominalRecursiveInspection.Report state✝}
+  {test : Yulang.GeneralNominalRecursiveInspection.Origin × Yulang.GeneralNominalRecursiveInspection.Test}
+  {bounds : Yulang.GeneralNominalInspection.Bounds state✝}
+  {origin : Option Yulang.GeneralNominalRecursiveInspection.Origin}
+  {checked : Yulang.GeneralNominalRecursiveInspection.Test}
+  (valid : Yulang.GeneralNominalSchemaTests187.Witness report test) :
+  Yulang.GeneralNominalSchemaTests187.Witness
+    (Yulang.GeneralNominalRecursiveInspection.Report.visit bounds origin checked report) test
+'Yulang.GeneralNominalSchemaTests187.visit_retained' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSchemaTests187.append_left {state : Yulang.GeneralNominalState.State}
+  {test : Yulang.GeneralNominalRecursiveInspection.Origin × Yulang.GeneralNominalRecursiveInspection.Test}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Report state}
+  (valid : Yulang.GeneralNominalSchemaTests187.Witness first test) :
+  Yulang.GeneralNominalSchemaTests187.Witness (first.append last) test
+'Yulang.GeneralNominalSchemaTests187.append_left' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSchemaTests187.append_right {state : Yulang.GeneralNominalState.State}
+  {test : Yulang.GeneralNominalRecursiveInspection.Origin × Yulang.GeneralNominalRecursiveInspection.Test}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Report state}
+  (valid : Yulang.GeneralNominalSchemaTests187.Witness last test) :
+  Yulang.GeneralNominalSchemaTests187.Witness (first.append last) test
+'Yulang.GeneralNominalSchemaTests187.append_right' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSchemaTests187.schema_tests (state : Yulang.GeneralNominalState.State)
+  (query : Yulang.GeneralNominalInspection.Query) (bounds : Yulang.GeneralNominalInspection.Bounds state)
+  (origin : Yulang.GeneralNominalRecursiveInspection.Origin)
+  (finished :
+    Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveInspection.inspect state query bounds (some origin)))
+  (test : Yulang.GeneralNominalRecursiveInspection.Origin × Yulang.GeneralNominalRecursiveInspection.Test)
+  (member :
+    test ∈
+      (Yulang.GeneralNominalMaterialization.schema query origin
+          Yulang.GeneralNominalMaterialization.Mode.actual).tests) :
+  Yulang.GeneralNominalSchemaTests187.Witness
+    (Yulang.GeneralNominalRecursiveInspection.inspect state query bounds (some origin)) test
+'Yulang.GeneralNominalSchemaTests187.schema_tests' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalSchemaTests187.schemas_tests (state : Yulang.GeneralNominalState.State)
+  (queries : List Yulang.GeneralNominalInspection.Query) (bounds : List (Yulang.GeneralNominalInspection.Bounds state))
+  (origins : Nat → Yulang.GeneralNominalRecursiveInspection.Origin) (offset : Nat)
+  (finished :
+    Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds (fun i => some (origins i)) offset))
+  (test : Yulang.GeneralNominalRecursiveInspection.Origin × Yulang.GeneralNominalRecursiveInspection.Test)
+  (member :
+    test ∈
+      (Yulang.GeneralNominalMaterialization.schemas queries origins Yulang.GeneralNominalMaterialization.Mode.actual
+          offset).tests) :
+  Yulang.GeneralNominalSchemaTests187.Witness
+    (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds (fun i => some (origins i)) offset) test
+'Yulang.GeneralNominalSchemaTests187.schemas_tests' depends on axioms: [propext, Quot.sound]
+SOURCE Yulang/GeneralNominalCaptureBounds187.lean
+SOURCE Yulang/GeneralNominalCaptureOrigins187.lean
+SOURCE Yulang/GeneralNominalHeadDeclaredBounds187.lean
+SOURCE Yulang/GeneralNominalHeadInitialExtension187.lean
+SOURCE Yulang/GeneralNominalHeadProjectionBounds187.lean
+SOURCE Yulang/GeneralNominalHeadRawBounds187.lean
+SOURCE Yulang/GeneralNominalSchemaCapture187.lean
+SOURCE Yulang/GeneralNominalSchemaTests187.lean

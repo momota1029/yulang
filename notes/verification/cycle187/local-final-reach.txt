@@ -1,0 +1,1 @@
+REACH: 3 roots; 85/117 cycle187 declarations reachable
