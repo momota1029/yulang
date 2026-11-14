@@ -1,0 +1,102 @@
+import Yulang.GeneralNominalRepeatedFixture190
+import Yulang.GeneralNominalRepeatedLocal190
+#check Yulang.GeneralNominalRepeatedFixture190.declaration_checked
+#print axioms Yulang.GeneralNominalRepeatedFixture190.declaration_checked
+#check Yulang.GeneralNominalRepeatedFixture190.checked
+#print axioms Yulang.GeneralNominalRepeatedFixture190.checked
+#check Yulang.GeneralNominalRepeatedFixture190.source
+#print axioms Yulang.GeneralNominalRepeatedFixture190.source
+#check Yulang.GeneralNominalRepeatedFixture190.ground
+#print axioms Yulang.GeneralNominalRepeatedFixture190.ground
+#check Yulang.GeneralNominalRepeatedFixture190.coverage
+#print axioms Yulang.GeneralNominalRepeatedFixture190.coverage
+#check Yulang.GeneralNominalRepeatedFixture190.initial_source
+#print axioms Yulang.GeneralNominalRepeatedFixture190.initial_source
+#check Yulang.GeneralNominalRepeatedFixture190.reachable
+#print axioms Yulang.GeneralNominalRepeatedFixture190.reachable
+#check Yulang.GeneralNominalRepeatedFixture190.source_model
+#print axioms Yulang.GeneralNominalRepeatedFixture190.source_model
+#check Yulang.GeneralNominalRepeatedFixture190.inhabited
+#print axioms Yulang.GeneralNominalRepeatedFixture190.inhabited
+#check Yulang.GeneralNominalRepeatedFixture190.query
+#print axioms Yulang.GeneralNominalRepeatedFixture190.query
+#check Yulang.GeneralNominalRepeatedFixture190.report_exact
+#print axioms Yulang.GeneralNominalRepeatedFixture190.report_exact
+#check Yulang.GeneralNominalRepeatedFixture190.model_fresh
+#print axioms Yulang.GeneralNominalRepeatedFixture190.model_fresh
+#check Yulang.GeneralNominalRepeatedFixture190.bindings_exact
+#print axioms Yulang.GeneralNominalRepeatedFixture190.bindings_exact
+#check Yulang.GeneralNominalRepeatedFixture190.capture_zero
+#print axioms Yulang.GeneralNominalRepeatedFixture190.capture_zero
+#check Yulang.GeneralNominalRepeatedFixture190.merges_model
+#print axioms Yulang.GeneralNominalRepeatedFixture190.merges_model
+#check Yulang.GeneralNominalRepeatedFixture190.head_model
+#print axioms Yulang.GeneralNominalRepeatedFixture190.head_model
+#check Yulang.GeneralNominalRepeatedFixture190.prepared
+#print axioms Yulang.GeneralNominalRepeatedFixture190.prepared
+#check Yulang.GeneralNominalRepeatedLocal190.known
+#print axioms Yulang.GeneralNominalRepeatedLocal190.known
+#check Yulang.GeneralNominalRepeatedLocal190.survivor
+#print axioms Yulang.GeneralNominalRepeatedLocal190.survivor
+#check Yulang.GeneralNominalRepeatedLocal190.unique
+#print axioms Yulang.GeneralNominalRepeatedLocal190.unique
+#check Yulang.GeneralNominalRepeatedLocal190.frame
+#print axioms Yulang.GeneralNominalRepeatedLocal190.frame
+#check Yulang.GeneralNominalRepeatedLocal190.requests_exact
+#print axioms Yulang.GeneralNominalRepeatedLocal190.requests_exact
+#check Yulang.GeneralNominalRepeatedLocal190.binder_zero
+#print axioms Yulang.GeneralNominalRepeatedLocal190.binder_zero
+#check Yulang.GeneralNominalRepeatedLocal190.head_schema
+#print axioms Yulang.GeneralNominalRepeatedLocal190.head_schema
+#check Yulang.GeneralNominalRepeatedLocal190.output_schema
+#print axioms Yulang.GeneralNominalRepeatedLocal190.output_schema
+#check Yulang.GeneralNominalRepeatedLocal190.effects_ready
+#print axioms Yulang.GeneralNominalRepeatedLocal190.effects_ready
+#check Yulang.GeneralNominalRepeatedLocal190.source_binder_same
+#print axioms Yulang.GeneralNominalRepeatedLocal190.source_binder_same
+#check Yulang.GeneralNominalRepeatedLocal190.self_schema
+#print axioms Yulang.GeneralNominalRepeatedLocal190.self_schema
+#check Yulang.GeneralNominalRepeatedLocal190.head_equations
+#print axioms Yulang.GeneralNominalRepeatedLocal190.head_equations
+#check Yulang.GeneralNominalRepeatedLocal190.output_equations
+#print axioms Yulang.GeneralNominalRepeatedLocal190.output_equations
+#check Yulang.GeneralNominalRepeatedLocal190.common_effects
+#print axioms Yulang.GeneralNominalRepeatedLocal190.common_effects
+#check Yulang.GeneralNominalRepeatedLocal190.no_output_conflict
+#print axioms Yulang.GeneralNominalRepeatedLocal190.no_output_conflict
+#check Yulang.GeneralNominalRepeatedLocal190.feedback_acyclic
+#print axioms Yulang.GeneralNominalRepeatedLocal190.feedback_acyclic
+#check Yulang.GeneralNominalRepeatedLocal190.no_raw_recurs
+#print axioms Yulang.GeneralNominalRepeatedLocal190.no_raw_recurs
+#check Yulang.GeneralNominalRepeatedLocal190.centered_acyclic
+#print axioms Yulang.GeneralNominalRepeatedLocal190.centered_acyclic
+#check Yulang.GeneralNominalRepeatedLocal190.decision
+#print axioms Yulang.GeneralNominalRepeatedLocal190.decision
+#check Yulang.GeneralNominalRepeatedLocal190.safe
+#print axioms Yulang.GeneralNominalRepeatedLocal190.safe
+#check Yulang.GeneralNominalRepeatedLocal190.selected
+#print axioms Yulang.GeneralNominalRepeatedLocal190.selected
+#check Yulang.GeneralNominalRepeatedLocal190.installable
+#print axioms Yulang.GeneralNominalRepeatedLocal190.installable
+#check Yulang.GeneralNominalRepeatedLocal190.lower_above
+#print axioms Yulang.GeneralNominalRepeatedLocal190.lower_above
+#check Yulang.GeneralNominalRepeatedLocal190.bad_preserves_source
+#print axioms Yulang.GeneralNominalRepeatedLocal190.bad_preserves_source
+#check Yulang.GeneralNominalRepeatedLocal190.bad_source_model
+#print axioms Yulang.GeneralNominalRepeatedLocal190.bad_source_model
+#check Yulang.GeneralNominalRepeatedLocal190.bad_inhabited
+#print axioms Yulang.GeneralNominalRepeatedLocal190.bad_inhabited
+#check Yulang.GeneralNominalRepeatedLocal190.bad_lower
+#print axioms Yulang.GeneralNominalRepeatedLocal190.bad_lower
+#check Yulang.GeneralNominalRepeatedLocal190.bad_one
+#print axioms Yulang.GeneralNominalRepeatedLocal190.bad_one
+#check Yulang.GeneralNominalRepeatedLocal190.bool_not_below_int
+#print axioms Yulang.GeneralNominalRepeatedLocal190.bool_not_below_int
+#check Yulang.GeneralNominalRepeatedLocal190.bad_packet
+#print axioms Yulang.GeneralNominalRepeatedLocal190.bad_packet
+#check Yulang.GeneralNominalRepeatedLocal190.not_committed
+#print axioms Yulang.GeneralNominalRepeatedLocal190.not_committed
+#check Yulang.GeneralNominalRepeatedLocal190.inhabited_step
+#print axioms Yulang.GeneralNominalRepeatedLocal190.inhabited_step
+#check Yulang.GeneralNominalRepeatedLocal190.not_stable
+#print axioms Yulang.GeneralNominalRepeatedLocal190.not_stable

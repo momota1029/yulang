@@ -1,0 +1,244 @@
+Yulang.GeneralNominalRepeatedFixture190.declaration_checked :
+  Yulang.GeneralDeclarations.DeclarationChecked Yulang.GeneralDeclarationExamples.constructors
+    Yulang.GeneralNominalRepeatedFixture190.roles Yulang.GeneralNominalRepeatedFixture190.declaration
+'Yulang.GeneralNominalRepeatedFixture190.declaration_checked' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.checked :
+  Yulang.GeneralDeclarations.Checked Yulang.GeneralNominalRepeatedFixture190.registry
+'Yulang.GeneralNominalRepeatedFixture190.checked' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.source :
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root
+'Yulang.GeneralNominalRepeatedFixture190.source' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.ground :
+  Yulang.GeneralNominalGroundAccessibility.GroundRoots Yulang.GeneralNominalRepeatedFixture190.context
+    Yulang.GeneralNominalRepeatedFixture190.root
+    [Yulang.GeneralDeclarationPatterns.Pattern.app 2 [], Yulang.GeneralDeclarationPatterns.Pattern.app 2 []]
+'Yulang.GeneralNominalRepeatedFixture190.ground' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.coverage :
+  Yulang.GeneralNominalCenteredHeadWFSource.Coverage Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context.interpretation
+'Yulang.GeneralNominalRepeatedFixture190.coverage' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.initial_source :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles).Initial
+    Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root
+    Yulang.GeneralNominalRepeatedFixture190.start
+'Yulang.GeneralNominalRepeatedFixture190.initial_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.reachable :
+  Yulang.B4TargetV6.Reachable
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles)
+    Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root
+    Yulang.GeneralNominalRepeatedFixture190.start
+'Yulang.GeneralNominalRepeatedFixture190.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.source_model :
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalRepeatedFixture190.snapshot
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedFixture190.source_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.inhabited :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalRepeatedFixture190.start
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedFixture190.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.query :
+  Yulang.GeneralNominalInspection.queries Yulang.GeneralNominalRepeatedFixture190.snapshot
+      Yulang.GeneralNominalRepeatedFixture190.context.interpretation
+      Yulang.GeneralNominalRepeatedFixture190.declaration =
+    [Yulang.GeneralNominalInspection.Query.variables [0], Yulang.GeneralNominalInspection.Query.variables [0]]
+'Yulang.GeneralNominalRepeatedFixture190.query' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.report_exact :
+  Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralNominalRepeatedFixture190.context
+      Yulang.GeneralNominalRepeatedFixture190.declaration [(1, 1), (1, 1)] =
+    { captures := [{ name := 0, bounds := (1, 1), origin := none }, { name := 0, bounds := (1, 1), origin := none }],
+      checked := [(1, 1), (1, 1), (1, 1), (1, 1)] }
+'Yulang.GeneralNominalRepeatedFixture190.report_exact' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.model_fresh (purpose owner position : Nat) :
+  (Yulang.GeneralNominalRepeatedFixture190.model
+        (Yulang.GeneralNominalCenters.fresh Yulang.GeneralNominalRepeatedFixture190.snapshot.seed
+          Yulang.GeneralNominalRepeatedFixture190.root.identity Yulang.GeneralNominalRepeatedFixture190.declaration.id
+          purpose owner position)).fst =
+    Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int
+'Yulang.GeneralNominalRepeatedFixture190.model_fresh' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.bindings_exact :
+  Yulang.GeneralNominalRepeatedFixture190.packet.bindings = [(0, 1, 1), (0, 1, 1)]
+'Yulang.GeneralNominalRepeatedFixture190.bindings_exact' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.capture_zero :
+  (Yulang.GeneralNominalPacketSupport.capture Yulang.GeneralNominalRepeatedFixture190.packet).inputs 0 =
+    (Yulang.GeneralNominalCenters.fresh Yulang.GeneralNominalRepeatedFixture190.snapshot.seed
+        Yulang.GeneralNominalRepeatedFixture190.root.identity Yulang.GeneralNominalRepeatedFixture190.declaration.id 0 0
+        0,
+      Yulang.GeneralNominalCenters.fresh Yulang.GeneralNominalRepeatedFixture190.snapshot.seed
+        Yulang.GeneralNominalRepeatedFixture190.root.identity Yulang.GeneralNominalRepeatedFixture190.declaration.id 1 0
+        0)
+'Yulang.GeneralNominalRepeatedFixture190.capture_zero' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.merges_model :
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model Yulang.GeneralNominalRepeatedFixture190.model
+    (Yulang.GeneralNominalAllocation.merges Yulang.GeneralNominalRepeatedFixture190.snapshot
+      Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root.identity
+      Yulang.GeneralNominalRepeatedFixture190.declaration Yulang.GeneralNominalRepeatedFixture190.packet.bindings)
+'Yulang.GeneralNominalRepeatedFixture190.merges_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.head_model :
+  Yulang.GeneralNominalCenteredHeadCandidates.HeadModels Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root
+    Yulang.GeneralNominalRepeatedFixture190.declaration [(1, 1), (1, 1)] Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedFixture190.head_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedFixture190.prepared :
+  Yulang.GeneralNominalCenteredHeadCandidates.Prepared Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root
+    Yulang.GeneralNominalRepeatedFixture190.declaration
+'Yulang.GeneralNominalRepeatedFixture190.prepared' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.known :
+  ¬Yulang.GeneralNominalState.RootPending Yulang.GeneralNominalRepeatedFixture190.snapshot
+      Yulang.GeneralNominalRepeatedFixture190.root.demand
+'Yulang.GeneralNominalRepeatedLocal190.known' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.survivor :
+  Yulang.GeneralNominalCenteredHeadCandidates.Survivor Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root 3
+    Yulang.GeneralNominalRepeatedFixture190.children
+'Yulang.GeneralNominalRepeatedLocal190.survivor' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.unique :
+  Yulang.GeneralNominalCenteredHeadCandidates.Unique Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.context Yulang.GeneralNominalRepeatedFixture190.root 3
+    Yulang.GeneralNominalRepeatedFixture190.children
+'Yulang.GeneralNominalRepeatedLocal190.unique' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.frame :
+  Yulang.GeneralNominalCenteredHeadOutputs.Frame Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.start.core Yulang.GeneralNominalRepeatedFixture190.root 3
+    Yulang.GeneralNominalRepeatedFixture190.plan
+'Yulang.GeneralNominalRepeatedLocal190.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.requests_exact :
+  Yulang.GeneralNominalCenteredHeadOutputs.requests Yulang.GeneralNominalRepeatedFixture190.start.core
+      Yulang.GeneralNominalRepeatedFixture190.root =
+    [{ name := 0, target := 1 }]
+'Yulang.GeneralNominalRepeatedLocal190.requests_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.binder_zero :
+  Yulang.GeneralNominalRepeatedFixture190.plan.binder 0 =
+    Yulang.GeneralNominalCenters.fresh Yulang.GeneralNominalRepeatedFixture190.snapshot.seed
+      Yulang.GeneralNominalRepeatedFixture190.root.identity Yulang.GeneralNominalRepeatedFixture190.declaration.id 8 0 0
+'Yulang.GeneralNominalRepeatedLocal190.binder_zero' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.head_schema :
+  Yulang.GeneralNominalRepeatedFixture190.plan.headSchema =
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual },
+          { name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+'Yulang.GeneralNominalRepeatedLocal190.head_schema' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.output_schema :
+  Yulang.GeneralNominalCenteredHeadOutputs.outputSchema Yulang.GeneralNominalRepeatedFixture190.start.core
+      Yulang.GeneralNominalRepeatedFixture190.root Yulang.GeneralNominalRepeatedFixture190.plan =
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+'Yulang.GeneralNominalRepeatedLocal190.output_schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.effects_ready :
+  Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady Yulang.GeneralNominalRepeatedFixture190.start.core
+    Yulang.GeneralNominalRepeatedFixture190.root Yulang.GeneralNominalRepeatedFixture190.plan
+'Yulang.GeneralNominalRepeatedLocal190.effects_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.source_binder_same :
+  Yulang.GeneralNominalOriginTerms.Same Yulang.GeneralNominalRepeatedFixture190.model
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source 1)
+    (Yulang.GeneralNominalRecursiveInspection.Origin.source (Yulang.GeneralNominalRepeatedFixture190.plan.binder 0))
+'Yulang.GeneralNominalRepeatedLocal190.source_binder_same' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.self_schema :
+  Yulang.GeneralNominalRepeatedFixture190.plan.SchemaHolds
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }] }
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedLocal190.self_schema' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.head_equations :
+  Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations Yulang.GeneralNominalRepeatedFixture190.plan
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedLocal190.head_equations' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.output_equations :
+  Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations Yulang.GeneralNominalRepeatedFixture190.start.core
+    Yulang.GeneralNominalRepeatedFixture190.root Yulang.GeneralNominalRepeatedFixture190.plan
+    Yulang.GeneralNominalRepeatedFixture190.model
+'Yulang.GeneralNominalRepeatedLocal190.output_equations' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.common_effects :
+  ∃ assignment,
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalRepeatedFixture190.start assignment ∧
+      Yulang.GeneralNominalCenteredHeadOutputs.ChosenClassEffects Yulang.GeneralNominalRepeatedFixture190.registry
+        Yulang.GeneralNominalRepeatedFixture190.start.core Yulang.GeneralNominalRepeatedFixture190.root 3 assignment
+'Yulang.GeneralNominalRepeatedLocal190.common_effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.no_output_conflict :
+  ¬Yulang.GeneralNominalCenteredHeadStepBoundary.OutputConflict Yulang.GeneralNominalRepeatedFixture190.registry
+      Yulang.GeneralNominalRepeatedFixture190.start Yulang.GeneralNominalRepeatedFixture190.root 3
+'Yulang.GeneralNominalRepeatedLocal190.no_output_conflict' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.feedback_acyclic (identity : Nat) :
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralNominalRepeatedFixture190.start.core.erased.current identity
+'Yulang.GeneralNominalRepeatedLocal190.feedback_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.no_raw_recurs
+  (slot : Fin Yulang.GeneralNominalRepeatedFixture190.snapshot.base.slots) :
+  ¬Yulang.GeneralNominalCycleK2.RecursAt Yulang.GeneralNominalRepeatedFixture190.snapshot slot
+'Yulang.GeneralNominalRepeatedLocal190.no_raw_recurs' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.centered_acyclic (origin : Yulang.GeneralNominalRecursiveInspection.Origin) :
+  ¬Yulang.GeneralNominalCenteredSteps.Cyclic Yulang.GeneralNominalRepeatedFixture190.start.core origin
+'Yulang.GeneralNominalRepeatedLocal190.centered_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.decision :
+  Yulang.GeneralNominalCenteredSteps.DecisionGuard Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.start.core Yulang.GeneralNominalRepeatedFixture190.root
+'Yulang.GeneralNominalRepeatedLocal190.decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.safe :
+  Yulang.B4TargetV6.SafeKnown
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles)
+    Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.start
+    Yulang.GeneralNominalRepeatedFixture190.root
+'Yulang.GeneralNominalRepeatedLocal190.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.selected :
+  Yulang.GeneralNominalCenteredHeadWFBoundary.Local Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.start Yulang.GeneralNominalRepeatedFixture190.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected 3 Yulang.GeneralNominalRepeatedFixture190.children)
+'Yulang.GeneralNominalRepeatedLocal190.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.installable :
+  ∃ support,
+    Yulang.GeneralNominalCenteredHeadStepKernel.Installable Yulang.GeneralNominalRepeatedFixture190.registry
+      Yulang.GeneralNominalRepeatedFixture190.start Yulang.GeneralNominalRepeatedFixture190.plan support
+'Yulang.GeneralNominalRepeatedLocal190.installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.lower_above :
+  Yulang.GeneralNominalRepeatedFixture190.snapshot.seed < Yulang.GeneralNominalRepeatedLocal190.mergeLower
+'Yulang.GeneralNominalRepeatedLocal190.lower_above' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_preserves_source (identity : Nat)
+  (member : identity ∈ Yulang.GeneralNominalState.sources Yulang.GeneralNominalRepeatedFixture190.snapshot) :
+  Yulang.GeneralNominalRepeatedLocal190.badModel identity = Yulang.GeneralNominalRepeatedFixture190.model identity
+'Yulang.GeneralNominalRepeatedLocal190.bad_preserves_source' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_source_model :
+  Yulang.GeneralNominalState.Models Yulang.GeneralNominalRepeatedFixture190.snapshot
+    Yulang.GeneralNominalRepeatedLocal190.badModel
+'Yulang.GeneralNominalRepeatedLocal190.bad_source_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_inhabited :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalRepeatedFixture190.start
+    Yulang.GeneralNominalRepeatedLocal190.badModel
+'Yulang.GeneralNominalRepeatedLocal190.bad_inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_lower :
+  (Yulang.GeneralNominalRepeatedLocal190.badModel Yulang.GeneralNominalRepeatedLocal190.mergeLower).fst =
+    Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.bool
+'Yulang.GeneralNominalRepeatedLocal190.bad_lower' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_one :
+  (Yulang.GeneralNominalRepeatedLocal190.badModel 1).fst =
+    Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int
+'Yulang.GeneralNominalRepeatedLocal190.bad_one' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bool_not_below_int :
+  ¬Yulang.CommonNominalFullCarrier.Subtype (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.bool)
+      (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int)
+'Yulang.GeneralNominalRepeatedLocal190.bool_not_below_int' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.bad_packet :
+  ¬Yulang.GeneralNominalRepeatedFixture190.packet.Holds Yulang.GeneralNominalRepeatedLocal190.badModel
+'Yulang.GeneralNominalRepeatedLocal190.bad_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.not_committed :
+  ¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralNominalRepeatedFixture190.start.core.erased.current
+      Yulang.GeneralNominalRepeatedFixture190.packet
+'Yulang.GeneralNominalRepeatedLocal190.not_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.inhabited_step :
+  ∃ after,
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles).Step
+        Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root
+        Yulang.GeneralNominalRepeatedFixture190.start after ∧
+      ∃ assignment, Yulang.GeneralNominalCenteredHeadStepEffects.Models after assignment
+'Yulang.GeneralNominalRepeatedLocal190.inhabited_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedLocal190.not_stable :
+  ¬(Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles).Stable
+      Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.start
+      Yulang.GeneralNominalRepeatedFixture190.root
+'Yulang.GeneralNominalRepeatedLocal190.not_stable' depends on axioms: [propext, Classical.choice, Quot.sound]

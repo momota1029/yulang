@@ -1,0 +1,2209 @@
+Yulang.GeneralNominalInstallationBoundary190.known_source_not_available :
+  Not
+    (@Yulang.GeneralNominalInstallationSound190.Available Yulang.GeneralNominalCenteredHeadWFJoinSource.roles
+      Yulang.GeneralNominalCenteredHeadWFJoinSource.registry Yulang.GeneralNominalCenteredHeadWFJoinSource.start
+      Yulang.GeneralNominalCenteredHeadWFJoinSource.root)
+'Yulang.GeneralNominalInstallationBoundary190.known_source_not_available' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalInstallationBoundary190.not_universal_available :
+  Not
+    (∀ (r : Yulang.GeneralDeclarations.Registry),
+      @Yulang.B4Target.SourceBoundary.Checked
+          (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+          (@Yulang.B4TargetV5.SourceBoundary.toSourceBoundary
+            (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+              Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+            (@Yulang.B4TargetV6.SourceBoundary.toV5
+              (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+              (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)))
+          r →
+        ∀
+          (state :
+            (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).State)
+          (root :
+            (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Demand),
+          @Yulang.B4TargetV6.Reachable
+              (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+              (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+              r root state →
+            @Yulang.B4Target.SourceBoundary.Stable
+                (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                  Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+                (@Yulang.B4TargetV5.SourceBoundary.toSourceBoundary
+                  (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                    Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+                  (@Yulang.B4TargetV6.SourceBoundary.toV5
+                    (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                      Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+                    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary
+                      Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)))
+                r state root →
+              @Yulang.GeneralNominalInstallationSound190.Available Yulang.GeneralNominalCenteredHeadWFJoinSource.roles r
+                state root)
+'Yulang.GeneralNominalInstallationBoundary190.not_universal_available' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalLeafWitnessInstall190.installable_of_named_witness {roles : Yulang.Roles.RoleDecls} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (selected :
+    @Yulang.GeneralNominalCenteredHeadWFBoundary.Local roles registry state root
+      (@Yulang.CommonRoleOutermostResolver.Frontier.selected
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (leaf :
+    @Eq (List Yulang.GeneralDeclarations.Clause)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).requirements
+      (@List.nil Yulang.GeneralDeclarations.Clause))
+  (ready :
+    @Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady roles
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root candidate)
+  (witness :
+    @Exists Yulang.GeneralNominalCommonBridge.Assignment fun model =>
+      And (@Yulang.GeneralNominalCenteredHeadStepEffects.Models roles state model)
+        (And (@Yulang.GeneralNominalCenters.Plan.Holds roles candidate model)
+          (@Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations roles
+            (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root candidate model))) :
+  @Exists (List (Yulang.GeneralSourceDictionaries.Occurrence roles)) fun support =>
+    @Yulang.GeneralNominalCenteredHeadStepKernel.Installable roles registry state candidate support
+'Yulang.GeneralNominalLeafWitnessInstall190.installable_of_named_witness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalAvailableNonvacuity190.available :
+  @Yulang.GeneralNominalInstallationSound190.Available Yulang.GeneralNominalTwoHeadFixture190.roles
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.root
+'Yulang.GeneralNominalAvailableNonvacuity190.available' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalAvailableNonvacuity190.classified :
+  @Yulang.B4TargetV6.Classify
+    (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary Yulang.GeneralNominalTwoHeadFixture190.roles)
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles)
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node (@OfNat.ofNat Nat (nat_lit 3) (instOfNatNat (nat_lit 3)))
+        (@List.nil Yulang.CommonRoleOutermostResolver.Dictionary)))
+'Yulang.GeneralNominalAvailableNonvacuity190.classified' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalAvailableNonvacuity190.recursive_evidence :
+  @Yulang.B4Target.SourceBoundary.Evidence
+    (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary Yulang.GeneralNominalTwoHeadFixture190.roles)
+    (@Yulang.B4TargetV5.SourceBoundary.toSourceBoundary
+      (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary Yulang.GeneralNominalTwoHeadFixture190.roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary Yulang.GeneralNominalTwoHeadFixture190.roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalTwoHeadFixture190.roles)))
+    Yulang.GeneralNominalTwoHeadFixture190.registry Yulang.GeneralNominalTwoHeadFixture190.start
+    Yulang.GeneralNominalTwoHeadFixture190.model Yulang.GeneralNominalTwoHeadFixture190.root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node (@OfNat.ofNat Nat (nat_lit 3) (instOfNatNat (nat_lit 3)))
+      (@List.nil Yulang.CommonRoleOutermostResolver.Dictionary))
+'Yulang.GeneralNominalAvailableNonvacuity190.recursive_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.schema_variable_at (names : List Nat)
+  (origins : Nat → Yulang.GeneralNominalRecursiveInspection.Origin) (offset index name : Nat)
+  (found :
+    @Eq (Option Nat)
+      (@getElem? (List Nat) Nat Nat (fun as i => @LT.lt Nat instLTNat i (@List.length Nat as))
+        (@List.instGetElem?NatLtLength Nat) names index)
+      (@some Nat name)) :
+  @Membership.mem Yulang.GeneralNominalMaterialization.Use (List Yulang.GeneralNominalMaterialization.Use)
+    (@List.instMembership Yulang.GeneralNominalMaterialization.Use)
+    (Yulang.GeneralNominalMaterialization.schemas
+        (@List.map Nat Yulang.GeneralNominalInspection.Query
+          (fun name => Yulang.GeneralNominalInspection.Query.variables (@List.cons Nat name (@List.nil Nat))) names)
+        origins Yulang.GeneralNominalMaterialization.Mode.actual offset).variables
+    { name := name, origin := origins (@HAdd.hAdd Nat Nat Nat (@instHAdd Nat instAddNat) offset index),
+      mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+'Yulang.GeneralNominalRepeatedPointRepair190.schema_variable_at' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.source_equivalent {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model)
+  (entry :
+    Prod Nat
+      (Fin
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+  (member :
+    @Membership.mem
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+      (List
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+      (@List.instMembership
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+      entries entry) :
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+      (model
+        ((@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.source
+          (@Prod.snd Nat
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            entry))))
+    (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+      (model
+        (@Yulang.GeneralNominalCenters.Plan.binder roles candidate
+          (@Prod.fst Nat
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            entry))))
+'Yulang.GeneralNominalRepeatedPointRepair190.source_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repeated_sources_equivalent {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model)
+  (first last :
+    Prod Nat
+      (Fin
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+  (one :
+    @Membership.mem
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+      (List
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+      (@List.instMembership
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+      entries first)
+  (two :
+    @Membership.mem
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+      (List
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+      (@List.instMembership
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+      entries last)
+  (equal :
+    @Eq Nat
+      (@Prod.fst Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+        first)
+      (@Prod.fst Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+        last)) :
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+      (model
+        ((@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.source
+          (@Prod.snd Nat
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            first))))
+    (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+      (model
+        ((@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.source
+          (@Prod.snd Nat
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            last))))
+'Yulang.GeneralNominalRepeatedPointRepair190.repeated_sources_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.bindings_eq {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries)) :
+  @Eq Yulang.GeneralNominalAllocation.Bindings
+    (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+    (@List.map
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+      (Prod Nat (Prod Nat Nat))
+      (fun entry =>
+        @Prod.mk Nat (Prod Nat Nat)
+          (@Prod.fst Nat
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            entry)
+          (@Prod.mk Nat Nat
+            ((@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.source
+              (@Prod.snd Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry))
+            ((@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.source
+              (@Prod.snd Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry))))
+      entries)
+'Yulang.GeneralNominalRepeatedPointRepair190.bindings_eq' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.cross_compatible {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model) :
+  Yulang.GeneralNominalAllocation.Compatible
+    (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+    model
+'Yulang.GeneralNominalRepeatedPointRepair190.cross_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.occurrence_equivalent {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key name : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model)
+  (pair : Yulang.GeneralSourceState.Interval)
+  (member :
+    @Membership.mem Yulang.GeneralSourceState.Interval (List Yulang.GeneralSourceState.Interval)
+      (@List.instMembership Yulang.GeneralSourceState.Interval)
+      (Yulang.GeneralNominalAllocation.occurrences
+        (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+        name)
+      pair) :
+  And
+    (Yulang.CommonNominalFullCarrier.Equivalent
+      (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+        (model (@Prod.fst Nat Nat pair)))
+      (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+        (model (@Yulang.GeneralNominalCenters.Plan.binder roles candidate name))))
+    (Yulang.CommonNominalFullCarrier.Equivalent
+      (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+        (model (@Prod.snd Nat Nat pair)))
+      (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+        (model (@Yulang.GeneralNominalCenters.Plan.binder roles candidate name))))
+'Yulang.GeneralNominalRepeatedPointRepair190.occurrence_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.computed_extrema {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key name : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model)
+  (nonempty :
+    @Ne (List Yulang.GeneralSourceState.Interval)
+      (Yulang.GeneralNominalAllocation.occurrences
+        (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+        name)
+      (@List.nil Yulang.GeneralSourceState.Interval)) :
+  And
+    (Yulang.CommonNominalFullCarrier.Equivalent
+      (@Yulang.Core.PresenceGeneration.TyTerm.eval Nat Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalAllocation.lower
+          (Yulang.GeneralNominalAllocation.occurrences
+            (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+            name)))
+      (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+        (model (@Yulang.GeneralNominalCenters.Plan.binder roles candidate name))))
+    (Yulang.CommonNominalFullCarrier.Equivalent
+      (@Yulang.Core.PresenceGeneration.TyTerm.eval Nat Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalAllocation.upper
+          (Yulang.GeneralNominalAllocation.occurrences
+            (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+            name)))
+      (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+        (model (@Yulang.GeneralNominalCenters.Plan.binder roles candidate name))))
+'Yulang.GeneralNominalRepeatedPointRepair190.computed_extrema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_assigned {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (assignment : Prod Nat Nat)
+  (member :
+    @Membership.mem (Prod Nat Nat) (List (Prod Nat Nat)) (@List.instMembership (Prod Nat Nat))
+      (@Yulang.GeneralNominalRepeatedPointRepair190.mergeAssignments roles candidate) assignment) :
+  @Eq Yulang.CommonNominalFullCarrier.model.Ty
+    (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+      (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model (@Prod.fst Nat Nat assignment)))
+    (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+      (model (@Yulang.GeneralNominalCenters.Plan.binder roles candidate (@Prod.snd Nat Nat assignment))))
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_assigned' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_outside {roles : Yulang.Roles.RoleDecls} {name : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (outside :
+    ∀ (assignment : Prod Nat Nat),
+      @Membership.mem (Prod Nat Nat) (List (Prod Nat Nat)) (@List.instMembership (Prod Nat Nat))
+          (@Yulang.GeneralNominalRepeatedPointRepair190.mergeAssignments roles candidate) assignment →
+        @Ne Nat (@Prod.fst Nat Nat assignment) name) :
+  @Eq (Yulang.Core.PresenceGeneration.Comp Yulang.CommonNominalFullCarrier.model)
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model name) (model name)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_outside' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_below_seed {roles : Yulang.Roles.RoleDecls} {name : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (below :
+    @LE.le Nat instLENat name
+      (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.seed) :
+  @Eq (Yulang.Core.PresenceGeneration.Comp Yulang.CommonNominalFullCarrier.model)
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model name) (model name)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_below_seed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_current_source {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key name : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (member :
+    @Membership.mem Nat (List Nat) (@List.instMembership Nat)
+      (Yulang.GeneralNominalState.sources
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state)
+      name) :
+  @Eq (Yulang.Core.PresenceGeneration.Comp Yulang.CommonNominalFullCarrier.model)
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model name) (model name)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_current_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_models {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : @Yulang.GeneralNominalCenteredHeadStepEffects.Models roles state model) :
+  @Yulang.GeneralNominalCenteredHeadStepEffects.Models roles state
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.occurrences_nonempty {roles : Yulang.Roles.RoleDecls} {name : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (names :
+    @Eq (List Nat)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputNames
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Nat
+        (@Prod.fst Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        entries))
+  (declared :
+    @Membership.mem Nat (List Nat) (@List.instMembership Nat)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputNames
+      name) :
+  @Ne (List Yulang.GeneralSourceState.Interval)
+    (Yulang.GeneralNominalAllocation.occurrences
+      (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      name)
+    (@List.nil Yulang.GeneralSourceState.Interval)
+'Yulang.GeneralNominalRepeatedPointRepair190.occurrences_nonempty' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_extrema_terms {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (name : Nat) :
+  And
+    (@Eq Yulang.CommonNominalFullCarrier.model.Ty
+      (@Yulang.Core.PresenceGeneration.TyTerm.eval Nat Yulang.CommonNominalFullCarrier.model
+        (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model)
+        (Yulang.GeneralNominalAllocation.lower
+          (Yulang.GeneralNominalAllocation.occurrences
+            (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+            name)))
+      (@Yulang.Core.PresenceGeneration.TyTerm.eval Nat Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalAllocation.lower
+          (Yulang.GeneralNominalAllocation.occurrences
+            (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+            name))))
+    (@Eq Yulang.CommonNominalFullCarrier.model.Ty
+      (@Yulang.Core.PresenceGeneration.TyTerm.eval Nat Yulang.CommonNominalFullCarrier.model
+        (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model)
+        (Yulang.GeneralNominalAllocation.upper
+          (Yulang.GeneralNominalAllocation.occurrences
+            (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+            name)))
+      (@Yulang.Core.PresenceGeneration.TyTerm.eval Nat Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalAllocation.upper
+          (Yulang.GeneralNominalAllocation.occurrences
+            (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+            name))))
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_extrema_terms' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_merges {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (names :
+    @Eq (List Nat)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputNames
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Nat
+        (@Prod.fst Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        entries))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model) :
+  @Yulang.PresenceNormalForm.All Nat Yulang.CommonNominalFullCarrier.model
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model)
+    (Yulang.GeneralNominalAllocation.merges
+      (@Yulang.GeneralNominalSaturationState.Packet.context roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+      (@Yulang.GeneralNominalSaturationState.Packet.registry roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@Yulang.GeneralSourceDictionaries.Occurrence.identity roles
+        (@Yulang.GeneralNominalDemandMerging.Site.occurrence roles
+          (@Yulang.GeneralNominalSaturationState.Packet.site roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))))
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_merges' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_other_namespace {roles : Yulang.Roles.RoleDecls}
+  {purpose invocation declaration owner position : Nat} (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (differentZero : @Ne Nat purpose (@OfNat.ofNat Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))
+  (differentOne : @Ne Nat purpose (@OfNat.ofNat Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))) :
+  @Eq (Yulang.Core.PresenceGeneration.Comp Yulang.CommonNominalFullCarrier.model)
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model
+      (Yulang.GeneralNominalCenters.fresh
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.seed
+        invocation declaration purpose owner position))
+    (model
+      (Yulang.GeneralNominalCenters.fresh
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.seed
+        invocation declaration purpose owner position))
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_other_namespace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_binder {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (name : Nat) :
+  @Eq (Yulang.Core.PresenceGeneration.Comp Yulang.CommonNominalFullCarrier.model)
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model
+      (@Yulang.GeneralNominalCenters.Plan.binder roles candidate name))
+    (model (@Yulang.GeneralNominalCenters.Plan.binder roles candidate name))
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_binder' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_actual_schema {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (body : Yulang.GeneralNominalMaterialization.Schema)
+  (actual : Yulang.GeneralDictionaryActualSchema.ActualOnly body)
+  (roots :
+    Yulang.GeneralNominalGeneratedSupport184.Roots body
+      (Yulang.GeneralNominalState.sources
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state)) :
+  Iff
+    (@Yulang.GeneralNominalCenters.Plan.SchemaHolds roles candidate body
+      (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model))
+    (@Yulang.GeneralNominalCenters.Plan.SchemaHolds roles candidate body model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_actual_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_head_schema {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Iff
+    (@Yulang.GeneralNominalCenters.Plan.SchemaHolds roles candidate
+      (@Yulang.GeneralNominalCenters.Plan.headSchema roles candidate)
+      (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model))
+    (@Yulang.GeneralNominalCenters.Plan.SchemaHolds roles candidate
+      (@Yulang.GeneralNominalCenters.Plan.headSchema roles candidate) model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_head_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_capture_fit {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key name : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model)
+  (declared :
+    @Membership.mem Nat (List Nat) (@List.instMembership Nat)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputNames
+      name)
+  (nonempty :
+    @Ne (List Yulang.GeneralSourceState.Interval)
+      (Yulang.GeneralNominalAllocation.occurrences
+        (@Yulang.GeneralNominalSaturationState.Packet.bindings roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+        name)
+      (@List.nil Yulang.GeneralSourceState.Interval)) :
+  Yulang.GeneralNominalCaptureMerges.Fits (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model)
+    ((@Yulang.GeneralNominalPacketSupport.capture roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputs
+      name)
+    (@Prod.fst Yulang.CommonNominalFullCarrier.model.Ty Yulang.CommonNominalFullCarrier.model.Row
+      (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model
+        (@Yulang.GeneralNominalCenters.Plan.binder roles candidate name)))
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_capture_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_head_equations {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (names :
+    @Eq (List Nat)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputNames
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Nat
+        (@Prod.fst Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        entries))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : @Yulang.GeneralNominalCenteredHeadStepEffects.Models roles state model)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model) :
+  @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_head_equations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.initial_output_source {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {output : Yulang.GeneralSourceState.Output}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (member :
+    @Membership.mem Yulang.GeneralSourceState.Output (List Yulang.GeneralSourceState.Output)
+      (@List.instMembership Yulang.GeneralSourceState.Output)
+      (@Yulang.GeneralSourceState.Demand.outputs roles (@Yulang.GeneralSourceDictionaries.Occurrence.demand roles root))
+      output) :
+  @Membership.mem Nat (List Nat) (@List.instMembership Nat)
+    (Yulang.GeneralNominalState.sources
+      (@Yulang.GeneralNominalSaturationState.Packet.context roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state)
+    output.target
+'Yulang.GeneralNominalRepeatedPointRepair190.initial_output_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_named_schema {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (leaf :
+    @Eq (List Yulang.GeneralDeclarations.Clause)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).requirements
+      (@List.nil Yulang.GeneralDeclarations.Clause))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Iff
+    (@Yulang.GeneralNominalCenters.Plan.SchemaHolds roles candidate
+      (@Yulang.GeneralNominalPacketSupport.namedSchema roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model))
+    (@Yulang.GeneralNominalCenters.Plan.SchemaHolds roles candidate
+      (@Yulang.GeneralNominalPacketSupport.namedSchema roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_named_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_outputs {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (leaf :
+    @Eq (List Yulang.GeneralDeclarations.Clause)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).requirements
+      (@List.nil Yulang.GeneralDeclarations.Clause))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (outputs :
+    @Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations roles
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root candidate model) :
+  @Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations roles
+    (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root candidate
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedPointRepair190.repair_head_models {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (names :
+    @Eq (List Nat)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputNames
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Nat
+        (@Prod.fst Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        entries))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : @Yulang.GeneralNominalCenteredHeadStepEffects.Models roles state model)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model) :
+  @Yulang.GeneralNominalCenteredHeadCandidates.HeadModels roles
+    (@Yulang.GeneralNominalSaturationState.Packet.registry roles
+      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+    (@Yulang.GeneralNominalSaturationState.Packet.context roles
+      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+    (@Yulang.GeneralNominalDemandMerging.Site.occurrence roles
+      (@Yulang.GeneralNominalSaturationState.Packet.site roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+    (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+    (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+    (@Yulang.GeneralNominalRepeatedPointRepair190.repair roles candidate model)
+'Yulang.GeneralNominalRepeatedPointRepair190.repair_head_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedNamedPlan190.named_plan {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (leaf :
+    @Eq (List Yulang.GeneralDeclarations.Clause)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).requirements
+      (@List.nil Yulang.GeneralDeclarations.Clause))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (branch :
+    @Yulang.GeneralNominalCenteredHeadCandidates.HeadModels roles
+      (@Yulang.GeneralNominalSaturationState.Packet.registry roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@Yulang.GeneralNominalSaturationState.Packet.context roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@Yulang.GeneralNominalDemandMerging.Site.occurrence roles
+        (@Yulang.GeneralNominalSaturationState.Packet.site roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      model)
+  (head : @Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations roles candidate model)
+  (outputs :
+    @Yulang.GeneralNominalCenters.Plan.SchemaHolds roles candidate
+      (@Yulang.GeneralNominalPacketSupport.namedSchema roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      model) :
+  @Yulang.GeneralNominalCenters.Plan.Holds roles candidate model
+'Yulang.GeneralNominalRepeatedNamedPlan190.named_plan' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedNamedPlan190.selected_named_plan {roles : Yulang.Roles.RoleDecls} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (selected :
+    @Yulang.GeneralNominalCenteredHeadWFBoundary.Local roles registry state root
+      (@Yulang.CommonRoleOutermostResolver.Frontier.selected
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (names :
+    @Eq (List Nat)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputNames
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Nat
+        (@Prod.fst Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        entries))
+  (leaf :
+    @Eq (List Yulang.GeneralDeclarations.Clause)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).requirements
+      (@List.nil Yulang.GeneralDeclarations.Clause))
+  (ready :
+    @Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady roles
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root candidate) :
+  @Exists Yulang.GeneralNominalCommonBridge.Assignment fun model =>
+    And (@Yulang.GeneralNominalCenteredHeadStepEffects.Models roles state model)
+      (And (@Yulang.GeneralNominalCenters.Plan.Holds roles candidate model)
+        (@Yulang.GeneralNominalCenteredHeadOutputs.OutputEquations roles
+          (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root candidate model))
+'Yulang.GeneralNominalRepeatedNamedPlan190.selected_named_plan' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedNamedPlan190.selected_named_installable {roles : Yulang.Roles.RoleDecls} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (selected :
+    @Yulang.GeneralNominalCenteredHeadWFBoundary.Local roles registry state root
+      (@Yulang.CommonRoleOutermostResolver.Frontier.selected
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (entries :
+    List
+      (Prod Nat
+        (Fin
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)))
+  (query :
+    @Eq (List Yulang.GeneralNominalInspection.Query)
+      (Yulang.GeneralNominalInspection.queries
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state
+        (@Yulang.GeneralNominalSaturationState.Packet.context roles
+            (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+        (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Yulang.GeneralNominalInspection.Query
+        (fun entry =>
+          Yulang.GeneralNominalInspection.Query.variables
+            (@List.cons Nat
+              (@Prod.fst Nat
+                (Fin
+                  (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+                entry)
+              (@List.nil Nat)))
+        entries))
+  (bounds :
+    @Eq
+      (List
+        (Yulang.GeneralNominalInspection.Bounds
+          (@Yulang.GeneralNominalSaturationState.Packet.context roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state))
+      (@Yulang.GeneralNominalSaturationState.Packet.bounds roles
+        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (Prod
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        (fun entry =>
+          @Prod.mk
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (Fin
+              (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                      (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry)
+            (@Prod.snd Nat
+              (Fin
+                (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                        (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots)
+              entry))
+        entries))
+  (names :
+    @Eq (List Nat)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).inputNames
+      (@List.map
+        (Prod Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        Nat
+        (@Prod.fst Nat
+          (Fin
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                    (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.base.slots))
+        entries))
+  (leaf :
+    @Eq (List Yulang.GeneralDeclarations.Clause)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).requirements
+      (@List.nil Yulang.GeneralDeclarations.Clause))
+  (ready :
+    @Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady roles
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root candidate) :
+  @Exists (List (Yulang.GeneralSourceDictionaries.Occurrence roles)) fun support =>
+    @Yulang.GeneralNominalCenteredHeadStepKernel.Installable roles registry state candidate support
+'Yulang.GeneralNominalRepeatedNamedPlan190.selected_named_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceRepeatedEvidence190.selected_installable {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (selected :
+    @Yulang.GeneralNominalCenteredHeadWFBoundary.Local roles registry state root
+      (@Yulang.CommonRoleOutermostResolver.Frontier.selected
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand key children))
+  (candidate : Yulang.GeneralNominalCenters.Plan roles)
+  (frame :
+    @Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+      (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+  (names : List Nat)
+  (head :
+    @Eq (List Yulang.GeneralDeclarationPatterns.Pattern)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).head
+      (@List.map Nat Yulang.GeneralDeclarationPatterns.Pattern Yulang.GeneralDeclarationPatterns.Pattern.var names))
+  (leaf :
+    @Eq (List Yulang.GeneralDeclarations.Clause)
+      (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).requirements
+      (@List.nil Yulang.GeneralDeclarations.Clause))
+  (coverage :
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      @Membership.mem Yulang.GeneralSourceState.Output (List Yulang.GeneralSourceState.Output)
+          (@List.instMembership Yulang.GeneralSourceState.Output)
+          (@Yulang.GeneralSourceState.Demand.outputs roles
+            (@Yulang.GeneralSourceDictionaries.Occurrence.demand roles root))
+          output →
+        @Exists Yulang.GeneralDeclarations.Equation fun equation =>
+          And
+            (@Membership.mem Yulang.GeneralDeclarations.Equation (List Yulang.GeneralDeclarations.Equation)
+              (@List.instMembership Yulang.GeneralDeclarations.Equation)
+              (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).associated
+              equation)
+            (@Eq Nat equation.name output.name))
+  (translated :
+    ∀ (equation : Yulang.GeneralDeclarations.Equation),
+      @Membership.mem Yulang.GeneralDeclarations.Equation (List Yulang.GeneralDeclarations.Equation)
+          (@List.instMembership Yulang.GeneralDeclarations.Equation)
+          (@Yulang.GeneralNominalSaturationState.Packet.declaration roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).associated
+          equation →
+        Yulang.GeneralNominalHeadMatchMass.Complete
+          (Yulang.GeneralNominalInspection.translate
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                  (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).state.constructors
+            (@Yulang.GeneralNominalSaturationState.Packet.context roles
+                (@Yulang.GeneralNominalCenters.Plan.packet roles candidate)).interpretation
+            (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  @Exists (List (Yulang.GeneralSourceDictionaries.Occurrence roles)) fun support =>
+    @Yulang.GeneralNominalCenteredHeadStepKernel.Installable roles registry state candidate support
+'Yulang.GeneralNominalSourceRepeatedEvidence190.selected_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceRepeatedEvidence190.selected_source_candidate {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (selected :
+    @Yulang.GeneralNominalCenteredHeadWFBoundary.Local roles registry state root
+      (@Yulang.CommonRoleOutermostResolver.Frontier.selected
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      @Membership.mem Yulang.GeneralDeclarations.Declaration (List Yulang.GeneralDeclarations.Declaration)
+          (@List.instMembership Yulang.GeneralDeclarations.Declaration) registry.declarations declaration →
+        @Eq Nat declaration.id key →
+          And
+            (@Exists (List Nat) fun names =>
+              @Eq (List Yulang.GeneralDeclarationPatterns.Pattern) declaration.head
+                (@List.map Nat Yulang.GeneralDeclarationPatterns.Pattern Yulang.GeneralDeclarationPatterns.Pattern.var
+                  names))
+            (And
+              (@Eq (List Yulang.GeneralDeclarations.Clause) declaration.requirements
+                (@List.nil Yulang.GeneralDeclarations.Clause))
+              (And
+                (∀ (output : Yulang.GeneralSourceState.Output),
+                  @Membership.mem Yulang.GeneralSourceState.Output (List Yulang.GeneralSourceState.Output)
+                      (@List.instMembership Yulang.GeneralSourceState.Output)
+                      (@Yulang.GeneralSourceState.Demand.outputs roles
+                        (@Yulang.GeneralSourceDictionaries.Occurrence.demand roles root))
+                      output →
+                    @Exists Yulang.GeneralDeclarations.Equation fun equation =>
+                      And
+                        (@Membership.mem Yulang.GeneralDeclarations.Equation (List Yulang.GeneralDeclarations.Equation)
+                          (@List.instMembership Yulang.GeneralDeclarations.Equation) declaration.associated equation)
+                        (@Eq Nat equation.name output.name))
+                (∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  @Membership.mem Yulang.GeneralDeclarations.Equation (List Yulang.GeneralDeclarations.Equation)
+                      (@List.instMembership Yulang.GeneralDeclarations.Equation) declaration.associated equation →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate
+                        (@Yulang.GeneralNominalSaturationState.State.context roles
+                              (@Yulang.GeneralNominalSupport.Tracked.current roles
+                                (@Yulang.GeneralNominalCenteredSteps.State.erased roles
+                                  (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles
+                                    state)))).state.constructors
+                        (@Yulang.GeneralNominalSaturationState.State.context roles
+                            (@Yulang.GeneralNominalSupport.Tracked.current roles
+                              (@Yulang.GeneralNominalCenteredSteps.State.erased roles
+                                (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state)))).interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs)))))) :
+  @Exists (Yulang.GeneralNominalCenters.Plan roles) fun candidate =>
+    @Exists (List (Yulang.GeneralSourceDictionaries.Occurrence roles)) fun support =>
+      And
+        (@Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+          (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+        (And
+          (@Eq (List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+            (@Yulang.GeneralNominalSaturationState.Packet.children roles
+              (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+            children)
+          (@Yulang.GeneralNominalCenteredHeadStepKernel.Installable roles registry state candidate support))
+'Yulang.GeneralNominalSourceRepeatedEvidence190.selected_source_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceRepeatedEvidence190.stable_selected_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (stable :
+    @Yulang.B4Target.SourceBoundary.Stable (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV5.SourceBoundary.toSourceBoundary
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+          (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles)))
+      registry state root)
+  (selected :
+    @Yulang.GeneralNominalCenteredHeadWFBoundary.Local roles registry state root
+      (@Yulang.CommonRoleOutermostResolver.Frontier.selected
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      @Membership.mem Yulang.GeneralDeclarations.Declaration (List Yulang.GeneralDeclarations.Declaration)
+          (@List.instMembership Yulang.GeneralDeclarations.Declaration) registry.declarations declaration →
+        @Eq Nat declaration.id key →
+          And
+            (@Exists (List Nat) fun names =>
+              @Eq (List Yulang.GeneralDeclarationPatterns.Pattern) declaration.head
+                (@List.map Nat Yulang.GeneralDeclarationPatterns.Pattern Yulang.GeneralDeclarationPatterns.Pattern.var
+                  names))
+            (And
+              (@Eq (List Yulang.GeneralDeclarations.Clause) declaration.requirements
+                (@List.nil Yulang.GeneralDeclarations.Clause))
+              (And
+                (∀ (output : Yulang.GeneralSourceState.Output),
+                  @Membership.mem Yulang.GeneralSourceState.Output (List Yulang.GeneralSourceState.Output)
+                      (@List.instMembership Yulang.GeneralSourceState.Output)
+                      (@Yulang.GeneralSourceState.Demand.outputs roles
+                        (@Yulang.GeneralSourceDictionaries.Occurrence.demand roles root))
+                      output →
+                    @Exists Yulang.GeneralDeclarations.Equation fun equation =>
+                      And
+                        (@Membership.mem Yulang.GeneralDeclarations.Equation (List Yulang.GeneralDeclarations.Equation)
+                          (@List.instMembership Yulang.GeneralDeclarations.Equation) declaration.associated equation)
+                        (@Eq Nat equation.name output.name))
+                (∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  @Membership.mem Yulang.GeneralDeclarations.Equation (List Yulang.GeneralDeclarations.Equation)
+                      (@List.instMembership Yulang.GeneralDeclarations.Equation) declaration.associated equation →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate
+                        (@Yulang.GeneralNominalSaturationState.State.context roles
+                              (@Yulang.GeneralNominalSupport.Tracked.current roles
+                                (@Yulang.GeneralNominalCenteredSteps.State.erased roles
+                                  (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles
+                                    state)))).state.constructors
+                        (@Yulang.GeneralNominalSaturationState.State.context roles
+                            (@Yulang.GeneralNominalSupport.Tracked.current roles
+                              (@Yulang.GeneralNominalCenteredSteps.State.erased roles
+                                (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state)))).interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs)))))) :
+  And
+    (@Eq (List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand) children
+      (@List.nil (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand))
+    (∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      @Yulang.GeneralNominalCenteredHeadStepEffects.Models roles state model →
+        @Yulang.B4Target.SourceBoundary.Evidence (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+          (@Yulang.B4TargetV5.SourceBoundary.toSourceBoundary
+            (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+            (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+              (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles)))
+          registry state model root
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node key
+            (@List.nil Yulang.CommonRoleOutermostResolver.Dictionary)))
+'Yulang.GeneralNominalSourceRepeatedEvidence190.stable_selected_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalSourceRepeatedEvidence190.committed_or_inhabited_step {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source :
+    @Yulang.B4TargetV5.SourceBoundary.Initial (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+      (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+        (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles))
+      registry root state)
+  (selected :
+    @Yulang.GeneralNominalCenteredHeadWFBoundary.Local roles registry state root
+      (@Yulang.CommonRoleOutermostResolver.Frontier.selected
+        (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      @Membership.mem Yulang.GeneralDeclarations.Declaration (List Yulang.GeneralDeclarations.Declaration)
+          (@List.instMembership Yulang.GeneralDeclarations.Declaration) registry.declarations declaration →
+        @Eq Nat declaration.id key →
+          And
+            (@Exists (List Nat) fun names =>
+              @Eq (List Yulang.GeneralDeclarationPatterns.Pattern) declaration.head
+                (@List.map Nat Yulang.GeneralDeclarationPatterns.Pattern Yulang.GeneralDeclarationPatterns.Pattern.var
+                  names))
+            (And
+              (@Eq (List Yulang.GeneralDeclarations.Clause) declaration.requirements
+                (@List.nil Yulang.GeneralDeclarations.Clause))
+              (And
+                (∀ (output : Yulang.GeneralSourceState.Output),
+                  @Membership.mem Yulang.GeneralSourceState.Output (List Yulang.GeneralSourceState.Output)
+                      (@List.instMembership Yulang.GeneralSourceState.Output)
+                      (@Yulang.GeneralSourceState.Demand.outputs roles
+                        (@Yulang.GeneralSourceDictionaries.Occurrence.demand roles root))
+                      output →
+                    @Exists Yulang.GeneralDeclarations.Equation fun equation =>
+                      And
+                        (@Membership.mem Yulang.GeneralDeclarations.Equation (List Yulang.GeneralDeclarations.Equation)
+                          (@List.instMembership Yulang.GeneralDeclarations.Equation) declaration.associated equation)
+                        (@Eq Nat equation.name output.name))
+                (∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  @Membership.mem Yulang.GeneralDeclarations.Equation (List Yulang.GeneralDeclarations.Equation)
+                      (@List.instMembership Yulang.GeneralDeclarations.Equation) declaration.associated equation →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate
+                        (@Yulang.GeneralNominalSaturationState.State.context roles
+                              (@Yulang.GeneralNominalSupport.Tracked.current roles
+                                (@Yulang.GeneralNominalCenteredSteps.State.erased roles
+                                  (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles
+                                    state)))).state.constructors
+                        (@Yulang.GeneralNominalSaturationState.State.context roles
+                            (@Yulang.GeneralNominalSupport.Tracked.current roles
+                              (@Yulang.GeneralNominalCenteredSteps.State.erased roles
+                                (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state)))).interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs)))))) :
+  @Exists (Yulang.GeneralNominalCenters.Plan roles) fun candidate =>
+    And
+      (@Yulang.GeneralNominalCenteredHeadOutputs.Frame roles registry
+        (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state) root key candidate)
+      (Or
+        (@Yulang.GeneralNominalFeedbackSteps.Committed roles
+          (@Yulang.GeneralNominalSupport.Tracked.current roles
+            (@Yulang.GeneralNominalCenteredSteps.State.erased roles
+              (@Yulang.GeneralNominalCenteredHeadStepEffects.State.core roles state)))
+          (@Yulang.GeneralNominalCenters.Plan.packet roles candidate))
+        (@Exists (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).State fun after =>
+          And
+            (@Yulang.B4Target.SourceBoundary.Step (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+              (@Yulang.B4TargetV5.SourceBoundary.toSourceBoundary
+                (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+                (@Yulang.B4TargetV6.SourceBoundary.toV5 (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)
+                  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles)))
+              registry root state after)
+            (@Exists Yulang.GeneralNominalCommonBridge.Assignment fun model =>
+              @Yulang.GeneralNominalCenteredHeadStepEffects.Models roles after model)))
+'Yulang.GeneralNominalSourceRepeatedEvidence190.committed_or_inhabited_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
