@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryAgreedCertifiedEvidence175
+#print axioms Yulang.GeneralDictionaryAgreedCertifiedEvidence175.endpoint_reachable
+#print axioms Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic_resolves
+#print axioms Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic_exact
+#print axioms Yulang.GeneralDictionaryAgreedCertifiedEvidence175.completed_iff
+#print axioms Yulang.GeneralDictionaryAgreedCertifiedEvidence175.halted_completed_evidence

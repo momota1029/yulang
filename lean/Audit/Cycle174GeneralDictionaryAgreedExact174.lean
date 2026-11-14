@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryAgreedExact174
+#print axioms Yulang.GeneralDictionaryAgreedExact174.frontiers
+#print axioms Yulang.GeneralDictionaryAgreedExact174.final_reachable
+#print axioms Yulang.GeneralDictionaryAgreedExact174.final_exact
+#print axioms Yulang.GeneralDictionaryAgreedExact174.run_resolves_iff
+#print axioms Yulang.GeneralDictionaryAgreedExact174.completed_iff
+#print axioms Yulang.GeneralDictionaryAgreedExact174.initial_run_resolves_iff
