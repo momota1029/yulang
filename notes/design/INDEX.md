@@ -529,3 +529,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered output conflicts: head selection, failed equations, and V5](2026-11-14-centered-output-conflict.md) — corrects G″'s output-based candidate filtering, locates installation consistency gates and the missing error contract, distinguishes the nonstable fixture from its unclassified stable extension, and proposes an additive head/effect split with field-by-field proof impact.
 
 - [Cycle 181: semantic readback compatibility](2026-11-14-cycle181-semantic-overlap.md) — Draft proof engineering; exact finite semantic extension and registered-use overlap.
+- [Cycle 181 module guide](2026-11-14-cycle181-module-guide.md) — Draft; finite semantic extension, alias transport, ledger provenance and mode-sensitive frames.

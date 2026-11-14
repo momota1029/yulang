@@ -88,3 +88,23 @@ The audit branch's `notes/audit/x-oracle.md` was freshly read (blob
 internal interval/sharing judgments, explicitly not arbitrary internal constraints.
 They do not certify this cycle's centered-ledger extension. No new Yulang2 run
 or source-to-Lean correspondence is claimed.
+
+## Mode-sensitive footprint refinement
+
+Review found a concrete overapproximation: the old schema frame lists a binder
+for lower/upper uses even though their semantic clause never reads it. The next
+local refinement keeps origin+binder for actual uses, and origin+capture
+output/endpoints for endpoint uses. Prove schema framing and full ledger framing
+with this smaller support, leaving all raw journal support unchanged. A generic
+finite observation-extension construction can then instantiate this proved
+frame instead of fixing the older, unnecessarily large fullSources list.
+This does not classify all reachable overlaps or delete genuinely used captures.
+
+The mode-sensitive schema and full centered-frame theorems have now passed
+verification. `GeneralNominalModeExtension181.extension_iff` uses that concrete
+frame, so its callers supply no frame hypothesis. The mode regression has a
+valid upper-use schema before and after changing its otherwise unused binder
+from top to bottom. This is strict reduction of the singleton schema footprint,
+not a claim that a complete plan can change the same binder: captures or actual
+head uses elsewhere may still constrain it. The final focused build passes all
+18 new modules; the complete new-declaration gate passes 141 declarations.
