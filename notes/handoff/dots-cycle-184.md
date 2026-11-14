@@ -36,3 +36,23 @@ HeadTransport184 derives historical/current configuration from trace. GroundCand
 GroundLedgerExtension184 supplies centered finite-assignment preservation with only ledger value retention, deriving raw preservation internally; the exact extension criterion now tests overlap only with the ledger. Observation existence, linked endpoints/origins, Fits, and equal-center coherence remain explicit.
 
 No general EvidenceNode/Joint closure claimed. Final theorem signatures and dependency reach will follow. Published first-checkpoint files are unchanged. New independent strict builds and axiom gate are in second-build/second-gate logs.
+
+## Checkpoint3 — complete overlap provenance and a root-candidate fragment
+
+Checkpoint2 1aa848a316ed0c1d017b5bf1de52575170e2232d/tree d75480bf15f3b2d01c2849a8fbd91c965f6342a9 was freshly fetched and matched the entire local tree.
+
+OverlapProvenance184 now derives ActualBinder for every purpose8 name in fullSources of the original reachable ground state, including all raw/ledger/schema/site cases. OverlapIdentity184 additionally recovers producer invocation identity, declaration ID, binder name, position0, and nonoutput/nonpoint status. No caller-supplied coverage or desired Same is assumed. GroundHistoricalExtension184 therefore produces the historical witness function in the exact finite extension criterion rather than accepting provenance as a premise.
+
+RootOverlap184 closes a narrower but genuine candidate-agreement fragment: for a current root candidate with registered input, visible declaration, actual head use of a nonoutput/nonpoint binder, and overlap with fullSources, Checked+Reachable produce the candidate-origin Same in every centered model. No external historical plan, center coherence, or Same premise remains. Historical invocation=root identity is forced to be the actual root, since emitted child identities are strictly greater.
+
+RootExtension184 uses that producer to remove the overlap condition from the exact finite conservative-extension test for a finite family of those root actual-head binder arguments. Linked endpoints/origins, observation existence, Fits, and equal-center coherence remain. The result extends those NominalArguments, not the entire candidate plan/Joint.
+
+CandidateCoverage184 separately produces a head-use origin for every declared candidate input in the matching-historical-occurrence fragment, before quantifying over models.
+
+Current total17 new modules,92 public theorem declarations. Exact signatures and elaborated types are included. Axiom counts include definitions/private/generated constants and are not theorem or completed-field counts. General originalG EvidenceNode and generated-demand Joint remain OPEN. The root fragment is not silently generalized to descendants or different-demand occurrences with the same identity.
+
+Third focused build PASS858 jobs, gate PASS144 declarations. Fourth focused/gate includes final root fragment; full output and exit codes are in fourth-build/fourth-gate. Source preservation audit retains all5273 startup paths, old proof blobs, frozen Audit/README, and root/INDEX prefixes.
+
+Fresh integration remains97c54c150; instruction blobs unchanged at recheck. New-source independent read-only review confirmed that whole raw-journal exclusion has no external exclusion/depth premise in its ground theorem. Usage allowance unknown; no whole-project build or runtime/CI certification claim.
+
+Fourth focused build and strict axiom gate PASS,155 declarations. Public elaborated-type gate PASS92 theorem declarations. Kernel dependency traversal includes opaque proof bodies: original general roots reach0/155 new constants; six local mechanism roots reach129/155. Thus local mechanism integration is verified but no integration into the original general composition is claimed.

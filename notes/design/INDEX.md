@@ -553,3 +553,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered total-materialization journal integration](2026-11-14-centered-head-mat-journal.md) — corrected packet/journal equations, class-request and center-recording invariants, repeated-target extension, and the row installation model; operational guards, successor Step and boundary-law transfers remain open.
 
 - [Cycle184 raw-support producer plan](2026-11-14-cycle184-raw-support.md)
+
+- [Cycle184 residual origin bridge](2026-11-14-cycle184-residual-origin-bridge.md)
