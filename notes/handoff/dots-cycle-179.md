@@ -24,3 +24,86 @@ are performed; logs will be published with checkpoint. No local full build or
 runtime oracle. Unrestricted G.EvidenceNode remains OPEN; completed fields0.
 The independent common-centered-model construction is in progress and not part
 of this checkpoint. Details and final acceptance inventory will follow.
+
+## Second checkpoint: common initial centered model
+
+Five Point179 modules now construct the finite linear nominal point common
+centered model rather than assuming it. They preserve every original source
+Assignment exactly. Actual Candidate inspection recovers the shape; the final
+InitialSource singleton-registry adapter derives source support and Installable
+without caller-supplied joint model, shape, seed bound or support certificate.
+This is an existential extension for an initial state, not universal validity
+of the original fixed assignment or preservation of an existing full journal.
+
+A positive regression uses the actual178 fixture with inner nonpoint(2,3)
+parameter bounds, without handcoding a binder value. Independent review checked
+fresh-name/source separation, exact source preservation, and model quantifiers.
+The fragment is already semantic Committed; empty packets do not imply novelty.
+No actual new Step or non-Stable conclusion is claimed from Installable alone.
+
+Repeated-name residual discovery now covers equal as well as different outer
+slots. A finite ledger frame transports every centered Plan.Equations under
+agreement on a concrete finite footprint. Raw journal preservation remains an
+explicit separate premise. General current-state model extension remains open.
+
+At02:45 fresh integration advanced to00bdd63d13d5e46f318f895713e816e44c3c6232.
+Its13 new files and two appended indexes were incorporated without losing
+prior work. Eight focused upstream dependency modules compile successfully.
+The upstream selected-ledger obstruction is not a termination or G counterexample.
+
+First source commit40c8063faa7a2773e933f2d2b50a52e9d548ae1d was fetched back:
+all19 path hashes match. Core CI43547688041 and Lean CI43547688100 succeeded;
+Lean action, every-declaration audit and executable examples all succeeded.
+That result covers the first checkpoint only. Later source is checked separately.
+
+## Boundary inventory
+
+Definitions exist generally on the current nominal carrier; this is not a
+claim of full source-language compilation completeness.
+
+| SourceBoundary field | Definition status |
+|---|---|
+| Checked | general definition, inherited declaration checks |
+| Models | general centered-state definition |
+| RootPending | general definition, inherited lower/head observation |
+| RootK2 | general definition, raw plus centered root cycle |
+| CandidateK2 | general definition, raw plus inspected centered cycle |
+| InspectionPending | general definition, inspection or missing DecisionGuard |
+| Survivor | general recursive-candidate definition; source coverage partial |
+| Reorders | general definition |
+| DictionaryEquivalent | general definition |
+| Step | general centered transition definition |
+| Stable | general centered stability definition |
+| Generated | general actual generated closure |
+| Evidence | general recursive evidence definition; production only fragments |
+
+The exact G composition still has10/14 proved fields: progress, execution,
+halted, closure, stepModels, frontierLocal, localIdentity, treeExecution,
+dictionaryRefl, initialReorders. Its remaining four are whereAccessible,
+canonicalLocalOrder, evidenceNode, generatedChildren. This cycle completes0
+of those general fields. Other executors/boundaries are not counted as G.
+
+## Yulang2 comparison and restrictions
+
+Read existing x-oracle X13/X15 and y2-claims-casts-roles material. The recorded
+checks show shared/same-head displayed nominal types and successful internal
+sandwich units, not an oracle for arbitrary lower/upper source assignments.
+No new Yulang2 runtime run or stronger completeness claim is made here.
+No unresolved semantics was chosen, so no new question note was required.
+No local full lake build/verify-lean run was performed. Usage remaining: unknown.
+
+## Full journal frame extension
+
+The preliminary frame's separate rawModels premise was removed by two further
+modules. Explicit finite footprints now cover every raw packet's private state,
+projection report, generated materialization schema, raw observed site, and
+all centered sites/plans. `GeneralNominalRawFrame179.centered_models_frame/iff`
+transports arbitrary full centered Models under agreement only on fullSources.
+There is no empty-packets restriction or circular Models-preservation premise.
+
+`centered_assign_kept` allows reused names inside the footprint if their old
+type values are retained; rows are preserved. This proves old-state preservation,
+not realization of colliding new values or new Plan.Holds. Independent review
+checked every dependency category and warned that source seed freshness alone
+does not exclude collisions with historical journal binders/private identities.
+The actual-candidate overlap/coherence producer remains open.
