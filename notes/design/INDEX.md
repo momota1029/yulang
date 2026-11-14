@@ -588,3 +588,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Total semantic labels and successor ancestry](2026-11-15-centered-head-mat-semantic-depth.md) — full-carrier normalization and corrected child-center readback, original ground-source conversion, and unrestricted retrospective ancestry conditional on finite enabled-head captures and their mass bound; unconditional depth and progress remain open.
 
 - [Ground head readback for total materialization](2026-11-15-centered-head-mat-head-readback.md) — semantic projection and head-mass inversion for arbitrary counted labels, finite center captures from the actual head-only frame, and unconditional ground depth, finite cover, accessibility and progress for the unrestricted successor Step.
+
+- [Canonical exits and live class retention for total materialization](2026-11-15-centered-head-mat-canonical-closure.md) — unrestricted two-way permutation simulation, unconditional canonical exit lifting and order laws, and reachable installation request invariance discharging all future live effects; head baseline, corrected packet assembly, choice agreement, and exhaustive K2 projections remain open.
+
+- [Output targets lose their clause identity](2026-11-15-centered-head-mat-output-target-collision.md) — checked WF ground initial counterexample: two distinct child clauses reuse a locally valid output equation ID, so total materialization gives one target incompatible meanings; stable selected parent refutes PacketAssembly and generated-child production.
