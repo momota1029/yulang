@@ -592,3 +592,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Canonical exits and live class retention for total materialization](2026-11-15-centered-head-mat-canonical-closure.md) — unrestricted two-way permutation simulation, unconditional canonical exit lifting and order laws, and reachable installation request invariance discharging all future live effects; head baseline, corrected packet assembly, choice agreement, and exhaustive K2 projections remain open.
 
 - [Output targets lose their clause identity](2026-11-15-centered-head-mat-output-target-collision.md) — checked WF ground initial counterexample: two distinct child clauses reuse a locally valid output equation ID, so total materialization gives one target incompatible meanings; stable selected parent refutes PacketAssembly and generated-child production.
+- [Cycle195 mixed readback catalogue](2026-11-14-cycle195-reuse-catalogue.md) and [module guide](2026-11-14-cycle195-catalogue-module-guide.md).
+- [Cycle195 current completion and limits](2026-11-14-cycle195-current-completion-guide.md).
