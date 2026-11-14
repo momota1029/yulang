@@ -1,0 +1,135 @@
+Yulang.GeneralNominalCenteredHeadWFBoundary.reachable_old {roles : Yulang.Roles.RoleDecls}
+  {registry : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Registry}
+  {root : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  {state : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).State}
+  (reachable :
+    Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state) :
+  Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadStepBoundary.boundary roles) registry root state
+Yulang.GeneralNominalCenteredHeadWFBoundary.reachable_coverage {roles : Yulang.Roles.RoleDecls}
+  {registry : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Registry}
+  {root : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  {state : (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).State}
+  (reachable :
+    Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state) :
+  Yulang.GeneralNominalCenteredHeadWFSource.Coverage registry state.core.erased.current.context.interpretation
+Yulang.GeneralNominalCenteredHeadStepTrace.configuration_trace {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (path : Yulang.B4Target.Steps (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root) before after) :
+  after.core.erased.current.context.state.seed = before.core.erased.current.context.state.seed ∧
+    after.core.erased.current.context.state.constructors = before.core.erased.current.context.state.constructors ∧
+      after.core.erased.current.context.interpretation = before.core.erased.current.context.interpretation
+Yulang.GeneralNominalCenteredHeadStepEffects.Models {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) : Prop
+Yulang.GeneralNominalCenteredHeadStepEffects.recorded_effects {roles✝ : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles✝}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles✝}
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} (recorded : effect ∈ state.effects)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalCenteredHeadOutputs.ChosenClassEffects effect.registry effect.snapshot
+    effect.plan.packet.site.occurrence effect.plan.packet.declaration.id model
+Yulang.GeneralNominalCenteredHeadStepEffects.live_equal_outputs {roles✝ : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalCenteredHeadStepEffects.Effect roles✝}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles✝}
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} (recorded : effect ∈ state.effects)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralNominalCenteredHeadOutputs.EqualOutputs state.core effect.plan.packet.site.occurrence model
+Yulang.GeneralNominalRootExtension184.root_extension_iff {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {count : Nat}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (reachable :
+    Yulang.B4TargetV5.Reachable (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root state)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (registered : candidate.input ∈ state.sites)
+  (atRoot : candidate.packet.site.occurrence = root) (current : candidate.packet.context = state.erased.current.context)
+  (visible : candidate.packet.declaration ∈ registry.declarations)
+  (entries : Fin count → Yulang.GeneralNominalMaterialization.Use)
+  (present : ∀ (i : Fin count), entries i ∈ candidate.headSchema.variables)
+  (actual : ∀ (i : Fin count), (entries i).mode = Yulang.GeneralNominalMaterialization.Mode.actual)
+  (input : ∀ (i : Fin count), ¬(entries i).name ∈ candidate.packet.declaration.outputNames)
+  (nonpoint :
+    ∀ (i : Fin count),
+      ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs (entries i).name).fst ≠
+        ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs (entries i).name).snd)
+  (previous : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredSteps.Models state previous)
+  (linked :
+    ∀ (i : Fin count),
+      (Yulang.GeneralNominalRootExtension184.argument candidate (entries i)).argument.endpoints.fst ∈
+          Yulang.GeneralNominalModeLedger181.fullSources state ∧
+        (Yulang.GeneralNominalRootExtension184.argument candidate (entries i)).argument.endpoints.snd ∈
+            Yulang.GeneralNominalModeLedger181.fullSources state ∧
+          Yulang.GeneralNominalCenteredModelExtension.originSource (entries i).origin ∈
+            Yulang.GeneralNominalModeLedger181.fullSources state) :
+  (∃ extended,
+      Yulang.GeneralNominalCenteredSteps.Models state extended ∧
+        (∀ (name : Nat), name ∈ Yulang.GeneralNominalModeLedger181.fullSources state → extended name = previous name) ∧
+          ∀ (i : Fin count), (Yulang.GeneralNominalRootExtension184.argument candidate (entries i)).Holds extended) ↔
+    (∀ (i : Fin count), ∃ value, Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin value) ∧
+      (∀ (i : Fin count) (value : Yulang.CommonNominalFullCarrier.Ty),
+          Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin value →
+            Yulang.GeneralNominalCaptureMerges.Fits previous
+              ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs (entries i).name) value) ∧
+        ∀ (i j : Fin count) (first last : Yulang.CommonNominalFullCarrier.Ty),
+          candidate.binder (entries i).name = candidate.binder (entries j).name →
+            Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin first →
+              Yulang.GeneralNominalRecursiveInspection.Observes previous (entries j).origin last →
+                Yulang.CommonNominalFullCarrier.Equivalent first last
+structure Yulang.B4TargetV6.SourceBoundary.{u_1} (v : Yulang.B4Target.Vocabulary) : Type u_1
+number of parameters: 1
+parents:
+  Yulang.B4TargetV6.SourceBoundary.toV5 : Yulang.B4TargetV5.SourceBoundary v
+fields:
+  Yulang.B4Target.SourceBoundary.Checked : v.Registry → Prop
+  Yulang.B4Target.SourceBoundary.Models : v.State → v.Model → Prop
+  Yulang.B4Target.SourceBoundary.Step : v.Registry → v.Demand → v.State → v.State → Prop
+  Yulang.B4Target.SourceBoundary.Stable : v.Registry → v.State → v.Demand → Prop
+  Yulang.B4Target.SourceBoundary.Generated : v.Registry → v.State → v.Demand → v.Demand → Prop
+  Yulang.B4Target.SourceBoundary.RootPending : v.Registry → v.State → v.Demand → Prop
+  Yulang.B4Target.SourceBoundary.RootK2 : v.Registry → v.State → v.Demand → Prop
+  Yulang.B4Target.SourceBoundary.CandidateK2 : v.Registry → v.State → v.Demand → Prop
+  Yulang.B4Target.SourceBoundary.InspectionPending : v.Registry → v.State → v.Demand → Prop
+  Yulang.B4Target.SourceBoundary.Survivor : v.Registry → v.State → v.Demand → Nat → List v.Demand → Prop
+  Yulang.B4Target.SourceBoundary.Evidence : v.Registry →
+      v.State → v.Model → v.Demand → Yulang.CommonRoleOutermostResolver.Dictionary → Prop
+  Yulang.B4Target.SourceBoundary.Reorders : v.Registry → v.Registry → Prop
+  Yulang.B4Target.SourceBoundary.DictionaryEquivalent : Yulang.CommonRoleOutermostResolver.Dictionary →
+      Yulang.CommonRoleOutermostResolver.Dictionary → Prop
+  Yulang.B4TargetV5.SourceBoundary.Initial : v.Registry → v.Demand → v.State → Prop
+  Yulang.B4TargetV6.SourceBoundary.OutputConflict : v.Registry → v.State → v.Demand → Nat → Prop
+constructor:
+  Yulang.B4TargetV6.SourceBoundary.mk.{u_1} {v : Yulang.B4Target.Vocabulary} (toV5 : Yulang.B4TargetV5.SourceBoundary v)
+    (OutputConflict : v.Registry → v.State → v.Demand → Nat → Prop) : Yulang.B4TargetV6.SourceBoundary v
+field notation resolution order:
+  Yulang.B4TargetV6.SourceBoundary, Yulang.B4TargetV5.SourceBoundary, Yulang.B4Target.SourceBoundary
+inductive Yulang.B4TargetV6.Local.{u} : {v : Yulang.B4Target.Vocabulary} →
+  Yulang.B4TargetV6.SourceBoundary v →
+    v.Registry → v.State → v.Demand → Yulang.CommonRoleOutermostResolver.Frontier v.Demand → Prop
+number of parameters: 5
+constructors:
+Yulang.B4TargetV6.Local.pending : ∀ {v : Yulang.B4Target.Vocabulary} {b : Yulang.B4TargetV6.SourceBoundary v}
+  {r : v.Registry} {s : v.State} {d : v.Demand},
+  b.RootPending r s d → Yulang.B4TargetV6.Local b r s d Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.B4TargetV6.Local.inspectionPending : ∀ {v : Yulang.B4Target.Vocabulary} {b : Yulang.B4TargetV6.SourceBoundary v}
+  {r : v.Registry} {s : v.State} {d : v.Demand},
+  ¬b.RootPending r s d →
+    b.InspectionPending r s d →
+      ¬b.RootK2 r s d →
+        ¬b.CandidateK2 r s d → Yulang.B4TargetV6.Local b r s d Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.B4TargetV6.Local.rejected : ∀ {v : Yulang.B4Target.Vocabulary} {b : Yulang.B4TargetV6.SourceBoundary v}
+  {r : v.Registry} {s : v.State} {d : v.Demand},
+  Yulang.B4TargetV6.RejectReason b r s d →
+    Yulang.B4TargetV6.Local b r s d Yulang.CommonRoleOutermostResolver.Frontier.rejected
+Yulang.B4TargetV6.Local.ambiguous : ∀ {v : Yulang.B4Target.Vocabulary} {b : Yulang.B4TargetV6.SourceBoundary v}
+  {r : v.Registry} {s : v.State} {d : v.Demand} {a : Nat} {xs : List v.Demand} {z : Nat} {ys : List v.Demand},
+  Yulang.B4TargetV6.SafeKnown b r s d →
+    b.Survivor r s d a xs →
+      b.Survivor r s d z ys →
+        a ≠ z → Yulang.B4TargetV6.Local b r s d Yulang.CommonRoleOutermostResolver.Frontier.ambiguous
+Yulang.B4TargetV6.Local.selected : ∀ {v : Yulang.B4Target.Vocabulary} {b : Yulang.B4TargetV6.SourceBoundary v}
+  {r : v.Registry} {s : v.State} {d : v.Demand} {key : Nat} {children : List v.Demand},
+  Yulang.B4TargetV6.SafeKnown b r s d →
+    Yulang.B4TargetV6.Unique b r s d key children →
+      ¬b.OutputConflict r s d key →
+        Yulang.B4TargetV6.Local b r s d (Yulang.CommonRoleOutermostResolver.Frontier.selected key children)

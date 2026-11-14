@@ -64,3 +64,31 @@ At08:04UTC fresh integration advanced to0b2a6b482ef6d7e7e84223aad7fd3eb55eefd2d9
 Checkpoint3 ec6c5f7252f2d13f1f7e1882b85b9e9ab36eb3d2 matched local tree42aa41ddb54b3a1e40c4ea8495edd5b9c50904f6 on fresh fetch. An initial transport tree had a hash mismatch due UTF8 chunk boundaries; it was never committed or installed on the branch. Re-encoding transport JSON as ASCII escaped text produced the exact expected tree.
 
 Post-upstream focused build858jobs PASS and trust0/warningAsError155-declaration gate PASS. Independent root-extension scope review PASS: overlap is derived, not relabeled as a premise; endpoint/origin linkage, observations/Fits/coherence and prior Models remain. General EvidenceNode and full candidate Joint remain OPEN.
+
+## I32 next-cycle handoff
+
+New migration note `notes/design/2026-11-14-cycle184-v6-migration.md` isolates three actual obligations: HeadStep packet support; HeadStep registered-site producers; HeadStepEffects full model frame including snapshot Holds and live output equations. WF reachable_old is not originalG reachability. Existing Exact/saturation/order are not DictionarySound. Strict API/type inspection and focused WFTransfer build passed, without adding any claimed V6 bridge. Detailed Japanese quantified claims and the13-definition inventory are in `2026-11-14-cycle184-claims-ja.md`.
+
+Checkpoint4 d4232be0bed435ace0ae3d26afe92bf2afc47278 exactly matched local tree27466627773647d992ea80391dfd4ed840a9b32e. It has current integration as second parent. Final preservation against its5245 upstream paths passes; only root imports are appended among preexisting upstream Lean sources.
+
+## Final verification results
+
+-17 individual new source compilations: `lake env lean --trust=0 -DwarningAsError=true Yulang/<module>184.lean`, all exit0 after upstream merge. SHA256 manifest and per-file exits recorded.
+- Post-upstream focused RootExtension/CandidateCoverage build858 jobs: exit0. FourthGate strict155 declarations: exit0.
+- PublicTypes includes92 explicit public theorem checks;17 root imports each occur exactly once. Counting recognizes3 whitespace-indented declarations, not only column-zero declarations.
+- Fresh post-upstream kernel dependency traversal: general roots0/155, local roots129/155, both exit0. Opaque proof bodies are included.
+- V6 migration type inspection/focused WFTransfer build: exit0. This is verification of existing APIs, not a V6 theorem contribution.
+- Latest integration preservation: all5245 prior paths retained, upstream old Lean exact except appended root imports, frozen Audit/README exact, INDEX prefix exact. All17 cycle184 proof modules byte-identical to checkpoint3.
+- Full build/verify-lean and Yulang2 runtime were not run; supervisor full CI certification remains outside this cycle.
+
+Actual source commands and full outputs/exit files are under `notes/verification/cycle184/`; `reproduce.md` collects commands and the distinction between historical startup audit and final upstream audit. No new proof placeholders, new foundational assumptions, or native decision proof shortcut. Standard Lean foundation dependencies are accepted by the explicit axiom gate.
+
+No semantics decision made, no question note added. Usage remaining: unknown. Publication is GitHub-app only to work/dots-main, with expected-head leases and exact complete-tree checks. No pending approval/blocker remains for this cycle.
+
+Independent final review of Japanese quantified claims and V6 migration note PASS: purpose≥7 preservation vs purpose8 provenance distinguished;13-definition inventory matches actual originalG fields. The6 local roots leave8 public alternative/convenience entry theorems outside their dependency closure, plus generated/private constants; no pruning was used.
+
+Timing note: the checkpoint4 heartbeat used the nominal08:09 timestamp while publication finished around08:07–08:08; the final completed heartbeat uses the actual completion-preparation time. There was no missed10-minute publication interval, but that intermediate timestamp was ahead of the wall clock by about2minutes.
+
+## Completion
+
+Proof work, independent review and post-upstream validation complete at 08:13:12UTC (43.5minutes since actual07:29:42 start). Final publication/verification reserved before08:22UTC deadline. User55-minute inclusive cap and parent instruction to prioritize completion/publication take precedence over the old instruction to keep proving until55minutes. This final commit adds no new proof theorem beyond the17 modules/92 public declarations already published and reverified. All current work is retained; next cycle follows fresh I32.
