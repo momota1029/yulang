@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryMatScalarConflict200
+
+#check Yulang.GeneralDictionaryMatScalarConflict200.source_not_total
+#print axioms Yulang.GeneralDictionaryMatScalarConflict200.scalar_requests
+#print axioms Yulang.GeneralDictionaryMatScalarConflict200.no_total_holds
+#print axioms Yulang.GeneralDictionaryMatScalarConflict200.no_evidence
+#print axioms Yulang.GeneralDictionaryMatScalarConflict200.source_not_total
