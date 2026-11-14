@@ -496,3 +496,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Source syntax extraction and finite capture refinement](2026-11-14-source-syntax-refinement.md) — Unrestricted request templates/canonicality, coarse-ledger composition, finite simultaneous capture refinement, and conditional historical label extension; reachable source production and universal next remain open.
 
 - [Centered administrative ground composition](2026-11-14-centered-administrative-composition.md) — merge-aware Local, eleven unconditional V5 fields, all-state where accessibility, fixed-snapshot reordering, and explicit production/final-observation residuals.
+
+- [Centered production and terminal observation limits](2026-11-14-centered-terminal-production.md) — persistent packet commitment, exact selected-frame completion residual, same-center merge availability, and an actual ground terminal fork refuting full primitive-observation confluence; the two V5 fields remain open.
