@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryCenteredSharedMerge176
+#print axioms Yulang.GeneralDictionaryCenteredSharedMerge176.same_named_inputs
+#print axioms Yulang.GeneralDictionaryCenteredSharedMerge176.recovered_observed
+#print axioms Yulang.GeneralDictionaryCenteredSharedMerge176.named_merge_guard
+#print axioms Yulang.GeneralDictionaryCenteredSharedMerge176.stable_named_alias

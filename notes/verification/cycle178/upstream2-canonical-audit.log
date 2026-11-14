@@ -1,0 +1,107 @@
+'Yulang.GeneralCanonicalRegistry.reorders_canonical' depends on axioms: [Classical.choice]
+'Yulang.GeneralCanonicalRegistry.class_iff' does not depend on any axioms
+'Yulang.GeneralCanonicalRegistry.canonical_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCanonicalRegistry.canonical_idempotent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCanonicalRegistry.canonical_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCanonicalRegistry.constructors' depends on axioms: [Classical.choice]
+'Yulang.GeneralCanonicalRegistry.roles' depends on axioms: [Classical.choice]
+'Yulang.GeneralCanonicalRegistry.canonical_eq_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredRegistryPassive.administrative' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredRegistryPassive.packet_free_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredRegistryPassive.packet_free_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredRegistryPassive.packet_free_steps' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredRegistryPassive.packet_free_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredRegistryPassive.canonical_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalPacketReordering.bindings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.private_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.named_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.input_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.input_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.ordinary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.outputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.allocated_membership' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.reserved_membership' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.clause_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.usable' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.shared_origin' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.fallback_origin' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.fallback_child_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.shared_child_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.shared_child_site' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalPacketReordering.shared_emitted_sites' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.binder' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.head_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.schema_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.emitted_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.child_site' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.child_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.needed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.equations' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.emitted_mem' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.emitted_perm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.child_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.tests_mem' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.inspection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.safe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.installed_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.installed_raw_sites' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.installed_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredPlanReordering.installed_center_sites' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.canonical_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.lifted_exit_of_canonical' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.final_exit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.final_nonempty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.final_lifted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.treeExecution' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.canonicalLocalOrder' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.final_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.final_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.bridges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalExecutor.composition' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalTransport.steps_backward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalTransport.halt_reflects' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalTransport.lifted_exit_of_simulation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalTransport.canonical_exit_lifting' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalTransport.canonicalLocalOrder' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalCenteredCanonicalTransport.composition' depends on axioms: [propext, Classical.choice, Quot.sound]

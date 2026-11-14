@@ -1,0 +1,14 @@
+import Yulang.GeneralDictionaryAgreedRoleExamples174
+#print axioms Yulang.GeneralDictionaryAgreedEdge174.selected_child_role
+#print axioms Yulang.GeneralDictionaryAgreedEdge174.child_role_decreases
+#print axioms Yulang.GeneralDictionaryAgreedEdge174.whereAccessible
+#print axioms Yulang.GeneralDictionaryAgreedEdge174.boundary_whereAccessible
+#print axioms Yulang.GeneralDictionaryAgreedEdge174.leaves_stratified
+#print axioms Yulang.GeneralDictionaryAgreedEdge174.leaf_whereAccessible
+#print axioms Yulang.GeneralDictionaryAgreedEdge174.stratified_reorders
+#print axioms Yulang.GeneralDictionaryAgreedEdge174.descent_bounded
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly_checked
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly_nonleaf
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly_stratified
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly_accessible
+#print axioms Yulang.GeneralDictionaryAgreedRoleExamples174.display_not_stratified

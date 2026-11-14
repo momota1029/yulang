@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryAgreedFlexibleCompletion175
+
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleCompletion175.halted_dictionary_evidence
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleCompletion175.halted_pending_dictionary_evidence
+
+#print axioms Yulang.GeneralDictionaryAgreedFlexibleCompletion175.halted_completed_evidence
