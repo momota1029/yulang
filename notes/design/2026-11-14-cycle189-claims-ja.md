@@ -65,3 +65,38 @@ InitialLeafFixture189/InitialLeafLocal189/InitialLeafNonvacuity189は既存Termi
 | Evidence | 一般の定義あり、橋は断片 | 既存RecursiveEvidence;今回初期stable leafの全model橋 |
 
 V6はSkeleton構造を持たないため、架空のフィールド分母は書かない。一般reachable EvidenceNode、child materialization全般、最終Statementは未証明。一般フィールドの新規閉鎖は0。既知multi-tag生成阻害は修復していない。
+
+## 最終強化: 名前付き出力を持つ source variable leaf の実 Evidence
+
+ここから先は前節の空出力制限を外す。ただしheadを1変数の宣言に絞る。一般再帰headの空出力版とは別の、互いに異なる範囲の結果である。
+
+### GeneralNominalSingleVariableModels189
+- head_models: 任意planで実queries=[variables[name]]、bounds=[(slot,slot)]、inputNames=[name]なら、任意source Modelsの**同じmodel**に実HeadModelsが成立する。
+- selected_named_head_model: Checked、実Initial/selected/Frame、上記構造条件、readyから、同じmodelでcurrent/head/output/HeadModels。出力modelを別modelへ置き換えない。
+- actual_schema_raw: 任意actual-mode-only schema、checkerに合う変数scope、input binder Fits、raw capture originsなし、centered SchemaHoldsからraw Materialization.Models。同名の異なるschema位置間の等値も保持する。
+- leaf_named_schema: 任意leafの実namedSchemaはrootの名前付きrequestsの実generated schema。
+- named_plan: 上記single-variable/point/name条件、leaf、source Models、HeadEquationsとcentered namedSchemaの同じmodelからfull Plan.Holds。named requestの数は制限しない。
+- selected_named_plan: 初期selectedの正確な同plan出力witnessをfull Plan.Holdsへ接続。
+- installed_outputs: 任意state/plan/model、leafなら、実install後も同modelのOutputEquationsを保持。新しいsiteがないため実request集合を保つ。
+- selected_named_installable: 初期selected/実Frame、上記構造条件、leaf、readyから実Installable。empty-output条件なし。choice/valueSupport/live ledger/materializationも導出。
+
+### GeneralNominalInitialNamedEvidence189
+initial_schemaでleafのnamedSchemaと実outputSchemaが等しいことを導く。committed_instanceは初期leaf/Frame/ready/Committedと任意current modelから、名前付き出力を含む実RecursiveEvidence.Instanceを導く。stable_selected_evidenceは上のsingle-variable構造条件とInitial/Stable/selectedから、その任意current modelの実boundary.Evidenceを導く。空出力は仮定しない。
+
+### GeneralNominalSourceVariableInstall189
+- source_shape: 宣言.head=[var name]から、実queriesとinputNamesのsingleton形を導く。
+- initial_bounds: 実Initial/Frameとこのhead形から実boundsがsingleton pointであることを導く。callerがslot/boundsを渡す必要はない。
+- selected_installable: 宣言head形・leaf・要求出力のequation coverage・associated RHS翻訳Completeから実Installable。EffectsReadyを仮定しない。
+- selected_source_candidate: 実selectedのSurvivorからFrame/candidate/supportを構成。条件は選択keyに一致する可視宣言について上のhead形・leaf・coverage・Completeのみ。
+
+### GeneralNominalSourceVariableEvidence189（名前付き出力版の外側の定理）
+任意roles/registry/root/state/key/childrenについて、Checked、実WF Initial、実WF Stable、実V6 Local.selectedがあり、選択keyと一致する可視宣言が
+1. あるnameについて head=[var name]、
+2. requirements=[]、
+3. rootの各名前付きoutputに対応するassociated equationあり、
+4. associated RHSの正規化翻訳QueryがComplete、
+なら children=[]、かつ**すべてのmodelについて current Modelsなら既存の実WF boundary.Evidence(root,node key [])**。
+
+Frame、slot、query列、inputNames、EffectsReady、model存在、Committedを追加前提にしていない。出力要求は任意有限個で空とは限らない。StableとInitialは保持。任意reachableやnonleafへの一般化はしていない。
+
+反復captureを含むheadではraw merge endpoint等式の再構成が別途必要になる。今回それを一般に導いておらず、同じassignmentのHeadEquationsからraw private equationsを自動的に結論しない。これは依存関係の分析であり、新しいLean反例や意味論E2を発見したという報告ではない。

@@ -1,0 +1,18 @@
+PATH=/tmp/yulang183-toolchain/lean-4.35.0-linux/bin:$PATH
+# all commands from repo root unless noted
+# Fresh refs fetched with explicit refspec; work/dots-audit fetched separately.
+# Focused lean/ commands (timeout120/180 seconds, logs alongside this file):
+lake build Yulang.GeneralNominalOutputCoverage189 --wfail
+lake build Yulang.GeneralNominalHeadLeafPlan189 --wfail
+lake build Yulang.GeneralNominalInitialLeafStep189 Yulang.GeneralNominalInitialFrameUnique189 --wfail
+lake build Yulang.GeneralNominalInitialLeafEvidence189 Yulang.GeneralNominalInitialOutputExact189 --wfail
+lake build Yulang.GeneralNominalInitialLeafNonvacuity189 --wfail
+lake build Yulang.GeneralNominalSingleVariableModels189 --wfail
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189Gate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189ProgressGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189EvidenceGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189RegressionGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189NamedGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189PublicTypes.lean
+# Dependency traversal via tools/ReachCycle189.lean, explicit local/general roots.
+# Bytewise all-old-path preservation via preservation.py; git diff --check.
