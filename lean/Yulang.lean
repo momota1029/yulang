@@ -3202,3 +3202,6 @@ import Yulang.GeneralNominalHeadFrameExtension186
 import Yulang.GeneralNominalHeadBinderCollisions186
 import Yulang.GeneralNominalHeadRevisitExtension186
 import Yulang.GeneralNominalHeadTestSemantic186
+
+import Yulang.GeneralNominalCaptureBounds187
+import Yulang.GeneralNominalHeadRawBounds187
