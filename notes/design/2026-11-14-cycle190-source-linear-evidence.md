@@ -32,3 +32,34 @@ at generated occurrences. Commitment also records every child edge. Recursive
 V6 Classify can therefore be converted to Evidence when each generated selected
 node has an actual installation certificate. This residual condition contains
 no Evidence or Classify recursion; it is not asserted to hold generally.
+
+The operational condition is NOT globally true on the current WF boundary:
+the existing supervisor-owned WFJoinCounterexample's checked, reachable, stable
+multi-tag source has a selected root but no Installable packet. The exact new
+Available condition is refuted there in InstallationBoundary190. Thus general
+availability is not merely an unattempted proof. Closing the general theorem
+requires the owning generation/materialization boundary to be repaired upstream;
+this cycle neither changes semantics nor claims this known finding as new.
+
+## Repeated variable heads: constructive repair
+
+The linear restriction has now been removed from the initial named-output
+installation entry point. HeadEquations puts every actual source center at its
+shared binder value up to semantic equivalence. For repeated captures, the
+original existential output witness need not satisfy the raw merge equations.
+A finite assignment repair overwrites only fresh purpose-0/1 extrema with the
+old binder value. Namespace separation and initial-source freshness preserve
+current source values, all binders, actual head schemas and named output schemas.
+The lower/upper join/meet equations, private HeadModels and full Plan.Holds
+are then proved for that ONE repaired witness, along with current/output models.
+No independent existential witnesses are conflated.
+
+SourceRepeatedEvidence190 derives candidate/Frame/point-bound plumbing from
+actual source declarations; arbitrary finite variable heads may repeat names.
+Leaf and complete translated output RHS/coverage remain real restrictions.
+The progress theorem yields semantic commitment or an inhabited actual step.
+If initial Stable is additionally assumed, universal Evidence follows through
+semantic commitment in every current model. The constructive witness is not
+substituted for that universally quantified final model. In particular, an
+initial state with newly needed repeated-capture merges need not be Stable;
+we do not assert nonvacuity of every stable-initial repeated-name specialization.
