@@ -1,0 +1,76 @@
+Yulang.GeneralNominalHeadSemanticTransport185.head_transport {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin} {test : Yulang.GeneralNominalRecursiveInspection.Test}
+  (same : Yulang.GeneralNominalOriginTerms.Same model first last)
+  (valid : Yulang.GeneralNominalOriginTerms.Head model first test) :
+  Yulang.GeneralNominalOriginTerms.Head model last test
+Yulang.GeneralNominalHeadSemanticTransport185.project_observes {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin} {value : Yulang.CommonNominalFullCarrier.Ty}
+  (same : Yulang.GeneralNominalOriginTerms.Same model first last) (test : Yulang.GeneralNominalRecursiveInspection.Test)
+  (index : Fin (Yulang.GeneralNominalOriginTerms.arity test))
+  (seen :
+    Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalOriginTerms.project first test index)
+      value) :
+  Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalOriginTerms.project last test index)
+    value
+Yulang.GeneralNominalHeadSemanticTransport185.project_observes_iff
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} {first last : Yulang.GeneralNominalRecursiveInspection.Origin}
+  (same : Yulang.GeneralNominalOriginTerms.Same model first last) (test : Yulang.GeneralNominalRecursiveInspection.Test)
+  (index : Fin (Yulang.GeneralNominalOriginTerms.arity test)) (value : Yulang.CommonNominalFullCarrier.Ty) :
+  Iff
+    (Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalOriginTerms.project first test index)
+      value)
+    (Yulang.GeneralNominalRecursiveInspection.Observes model (Yulang.GeneralNominalOriginTerms.project last test index)
+      value)
+Yulang.GeneralNominalHeadSemanticTransport185.project_same {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin}
+  (same : Yulang.GeneralNominalOriginTerms.Same model first last) (test : Yulang.GeneralNominalRecursiveInspection.Test)
+  (index : Fin (Yulang.GeneralNominalOriginTerms.arity test))
+  (valid :
+    Yulang.GeneralNominalOriginTerms.Same model (Yulang.GeneralNominalOriginTerms.project first test index)
+      (Yulang.GeneralNominalOriginTerms.project first test index)) :
+  Yulang.GeneralNominalOriginTerms.Same model (Yulang.GeneralNominalOriginTerms.project first test index)
+    (Yulang.GeneralNominalOriginTerms.project last test index)
+Yulang.GeneralNominalHeadSemanticTransport185.holds_leaves {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {α : Type} {root : Yulang.GeneralNominalRecursiveInspection.Origin} (term : Yulang.GeneralNominalOriginTerms.Expr α)
+  (first last : α → Yulang.GeneralNominalRecursiveInspection.Origin)
+  (leaves :
+    ∀ (name : α),
+      @Membership.mem.{0, 0} α (List.{0} α) (@List.instMembership.{0} α)
+          (@Yulang.GeneralNominalOriginTerms.Expr.leaves α term) name →
+        Yulang.GeneralNominalOriginTerms.Same model (first name) (last name))
+  (valid :
+    Yulang.GeneralNominalOriginTerms.Holds model
+      (@Yulang.GeneralNominalOriginTerms.Expr.bind α Yulang.GeneralNominalRecursiveInspection.Origin
+        (fun (name : α) =>
+          @Yulang.GeneralNominalOriginTerms.Expr.leaf Yulang.GeneralNominalRecursiveInspection.Origin (first name))
+        term)
+      root) :
+  Yulang.GeneralNominalOriginTerms.Holds model
+    (@Yulang.GeneralNominalOriginTerms.Expr.bind α Yulang.GeneralNominalRecursiveInspection.Origin
+      (fun (name : α) =>
+        @Yulang.GeneralNominalOriginTerms.Expr.leaf Yulang.GeneralNominalRecursiveInspection.Origin (last name))
+      term)
+    root
+Yulang.GeneralNominalHeadSemanticTransport185.holds_leaves_and_root
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} {α : Type}
+  {root target : Yulang.GeneralNominalRecursiveInspection.Origin} (term : Yulang.GeneralNominalOriginTerms.Expr α)
+  (first last : α → Yulang.GeneralNominalRecursiveInspection.Origin)
+  (leaves :
+    ∀ (name : α),
+      @Membership.mem.{0, 0} α (List.{0} α) (@List.instMembership.{0} α)
+          (@Yulang.GeneralNominalOriginTerms.Expr.leaves α term) name →
+        Yulang.GeneralNominalOriginTerms.Same model (first name) (last name))
+  (roots : Yulang.GeneralNominalOriginTerms.Same model root target)
+  (valid :
+    Yulang.GeneralNominalOriginTerms.Holds model
+      (@Yulang.GeneralNominalOriginTerms.Expr.bind α Yulang.GeneralNominalRecursiveInspection.Origin
+        (fun (name : α) =>
+          @Yulang.GeneralNominalOriginTerms.Expr.leaf Yulang.GeneralNominalRecursiveInspection.Origin (first name))
+        term)
+      root) :
+  Yulang.GeneralNominalOriginTerms.Holds model
+    (@Yulang.GeneralNominalOriginTerms.Expr.bind α Yulang.GeneralNominalRecursiveInspection.Origin
+      (fun (name : α) =>
+        @Yulang.GeneralNominalOriginTerms.Expr.leaf Yulang.GeneralNominalRecursiveInspection.Origin (last name))
+      term)
+    target

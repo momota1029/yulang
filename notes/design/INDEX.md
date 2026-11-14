@@ -556,3 +556,10 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle184 residual origin bridge](2026-11-14-cycle184-residual-origin-bridge.md)
 - [Cycle184 quantified claims and definition inventory](2026-11-14-cycle184-claims-ja.md)
 - [Cycle184 I32 V6 migration obligations](2026-11-14-cycle184-v6-migration.md)
+
+- [Cycle185 actual WF/head-step support](2026-11-14-cycle185-head-support.md)
+- [Cycle185 registered site support](2026-11-14-cycle185-head-site-support.md)
+- [Cycle185 historical/live effect provenance](2026-11-14-cycle185-effects-support.md)
+- [Cycle185 日本語の主張・量化範囲・次の橋](2026-11-14-cycle185-claims-ja.md)
+
+- [Cycle186 semantic identity coherence](2026-11-14-cycle186-semantic-sites.md): actual WF centers and head schema transport.

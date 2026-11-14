@@ -1,0 +1,8 @@
+import Yulang.GeneralNominalHeadSemanticTransport185
+set_option pp.all true
+#check Yulang.GeneralNominalHeadSemanticTransport185.head_transport
+#check Yulang.GeneralNominalHeadSemanticTransport185.project_observes
+#check Yulang.GeneralNominalHeadSemanticTransport185.project_observes_iff
+#check Yulang.GeneralNominalHeadSemanticTransport185.project_same
+#check Yulang.GeneralNominalHeadSemanticTransport185.holds_leaves
+#check Yulang.GeneralNominalHeadSemanticTransport185.holds_leaves_and_root
