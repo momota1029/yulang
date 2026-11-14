@@ -3271,3 +3271,4 @@ import Yulang.GeneralNominalSourceRepeatedEvidence190
 import Yulang.GeneralNominalRepeatedFixture190
 import Yulang.GeneralNominalRepeatedLocal190
 import Yulang.GeneralNominalRepeatedSuccessor190
+import Yulang.GeneralNominalInstalledEvidence190

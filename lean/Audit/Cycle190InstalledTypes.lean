@@ -1,0 +1,10 @@
+import Yulang.GeneralNominalInstalledEvidence190
+
+#check Yulang.GeneralNominalInstalledEvidence190.stored_instance
+#print axioms Yulang.GeneralNominalInstalledEvidence190.stored_instance
+#check Yulang.GeneralNominalInstalledEvidence190.current_instance
+#print axioms Yulang.GeneralNominalInstalledEvidence190.current_instance
+#check Yulang.GeneralNominalInstalledEvidence190.current_evidence
+#print axioms Yulang.GeneralNominalInstalledEvidence190.current_evidence
+#check Yulang.GeneralNominalInstalledEvidence190.terminal_evidence
+#print axioms Yulang.GeneralNominalInstalledEvidence190.terminal_evidence

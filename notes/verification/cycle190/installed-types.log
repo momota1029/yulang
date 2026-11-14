@@ -1,0 +1,50 @@
+Yulang.GeneralNominalInstalledEvidence190.stored_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (valid : plan.packet.Holds model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.core.erased.current.context model
+    plan.packet.site.occurrence plan.packet.declaration.id plan.packet.children
+'Yulang.GeneralNominalInstalledEvidence190.stored_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalInstalledEvidence190.current_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models
+      (Yulang.GeneralNominalCenteredHeadStepKernel.install state plan support enabled) model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry
+    (Yulang.GeneralNominalCenteredHeadStepKernel.install state plan support enabled).core.erased.current.context model
+    plan.packet.site.occurrence plan.packet.declaration.id plan.packet.children
+'Yulang.GeneralNominalInstalledEvidence190.current_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalInstalledEvidence190.current_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models
+      (Yulang.GeneralNominalCenteredHeadStepKernel.install state plan support enabled) model)
+  (dictionaries : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry
+        (Yulang.GeneralNominalCenteredHeadStepKernel.install state plan support enabled) model)
+      plan.packet.children dictionaries) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry
+    (Yulang.GeneralNominalCenteredHeadStepKernel.install state plan support enabled) model plan.packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node plan.packet.declaration.id dictionaries)
+'Yulang.GeneralNominalInstalledEvidence190.current_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalInstalledEvidence190.terminal_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry state plan support)
+  (terminal : plan.packet.children = []) (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models
+      (Yulang.GeneralNominalCenteredHeadStepKernel.install state plan support enabled) model) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry
+    (Yulang.GeneralNominalCenteredHeadStepKernel.install state plan support enabled) model plan.packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node plan.packet.declaration.id [])
+'Yulang.GeneralNominalInstalledEvidence190.terminal_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
