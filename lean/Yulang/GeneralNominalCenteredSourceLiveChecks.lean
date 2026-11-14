@@ -37,3 +37,4 @@ theorem full_frontier_initialized :
   initialized initial_source point
 
 end Yulang.GeneralNominalCenteredSourceLiveChecks
+
