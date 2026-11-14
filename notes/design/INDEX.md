@@ -553,3 +553,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered total-materialization journal integration](2026-11-14-centered-head-mat-journal.md) — corrected packet/journal equations, class-request and center-recording invariants, repeated-target extension, and the row installation model; operational guards, successor Step and boundary-law transfers remain open.
 - [Cycle183 uniform historical witnesses and exact origin agreement](2026-11-14-cycle183-origin-agreement.md) (Draft).
 - [Cycle184 raw-support producer plan](2026-11-14-cycle184-raw-support.md)
+- [Cycle184 residual origin bridge](2026-11-14-cycle184-residual-origin-bridge.md)
+- [Cycle184 quantified claims and definition inventory](2026-11-14-cycle184-claims-ja.md)
+- [Cycle184 I32 V6 migration obligations](2026-11-14-cycle184-v6-migration.md)
