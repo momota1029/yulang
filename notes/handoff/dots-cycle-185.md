@@ -58,3 +58,44 @@ A delegated duplicate transport/candidate source was detected before first
 publication; duplicate transport removed from source tree (preserved locally),
 candidate import/API unified and rebuilt. Only the verified unified source
 was published. Early compilation errors are not counted as successful checks.
+
+## Checkpoint3: complete WF overlap producer and root extension
+
+Checkpoint2 ac2399ac4dd73d9bdb9a0ffaef7b10950c01a404 matched fetched
+tree136ae3da8ccc9086028e697867e84c3a5701ea0d exactly.
+The core purpose8 overlap producer is now proved along actual HeadStep traces,
+including declared/Needed captures, site centers and schemas. Combining it
+with snapshot/live effects yields one fixed historical origin for EVERY
+purpose8 overlap in the COMPLETE HeadLedgerFrame182.fullSources. The witness
+is chosen before quantifying all full HeadStepEffects.Models; uniqueness of
+the origin is not claimed. No caller provenance/target-exclusion premise.
+
+HeadHistoricalExtension185 gives the exact finite conservative extension
+criterion with these witnesses. Candidate/history Same remains one explicit
+condition alongside observations, Fits, repeated-center coherence and links.
+HeadRootOverlap185 eliminates historical agreement for a registered current
+ROOT candidate's nonoutput/nonpoint actual head uses, deriving registered
+producer, exact invocation/declaration/name metadata and root occurrence
+internally. HeadRootExtension185 preserves FULL effect models and full
+footprint; endpoint/origin linkage, observations/Fits and equal-center
+coherence remain. Not a complete candidate plan or generated-demand bridge.
+
+Current19 modules101 public theorems, strict138 declaration gate PASS.
+Theorems are auxiliary correctness/extension mechanisms, not101 closed B4
+fields. Public full types and explicit signatures are saved. Every individual
+source passed trust0+warningsAsErrors. Focused build1010jobs PASS; complete
+project/CI certification still unrun. Existing general WF roots reach0/138
+new constants; four local mechanism roots reach114/138, including opaque
+proof bodies. Source-preservation audit passes all5298 upstream paths.
+
+## Existing upstream obstruction, not this cycle's discovery
+
+Fresh integration already contains HeadWFJoinCounterexample. Its
+not_generatedChildren and not_v6_selected_production prove a stable selected
+ground source with constructor coverage and feasible class effects can have
+no installation/child generation: multi-tag variant materialization remains
+unsupported. Focused compilation of that existing module passed. This is
+not a new counterexample by this cycle, and does not invalidate the support
+lemmas above. It prevents claiming that these lemmas complete the current
+general boundary. Definition/production repair belongs to the supervisor's
+Astra assignment; no unauthorized boundary/spec rewrite was made.
