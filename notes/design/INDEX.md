@@ -569,3 +569,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle189: 初期leaf Evidenceと同一plan出力条件](2026-11-14-cycle189-claims-ja.md)（2026-11-14、局所証明・一般境界未完了）
 
 - [Cycle190 source linear Evidence](2026-11-14-cycle190-source-linear-evidence.md): source-derived finite linear leaf interface; general EvidenceNode remains open.
+
+- [Cycle190 quantified claims](2026-11-14-cycle190-claims-ja.md): finite variable source Evidence, repeated-capture repair, operational availability boundary.

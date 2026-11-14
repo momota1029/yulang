@@ -63,3 +63,11 @@ semantic commitment in every current model. The constructive witness is not
 substituted for that universally quantified final model. In particular, an
 initial state with newly needed repeated-capture merges need not be Stable;
 we do not assert nonvacuity of every stable-initial repeated-name specialization.
+
+## 13:56 UTC checkpoint: actual repeated installation and upstream audit repair
+
+Added GeneralNominalRepeatedFixture190 and GeneralNominalRepeatedLocal190: a concrete checked initial source with head [var 0, var 0], two source inputs, and named output var 0. It is selected and Installable. A current model assigning bool to the fresh lower endpoint refutes semantic Committed while preserving the source assignment. Hence there is an actual installation Step with an inhabited successor, and the initial state is not Stable. This is a progress/nonvacuity regression, not a claim that repeated-head initial saturation is already stable. All 50 public regression theorems passed strict checking and standard-axiom audit.
+
+Fresh integration d5696a2ea39565b1475f6d0ceded1fb75b09b726 was merged. Upstream commit 00b8f9ffd removes the offending pp.universes setting in the three historical Cycle189 audit files; earlier notes describing that parser defect are historical and superseded by this upstream repair. No local rewrite of those published proofs was performed.
+
+Current full cycle190 gate: 243 declarations including generated/private, standard axioms only. Fifteen proof modules; public declaration inventory and reachability are being frozen separately. No general field was closed; Available is a genuine extra premise and is refuted universally by the known upstream counterexample. Independent full review was unavailable; author-level checks and concrete positive/negative regressions do not substitute for it.

@@ -3268,3 +3268,5 @@ import Yulang.GeneralNominalAvailableNonvacuity190
 import Yulang.GeneralNominalRepeatedPointRepair190
 import Yulang.GeneralNominalRepeatedNamedPlan190
 import Yulang.GeneralNominalSourceRepeatedEvidence190
+import Yulang.GeneralNominalRepeatedFixture190
+import Yulang.GeneralNominalRepeatedLocal190
