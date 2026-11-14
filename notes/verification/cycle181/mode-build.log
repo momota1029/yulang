@@ -1,0 +1,12 @@
+DEPENDENCY_CLOSURE 822 REBUILD 5
+START Yulang.GeneralNominalModeFrame181
+END Yulang.GeneralNominalModeFrame181 0
+START Yulang.GeneralNominalModeLedger181
+END Yulang.GeneralNominalModeLedger181 0
+START Yulang.GeneralNominalSemanticCompatibility181
+END Yulang.GeneralNominalSemanticCompatibility181 0
+START Yulang.GeneralNominalObservationExtension181
+END Yulang.GeneralNominalObservationExtension181 0
+START Yulang.GeneralNominalFramedExtension181
+END Yulang.GeneralNominalFramedExtension181 0
+PASS 5

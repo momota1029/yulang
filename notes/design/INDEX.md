@@ -513,12 +513,8 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Concrete centered source invariant](2026-11-14-centered-source-invariant.md) — Root initialization, all noninstall and terminal-install preservation, exact child source values and global replacement; full centered Simulation and Acc reduced to one explicit nonterminal-install obligation.
 - [Centered nonterminal installation: preservation-contract counterexample](2026-11-14-centered-nonterminal-install.md) — Three sufficient source obligations and their composition; a checked InitialSource with an actual centered install refutes the current universal inventory-preservation contract. Class P accessibility remains open; branch-owned source trace renamed for integration.
 
-- [Cycle178 theorem/module guide](2026-11-14-cycle178-module-guide.md): exact hypotheses, same-model residuals and restricted G scope.
-
 - [Centered canonical executor](2026-11-14-centered-canonical-executor.md) — invariant registry representative, actual packet-free trace transport, packet/center/emitter rebasing, and an original-registry executor retaining eleven bridges; canonical order remains conditional on exit lifting or concrete permutation simulation.
 - [Centered reachable permutation: correspondence and installation obligation](2026-11-14-centered-reachable-permutation.md) — concrete coherent packet pairing, reachable packet-free initialization, administrative/refresh/merge transport, trusted ledgers and value support; full installation transport and final Local agreement remain open.
-
-- [Cycle179 centered discovery](2026-11-14-cycle179-centered-discovery.md)
 - [Centered source retention and the selected-ledger readback obstruction](2026-11-14-centered-source-live-retention.md) — full-frontier strengthened coverage, transport through centered steps and semantic eliminations, and a reachable counterexample to exact selected-ledger input readback; unconditional Class P accessibility remains open.
 
 - [Exact snapshot support cannot be completed by a trusted ledger](2026-11-14-centered-source-snapshot-ledger.md) — snapshot-supported initializer and conditional input promotion; a reachable refresh excludes every trusted exact-readback ledger, so invariant-only completion of that contract is impossible; Class P accessibility remains open.
@@ -537,12 +533,22 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered head-only installation and class effects](2026-11-14-centered-head-step.md) — successor Step and live class-effect ledger, V6 installation agreement, model restriction, stable closure, unrestricted ground-point progress and terminal traces, preserved output coverage and all-state local child accessibility; schema/default, feedback, merge-error and final composition obligations remain.
 
 - [Centered V6 availability and canonical execution](2026-11-14-centered-head-availability-order.md) — complete head-step/effect-ledger permutation simulation and unconditional V6 canonical executor order, execution and exactness; selected availability reduced to explicit extension obligations, a source-formed defaults gap and positional schema interface, and the empty-model conflict limitation.
+
+
+- [Cycle 181: semantic readback compatibility](2026-11-14-cycle181-semantic-overlap.md) — Draft proof engineering; exact finite semantic extension and registered-use overlap.
+- [Cycle 181 module guide](2026-11-14-cycle181-module-guide.md) — Draft; finite semantic extension, alias transport, ledger provenance and mode-sensitive frames.
+- [Cycle181 日本語の主張・量化子と前提](2026-11-14-cycle181-claims-ja.md)
+- [Cycle181 late V6/head-step upstream review](2026-11-14-cycle181-late-upstream-review.md)
+
+- [Cycle182 effect-ledger frames and registered readback](2026-11-14-cycle182-ledger-frames.md) — Draft; original G remains open.
+
+- [Cycle178 theorem/module guide](2026-11-14-cycle178-module-guide.md): exact hypotheses, same-model residuals and restricted G scope.
+- [Cycle179 centered discovery](2026-11-14-cycle179-centered-discovery.md)
 - [Cycle179 module guide](2026-11-14-cycle179-module-guide.md): current-model discovery, initial common model and finite frame limits.
 - [Cycle180: exact extensions and actual centered-journal candidates](2026-11-14-cycle180-model-extension.md) — six focused verified modules; general G.EvidenceNode remains OPEN.
-
 - [Centered V6: stable selection without child materialization](2026-11-14-centered-head-materialization-obstruction.md) — checked inhabited ground InitialSource with V6 selection, positive chosen effects, and stability, but no enabled installation or generated child; constructor-interpretation coverage is absent from the source contract.
 - [Centered head source coverage and variant-row obstruction](2026-11-14-centered-head-wf-source.md) — constructor- and arity-aware Initial, positive source fixtures, twelve bridge transfers and three V6 properties; a legal multi-tag output row gives a stable selected counterexample to child production under the stronger boundary.
-
 - [Total materialization of the current WF declaration language](2026-11-14-centered-head-total-materialization.md) — exhaustive Pattern/default equation compiler, emitted and child-center coverage, default effects and fresh-target model extension; corrected packet/observation consumers and successor-boundary law transfers remain open.
 
 - [Centered total-materialization journal integration](2026-11-14-centered-head-mat-journal.md) — corrected packet/journal equations, class-request and center-recording invariants, repeated-target extension, and the row installation model; operational guards, successor Step and boundary-law transfers remain open.
+- [Cycle183 uniform historical witnesses and exact origin agreement](2026-11-14-cycle183-origin-agreement.md) (Draft).

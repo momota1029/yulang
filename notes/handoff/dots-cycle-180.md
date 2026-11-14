@@ -29,3 +29,7 @@ All previous remote files are retained; publication uses an expected-head lease 
 
 ## Next cycle
 Fetch integration/m1-final and reread standing orders/inbox. Integrate pending upstream changes without overwriting published work. Extend the actual-candidate producer beyond the finite linear fragment, with explicit old-footprint compatibility rather than claiming general evidence completion. Reuse this cycle's small audit but check new declarations as well.
+
+## Publication receipt
+Verified source commit: 90d5ef943d1a083e84f34489a1c64089af9e2d5f.
+Remote tree contains every prior blob path, and all seven new Lean source/audit hashes match local verified bytes. Core CI and Lean inference kernel were in_progress at 04:01Z. Completion heartbeat prepared 2026-11-14T04:01:59Z, within the 55-minute limit.
