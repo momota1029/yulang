@@ -1,0 +1,7 @@
+From https://github.com/momota1029/yulang
+ * branch                  integration/m1-final -> FETCH_HEAD
+ * branch                  work/dots-main       -> FETCH_HEAD
+ * branch                  work/dots-audit      -> FETCH_HEAD
+   165c13ce6f..19462b5a9a  integration/m1-final -> origin/integration/m1-final
+   1acd15b451..1f764c82ec  work/dots-main       -> origin/work/dots-main
+ * [new branch]            work/dots-audit      -> origin/work/dots-audit

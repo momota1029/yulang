@@ -1,0 +1,14 @@
+'Yulang.GeneralDictionaryCenteredLeafRegression176.children_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLeafRegression176.already_committed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLeafRegression176.not_novel' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLeafRegression176.initial_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredLeafRegression176.initial_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLeafRegression176.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredLeafRegression176.no_recorded_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredLeafRegression176.nonvacuous_evidence_without_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
