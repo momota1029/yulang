@@ -1,0 +1,14 @@
+DEPENDENCY_CLOSURE 891 REBUILD 3
+START Yulang.GeneralDictionaryCenteredScalar177
+END Yulang.GeneralDictionaryCenteredScalar177 0
+START Yulang.GeneralDictionaryCenteredNovel177
+END Yulang.GeneralDictionaryCenteredNovel177 0
+START Yulang.GeneralDictionaryCenteredNamed177
+/workspace/scratch/1d0b4aaa3394/yulang177-public/lean/Yulang/GeneralDictionaryCenteredNamed177.lean:65:19: warning: Variable name `visible` is not explicitly referenced.
+
+Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+  [apply] _visible
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+END Yulang.GeneralDictionaryCenteredNamed177 0
+PASS 3
