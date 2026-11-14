@@ -36,3 +36,25 @@ under notes/verification/cycle185. Full lake/verify-lean/CI deliberately unrun.
 All existing upstream Lean unchanged except root appended imports; upstream
 CompleteNames183 import fix retained. Only work/dots-main publication.
 Usage allowance unknown. No semantics decision or question note.
+
+## Checkpoint2: actual historical/live effect readback
+
+Checkpoint1 8ede9291a2d487afe70f1c7227d2d790445964ed freshly fetched and
+complete tree53300b314b23702326bb3beec3d1dccc31667797 matched local exactly.
+Explicit branch fetch leaves remote tracking stale in this clone; FETCH_HEAD
+was checked directly instead. No uncertain mutation retry.
+
+Four further modules prove exact core-plan/effect projection and actual
+reachable installation snapshots. Every fresh purpose>=7 overlap in a recorded
+snapshot or current live output support is exactly an actual-use binder, with
+a single origin giving Same in every full model. Output targets/source roots
+are excluded internally from actual trace support; no caller-supplied
+exclusion or frozen alias class. The effect head support lies in core support.
+These prove historical readback, not arbitrary candidate-origin agreement.
+Focused945/930jobs and strict effects axiom gate PASS. Core purpose8 overlap
+migration is next. General EvidenceNode still OPEN, zero new general fields.
+
+A delegated duplicate transport/candidate source was detected before first
+publication; duplicate transport removed from source tree (preserved locally),
+candidate import/API unified and rebuilt. Only the verified unified source
+was published. Early compilation errors are not counted as successful checks.

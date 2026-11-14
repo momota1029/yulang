@@ -3173,3 +3173,7 @@ import Yulang.GeneralNominalHeadCandidateReadback185
 import Yulang.GeneralNominalHeadReadback185
 import Yulang.GeneralNominalHeadSiteCoherence185
 import Yulang.GeneralNominalHeadSiteOrigin185
+import Yulang.GeneralNominalHeadEffectCore185
+import Yulang.GeneralNominalHeadEffectReadback185
+import Yulang.GeneralNominalHeadEffectsOrigin185
+import Yulang.GeneralNominalHeadOutputSupport185
