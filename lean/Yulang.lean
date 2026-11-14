@@ -3106,3 +3106,10 @@ import Yulang.GeneralNominalCenteredHeadMatExamples
 import Yulang.GeneralNominalOriginAgreement183
 import Yulang.GeneralNominalCaptureCoverage183
 import Yulang.GeneralNominalQueryProvenance183
+
+import Yulang.GeneralNominalCompleteNames183
+import Yulang.GeneralNominalRegisteredCoverage183
+
+import Yulang.GeneralNominalRawSupport183
+import Yulang.GeneralNominalGroundRawSupport183
+import Yulang.GeneralNominalCoverageRegression183

@@ -29,3 +29,32 @@ These are15 theorem declarations,25 total audited declarations including definit
 - No full lake build or tools/verify-lean.sh. Full supervisor certification remains separate. Yulang2 not rerun: these are internal proof APIs, no new runtime agreement claim. Usage allowance unknown.
 
 Full logs/exit codes: notes/verification/cycle183/. Publication is only work/dots-main; checkpoint will be followed by remote tree/hash verification and appended final outcome. Remaining priorities: translation variable preservation, actual coverage of all inputNames/Needed, candidate-origin agreement for residual overlaps; general_candidate_joint and ground_evidenceNode stay open.
+
+## Checkpoint2 — complete input coverage and partial raw support
+
+Checkpoint1 was published as19ee329f01a8ca444da54466be5ce187f986a2ba. Fresh Git fetch confirmed tree7ad688bfb15d24565800b7428b47651c43cad271 and an empty tree diff: all5234 paths matched. This section updates the earlier unfinished-translation status without rewriting it.
+
+Now8 new modules,38 public theorem declarations,116 total audited declarations including definitions/private/generated. Newly completed:
+- CompleteNames183: Finished implies recursively deferred-free query Complete; arbitrary Complete translated Pattern retains all variables (no coveredArgs or Normal premise); list lifting and Finished→translation completeness; every declaration inputName has an actual capture. Terminal heads are included.
+- RegisteredCoverage183: every actually registered plan inputName OR Needed binder has an ActualBinder origin witness, using actual trace/Prepared/Finished and checked scope rather than external schema coverage. Ground-specific wrappers select the origin before quantifying over all Models. A purpose-eight registered site center gets the same uniform historical readback.
+- RawSupport183: actual historical privateContext sources lie in the finite trace pool; seeds are preserved; arbitrary capture inputs/outputs avoid purpose>=7 names. Unused capture outputs are handled by purpose-two namespace separation, not by an incorrect finite-pool membership assertion. InitialSource and InstalledDepthBound are explicit here.
+- GroundRawSupport183: originalG reachability internally supplies the depth bound for historical private/capture exclusion, so no external bound premise remains.
+- CoverageRegression183: a concrete one-variable terminal head, with no child requirements, has Finished inspection and the declared input capture for arbitrary state/bounds/optional origins. This is not a claim of arbitrary registry acceptance.
+
+All exact public theorem names, quantifiers and premises are in notes/verification/cycle183/theorem-signatures.md. Independent read-only review found no scope error or circular external coverage premise. The already published three source modules and two audit files have an empty diff against checkpoint1.
+
+Final focused eight-root build: PASS843 jobs including reused cache, exit0. Final small audit gate: PASS116 declarations, only propext/Classical.choice/Quot.sound. Direct strict compilation of new sources also passed. Terminal regression initially had ambiguous simplifier names and an unused argument, corrected before PASS. Full project build and verify-lean.sh remain intentionally unrun.
+
+Correction to checkpoint1 artifact delivery: .log files were present locally but initially ignored by Git staging; this checkpoint explicitly force-adds the full logs. Existing remote logs and all prior paths are retained. Exit-code files and sources were already published correctly.
+
+### Remaining exact gap
+
+Historical actual-use provenance for registered inputNames/Needed and purpose-eight site centers is now produced. New-candidate origin agreement is still separate. Full rawSources exclusion is NOT proved: raw generated-schema request roots and raw observed-site argument/shared/reobserved origin roots remain. No unrestricted general_candidate_joint or ground_evidenceNode result is claimed. Successor head-effect/V6 models are not substituted for originalG.
+
+OriginalG composition still has10 supplied structural fields and4 explicit Remaining parameters; this cycle closes0 general fields. The other three Remaining fields are not taken over from Astra.
+
+### SourceBoundary definition inventory (not bridge completion)
+
+Checked, Models, Step, Stable, Generated, RootPending, RootK2, CandidateK2, InspectionPending, Survivor, Evidence, Reorders, DictionaryEquivalent: all13 have general definitions in the assigned nominal boundary. This says definitions exist, not that language-wide fidelity or the missing bridge theorems are complete. Initial is additionally present in V5.
+
+No new Yulang2 run or runtime agreement claim. Usage allowance unknown. Current conservative stop deadline07:20:04Z uses the initial environment clock06:25:04 rather than the later run timestamp06:27:19; final verification/report will precede that deadline.

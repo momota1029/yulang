@@ -1,0 +1,125 @@
+✔ [815/841] Built Yulang.GeneralNominalHoleFacets (1.1s)
+✔ [817/841] Built Yulang.GeneralNominalSnapshotCover (1.1s)
+✔ [820/841] Built Yulang.GeneralNominalHoleMaterialization (880ms)
+✔ [821/841] Built Yulang.GeneralNominalSourceFrontier (1.0s)
+✔ [823/841] Built Yulang.GeneralNominalPhaseLabels (926ms)
+✔ [827/852] Built Yulang.GeneralNominalHoleElimination (930ms)
+✔ [829/852] Built Yulang.GeneralNominalModeFrame181 (905ms)
+✔ [831/852] Built Yulang.GeneralNominalHolePhases (997ms)
+✔ [832/852] Built Yulang.GeneralNominalRecipeBounds (1.0s)
+✔ [833/852] Built Yulang.GeneralNominalSettlementHeight (1000ms)
+✔ [835/852] Built Yulang.GeneralNominalModeLedger181 (1.1s)
+✔ [836/852] Built Yulang.GeneralNominalCenteredJournalExtension179 (1.1s)
+✔ [838/852] Built Yulang.GeneralNominalSupportProvenance182 (1.1s)
+✔ [839/852] Built Yulang.GeneralNominalSchemaBudget (1.7s)
+✔ [840/852] Built Yulang.GeneralNominalSemanticCompatibility181 (931ms)
+✔ [841/852] Built Yulang.GeneralNominalSettledGrowth (921ms)
+✔ [842/852] Built Yulang.GeneralNominalObservationExtension181 (878ms)
+✔ [843/852] Built Yulang.GeneralNominalSourceFactorization (962ms)
+✔ [844/852] Built Yulang.GeneralNominalFramedExtension181 (1.0s)
+✔ [845/852] Built Yulang.GeneralNominalHolePhaseSimulation (976ms)
+✔ [846/852] Built Yulang.GeneralNominalPredicateExtension182 (926ms)
+✔ [847/852] Built Yulang.GeneralNominalIndexedHoleReadback (944ms)
+✖ [848/852] Building Yulang.GeneralNominalOriginAgreement183 (916ms)
+trace: .> LEAN_PATH=/workspace/scratch/1d0b4aaa3394/yulang183/lean/.lake/build/lib/lean /tmp/yulang183-toolchain/lean-4.35.0-linux/bin/lean --trust=0 /workspace/scratch/1d0b4aaa3394/yulang183/lean/Yulang/GeneralNominalOriginAgreement183.lean -o /workspace/scratch/1d0b4aaa3394/yulang183/lean/.lake/build/lib/lean/Yulang/GeneralNominalOriginAgreement183.olean -i /workspace/scratch/1d0b4aaa3394/yulang183/lean/.lake/build/lib/lean/Yulang/GeneralNominalOriginAgreement183.ilean -c /workspace/scratch/1d0b4aaa3394/yulang183/lean/.lake/build/ir/Yulang/GeneralNominalOriginAgreement183.c --setup /workspace/scratch/1d0b4aaa3394/yulang183/lean/.lake/build/ir/Yulang/GeneralNominalOriginAgreement183.setup.json --json
+error: Yulang/GeneralNominalOriginAgreement183.lean:41:26: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Models state model
+error: Yulang/GeneralNominalOriginAgreement183.lean:42:9: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Same model
+error: Yulang/GeneralNominalOriginAgreement183.lean:42:47: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Same model
+error: Yulang/GeneralNominalOriginAgreement183.lean:47:63: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Models state model
+error: Yulang/GeneralNominalOriginAgreement183.lean:48:9: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Same model
+warning: Yulang/GeneralNominalOriginAgreement183.lean:51:8: declaration uses `sorry`
+error: Yulang/GeneralNominalOriginAgreement183.lean:60:26: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Models state model
+error: Yulang/GeneralNominalOriginAgreement183.lean:61:24: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Observes model
+error: Yulang/GeneralNominalOriginAgreement183.lean:62:24: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Observes model
+error: Yulang/GeneralNominalOriginAgreement183.lean:63:9: Application type mismatch: The argument
+  model
+has type
+  Core.PresenceGeneration.Model
+of sort `Type 1` but is expected to have type
+  Assignment
+of sort `Type` in the application
+  Same model
+error: Yulang/GeneralNominalOriginAgreement183.lean:62:66: Function expected at
+  model
+but this term has type
+  Core.PresenceGeneration.Model
+
+Note: Expected a function because this term is being applied to the argument
+  name
+error: Yulang/GeneralNominalOriginAgreement183.lean:72:54: Function expected at
+  model
+but this term has type
+  Core.PresenceGeneration.Model
+
+Note: Expected a function because this term is being applied to the argument
+  name
+warning: Yulang/GeneralNominalOriginAgreement183.lean:76:8: declaration uses `sorry`
+warning: Yulang/GeneralNominalOriginAgreement183.lean:81:5: Variable name `provenance` is not explicitly referenced.
+
+Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+  [apply] _provenance
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+✔ [849/852] Built Yulang.GeneralNominalOpenPatternLabels (2.4s)
+✔ [850/852] Built Yulang.GeneralNominalOpenInspectionValues (1.3s)
+✔ [851/852] Built Yulang.GeneralNominalOpenInspectionPositions (959ms)
+✔ [852/852] Built Yulang.GeneralNominalOpenInspectionMatching (2.7s)
+Some required targets logged failures:
+- Yulang.GeneralNominalOriginAgreement183
+error: build failed
