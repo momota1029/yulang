@@ -1,0 +1,15 @@
+import Yulang.GeneralNominalSelectedJournal194
+#check Yulang.GeneralNominalSelectedJournal194.survivor_of_instance
+#print axioms Yulang.GeneralNominalSelectedJournal194.survivor_of_instance
+#check Yulang.GeneralNominalSelectedJournal194.selected_instance
+#print axioms Yulang.GeneralNominalSelectedJournal194.selected_instance
+#check Yulang.GeneralNominalSelectedJournal194.selected_recorded
+#print axioms Yulang.GeneralNominalSelectedJournal194.selected_recorded
+#check Yulang.GeneralNominalSelectedJournal194.classify_node_parts
+#print axioms Yulang.GeneralNominalSelectedJournal194.classify_node_parts
+#check Yulang.GeneralNominalSelectedJournal194.dictionary_evidence
+#print axioms Yulang.GeneralNominalSelectedJournal194.dictionary_evidence
+#check Yulang.GeneralNominalSelectedJournal194.dictionaries_evidence
+#print axioms Yulang.GeneralNominalSelectedJournal194.dictionaries_evidence
+#check Yulang.GeneralNominalSelectedJournal194.selected_sound
+#print axioms Yulang.GeneralNominalSelectedJournal194.selected_sound

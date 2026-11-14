@@ -1,0 +1,56 @@
+import Yulang.GeneralNominalNonleafFinal194
+import Yulang.GeneralNominalForestClassification194
+import Yulang.GeneralNominalNonleafStable194
+
+#check Yulang.GeneralNominalNonleafFinal194.survivor
+#print axioms Yulang.GeneralNominalNonleafFinal194.survivor
+#check Yulang.GeneralNominalNonleafFinal194.prepared
+#print axioms Yulang.GeneralNominalNonleafFinal194.prepared
+#check Yulang.GeneralNominalNonleafFinal194.wrong_failed
+#print axioms Yulang.GeneralNominalNonleafFinal194.wrong_failed
+#check Yulang.GeneralNominalNonleafFinal194.unique
+#print axioms Yulang.GeneralNominalNonleafFinal194.unique
+#check Yulang.GeneralNominalNonleafFinal194.frame
+#print axioms Yulang.GeneralNominalNonleafFinal194.frame
+#check Yulang.GeneralNominalNonleafFinal194.safe
+#print axioms Yulang.GeneralNominalNonleafFinal194.safe
+#check Yulang.GeneralNominalNonleafFinal194.parent_bindings
+#print axioms Yulang.GeneralNominalNonleafFinal194.parent_bindings
+#check Yulang.GeneralNominalNonleafFinal194.parent_binder
+#print axioms Yulang.GeneralNominalNonleafFinal194.parent_binder
+#check Yulang.GeneralNominalNonleafFinal194.head_equations
+#print axioms Yulang.GeneralNominalNonleafFinal194.head_equations
+#check Yulang.GeneralNominalNonleafFinal194.no_output_conflict
+#print axioms Yulang.GeneralNominalNonleafFinal194.no_output_conflict
+#check Yulang.GeneralNominalNonleafFinal194.selected
+#print axioms Yulang.GeneralNominalNonleafFinal194.selected
+#check Yulang.GeneralNominalNonleafFinal194.child_classify
+#print axioms Yulang.GeneralNominalNonleafFinal194.child_classify
+#check Yulang.GeneralNominalNonleafFinal194.parent_classify
+#print axioms Yulang.GeneralNominalNonleafFinal194.parent_classify
+#check Yulang.GeneralNominalForestClassification194.classify_after
+#print axioms Yulang.GeneralNominalForestClassification194.classify_after
+#check Yulang.GeneralNominalForestClassification194.classify
+#print axioms Yulang.GeneralNominalForestClassification194.classify
+#check Yulang.GeneralNominalForestClassification194.source_classification_sound
+#print axioms Yulang.GeneralNominalForestClassification194.source_classification_sound
+#check Yulang.GeneralNominalNonleafStable194.edges
+#print axioms Yulang.GeneralNominalNonleafStable194.edges
+#check Yulang.GeneralNominalNonleafStable194.generated_cases
+#print axioms Yulang.GeneralNominalNonleafStable194.generated_cases
+#check Yulang.GeneralNominalNonleafStable194.raw_source
+#print axioms Yulang.GeneralNominalNonleafStable194.raw_source
+#check Yulang.GeneralNominalNonleafStable194.context_complete
+#print axioms Yulang.GeneralNominalNonleafStable194.context_complete
+#check Yulang.GeneralNominalNonleafStable194.parent_branch
+#print axioms Yulang.GeneralNominalNonleafStable194.parent_branch
+#check Yulang.GeneralNominalNonleafStable194.installs_committed
+#print axioms Yulang.GeneralNominalNonleafStable194.installs_committed
+#check Yulang.GeneralNominalNonleafStable194.no_refresh
+#print axioms Yulang.GeneralNominalNonleafStable194.no_refresh
+#check Yulang.GeneralNominalNonleafStable194.stable
+#print axioms Yulang.GeneralNominalNonleafStable194.stable
+#check Yulang.GeneralNominalNonleafStable194.halted
+#print axioms Yulang.GeneralNominalNonleafStable194.halted
+#check Yulang.GeneralNominalNonleafStable194.completed
+#print axioms Yulang.GeneralNominalNonleafStable194.completed

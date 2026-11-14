@@ -1,0 +1,21 @@
+import Yulang.GeneralNominalSemanticNode194
+import Yulang.GeneralNominalOrdinaryJournal194
+
+#check Yulang.GeneralNominalSemanticNode194.instance_of_frame
+#print axioms Yulang.GeneralNominalSemanticNode194.instance_of_frame
+#check Yulang.GeneralNominalSemanticNode194.request_ready
+#print axioms Yulang.GeneralNominalSemanticNode194.request_ready
+#check Yulang.GeneralNominalSemanticNode194.evidence_of_frame
+#print axioms Yulang.GeneralNominalSemanticNode194.evidence_of_frame
+#check Yulang.GeneralNominalSemanticNode194.evidence_of_recorded
+#print axioms Yulang.GeneralNominalSemanticNode194.evidence_of_recorded
+#check Yulang.GeneralNominalSemanticNode194.trace_evidence_of_recorded
+#print axioms Yulang.GeneralNominalSemanticNode194.trace_evidence_of_recorded
+#check Yulang.GeneralNominalOrdinaryJournal194.packet_instance
+#print axioms Yulang.GeneralNominalOrdinaryJournal194.packet_instance
+#check Yulang.GeneralNominalOrdinaryJournal194.recorded_instance
+#print axioms Yulang.GeneralNominalOrdinaryJournal194.recorded_instance
+#check Yulang.GeneralNominalOrdinaryJournal194.recorded_tree_sound
+#print axioms Yulang.GeneralNominalOrdinaryJournal194.recorded_tree_sound
+#check Yulang.GeneralNominalOrdinaryJournal194.uniform_dictionary
+#print axioms Yulang.GeneralNominalOrdinaryJournal194.uniform_dictionary
