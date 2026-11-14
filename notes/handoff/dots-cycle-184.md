@@ -24,3 +24,15 @@ Fresh x-oracle and y2-claims-role-boundaries-cycle-2 were read before new proof 
 Merge root-import/INDEX conflicts resolved append-only, preserving published work text as prefix and appending missing integration lines. Existing Lean proof files/Audit.lean/README are untouched except upstream additions being carried forward. No semantics decision or new question note. Intermediate errors were namespace/import/implicit-limit/binder-shadowing errors and corrected before success, not counted as successful validation.
 
 Publication uses GitHub app to work/dots-main only. This checkpoint will be followed by exact remote tree verification and further targeted work on the residual centered ledger/candidate link.
+
+## Checkpoint2 — actual registered-site coherence
+
+Checkpoint1 a050dd4a536331184cebec0dc77ea3cfedb05462, tree5d1a599e32877a2d28d75d51bb3b45bd9cd21bdb, was freshly fetched and exactly matched the entire local tree (empty diff).
+
+Further new modules close a second concrete structural gap: under Checked registry, any two registered centered Sites in an actual originalG reachable state with equal occurrence are equal, including center functions. Producer allocation injectivity recovers invocation/declaration/clause identity; registry/declaration checks supply uniqueness; equal child argument pairs determine variable centers. Trace induction rules out a root/child identity collision and produces registered visibility. There is no semantic Same premise in this proof.
+
+HeadTransport184 derives historical/current configuration from trace. GroundCandidateReadback184 uses the new Site invariant plus actual historical input registration to eliminate the previously external center-list equality premise. Candidate head readback to a registered historical binder now requires Checked, Reachable, historical plan registration, candidate input registration, same occurrence/declaration, current candidate context, actual head use, and a centered model. Moving to the candidate binder additionally requires non-output name and both captures nonpoint. The existence of a matching historical plan is NOT yet derived for every candidate.
+
+GroundLedgerExtension184 supplies centered finite-assignment preservation with only ledger value retention, deriving raw preservation internally; the exact extension criterion now tests overlap only with the ledger. Observation existence, linked endpoints/origins, Fits, and equal-center coherence remain explicit.
+
+No general EvidenceNode/Joint closure claimed. Final theorem signatures and dependency reach will follow. Published first-checkpoint files are unchanged. New independent strict builds and axiom gate are in second-build/second-gate logs.
