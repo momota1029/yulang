@@ -1,0 +1,6 @@
+'Yulang.GeneralDictionaryCenteredCandidate176.selected_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredCandidate176.reachable_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
