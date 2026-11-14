@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryActualSchemaScope
 import Yulang.GeneralNominalCaptureCoverage183
 import Yulang.GeneralNominalHeadMatchMass
 import Yulang.GeneralNominalTemplateSubstitution
