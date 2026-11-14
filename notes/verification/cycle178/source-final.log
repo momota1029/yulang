@@ -1,1 +1,1 @@
-PASS: 16 new modules; all imports, no forbidden constructs/trailing space; all base and published files retained; frozen configs unchanged
+PASS: 17 new modules; all imports, no forbidden constructs/trailing space; all base and published files retained; frozen configs unchanged

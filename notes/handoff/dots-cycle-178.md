@@ -166,3 +166,69 @@ now covers332 declarations across17 modules. Five additional public types bring
 the type-check inventory to160. Original-root G consumer reaches10/332 new
 symbols; unrestricted composition still0/332. This low dependency count reflects
 reuse of existing point-spine theorems, not a measure of semantic coverage.
+
+The root extension and latest integration were published as08f808cb7a597cdfc0f2db4040ddd2cc5ed65026.
+All47 changed paths were fetched back with zero hash mismatches. The latest
+upstream focused closure passed19 modules. I30 still names original G; the
+new canonical-executor notes discuss G-prime but no instruction moved this
+cycle to it. No target or classifier was strengthened.
+
+Next-cycle candidates (not proved here):
+1. Produce initial_point_linear_plan_joint: assign every actual binder center
+   while preserving source and root-center Models; prove all Fits/headSchema.
+2. Extend source-only PacketGuard preservation to arbitrary reachable states,
+   retaining existing journal and recorded centered facts, not just initialAt.
+3. For generated nonpoint nominal children, produce same-model shared coherence
+   and fresh extrema from actual stable/installed invariants, without treating
+   existential Candidate consistency as universal current-model validity.
+The first is independent of the now-completed original-root raw Evidence
+fragment; it concerns full centered installation, not raw packet.Holds.
+
+Read-only documentation review checked the exact root theorem names and
+current-model/root-only quantifiers. Clarification: the shared coherence versus
+projection equivalence is under source Models and outer endpoint order, not an
+unconditional standalone equivalence. The module guide explicitly labels the
+older16/327/155 inventory as a historical checkpoint and records latest17/332/160.
+
+## Latest source CI and focused-audit limitation
+
+08f808cb7a597cdfc0f2db4040ddd2cc5ed65026 passed Core CI43544729305 and
+Lean inference kernel43544729157. The proof job's Lean action, full audit and
+executable examples each completed success. These checks include the latest
+integration9adc7227 and all17 cycle178 modules.
+
+Additional local upstream verification: CenteredCanonicalExecutor audit exit0.
+CenteredReachablePermutation's original audit exit1 because it imports the full
+Yulang aggregate, which this focused cache intentionally does not build. This
+is an explicit local environment limitation, not suppressed as a pass. A scratch
+copy replacing only that aggregate import with the exact focused dependency
+root GeneralNominalCenteredPermutationRepresentation checks the same152
+printed declarations and exits0; the copy and both logs are retained. The remote
+full audit already passed the original unmodified file. No local full-build
+restriction was bypassed, and no upstream file was edited.
+
+At02:14 final fetch still found integration9adc7227 and source08f808cb.
+After building the latest upstream dependency closure, the full new-module
+332-declaration trust-zero/warning-as-error gate was rerun immediately before
+publication and again exited0. Its raw prepublication-gate log is retained.
+All verification processes finished; no background Lean writer remains.
+
+## Completion (supersedes in-progress heading)
+
+Status: completed at 2026-11-14T02:15:55Z, elapsed 50.20 minutes before final publication.
+All17 own source modules match the CI-successful source08f808cb. Publication
+and heartbeat are limited to work/dots-main. Latest integrated baseline is
+9adc7227ebbe1f428005e2158794c9ffcd58b383. No approval blocker or writer overlap
+was encountered. Earlier CI lint failure and local aggregate-audit limitation
+are recorded above, corrected/independently bounded rather than hidden.
+
+Final result: exact nominal residuals, current-model point/nullary producers,
+restricted G nullary consumer and actual G original-root finite-linear consumer.
+Unrestricted G.EvidenceNode remains OPEN; completed general fields this cycle:0.
+No claim of a reachable Stable G counterexample, unrestricted completeness,
+new runtime validation, or completion of Astra's remaining fields.
+
+Source checkpoint deltas were44,25,27,47 paths respectively (overlap included;
+upstream incorporation included). Final documentation/log delta and total unique
+path count are recorded in the final publication manifest. The next cycle must
+fresh-fetch integration/inbox and verify this completed heartbeat before writing.

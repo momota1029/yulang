@@ -101,3 +101,11 @@ state/key/children/model/dictionaries について、G.Reachable、root selected
 が一致し、associated/requirementsが空であること。Stable、Installable、
 別の joint model の存在は要求しない。generated child はこの定理の対象外。
 これも一般 EvidenceNode field の完成ではない。
+
+## 最新検証と読み替え
+
+上の「検証の読み方」の16/327/155および257/327・50/327は、root moduleを
+追加する前のcfb568e8 checkpointの記録。最新08f808cbは17modules・332全宣言・
+160 public型チェック。original-root consumerは10/332、既存compositionは0/332。
+Sharedのcoherence/projection同値にはsource Modelsとouter endpoint orderを
+前提とする。単独で無条件に同値だという意味ではない。
