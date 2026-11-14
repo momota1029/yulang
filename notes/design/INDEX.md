@@ -577,12 +577,11 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle192 committed-or-installed forests](2026-11-14-cycle192-committed-forest.md) — Draft, I32 certificate boundary.
 - [Centered total-materialization trusted caches](2026-11-15-centered-head-mat-trusted-cache.md) — justified refresh/reobservation, actual successor cache and metadata invariants, nine unconditional law shapes, and conditional availability/order composition; concrete fixture, progress, common models, and full K2 projection coverage remain open.
+- [Centered total-materialization refresh regression](2026-11-15-centered-head-mat-refresh-regression.md) — actual justified-refresh trace with R pending, finite-progress reduction, centered head descent, and fixed-context total-packet rebasing; general cover, exit lifting, model extension, and exhaustive K2 remain open.
+- [Centered total-materialization finite cover](2026-11-15-centered-head-mat-ground-cover.md) — concrete semantic/center/source inventories and unrestricted successor accessibility from an installation-depth bound; the depth producer, exit lifting, general completion, and exhaustive K2 remain open.
 
 - [Cycle194 final classification design](2026-11-14-cycle194-final-classification.md): concrete WF nonleaf completion and general ordinary journal readback; general EvidenceNode remains open.
 - [Cycle194 quantified module guide](2026-11-14-cycle194-module-guide.md): 35 theorem statements and explicit remaining contracts.
-
 - Cycle194 structural refinement: module guide now includes 4 further journal-accessibility theorems (39 total); ordinary readback needs coverage but no independent Acc certificate.
-
 - Cycle194 selected-payload refinement: module guide now includes 7 further theorems (46 total), deriving actual selected Classify payload Evidence from ordinary execution and journal coverage.
-
 - Cycle194 final local boundary: 51 total theorems; recorded-node Evidence and concrete Stable-but-not-journal-Covered witness distinguish successful reuse from missing semantic evidence.
