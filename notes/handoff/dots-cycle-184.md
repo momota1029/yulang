@@ -56,3 +56,11 @@ Third focused build PASS858 jobs, gate PASS144 declarations. Fourth focused/gate
 Fresh integration remains97c54c150; instruction blobs unchanged at recheck. New-source independent read-only review confirmed that whole raw-journal exclusion has no external exclusion/depth premise in its ground theorem. Usage allowance unknown; no whole-project build or runtime/CI certification claim.
 
 Fourth focused build and strict axiom gate PASS,155 declarations. Public elaborated-type gate PASS92 theorem declarations. Kernel dependency traversal includes opaque proof bodies: original general roots reach0/155 new constants; six local mechanism roots reach129/155. Thus local mechanism integration is verified but no integration into the original general composition is claimed.
+
+## Late upstream instructions and preservation correction
+
+At08:04UTC fresh integration advanced to0b2a6b482ef6d7e7e84223aad7fd3eb55eefd2d9. Reread new I31/I32: preserve exact upstream imports/blank lines; future EvidenceNode target is V6 headWF, with currentG work expressly allowed to continue. Merged upstream corrections, preserving its root-import/INDEX text as exact prefixes and appending only missing lines. Previously published proof sources remain untouched by our proofs;12 old Lean whitespace/import corrections are adopted from supervisor upstream, not hand-edited. The earlier5273-path/startup-prefix audit describes the pre-merge checkpoint; final preservation is instead checked against latest integration.
+
+Checkpoint3 ec6c5f7252f2d13f1f7e1882b85b9e9ab36eb3d2 matched local tree42aa41ddb54b3a1e40c4ea8495edd5b9c50904f6 on fresh fetch. An initial transport tree had a hash mismatch due UTF8 chunk boundaries; it was never committed or installed on the branch. Re-encoding transport JSON as ASCII escaped text produced the exact expected tree.
+
+Post-upstream focused build858jobs PASS and trust0/warningAsError155-declaration gate PASS. Independent root-extension scope review PASS: overlap is derived, not relabeled as a premise; endpoint/origin linkage, observations/Fits/coherence and prior Models remain. General EvidenceNode and full candidate Joint remain OPEN.

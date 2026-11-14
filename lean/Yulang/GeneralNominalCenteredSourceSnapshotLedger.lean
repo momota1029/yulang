@@ -116,3 +116,4 @@ theorem Coverage''.executable (coverage : Coverage'' registry context root state
   exact ⟨coverage.centeredFacts,coverage.centeredTrusted,coverage.snapshot.readback enabled.1.2.1⟩
 
 end Yulang.GeneralNominalCenteredSourceSnapshotLedger
+
