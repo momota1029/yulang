@@ -524,3 +524,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Exact snapshot support cannot be completed by a trusted ledger](2026-11-14-centered-source-snapshot-ledger.md) — snapshot-supported initializer and conditional input promotion; a reachable refresh excludes every trusted exact-readback ledger, so invariant-only completion of that contract is impossible; Class P accessibility remains open.
 
 - [Cycle179 module guide](2026-11-14-cycle179-module-guide.md): current-model discovery, initial common model and finite frame limits.
+
+- [Cycle180: exact extensions and actual centered-journal candidates](2026-11-14-cycle180-model-extension.md) — six focused verified modules; general G.EvidenceNode remains OPEN.

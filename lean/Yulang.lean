@@ -2985,3 +2985,15 @@ import Yulang.GeneralNominalCenteredFrame179
 import Yulang.GeneralNominalCenteredEmptyFrame179
 import Yulang.GeneralNominalRawFrame179
 import Yulang.GeneralNominalCenteredJournalExtension179
+
+import Yulang.GeneralDictionaryCenteredJournalCandidate180
+
+import Yulang.GeneralDictionaryCenteredJournalOverlap180
+
+import Yulang.GeneralDictionaryCenteredJournalPoint180
+
+import Yulang.GeneralNominalCenteredExtensionExact180
+
+import Yulang.GeneralNominalSourceCompatibility180
+
+import Yulang.GeneralNominalSourceExtension180
