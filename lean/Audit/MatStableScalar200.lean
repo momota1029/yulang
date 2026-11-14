@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryMatStableScalar200
+
+#check Yulang.GeneralDictionaryMatStableScalar200.evidence_of_stable_extension
+#check Yulang.GeneralDictionaryMatStableScalar200.evidence_of_common_model
+#print axioms Yulang.GeneralDictionaryMatStableScalar200.evidence_of_stable_extension
+#print axioms Yulang.GeneralDictionaryMatStableScalar200.evidence_of_common_model

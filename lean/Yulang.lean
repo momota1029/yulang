@@ -3438,3 +3438,5 @@ import Yulang.GeneralDictionaryMatPriorConflict199
 import Yulang.GeneralDictionaryMatScalarOutputs200
 import Yulang.GeneralDictionaryMatScalarFixture200
 import Yulang.GeneralDictionaryMatScalarConflict200
+import Yulang.GeneralDictionaryMatStableScalar200
+import Yulang.GeneralDictionaryMatSelectedScalar200
