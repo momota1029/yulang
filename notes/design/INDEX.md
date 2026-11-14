@@ -507,3 +507,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered V6: stable selection without child materialization](2026-11-14-centered-head-materialization-obstruction.md) — checked inhabited ground InitialSource with V6 selection, positive chosen effects, and stability, but no enabled installation or generated child; constructor-interpretation coverage is absent from the source contract.
 
 - [Centered head source coverage and variant-row obstruction](2026-11-14-centered-head-wf-source.md) — constructor- and arity-aware Initial, positive source fixtures, twelve bridge transfers and three V6 properties; a legal multi-tag output row gives a stable selected counterexample to child production under the stronger boundary.
+
+- [Total materialization of the current WF declaration language](2026-11-14-centered-head-total-materialization.md) — exhaustive Pattern/default equation compiler, emitted and child-center coverage, default effects and fresh-target model extension; corrected packet/observation consumers and successor-boundary law transfers remain open.
