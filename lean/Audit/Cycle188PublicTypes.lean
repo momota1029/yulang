@@ -17,7 +17,6 @@ import Yulang.GeneralNominalReportTransport188
 import Yulang.GeneralNominalSemanticEnrichment188
 import Yulang.GeneralNominalStructuralEnrichment188
 import Yulang.GeneralNominalStructuralOrigin188
-set_option pp.universes true
 #check Yulang.GeneralNominalCaptureEnrichment188.projection
 #print axioms Yulang.GeneralNominalCaptureEnrichment188.projection
 #check Yulang.GeneralNominalHeadInitialCommon188.initial_models_iff

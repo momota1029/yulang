@@ -567,3 +567,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle186 quantified claims](2026-11-14-cycle186-claims-ja.md): whole-head extension, historical bounds criterion and remaining EvidenceNode gaps.
 
 - [Cycle189: 初期leaf Evidenceと同一plan出力条件](2026-11-14-cycle189-claims-ja.md)（2026-11-14、局所証明・一般境界未完了）
+
+- [Cycle190 source linear Evidence](2026-11-14-cycle190-source-linear-evidence.md): source-derived finite linear leaf interface; general EvidenceNode remains open.
