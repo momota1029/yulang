@@ -1,0 +1,20 @@
+DEPENDENCY_CLOSURE 904 REBUILD 9
+START Yulang.GeneralDictionaryNominalPair178
+END Yulang.GeneralDictionaryNominalPair178 0
+START Yulang.GeneralNominalMergeResidual178
+END Yulang.GeneralNominalMergeResidual178 0
+START Yulang.GeneralDictionaryNominalPairExtrema178
+END Yulang.GeneralDictionaryNominalPairExtrema178 0
+START Yulang.GeneralDictionaryNominalPairExample178
+END Yulang.GeneralDictionaryNominalPairExample178 0
+START Yulang.GeneralDictionaryCenteredNominal178
+END Yulang.GeneralDictionaryCenteredNominal178 0
+START Yulang.GeneralDictionaryCenteredNominalExample178
+END Yulang.GeneralDictionaryCenteredNominalExample178 0
+START Yulang.GeneralDictionaryNominalPairSupport178
+END Yulang.GeneralDictionaryNominalPairSupport178 0
+START Yulang.GeneralDictionaryNominalPairJoint178
+END Yulang.GeneralDictionaryNominalPairJoint178 0
+START Yulang.GeneralDictionaryNominalPairDiscovery178
+END Yulang.GeneralDictionaryNominalPairDiscovery178 0
+PASS 9

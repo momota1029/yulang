@@ -470,13 +470,30 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle172: nested input discovery](2026-11-13-cycle172-nested-input-discovery.md) — actual finished inspection yields finite unary input certificate.
 - [Cycle173 actual-inspection evidence and ground composition](2026-11-13-cycle173-actual-evidence.md)
 - Cycle173 actual ground witness, concrete branching run and selected-edge schema: `2026-11-13-cycle173-actual-evidence.md` (conditional dictionary bridges; not full B4).
+- [Canonical hole transport and reduced-hole source producers](2026-11-14-canonical-hole-transport.md) — Exact shared substitution and mass transport, reduced-hole structural/point-nominal exposure, actual K2 occurs checking, and certified inventory/journal transition branches; universal unknown-hole source production remains open. No missing-provenance deferral is used.
 
 - [Explicit centers at the actual-inspection boundary](2026-11-14-centered-actual-boundary.md) — Center ledger, model equations, centered transition kernel, six V5 structural fields, and conditional compatibility/K2 bridges; full simulation and trigger execution remain open.
+- [Uniform source production through actual centers](2026-11-14-uniform-centered-source-production.md) — Nonpoint named-argument readback, uniform full-report captures and source-key exposure, shared packet substitution, uniform child emission, and scalar hole elimination; universal Simulation.next remains open.
 
+- [Cycle174 Actual agreed evidence](2026-11-14-cycle174-agreed-evidence.md) (Draft; scoped diagnostics and conditional dictionary bridges).
+- Cycle174 follow-up: `GeneralDictionaryAgreedComputed174`, `SearchOrder174`, `Uniform174` give a complete executable role-DAG certificate (not a language checker), search-order invariance, and finite selected-child depth. `Checked174` and `Uniform174` connect it to current-Local exactness of the noncomputable ground diagnostic. See `2026-11-14-cycle174-uniform-role-search.md`.
+- Cycle174 history review: `GeneralDictionaryAgreedHistoryObstruction174` shows ordinary Extension cannot survive genuine observation improvement with a recorded packet; `GeneralDictionaryAgreedRefresh174` transports current Evidence through one fixed-carrier/view actual refresh without post-refresh Extension. See `cycle174-refresh-obligations.md`.
+- Cycle174 completion: `GeneralDictionaryAgreedBounded174` supplies certified finite-depth outer recursion; `GeneralDictionaryAgreedRefiningTrace174` proves the current recorded-instance invariant from empty journal through arbitrarily interleaved actual ordinary/new-install and fixed-carrier/view refresh steps. See `2026-11-14-cycle174-bounded-diagnostic.md`, `cycle174-refining-trace.md`, and the current-Local readback bridge note. Unrestricted B4 is still open.
+
+- [Source producer closure and exact simulation handoff](2026-11-14-source-producer-handoff.md) — Explicit-center projection closure, actual settled binder-ledger labels, graph-backed elimination and compatible journal extension; source extraction and universal next remain open, with compiled handoff goal types.
 - [Centered point-source bridges](2026-11-14-centered-point-bridges.md) — Exact initial agreement, a reachable ground counterexample to literal erasure with a matching raw execution, and selected inspection guards; unrestricted simulation and full installation availability remain open.
-
 - [Direct centered ground-root accessibility](2026-11-14-centered-direct-accessibility.md) — Unrestricted centered Step accessibility from ground point roots, actual terminal executions, six structural V5 transfers, namespace/nested-use invariants, and conditional selected-plan/where bridges; full guard availability and the P/W trace remain open.
+- [Cycle175 recursive evidence after refining histories](2026-11-14-cycle175-dictionary-completion.md)
+- [Cycle175 table certificate](2026-11-14-cycle175-table-certificate.md)
+
+- [Cycle175 nominal-only refresh scope](2026-11-14-cycle175-flexible-refresh.md)
+- [Cycle175 table cost model and index plan](2026-11-14-cycle175-table-complexity.md)
+- [Cycle175 centered migration map, read-only](2026-11-14-cycle175-centered-migration-map.md)
+- [Cycle175 compact table](2026-11-14-cycle175-compact-table.md)
+
+- [Cycle176 centered evidence](2026-11-14-cycle176-centered-evidence.md): actual centered recorded-source and current-context scope.
 - [2026-11-14 Centered ground composition](2026-11-14-centered-ground-composition.md) — ten V5 fields, a reachable selection/installation obstruction, general center model extension, and conditional P/W ledger rejection; source execution remains open.
+- [Source syntax extraction and finite capture refinement](2026-11-14-source-syntax-refinement.md) — Unrestricted request templates/canonicality, coarse-ledger composition, finite simultaneous capture refinement, and conditional historical label extension; reachable source production and universal next remain open.
 
 - [Centered administrative ground composition](2026-11-14-centered-administrative-composition.md) — merge-aware Local, eleven unconditional V5 fields, all-state where accessibility, fixed-snapshot reordering, and explicit production/final-observation residuals.
 
@@ -486,14 +503,31 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Centered final Local agreement: fixed choice](2026-11-14-centered-final-local-agreement.md) — exact exit-choice normalization, packet-free order residual, concrete unequal exit predicates under reordered registries, and reachable packet-free Joint; fixed-executor order remains open.
 
-- [Centered canonical executor](2026-11-14-centered-canonical-executor.md) — invariant registry representative, actual packet-free trace transport, packet/center/emitter rebasing, and an original-registry executor retaining eleven bridges; canonical order remains conditional on exit lifting or concrete permutation simulation.
+- [Cycle176 module guide](2026-11-14-cycle176-module-guide.md): exact declaration inventory and fragment limits.
+- [Cycle177 current committed candidates](2026-11-14-cycle177-committed-candidates.md): direct scalar/named current-model consumers; exact G general producer remains open.
 
+- [Cycle177 next nominal research](2026-11-14-cycle177-next-nominal.md): unproved two-endpoint merge residual and exact reusable lemmas.
+
+- [Cycle 178: same-model nominal residual](2026-11-14-cycle178-nominal-residual.md)
+- [Centered source continuation and historical journal compatibility](2026-11-14-centered-source-continuation.md) — Identity-based historical labels, exact coarse-ledger persistence, fixed-hole constructor assembly, and the full centered phase/journal accessibility reduction; universal source production remains explicit and unproved.
+- [Concrete centered source invariant](2026-11-14-centered-source-invariant.md) — Root initialization, all noninstall and terminal-install preservation, exact child source values and global replacement; full centered Simulation and Acc reduced to one explicit nonterminal-install obligation.
+- [Centered nonterminal installation: preservation-contract counterexample](2026-11-14-centered-nonterminal-install.md) — Three sufficient source obligations and their composition; a checked InitialSource with an actual centered install refutes the current universal inventory-preservation contract. Class P accessibility remains open; branch-owned source trace renamed for integration.
+
+- [Cycle178 theorem/module guide](2026-11-14-cycle178-module-guide.md): exact hypotheses, same-model residuals and restricted G scope.
+
+- [Centered canonical executor](2026-11-14-centered-canonical-executor.md) — invariant registry representative, actual packet-free trace transport, packet/center/emitter rebasing, and an original-registry executor retaining eleven bridges; canonical order remains conditional on exit lifting or concrete permutation simulation.
 - [Centered reachable permutation: correspondence and installation obligation](2026-11-14-centered-reachable-permutation.md) — concrete coherent packet pairing, reachable packet-free initialization, administrative/refresh/merge transport, trusted ledgers and value support; full installation transport and final Local agreement remain open.
 
-- [Centered permutation simulation and canonical local order](2026-11-14-centered-permutation-simulation.md) — complete reversible installation transport, coherent table extension, fixed-target Local correspondence, and unconditional canonical executor order; V5 composition has only evidenceNode and generatedChildren as inputs.
+- [Cycle179 centered discovery](2026-11-14-cycle179-centered-discovery.md)
+- [Centered source retention and the selected-ledger readback obstruction](2026-11-14-centered-source-live-retention.md) — full-frontier strengthened coverage, transport through centered steps and semantic eliminations, and a reachable counterexample to exact selected-ledger input readback; unconditional Class P accessibility remains open.
 
+- [Exact snapshot support cannot be completed by a trusted ledger](2026-11-14-centered-source-snapshot-ledger.md) — snapshot-supported initializer and conditional input promotion; a reachable refresh excludes every trusted exact-readback ledger, so invariant-only completion of that contract is impossible; Class P accessibility remains open.
+- [Cycle176 module guide](2026-11-14-cycle176-module-guide.md): exact declaration inventory and fragment limits.
+- [Cycle177 current committed candidates](2026-11-14-cycle177-committed-candidates.md): direct scalar/named current-model consumers; exact G general producer remains open.
+- [Centered permutation simulation and canonical local order](2026-11-14-centered-permutation-simulation.md) — complete reversible installation transport, coherent table extension, fixed-target Local correspondence, and unconditional canonical executor order; V5 composition has only evidenceNode and generatedChildren as inputs.
 - [Centered completion: reachable alias-class obstruction](2026-11-14-centered-completion-alias-obstruction.md) — actual inhabited ground installation/merge trace with merge-closed G′ selection and impossible Joint; stability and the general generatedChildren field remain open.
 
+- [An unsettled-output refresh changes an actual centered decision](2026-11-14-centered-source-unsettled-refresh.md) — Checked unknown-input source, paired equal-model refreshes, source-supported pending versus actual selected/install, and an unsupported descriptor link; owner repair proposed, Step unchanged.
 - [Centered class-wide applicability and the unchanged installation guard](2026-11-14-centered-class-local.md) — G″ filters candidates by joint alias-class requests and retains twelve V5 fields; the earlier snapshot enables equality feedback, and a new reachable feasible class selection is blocked by the frozen per-occurrence uniqueness guard. Stable child production remains conditional.
 
 - [Centered output conflicts: head selection, failed equations, and V5](2026-11-14-centered-output-conflict.md) — corrects G″'s output-based candidate filtering, locates installation consistency gates and the missing error contract, distinguishes the nonstable fixture from its unclassified stable extension, and proposes an additive head/effect split with field-by-field proof impact.
@@ -503,7 +537,8 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered head-only installation and class effects](2026-11-14-centered-head-step.md) — successor Step and live class-effect ledger, V6 installation agreement, model restriction, stable closure, unrestricted ground-point progress and terminal traces, preserved output coverage and all-state local child accessibility; schema/default, feedback, merge-error and final composition obligations remain.
 
 - [Centered V6 availability and canonical execution](2026-11-14-centered-head-availability-order.md) — complete head-step/effect-ledger permutation simulation and unconditional V6 canonical executor order, execution and exactness; selected availability reduced to explicit extension obligations, a source-formed defaults gap and positional schema interface, and the empty-model conflict limitation.
+- [Cycle179 module guide](2026-11-14-cycle179-module-guide.md): current-model discovery, initial common model and finite frame limits.
+- [Cycle180: exact extensions and actual centered-journal candidates](2026-11-14-cycle180-model-extension.md) — six focused verified modules; general G.EvidenceNode remains OPEN.
 
 - [Centered V6: stable selection without child materialization](2026-11-14-centered-head-materialization-obstruction.md) — checked inhabited ground InitialSource with V6 selection, positive chosen effects, and stability, but no enabled installation or generated child; constructor-interpretation coverage is absent from the source contract.
-
 - [Centered head source coverage and variant-row obstruction](2026-11-14-centered-head-wf-source.md) — constructor- and arity-aware Initial, positive source fixtures, twelve bridge transfers and three V6 properties; a legal multi-tag output row gives a stable selected counterexample to child production under the stronger boundary.

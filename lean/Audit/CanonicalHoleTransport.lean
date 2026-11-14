@@ -1,0 +1,25 @@
+import Yulang.GeneralNominalUniformHoleLabels
+
+#print axioms Yulang.GeneralPatternNormalizedComposition.normalized_args_compose
+#print axioms Yulang.GeneralNominalSubtermOrder.weighted_bind
+#print axioms Yulang.GeneralNominalSubtermOrder.below_bind
+#print axioms Yulang.GeneralNominalCanonicalPacketTransport.filled_mass_exact
+#print axioms Yulang.GeneralNominalCanonicalPacketTransport.substitute
+#print axioms Yulang.GeneralNominalCanonicalPacketTransport.head_mass
+#print axioms Yulang.GeneralNominalCanonicalPacketTransport.transported_packet_labels
+#print axioms Yulang.GeneralNominalPatternInventory.decode_encode
+#print axioms Yulang.GeneralNominalPatternInventory.decode_encode_list
+#print axioms Yulang.GeneralNominalPatternInventory.substituted_root_code
+#print axioms Yulang.GeneralNominalBackedHoleElimination.tested_occurrence_blocks
+#print axioms Yulang.GeneralNominalBackedHoleElimination.backed_expansion
+#print axioms Yulang.GeneralNominalReducedHoleSources.structural_discharge
+#print axioms Yulang.GeneralNominalReducedHoleSources.nominal_discharge
+#print axioms Yulang.GeneralNominalCanonicalHoleJournal.history_descent
+#print axioms Yulang.GeneralNominalCanonicalHoleJournal.Journal.replace
+#print axioms Yulang.GeneralNominalCanonicalHoleJournal.eliminating_install
+#print axioms Yulang.GeneralNominalCanonicalHoleJournal.journal_parents
+#print axioms Yulang.GeneralNominalUniformHoleLabels.restrict_replace_all
+#print axioms Yulang.GeneralNominalUniformHoleLabels.materialized_labelled
+#print axioms Yulang.GeneralNominalUniformHoleLabels.actual_eliminating_install
+#print axioms Yulang.GeneralNominalUniformHoleLabels.alias_eliminating_install
+#print axioms Yulang.GeneralNominalUniformHoleLabels.actual_retained

@@ -1,0 +1,1320 @@
+@Yulang.GeneralDictionaryCenteredNominal178.candidate_holds_iff_merges : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (shape : Yulang.GeneralDictionaryNominalPair178.Shape plan.packet.context plan.packet.declaration),
+      Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+          (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalCenteredSteps.Models state model →
+                (plan.packet.Holds model ↔
+                  Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                    (Yulang.GeneralNominalAllocation.merges plan.packet.context.state plan.packet.registry
+                      plan.packet.site.occurrence.identity plan.packet.declaration
+                      (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+                        (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration
+                          plan.packet.bounds))))
+@Yulang.GeneralDictionaryCenteredNominal178.candidate_holds_iff_extrema : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (shape : Yulang.GeneralDictionaryNominalPair178.Shape plan.packet.context plan.packet.declaration),
+      Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+          (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalCenteredSteps.Models state model →
+                (plan.packet.Holds model ↔
+                  Yulang.GeneralNominalMergeResidual178.CaptureExtrema plan.packet.context.state plan.packet.registry
+                    plan.packet.site.occurrence.identity plan.packet.declaration
+                    (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+                      (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration
+                        plan.packet.bounds))
+                    model)
+@Yulang.GeneralDictionaryCenteredNominal178.candidate_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (shape : Yulang.GeneralDictionaryNominalPair178.Shape plan.packet.context plan.packet.declaration),
+      Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+          (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalCenteredSteps.Models state model →
+                Yulang.GeneralNominalMergeResidual178.CaptureExtrema plan.packet.context.state plan.packet.registry
+                    plan.packet.site.occurrence.identity plan.packet.declaration
+                    (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+                      (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration
+                        plan.packet.bounds))
+                    model →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+@Yulang.GeneralDictionaryCenteredNominal178.candidate_evidence_node : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (shape : Yulang.GeneralDictionaryNominalPair178.Shape plan.packet.context plan.packet.declaration),
+      Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+          (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalCenteredSteps.Models state model →
+                Yulang.GeneralNominalMergeResidual178.CaptureExtrema plan.packet.context.state plan.packet.registry
+                    plan.packet.site.occurrence.identity plan.packet.declaration
+                    (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+                      (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration
+                        plan.packet.bounds))
+                    model →
+                  ∀ (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload),
+                    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                        (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model)
+                        children dictionaries →
+                      Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model
+                        focus (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+Yulang.GeneralDictionaryCenteredNominalExample178.root : Yulang.GeneralSourceDictionaries.Occurrence
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalExample178.site : Yulang.GeneralNominalCenters.Site
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalExample178.start : Yulang.GeneralNominalCenteredSteps.State
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalExample178.packet : Yulang.GeneralNominalSaturationState.Packet
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalExample178.plan : Yulang.GeneralNominalCenters.Plan
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalExample178.inhabited : ∀ (good : Bool),
+  Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralDictionaryCenteredNominalExample178.start
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment good)
+Yulang.GeneralDictionaryCenteredNominalExample178.located : Eq.{1}
+  (Yulang.GeneralNominalRecursiveCandidates.arguments Yulang.GeneralDictionaryNominalPairExample178.context
+    Yulang.GeneralDictionaryCenteredNominalExample178.root)
+  (Option.some.{0}
+    (List.cons.{0}
+      (Prod.mk.{0, 0} Yulang.GeneralDictionaryNominalPairExample178.shape.lower
+        Yulang.GeneralDictionaryNominalPairExample178.shape.upper)
+      List.nil.{0}))
+Yulang.GeneralDictionaryCenteredNominalExample178.branch_good : Yulang.GeneralDictionaryCenteredNominalExample178.packet.Holds
+  (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true)
+Yulang.GeneralDictionaryCenteredNominalExample178.branch_bad : ¬Yulang.GeneralDictionaryCenteredNominalExample178.packet.Holds
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+Yulang.GeneralDictionaryCenteredNominalExample178.metadata : Yulang.GeneralNominalRecursiveCandidates.Metadata
+  Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.context
+Yulang.GeneralDictionaryCenteredNominalExample178.prepared : Yulang.GeneralNominalRecursiveCandidates.Prepared
+  Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.context
+  Yulang.GeneralDictionaryCenteredNominalExample178.root Yulang.GeneralDictionaryNominalPairExample178.declaration ⋯
+Yulang.GeneralDictionaryCenteredNominalExample178.candidate : Yulang.GeneralDictionaryCenteredCandidate176.Candidate
+  Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryCenteredNominalExample178.start
+  Yulang.GeneralDictionaryCenteredNominalExample178.root Yulang.GeneralDictionaryNominalPairExample178.declaration.id
+  List.nil.{0} Yulang.GeneralDictionaryCenteredNominalExample178.plan
+Yulang.GeneralDictionaryCenteredNominalExample178.evidence_good : Yulang.GeneralDictionaryRecursiveEvidence.Evidence
+  Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.context
+  (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true)
+  Yulang.GeneralDictionaryCenteredNominalExample178.root
+  (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNominalPairExample178.declaration.id
+    List.nil.{0})
+Yulang.GeneralDictionaryCenteredNominalExample178.fixed_model_gap : Yulang.GeneralNominalCenteredSteps.Models
+    Yulang.GeneralDictionaryCenteredNominalExample178.start
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false) ∧
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate Yulang.GeneralDictionaryNominalPairExample178.registry
+      Yulang.GeneralDictionaryCenteredNominalExample178.start Yulang.GeneralDictionaryCenteredNominalExample178.root
+      Yulang.GeneralDictionaryNominalPairExample178.declaration.id List.nil.{0}
+      Yulang.GeneralDictionaryCenteredNominalExample178.plan ∧
+    ¬Yulang.GeneralDictionaryCenteredNominalExample178.packet.Holds
+        (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+Yulang.GeneralDictionaryCenteredNominalExample178.evidence_bad : ¬Yulang.GeneralDictionaryRecursiveEvidence.Evidence
+    Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.context
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+    Yulang.GeneralDictionaryCenteredNominalExample178.root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNominalPairExample178.declaration.id
+      List.nil.{0})
+Yulang.GeneralDictionaryCenteredNominalExample178.evidence_not_from_candidate_alone : Yulang.GeneralNominalCenteredSteps.Models
+    Yulang.GeneralDictionaryCenteredNominalExample178.start
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false) ∧
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate Yulang.GeneralDictionaryNominalPairExample178.registry
+      Yulang.GeneralDictionaryCenteredNominalExample178.start Yulang.GeneralDictionaryCenteredNominalExample178.root
+      Yulang.GeneralDictionaryNominalPairExample178.declaration.id List.nil.{0}
+      Yulang.GeneralDictionaryCenteredNominalExample178.plan ∧
+    ¬Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNominalPairExample178.registry
+        Yulang.GeneralDictionaryNominalPairExample178.context
+        (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+        Yulang.GeneralDictionaryCenteredNominalExample178.root
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNominalPairExample178.declaration.id
+          List.nil.{0})
+@Yulang.GeneralDictionaryCenteredNominalPoint178.point_holds : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {n : Nat},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (slot : Fin plan.packet.context.state.base.slots) (name : Nat) (names : Fin n → Nat),
+      Function.Injective.{1, 1} names →
+        Eq.{1} plan.packet.declaration.inputNames (List.ofFn.{0} names) →
+          Eq.{1}
+              (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                plan.packet.declaration)
+              (List.cons.{0}
+                (Yulang.GeneralNominalInspection.Query.nominal name
+                  (List.ofFn.{0} fun i =>
+                    Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} (names i) List.nil.{0})))
+                List.nil.{0}) →
+            Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} slot slot) List.nil.{0})) →
+              Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+                Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+                  ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalCenteredSteps.Models state model → plan.packet.Holds model
+@Yulang.GeneralDictionaryCenteredNominalPoint178.point_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {n : Nat},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (slot : Fin plan.packet.context.state.base.slots) (name : Nat) (names : Fin n → Nat),
+      Function.Injective.{1, 1} names →
+        Eq.{1} plan.packet.declaration.inputNames (List.ofFn.{0} names) →
+          Eq.{1}
+              (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                plan.packet.declaration)
+              (List.cons.{0}
+                (Yulang.GeneralNominalInspection.Query.nominal name
+                  (List.ofFn.{0} fun i =>
+                    Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} (names i) List.nil.{0})))
+                List.nil.{0}) →
+            Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} slot slot) List.nil.{0})) →
+              Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+                Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+                  ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalCenteredSteps.Models state model →
+                      Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model
+                        focus (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+@Yulang.GeneralDictionaryCenteredNominalPoint178.nullary_holds : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (lower upper : Fin plan.packet.context.state.base.slots) (name : Nat),
+      Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+        Eq.{1}
+            (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+              plan.packet.declaration)
+            (List.cons.{0} (Yulang.GeneralNominalInspection.Query.nominal name List.nil.{0}) List.nil.{0}) →
+          Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+              (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0})) →
+            Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+              Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+                ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                  Yulang.GeneralNominalCenteredSteps.Models state model → plan.packet.Holds model
+@Yulang.GeneralDictionaryCenteredNominalPoint178.nullary_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (lower upper : Fin plan.packet.context.state.base.slots) (name : Nat),
+      Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+        Eq.{1}
+            (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+              plan.packet.declaration)
+            (List.cons.{0} (Yulang.GeneralNominalInspection.Query.nominal name List.nil.{0}) List.nil.{0}) →
+          Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+              (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0})) →
+            Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+              Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+                ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                  Yulang.GeneralNominalCenteredSteps.Models state model →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                      (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+Yulang.GeneralDictionaryCenteredNominalPointExample178.root : Yulang.GeneralSourceDictionaries.Occurrence
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalPointExample178.start : Yulang.GeneralNominalCenteredSteps.State
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalPointExample178.leaf : Yulang.GeneralDictionaryLinearLeaf.LinearLeafShape
+  Yulang.GeneralDictionaryNominalPairExample178.context Yulang.GeneralDictionaryCenteredNominalPointExample178.root
+  Yulang.GeneralDictionaryNominalPairExample178.declaration
+Yulang.GeneralDictionaryCenteredNominalPointExample178.packet : Yulang.GeneralNominalSaturationState.Packet
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalPointExample178.plan : Yulang.GeneralNominalCenters.Plan
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryCenteredNominalPointExample178.inhabited : ∀ (good : Bool),
+  Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralDictionaryCenteredNominalPointExample178.start
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment good)
+Yulang.GeneralDictionaryCenteredNominalPointExample178.branch : ∀ (good : Bool),
+  Yulang.GeneralDictionaryCenteredNominalPointExample178.packet.Holds
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment good)
+Yulang.GeneralDictionaryCenteredNominalPointExample178.prepared : Yulang.GeneralNominalRecursiveCandidates.Prepared
+  Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.context
+  Yulang.GeneralDictionaryCenteredNominalPointExample178.root Yulang.GeneralDictionaryNominalPairExample178.declaration
+  ⋯
+Yulang.GeneralDictionaryCenteredNominalPointExample178.candidate : Yulang.GeneralDictionaryCenteredCandidate176.Candidate
+  Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryCenteredNominalPointExample178.start
+  Yulang.GeneralDictionaryCenteredNominalPointExample178.root
+  Yulang.GeneralDictionaryNominalPairExample178.declaration.id List.nil.{0}
+  Yulang.GeneralDictionaryCenteredNominalPointExample178.plan
+Yulang.GeneralDictionaryCenteredNominalPointExample178.evidence : ∀ (good : Bool),
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNominalPairExample178.registry
+    Yulang.GeneralDictionaryNominalPairExample178.context
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment good)
+    Yulang.GeneralDictionaryCenteredNominalPointExample178.root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNominalPairExample178.declaration.id
+      List.nil.{0})
+Yulang.GeneralDictionaryCenteredNominalPointExample178.same_nominal_endpoints : Eq.{1}
+  (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false 0))
+  (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false 1))
+Yulang.GeneralDictionaryCenteredNominalPointExample178.point_succeeds_nonpoint_fails : Yulang.GeneralNominalCenteredSteps.Models
+    Yulang.GeneralDictionaryCenteredNominalPointExample178.start
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false) ∧
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNominalPairExample178.registry
+      Yulang.GeneralDictionaryNominalPairExample178.context
+      (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+      Yulang.GeneralDictionaryCenteredNominalPointExample178.root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNominalPairExample178.declaration.id
+        List.nil.{0}) ∧
+    ¬Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralDictionaryNominalPairExample178.registry
+        Yulang.GeneralDictionaryNominalPairExample178.context
+        (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+        Yulang.GeneralDictionaryCenteredNominalExample178.root
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDictionaryNominalPairExample178.declaration.id
+          List.nil.{0})
+@Yulang.GeneralDictionaryCenteredNullary178.candidate_singleton_bounds : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (q : Yulang.GeneralNominalInspection.Query),
+      Eq.{1}
+          (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+            plan.packet.declaration)
+          (List.cons.{0} q List.nil.{0}) →
+        Exists.{1} fun lower =>
+          Exists.{1} fun upper => Eq.{1} plan.packet.bounds (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0})
+@Yulang.GeneralDictionaryCenteredNullary178.candidate_no_outputs : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    Eq.{1} plan.packet.declaration.associated List.nil.{0} →
+      Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0}
+@Yulang.GeneralDictionaryCenteredNullary178.candidate_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (name : Nat),
+      Eq.{1} plan.packet.declaration.inputNames List.nil.{0} →
+        Eq.{1} plan.packet.declaration.associated List.nil.{0} →
+          Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+            Eq.{1}
+                (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                  plan.packet.declaration)
+                (List.cons.{0} (Yulang.GeneralNominalInspection.Query.nominal name List.nil.{0}) List.nil.{0}) →
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalCenteredSteps.Models state model →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+Yulang.GeneralDictionaryCenteredNullary178.NullaryAt : Yulang.GeneralDeclarations.Registry →
+  Yulang.GeneralNominalRecursiveCandidates.Context → Nat → Prop
+@Yulang.GeneralDictionaryCenteredNullary178.evidence_at_G : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary roles) registry root
+      state →
+    Eq.{1} focus root ∨ Yulang.GeneralNominalSaturationState.Generated state.erased.current root focus →
+      Yulang.GeneralNominalCenteredBoundary.Local registry state focus
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+        Yulang.GeneralDictionaryCenteredNullary178.NullaryAt registry state.erased.current.context focus.demand.role →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredSteps.Models state model →
+              ∀ (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload),
+                Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                    (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model)
+                    children dictionaries →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+@Yulang.GeneralDictionaryCenteredSharedNominal178.candidate_holds_iff_residual : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (shape : Yulang.GeneralDictionaryNominalPairShared178.SharedShape plan.packet.context plan.packet.declaration),
+      Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+          (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalCenteredSteps.Models state model →
+                (plan.packet.Holds model ↔
+                  Yulang.GeneralNominalSharedCaptureFacts.Coherent model
+                      (plan.packet.context.state.base.source shape.lower) shape.left.declaration.name shape.names ∧
+                    Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                      (Yulang.GeneralNominalAllocation.merges plan.packet.context.state plan.packet.registry
+                        plan.packet.site.occurrence.identity plan.packet.declaration
+                        (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+                          (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration
+                            plan.packet.bounds))))
+@Yulang.GeneralDictionaryCenteredSharedNominal178.candidate_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (shape : Yulang.GeneralDictionaryNominalPairShared178.SharedShape plan.packet.context plan.packet.declaration),
+      Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+          (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+        Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+          Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalCenteredSteps.Models state model →
+                Yulang.GeneralNominalSharedCaptureFacts.Coherent model
+                    (plan.packet.context.state.base.source shape.lower) shape.left.declaration.name shape.names →
+                  Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                      (Yulang.GeneralNominalAllocation.merges plan.packet.context.state plan.packet.registry
+                        plan.packet.site.occurrence.identity plan.packet.declaration
+                        (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+                          (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration
+                            plan.packet.bounds))) →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model focus
+                      (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+Yulang.GeneralDictionaryNominalPair178.observations_equivalent : ∀
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (lower upper name index : Nat),
+  Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model lower)) (Prod.fst.{0, 0} (model upper)) →
+    ∀ (a b : Yulang.CommonNominalFullCarrier.Ty),
+      Yulang.GeneralNominalRecursiveInspection.Observes model
+          ((Yulang.GeneralNominalRecursiveInspection.Origin.source lower).nominal name index) a →
+        Yulang.GeneralNominalRecursiveInspection.Observes model
+            ((Yulang.GeneralNominalRecursiveInspection.Origin.source upper).nominal name index) b →
+          Yulang.CommonNominalFullCarrier.Equivalent a b
+Yulang.GeneralDictionaryNominalPair178.pairReport : (state : Yulang.GeneralNominalState.State) →
+  Fin state.base.slots →
+    Fin state.base.slots →
+      Nat →
+        {n : Nat} →
+          (Fin n → Nat) →
+            (Fin n → Yulang.GeneralNominalInspection.Bounds state) →
+              (Fin n → Yulang.GeneralNominalInspection.Bounds state) →
+                Yulang.GeneralNominalRecursiveInspection.Report state
+Yulang.GeneralDictionaryNominalPair178.report_exact : ∀ (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (lower upper : Fin context.state.base.slots),
+  Ne.{1} lower upper →
+    ∀ (left right : Yulang.GeneralNominalState.Descriptor context.state.base.slots),
+      Eq.{1} (context.state.nominals lower) (Option.some.{0} left) →
+        Eq.{1} (context.state.nominals upper) (Option.some.{0} right) →
+          Eq.{1} right.declaration.name left.declaration.name →
+            ∀ {n : Nat} (names : Fin n → Nat) (low high : Fin n → Yulang.GeneralNominalInspection.Bounds context.state),
+              Eq.{1} left.arguments (List.ofFn.{0} fun i => Yulang.GeneralNominalState.Parameter.type (low i)) →
+                Eq.{1} right.arguments (List.ofFn.{0} fun i => Yulang.GeneralNominalState.Parameter.type (high i)) →
+                  Eq.{1} (Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration)
+                      (List.cons.{0}
+                        (Yulang.GeneralNominalInspection.Query.nominal left.declaration.name
+                          (List.ofFn.{0} fun i =>
+                            Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} (names i) List.nil.{0})))
+                        List.nil.{0}) →
+                    Eq.{1}
+                      (Yulang.GeneralNominalRecursiveCandidates.report context declaration
+                        (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0}))
+                      (Yulang.GeneralDictionaryNominalPair178.pairReport context.state lower upper left.declaration.name
+                        names low high)
+Yulang.GeneralDictionaryNominalPair178.projection_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models state model →
+    ∀ (lower upper : Fin state.base.slots) (left right : Yulang.GeneralNominalState.Descriptor state.base.slots),
+      Eq.{1} (state.nominals lower) (Option.some.{0} left) →
+        Eq.{1} (state.nominals upper) (Option.some.{0} right) →
+          Eq.{1} right.declaration.name left.declaration.name →
+            ∀ {n : Nat} (names : Fin n → Nat),
+              Function.Injective.{1, 1} names →
+                ∀ (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state),
+                  Eq.{1} left.arguments (List.ofFn.{0} fun i => Yulang.GeneralNominalState.Parameter.type (low i)) →
+                    Eq.{1} right.arguments (List.ofFn.{0} fun i => Yulang.GeneralNominalState.Parameter.type (high i)) →
+                      Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (state.base.source lower)))
+                          (Prod.fst.{0, 0} (model (state.base.source upper))) →
+                        Yulang.GeneralNominalRecursiveInspection.ProjectionModels state
+                          (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper left.declaration.name
+                            names low high)
+                          model
+Yulang.GeneralDictionaryNominalPair178.Shape : Yulang.GeneralNominalRecursiveCandidates.Context →
+  Yulang.GeneralDeclarations.Declaration → Type
+Yulang.GeneralDictionaryNominalPair178.compatible_of_projection : ∀ (state : Yulang.GeneralNominalState.State)
+  (lower upper : Fin state.base.slots) (name : Nat) {n : Nat} (names : Fin n → Nat)
+  (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveInspection.ProjectionModels state
+      (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high) model →
+    Yulang.GeneralNominalAllocation.Compatible
+      (Yulang.GeneralNominalRecursiveInspection.bindings state
+        (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high))
+      model
+Yulang.GeneralDictionaryNominalPair178.self_models : ∀ (state : Yulang.GeneralNominalState.State)
+  (lower upper : Fin state.base.slots) (name : Nat) {n : Nat} (names : Fin n → Nat)
+  (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (state.base.source lower)))
+      (Prod.fst.{0, 0} (model (state.base.source upper))) →
+    Yulang.GeneralNominalRecursiveInspection.ProjectionModels state
+        (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high) model →
+      Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+        (Yulang.GeneralNominalRecursiveInspection.selfChecks state
+          (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high))
+@Yulang.GeneralDictionaryNominalPair178.private_models_of_merges : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models context.state model →
+    Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source shape.lower)))
+        (Prod.fst.{0, 0} (model (context.state.base.source shape.upper))) →
+      Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+          (Yulang.GeneralNominalAllocation.merges context.state registry root.identity declaration
+            (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+              (Yulang.GeneralNominalRecursiveCandidates.report context declaration
+                (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})))) →
+        Yulang.GeneralNominalState.Models
+          (Yulang.GeneralNominalRecursiveCandidates.privateState registry context root declaration
+            (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}))
+          model
+@Yulang.GeneralDictionaryNominalPair178.branch_models_iff_merges : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Eq.{1} declaration.requirements List.nil.{0} →
+    Eq.{1} root.demand.outputs List.nil.{0} →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalState.Models context.state model →
+          Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source shape.lower)))
+              (Prod.fst.{0, 0} (model (context.state.base.source shape.upper))) →
+            (Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked
+                (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}) model ↔
+              Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                (Yulang.GeneralNominalAllocation.merges context.state registry root.identity declaration
+                  (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                    (Yulang.GeneralNominalRecursiveCandidates.report context declaration
+                      (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})))))
+@Yulang.GeneralDictionaryNominalPair178.branch_models_iff_residual : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Eq.{1} declaration.requirements List.nil.{0} →
+    Eq.{1} root.demand.outputs List.nil.{0} →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked
+            (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}) model ↔
+          Yulang.GeneralNominalState.Models context.state model ∧
+            Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source shape.lower)))
+                (Prod.fst.{0, 0} (model (context.state.base.source shape.upper))) ∧
+              Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                (Yulang.GeneralNominalAllocation.merges context.state registry root.identity declaration
+                  (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                    (Yulang.GeneralNominalRecursiveCandidates.report context declaration
+                      (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}))))
+Yulang.GeneralDictionaryNominalPairDiscovery178.many_length : ∀ (state : Yulang.GeneralNominalState.State)
+  (queries : List.{0} Yulang.GeneralNominalInspection.Query)
+  (bounds : List.{0} (Yulang.GeneralNominalInspection.Bounds state))
+  (origins : Nat → Option.{0} Yulang.GeneralNominalRecursiveInspection.Origin) (index : Nat),
+  Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveInspection.inspectMany state queries bounds origins index) →
+    Eq.{1} (List.length.{0} queries) (List.length.{0} bounds)
+Yulang.GeneralDictionaryNominalPairDiscovery178.nominal_pair : ∀ (state : Yulang.GeneralNominalState.State) (name : Nat)
+  (queries : List.{0} Yulang.GeneralNominalInspection.Query) (lower upper : Fin state.base.slots),
+  Ne.{1} lower upper →
+    ∀ (origin : Option.{0} Yulang.GeneralNominalRecursiveInspection.Origin),
+      Yulang.GeneralNominalRecursiveInspection.Finished
+          (Yulang.GeneralNominalRecursiveInspection.inspect state
+            (Yulang.GeneralNominalInspection.Query.nominal name queries) (Prod.mk.{0, 0} lower upper) origin) →
+        Exists.{1} fun left =>
+          Exists.{1} fun right =>
+            Exists.{1} fun low =>
+              Exists.{1} fun high =>
+                Eq.{1} (state.nominals lower) (Option.some.{0} left) ∧
+                  Eq.{1} (state.nominals upper) (Option.some.{0} right) ∧
+                    Eq.{1} left.declaration.name name ∧
+                      Eq.{1} right.declaration.name name ∧
+                        Eq.{1} (Yulang.GeneralNominalRecursiveInspection.typeArguments left.arguments)
+                            (Option.some.{0} low) ∧
+                          Eq.{1} (Yulang.GeneralNominalRecursiveInspection.typeArguments right.arguments)
+                              (Option.some.{0} high) ∧
+                            Eq.{1} (List.length.{0} queries) (List.length.{0} low) ∧
+                              Eq.{1} (List.length.{0} queries) (List.length.{0} high)
+@Yulang.GeneralDictionaryNominalPairDiscovery178.vector_parameters : ∀ {slots n : Nat}
+  (parameters : List.{0} (Yulang.GeneralNominalState.Parameter slots))
+  (intervals : List.{0} (Prod.{0, 0} (Fin slots) (Fin slots))),
+  Eq.{1} (Yulang.GeneralNominalRecursiveInspection.typeArguments parameters) (Option.some.{0} intervals) →
+    Eq.{1} n (List.length.{0} intervals) →
+      Exists.{1} fun bounds =>
+        Eq.{1} parameters (List.ofFn.{0} fun i => Yulang.GeneralNominalState.Parameter.type (bounds i))
+@Yulang.GeneralDictionaryNominalPairDiscovery178.shape_exists : ∀ {n : Nat}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (lower upper : Fin context.state.base.slots),
+  Ne.{1} lower upper →
+    ∀ (name : Nat) (names : Fin n → Nat),
+      Function.Injective.{1, 1} names →
+        Eq.{1} (Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration)
+            (List.cons.{0}
+              (Yulang.GeneralNominalInspection.Query.nominal name
+                (List.ofFn.{0} fun i =>
+                  Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} (names i) List.nil.{0})))
+              List.nil.{0}) →
+          Yulang.GeneralNominalRecursiveInspection.Finished
+              (Yulang.GeneralNominalRecursiveCandidates.report context declaration
+                (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0})) →
+            Exists.{1} fun shape => Eq.{1} shape.lower lower ∧ Eq.{1} shape.upper upper
+@Yulang.GeneralDictionaryNominalPairDiscovery178.candidate_shape_exists : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {n : Nat},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (lower upper : Fin plan.packet.context.state.base.slots),
+      Ne.{1} lower upper →
+        ∀ (name : Nat) (names : Fin n → Nat),
+          Function.Injective.{1, 1} names →
+            Eq.{1}
+                (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                  plan.packet.declaration)
+                (List.cons.{0}
+                  (Yulang.GeneralNominalInspection.Query.nominal name
+                    (List.ofFn.{0} fun i =>
+                      Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} (names i) List.nil.{0})))
+                  List.nil.{0}) →
+              Eq.{1}
+                  (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                  (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0})) →
+                Exists.{1} fun shape =>
+                  Eq.{1}
+                    (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                    (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}))
+@Yulang.GeneralDictionaryNominalPairDiscovery178.candidate_holds_iff_merges : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {n : Nat},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (lower upper : Fin plan.packet.context.state.base.slots),
+      Ne.{1} lower upper →
+        ∀ (name : Nat) (names : Fin n → Nat),
+          Function.Injective.{1, 1} names →
+            Eq.{1}
+                (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                  plan.packet.declaration)
+                (List.cons.{0}
+                  (Yulang.GeneralNominalInspection.Query.nominal name
+                    (List.ofFn.{0} fun i =>
+                      Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} (names i) List.nil.{0})))
+                  List.nil.{0}) →
+              Eq.{1}
+                  (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                  (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0})) →
+                Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+                  Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+                    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralNominalCenteredSteps.Models state model →
+                        (plan.packet.Holds model ↔
+                          Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                            (Yulang.GeneralNominalAllocation.merges plan.packet.context.state plan.packet.registry
+                              plan.packet.site.occurrence.identity plan.packet.declaration
+                              (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+                                (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context
+                                  plan.packet.declaration plan.packet.bounds))))
+@Yulang.GeneralDictionaryNominalPairDiscovery178.candidate_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredSteps.State roles} {key : Nat}
+  {children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {n : Nat},
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry state focus key children plan →
+    ∀ (lower upper : Fin plan.packet.context.state.base.slots),
+      Ne.{1} lower upper →
+        ∀ (name : Nat) (names : Fin n → Nat),
+          Function.Injective.{1, 1} names →
+            Eq.{1}
+                (Yulang.GeneralNominalInspection.queries plan.packet.context.state plan.packet.context.interpretation
+                  plan.packet.declaration)
+                (List.cons.{0}
+                  (Yulang.GeneralNominalInspection.Query.nominal name
+                    (List.ofFn.{0} fun i =>
+                      Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} (names i) List.nil.{0})))
+                  List.nil.{0}) →
+              Eq.{1}
+                  (Yulang.GeneralNominalRecursiveCandidates.arguments plan.packet.context plan.packet.site.occurrence)
+                  (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0})) →
+                Eq.{1} plan.packet.declaration.requirements List.nil.{0} →
+                  Eq.{1} plan.packet.site.occurrence.demand.outputs List.nil.{0} →
+                    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralNominalCenteredSteps.Models state model →
+                        Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                            (Yulang.GeneralNominalAllocation.merges plan.packet.context.state plan.packet.registry
+                              plan.packet.site.occurrence.identity plan.packet.declaration
+                              (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+                                (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context
+                                  plan.packet.declaration plan.packet.bounds))) →
+                          Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.erased.current.context model
+                            focus (Yulang.CommonRoleOutermostResolver.Dictionary.node key List.nil.{0})
+Yulang.GeneralDictionaryNominalPairExample178.base : Yulang.GeneralSourceState.State
+Yulang.GeneralDictionaryNominalPairExample178.view : Yulang.GeneralNormalizedObservation.Snapshot
+  Yulang.GeneralDictionaryNominalPairExample178.base
+Yulang.GeneralDictionaryNominalPairExample178.descriptor : Yulang.GeneralNominalState.Descriptor 4
+Yulang.GeneralDictionaryNominalPairExample178.state : Yulang.GeneralNominalState.State
+Yulang.GeneralDictionaryNominalPairExample178.context : Yulang.GeneralNominalRecursiveCandidates.Context
+Yulang.GeneralDictionaryNominalPairExample178.declaration : Yulang.GeneralDeclarations.Declaration
+Yulang.GeneralDictionaryNominalPairExample178.registry : Yulang.GeneralDeclarations.Registry
+Yulang.GeneralDictionaryNominalPairExample178.root : Yulang.GeneralSourceDictionaries.Occurrence
+  Yulang.GeneralDeclarationExamples.roles
+Yulang.GeneralDictionaryNominalPairExample178.captures : Yulang.GeneralNominalAllocation.Bindings
+Yulang.GeneralDictionaryNominalPairExample178.lo : Nat
+Yulang.GeneralDictionaryNominalPairExample178.hi : Nat
+Yulang.GeneralDictionaryNominalPairExample178.lo_fresh : ∀ (i : Nat),
+  LE.le.{0} i 3 → Ne.{1} Yulang.GeneralDictionaryNominalPairExample178.lo i
+Yulang.GeneralDictionaryNominalPairExample178.hi_fresh : ∀ (i : Nat),
+  LE.le.{0} i 3 → Ne.{1} Yulang.GeneralDictionaryNominalPairExample178.hi i
+Yulang.GeneralDictionaryNominalPairExample178.endpoints_ne : Ne.{1} Yulang.GeneralDictionaryNominalPairExample178.lo
+  Yulang.GeneralDictionaryNominalPairExample178.hi
+Yulang.GeneralDictionaryNominalPairExample178.assignment : Bool → Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDictionaryNominalPairExample178.lower_value : ∀ (good : Bool),
+  Eq.{1} (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNominalPairExample178.assignment good 2))
+    Yulang.CommonNominalSyntax.Layer.bottom.{0, 0}
+Yulang.GeneralDictionaryNominalPairExample178.upper_value : ∀ (good : Bool),
+  Eq.{1} (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNominalPairExample178.assignment good 3))
+    Yulang.CommonNominalSyntax.Layer.top.{0, 0}
+Yulang.GeneralDictionaryNominalPairExample178.fresh_lower_good : Eq.{1}
+  (Prod.fst.{0, 0}
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true
+      Yulang.GeneralDictionaryNominalPairExample178.lo))
+  Yulang.CommonNominalSyntax.Layer.bottom.{0, 0}
+Yulang.GeneralDictionaryNominalPairExample178.fresh_upper_good : Eq.{1}
+  (Prod.fst.{0, 0}
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true
+      Yulang.GeneralDictionaryNominalPairExample178.hi))
+  Yulang.CommonNominalSyntax.Layer.top.{0, 0}
+Yulang.GeneralDictionaryNominalPairExample178.fresh_lower_bad : Eq.{1}
+  (Prod.fst.{0, 0}
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false
+      Yulang.GeneralDictionaryNominalPairExample178.lo))
+  Yulang.CommonNominalSyntax.Layer.top.{0, 0}
+Yulang.GeneralDictionaryNominalPairExample178.source_models : ∀ (good : Bool),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryNominalPairExample178.state
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment good)
+Yulang.GeneralDictionaryNominalPairExample178.shape : Yulang.GeneralDictionaryNominalPair178.Shape
+  Yulang.GeneralDictionaryNominalPairExample178.context Yulang.GeneralDictionaryNominalPairExample178.declaration
+Yulang.GeneralDictionaryNominalPairExample178.report_captures : Eq.{1}
+  (Yulang.GeneralNominalRecursiveInspection.bindings Yulang.GeneralDictionaryNominalPairExample178.state
+    (Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralDictionaryNominalPairExample178.context
+      Yulang.GeneralDictionaryNominalPairExample178.declaration (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0})))
+  Yulang.GeneralDictionaryNominalPairExample178.captures
+Yulang.GeneralDictionaryNominalPairExample178.merges_exact : Eq.{1}
+  (Yulang.GeneralNominalAllocation.merges Yulang.GeneralDictionaryNominalPairExample178.state
+    Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.root.identity
+    Yulang.GeneralDictionaryNominalPairExample178.declaration Yulang.GeneralDictionaryNominalPairExample178.captures)
+  (HAppend.hAppend.{0, 0, 0}
+    (Yulang.GeneralNominalAllocation.equations Yulang.GeneralDictionaryNominalPairExample178.lo
+      ((Yulang.Core.PresenceGeneration.TyTerm.var 2).union (Yulang.Core.PresenceGeneration.TyTerm.var 2)))
+    (Yulang.GeneralNominalAllocation.equations Yulang.GeneralDictionaryNominalPairExample178.hi
+      ((Yulang.Core.PresenceGeneration.TyTerm.var 3).inter (Yulang.Core.PresenceGeneration.TyTerm.var 3))))
+Yulang.GeneralDictionaryNominalPairExample178.merge_good : Yulang.PresenceNormalForm.All.{0, 0}
+  Yulang.CommonNominalFullCarrier.model (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true)
+  (Yulang.GeneralNominalAllocation.merges Yulang.GeneralDictionaryNominalPairExample178.state
+    Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.root.identity
+    Yulang.GeneralDictionaryNominalPairExample178.declaration Yulang.GeneralDictionaryNominalPairExample178.captures)
+Yulang.GeneralDictionaryNominalPairExample178.merge_bad : ¬Yulang.PresenceNormalForm.All.{0, 0}
+    Yulang.CommonNominalFullCarrier.model (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+    (Yulang.GeneralNominalAllocation.merges Yulang.GeneralDictionaryNominalPairExample178.state
+      Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.root.identity
+      Yulang.GeneralDictionaryNominalPairExample178.declaration Yulang.GeneralDictionaryNominalPairExample178.captures)
+Yulang.GeneralDictionaryNominalPairExample178.declaration_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralDictionaryNominalPairExample178.declaration
+Yulang.GeneralDictionaryNominalPairExample178.endpoint_order : ∀ (good : Bool),
+  Yulang.CommonNominalFullCarrier.Subtype
+    (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNominalPairExample178.assignment good 0))
+    (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNominalPairExample178.assignment good 1))
+Yulang.GeneralDictionaryNominalPairExample178.source_unchanged : ∀ (i : Nat),
+  LE.le.{0} i 3 →
+    Eq.{1} (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true i)
+      (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false i)
+Yulang.GeneralDictionaryNominalPairExample178.branch_good : Yulang.GeneralNominalRecursiveCandidates.BranchModels
+  Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.context
+  Yulang.GeneralDictionaryNominalPairExample178.root Yulang.GeneralDictionaryNominalPairExample178.declaration
+  Yulang.GeneralDictionaryNominalPairExample178.declaration_checked (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0})
+  (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true)
+Yulang.GeneralDictionaryNominalPairExample178.branch_bad : ¬Yulang.GeneralNominalRecursiveCandidates.BranchModels
+    Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryNominalPairExample178.context
+    Yulang.GeneralDictionaryNominalPairExample178.root Yulang.GeneralDictionaryNominalPairExample178.declaration
+    Yulang.GeneralDictionaryNominalPairExample178.declaration_checked (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0})
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+Yulang.GeneralDictionaryNominalPairExample178.fixed_model_obstruction : Yulang.GeneralNominalState.Models
+    Yulang.GeneralDictionaryNominalPairExample178.state
+    (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false) ∧
+  Yulang.CommonNominalFullCarrier.Subtype
+      (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false 0))
+      (Prod.fst.{0, 0} (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false 1)) ∧
+    (Exists.{1} fun model =>
+        Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNominalPairExample178.registry
+          Yulang.GeneralDictionaryNominalPairExample178.context Yulang.GeneralDictionaryNominalPairExample178.root
+          Yulang.GeneralDictionaryNominalPairExample178.declaration
+          Yulang.GeneralDictionaryNominalPairExample178.declaration_checked
+          (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0}) model) ∧
+      ¬Yulang.GeneralNominalRecursiveCandidates.BranchModels Yulang.GeneralDictionaryNominalPairExample178.registry
+          Yulang.GeneralDictionaryNominalPairExample178.context Yulang.GeneralDictionaryNominalPairExample178.root
+          Yulang.GeneralDictionaryNominalPairExample178.declaration
+          Yulang.GeneralDictionaryNominalPairExample178.declaration_checked
+          (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0})
+          (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.false)
+Yulang.GeneralDictionaryNominalPairExtrema178.bindings_exact : ∀ (state : Yulang.GeneralNominalState.State)
+  (lower upper : Fin state.base.slots) (name : Nat) {n : Nat} (names : Fin n → Nat)
+  (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state),
+  Eq.{1}
+    (Yulang.GeneralNominalRecursiveInspection.bindings state
+      (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high))
+    (HAppend.hAppend.{0, 0, 0}
+      (List.ofFn.{0} fun i =>
+        Prod.mk.{0, 0} (names i)
+          (Prod.mk.{0, 0} (state.base.source (Prod.fst.{0, 0} (low i))) (state.base.source (Prod.snd.{0, 0} (low i)))))
+      (List.ofFn.{0} fun i =>
+        Prod.mk.{0, 0} (names i)
+          (Prod.mk.{0, 0} (state.base.source (Prod.fst.{0, 0} (high i)))
+            (state.base.source (Prod.snd.{0, 0} (high i))))))
+Yulang.GeneralDictionaryNominalPairExtrema178.occurrences_pair : ∀ (state : Yulang.GeneralNominalState.State)
+  (lower upper : Fin state.base.slots) (name : Nat) {n : Nat} (names : Fin n → Nat),
+  Function.Injective.{1, 1} names →
+    ∀ (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state) (i : Fin n),
+      Eq.{1}
+        (Yulang.GeneralNominalAllocation.occurrences
+          (Yulang.GeneralNominalRecursiveInspection.bindings state
+            (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high))
+          (names i))
+        (List.cons.{0}
+          (Prod.mk.{0, 0} (state.base.source (Prod.fst.{0, 0} (low i))) (state.base.source (Prod.snd.{0, 0} (low i))))
+          (List.cons.{0}
+            (Prod.mk.{0, 0} (state.base.source (Prod.fst.{0, 0} (high i)))
+              (state.base.source (Prod.snd.{0, 0} (high i))))
+            List.nil.{0}))
+Yulang.GeneralDictionaryNominalPairExtrema178.capture_pair : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (invocation key : Nat) (lower upper : Fin state.base.slots)
+  (name : Nat) {n : Nat} (names : Fin n → Nat),
+  Function.Injective.{1, 1} names →
+    ∀ (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state) (i : Fin n),
+      Eq.{1}
+        ((Yulang.GeneralNominalAllocation.capture state registry invocation key
+              (Yulang.GeneralNominalRecursiveInspection.bindings state
+                (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high))).inputs
+          (names i))
+        (Prod.mk.{0, 0}
+          (Yulang.GeneralNominalAllocation.source state registry invocation
+            (Yulang.GeneralNominalAllocation.origin invocation key 0 (names i) 0))
+          (Yulang.GeneralNominalAllocation.source state registry invocation
+            (Yulang.GeneralNominalAllocation.origin invocation key 1 (names i) 0)))
+Yulang.GeneralDictionaryNominalPairExtrema178.merges_iff_pair_extrema : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (lower upper : Fin state.base.slots) (name : Nat) {n : Nat}
+  (names : Fin n → Nat),
+  Function.Injective.{1, 1} names →
+    Eq.{1} declaration.inputNames (List.ofFn.{0} names) →
+      ∀ (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state)
+        (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+            (Yulang.GeneralNominalAllocation.merges state registry invocation declaration
+              (Yulang.GeneralNominalRecursiveInspection.bindings state
+                (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high))) ↔
+          ∀ (i : Fin n),
+            Yulang.CommonNominalFullCarrier.Equivalent
+                (Prod.fst.{0, 0}
+                  (model
+                    (Yulang.GeneralNominalAllocation.source state registry invocation
+                      (Yulang.GeneralNominalAllocation.origin invocation declaration.id 0 (names i) 0))))
+                (Yulang.CommonNominalSyntax.Layer.union.{0, 0}
+                  (Prod.fst.{0, 0} (model (state.base.source (Prod.fst.{0, 0} (low i)))))
+                  (Prod.fst.{0, 0} (model (state.base.source (Prod.fst.{0, 0} (high i)))))) ∧
+              Yulang.CommonNominalFullCarrier.Equivalent
+                (Prod.fst.{0, 0}
+                  (model
+                    (Yulang.GeneralNominalAllocation.source state registry invocation
+                      (Yulang.GeneralNominalAllocation.origin invocation declaration.id 1 (names i) 0))))
+                (Yulang.CommonNominalSyntax.Layer.inter.{0, 0}
+                  (Prod.fst.{0, 0} (model (state.base.source (Prod.snd.{0, 0} (low i)))))
+                  (Prod.fst.{0, 0} (model (state.base.source (Prod.snd.{0, 0} (high i))))))
+Yulang.GeneralDictionaryNominalPairExtrema178.Extrema : (context : Yulang.GeneralNominalRecursiveCandidates.Context) →
+  Yulang.GeneralDeclarations.Registry →
+    Nat →
+      (declaration : Yulang.GeneralDeclarations.Declaration) →
+        Yulang.GeneralDictionaryNominalPair178.Shape context declaration →
+          Yulang.GeneralNominalCommonBridge.Assignment → Prop
+@Yulang.GeneralDictionaryNominalPairExtrema178.branch_models_iff_extrema : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Eq.{1} declaration.inputNames (List.ofFn.{0} shape.names) →
+    Eq.{1} declaration.requirements List.nil.{0} →
+      Eq.{1} root.demand.outputs List.nil.{0} →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalState.Models context.state model →
+            Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source shape.lower)))
+                (Prod.fst.{0, 0} (model (context.state.base.source shape.upper))) →
+              (Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked
+                  (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}) model ↔
+                Yulang.GeneralDictionaryNominalPairExtrema178.Extrema context registry root.identity declaration shape
+                  model)
+@Yulang.GeneralDictionaryNominalPairInitial178.packet : {roles : Yulang.Roles.RoleDecls} →
+  (registry : Yulang.GeneralDeclarations.Registry) →
+    (context : Yulang.GeneralNominalRecursiveCandidates.Context) →
+      Yulang.GeneralNominalCenters.Site roles →
+        (declaration : Yulang.GeneralDeclarations.Declaration) →
+          Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration →
+            Yulang.GeneralDictionaryNominalPair178.Shape context declaration →
+              Yulang.GeneralNominalSaturationState.Packet roles
+@Yulang.GeneralDictionaryNominalPairInitial178.plan : {roles : Yulang.Roles.RoleDecls} →
+  (registry : Yulang.GeneralDeclarations.Registry) →
+    (context : Yulang.GeneralNominalRecursiveCandidates.Context) →
+      Yulang.GeneralNominalCenters.Site roles →
+        (declaration : Yulang.GeneralDeclarations.Declaration) →
+          Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration →
+            Yulang.GeneralDictionaryNominalPair178.Shape context declaration → Yulang.GeneralNominalCenters.Plan roles
+@Yulang.GeneralDictionaryNominalPairInitial178.value_guard : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (input : Yulang.GeneralNominalCenters.Site roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}) →
+    Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry
+        (Yulang.GeneralNominalCenteredSteps.initialAt context input) input.occurrence declaration.id
+        (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked shape).children
+        (Yulang.GeneralDictionaryNominalPairInitial178.plan registry context input declaration checked shape) →
+      Yulang.GeneralNominalValueSupport.PacketGuard (Yulang.GeneralNominalCenteredSteps.initialAt context input).erased
+        (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked shape)
+        List.nil.{0}
+@Yulang.GeneralDictionaryNominalPairInitial178.raw_joint : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (input : Yulang.GeneralNominalCenters.Site roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry
+      (Yulang.GeneralNominalCenteredSteps.initialAt context input) input.occurrence declaration.id
+      (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked shape).children
+      (Yulang.GeneralDictionaryNominalPairInitial178.plan registry context input declaration checked shape) →
+    Yulang.GeneralNominalJointCandidates.Joint registry
+      (Yulang.GeneralNominalCenteredSteps.initialAt context input).erased.current input.occurrence declaration.id
+@Yulang.GeneralDictionaryNominalPairInitial178.raw_installable : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (input : Yulang.GeneralNominalCenters.Site roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry
+      (Yulang.GeneralNominalCenteredSteps.initialAt context input) input.occurrence declaration.id
+      (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked shape).children
+      (Yulang.GeneralDictionaryNominalPairInitial178.plan registry context input declaration checked shape) →
+    Yulang.GeneralNominalCenteredBoundary.Local registry (Yulang.GeneralNominalCenteredSteps.initialAt context input)
+        input.occurrence
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} declaration.id
+          (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked
+              shape).children) →
+      Yulang.GeneralNominalFeedbackSteps.Installable registry
+        (Yulang.GeneralNominalCenteredSteps.initialAt context input).erased.current
+        (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked shape)
+@Yulang.GeneralDictionaryNominalPairInitial178.installable_of_joint : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (input : Yulang.GeneralNominalCenters.Site roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}) →
+    Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry
+        (Yulang.GeneralNominalCenteredSteps.initialAt context input) input.occurrence declaration.id
+        (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked shape).children
+        (Yulang.GeneralDictionaryNominalPairInitial178.plan registry context input declaration checked shape) →
+      Yulang.GeneralNominalCenteredBoundary.Local registry (Yulang.GeneralNominalCenteredSteps.initialAt context input)
+          input.occurrence
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} declaration.id
+            (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked
+                shape).children) →
+        (Exists.{1} fun model =>
+            Yulang.GeneralNominalCenteredSteps.Models (Yulang.GeneralNominalCenteredSteps.initialAt context input)
+                model ∧
+              (Yulang.GeneralDictionaryNominalPairInitial178.plan registry context input declaration checked
+                    shape).Holds
+                model) →
+          Yulang.GeneralNominalCenteredBoundary.Installable registry
+            (Yulang.GeneralNominalCenteredSteps.initialAt context input)
+            (Yulang.GeneralDictionaryNominalPairInitial178.plan registry context input declaration checked shape)
+@Yulang.GeneralDictionaryNominalPairInitial178.stable_instance_of_joint : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (input : Yulang.GeneralNominalCenters.Site roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}) →
+    Yulang.GeneralDictionaryCenteredCandidate176.Candidate registry
+        (Yulang.GeneralNominalCenteredSteps.initialAt context input) input.occurrence declaration.id
+        (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked shape).children
+        (Yulang.GeneralDictionaryNominalPairInitial178.plan registry context input declaration checked shape) →
+      Yulang.GeneralNominalCenteredBoundary.Local registry (Yulang.GeneralNominalCenteredSteps.initialAt context input)
+          input.occurrence
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} declaration.id
+            (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked
+                shape).children) →
+        (Exists.{1} fun model =>
+            Yulang.GeneralNominalCenteredSteps.Models (Yulang.GeneralNominalCenteredSteps.initialAt context input)
+                model ∧
+              (Yulang.GeneralDictionaryNominalPairInitial178.plan registry context input declaration checked
+                    shape).Holds
+                model) →
+          Yulang.GeneralNominalCenteredSteps.Stable registry
+              (Yulang.GeneralNominalCenteredSteps.initialAt context input) input.occurrence →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalCenteredSteps.Models (Yulang.GeneralNominalCenteredSteps.initialAt context input)
+                  model →
+                Yulang.GeneralDictionaryRecursiveEvidence.Instance registry context model input.occurrence
+                  declaration.id
+                  (Yulang.GeneralDictionaryNominalPairInitial178.packet registry context input declaration checked
+                      shape).children
+Yulang.GeneralDictionaryNominalPairJoint178.binder : Nat
+Yulang.GeneralDictionaryNominalPairJoint178.binder_old : ∀ (i : Nat),
+  LE.le.{0} i 3 → Ne.{1} Yulang.GeneralDictionaryNominalPairJoint178.binder i
+Yulang.GeneralDictionaryNominalPairJoint178.binder_lo : Ne.{1} Yulang.GeneralDictionaryNominalPairJoint178.binder
+  Yulang.GeneralDictionaryNominalPairExample178.lo
+Yulang.GeneralDictionaryNominalPairJoint178.binder_hi : Ne.{1} Yulang.GeneralDictionaryNominalPairJoint178.binder
+  Yulang.GeneralDictionaryNominalPairExample178.hi
+Yulang.GeneralDictionaryNominalPairJoint178.actual_binder : Eq.{1}
+  (Yulang.GeneralDictionaryCenteredNominalExample178.plan.binder 0) Yulang.GeneralDictionaryNominalPairJoint178.binder
+Yulang.GeneralDictionaryNominalPairJoint178.assignment : Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDictionaryNominalPairJoint178.old_value : ∀ (i : Nat),
+  LE.le.{0} i 3 →
+    Eq.{1} (Yulang.GeneralDictionaryNominalPairJoint178.assignment i)
+      (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true i)
+Yulang.GeneralDictionaryNominalPairJoint178.lower_value : Eq.{1}
+  (Yulang.GeneralDictionaryNominalPairJoint178.assignment Yulang.GeneralDictionaryNominalPairExample178.lo)
+  (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true Yulang.GeneralDictionaryNominalPairExample178.lo)
+Yulang.GeneralDictionaryNominalPairJoint178.upper_value : Eq.{1}
+  (Yulang.GeneralDictionaryNominalPairJoint178.assignment Yulang.GeneralDictionaryNominalPairExample178.hi)
+  (Yulang.GeneralDictionaryNominalPairExample178.assignment Bool.true Yulang.GeneralDictionaryNominalPairExample178.hi)
+Yulang.GeneralDictionaryNominalPairJoint178.binder_value : Eq.{1}
+  (Prod.fst.{0, 0}
+    (Yulang.GeneralDictionaryNominalPairJoint178.assignment Yulang.GeneralDictionaryNominalPairJoint178.binder))
+  (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int)
+Yulang.GeneralDictionaryNominalPairJoint178.source_models : Yulang.GeneralNominalState.Models
+  Yulang.GeneralDictionaryNominalPairExample178.state Yulang.GeneralDictionaryNominalPairJoint178.assignment
+Yulang.GeneralDictionaryNominalPairJoint178.merges : Yulang.PresenceNormalForm.All.{0, 0}
+  Yulang.CommonNominalFullCarrier.model Yulang.GeneralDictionaryNominalPairJoint178.assignment
+  (Yulang.GeneralNominalAllocation.merges Yulang.GeneralDictionaryNominalPairExample178.state
+    Yulang.GeneralDictionaryNominalPairExample178.registry
+    Yulang.GeneralDictionaryCenteredNominalExample178.root.identity
+    Yulang.GeneralDictionaryNominalPairExample178.declaration Yulang.GeneralDictionaryNominalPairExample178.captures)
+Yulang.GeneralDictionaryNominalPairJoint178.branch : Yulang.GeneralDictionaryCenteredNominalExample178.packet.Holds
+  Yulang.GeneralDictionaryNominalPairJoint178.assignment
+Yulang.GeneralDictionaryNominalPairJoint178.head_schema : Eq.{1}
+  Yulang.GeneralDictionaryCenteredNominalExample178.plan.headSchema
+  {
+    variables :=
+      List.cons.{0}
+        { name := 0, origin := (Yulang.GeneralNominalRecursiveInspection.Origin.source 0).nominal 0 0,
+          mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+        List.nil.{0},
+    tests :=
+      List.cons.{0}
+        (Prod.mk.{0, 0} (Yulang.GeneralNominalRecursiveInspection.Origin.source 0)
+          (Yulang.GeneralNominalRecursiveInspection.Test.nominal 0 1))
+        List.nil.{0} }
+Yulang.GeneralDictionaryNominalPairJoint178.inputs_empty : Eq.{1}
+  (Yulang.GeneralNominalPacketSupport.inputSchema Yulang.GeneralDictionaryCenteredNominalExample178.packet) { }
+Yulang.GeneralDictionaryNominalPairJoint178.named_empty : Eq.{1}
+  (Yulang.GeneralNominalPacketSupport.namedSchema Yulang.GeneralDictionaryCenteredNominalExample178.packet) { }
+Yulang.GeneralDictionaryNominalPairJoint178.observed_int : Yulang.GeneralNominalRecursiveInspection.Observes
+  Yulang.GeneralDictionaryNominalPairJoint178.assignment
+  ((Yulang.GeneralNominalRecursiveInspection.Origin.source 0).nominal 0 0)
+  (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int)
+Yulang.GeneralDictionaryNominalPairJoint178.observed_unique : ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalRecursiveInspection.Observes Yulang.GeneralDictionaryNominalPairJoint178.assignment
+      ((Yulang.GeneralNominalRecursiveInspection.Origin.source 0).nominal 0 0) actual →
+    Yulang.CommonNominalFullCarrier.Equivalent actual
+      (Yulang.CommonNominalSyntax.Layer.base.{0, 0} Yulang.Inference.Base.int)
+Yulang.GeneralDictionaryNominalPairJoint178.centered_head : Yulang.GeneralDictionaryCenteredNominalExample178.plan.SchemaHolds
+  Yulang.GeneralDictionaryCenteredNominalExample178.plan.headSchema
+  Yulang.GeneralDictionaryNominalPairJoint178.assignment
+Yulang.GeneralDictionaryNominalPairJoint178.plan_holds : Yulang.GeneralDictionaryCenteredNominalExample178.plan.Holds
+  Yulang.GeneralDictionaryNominalPairJoint178.assignment
+Yulang.GeneralDictionaryNominalPairJoint178.joint_model : Exists.{1} fun model =>
+  Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralDictionaryCenteredNominalExample178.start model ∧
+    Yulang.GeneralDictionaryCenteredNominalExample178.plan.Holds model
+Yulang.GeneralDictionaryNominalPairJoint178.value_guard : Yulang.GeneralNominalValueSupport.PacketGuard
+  Yulang.GeneralDictionaryCenteredNominalExample178.start.erased
+  Yulang.GeneralDictionaryCenteredNominalExample178.packet List.nil.{0}
+Yulang.GeneralDictionaryNominalPairJoint178.raw_joint : Yulang.GeneralNominalJointCandidates.Joint
+  Yulang.GeneralDictionaryNominalPairExample178.registry
+  Yulang.GeneralDictionaryCenteredNominalExample178.start.erased.current
+  Yulang.GeneralDictionaryCenteredNominalExample178.root Yulang.GeneralDictionaryNominalPairExample178.declaration.id
+Yulang.GeneralDictionaryNominalPairJoint178.raw_installable : Yulang.GeneralNominalCenteredBoundary.Local
+    Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryCenteredNominalExample178.start
+    Yulang.GeneralDictionaryCenteredNominalExample178.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0}
+      Yulang.GeneralDictionaryNominalPairExample178.declaration.id List.nil.{0}) →
+  Yulang.GeneralNominalFeedbackSteps.Installable Yulang.GeneralDictionaryNominalPairExample178.registry
+    Yulang.GeneralDictionaryCenteredNominalExample178.start.erased.current
+    Yulang.GeneralDictionaryCenteredNominalExample178.packet
+Yulang.GeneralDictionaryNominalPairJoint178.installable : Yulang.GeneralNominalCenteredBoundary.Local
+    Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryCenteredNominalExample178.start
+    Yulang.GeneralDictionaryCenteredNominalExample178.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0}
+      Yulang.GeneralDictionaryNominalPairExample178.declaration.id List.nil.{0}) →
+  Yulang.GeneralNominalCenteredBoundary.Installable Yulang.GeneralDictionaryNominalPairExample178.registry
+    Yulang.GeneralDictionaryCenteredNominalExample178.start Yulang.GeneralDictionaryCenteredNominalExample178.plan
+Yulang.GeneralDictionaryNominalPairJoint178.stable_not_selected : Yulang.GeneralNominalCenteredSteps.Stable
+    Yulang.GeneralDictionaryNominalPairExample178.registry Yulang.GeneralDictionaryCenteredNominalExample178.start
+    Yulang.GeneralDictionaryCenteredNominalExample178.root →
+  ¬Yulang.GeneralNominalCenteredBoundary.Local Yulang.GeneralDictionaryNominalPairExample178.registry
+      Yulang.GeneralDictionaryCenteredNominalExample178.start Yulang.GeneralDictionaryCenteredNominalExample178.root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0}
+        Yulang.GeneralDictionaryNominalPairExample178.declaration.id List.nil.{0})
+Yulang.GeneralDictionaryNominalPairShared178.projection_of_coherent : ∀ (state : Yulang.GeneralNominalState.State)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models state model →
+    ∀ (lower upper : Fin state.base.slots) (left right : Yulang.GeneralNominalState.Descriptor state.base.slots),
+      Eq.{1} (state.nominals lower) (Option.some.{0} left) →
+        Eq.{1} (state.nominals upper) (Option.some.{0} right) →
+          Eq.{1} right.declaration.name left.declaration.name →
+            ∀ {n : Nat} (names : Fin n → Nat) (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state),
+              Eq.{1} left.arguments (List.ofFn.{0} fun i => Yulang.GeneralNominalState.Parameter.type (low i)) →
+                Eq.{1} right.arguments (List.ofFn.{0} fun i => Yulang.GeneralNominalState.Parameter.type (high i)) →
+                  Yulang.GeneralNominalSharedCaptureFacts.Coherent model (state.base.source lower) left.declaration.name
+                      names →
+                    Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (state.base.source lower)))
+                        (Prod.fst.{0, 0} (model (state.base.source upper))) →
+                      Yulang.GeneralNominalRecursiveInspection.ProjectionModels state
+                        (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper left.declaration.name names
+                          low high)
+                        model
+Yulang.GeneralDictionaryNominalPairShared178.coherent_of_projection : ∀ (state : Yulang.GeneralNominalState.State)
+  (lower upper : Fin state.base.slots) (name : Nat) {n : Nat} (names : Fin n → Nat)
+  (low high : Fin n → Yulang.GeneralNominalInspection.Bounds state)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveInspection.ProjectionModels state
+      (Yulang.GeneralDictionaryNominalPair178.pairReport state lower upper name names low high) model →
+    Yulang.GeneralNominalSharedCaptureFacts.Coherent model (state.base.source lower) name names
+Yulang.GeneralDictionaryNominalPairShared178.SharedShape : Yulang.GeneralNominalRecursiveCandidates.Context →
+  Yulang.GeneralDeclarations.Declaration → Type
+@Yulang.GeneralDictionaryNominalPairShared178.private_models_of_merges : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (shape : Yulang.GeneralDictionaryNominalPairShared178.SharedShape context declaration)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models context.state model →
+    Yulang.GeneralNominalSharedCaptureFacts.Coherent model (context.state.base.source shape.lower)
+        shape.left.declaration.name shape.names →
+      Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source shape.lower)))
+          (Prod.fst.{0, 0} (model (context.state.base.source shape.upper))) →
+        Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+            (Yulang.GeneralNominalAllocation.merges context.state registry root.identity declaration
+              (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                (Yulang.GeneralNominalRecursiveCandidates.report context declaration
+                  (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})))) →
+          Yulang.GeneralNominalState.Models
+            (Yulang.GeneralNominalRecursiveCandidates.privateState registry context root declaration
+              (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}))
+            model
+@Yulang.GeneralDictionaryNominalPairShared178.branch_models_iff_merges : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPairShared178.SharedShape context declaration),
+  Eq.{1} declaration.requirements List.nil.{0} →
+    Eq.{1} root.demand.outputs List.nil.{0} →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalState.Models context.state model →
+          Yulang.GeneralNominalSharedCaptureFacts.Coherent model (context.state.base.source shape.lower)
+              shape.left.declaration.name shape.names →
+            Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source shape.lower)))
+                (Prod.fst.{0, 0} (model (context.state.base.source shape.upper))) →
+              (Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked
+                  (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}) model ↔
+                Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                  (Yulang.GeneralNominalAllocation.merges context.state registry root.identity declaration
+                    (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                      (Yulang.GeneralNominalRecursiveCandidates.report context declaration
+                        (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})))))
+@Yulang.GeneralDictionaryNominalPairShared178.branch_models_iff_shared_residual : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+  (shape : Yulang.GeneralDictionaryNominalPairShared178.SharedShape context declaration),
+  Eq.{1} declaration.requirements List.nil.{0} →
+    Eq.{1} root.demand.outputs List.nil.{0} →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalRecursiveCandidates.BranchModels registry context root declaration checked
+            (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}) model ↔
+          Yulang.GeneralNominalState.Models context.state model ∧
+            Yulang.CommonNominalFullCarrier.Subtype (Prod.fst.{0, 0} (model (context.state.base.source shape.lower)))
+                (Prod.fst.{0, 0} (model (context.state.base.source shape.upper))) ∧
+              Yulang.GeneralNominalSharedCaptureFacts.Coherent model (context.state.base.source shape.lower)
+                  shape.left.declaration.name shape.names ∧
+                Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+                  (Yulang.GeneralNominalAllocation.merges context.state registry root.identity declaration
+                    (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                      (Yulang.GeneralNominalRecursiveCandidates.report context declaration
+                        (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}))))
+Yulang.GeneralDictionaryNominalPairSourceSupport178.variables_read_none : ∀ (state : Yulang.GeneralNominalState.State)
+  {n : Nat} (names : Fin n → Nat) (bounds : Fin n → Yulang.GeneralNominalInspection.Bounds state),
+  Eq.{1}
+    (Yulang.GeneralNominalSupport.readsMany state
+      (List.ofFn.{0} fun i => Yulang.GeneralNominalInspection.Query.variables (List.cons.{0} (names i) List.nil.{0}))
+      (List.ofFn.{0} bounds))
+    List.nil.{0}
+Yulang.GeneralDictionaryNominalPairSourceSupport178.reads_exact : ∀
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Eq.{1}
+    (Yulang.GeneralNominalSupport.readsMany context.state
+      (Yulang.GeneralNominalInspection.queries context.state context.interpretation declaration)
+      (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}))
+    (List.cons.{0} shape.lower (List.cons.{0} shape.upper List.nil.{0}))
+@Yulang.GeneralDictionaryNominalPairSourceSupport178.located_arguments : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (lower upper : Fin context.state.base.slots),
+  Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments context root)
+      (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} lower upper) List.nil.{0})) →
+    ∀ (index : Fin (roles root.demand.role).arity),
+      Eq.{1} (root.demand.arguments index)
+        (Prod.mk.{0, 0} (context.state.base.source lower) (context.state.base.source upper))
+@Yulang.GeneralDictionaryNominalPairSourceSupport178.nominal_source_ready : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (slot : Fin context.state.base.slots)
+  (descriptor : Yulang.GeneralNominalState.Descriptor context.state.base.slots),
+  Eq.{1} (context.state.nominals slot) (Option.some.{0} descriptor) →
+    Yulang.GeneralNominalSupport.ReadyAt (Yulang.GeneralNominalSupport.initial context root) List.nil.{0}
+      (context.state.base.source slot)
+@Yulang.GeneralDictionaryNominalPairSourceSupport178.inspection : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Yulang.GeneralNominalSupport.Inspection (Yulang.GeneralNominalSupport.initial context root) List.nil.{0} declaration
+    (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})
+@Yulang.GeneralDictionaryNominalPairSourceSupport178.guard : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration),
+  Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments context root)
+      (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+    Yulang.GeneralNominalSupport.Guard (Yulang.GeneralNominalSupport.initial context root) root declaration
+      (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0}) List.nil.{0}
+@Yulang.GeneralDictionaryNominalPairSourceSupport178.decisions : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}) →
+    Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments context root)
+        (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+      Yulang.GeneralNominalSupport.DecisionGuard (Yulang.GeneralNominalSupport.initial context root) registry root
+        List.nil.{0}
+@Yulang.GeneralDictionaryNominalPairSourceSupport178.value_guard : ∀ {roles : Yulang.Roles.RoleDecls}
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (declaration : Yulang.GeneralDeclarations.Declaration)
+  (shape : Yulang.GeneralDictionaryNominalPair178.Shape context declaration)
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Eq.{1} registry.declarations (List.cons.{0} declaration List.nil.{0}) →
+    ∀ (checked : Yulang.GeneralDeclarations.DeclarationChecked registry.constructors roles declaration)
+      (site : Yulang.GeneralNominalDemandMerging.Site roles),
+      Eq.{1} site.occurrence root →
+        Eq.{1} (Yulang.GeneralNominalRecursiveCandidates.arguments context root)
+            (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0})) →
+          Yulang.GeneralNominalValueSupport.PacketGuard (Yulang.GeneralNominalSupport.initial context root)
+            { registry := registry, context := context, site := site, declaration := declaration, checked := checked,
+              bounds := List.cons.{0} (Prod.mk.{0, 0} shape.lower shape.upper) List.nil.{0} }
+            List.nil.{0}
+Yulang.GeneralDictionaryNominalPairSupport178.source_head : ∀ (i : Fin 4),
+  LT.lt.{0} (↑i) 2 →
+    Yulang.GeneralNominalSupport.Head Yulang.GeneralDictionaryNominalPairExample178.state (↑i)
+      (Yulang.GeneralNominalRecursiveInspection.Test.nominal 0 1)
+      (Yulang.GeneralCanonicalObservations.Observation.nominal Yulang.GeneralDictionaryNominalPairExample178.base i
+        Yulang.GeneralDictionaryNominalPairExample178.descriptor)
+Yulang.GeneralDictionaryNominalPairSupport178.reads_exact : Eq.{1}
+  (Yulang.GeneralNominalSupport.readsMany Yulang.GeneralDictionaryNominalPairExample178.state
+    (Yulang.GeneralNominalInspection.queries Yulang.GeneralDictionaryNominalPairExample178.state
+      Yulang.GeneralDictionaryNominalPairExample178.context.interpretation
+      Yulang.GeneralDictionaryNominalPairExample178.declaration)
+    (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0}))
+  (List.cons.{0} 0 (List.cons.{0} 1 List.nil.{0}))
+Yulang.GeneralDictionaryNominalPairSupport178.ready : ∀
+  (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) (i : Fin 4),
+  LT.lt.{0} (↑i) 2 →
+    Yulang.GeneralNominalSupport.ReadyAt
+      (Yulang.GeneralNominalSupport.initial Yulang.GeneralDictionaryNominalPairExample178.context root) List.nil.{0} ↑i
+Yulang.GeneralDictionaryNominalPairSupport178.inspection : ∀
+  (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  Yulang.GeneralNominalSupport.Inspection
+    (Yulang.GeneralNominalSupport.initial Yulang.GeneralDictionaryNominalPairExample178.context root) List.nil.{0}
+    Yulang.GeneralDictionaryNominalPairExample178.declaration (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0})
+Yulang.GeneralDictionaryNominalPairSupport178.guard : ∀
+  (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  (∀ (i : Fin (Yulang.GeneralDeclarationExamples.roles root.demand.role).arity),
+      Eq.{1} (root.demand.arguments i) (Prod.mk.{0, 0} 0 1)) →
+    Yulang.GeneralNominalSupport.Guard
+      (Yulang.GeneralNominalSupport.initial Yulang.GeneralDictionaryNominalPairExample178.context root) root
+      Yulang.GeneralDictionaryNominalPairExample178.declaration (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0})
+      List.nil.{0}
+Yulang.GeneralDictionaryNominalPairSupport178.decisions : ∀
+  (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  (∀ (i : Fin (Yulang.GeneralDeclarationExamples.roles root.demand.role).arity),
+      Eq.{1} (root.demand.arguments i) (Prod.mk.{0, 0} 0 1)) →
+    Eq.{1}
+        (Yulang.GeneralNominalRecursiveCandidates.arguments Yulang.GeneralDictionaryNominalPairExample178.context root)
+        (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0})) →
+      Yulang.GeneralNominalSupport.DecisionGuard
+        (Yulang.GeneralNominalSupport.initial Yulang.GeneralDictionaryNominalPairExample178.context root)
+        Yulang.GeneralDictionaryNominalPairExample178.registry root List.nil.{0}
+Yulang.GeneralDictionaryNominalPairSupport178.value_guard : ∀
+  (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles),
+  (∀ (i : Fin (Yulang.GeneralDeclarationExamples.roles root.demand.role).arity),
+      Eq.{1} (root.demand.arguments i) (Prod.mk.{0, 0} 0 1)) →
+    ∀
+      (checked :
+        Yulang.GeneralDeclarations.DeclarationChecked
+          Yulang.GeneralDictionaryNominalPairExample178.registry.constructors Yulang.GeneralDeclarationExamples.roles
+          Yulang.GeneralDictionaryNominalPairExample178.declaration)
+      (site : Yulang.GeneralNominalDemandMerging.Site Yulang.GeneralDeclarationExamples.roles),
+      Eq.{1} site.occurrence root →
+        Eq.{1}
+            (Yulang.GeneralNominalRecursiveCandidates.arguments Yulang.GeneralDictionaryNominalPairExample178.context
+              root)
+            (Option.some.{0} (List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0})) →
+          Yulang.GeneralNominalValueSupport.PacketGuard
+            (Yulang.GeneralNominalSupport.initial Yulang.GeneralDictionaryNominalPairExample178.context root)
+            { registry := Yulang.GeneralDictionaryNominalPairExample178.registry,
+              context := Yulang.GeneralDictionaryNominalPairExample178.context, site := site,
+              declaration := Yulang.GeneralDictionaryNominalPairExample178.declaration, checked := checked,
+              bounds := List.cons.{0} (Prod.mk.{0, 0} 0 1) List.nil.{0} }
+            List.nil.{0}
+Yulang.GeneralNominalMergeResidual178.CaptureExtrema : Yulang.GeneralNominalState.State →
+  Yulang.GeneralDeclarations.Registry →
+    Nat →
+      Yulang.GeneralDeclarations.Declaration →
+        Yulang.GeneralNominalAllocation.Bindings → Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralNominalMergeResidual178.merges_iff_extrema : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (bindings : Yulang.GeneralNominalAllocation.Bindings)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All.{0, 0} Yulang.CommonNominalFullCarrier.model model
+      (Yulang.GeneralNominalAllocation.merges state registry invocation declaration bindings) ↔
+    Yulang.GeneralNominalMergeResidual178.CaptureExtrema state registry invocation declaration bindings model
+Yulang.GeneralNominalMergeResidual178.propagate_iff_extrema : ∀ (state : Yulang.GeneralNominalState.State)
+  (registry : Yulang.GeneralDeclarations.Registry) (invocation : Nat)
+  (declaration : Yulang.GeneralDeclarations.Declaration) (bindings : Yulang.GeneralNominalAllocation.Bindings)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models
+      (Yulang.GeneralNominalAllocation.propagate state registry invocation declaration bindings) model ↔
+    Yulang.GeneralNominalState.Models state model ∧
+      Yulang.GeneralNominalAllocation.Compatible bindings model ∧
+        Yulang.GeneralNominalMergeResidual178.CaptureExtrema state registry invocation declaration bindings model

@@ -1,0 +1,10 @@
+DEPENDENCY_CLOSURE 916 REBUILD 4
+START Yulang.GeneralDictionaryCenteredNested179
+END Yulang.GeneralDictionaryCenteredNested179 0
+START Yulang.GeneralDictionaryCenteredNestedExample179
+END Yulang.GeneralDictionaryCenteredNestedExample179 0
+START Yulang.GeneralDictionaryNominalSharedDiscovery179
+END Yulang.GeneralDictionaryNominalSharedDiscovery179 0
+START Yulang.GeneralDictionaryNominalSharedDiscoveryExample179
+END Yulang.GeneralDictionaryNominalSharedDiscoveryExample179 0
+PASS 4

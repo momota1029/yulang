@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionaryCenteredNestedExample179
+#print axioms Yulang.GeneralDictionaryCenteredNested179.nested_holds
+#print axioms Yulang.GeneralDictionaryCenteredNested179.nested_evidence
+#print axioms Yulang.GeneralDictionaryCenteredNested179.recognized_evidence
+#print axioms Yulang.GeneralDictionaryCenteredNested179.candidate_point_bounds
+#print axioms Yulang.GeneralDictionaryCenteredNested179.nested_evidence_at_G
+#print axioms Yulang.GeneralDictionaryCenteredNested179.nested_evidence_at_G_root
+#print axioms Yulang.GeneralDictionaryCenteredNestedExample179.nested_recognized
+#print axioms Yulang.GeneralDictionaryCenteredNestedExample179.not_unary
+#print axioms Yulang.GeneralDictionaryCenteredNestedExample179.actual_discovery
+#print axioms Yulang.GeneralDictionaryCenteredNestedExample179.inhabited_discovery
