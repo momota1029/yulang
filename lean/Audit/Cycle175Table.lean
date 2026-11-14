@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionaryAgreedTable175
+#print axioms Yulang.GeneralDictionaryAgreedTable175.lookup_map
+#print axioms Yulang.GeneralDictionaryAgreedTable175.parent_mem_nodes
+#print axioms Yulang.GeneralDictionaryAgreedTable175.childRoles_mem_nodes
+#print axioms Yulang.GeneralDictionaryAgreedTable175.heightTable_correct
+#print axioms Yulang.GeneralDictionaryAgreedTable175.checkTable_eq
+#print axioms Yulang.GeneralDictionaryAgreedTable175.certifyTable_eq
+#print axioms Yulang.GeneralDictionaryAgreedTable175.certifyTable_iff
+#print axioms Yulang.GeneralDictionaryAgreedTable175.certifyTable_reorders
+#print axioms Yulang.GeneralDictionaryAgreedTable175.wrap_certified
+#print axioms Yulang.GeneralDictionaryAgreedTable175.recursive_not_certified

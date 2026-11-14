@@ -1,0 +1,14 @@
+AXIOM-GATE-PASS: 146 declarations (definitions/private/generated included)
+'Yulang.GeneralDictionaryNominalPair178.branch_models_iff_residual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNominal178.candidate_holds_iff_extrema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNominal178.candidate_evidence_node' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNominalPairExtrema178.merges_iff_pair_extrema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNominalExample178.evidence_not_from_candidate_alone' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

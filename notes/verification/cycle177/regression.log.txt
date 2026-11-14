@@ -1,0 +1,15 @@
+DEPENDENCY_CLOSURE 925 REBUILD 3
+START Yulang.GeneralDictionaryCenteredScalar177
+END Yulang.GeneralDictionaryCenteredScalar177 0
+START Yulang.GeneralDictionaryCenteredScalarRegression177
+/workspace/scratch/1d0b4aaa3394/yulang177-public/lean/Yulang/GeneralDictionaryCenteredScalarRegression177.lean:40:14: warning: This simp argument is unused:
+  registry
+
+Hint: Omit it from the simp argument list.
+  [apply] simp
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+END Yulang.GeneralDictionaryCenteredScalarRegression177 0
+START Yulang.GeneralDictionaryCenteredNamed177
+END Yulang.GeneralDictionaryCenteredNamed177 0
+PASS 3
