@@ -55,3 +55,36 @@ raw-source freshness alone does not classify historical plan/site sources, and
 old registered origins still need transport to the refreshed current candidate.
 Astra's class-local obstruction concerns another boundary and is not transferred
 to G. No semantic design decision is made here.
+
+## Ordinary aliases and ledger-only production
+
+`GeneralNominalOriginAlias181` transports nominal and structural paths through
+source renaming. Non-source observations retain the exact observed value; bare
+source observations are equivalent. This uses projection witnesses and does
+not assume structural observation uniqueness.
+
+`GeneralNominalOriginRootAlias181` reduces the premise from all source names
+to the single root of the origin. `RootRecorded` is root equality or the two
+opposite ordinary `tyLe` atoms in the current source state. Models derive the
+semantic alias. `GeneralDictionaryCenteredAliasProvenance181` uses this syntax
+certificate to obtain candidate overlap compatibility and a joint model.
+
+A further simplification is proved in `GeneralNominalLedgerReadback181`:
+registered actual head-use equations are already in the centered Models ledger.
+The local readback needs neither a reachable path nor raw packet registration.
+`GeneralDictionaryCenteredLedger181` therefore constructs both plain-covered
+and alias-covered joint candidate models without a path premise. A path remains
+relevant to proving coverage, not to consuming existing ledger equations.
+
+The new `GeneralDictionaryCenteredLedgerExample181` is a real inspected
+Candidate in a nonempty modeled ledger. Its nonpoint binder belongs to the old
+footprint, so FreshInputs is false; registered coverage nevertheless constructs
+a joint model. It is deliberately not asserted reachable, stable or novel.
+`GeneralNominalOriginAliasExample181` separately checks a nonempty ordinary-alias
+source model and actual nominal observations at distinct source names.
+
+The audit branch's `notes/audit/x-oracle.md` was freshly read (blob
+`0d75bdb801151589d5aeef453fd6b7dfa414baec`). X13-X16 are only approximations to
+internal interval/sharing judgments, explicitly not arbitrary internal constraints.
+They do not certify this cycle's centered-ledger extension. No new Yulang2 run
+or source-to-Lean correspondence is claimed.

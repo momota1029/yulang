@@ -3,9 +3,9 @@
 cycle: 181
 status: running
 started: 2026-11-14T04:23:19Z
-updated: 2026-11-14T04:42:00Z
-elapsed_min: 18.68
-activity: I30 EvidenceNode; checkpoint 30bd7de verified; extending origin transport through ordinary source aliases
+updated: 2026-11-14T04:50:20Z
+elapsed_min: 27.02
+activity: I30 EvidenceNode; 13 modules/90 declarations verified; ordinary alias and nonempty-ledger overlap checkpoint
 workspace: /workspace/scratch/1d0b4aaa3394/yulang181-public
 last_local_commit: none
-resume_hint: six verified modules published at 30bd7de; alias modules pending; Ground EvidenceNode remains OPEN
+resume_hint: 30bd7de previous checkpoint; alias/ledger continuation verified; next mode-sensitive footprint pruning; G field OPEN
