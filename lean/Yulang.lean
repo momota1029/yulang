@@ -3234,3 +3234,6 @@ import Yulang.GeneralNominalHeadStructuralExtension188
 import Yulang.GeneralNominalSemanticEnrichment188
 import Yulang.GeneralNominalRecursiveEnrichment188
 import Yulang.GeneralNominalHeadRecursiveExtension188
+
+import Yulang.GeneralNominalOutputCoverage189
+import Yulang.GeneralNominalHeadLeafPlan189
