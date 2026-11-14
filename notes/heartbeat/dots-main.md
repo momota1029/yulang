@@ -1,8 +1,9 @@
-cycle: 177
-status: completed
-started: 2026-11-14T00:23:26Z
-updated: 2026-11-14T01:13:48Z
-elapsed_min: 50
-activity: completed verified source publication and final report; source 8e7dc325 CI core/proof success
-last_local_commit: 894b2513e9
-resume_hint: read dots-cycle-177.md; exact G EvidenceNode still open; re-fetch orders and branch before next writer
+cycle: 178
+status: running
+started: 2026-11-14T01:25:44Z
+updated: 2026-11-14T01:27:00Z
+elapsed_min: 1
+activity: fresh I30 and orders read; completed177 verified; recover latest integration
+workspace: /workspace/scratch/1d0b4aaa3394/yulang178-public
+last_local_commit: none
+resume_hint: inspect cycle178-verification; no source changes yet; general G EvidenceNode still open
