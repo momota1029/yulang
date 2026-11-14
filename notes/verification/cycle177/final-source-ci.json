@@ -1,0 +1,16 @@
+[
+  {
+    "name": "core",
+    "status": "completed",
+    "conclusion": "success",
+    "id": 132274152586,
+    "url": "https://github.com/momota1029/yulang/actions/runs/43538782255/job/132274152586"
+  },
+  {
+    "name": "proof",
+    "status": "completed",
+    "conclusion": "success",
+    "id": 132274151947,
+    "url": "https://github.com/momota1029/yulang/actions/runs/43538781972/job/132274151947"
+  }
+]

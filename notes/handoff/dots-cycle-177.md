@@ -107,3 +107,29 @@ appended without removing any line of the previously published aggregator.
 All baseline and published files were retained. The only deliberate replaceable
 file is the periodic heartbeat. No local full build, Yulang2 oracle run, branch
 merge to integration, or general theorem completion is claimed.
+
+## Completed cycle 177 — 01:13 UTC
+
+Completed after 50 minutes, within the 55-minute cap. Verified source publication:
+`8e7dc325b4c971d27226096eb1e08b518d55676e` on `work/dots-main`, retaining
+integration `d636750ce44de9271ebf328a5ab27ad4955cb845`. Remote readback checked
+198 changed paths with zero mismatches. All fifteen new source modules are
+frozen and verified; the 182-declaration axiom gate and full-type checks pass.
+Selected consumer reachability covers 155/182 new declarations; exact G field
+composition still reaches 0/182, explicitly not a completed general field.
+
+GitHub Actions on source `8e7dc325` completed successfully for both core and
+proof. The remote proof job completed its full Lean build, Audit, and example
+steps. Local verification remained focused; no local full-library build/Audit
+or new Yulang2 oracle run was performed. The diff-only gate passed with eight
+retained REVIEW flags for read-only audit metaprogramming.
+
+The strongest addition is centered interval scalar evidence for arbitrary finite
+scalar input lists, plus actual-request structural consumers and nonempty-output
+examples. This does not establish general nominal G EvidenceNode: nominal
+merged-capture model coherence and uncaptured request cases remain open. The
+next-nominal residual is a typechecked proposal, not a proved theorem.
+
+No STOP was observed and no preceding writer was active at acquisition. No
+write to integration or other branches was made. Next cycle must re-fetch
+standing orders/inbox and current branch before extending the nominal residual.
