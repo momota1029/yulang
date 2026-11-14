@@ -1,0 +1,157 @@
+
+===== checkpoint-audit =====
+exit: 0
+'Yulang.GeneralDictionaryMatGuardObstruction199.initial_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.survivor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.frame_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.requests_empty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.head_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.head_equations' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.effect_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.positive_baseline' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.no_output_conflict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.scalar_no_edge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.scalar_acyclic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.inspection_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.administrative_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.total_complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.no_request_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.no_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardObstruction199.no_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+===== empty-audit =====
+exit: 0
+'Yulang.GeneralDictionaryMatEmptyLeaf199.schema_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatEmptyLeaf199.branch_of_total' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatEmptyLeaf199.instance_of_total' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatEmptyLeaf199.evidence_of_total' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatEmptyLeaf199.evidence_of_frame_total' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+===== witness-reused-audit =====
+exit: 0
+'Yulang.GeneralDictionaryMatGuardWitness199.packet_inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardWitness199.holds_without_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardWitness199.reachable_selected_obstruction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatGuardWitness199.no_total_instance_conversion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+===== trace-audit =====
+exit: 0
+'Yulang.GeneralDictionaryMatGuardTrace199.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardTrace199.alternatives' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardTrace199.installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardTrace199.children_nonempty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardTrace199.not_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardTrace199.install_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardTrace199.not_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardTrace199.child_role' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatGuardTrace199.no_child_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+===== node-audit =====
+exit: 0
+'Yulang.GeneralDictionaryMatVariableNode199.branch_of_total' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatVariableNode199.instance_of_total' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatVariableNode199.evidence_of_frame_total' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatVariableNode199.evidence_of_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+===== prior-audit =====
+exit: 0
+'Yulang.GeneralDictionaryMatPriorConflictSource199.declaration_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.ground' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.initial_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.source_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.query' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.report_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.bindings_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.head_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictSource199.prepared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.survivor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.frame_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.head_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.head_equations' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.scalar_no_edge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.scalar_acyclic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.inspection_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.administrative_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflictLocal199.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.output_request' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.no_packet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.no_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.generated_only_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.requested_nominal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.no_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.no_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.children_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.not_prior_evidenceNode' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.request_here' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.request_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.no_effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.output_conflict' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryMatPriorConflict199.not_prior_evidenceNode : ¬Yulang.B4SkeletonV5.EvidenceNode
+    (Yulang.B4TargetV6.prior
+      (Yulang.GeneralNominalCenteredHeadMatStepBoundary.boundary
+        Yulang.GeneralDictionaryMatPriorConflictSource199.roles))
+Yulang.GeneralDictionaryMatPriorConflict199.rejected : Yulang.GeneralNominalCenteredHeadMatStepBoundary.Local
+  Yulang.GeneralDictionaryMatPriorConflictSource199.registry Yulang.GeneralDictionaryMatPriorConflictSource199.start
+  Yulang.GeneralDictionaryMatPriorConflictSource199.root Yulang.CommonRoleOutermostResolver.Frontier.rejected

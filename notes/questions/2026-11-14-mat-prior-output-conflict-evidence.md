@@ -10,3 +10,5 @@ Options, without applying either:
 2. Have the supervising boundary owner specify a V6 selected-only evidence law, including absence of OutputConflict (or the actual V6 selected premise), then assign that exact type. This matches V6 rejection and is the recommended contract repair, but is not implemented here.
 
 No change to language semantics, Existing Evidence, Step, Stable, Local, or the boundary is proposed by these files. This note asks which proof interface should replace the refuted one, rather than silently weakening it.
+
+Independent review clarification: adding a conflict-exclusion premise removes this particular counterexample only. It does not establish the replacement law. The separate full-total-packet/partial-Instance obstruction remains relevant, and current-frame compatibility, materialization agreement and historic-context transport still require proofs. No universal claim that all role catalogues fail is made; one legal concrete catalogue suffices to refute a proposed theorem for arbitrary roles. The full V6 Statement is not refuted here.

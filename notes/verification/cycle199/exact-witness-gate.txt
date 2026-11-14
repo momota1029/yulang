@@ -1,0 +1,37 @@
+'Yulang.GeneralDictionaryMatPriorConflict199.not_prior_evidenceNode' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+theorem Yulang.GeneralDictionaryMatPriorConflict199.not_prior_evidenceNode : ¬B4SkeletonV5.EvidenceNode
+    (B4TargetV6.prior
+      (GeneralNominalCenteredHeadMatStepBoundary.boundary GeneralDictionaryMatPriorConflictSource199.roles)) :=
+fun node =>
+  GeneralDictionaryMatPriorConflict199.no_evidence
+    (have chosen := GeneralDictionaryMatPriorConflictLocal199.unique;
+    node GeneralDictionaryMatPriorConflictSource199.registry ⟨rfl, GeneralDictionaryMatPriorConflictSource199.checked⟩
+      GeneralDictionaryMatPriorConflictSource199.start GeneralDictionaryMatPriorConflictSource199.root
+      GeneralDictionaryMatPriorConflictSource199.reachable GeneralDictionaryMatPriorConflictSource199.model
+      GeneralDictionaryMatPriorConflictSource199.inhabited GeneralDictionaryMatPriorConflictSource199.root 37 [] []
+      (Or.inl rfl) GeneralDictionaryMatPriorConflict199.stable
+      (fun child member =>
+        List.Mem.casesOn (motive := fun a t =>
+          [] = a →
+            member ≍ t →
+              (B4TargetV6.prior
+                    (GeneralNominalCenteredHeadMatStepBoundary.boundary
+                      GeneralDictionaryMatPriorConflictSource199.roles)).Stable
+                GeneralDictionaryMatPriorConflictSource199.registry GeneralDictionaryMatPriorConflictSource199.start
+                child)
+          member (fun as h => False.elim (noConfusion_of_Nat List.ctorIdx h))
+          (fun b {as} a h => False.elim (noConfusion_of_Nat List.ctorIdx h)) (Eq.refl []) (HEq.refl member))
+      GeneralDictionaryMatPriorConflictLocal199.safe
+      (Eq.mp
+        (congrArg
+          (fun _a =>
+            GeneralNominalCenteredHeadCandidates.Unique GeneralDictionaryMatPriorConflictSource199.registry
+              GeneralDictionaryMatPriorConflictSource199.context GeneralDictionaryMatPriorConflictSource199.root 37 _a)
+          GeneralDictionaryMatPriorConflict199.children_empty)
+        chosen)
+      CommonRoleOutermostResolver.All₂.nil)
+'Yulang.GeneralDictionaryMatPriorConflict199.output_conflict' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryMatPriorConflict199.rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+AXIOM-GATE-PASS: 67 declarations
