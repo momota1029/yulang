@@ -1,0 +1,97 @@
+Yulang.GeneralDictionaryCenteredLeafRegression176.start :
+  Yulang.GeneralNominalCenteredSteps.State Yulang.GeneralDeclarationExamples.roles
+'Yulang.GeneralDictionaryCenteredLeafRegression176.start' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.packet :
+  Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralDeclarationExamples.roles
+'Yulang.GeneralDictionaryCenteredLeafRegression176.packet' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.plan :
+  Yulang.GeneralNominalCenters.Plan Yulang.GeneralDeclarationExamples.roles
+'Yulang.GeneralDictionaryCenteredLeafRegression176.plan' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.shape :
+  Yulang.GeneralDictionaryScalarLeaf.ScalarLeafShape (Yulang.GeneralNominalExamples.context true)
+    Yulang.GeneralNominalExamples.displayChild Yulang.GeneralNominalExamples.intDisplay
+'Yulang.GeneralDictionaryCenteredLeafRegression176.shape' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.children_empty :
+  Yulang.GeneralDictionaryCenteredLeafRegression176.packet.children = []
+'Yulang.GeneralDictionaryCenteredLeafRegression176.children_empty' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.already_committed :
+  Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionaryCenteredLeafRegression176.start.erased.current
+    Yulang.GeneralDictionaryCenteredLeafRegression176.packet
+'Yulang.GeneralDictionaryCenteredLeafRegression176.already_committed' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.not_novel :
+  ¬¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralDictionaryCenteredLeafRegression176.start.erased.current
+        Yulang.GeneralDictionaryCenteredLeafRegression176.plan.packet
+'Yulang.GeneralDictionaryCenteredLeafRegression176.not_novel' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.initial_source :
+  Yulang.GeneralNominalSourceFormation.InitialSource Yulang.GeneralNominalExamples.registry
+    (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayChild
+'Yulang.GeneralDictionaryCenteredLeafRegression176.initial_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.initial_model :
+  Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralDictionaryCenteredLeafRegression176.start
+    Yulang.GeneralNominalExamples.model
+'Yulang.GeneralDictionaryCenteredLeafRegression176.initial_model' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.current_evidence
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralDictionaryCenteredLeafRegression176.start assignment) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralDictionaryCenteredLeafRegression176.start.erased.current.context assignment
+    Yulang.GeneralNominalExamples.displayChild (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralDictionaryCenteredLeafRegression176.current_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.no_recorded_tree
+  (payload : Yulang.GeneralDictionaryReadback.Payload) :
+  ¬Yulang.GeneralDictionarySharedRecordedTree.RecordedTree
+      Yulang.GeneralDictionaryCenteredLeafRegression176.start.erased.current Yulang.GeneralNominalExamples.displayChild
+      payload
+'Yulang.GeneralDictionaryCenteredLeafRegression176.no_recorded_tree' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredLeafRegression176.nonvacuous_evidence_without_tree :
+  Yulang.GeneralNominalCenteredSteps.InitialSource Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalExamples.displayChild Yulang.GeneralDictionaryCenteredLeafRegression176.start ∧
+    Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralDictionaryCenteredLeafRegression176.start
+        Yulang.GeneralNominalExamples.model ∧
+      Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+          Yulang.GeneralDictionaryCenteredLeafRegression176.start.erased.current.context
+          Yulang.GeneralNominalExamples.model Yulang.GeneralNominalExamples.displayChild
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []) ∧
+        ¬Yulang.GeneralDictionarySharedRecordedTree.RecordedTree
+            Yulang.GeneralDictionaryCenteredLeafRegression176.start.erased.current
+            Yulang.GeneralNominalExamples.displayChild (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralDictionaryCenteredLeafRegression176.nonvacuous_evidence_without_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralDictionaryCenteredGroundLeaf176.ground :
+  Yulang.GeneralNominalGroundAccessibility.GroundRoots (Yulang.GeneralNominalExamples.context true)
+    Yulang.GeneralNominalExamples.displayChild [Yulang.GeneralDeclarationPatterns.Pattern.app 2 []]
+'Yulang.GeneralDictionaryCenteredGroundLeaf176.ground' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralDictionaryCenteredGroundLeaf176.initial :
+  (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary Yulang.GeneralDeclarationExamples.roles).Initial
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayChild
+    Yulang.GeneralDictionaryCenteredLeafRegression176.start
+'Yulang.GeneralDictionaryCenteredGroundLeaf176.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryCenteredGroundLeaf176.reachable :
+  Yulang.B4TargetV5.Reachable
+    (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayChild
+    Yulang.GeneralDictionaryCenteredLeafRegression176.start
+'Yulang.GeneralDictionaryCenteredGroundLeaf176.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralDictionaryCenteredGroundLeaf176.reachable_evidence_without_tree :
+  Yulang.B4TargetV5.Reachable
+      (Yulang.GeneralNominalCenteredGroundBoundary.groundBoundary Yulang.GeneralDeclarationExamples.roles)
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayChild
+      Yulang.GeneralDictionaryCenteredLeafRegression176.start ∧
+    Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralDictionaryCenteredLeafRegression176.start
+        Yulang.GeneralNominalExamples.model ∧
+      Yulang.GeneralDictionaryRecursiveEvidence.Evidence Yulang.GeneralNominalExamples.registry
+          Yulang.GeneralDictionaryCenteredLeafRegression176.start.erased.current.context
+          Yulang.GeneralNominalExamples.model Yulang.GeneralNominalExamples.displayChild
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []) ∧
+        ¬Yulang.GeneralDictionarySharedRecordedTree.RecordedTree
+            Yulang.GeneralDictionaryCenteredLeafRegression176.start.erased.current
+            Yulang.GeneralNominalExamples.displayChild (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralDictionaryCenteredGroundLeaf176.reachable_evidence_without_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
