@@ -3199,3 +3199,6 @@ import Yulang.GeneralNominalHeadConservativeExtension186
 import Yulang.GeneralNominalHeadSchemaNames186
 import Yulang.GeneralNominalHeadEquationExtension186
 import Yulang.GeneralNominalHeadFrameExtension186
+import Yulang.GeneralNominalHeadBinderCollisions186
+import Yulang.GeneralNominalHeadRevisitExtension186
+import Yulang.GeneralNominalHeadTestSemantic186

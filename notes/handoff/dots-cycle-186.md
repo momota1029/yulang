@@ -52,3 +52,49 @@ premise in identity induction is discharged by recursive schema transport.
 All3234 old Lean files from185 final preserved byte-for-byte except root
 append-only imports. Strict final all-declaration gate and focused build logs
 are in notes/verification/cycle186/mechanism-*.
+
+## Final release — 2026-11-14 09:51 UTC
+
+15 new modules, 57 public theorems. The last step proves that, for a current
+actual Frame with a matching registered historical plan, conservative extension
+to the entire current HeadEquations is equivalent to current BoundsFit alone.
+Schema tests, observations and repeated-binder coherence are discharged, including
+mixed point/nonpoint captures. BoundsFit remains a genuine premise, not an
+assumed conclusion hidden as a new model. Initial candidates without historical
+plans, output equations, child materialization and general EvidenceNode remain OPEN.
+No new B4 boundary fields closed. Existing upstream multi-tag child obstruction
+was not repaired or presented as this cycle's discovery. No published Lean
+source was altered except append-only root imports; all 5464 prior paths retained.
+
+Reproduction: `bash notes/verification/cycle186/reproduce.sh` exit 0.
+- focused `lake build --wfail`: PASS, 1025 jobs;
+- trust=0, warningAsError public-types and all 15 source checks: PASS;
+- executable axiom whitelist gate: PASS, all 90 declarations including private,
+  generated and definitions, only propext/Classical.choice/Quot.sound allowed;
+- preservation check: PASS, prior Lean byte-exact, published186 checkpoints intact;
+- dependency graph: general3 roots 0/90 new declarations; local3 roots 76/90.
+  These are dependency counts, NOT closed-field counts.
+- independent final read-only review: PASS for collision cases and quantified
+  historical BoundsFit iff; no circular compatibility assumption found.
+
+The earlier support-gate attempt failed because a concurrently prepared new
+module had not yet produced its .olean. That failure is retained honestly;
+subsequent mechanism gate and clean final reproduction passed. Initial dependent
+elimination / heartbeat-budget compile failures were repaired before publication.
+Full build, verify-lean, CI and new Yulang2 runtime tests were NOT run. Existing
+x-oracle observations were read, not relabeled as new validation.
+
+Checkpoint2 7943083aa3d58e9c718292d015312e1fa05bc8f7 was fetched and entire tree
+matched local. Final publication uses the GitHub app with expected-head lease,
+then explicit fetch and whole-tree comparison. No CLI push or public branch other
+than work/dots-main. Actual elapsed at release preparation: 27.5 minutes, below
+55-minute cap. Writer stops after publication verification.
+
+Next real bridge: derive current capture Fits from actual inspection plus recorded
+merge constraints, or prove a weaker extension allowing fresh endpoint reassignment;
+do not infer it from Prepared alone. Next handle initial candidate compatibility,
+then output/child evidence after the upstream boundary is repaired.
+
+Japanese quantified claims and all theorem names:
+notes/design/2026-11-14-cycle186-claims-ja.md
+Full signatures, hashes and exact release logs: notes/verification/cycle186/.
