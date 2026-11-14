@@ -495,3 +495,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered completion: reachable alias-class obstruction](2026-11-14-centered-completion-alias-obstruction.md) — actual inhabited ground installation/merge trace with merge-closed G′ selection and impossible Joint; stability and the general generatedChildren field remain open.
 
 - [Centered class-wide applicability and the unchanged installation guard](2026-11-14-centered-class-local.md) — G″ filters candidates by joint alias-class requests and retains twelve V5 fields; the earlier snapshot enables equality feedback, and a new reachable feasible class selection is blocked by the frozen per-occurrence uniqueness guard. Stable child production remains conditional.
+
+- [Centered output conflicts: head selection, failed equations, and V5](2026-11-14-centered-output-conflict.md) — corrects G″'s output-based candidate filtering, locates installation consistency gates and the missing error contract, distinguishes the nonstable fixture from its unclassified stable extension, and proposes an additive head/effect split with field-by-field proof impact.
