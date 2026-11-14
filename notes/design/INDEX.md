@@ -544,3 +544,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered head source coverage and variant-row obstruction](2026-11-14-centered-head-wf-source.md) — constructor- and arity-aware Initial, positive source fixtures, twelve bridge transfers and three V6 properties; a legal multi-tag output row gives a stable selected counterexample to child production under the stronger boundary.
 
 - [Total materialization of the current WF declaration language](2026-11-14-centered-head-total-materialization.md) — exhaustive Pattern/default equation compiler, emitted and child-center coverage, default effects and fresh-target model extension; corrected packet/observation consumers and successor-boundary law transfers remain open.
+
+- [Centered total-materialization journal integration](2026-11-14-centered-head-mat-journal.md) — corrected packet/journal equations, class-request and center-recording invariants, repeated-target extension, and the row installation model; operational guards, successor Step and boundary-law transfers remain open.
