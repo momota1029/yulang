@@ -541,3 +541,12 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle181 late V6/head-step upstream review](2026-11-14-cycle181-late-upstream-review.md)
 
 - [Cycle182 effect-ledger frames and registered readback](2026-11-14-cycle182-ledger-frames.md) — Draft; original G remains open.
+
+- [Cycle178 theorem/module guide](2026-11-14-cycle178-module-guide.md): exact hypotheses, same-model residuals and restricted G scope.
+- [Cycle179 centered discovery](2026-11-14-cycle179-centered-discovery.md)
+- [Cycle179 module guide](2026-11-14-cycle179-module-guide.md): current-model discovery, initial common model and finite frame limits.
+- [Cycle180: exact extensions and actual centered-journal candidates](2026-11-14-cycle180-model-extension.md) — six focused verified modules; general G.EvidenceNode remains OPEN.
+- [Centered V6: stable selection without child materialization](2026-11-14-centered-head-materialization-obstruction.md) — checked inhabited ground InitialSource with V6 selection, positive chosen effects, and stability, but no enabled installation or generated child; constructor-interpretation coverage is absent from the source contract.
+- [Centered head source coverage and variant-row obstruction](2026-11-14-centered-head-wf-source.md) — constructor- and arity-aware Initial, positive source fixtures, twelve bridge transfers and three V6 properties; a legal multi-tag output row gives a stable selected counterexample to child production under the stronger boundary.
+- [Total materialization of the current WF declaration language](2026-11-14-centered-head-total-materialization.md) — exhaustive Pattern/default equation compiler, emitted and child-center coverage, default effects and fresh-target model extension; corrected packet/observation consumers and successor-boundary law transfers remain open.
+- [Cycle183 uniform historical witnesses and exact origin agreement](2026-11-14-cycle183-origin-agreement.md) (Draft).
