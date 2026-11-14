@@ -62,3 +62,16 @@ The important migration gap is semantic, not merely a boundary alias: MatStepJou
 Two invocation failures were corrected: a singular audit filename did not exist (rerun with Cycle198Slots passed), and final no-build verification initially detected that the newly fetched integration was not yet an ancestor (merged I33, rerun passed). Both are distinguished from proof failures. Complete logs and exit codes are retained; the path-typo failure remains visible.
 
 Publication used immutable blobs and checked nonforce branch updates. First, second and third source checkpoints were fetched and compared; only heartbeat differed from their validated local trees. Third checkpoint: `072c8cb5f4ad563c893c44492c3d2e0b449dc463`. Final result is identified by this file's commit and the completed heartbeat, not a self-referential claimed commit hash.
+
+## Remote-tree audit and precise I33 reuse map
+
+Checked out the published result `5444d9d569923d9a2d393f542125037dd7976622`: source matches the independently validated local tree exactly, latest integration is an ancestor, strict175declaration gate reran with exit0, and no-build verifier reran PASS8 REVIEW markers with exit0. Final source writer is stopped.
+
+A final read-only I33 review identified these next steps:
+
+- Reuse SlotObservation/Report/Facts/Transport198 unchanged as context-level nominal/variable Instance/Evidence transport. They are independent of the old WF journal; MatStep refinement/interpretation and current raw model projections can supply their premises.
+- Do not re-prove accessibility: MatStep already provides whereAccessible. State-ranked assembly is reusable machinery, not the current missing bridge.
+- First prove actual MatStep installed-plan semantics imply the parent recursive Instance in the supplied model. Start at MatStepJournal.install_models, MatStepPackets.models_iff/head_equations and MatStepChildReadback; inventory old Finished, RequestReady and BranchModels individually. Total schema completeness alone does not settle these partial-materialization obligations.
+- Then port journal recovery using actual MatStep and its backward-model theorem. RefiningJournal198.packet_instance is NOT such a port: it uses old InstalledEvidence190/current_instance and old Models.
+- The old growth fixture does not prove new trusted constraints or CacheSound requirements. Retain its old-boundary label.
+- The exact prior EvidenceNode has no conflict-absence premise. A new theorem for selected V6 nodes requiring no OutputConflict would be weaker; label it accordingly. The collision refutes completion/generated-child bridges, not EvidenceNode itself, whose premises already include child Evidence. Await the specified allocation successor rather than changing allocation or source contracts independently.
