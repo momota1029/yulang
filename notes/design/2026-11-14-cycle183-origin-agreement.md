@@ -23,3 +23,19 @@ Using Finished capture coverage and the existing capture-to-schema translation, 
 ## Completeness bridge under investigation
 
 The remaining translated-query/domain gap is split into (1) Finished actual inspection implies syntactic query Complete (no deferred branches), and (2) Complete translation preserves each normalized pattern variable in CaptureNames.names. Neither `CenteredInspection.Complete` (an inspected/test count identity) nor nonempty child requirements may stand in for this stronger property. Any accepted lemma must include terminal declarations where applicable, retain all quantifiers and receive independent compilation. An incomplete proof is not published.
+
+## Registered input/Needed coverage
+
+The complete-translation lemma, if verified, connects actual Finished registration to every declaration input name, including terminal declarations. Checked declaration scope maps every Needed child binder into inputNames. Therefore every registered plan input/Needed binder has an actual head-schema origin witness without caller-supplied coveredArgs, schema membership or model existence. Ground reachable purpose-eight site centers then inherit such a witness from the existing site_needed producer, uniformly across all centered models. This settles historical witness existence for these binder/site-center branches, not the candidate-to-history origin equation or all full-frame support branches.
+
+## Raw-support boundary under investigation
+
+A separate, bounded attempt may independently prove that purpose-at-least-seven fresh names are absent from all raw journal support under InitialSource, actual centered trace and InstalledDepthBound. This must cover historical private/generated schemas and inherited raw-site origins, not just packet reports. Allocator namespace classification may be broader than the finite reservation pool (unused capture outputs are a known distinction). Any unverified attempt is excluded from publication; no lost cycle182 proof is assumed.
+
+## Terminal regression
+
+A concrete declaration with one variable head and no child requirements exercises declaration_input_capture on arbitrary source state, interpretation, one bounds pair and optional origins. Its inspection finishes without any child coverage premise. This is an executable proof regression of the terminal gap, not a claim that every arbitrary declaration is checked or installed.
+
+## Verified raw-support partial outcome
+
+Only historical private-context sources and capture inputs/outputs are excluded from purpose>=7. The original ground boundary supplies the installed depth bound through its initial point/ground assumptions; GroundRawSupport183 adds two exact wrappers with no external bound premise. Raw generated-schema request roots and raw observed-site argument/origin support remain open. No theorem here excludes all rawSources or preserves a complete centered/head-effect model under arbitrary changes.
