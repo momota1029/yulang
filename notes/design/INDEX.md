@@ -474,17 +474,40 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Explicit centers at the actual-inspection boundary](2026-11-14-centered-actual-boundary.md) — Center ledger, model equations, centered transition kernel, six V5 structural fields, and conditional compatibility/K2 bridges; full simulation and trigger execution remain open.
 - [Uniform source production through actual centers](2026-11-14-uniform-centered-source-production.md) — Nonpoint named-argument readback, uniform full-report captures and source-key exposure, shared packet substitution, uniform child emission, and scalar hole elimination; universal Simulation.next remains open.
+
 - [Cycle174 Actual agreed evidence](2026-11-14-cycle174-agreed-evidence.md) (Draft; scoped diagnostics and conditional dictionary bridges).
 - Cycle174 follow-up: `GeneralDictionaryAgreedComputed174`, `SearchOrder174`, `Uniform174` give a complete executable role-DAG certificate (not a language checker), search-order invariance, and finite selected-child depth. `Checked174` and `Uniform174` connect it to current-Local exactness of the noncomputable ground diagnostic. See `2026-11-14-cycle174-uniform-role-search.md`.
 - Cycle174 history review: `GeneralDictionaryAgreedHistoryObstruction174` shows ordinary Extension cannot survive genuine observation improvement with a recorded packet; `GeneralDictionaryAgreedRefresh174` transports current Evidence through one fixed-carrier/view actual refresh without post-refresh Extension. See `cycle174-refresh-obligations.md`.
 - Cycle174 completion: `GeneralDictionaryAgreedBounded174` supplies certified finite-depth outer recursion; `GeneralDictionaryAgreedRefiningTrace174` proves the current recorded-instance invariant from empty journal through arbitrarily interleaved actual ordinary/new-install and fixed-carrier/view refresh steps. See `2026-11-14-cycle174-bounded-diagnostic.md`, `cycle174-refining-trace.md`, and the current-Local readback bridge note. Unrestricted B4 is still open.
 
 - [Source producer closure and exact simulation handoff](2026-11-14-source-producer-handoff.md) — Explicit-center projection closure, actual settled binder-ledger labels, graph-backed elimination and compatible journal extension; source extraction and universal next remain open, with compiled handoff goal types.
+- [Centered point-source bridges](2026-11-14-centered-point-bridges.md) — Exact initial agreement, a reachable ground counterexample to literal erasure with a matching raw execution, and selected inspection guards; unrestricted simulation and full installation availability remain open.
+- [Direct centered ground-root accessibility](2026-11-14-centered-direct-accessibility.md) — Unrestricted centered Step accessibility from ground point roots, actual terminal executions, six structural V5 transfers, namespace/nested-use invariants, and conditional selected-plan/where bridges; full guard availability and the P/W trace remain open.
+- [Cycle175 recursive evidence after refining histories](2026-11-14-cycle175-dictionary-completion.md)
+- [Cycle175 table certificate](2026-11-14-cycle175-table-certificate.md)
+
+- [Cycle175 nominal-only refresh scope](2026-11-14-cycle175-flexible-refresh.md)
+- [Cycle175 table cost model and index plan](2026-11-14-cycle175-table-complexity.md)
+- [Cycle175 centered migration map, read-only](2026-11-14-cycle175-centered-migration-map.md)
+- [Cycle175 compact table](2026-11-14-cycle175-compact-table.md)
+
+- [Cycle176 centered evidence](2026-11-14-cycle176-centered-evidence.md): actual centered recorded-source and current-context scope.
+- [2026-11-14 Centered ground composition](2026-11-14-centered-ground-composition.md) — ten V5 fields, a reachable selection/installation obstruction, general center model extension, and conditional P/W ledger rejection; source execution remains open.
 - [Source syntax extraction and finite capture refinement](2026-11-14-source-syntax-refinement.md) — Unrestricted request templates/canonicality, coarse-ledger composition, finite simultaneous capture refinement, and conditional historical label extension; reachable source production and universal next remain open.
+
+- [Centered administrative ground composition](2026-11-14-centered-administrative-composition.md) — merge-aware Local, eleven unconditional V5 fields, all-state where accessibility, fixed-snapshot reordering, and explicit production/final-observation residuals.
+
+- [Centered production and terminal observation limits](2026-11-14-centered-terminal-production.md) — persistent packet commitment, exact selected-frame completion residual, same-center merge availability, and an actual ground terminal fork refuting full primitive-observation confluence; the two V5 fields remain open.
+
+- [Centered completion and registered terminal confluence](2026-11-14-centered-completion-registered-confluence.md) — initial Joint/value-support proofs, exact generated/unregistered Local split, and actual inhabited terminal executions refuting literal Local confluence at a generated root; semantic child inputs agree and general production remains open.
+
+- [Centered final Local agreement: fixed choice](2026-11-14-centered-final-local-agreement.md) — exact exit-choice normalization, packet-free order residual, concrete unequal exit predicates under reordered registries, and reachable packet-free Joint; fixed-executor order remains open.
 - [Centered source continuation and historical journal compatibility](2026-11-14-centered-source-continuation.md) — Identity-based historical labels, exact coarse-ledger persistence, fixed-hole constructor assembly, and the full centered phase/journal accessibility reduction; universal source production remains explicit and unproved.
 - [Concrete centered source invariant](2026-11-14-centered-source-invariant.md) — Root initialization, all noninstall and terminal-install preservation, exact child source values and global replacement; full centered Simulation and Acc reduced to one explicit nonterminal-install obligation.
 - [Centered nonterminal installation: preservation-contract counterexample](2026-11-14-centered-nonterminal-install.md) — Three sufficient source obligations and their composition; a checked InitialSource with an actual centered install refutes the current universal inventory-preservation contract. Class P accessibility remains open; branch-owned source trace renamed for integration.
 
+- [Centered canonical executor](2026-11-14-centered-canonical-executor.md) — invariant registry representative, actual packet-free trace transport, packet/center/emitter rebasing, and an original-registry executor retaining eleven bridges; canonical order remains conditional on exit lifting or concrete permutation simulation.
+- [Centered reachable permutation: correspondence and installation obligation](2026-11-14-centered-reachable-permutation.md) — concrete coherent packet pairing, reachable packet-free initialization, administrative/refresh/merge transport, trusted ledgers and value support; full installation transport and final Local agreement remain open.
 - [Centered source retention and the selected-ledger readback obstruction](2026-11-14-centered-source-live-retention.md) — full-frontier strengthened coverage, transport through centered steps and semantic eliminations, and a reachable counterexample to exact selected-ledger input readback; unconditional Class P accessibility remains open.
 
 - [Exact snapshot support cannot be completed by a trusted ledger](2026-11-14-centered-source-snapshot-ledger.md) — snapshot-supported initializer and conditional input promotion; a reachable refresh excludes every trusted exact-readback ledger, so invariant-only completion of that contract is impossible; Class P accessibility remains open.
