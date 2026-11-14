@@ -43,3 +43,7 @@ Equivalent は相互の Subtype であり、構文上の等号ではない。`Ge
 - ModeFrameExample181: 具体的な upper-use の一件の schema は、不要な binder を top から bottom に変えても成立し、旧 schema frame の一致は失敗する。完全な plan/journal をこの変更が保存するとは主張しない。
 
 全 source 宣言名は `notes/verification/cycle181/final-declarations.tsv`（101 個）、private/generated を含む監査対象は 141 個。量化子・型・前提の機械可読な原本は各 Lean ファイルであり、本節はそれを省略した一般 EvidenceNode の完成宣言ではない。
+
+### LinearLeafShape の省略しない読み方
+
+上記の「出力無し」は **root.demand.outputs = []** という意味であり、declaration.outputNames が空という主張ではない。この構造はさらに declaration.role = root.demand.role、context の slot に descriptor が登録済みであること、descriptor の全 arguments が bounds から作る type 列に等しいこと、declaration.inputNames が injective names の列そのものであること、queries が指定 nominal descriptor と各一変数の pattern の一件だけであること、arguments context root が点の一件 [(slot,slot)] を返すことを要求する。これらは構造のフィールドとして全消費定理の前提に含まれる。Corresponding context/bounds、PointNames、以前の Models といった定理固有の追加前提も省いてはならない。
