@@ -3310,3 +3310,9 @@ import Yulang.GeneralNominalForestClassification194
 import Yulang.GeneralNominalNonleafStable194
 import Yulang.GeneralNominalSemanticNode194
 import Yulang.GeneralNominalOrdinaryJournal194
+
+import Yulang.GeneralNominalJournalAccessibility194
+
+import Yulang.GeneralNominalSelectedJournal194
+
+import Yulang.GeneralNominalRecordedNode194

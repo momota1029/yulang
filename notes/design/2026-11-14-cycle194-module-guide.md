@@ -76,3 +76,55 @@ Child 関係の Acc を仮定して、model に依存しない有限辞書を構
 ordinary-only の前提を落として descriptor-changing refresh を含めることも
 証明していない。cycle193 具体例の leaf は reuse され packet は未記録なので、
 この Coverage をその具体例で満たすとは主張しない。
+
+## GeneralNominalJournalAccessibility194 (4 theorems; total now 39)
+
+`child_rank` は任意の有限 actual packet journal と任意の Child edge について、
+記録済み親 identity の最大値+1から需要 identity を引いた rank が厳密減少
+すること。child 自身の記録や coverage は不要。
+`accessible` は任意の journal と任意の root の Acc(Child) を無条件に導く。
+Stable、Reachable、Models の存在、Coverage の前提もない。
+`recorded_tree` は Coverage だけで有限構文的辞書を構成する。
+`uniform_dictionary` は任意の ordinary WF trace と最終 journal の Coverage
+から、全最終モデルで健全な同一有限辞書を導く。したがって直前モジュールの
+Acc 前提はこの actual packet syntax では解消した。残る前提は普通の実行と
+記録 coverage であり、descriptor-changing refresh や全 Stable state の
+coverage、一般 EvidenceNode の完成は依然主張しない。
+
+## GeneralNominalSelectedJournal194 (7 theorems; total now 46)
+
+`survivor_of_instance` は任意の現在の head Survivor と同じ context/model の
+独立 Instance から、Instance 自身の key と子列の head Survivor を作る。
+既存 Survivor から借りるのは known/linked/fresh の構造条件だけ。
+`selected_instance` は実際の WF Local.selected の Unique を使い、記録済み
+key と子列が現在の selected key と子列に一致することを導く。
+`selected_recorded` は任意の ordinary initial trace、構文的 Coverage、
+journal Reach、Local.selected、最終 Models から同じ model の Instance と
+全子の journal Reach を導く。
+`classify_node_parts` は任意の V6 boundary の selected node の分解。
+`dictionary_evidence` と `dictionaries_evidence` は任意の有限 selected
+Classify payload と子リストについて、同一最終モデルの Evidence を再帰的に
+構成する。`selected_sound` は根で実際に Classify.selected された payload
+そのものが全最終モデルで健全と結論する。任意に選んだ存在辞書だけの主張から
+実際の選択結果の健全性へ進んだ。
+必要なのは actual ordinary trace、最終記録 Coverage、選択済み Classify。
+Stable、Build、Acc、packet/key一致、子Evidenceは追加仮定ではない。
+ただし全 Stable state の Coverage、非ordinary refreshでの輸送、executor
+がこの状態・Classifyに達することは証明していない。一般EvidenceNodeは未完。
+
+## GeneralNominalRecordedNode194 (5 theorems; final total 51)
+
+`evidence_node` は任意の actual ordinary initial trace、focus の実際の記録
+packet の存在、現在の Local.selected、任意の最終 Models と同じ model の
+子 Evidence から、選択された親 payload の Evidence を導く。全体 Coverage
+は不要。これは一般 EvidenceNode の「記録済みノード」部分の条件付き証明。
+`child_packet_missing` は具体的な非葉 finish に displayChild を根とする
+packet が一つもないこと。`child_reached` は同じ child が親 packet の実際の
+子として構文的 journal Reach に属すること。`not_covered` はそのためこの
+finish が Covered でないこと。`stable_not_covered` は actual WF Stable と
+not-Covered の両方を同時に証明する。
+これは Stable から完全な journal Coverage を導く案への反例であり、言語や
+辞書健全性への反例ではない。具体例の子は意味的に Committed なので再利用され、
+未記録のまま停止する。一般化には記録以外の committed-node の意味を回収する
+別経路、または実際に成立する弱いカバレッジが必要。既存の具体例の Evidence
+と矛盾しない。
