@@ -1,0 +1,4 @@
+✔ [1020/1022] Built Yulang.GeneralNominalHeadSchemaNames186 (3.2s)
+✔ [1021/1022] Built Yulang.GeneralNominalHeadEquationExtension186 (1.3s)
+✔ [1022/1022] Built Yulang.GeneralNominalHeadFrameExtension186 (1.4s)
+Build completed successfully (1022 jobs).

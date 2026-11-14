@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryAgreedBounded174
+
+#print axioms Yulang.GeneralDictionaryAgreedBounded174.runFuel_resolves
+#print axioms Yulang.GeneralDictionaryAgreedBounded174.certified_resolves
+#print axioms Yulang.GeneralDictionaryAgreedBounded174.certified_final_eq

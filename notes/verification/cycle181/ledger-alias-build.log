@@ -1,0 +1,18 @@
+DEPENDENCY_CLOSURE 925 REBUILD 8
+START Yulang.GeneralDictionaryCenteredOverlapExact181
+END Yulang.GeneralDictionaryCenteredOverlapExact181 0
+START Yulang.GeneralNominalBinderIdentity181
+END Yulang.GeneralNominalBinderIdentity181 0
+START Yulang.GeneralDictionaryCenteredProvenance181
+END Yulang.GeneralDictionaryCenteredProvenance181 0
+START Yulang.GeneralNominalOriginAlias181
+END Yulang.GeneralNominalOriginAlias181 0
+START Yulang.GeneralNominalOriginRootAlias181
+END Yulang.GeneralNominalOriginRootAlias181 0
+START Yulang.GeneralDictionaryCenteredAliasProvenance181
+END Yulang.GeneralDictionaryCenteredAliasProvenance181 0
+START Yulang.GeneralNominalLedgerReadback181
+END Yulang.GeneralNominalLedgerReadback181 0
+START Yulang.GeneralDictionaryCenteredLedger181
+END Yulang.GeneralDictionaryCenteredLedger181 0
+PASS 8

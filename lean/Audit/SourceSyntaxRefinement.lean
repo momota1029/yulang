@@ -1,0 +1,52 @@
+import Yulang.GeneralNominalPacketChildLabels
+
+example (context : Yulang.GeneralNominalCandidates.Context)
+    (requests : List Yulang.GeneralNominalMaterialization.Request) :
+    Yulang.GeneralNominalSourceProducerHandoff.RequestTemplates context requests :=
+  Yulang.GeneralNominalRequestTemplates.request_templates context requests
+
+example (context : Yulang.GeneralNominalCandidates.Context)
+    (requests : List Yulang.GeneralNominalMaterialization.Request) :
+    Yulang.GeneralNominalSourceProducerHandoff.RequestCanonical context requests :=
+  Yulang.GeneralNominalRequestCanonical.request_canonical context requests
+
+#print axioms Yulang.GeneralNominalRequestTemplates.request_templates
+#print axioms Yulang.GeneralNominalRequestCanonical.request_canonical
+#print axioms Yulang.GeneralNominalRegistrySourceTemplates.registry_templates
+#print axioms Yulang.GeneralNominalRegistrySourceTemplates.registry_canonical
+#print axioms Yulang.GeneralNominalRegistrySourceTemplates.packet_canonical
+#print axioms Yulang.GeneralNominalRegistrySourceTemplates.packet_templates
+#print axioms Yulang.GeneralNominalCommonTrustedLedger.trusted_append
+#print axioms Yulang.GeneralNominalCommonTrustedLedger.common_ledger
+#print axioms Yulang.GeneralNominalCommonTrustedLedger.common_models
+#print axioms Yulang.GeneralNominalCommonTrustedLedger.inputs_append
+#print axioms Yulang.GeneralNominalCommonTrustedLedger.inputs_replace
+#print axioms Yulang.GeneralNominalCaptureComparison.compare
+#print axioms Yulang.GeneralNominalCaptureComparison.compare_many
+#print axioms Yulang.GeneralNominalCaptureComparison.elimination_value
+#print axioms Yulang.GeneralNominalSourceInitialization.initial_journal
+#print axioms Yulang.GeneralNominalSourceInitialization.initial_trusted_inputs
+#print axioms Yulang.GeneralNominalSourceInitialization.inconsistent_accessible
+#print axioms Yulang.GeneralNominalSourceInitialization.reachable_inconsistent_accessible
+#print axioms Yulang.GeneralNominalReachableSchemas.reachable_all_models
+#print axioms Yulang.GeneralNominalReachableSchemas.reachable_trusted_models
+#print axioms Yulang.GeneralNominalReachableSchemas.trusted_inhabited
+#print axioms Yulang.GeneralNominalReachableSchemas.trusted_schemas
+#print axioms Yulang.GeneralNominalReachableSchemas.reachable_promoted_output
+#print axioms Yulang.GeneralNominalCaptureRefinement.Refinement.trace
+#print axioms Yulang.GeneralNominalCaptureRefinement.Refinement.count
+#print axioms Yulang.GeneralNominalCaptureRefinement.Refinement.journal
+#print axioms Yulang.GeneralNominalCaptureRefinement.Refinement.readback
+#print axioms Yulang.GeneralNominalCaptureRefinement.reconcile
+#print axioms Yulang.GeneralNominalCaptureFamilies.append
+#print axioms Yulang.GeneralNominalCaptureFamilies.meaning
+#print axioms Yulang.GeneralNominalCaptureFamilies.common
+#print axioms Yulang.GeneralNominalCaptureFamilies.journal
+#print axioms Yulang.GeneralNominalCaptureFamilies.trusted_inputs
+#print axioms Yulang.GeneralNominalCaptureFamilies.reconcile_groups
+#print axioms Yulang.GeneralNominalCaptureFamilies.reconcile_journal
+#print axioms Yulang.GeneralNominalPacketChildLabels.child_clause
+#print axioms Yulang.GeneralNominalPacketChildLabels.assignment_unique
+#print axioms Yulang.GeneralNominalPacketChildLabels.extend
+#print axioms Yulang.GeneralNominalPacketChildLabels.new_packet
+#print axioms Yulang.GeneralNominalPacketChildLabels.terminal_packet

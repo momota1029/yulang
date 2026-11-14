@@ -1,0 +1,3 @@
+Root existing integration import bytes are an exact prefix: PASS
+All 15 new proof modules imported from root: PASS
+No local old proof/audit rewrites; 189 audit changes were merged from supervisor integration.

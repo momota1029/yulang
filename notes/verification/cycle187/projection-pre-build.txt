@@ -1,0 +1,4 @@
+✔ [1028/1030] Built Yulang.GeneralNominalHeadDeclaredBounds187 (2.1s)
+✔ [1029/1030] Built Yulang.GeneralNominalCaptureOrigins187 (3.3s)
+✔ [1030/1030] Built Yulang.GeneralNominalSchemaCapture187 (3.6s)
+Build completed successfully (1030 jobs).

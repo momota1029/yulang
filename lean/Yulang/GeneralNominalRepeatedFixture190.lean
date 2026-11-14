@@ -1,0 +1,193 @@
+import Yulang.GeneralNominalRepeatedPointRepair190
+import Yulang.GeneralNominalInitialNamedLocal189
+import Yulang.GeneralNominalCenteredHeadWFFixtures
+import Yulang.GeneralNominalCenteredTerminalObservations
+
+set_option backward.isDefEq.respectTransparency false
+
+/-! Positive repeated-variable-head leaf fixture reuses the concrete scalar source and
+adds an explicit identity output. The actual WF boundary is unchanged. -/
+namespace Yulang.GeneralNominalRepeatedFixture190
+open GeneralDeclarations GeneralDeclarationPatterns GeneralSourceDictionaries
+open GeneralNominalRecursiveCandidates GeneralNominalRecursiveInspection
+open GeneralNominalCenters CommonNominalFullCarrier
+open GeneralDeclarationExamples (constructors)
+
+abbrev roles : Roles.RoleDecls := fun _ => ⟨2, fun name => if name = 0 then some none else none, by
+  intro name rhs impossible
+  split at impossible <;> cases impossible⟩
+abbrev declaration : Declaration := ⟨3,0,[.var 0,.var 0],[],[⟨0,0,.var 0⟩],[]⟩
+abbrev registry : Registry := ⟨constructors,roles,[declaration]⟩
+abbrev context := GeneralNominalCenteredTerminalForkSource.context (some false)
+abbrev snapshot := context.state
+abbrev root : Occurrence roles := ⟨100,⟨0,fun _ => (1,1),[⟨0,1⟩],by
+  intro output member; cases List.mem_singleton.mp member; exact ⟨none,rfl⟩⟩⟩
+abbrev start := GeneralNominalCenteredHeadStepEffects.initial context root
+abbrev model := GeneralNominalCenteredTerminalObservations.model
+
+theorem declaration_checked : DeclarationChecked constructors roles declaration := by
+  constructor
+  · refine ⟨rfl,?_,?_,by simp⟩
+    · intro equation member; cases List.mem_singleton.mp member; exact ⟨none,rfl⟩
+    · intro name body found
+      change (if name = 0 then some none else none) = some body at found
+      split at found
+      · rename_i same
+        subst name
+        cases found; exact Or.inl ⟨⟨0,0,.var 0⟩,by simp,rfl⟩
+      · cases found
+  · simp [Declaration.Identified,Declaration.outputNames]
+  · simp [Declaration.Produced]
+  · simp [Declaration.OutputOnly,Declaration.outputNames]
+  · simp [Declaration.Scoped,Declaration.inputNames,Declaration.outputNames,normalizeArgs,normalize,variablesArgs,Pattern.variables]
+  · simp [Declaration.ConstructorScoped,ArgsWellScoped,WellScoped]
+  · simp
+  · simp
+  · simp
+  · simp
+
+theorem checked : Checked registry :=
+  ⟨by simp,by intro d member; cases List.mem_singleton.mp member; exact declaration_checked⟩
+
+theorem source : GeneralNominalSourceFormation.InitialSource registry context root where
+  roles_agree := rfl
+  metadata := GeneralNominalCenteredTerminalForkSource.metadata (some false)
+  linked := by
+    constructor
+    · intro index; constructor <;> simp [GeneralNominalState.sources,List.ofFn_succ]
+    · intro output member; cases List.mem_singleton.mp member
+      simp [GeneralNominalState.sources,List.ofFn_succ]
+  intervals := fun _ _ _ => subtype_refl _
+  below_seed := (GeneralNominalCenteredTerminalForkSource.source (some false)).below_seed
+  unallocated := rfl
+
+theorem ground : GeneralNominalGroundAccessibility.GroundRoots context root [.app 2 [],.app 2 []] := by
+  refine ⟨rfl,?_⟩
+  intro index
+  let term : GeneralNominalOriginTerms.Expr Nat := .node (.scalar .int) Fin.elim0
+  refine ⟨term,?_,?_⟩
+  · refine ⟨?_,?_,?_⟩
+    · have ix : index.val = 0 ∨ index.val = 1 := by
+        have h := index.isLt
+        change index.val < 2 at h
+        omega
+      rcases ix with ix | ix <;> simp [ix,normalize,normalizeArgs,GeneralNominalInspection.translate,
+        GeneralNominalExamples.interpretation,GeneralNominalCompoundReadback.quote,term]
+    · simp [term,GeneralNominalOriginTerms.Expr.leaves,List.ofFn_zero,GeneralNominalOriginTerms.arity]
+    · exact ⟨trivial,fun index => Fin.elim0 index⟩
+  · intro assignment valid
+    exact GeneralNominalCenteredTerminalForkSource.scalar assignment valid 1 (by decide +kernel)
+
+theorem coverage : GeneralNominalCenteredHeadWFSource.Coverage registry context.interpretation := by
+  constructor
+  · intro d member
+    cases List.mem_singleton.mp member
+    simp [GeneralNominalCenteredHeadWFSource.DeclarationCovered,
+      GeneralNominalCenteredHeadWFSource.PatternsCovered,GeneralNominalCenteredHeadWFSource.PatternCovered]
+  · intro role name body found
+    change (if name = 0 then some none else none) = some (some body) at found
+    split at found <;> cases found
+
+theorem initial_source : (GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root start :=
+  ⟨⟨context,[.app 2 [],.app 2 []],source,(fun _ => rfl),ground,rfl⟩,coverage⟩
+
+theorem reachable : B4TargetV6.Reachable (GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root start :=
+  ⟨start,initial_source,.refl⟩
+
+theorem source_model : GeneralNominalState.Models snapshot model :=
+  GeneralNominalCenteredTerminalObservations.source_model (some false)
+
+theorem inhabited : GeneralNominalCenteredHeadStepEffects.Models start model := by
+  apply GeneralNominalCenteredHeadStepEffects.initial_models.mpr
+  exact (GeneralNominalCenteredSteps.point_initial_models _ _ (fun _ => rfl) _).mpr source_model
+
+abbrev packet : GeneralNominalSaturationState.Packet roles :=
+  ⟨registry,context,GeneralNominalDemandMerging.pointSite root,declaration,declaration_checked,[(1,1),(1,1)]⟩
+abbrev plan : Plan roles := ⟨packet,rootSite snapshot.seed root,rfl⟩
+noncomputable abbrev children := packet.children
+
+theorem query : GeneralNominalInspection.queries snapshot context.interpretation declaration = [.variables [0],.variables [0]] := by
+  simp [GeneralNominalInspection.queries,Declaration.normalHead,normalizeArgs,normalize,
+    GeneralNominalInspection.translate,GeneralNominalExamples.interpretation]
+
+theorem report_exact : report context declaration [(1,1),(1,1)] =
+    { captures := [⟨0,((1 : Fin 3),(1 : Fin 3)),none⟩,⟨0,((1 : Fin 3),(1 : Fin 3)),none⟩], checked := [((1 : Fin 3),(1 : Fin 3)),((1 : Fin 3),(1 : Fin 3)),((1 : Fin 3),(1 : Fin 3)),((1 : Fin 3),(1 : Fin 3))] } := by
+  unfold report
+  rw [query]
+  simp [inspectMany,inspect,Report.append]
+
+theorem model_fresh (purpose owner position : Nat) :
+    (model (fresh snapshot.seed root.identity declaration.id purpose owner position)).1 = (.base .int : Ty) := by
+  have above := GeneralNominalIdentities.source_above_seed snapshot.seed (root.identity,declaration.id,purpose,owner,position)
+  have nonzero : fresh snapshot.seed root.identity declaration.id purpose owner position ≠ 0 := by
+    change snapshot.seed < fresh snapshot.seed root.identity declaration.id purpose owner position at above
+    omega
+  change (if fresh snapshot.seed root.identity declaration.id purpose owner position = 0 then nominal 0 [.inl (.base .int)] else .base .int) = (.base .int : Ty)
+  rw [ite_eq_right nonzero]
+
+theorem bindings_exact : packet.bindings = [(0,1,1),(0,1,1)] := by
+  change bindings snapshot (report context declaration [(1,1),(1,1)]) = _
+  rw [report_exact]; rfl
+
+theorem capture_zero : (GeneralNominalPacketSupport.capture packet).inputs 0 =
+    (fresh snapshot.seed root.identity declaration.id 0 0 0,fresh snapshot.seed root.identity declaration.id 1 0 0) := by
+  change (GeneralNominalAllocation.capture _ _ _ _ packet.bindings).inputs 0 = _
+  rw [bindings_exact]
+  rfl
+
+theorem merges_model : PresenceNormalForm.All CommonNominalFullCarrier.model model
+    (GeneralNominalAllocation.merges snapshot registry root.identity declaration packet.bindings) := by
+  rw [bindings_exact]
+  have lo : PresenceNormalForm.All CommonNominalFullCarrier.model model
+      (GeneralNominalAllocation.equations (fresh snapshot.seed root.identity declaration.id 0 0 0)
+        (.union (.var 1) (.var 1))) := by
+    apply (GeneralNominalCaptureMerges.equations_exact ..).mpr
+    rw [model_fresh]
+    change Equivalent (.base .int) (.union (.base .int) (.base .int))
+    refine ⟨?_,(common_union_is_join ..).mpr ⟨subtype_refl _,subtype_refl _⟩⟩
+    exact ((common_union_is_join ..).mp (subtype_refl (.union (.base .int) (.base .int)))).1
+  have hi : PresenceNormalForm.All CommonNominalFullCarrier.model model
+      (GeneralNominalAllocation.equations (fresh snapshot.seed root.identity declaration.id 1 0 0)
+        (.inter (.var 1) (.var 1))) := by
+    apply (GeneralNominalCaptureMerges.equations_exact ..).mpr
+    rw [model_fresh]
+    change Equivalent (.base .int) (.inter (.base .int) (.base .int))
+    refine ⟨(common_inter_is_meet ..).mpr ⟨subtype_refl _,subtype_refl _⟩,?_⟩
+    exact ((common_inter_is_meet ..).mp (subtype_refl (.inter (.base .int) (.base .int)))).1
+  change PresenceNormalForm.All _ model ((_ ++ _) ++ (_ ++ []))
+  exact (PresenceNormalForm.all_append ..).mpr
+    ⟨(PresenceNormalForm.all_append ..).mpr ⟨lo,hi⟩,
+      (PresenceNormalForm.all_append ..).mpr ⟨(PresenceNormalForm.all_append ..).mpr ⟨lo,hi⟩,by intro _ member; cases member⟩⟩
+
+theorem head_model : GeneralNominalCenteredHeadCandidates.HeadModels registry context root declaration [(1,1),(1,1)] model := by
+  change GeneralNominalCenteredHeadCandidates.HeadModels plan.packet.registry plan.packet.context
+    plan.packet.site.occurrence plan.packet.declaration plan.packet.bounds model
+  rw [GeneralNominalHeadBranchFrame187.head_models_exact plan model,GeneralNominalPacketSupport.private_exact]
+  refine ⟨⟨source_model,?_,merges_model,?_⟩,?_⟩
+  · change GeneralNominalAllocation.Compatible packet.bindings model
+    rw [bindings_exact]
+    intro first one last two same
+    simp only [List.mem_cons,List.not_mem_nil,or_false,or_self] at one two
+    subst first; subst last; exact subtype_refl _
+  · change PresenceNormalForm.All _ model (selfChecks snapshot (report context declaration [(1,1),(1,1)]))
+    rw [report_exact]
+    intro atom member
+    simp only [selfChecks,List.map_cons,List.map_nil,List.mem_cons,List.not_mem_nil,or_false,or_self] at member
+    subst atom; exact subtype_refl _
+  · change ProjectionModels snapshot (report context declaration [(1,1),(1,1)]) model
+    rw [report_exact]
+    refine ⟨by simp,by simp,?_,?_⟩
+    · intro first one last two same ref origin actual seen
+      simp only [List.mem_cons,List.not_mem_nil,or_false,or_self] at one
+      subst first; cases origin
+    · intro first one last two same a b origin other x y seenX seenY
+      simp only [List.mem_cons,List.not_mem_nil,or_false,or_self] at one
+      subst first; cases origin
+
+theorem prepared : GeneralNominalCenteredHeadCandidates.Prepared registry context root declaration := by
+  refine ⟨source.metadata,?_,GeneralNominalSourceFormation.initial_fresh _ source _,
+    [(1,1),(1,1)],rfl,?_,model,head_model⟩
+  · exact ⟨source.linked.1,by intro output member; cases member⟩
+  · rw [report_exact]; exact ⟨rfl,rfl,rfl⟩
+
+end Yulang.GeneralNominalRepeatedFixture190

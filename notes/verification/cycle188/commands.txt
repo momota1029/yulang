@@ -1,0 +1,36 @@
+Working directory: yulang checkout; Lean package subdirectory lean/.
+PATH prepended with the existing Lean4.35.0 toolchain bin.
+
+Focused builds (each --wfail):
+lake build Yulang.GeneralNominalHeadInitialCommon188 --wfail
+lake build Yulang.GeneralNominalPointProjection188 --wfail
+lake build Yulang.GeneralNominalHeadInitialEffects188 --wfail
+lake build Yulang.GeneralNominalHeadNominalExtension188 --wfail
+lake build Yulang.GeneralNominalHeadMixedExtension188 --wfail
+lake build Yulang.GeneralNominalStructuralOrigin188 --wfail
+lake build Yulang.GeneralNominalStructuralEnrichment188 --wfail
+lake build Yulang.GeneralNominalHeadStructuralExtension188 --wfail
+lake build Yulang.GeneralNominalRecursiveEnrichment188 --wfail
+lake build Yulang.GeneralNominalHeadRecursiveExtension188 --wfail
+
+Final direct checks:
+for p in Yulang/*188.lean; do
+  timeout 60s lake env lean --trust=0 -DwarningAsError=true "$p"
+done
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle188PublicTypes.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle188FinalGate.lean
+
+Reach (ROOT denotes absolute checkout root, run from lean/):
+for kind in general local; do
+  YULANG_REACH_ROOTS=$ROOT/notes/verification/cycle188/$kind-roots.txt \
+  YULANG_REACH_OUTPUT=$ROOT/notes/verification/cycle188/$kind-reach.tsv \
+  timeout 120s lake env lean --trust=0 -DwarningAsError=true ../tools/ReachCycle188.lean
+done
+
+From checkout root:
+python notes/verification/cycle188/preservation.py
+git diff --check
+
+All terminal output in companion .txt files; exit codes in .exit files.
+Earlier failing target-name/import attempts are retained and explained in
+development-errors.md; no full-root build or full Audit was attempted.

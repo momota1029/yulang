@@ -1,0 +1,2 @@
+✔ [1038/1038] Built Yulang.GeneralNominalPointOriginEnrichment188 (1.2s)
+Build completed successfully (1038 jobs).

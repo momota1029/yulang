@@ -1,0 +1,1 @@
+Root integration prefix and all17 appended proof imports PASS. No old Lean line removal relative to fresh integration.

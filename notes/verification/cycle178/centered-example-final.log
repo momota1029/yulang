@@ -1,0 +1,7 @@
+yulang178-public/lean/Yulang/GeneralDictionaryCenteredNominalExample178.lean:55:10: warning: This simp argument is unused:
+  GeneralNominalExamples.interpretation
+
+Hint: Omit it from the simp argument list.
+  [apply] simp [two] at recorded
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`

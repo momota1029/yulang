@@ -1,0 +1,18 @@
+import Yulang.GeneralNominalRawFrame179
+#print axioms Yulang.GeneralNominalCenteredEmptyFrame179.raw_site_iff
+#print axioms Yulang.GeneralNominalCenteredEmptyFrame179.raw_models_frame
+#print axioms Yulang.GeneralNominalCenteredEmptyFrame179.centered_models_frame
+#print axioms Yulang.GeneralNominalCenteredEmptyFrame179.centered_models_iff
+#print axioms Yulang.GeneralNominalCenteredEmptyFrame179.centered_assign
+#print axioms Yulang.GeneralNominalRawFrame179.report_slot
+#print axioms Yulang.GeneralNominalRawFrame179.report_capture
+#print axioms Yulang.GeneralNominalRawFrame179.projection_iff
+#print axioms Yulang.GeneralNominalRawFrame179.use_root
+#print axioms Yulang.GeneralNominalRawFrame179.variable_iff
+#print axioms Yulang.GeneralNominalRawFrame179.materialization_iff
+#print axioms Yulang.GeneralNominalRawFrame179.packet_iff
+#print axioms Yulang.GeneralNominalRawFrame179.raw_models_frame
+#print axioms Yulang.GeneralNominalRawFrame179.centered_models_frame
+#print axioms Yulang.GeneralNominalRawFrame179.centered_models_iff
+#print axioms Yulang.GeneralNominalRawFrame179.centered_assign
+#print axioms Yulang.GeneralNominalRawFrame179.centered_assign_kept

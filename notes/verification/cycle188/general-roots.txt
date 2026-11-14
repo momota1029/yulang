@@ -1,0 +1,3 @@
+Yulang.GeneralNominalCenteredHeadWFTransfer.exact
+Yulang.GeneralNominalCenteredHeadWFTransfer.saturationTotal
+Yulang.GeneralNominalCenteredHeadWFTransfer.orderIndependent

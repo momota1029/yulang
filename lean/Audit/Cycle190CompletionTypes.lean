@@ -1,0 +1,24 @@
+import Yulang.GeneralNominalRepeatedSuccessor190
+
+#check Yulang.GeneralNominalRepeatedSuccessor190.currentPacket
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.currentPacket
+#check Yulang.GeneralNominalRepeatedSuccessor190.current_query
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.current_query
+#check Yulang.GeneralNominalRepeatedSuccessor190.current_report
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.current_report
+#check Yulang.GeneralNominalRepeatedSuccessor190.current_ordinary
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.current_ordinary
+#check Yulang.GeneralNominalRepeatedSuccessor190.current_bindings
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.current_bindings
+#check Yulang.GeneralNominalRepeatedSuccessor190.current_capture
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.current_capture
+#check Yulang.GeneralNominalRepeatedSuccessor190.current_schema
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.current_schema
+#check Yulang.GeneralNominalRepeatedSuccessor190.current_branch
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.current_branch
+#check Yulang.GeneralNominalRepeatedSuccessor190.current_instance
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.current_instance
+#check Yulang.GeneralNominalRepeatedSuccessor190.installed_evidence
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.installed_evidence
+#check Yulang.GeneralNominalRepeatedSuccessor190.successor_evidence
+#print axioms Yulang.GeneralNominalRepeatedSuccessor190.successor_evidence

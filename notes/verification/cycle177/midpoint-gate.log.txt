@@ -1,0 +1,23 @@
+DEPENDENCY_CLOSURE 946 REBUILD 10
+START Yulang.GeneralDictionaryCenteredScalar177
+END Yulang.GeneralDictionaryCenteredScalar177 0
+START Yulang.GeneralDictionaryCenteredScalarDiscovery177
+END Yulang.GeneralDictionaryCenteredScalarDiscovery177 0
+START Yulang.GeneralDictionaryCenteredRootScalar177
+END Yulang.GeneralDictionaryCenteredRootScalar177 0
+START Yulang.GeneralDictionaryCenteredScalarMany177
+END Yulang.GeneralDictionaryCenteredScalarMany177 0
+START Yulang.GeneralDictionaryCenteredGuard177
+END Yulang.GeneralDictionaryCenteredGuard177 0
+START Yulang.GeneralDictionaryCenteredRootExample177
+END Yulang.GeneralDictionaryCenteredRootExample177 0
+START Yulang.GeneralDictionaryCenteredNamed177
+END Yulang.GeneralDictionaryCenteredNamed177 0
+START Yulang.GeneralDictionaryCenteredNovel177
+END Yulang.GeneralDictionaryCenteredNovel177 0
+START Yulang.GeneralDictionaryCenteredScalarRegression177
+END Yulang.GeneralDictionaryCenteredScalarRegression177 0
+START Audit.Cycle177MidpointGate
+AXIOM-GATE-PASS: 93 declarations (definitions/private/generated included)
+END Audit.Cycle177MidpointGate 0
+PASS 10

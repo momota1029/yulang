@@ -1,0 +1,14 @@
+'Yulang.GeneralDictionaryCenteredRecorded176.Recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.recorded_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.recorded_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.initial_recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.reachable_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.recorded_committed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.stored_instance' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.reachable_stored_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.stored_evidence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRecorded176.current_instance' depends on axioms: [propext, Quot.sound]

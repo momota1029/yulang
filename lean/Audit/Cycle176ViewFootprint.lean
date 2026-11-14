@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryViewFootprint176
+
+#print axioms Yulang.GeneralDictionaryViewFootprint176.HeadObservation
+#print axioms Yulang.GeneralDictionaryViewFootprint176.HeadObservation
+#print axioms Yulang.GeneralDictionaryViewFootprint176.HeadObservation
+#print axioms Yulang.GeneralDictionaryViewFootprint176.report_finished
+#print axioms Yulang.GeneralDictionaryViewFootprint176.instance_refinement

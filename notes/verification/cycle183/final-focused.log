@@ -1,0 +1,6 @@
+✔ [838/843] Built Yulang.GeneralNominalQueryProvenance183 (945ms)
+✔ [839/843] Built Yulang.GeneralNominalCoverageRegression183 (941ms)
+✔ [841/843] Built Yulang.GeneralNominalRegisteredCoverage183 (868ms)
+✔ [842/843] Built Yulang.GeneralNominalGroundRawSupport183 (886ms)
+✔ [843/843] Built Yulang.GeneralNominalOriginAgreement183 (1.1s)
+Build completed successfully (843 jobs).

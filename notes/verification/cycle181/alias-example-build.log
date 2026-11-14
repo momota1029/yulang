@@ -1,0 +1,10 @@
+DEPENDENCY_CLOSURE 817 REBUILD 4
+START Yulang.GeneralNominalBinderIdentity181
+END Yulang.GeneralNominalBinderIdentity181 0
+START Yulang.GeneralNominalOriginAlias181
+END Yulang.GeneralNominalOriginAlias181 0
+START Yulang.GeneralNominalOriginRootAlias181
+END Yulang.GeneralNominalOriginRootAlias181 0
+START Yulang.GeneralNominalOriginAliasExample181
+END Yulang.GeneralNominalOriginAliasExample181 0
+PASS 4

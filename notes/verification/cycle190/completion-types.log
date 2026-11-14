@@ -1,0 +1,75 @@
+Yulang.GeneralNominalRepeatedSuccessor190.currentPacket :
+  Yulang.GeneralNominalSaturationState.Packet Yulang.GeneralNominalRepeatedFixture190.roles
+'Yulang.GeneralNominalRepeatedSuccessor190.currentPacket' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.current_query :
+  Yulang.GeneralNominalInspection.queries Yulang.GeneralNominalRepeatedSuccessor190.currentPacket.context.state
+      Yulang.GeneralNominalRepeatedSuccessor190.currentPacket.context.interpretation
+      Yulang.GeneralNominalRepeatedFixture190.declaration =
+    [Yulang.GeneralNominalInspection.Query.variables [0], Yulang.GeneralNominalInspection.Query.variables [0]]
+'Yulang.GeneralNominalRepeatedSuccessor190.current_query' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.current_report :
+  Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralNominalRepeatedSuccessor190.currentPacket.context
+      Yulang.GeneralNominalRepeatedFixture190.declaration [(1, 1), (1, 1)] =
+    { captures := [{ name := 0, bounds := (1, 1), origin := none }, { name := 0, bounds := (1, 1), origin := none }],
+      checked := [(1, 1), (1, 1), (1, 1), (1, 1)] }
+'Yulang.GeneralNominalRepeatedSuccessor190.current_report' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.current_ordinary (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalPacketSupport.Ordinary Yulang.GeneralNominalRepeatedSuccessor190.currentPacket model ↔
+    Yulang.GeneralNominalPacketSupport.Ordinary Yulang.GeneralNominalRepeatedFixture190.packet model
+'Yulang.GeneralNominalRepeatedSuccessor190.current_ordinary' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.current_bindings :
+  Yulang.GeneralNominalRepeatedSuccessor190.currentPacket.bindings =
+    Yulang.GeneralNominalRepeatedFixture190.packet.bindings
+'Yulang.GeneralNominalRepeatedSuccessor190.current_bindings' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.current_capture :
+  Yulang.GeneralNominalPacketSupport.capture Yulang.GeneralNominalRepeatedSuccessor190.currentPacket =
+    Yulang.GeneralNominalPacketSupport.capture Yulang.GeneralNominalRepeatedFixture190.packet
+'Yulang.GeneralNominalRepeatedSuccessor190.current_capture' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.current_schema :
+  Yulang.GeneralNominalPacketSupport.namedSchema Yulang.GeneralNominalRepeatedSuccessor190.currentPacket =
+    Yulang.GeneralNominalPacketSupport.namedSchema Yulang.GeneralNominalRepeatedFixture190.packet
+'Yulang.GeneralNominalRepeatedSuccessor190.current_schema' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.current_branch (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalRepeatedFixture190.packet.Holds model) :
+  Yulang.GeneralNominalRepeatedSuccessor190.currentPacket.Holds model
+'Yulang.GeneralNominalRepeatedSuccessor190.current_branch' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.current_instance (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalRepeatedFixture190.packet.Holds model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralNominalRepeatedFixture190.registry
+    Yulang.GeneralNominalRepeatedFixture190.packet.privateContext model Yulang.GeneralNominalRepeatedFixture190.root 3
+    []
+'Yulang.GeneralNominalRepeatedSuccessor190.current_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.installed_evidence
+  {support : List (Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralNominalRepeatedFixture190.roles)}
+  (enabled :
+    Yulang.GeneralNominalCenteredHeadStepKernel.Installable Yulang.GeneralNominalRepeatedFixture190.registry
+      Yulang.GeneralNominalRepeatedFixture190.start Yulang.GeneralNominalRepeatedFixture190.plan support)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models
+      (Yulang.GeneralNominalCenteredHeadStepKernel.install Yulang.GeneralNominalRepeatedFixture190.start
+        Yulang.GeneralNominalRepeatedFixture190.plan support enabled)
+      model) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles).Evidence
+    Yulang.GeneralNominalRepeatedFixture190.registry
+    (Yulang.GeneralNominalCenteredHeadStepKernel.install Yulang.GeneralNominalRepeatedFixture190.start
+      Yulang.GeneralNominalRepeatedFixture190.plan support enabled)
+    model Yulang.GeneralNominalRepeatedFixture190.root (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralNominalRepeatedSuccessor190.installed_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalRepeatedSuccessor190.successor_evidence :
+  ∃ after,
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalRepeatedFixture190.roles).Step
+        Yulang.GeneralNominalRepeatedFixture190.registry Yulang.GeneralNominalRepeatedFixture190.root
+        Yulang.GeneralNominalRepeatedFixture190.start after ∧
+      (∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models after model) ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models after model →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary
+                  Yulang.GeneralNominalRepeatedFixture190.roles).Evidence
+              Yulang.GeneralNominalRepeatedFixture190.registry after model Yulang.GeneralNominalRepeatedFixture190.root
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralNominalRepeatedSuccessor190.successor_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

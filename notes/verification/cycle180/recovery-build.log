@@ -1,0 +1,34 @@
+DEPENDENCY_CLOSURE 913 REBUILD 6
+START Yulang.GeneralDictionaryCenteredJournalPoint180
+END Yulang.GeneralDictionaryCenteredJournalPoint180 0
+START Yulang.GeneralDictionaryCenteredJournalCandidate180
+END Yulang.GeneralDictionaryCenteredJournalCandidate180 0
+START Yulang.GeneralDictionaryCenteredJournalOverlap180
+/workspace/scratch/1d0b4aaa3394/yulang180-public/lean/Yulang/GeneralDictionaryCenteredJournalOverlap180.lean:63:17: error: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+/workspace/scratch/1d0b4aaa3394/yulang180-public/lean/Yulang/GeneralDictionaryCenteredJournalOverlap180.lean:73:21: error: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+/workspace/scratch/1d0b4aaa3394/yulang180-public/lean/Yulang/GeneralDictionaryCenteredJournalOverlap180.lean:94:28: error: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+/workspace/scratch/1d0b4aaa3394/yulang180-public/lean/Yulang/GeneralDictionaryCenteredJournalOverlap180.lean:94:39: error: `if_neg` has been deprecated: Use `ite_eq_right` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵n̵e̵g̵i̲t̲e̲_̲e̲q̲_̲r̲i̲g̲h̲t̲
+/workspace/scratch/1d0b4aaa3394/yulang180-public/lean/Yulang/GeneralDictionaryCenteredJournalOverlap180.lean:104:32: error: `if_pos` has been deprecated: Use `ite_eq_left` instead
+
+Hint: Replace the deprecated name:
+  i̵f̵_̵p̵o̵s̵i̲t̲e̲_̲e̲q̲_̲l̲e̲f̲t̲
+/workspace/scratch/1d0b4aaa3394/yulang180-public/lean/Yulang/GeneralDictionaryCenteredJournalOverlap180.lean:90:24: error: This simp argument is unused:
+  member
+
+Hint: Omit it from the simp argument list.
+  [apply] simp only [values, other, ite_true, same]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+END Yulang.GeneralDictionaryCenteredJournalOverlap180 1

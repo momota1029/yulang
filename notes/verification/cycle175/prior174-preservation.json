@@ -1,0 +1,11 @@
+{
+  "prior": "62e23143238739871555f44d7a10591d02dd99f1",
+  "checked": 112,
+  "missing": [],
+  "different": [
+    "lean/Yulang.lean",
+    "lean/Yulang/GeneralDictionaryAgreedEdge174.lean",
+    "notes/design/INDEX.md",
+    "notes/heartbeat/dots-main.md"
+  ]
+}

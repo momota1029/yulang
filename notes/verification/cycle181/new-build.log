@@ -1,0 +1,6 @@
+DEPENDENCY_CLOSURE 910 REBUILD 2
+START Yulang.GeneralNominalSemanticCompatibility181
+END Yulang.GeneralNominalSemanticCompatibility181 0
+START Yulang.GeneralDictionaryCenteredOverlapExact181
+/workspace/scratch/1d0b4aaa3394/yulang181-public/lean/Yulang/GeneralDictionaryCenteredOverlapExact181.lean:59:16: error(lean.unknownIdentifier): Unknown identifier `GeneralNominalLinearMaterializationFacts.source_member`
+END Yulang.GeneralDictionaryCenteredOverlapExact181 1

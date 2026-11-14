@@ -1,0 +1,13 @@
+'Yulang.GeneralDictionaryCenteredRegression176.first_flexible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.parent_current_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.exact_ledger' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.selected_candidate_not_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredRegression176.premerge_not_stable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

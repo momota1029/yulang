@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryCenteredInhabited176
+#print axioms Yulang.GeneralDictionaryCenteredInhabited176.aligned_output_atoms
+#print axioms Yulang.GeneralDictionaryCenteredInhabited176.aligned_merge_models
+#print axioms Yulang.GeneralDictionaryCenteredInhabited176.at_inhabited
+#print axioms Yulang.GeneralDictionaryCenteredInhabited176.step_actual
+#print axioms Yulang.GeneralDictionaryCenteredInhabited176.step_inhabited
+#print axioms Yulang.GeneralDictionaryCenteredInhabited176.trace_actual
+#print axioms Yulang.GeneralDictionaryCenteredInhabited176.trace_inhabited

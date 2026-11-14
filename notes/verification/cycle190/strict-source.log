@@ -1,0 +1,15 @@
+PASS Yulang/GeneralNominalAvailableNonvacuity190.lean
+PASS Yulang/GeneralNominalInstallableEvidence190.lean
+PASS Yulang/GeneralNominalInstallationBoundary190.lean
+PASS Yulang/GeneralNominalInstallationSound190.lean
+PASS Yulang/GeneralNominalLeafWitnessInstall190.lean
+PASS Yulang/GeneralNominalRepeatedFixture190.lean
+PASS Yulang/GeneralNominalRepeatedLocal190.lean
+PASS Yulang/GeneralNominalRepeatedNamedPlan190.lean
+PASS Yulang/GeneralNominalRepeatedPointRepair190.lean
+PASS Yulang/GeneralNominalSourceLinearEvidence190.lean
+PASS Yulang/GeneralNominalSourceLinearShape190.lean
+PASS Yulang/GeneralNominalSourceOutputReady190.lean
+PASS Yulang/GeneralNominalSourceRepeatedEvidence190.lean
+PASS Yulang/GeneralNominalTwoHeadFixture190.lean
+PASS Yulang/GeneralNominalTwoHeadNonvacuity190.lean

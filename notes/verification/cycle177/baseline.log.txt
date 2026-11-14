@@ -1,0 +1,14 @@
+DEPENDENCY_CLOSURE 851 REBUILD 6
+START Yulang.GeneralDictionaryCenteredLeafRegression176
+END Yulang.GeneralDictionaryCenteredLeafRegression176 0
+START Yulang.GeneralDictionaryCenteredGroundLeaf176
+END Yulang.GeneralDictionaryCenteredGroundLeaf176 0
+START Yulang.GeneralLocalPredicateCongruence
+END Yulang.GeneralLocalPredicateCongruence 0
+START Yulang.GeneralNominalCenteredAdministrativeLocal
+END Yulang.GeneralNominalCenteredAdministrativeLocal 0
+START Yulang.GeneralNominalCenteredAdministrativeWhere
+END Yulang.GeneralNominalCenteredAdministrativeWhere 0
+START Yulang.GeneralNominalCenteredAdministrativeProduction
+END Yulang.GeneralNominalCenteredAdministrativeProduction 0
+PASS 6

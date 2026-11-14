@@ -1,0 +1,29 @@
+PATH=/tmp/yulang183-toolchain/lean-4.35.0-linux/bin:$PATH
+# all commands from repo root unless noted
+# Fresh refs fetched with explicit refspec; work/dots-audit fetched separately.
+# Focused lean/ commands (timeout120/180 seconds, logs alongside this file):
+lake build Yulang.GeneralNominalOutputCoverage189 --wfail
+lake build Yulang.GeneralNominalHeadLeafPlan189 --wfail
+lake build Yulang.GeneralNominalInitialLeafStep189 Yulang.GeneralNominalInitialFrameUnique189 --wfail
+lake build Yulang.GeneralNominalInitialLeafEvidence189 Yulang.GeneralNominalInitialOutputExact189 --wfail
+lake build Yulang.GeneralNominalInitialLeafNonvacuity189 --wfail
+lake build Yulang.GeneralNominalSingleVariableModels189 --wfail
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189Gate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189ProgressGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189EvidenceGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189RegressionGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189NamedGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189PublicTypes.lean
+# Dependency traversal via tools/ReachCycle189.lean, explicit local/general roots.
+# Bytewise all-old-path preservation via preservation.py; git diff --check.
+# Final focused builds and exact per-source checks:
+lake build Yulang.GeneralNominalInitialNamedNonvacuity189 Yulang.GeneralNominalLinearNamedEvidence189 --wfail
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189CompleteGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189CompletePublicTypes.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle189PlainPublicTypes.lean
+# All 19 listed complete-modules.txt sources individually checked with --trust=0 -DwarningAsError=true.
+# Logs: all-sources-strict.log (first13), last-six-strict.log (last6).
+# Reach: YULANG_REACH_ROOTS=complete-local-roots.txt / general-roots.txt,
+# YULANG_REACH_OUTPUT=complete-local-reach.tsv / complete-general-reach.tsv,
+# lake env lean --trust=0 ../tools/ReachCycle189Complete.lean
+# All old5672paths compared bytewise, only root/design index append and heartbeat replacement allowed.

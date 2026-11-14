@@ -1,0 +1,1 @@
+AXIOM-GATE-PASS: 13 declarations including generated/private

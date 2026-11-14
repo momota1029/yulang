@@ -1,0 +1,21 @@
+# final delta paths including this manifest: 20; total unique paths since start: 151
+path	git_blob
+notes/design/2026-11-14-cycle178-module-guide.md	7ef5220e88bc13f55ec214c490e193210388e5fc
+notes/handoff/dots-cycle-178.md	2a4e84777e0f2cb7fb1a52ba2daa8b2ee6f4865c
+notes/heartbeat/dots-main.md	a0c9398e5a9a92999de623029f156bb661273d0b
+notes/verification/cycle178/FocusedUpstreamPermutation.lean	f4c7d0e9b1a67f7e024def60a545f41d0ab5df05
+notes/verification/cycle178/final-compliance.log	d389f40e5a25d90dfbc5b0a92b7a64703e7f391a
+notes/verification/cycle178/final-source-hashes.tsv	842e72e53dedca5b1ef70cdfde17a3108706b146
+notes/verification/cycle178/first-CI-failure-excerpt.log	d337f23eacb1f349e5e0f79219a9dfb1c189add3
+notes/verification/cycle178/prepublication-gate.exit	573541ac9702dd3969c9bc859d2b91ec1f7e6e56
+notes/verification/cycle178/prepublication-gate.log	0de837d922b124c764989f1e89ad5677cd1d2eb2
+notes/verification/cycle178/root-readback.log	df8a00addb485076bfe8b240f23ee5b9a367bc34
+notes/verification/cycle178/source-final.log	30d9b2ff2ccafdf515650ac5320e0a451e930919
+notes/verification/cycle178/upstream2-build.exit	573541ac9702dd3969c9bc859d2b91ec1f7e6e56
+notes/verification/cycle178/upstream2-build.log	8f5ac52b42b35874418996a1345e16ca7b47bc25
+notes/verification/cycle178/upstream2-canonical-audit.exit	573541ac9702dd3969c9bc859d2b91ec1f7e6e56
+notes/verification/cycle178/upstream2-canonical-audit.log	0670a3072ebd5f44bb91a2110db641e48c3e141e
+notes/verification/cycle178/upstream2-permutation-audit.exit	d00491fd7e5bb6fa28c517a0bb32b8b506539d4d
+notes/verification/cycle178/upstream2-permutation-audit.log	c4b8e7be8553148e0bbb9f6824f90cf850f41c18
+notes/verification/cycle178/upstream2-permutation-focused.exit	573541ac9702dd3969c9bc859d2b91ec1f7e6e56
+notes/verification/cycle178/upstream2-permutation-focused.log	8f08795fafade85026c180afae6dfbe88f4a80f4

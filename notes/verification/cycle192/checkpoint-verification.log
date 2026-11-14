@@ -1,0 +1,289 @@
+Build completed successfully (1134 jobs).
+Yulang.GeneralNominalCommittedEvidence192.trace_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry before plan support)
+  (committed : Yulang.GeneralNominalFeedbackSteps.Committed before.core.erased.current plan.packet)
+  (path : Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root) before after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models after model)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload)
+  (children :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model) plan.packet.children
+      payloads) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model plan.packet.site.occurrence
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node plan.packet.declaration.id payloads)
+'Yulang.GeneralNominalCommittedEvidence192.trace_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalCommittedEvidence192.generated_child {roles : Yulang.Roles.RoleDecls}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {plan : Yulang.GeneralNominalCenters.Plan roles}
+  (committed : Yulang.GeneralNominalFeedbackSteps.Committed before.core.erased.current plan.packet)
+  (reached : Yulang.GeneralNominalSaturationState.Generated before.core.erased.current root plan.packet.site.occurrence)
+  (child : Yulang.GeneralSourceDictionaries.Occurrence roles) (member : child ∈ plan.packet.children) :
+  Yulang.GeneralNominalSaturationState.Generated before.core.erased.current root child
+'Yulang.GeneralNominalCommittedEvidence192.generated_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalForestBoundary192.no_build (payload : Yulang.GeneralDictionaryReadback.Payload)
+  (after : Yulang.GeneralNominalCenteredHeadStepEffects.State Yulang.GeneralNominalCenteredHeadWFJoinSource.roles) :
+  ¬Yulang.GeneralNominalReusableForest192.Build Yulang.GeneralNominalCenteredHeadWFJoinSource.registry
+      Yulang.GeneralNominalCenteredHeadWFJoinSource.root Yulang.GeneralNominalCenteredHeadWFJoinSource.start
+      [Yulang.GeneralNominalCenteredHeadWFJoinSource.root] [payload] after
+'Yulang.GeneralNominalForestBoundary192.no_build' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalForestBoundary192.not_universal_selected_build :
+  ¬∀ (r : Yulang.GeneralDeclarations.Registry),
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Checked
+          r →
+        ∀
+          (state :
+            (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).State)
+          (focus :
+            (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Demand)
+          (key : Nat)
+          (children :
+            List
+              (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary
+                  Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Demand),
+          Yulang.B4TargetV6.Reachable
+              (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+              r focus state →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary
+                    Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Stable
+                r state focus →
+              Yulang.GeneralNominalCenteredHeadWFBoundary.Local r state focus
+                  (Yulang.CommonRoleOutermostResolver.Frontier.selected key children) →
+                ∃ after payload, Yulang.GeneralNominalReusableForest192.Build r focus state [focus] [payload] after
+'Yulang.GeneralNominalForestBoundary192.not_universal_selected_build' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalForestProducer192.of_installed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  (build : Yulang.GeneralNominalInstalledForest191.Build registry root before demands payloads after) :
+  Yulang.GeneralNominalReusableForest192.Build registry root before demands payloads after
+'Yulang.GeneralNominalForestProducer192.of_installed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalForestProducer192.first_enabled {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {demand : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {payload : Yulang.GeneralDictionaryReadback.Payload} {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  (build :
+    Yulang.GeneralNominalReusableForest192.Build registry root before (demand :: demands) (payload :: payloads) after) :
+  ∃ plan support,
+    plan.packet.site.occurrence = demand ∧
+      Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry before plan support
+'Yulang.GeneralNominalForestProducer192.first_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalForestProducer192.leaf {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {plan : Yulang.GeneralNominalCenters.Plan roles}
+  {support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (enabled : Yulang.GeneralNominalCenteredHeadStepKernel.Installable registry before plan support)
+  (reached : Yulang.GeneralNominalSaturationState.Generated before.core.erased.current root plan.packet.site.occurrence)
+  (terminal : plan.packet.children = []) :
+  ∃ after,
+    Yulang.GeneralNominalReusableForest192.Build registry root before [plan.packet.site.occurrence]
+        [Yulang.CommonRoleOutermostResolver.Dictionary.node plan.packet.declaration.id []] after ∧
+      (after = before ∨ (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Step registry root before after)
+'Yulang.GeneralNominalForestProducer192.leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalForestProducer192.stable_no_installed {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {demand : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {payload : Yulang.GeneralDictionaryReadback.Payload} {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  (stable : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Stable registry before root) :
+  ¬Yulang.GeneralNominalInstalledForest191.Build registry root before (demand :: demands) (payload :: payloads) after
+'Yulang.GeneralNominalForestProducer192.stable_no_installed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalForestProducer192.selected_initial_leaf {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root before)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry before root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (terminal :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations → declaration.id = key → declaration.requirements = [])
+  (empty : root.demand.outputs = []) :
+  children = [] ∧
+    ∃ after,
+      Yulang.GeneralNominalReusableForest192.Build registry root before [root]
+          [Yulang.CommonRoleOutermostResolver.Dictionary.node key []] after ∧
+        (after = before ∨
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Step registry root before after) ∧
+          Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root after ∧
+            (∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models after model) ∧
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalCenteredHeadStepEffects.Models after model →
+                  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model root
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node key [])
+'Yulang.GeneralNominalForestProducer192.selected_initial_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalForestProducer192.selected_variable_leaf {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat}
+  {children : List (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles).Demand}
+  (checked : Yulang.GeneralDeclarations.Checked registry)
+  (source : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root before)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry before root
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (declarations :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        declaration.id = key →
+          (∃ names, declaration.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names) ∧
+            declaration.requirements = [] ∧
+              (∀ (output : Yulang.GeneralSourceState.Output),
+                  output ∈ root.demand.outputs →
+                    ∃ equation, equation ∈ declaration.associated ∧ equation.name = output.name) ∧
+                ∀ (equation : Yulang.GeneralDeclarations.Equation),
+                  equation ∈ declaration.associated →
+                    Yulang.GeneralNominalHeadMatchMass.Complete
+                      (Yulang.GeneralNominalInspection.translate before.core.erased.current.context.state.constructors
+                        before.core.erased.current.context.interpretation
+                        (Yulang.GeneralDeclarationPatterns.normalize equation.rhs))) :
+  children = [] ∧
+    ∃ after,
+      Yulang.GeneralNominalReusableForest192.Build registry root before [root]
+          [Yulang.CommonRoleOutermostResolver.Dictionary.node key []] after ∧
+        (after = before ∨
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Step registry root before after) ∧
+          Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root after ∧
+            (∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models after model) ∧
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalCenteredHeadStepEffects.Models after model →
+                  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model root
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node key [])
+'Yulang.GeneralNominalForestProducer192.selected_variable_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalReusableForest192.Build {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.State roles →
+    List (Yulang.GeneralSourceDictionaries.Occurrence roles) →
+      List Yulang.GeneralDictionaryReadback.Payload → Yulang.GeneralNominalCenteredHeadStepEffects.State roles → Prop
+'Yulang.GeneralNominalReusableForest192.Build' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableForest192.ordinary_trace {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  (build : Yulang.GeneralNominalReusableForest192.Build registry root before demands payloads after) :
+  Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root) before after
+'Yulang.GeneralNominalReusableForest192.ordinary_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableForest192.execution {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  (build : Yulang.GeneralNominalReusableForest192.Build registry root before demands payloads after) :
+  Yulang.B4Target.Steps ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Step registry root) before after
+'Yulang.GeneralNominalReusableForest192.execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableForest192.evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  (build : Yulang.GeneralNominalReusableForest192.Build registry root before demands payloads after)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models after model) :
+  Yulang.CommonRoleOutermostResolver.All₂
+    ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model) demands payloads
+'Yulang.GeneralNominalReusableForest192.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableForest192.inhabited {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  (build : Yulang.GeneralNominalReusableForest192.Build registry root before demands payloads after)
+  (initial : ∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models before model) :
+  ∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models after model
+'Yulang.GeneralNominalReusableForest192.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableForest192.nonempty_inhabited {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  {payloads : List Yulang.GeneralDictionaryReadback.Payload}
+  {demand : Yulang.GeneralSourceDictionaries.Occurrence roles} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  (build :
+    Yulang.GeneralNominalReusableForest192.Build registry root before (demand :: demands) (payload :: payloads) after) :
+  ∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models after model
+'Yulang.GeneralNominalReusableForest192.nonempty_inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableForest192.tree_sound {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (demand : Yulang.GeneralSourceDictionaries.Occurrence roles) (payload : Yulang.GeneralDictionaryReadback.Payload)
+  (build : Yulang.GeneralNominalReusableForest192.Build registry root before [demand] [payload] after) :
+  Yulang.B4Target.Steps ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Step registry root) before after ∧
+    (∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models after model) ∧
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredHeadStepEffects.Models after model →
+          (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model demand payload
+'Yulang.GeneralNominalReusableForest192.tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableForest192.source_tree_sound {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (payload : Yulang.GeneralDictionaryReadback.Payload)
+  (initial : (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Initial registry root before)
+  (build : Yulang.GeneralNominalReusableForest192.Build registry root before [root] [payload] after) :
+  Yulang.B4TargetV6.Reachable (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root after ∧
+    (∃ model, Yulang.GeneralNominalCenteredHeadStepEffects.Models after model) ∧
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredHeadStepEffects.Models after model →
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models before model ∧
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry after model root payload
+'Yulang.GeneralNominalReusableForest192.source_tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableRegression192.stable_build :
+  Yulang.GeneralNominalReusableForest192.Build Yulang.GeneralNominalInitialLeafFixture189.registry
+    Yulang.GeneralNominalInitialLeafFixture189.root Yulang.GeneralNominalInitialLeafFixture189.start
+    [Yulang.GeneralNominalInitialLeafFixture189.root] [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []]
+    Yulang.GeneralNominalInitialLeafFixture189.start
+'Yulang.GeneralNominalReusableRegression192.stable_build' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalReusableRegression192.stable_old_impossible
+  (after : Yulang.GeneralNominalCenteredHeadStepEffects.State Yulang.GeneralNominalInitialLeafFixture189.roles) :
+  ¬Yulang.GeneralNominalInstalledForest191.Build Yulang.GeneralNominalInitialLeafFixture189.registry
+      Yulang.GeneralNominalInitialLeafFixture189.root Yulang.GeneralNominalInitialLeafFixture189.start
+      [Yulang.GeneralNominalInitialLeafFixture189.root] [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []] after
+'Yulang.GeneralNominalReusableRegression192.stable_old_impossible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalReusableRegression192.stable_source_sound :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalInitialLeafFixture189.roles).Checked
+      Yulang.GeneralNominalInitialLeafFixture189.registry ∧
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalInitialLeafFixture189.roles).Initial
+        Yulang.GeneralNominalInitialLeafFixture189.registry Yulang.GeneralNominalInitialLeafFixture189.root
+        Yulang.GeneralNominalInitialLeafFixture189.start ∧
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalInitialLeafFixture189.roles).Stable
+          Yulang.GeneralNominalInitialLeafFixture189.registry Yulang.GeneralNominalInitialLeafFixture189.start
+          Yulang.GeneralNominalInitialLeafFixture189.root ∧
+        Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalInitialLeafFixture189.start
+            Yulang.GeneralNominalInitialLeafFixture189.model ∧
+          ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalInitialLeafFixture189.start
+                assignment →
+              (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary
+                    Yulang.GeneralNominalInitialLeafFixture189.roles).Evidence
+                Yulang.GeneralNominalInitialLeafFixture189.registry Yulang.GeneralNominalInitialLeafFixture189.start
+                assignment Yulang.GeneralNominalInitialLeafFixture189.root
+                (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralNominalReusableRegression192.stable_source_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalReusableRegression192.repeated_exists_build :
+  ∃ after,
+    Yulang.GeneralNominalReusableForest192.Build Yulang.GeneralNominalRepeatedFixture190.registry
+      Yulang.GeneralNominalRepeatedFixture190.root Yulang.GeneralNominalRepeatedFixture190.start
+      [Yulang.GeneralNominalRepeatedFixture190.root] [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []] after
+'Yulang.GeneralNominalReusableRegression192.repeated_exists_build' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+AXIOM-GATE-PASS: 35 declarations including generated/private

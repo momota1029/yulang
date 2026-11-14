@@ -1,0 +1,7 @@
+'Yulang.GeneralDictionaryCenteredTree176.current_evidence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredTree176.initial_trace_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredTree176.initial_trace_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

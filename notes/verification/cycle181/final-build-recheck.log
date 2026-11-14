@@ -1,0 +1,41 @@
+Sat Nov 14 05:09:32 UTC 2026
+DEPENDENCY_CLOSURE 945 REBUILD 18
+START Yulang.GeneralDictionaryCenteredOverlapExact181
+END Yulang.GeneralDictionaryCenteredOverlapExact181 0
+START Yulang.GeneralNominalBinderIdentity181
+END Yulang.GeneralNominalBinderIdentity181 0
+START Yulang.GeneralDictionaryCenteredProvenance181
+END Yulang.GeneralDictionaryCenteredProvenance181 0
+START Yulang.GeneralNominalOriginAlias181
+END Yulang.GeneralNominalOriginAlias181 0
+START Yulang.GeneralNominalOriginRootAlias181
+END Yulang.GeneralNominalOriginRootAlias181 0
+START Yulang.GeneralDictionaryCenteredAliasProvenance181
+END Yulang.GeneralDictionaryCenteredAliasProvenance181 0
+START Yulang.GeneralNominalLedgerReadback181
+END Yulang.GeneralNominalLedgerReadback181 0
+START Yulang.GeneralDictionaryCenteredLedger181
+END Yulang.GeneralDictionaryCenteredLedger181 0
+START Yulang.GeneralDictionaryCenteredLedgerExample181
+END Yulang.GeneralDictionaryCenteredLedgerExample181 0
+START Yulang.GeneralNominalSemanticCompatibility181
+END Yulang.GeneralNominalSemanticCompatibility181 0
+START Yulang.GeneralNominalObservationExtension181
+END Yulang.GeneralNominalObservationExtension181 0
+START Yulang.GeneralNominalFramedExtension181
+END Yulang.GeneralNominalFramedExtension181 0
+START Yulang.GeneralNominalModeFrame181
+END Yulang.GeneralNominalModeFrame181 0
+START Yulang.GeneralNominalModeLedger181
+END Yulang.GeneralNominalModeLedger181 0
+START Yulang.GeneralNominalModeExtension181
+END Yulang.GeneralNominalModeExtension181 0
+START Yulang.GeneralNominalModeFrameExample181
+END Yulang.GeneralNominalModeFrameExample181 0
+START Yulang.GeneralNominalOriginAliasExample181
+END Yulang.GeneralNominalOriginAliasExample181 0
+START Yulang.GeneralNominalSemanticCollisionExample181
+END Yulang.GeneralNominalSemanticCollisionExample181 0
+PASS 18
+Sat Nov 14 05:09:55 UTC 2026
+EXIT=0

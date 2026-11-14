@@ -1,0 +1,6 @@
+DEPENDENCY_CLOSURE 909 REBUILD 2
+START Yulang.GeneralNominalSemanticCompatibility181
+END Yulang.GeneralNominalSemanticCompatibility181 0
+START Yulang.GeneralNominalSemanticCollisionExample181
+END Yulang.GeneralNominalSemanticCollisionExample181 0
+PASS 2

@@ -1,0 +1,10 @@
+yulang176-public/lean/Yulang/GeneralDictionaryCenteredRecorded176.lean:27:4: error: Type mismatch: After simplification, term
+  prior packet (packets ▸ member)
+ has type
+  Metadata registry packet ∧
+    ∀ (child : Occurrence roles✝),
+      child ∈ packet.children → (packet.site.occurrence, child) ∈ before.erased.current.edges
+but is expected to have type
+  Metadata registry packet ∧
+    ∀ (child : Occurrence roles✝),
+      child ∈ packet.children → (packet.site.occurrence, child) ∈ (administrative before after).erased.current.edges

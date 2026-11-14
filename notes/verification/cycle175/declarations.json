@@ -1,0 +1,128 @@
+[
+  {
+    "module": "GeneralDictionaryAgreedCertifiedEvidence175",
+    "public_theorems": [
+      "endpoint_reachable",
+      "diagnostic_resolves",
+      "diagnostic_exact",
+      "completed_iff",
+      "halted_completed_evidence"
+    ],
+    "count": 5
+  },
+  {
+    "module": "GeneralDictionaryAgreedCompactTable175",
+    "public_theorems": [
+      "tableOn_correct",
+      "compactNodes_covers",
+      "compactHeight_correct",
+      "checkCompact_eq",
+      "certifyCompact_eq",
+      "certifyCompact_iff",
+      "certifyCompact_reorders",
+      "tableOn_length",
+      "compactHeight_length"
+    ],
+    "count": 9
+  },
+  {
+    "module": "GeneralDictionaryAgreedCompletion175",
+    "public_theorems": [
+      "selected_instance_of_recorded",
+      "selected_evidence_of_recorded",
+      "dictionary_evidence",
+      "dictionaries_evidence",
+      "halted_dictionary_evidence",
+      "halted_pending_dictionary_evidence"
+    ],
+    "count": 6
+  },
+  {
+    "module": "GeneralDictionaryAgreedFlexibleCompletion175",
+    "public_theorems": [
+      "halted_dictionary_evidence",
+      "halted_pending_dictionary_evidence",
+      "halted_completed_evidence"
+    ],
+    "count": 3
+  },
+  {
+    "module": "GeneralDictionaryAgreedFlexibleTrace175",
+    "public_theorems": [
+      "at_actual",
+      "step_actual",
+      "steps_actual",
+      "step_models",
+      "step_formed",
+      "at_instance",
+      "step_recorded",
+      "initial_recorded",
+      "trace_formed_recorded",
+      "initial_trace_recorded",
+      "initial_trace_instance",
+      "initial_trace_evidence",
+      "old_at",
+      "old_step",
+      "old_steps"
+    ],
+    "count": 15
+  },
+  {
+    "module": "GeneralDictionaryAgreedTable175",
+    "public_theorems": [
+      "lookup_map",
+      "parent_mem_nodes",
+      "childRoles_mem_nodes",
+      "heightTable_correct",
+      "checkTable_eq",
+      "certifyTable_eq",
+      "certifyTable_iff",
+      "certifyTable_reorders",
+      "wrap_certified",
+      "recursive_not_certified"
+    ],
+    "count": 10
+  },
+  {
+    "module": "GeneralDictionaryAgreedTableExamples175",
+    "public_theorems": [
+      "empty_all_fuel",
+      "empty_certified",
+      "repeated_certified",
+      "repeated_zero_fails",
+      "repeated_one_passes",
+      "disconnected_all_fuel",
+      "disconnected_not_certified",
+      "reverseGraph_reorders",
+      "reverseGraph_certificate",
+      "reversed_cycle_not_certified"
+    ],
+    "count": 10
+  },
+  {
+    "module": "GeneralDictionaryNominalOnlyRefresh175",
+    "public_theorems": [
+      "inspect_finished",
+      "inspectMany_finished",
+      "report_finished",
+      "instance_refinement",
+      "evidence_refinement"
+    ],
+    "count": 5
+  },
+  {
+    "module": "GeneralDictionaryNominalViewRegression175",
+    "public_theorems": [
+      "view_changes",
+      "query_allowed",
+      "finished_before",
+      "report_preserved",
+      "finished_after",
+      "capture_before",
+      "capture_after",
+      "known_progress",
+      "models_nonempty"
+    ],
+    "count": 9
+  }
+]

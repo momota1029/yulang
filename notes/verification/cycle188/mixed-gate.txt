@@ -1,0 +1,3 @@
+✔ [1046/1046] Built Yulang.GeneralNominalHeadMixedExtension188 (2.0s)
+Build completed successfully (1046 jobs).
+AXIOM-GATE-PASS: 111 declarations including generated/private

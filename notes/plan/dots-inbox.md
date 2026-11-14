@@ -289,3 +289,23 @@ Astra が、根の入力がソースで決まった型（ground root）のとき
 ## I-29: 実際の引数の名前（中心）を表現に置く（ユーザー決定 2026-11-14）
 
 spec 6.5 に追記した: 不変な引数は区間に加えて中心（実際の引数の名前）を持つ。「共有の証明が無ければ保留」という実装上の検査は、意味の規則ではない（B4 草稿の補遺 8）。監督役は Astra に、中心つきの表現と、それを使う Step（共有の証明が常にある Step）への移し替えを頼む。dot は I-28 の境界で作業を続けてよい。中心つきの Step が統合されたら、そちらへ移す指示を出す。
+
+## I-30: `evidenceNode` を中心つきの ground 境界で証明する（監督役, 2026-11-14）
+
+Astra の二人目が、中心つきの Step（spec 6.5 の中心、補遺 8）の上で、根の入力が点で決まった型（ground）の境界 G = `GeneralNominalCenteredGroundBoundary.groundBoundary` について、V5 の 14 フィールドのうち 10 本を証明した（`GeneralNominalCenteredGroundComposition.bridges`、`composition : Remaining roles → B4TargetV5.Statement G executor`）。残りは `whereAccessible`・`canonicalLocalOrder`・`evidenceNode`・`generatedChildren`。
+- **dot の担当は `evidenceNode`（`B4SkeletonV5.EvidenceNode (groundBoundary roles)`）**。I-28 の actual 境界での Evidence の成果を、この G に向けて移す・証明し直すこと。正確な型は `GeneralNominalCenteredGroundComposition.Remaining.evidenceNode`。
+- 残りの 3 本は Astra が担当する（まとめ終わってから選ぶように分類を強めた G' を作る可能性がある。そのときは G' の evidenceNode に移すよう追って指示する）。
+- 前のサイクルのファイルは追記のみ（I-27）。コメントに `admit`・`sorry` などの語を書かない（検査が拾う）。
+
+## I-31（2026-11-14）import の並べ替え・空行の削除をしない
+
+cycle 181〜183 で `lean/Yulang.lean` の import を並べ替え、いくつかのファイルの末尾の空行を消したため、統合の検査（行の削除の禁止）で落ちた。監督が元の並びに戻し、新しい import だけを末尾に足した（`fix/dots-183`）。
+- `lean/Yulang.lean` は**末尾への追記だけ**。既存の行の移動・重複の整理・空行の削除をしない。
+- 他の worker のファイル（末尾の空行を含む）を書き換えない。
+- 新しいモジュールは必ず `lean/Yulang.lean` から import する（cycle 177 で漏れた）。
+- `lake build --wfail` で警告も失敗になる（cycle 178 で使っていない simp 引数が落ちた）。
+
+## I-32（2026-11-14）evidenceNode の向け先
+
+Astra は境界を G′ → head-only の後継（`GeneralNominalCenteredHeadWFBoundary.boundary`、V6 = `B4TargetV6`）へ移した。理由: ユーザーの決定「名前無し区間は引数で，名前あり区間は出力」（spec 6.3）。候補は head だけで照合し、出力のぶつかりは型エラー（V6 の `OutputConflict`）。
+- evidenceNode は、V6 の Classify（出力のぶつかりがないことが選択の条件）の上で書き直す必要がある。今の G 向けの作業は続けてよいが、移し先はこの WF 境界になる。

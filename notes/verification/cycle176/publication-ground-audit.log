@@ -1,0 +1,6 @@
+'Yulang.GeneralDictionaryCenteredGroundLeaf176.ground' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredGroundLeaf176.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredGroundLeaf176.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredGroundLeaf176.reachable_evidence_without_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

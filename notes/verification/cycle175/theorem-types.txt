@@ -1,0 +1,657 @@
+@Yulang.GeneralDictionaryAgreedCertifiedEvidence175.endpoint_reachable : ∀ {roles : Yulang.Roles.RoleDecls}
+  {defer : Bool} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedRefiningTrace174.Step registry root)
+        (Yulang.GeneralNominalSupport.initial context root) state →
+      Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap) registry root state
+@Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic_resolves : ∀ {roles : Yulang.Roles.RoleDecls}
+  {defer : Bool} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+      registry →
+    Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable registry) Bool.true →
+      Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap) registry root
+          state →
+        Yulang.CommonRoleOutermostResolver.Resolves.{0}
+          (Yulang.B4TargetV3.Local.{0}
+            (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+              (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+            registry state)
+          root (Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic defer gap registry state root)
+@Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic_exact : ∀ {roles : Yulang.Roles.RoleDecls} {defer : Bool}
+  {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+      registry →
+    Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable registry) Bool.true →
+      Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap) registry root
+          state →
+        ∀ (tree : Yulang.CommonRoleOutermostResolver.Tree),
+          Eq.{1} (Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic defer gap registry state root) tree ↔
+            Yulang.CommonRoleOutermostResolver.Resolves.{0}
+              (Yulang.B4TargetV3.Local.{0}
+                (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                  (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+                registry state)
+              root tree
+@Yulang.GeneralDictionaryAgreedCertifiedEvidence175.completed_iff : ∀ {roles : Yulang.Roles.RoleDecls} {defer : Bool}
+  {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+      registry →
+    Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable registry) Bool.true →
+      Yulang.B4TargetV5.Reachable.{0} (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap) registry root
+          state →
+        ∀ (result : Yulang.CommonRoleOutermostResolver.Result),
+          Yulang.B4TargetV3.Completed
+              (Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic defer gap registry state root) result ↔
+            Yulang.B4TargetV3.Classify.{0}
+              (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+              registry state root result
+@Yulang.GeneralDictionaryAgreedCertifiedEvidence175.halted_completed_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {defer : Bool} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+      registry →
+    Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable registry) Bool.true →
+      ∀ (context : Yulang.GeneralNominalCandidates.Context),
+        Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+          Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedRefiningTrace174.Step registry root)
+              (Yulang.GeneralNominalSupport.initial context root) state →
+            (∀ (after : Yulang.GeneralNominalSupport.Tracked roles),
+                ¬Yulang.GeneralNominalActualInspectionSteps.Step registry root state after) →
+              (∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles),
+                  Eq.{1} defer Bool.true ∨ ¬gap registry state demand) →
+                ∀ (dictionary : Yulang.GeneralDictionaryReadback.Payload),
+                  Yulang.B4TargetV3.Completed
+                      (Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic defer gap registry state root)
+                      (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) →
+                    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralNominalSaturationState.Models state.current model →
+                        Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root
+                          dictionary
+@Yulang.GeneralDictionaryAgreedCompactTable175.tableOn_correct : ∀ {role : Nat}
+  (registry : Yulang.GeneralDeclarations.Registry) (nodes : List.{0} Nat),
+  (∀ (role : Nat),
+      Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedUniform174.roleNodes registry) role →
+        Membership.mem.{0, 0} nodes role) →
+    ∀ (fuel : Nat),
+      Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedUniform174.roleNodes registry) role →
+        Eq.{1}
+          (Yulang.GeneralDictionaryAgreedTable175.lookup
+            (Yulang.GeneralDictionaryAgreedCompactTable175.tableOn registry nodes fuel) role)
+          (Yulang.GeneralDictionaryAgreedComputed174.computedHeight registry fuel role)
+@Yulang.GeneralDictionaryAgreedCompactTable175.compactNodes_covers : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {role : Nat},
+  Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedUniform174.roleNodes registry) role →
+    Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedCompactTable175.compactNodes registry) role
+@Yulang.GeneralDictionaryAgreedCompactTable175.compactHeight_correct : ∀ {role : Nat}
+  (registry : Yulang.GeneralDeclarations.Registry) (fuel : Nat),
+  Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedUniform174.roleNodes registry) role →
+    Eq.{1}
+      (Yulang.GeneralDictionaryAgreedTable175.lookup
+        (Yulang.GeneralDictionaryAgreedCompactTable175.compactHeight registry fuel) role)
+      (Yulang.GeneralDictionaryAgreedComputed174.computedHeight registry fuel role)
+Yulang.GeneralDictionaryAgreedCompactTable175.checkCompact_eq : ∀ (registry : Yulang.GeneralDeclarations.Registry)
+  (fuel : Nat),
+  Eq.{1} (Yulang.GeneralDictionaryAgreedCompactTable175.checkCompact registry fuel)
+    (Yulang.GeneralDictionaryAgreedTable175.checkTable registry fuel)
+Yulang.GeneralDictionaryAgreedCompactTable175.certifyCompact_eq : ∀ (registry : Yulang.GeneralDeclarations.Registry),
+  Eq.{1} (Yulang.GeneralDictionaryAgreedCompactTable175.certifyCompact registry)
+    (Yulang.GeneralDictionaryAgreedTable175.certifyTable registry)
+@Yulang.GeneralDictionaryAgreedCompactTable175.certifyCompact_iff : ∀ {registry : Yulang.GeneralDeclarations.Registry},
+  Eq.{1} (Yulang.GeneralDictionaryAgreedCompactTable175.certifyCompact registry) Bool.true ↔
+    Exists.{1} fun rank => Yulang.GeneralDictionaryAgreedEdge174.RoleStratified registry rank
+@Yulang.GeneralDictionaryAgreedCompactTable175.certifyCompact_reorders : ∀
+  {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    Eq.{1} (Yulang.GeneralDictionaryAgreedCompactTable175.certifyCompact first)
+      (Yulang.GeneralDictionaryAgreedCompactTable175.certifyCompact last)
+Yulang.GeneralDictionaryAgreedCompactTable175.tableOn_length : ∀ (registry : Yulang.GeneralDeclarations.Registry)
+  (nodes : List.{0} Nat) (fuel : Nat),
+  Eq.{1}
+    (List.length.{0}
+      (Yulang.GeneralDictionaryAgreedCompactTable175.tableOn registry nodes (HAdd.hAdd.{0, 0, 0} fuel 1)))
+    (List.length.{0} nodes)
+Yulang.GeneralDictionaryAgreedCompactTable175.compactHeight_length : ∀ (registry : Yulang.GeneralDeclarations.Registry)
+  (fuel : Nat),
+  Eq.{1}
+    (List.length.{0}
+      (Yulang.GeneralDictionaryAgreedCompactTable175.compactHeight registry (HAdd.hAdd.{0, 0, 0} fuel 1)))
+    (List.length.{0} (Yulang.GeneralDictionaryAgreedCompactTable175.compactNodes registry))
+@Yulang.GeneralDictionaryAgreedCompletion175.selected_instance_of_recorded : ∀ {roles : Yulang.Roles.RoleDecls}
+  {defer : Bool} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children :
+    List.{0} (Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalActualAgreedLocal.vocabulary roles))},
+  Yulang.GeneralDictionaryAgreedRefiningTrace174.RecordedCurrent registry state →
+    Eq.{1} defer Bool.true ∨ ¬gap registry state focus →
+      Yulang.B4Target.SourceBoundary.Stable.{0}
+          (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+            (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+          registry state focus →
+        Yulang.GeneralNominalActualAgreedLocal.Local defer gap registry state focus
+            (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.current.context model focus key children
+@Yulang.GeneralDictionaryAgreedCompletion175.selected_evidence_of_recorded : ∀ {roles : Yulang.Roles.RoleDecls}
+  {defer : Bool} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children :
+    List.{0} (Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalActualAgreedLocal.vocabulary roles))},
+  Yulang.GeneralDictionaryAgreedRefiningTrace174.RecordedCurrent registry state →
+    Eq.{1} defer Bool.true ∨ ¬gap registry state focus →
+      Yulang.B4Target.SourceBoundary.Stable.{0}
+          (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+            (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+          registry state focus →
+        Yulang.GeneralNominalActualAgreedLocal.Local defer gap registry state focus
+            (Yulang.CommonRoleOutermostResolver.Frontier.selected.{0} key children) →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              ∀ (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload),
+                Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                    (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) children
+                    dictionaries →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node key dictionaries)
+@Yulang.GeneralDictionaryAgreedCompletion175.dictionary_evidence : ∀ {roles : Yulang.Roles.RoleDecls} {defer : Bool}
+  {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralDictionaryAgreedRefiningTrace174.RecordedCurrent registry state →
+    (∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Eq.{1} defer Bool.true ∨ ¬gap registry state demand) →
+      Yulang.B4Target.SourceBoundary.Stable.{0}
+          (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+            (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+          registry state root →
+        (∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles),
+            Yulang.GeneralNominalSaturationState.Generated state.current root demand →
+              Yulang.B4Target.SourceBoundary.Stable.{0}
+                (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                  (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+                registry state demand) →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              ∀ (dictionary : Yulang.GeneralDictionaryReadback.Payload)
+                (focus : Yulang.GeneralSourceDictionaries.Occurrence roles),
+                Eq.{1} focus root ∨ Yulang.GeneralNominalSaturationState.Generated state.current root focus →
+                  Yulang.B4TargetV3.Classify.{0}
+                      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                        (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+                      registry state focus (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model focus
+                      dictionary
+@Yulang.GeneralDictionaryAgreedCompletion175.dictionaries_evidence : ∀ {roles : Yulang.Roles.RoleDecls} {defer : Bool}
+  {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.GeneralDictionaryAgreedRefiningTrace174.RecordedCurrent registry state →
+    (∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles),
+        Eq.{1} defer Bool.true ∨ ¬gap registry state demand) →
+      Yulang.B4Target.SourceBoundary.Stable.{0}
+          (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+            (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+          registry state root →
+        (∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles),
+            Yulang.GeneralNominalSaturationState.Generated state.current root demand →
+              Yulang.B4Target.SourceBoundary.Stable.{0}
+                (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                  (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+                registry state demand) →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models state.current model →
+              ∀ (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload)
+                (demands : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+                (∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+                    Membership.mem.{0, 0} demands child →
+                      Eq.{1} child root ∨ Yulang.GeneralNominalSaturationState.Generated state.current root child) →
+                  Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                      (fun child dictionary =>
+                        Yulang.B4TargetV3.Classify.{0}
+                          (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                            (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+                          registry state child (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+                      demands dictionaries →
+                    Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                      (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model) demands
+                      dictionaries
+@Yulang.GeneralDictionaryAgreedCompletion175.halted_dictionary_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {defer : Bool} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+      registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context),
+      Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+        Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedRefiningTrace174.Step registry root)
+            (Yulang.GeneralNominalSupport.initial context root) state →
+          (∀ (after : Yulang.GeneralNominalSupport.Tracked roles),
+              ¬Yulang.GeneralNominalActualInspectionSteps.Step registry root state after) →
+            (∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles),
+                Eq.{1} defer Bool.true ∨ ¬gap registry state demand) →
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalSaturationState.Models state.current model →
+                  ∀ (dictionary : Yulang.GeneralDictionaryReadback.Payload),
+                    Yulang.B4TargetV3.Classify.{0}
+                        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                          (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+                        registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) →
+                      Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root
+                        dictionary
+@Yulang.GeneralDictionaryAgreedCompletion175.halted_pending_dictionary_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {state : Yulang.GeneralNominalSupport.Tracked roles} {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary Bool.true gap))
+      registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context),
+      Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+        Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedRefiningTrace174.Step registry root)
+            (Yulang.GeneralNominalSupport.initial context root) state →
+          (∀ (after : Yulang.GeneralNominalSupport.Tracked roles),
+              ¬Yulang.GeneralNominalActualInspectionSteps.Step registry root state after) →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalSaturationState.Models state.current model →
+                ∀ (dictionary : Yulang.GeneralDictionaryReadback.Payload),
+                  Yulang.B4TargetV3.Classify.{0}
+                      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                        (Yulang.GeneralNominalActualAgreedBoundary.boundary Bool.true gap))
+                      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root
+                      dictionary
+@Yulang.GeneralDictionaryAgreedFlexibleCompletion175.halted_dictionary_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {defer : Bool} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+      registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context),
+      Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+        Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root)
+            (Yulang.GeneralNominalSupport.initial context root) state →
+          (∀ (after : Yulang.GeneralNominalSupport.Tracked roles),
+              ¬Yulang.GeneralNominalActualInspectionSteps.Step registry root state after) →
+            (∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles),
+                Eq.{1} defer Bool.true ∨ ¬gap registry state demand) →
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalSaturationState.Models state.current model →
+                  ∀ (dictionary : Yulang.GeneralDictionaryReadback.Payload),
+                    Yulang.B4TargetV3.Classify.{0}
+                        (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                          (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+                        registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) →
+                      Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root
+                        dictionary
+@Yulang.GeneralDictionaryAgreedFlexibleCompletion175.halted_pending_dictionary_evidence : ∀
+  {roles : Yulang.Roles.RoleDecls} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary Bool.true gap))
+      registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context),
+      Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+        Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root)
+            (Yulang.GeneralNominalSupport.initial context root) state →
+          (∀ (after : Yulang.GeneralNominalSupport.Tracked roles),
+              ¬Yulang.GeneralNominalActualInspectionSteps.Step registry root state after) →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalSaturationState.Models state.current model →
+                ∀ (dictionary : Yulang.GeneralDictionaryReadback.Payload),
+                  Yulang.B4TargetV3.Classify.{0}
+                      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+                        (Yulang.GeneralNominalActualAgreedBoundary.boundary Bool.true gap))
+                      registry state root (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) →
+                    Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root
+                      dictionary
+@Yulang.GeneralDictionaryAgreedFlexibleCompletion175.halted_completed_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {defer : Bool} {gap : Yulang.GeneralNominalActualAgreedLocal.GapPredicate roles}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalSupport.Tracked roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles},
+  Yulang.B4Target.SourceBoundary.Checked.{0}
+      (Yulang.B4TargetV5.SourceBoundary.toSourceBoundary.{0}
+        (Yulang.GeneralNominalActualAgreedBoundary.boundary defer gap))
+      registry →
+    Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable registry) Bool.true →
+      ∀ (context : Yulang.GeneralNominalCandidates.Context),
+        Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+          Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root)
+              (Yulang.GeneralNominalSupport.initial context root) state →
+            (∀ (after : Yulang.GeneralNominalSupport.Tracked roles),
+                ¬Yulang.GeneralNominalActualInspectionSteps.Step registry root state after) →
+              (∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles),
+                  Eq.{1} defer Bool.true ∨ ¬gap registry state demand) →
+                ∀ (dictionary : Yulang.GeneralDictionaryReadback.Payload),
+                  Yulang.B4TargetV3.Completed
+                      (Yulang.GeneralDictionaryAgreedCertifiedEvidence175.diagnostic defer gap registry state root)
+                      (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) →
+                    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralNominalSaturationState.Models state.current model →
+                        Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry state.current.context model root
+                          dictionary
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.at_actual : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralDictionaryAgreedFlexibleTrace175.At registry before focus after →
+    Yulang.GeneralNominalActualInspectionSteps.At registry before focus after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_actual : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root before after →
+    Yulang.GeneralNominalActualInspectionSteps.Step registry root before after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.steps_actual : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root) before after →
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalActualInspectionSteps.Step registry root) before after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root before after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after.current model →
+        Yulang.GeneralNominalSaturationState.Models before.current model
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_formed : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralNominalActualInspectionSteps.SourceFormed registry root before →
+    Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root before after →
+      Yulang.GeneralNominalActualInspectionSteps.SourceFormed registry root after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.at_instance : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralDictionaryAgreedFlexibleTrace175.At registry before focus after →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalSaturationState.Models after.current model →
+        ∀ (occurrence : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+          (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+          Yulang.GeneralDictionaryRecursiveEvidence.Instance registry before.current.context model occurrence key
+              children →
+            Yulang.GeneralDictionaryRecursiveEvidence.Instance registry after.current.context model occurrence key
+              children
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.step_recorded : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralNominalActualInspectionSteps.SourceFormed registry root before →
+    Yulang.GeneralDictionaryAgreedFlexibleTrace175.RecordedCurrent registry before →
+      Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root before after →
+        Yulang.GeneralDictionaryAgreedFlexibleTrace175.RecordedCurrent registry after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_recorded : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralDictionaryAgreedFlexibleTrace175.RecordedCurrent registry
+    (Yulang.GeneralNominalSupport.initial context root)
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.trace_formed_recorded : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralNominalActualInspectionSteps.SourceFormed registry root before →
+    Yulang.GeneralDictionaryAgreedFlexibleTrace175.RecordedCurrent registry before →
+      Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root) before after →
+        Yulang.GeneralNominalActualInspectionSteps.SourceFormed registry root after ∧
+          Yulang.GeneralDictionaryAgreedFlexibleTrace175.RecordedCurrent registry after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_recorded : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {after : Yulang.GeneralNominalSupport.Tracked roles} (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root)
+        (Yulang.GeneralNominalSupport.initial context root) after →
+      Yulang.GeneralDictionaryAgreedFlexibleTrace175.RecordedCurrent registry after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_instance : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {after : Yulang.GeneralNominalSupport.Tracked roles} (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root)
+        (Yulang.GeneralNominalSupport.initial context root) after →
+      ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+        Membership.mem.{0, 0} after.current.packets packet →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models after.current model →
+              Yulang.GeneralDictionaryRecursiveEvidence.Instance registry after.current.context model
+                packet.site.occurrence packet.declaration.id packet.children
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.initial_trace_evidence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {after : Yulang.GeneralNominalSupport.Tracked roles} (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralNominalSourceFormation.InitialSource registry context root →
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root)
+        (Yulang.GeneralNominalSupport.initial context root) after →
+      ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+        Membership.mem.{0, 0} after.current.packets packet →
+          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalSaturationState.Models after.current model →
+              ∀ (dictionaries : List.{0} Yulang.GeneralDictionaryReadback.Payload),
+                Yulang.CommonRoleOutermostResolver.All₂.{0, 0}
+                    (Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model)
+                    packet.children dictionaries →
+                  Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry after.current.context model
+                    packet.site.occurrence
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node packet.declaration.id dictionaries)
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_at : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralDictionaryAgreedRefiningTrace174.At registry before focus after →
+    Yulang.GeneralDictionaryAgreedFlexibleTrace175.At registry before focus after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_step : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.GeneralDictionaryAgreedRefiningTrace174.Step registry root before after →
+    Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root before after
+@Yulang.GeneralDictionaryAgreedFlexibleTrace175.old_steps : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalSupport.Tracked roles},
+  Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedRefiningTrace174.Step registry root) before after →
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralDictionaryAgreedFlexibleTrace175.Step registry root) before after
+@Yulang.GeneralDictionaryAgreedTable175.lookup_map : ∀ {role : Nat} (nodes : List.{0} Nat) (f : Nat → Nat),
+  Membership.mem.{0, 0} nodes role →
+    Eq.{1}
+      (Yulang.GeneralDictionaryAgreedTable175.lookup (List.map.{0, 0} (fun key => Prod.mk.{0, 0} key (f key)) nodes)
+        role)
+      (f role)
+@Yulang.GeneralDictionaryAgreedTable175.parent_mem_nodes : ∀ {declaration : Yulang.GeneralDeclarations.Declaration}
+  {registry : Yulang.GeneralDeclarations.Registry},
+  Membership.mem.{0, 0} registry.declarations declaration →
+    Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedUniform174.roleNodes registry) declaration.role
+@Yulang.GeneralDictionaryAgreedTable175.childRoles_mem_nodes : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {role child : Nat},
+  Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedComputed174.childRoles registry role) child →
+    Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedUniform174.roleNodes registry) child
+@Yulang.GeneralDictionaryAgreedTable175.heightTable_correct : ∀ {role : Nat}
+  (registry : Yulang.GeneralDeclarations.Registry) (fuel : Nat),
+  Membership.mem.{0, 0} (Yulang.GeneralDictionaryAgreedUniform174.roleNodes registry) role →
+    Eq.{1}
+      (Yulang.GeneralDictionaryAgreedTable175.lookup (Yulang.GeneralDictionaryAgreedTable175.heightTable registry fuel)
+        role)
+      (Yulang.GeneralDictionaryAgreedComputed174.computedHeight registry fuel role)
+Yulang.GeneralDictionaryAgreedTable175.checkTable_eq : ∀ (registry : Yulang.GeneralDeclarations.Registry) (fuel : Nat),
+  Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.checkTable registry fuel)
+    (Yulang.GeneralDictionaryAgreedComputed174.check registry fuel)
+Yulang.GeneralDictionaryAgreedTable175.certifyTable_eq : ∀ (registry : Yulang.GeneralDeclarations.Registry),
+  Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable registry)
+    (Yulang.GeneralDictionaryAgreedUniform174.certify registry)
+@Yulang.GeneralDictionaryAgreedTable175.certifyTable_iff : ∀ {registry : Yulang.GeneralDeclarations.Registry},
+  Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable registry) Bool.true ↔
+    Exists.{1} fun rank => Yulang.GeneralDictionaryAgreedEdge174.RoleStratified registry rank
+@Yulang.GeneralDictionaryAgreedTable175.certifyTable_reorders : ∀ {first last : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralRegistryReordering.Reorders first last →
+    Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable first)
+      (Yulang.GeneralDictionaryAgreedTable175.certifyTable last)
+Yulang.GeneralDictionaryAgreedTable175.wrap_certified : Eq.{1}
+  (Yulang.GeneralDictionaryAgreedTable175.certifyTable Yulang.GeneralDictionaryAgreedRoleExamples174.wrapOnly) Bool.true
+Yulang.GeneralDictionaryAgreedTable175.recursive_not_certified : Eq.{1}
+  (Yulang.GeneralDictionaryAgreedTable175.certifyTable Yulang.GeneralDeclarationExamples.registry) Bool.false
+Yulang.GeneralDictionaryAgreedTableExamples175.empty_all_fuel : ∀ (fuel : Nat),
+  Eq.{1}
+    (Yulang.GeneralDictionaryAgreedTable175.checkTable Yulang.GeneralDictionaryAgreedTableExamples175.emptyGraph fuel)
+    Bool.true
+Yulang.GeneralDictionaryAgreedTableExamples175.empty_certified : Eq.{1}
+  (Yulang.GeneralDictionaryAgreedTable175.certifyTable Yulang.GeneralDictionaryAgreedTableExamples175.emptyGraph)
+  Bool.true
+Yulang.GeneralDictionaryAgreedTableExamples175.repeated_certified : Eq.{1}
+  (Yulang.GeneralDictionaryAgreedTable175.certifyTable Yulang.GeneralDictionaryAgreedTableExamples175.repeatedDAG)
+  Bool.true
+Yulang.GeneralDictionaryAgreedTableExamples175.repeated_zero_fails : Eq.{1}
+  (Yulang.GeneralDictionaryAgreedTable175.checkTable Yulang.GeneralDictionaryAgreedTableExamples175.repeatedDAG 0)
+  Bool.false
+Yulang.GeneralDictionaryAgreedTableExamples175.repeated_one_passes : Eq.{1}
+  (Yulang.GeneralDictionaryAgreedTable175.checkTable Yulang.GeneralDictionaryAgreedTableExamples175.repeatedDAG 1)
+  Bool.true
+Yulang.GeneralDictionaryAgreedTableExamples175.disconnected_all_fuel : ∀ (fuel : Nat),
+  Eq.{1}
+    (Yulang.GeneralDictionaryAgreedTable175.checkTable Yulang.GeneralDictionaryAgreedTableExamples175.disconnectedCycle
+      fuel)
+    Bool.false
+Yulang.GeneralDictionaryAgreedTableExamples175.disconnected_not_certified : Eq.{1}
+  (Yulang.GeneralDictionaryAgreedTable175.certifyTable Yulang.GeneralDictionaryAgreedTableExamples175.disconnectedCycle)
+  Bool.false
+Yulang.GeneralDictionaryAgreedTableExamples175.reverseGraph_reorders : ∀ (source : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralRegistryReordering.Reorders source (Yulang.GeneralDictionaryAgreedTableExamples175.reverseGraph source)
+Yulang.GeneralDictionaryAgreedTableExamples175.reverseGraph_certificate : ∀
+  (source : Yulang.GeneralDeclarations.Registry),
+  Eq.{1} (Yulang.GeneralDictionaryAgreedTable175.certifyTable source)
+    (Yulang.GeneralDictionaryAgreedTable175.certifyTable
+      (Yulang.GeneralDictionaryAgreedTableExamples175.reverseGraph source))
+Yulang.GeneralDictionaryAgreedTableExamples175.reversed_cycle_not_certified : Eq.{1}
+  (Yulang.GeneralDictionaryAgreedTable175.certifyTable
+    (Yulang.GeneralDictionaryAgreedTableExamples175.reverseGraph
+      Yulang.GeneralDictionaryAgreedTableExamples175.disconnectedCycle))
+  Bool.false
+Yulang.GeneralDictionaryNominalOnlyRefresh175.inspect_finished : ∀
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (next : Yulang.GeneralDictionaryInspectionTransport.Observation context.state)
+  (refinement :
+    Yulang.GeneralNominalRefinements.Refines context.state
+      (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state)
+  (query : Yulang.GeneralNominalInspection.Query) (bounds : Yulang.GeneralNominalInspection.Bounds context.state)
+  (origin : Option.{0} Yulang.GeneralNominalRecursiveInspection.Origin),
+  Yulang.GeneralDictionaryNominalOnlyRefresh175.NominalOnly query →
+    Yulang.GeneralNominalRecursiveInspection.Finished
+        (Yulang.GeneralNominalRecursiveInspection.inspect context.state query bounds origin) →
+      Eq.{1}
+        (Yulang.GeneralNominalRecursiveInspection.inspect
+          (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state query bounds origin)
+        (Yulang.GeneralDictionaryInspectionTransport.transferReport context next
+          (Yulang.GeneralNominalRecursiveInspection.inspect context.state query bounds origin))
+Yulang.GeneralDictionaryNominalOnlyRefresh175.inspectMany_finished : ∀
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (next : Yulang.GeneralDictionaryInspectionTransport.Observation context.state)
+  (refinement :
+    Yulang.GeneralNominalRefinements.Refines context.state
+      (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state)
+  (queries : List.{0} Yulang.GeneralNominalInspection.Query)
+  (bounds : List.{0} (Yulang.GeneralNominalInspection.Bounds context.state))
+  (origins : Nat → Option.{0} Yulang.GeneralNominalRecursiveInspection.Origin) (index : Nat),
+  (∀ (query : Yulang.GeneralNominalInspection.Query),
+      Membership.mem.{0, 0} queries query → Yulang.GeneralDictionaryNominalOnlyRefresh175.NominalOnly query) →
+    Yulang.GeneralNominalRecursiveInspection.Finished
+        (Yulang.GeneralNominalRecursiveInspection.inspectMany context.state queries bounds origins index) →
+      Eq.{1}
+        (Yulang.GeneralNominalRecursiveInspection.inspectMany
+          (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state queries bounds origins index)
+        (Yulang.GeneralDictionaryInspectionTransport.transferReport context next
+          (Yulang.GeneralNominalRecursiveInspection.inspectMany context.state queries bounds origins index))
+Yulang.GeneralDictionaryNominalOnlyRefresh175.report_finished : ∀
+  (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (next : Yulang.GeneralDictionaryInspectionTransport.Observation context.state)
+  (refinement :
+    Yulang.GeneralNominalRefinements.Refines context.state
+      (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (bounds : List.{0} (Yulang.GeneralNominalInspection.Bounds context.state)),
+  Yulang.GeneralDictionaryNominalOnlyRefresh175.DeclarationFragment context declaration →
+    Yulang.GeneralNominalRecursiveInspection.Finished
+        (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds) →
+      Eq.{1}
+        (Yulang.GeneralNominalRecursiveCandidates.report
+          (Yulang.GeneralDictionaryInspectionTransport.reobserve context next) declaration bounds)
+        (Yulang.GeneralDictionaryInspectionTransport.transferReport context next
+          (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds))
+@Yulang.GeneralDictionaryNominalOnlyRefresh175.instance_refinement : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (next : Yulang.GeneralDictionaryInspectionTransport.Observation context.state)
+  (refinement :
+    Yulang.GeneralNominalRefinements.Refines context.state
+      (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state),
+  (∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      Membership.mem.{0, 0} registry.declarations declaration →
+        Yulang.GeneralDictionaryNominalOnlyRefresh175.DeclarationFragment context declaration) →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state
+          model →
+        ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+          (children : List.{0} (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+          Yulang.GeneralDictionaryRecursiveEvidence.Instance registry context model root key children →
+            Yulang.GeneralDictionaryRecursiveEvidence.Instance registry
+              (Yulang.GeneralDictionaryInspectionTransport.reobserve context next) model root key children
+@Yulang.GeneralDictionaryNominalOnlyRefresh175.evidence_refinement : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalRecursiveCandidates.Context)
+  (next : Yulang.GeneralDictionaryInspectionTransport.Observation context.state)
+  (refinement :
+    Yulang.GeneralNominalRefinements.Refines context.state
+      (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state),
+  (∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      Membership.mem.{0, 0} registry.declarations declaration →
+        Yulang.GeneralDictionaryNominalOnlyRefresh175.DeclarationFragment context declaration) →
+    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryInspectionTransport.reobserve context next).state
+          model →
+        ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+          (payload : Yulang.GeneralDictionaryReadback.Payload),
+          Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry context model root payload →
+            Yulang.GeneralDictionaryRecursiveEvidence.Evidence registry
+              (Yulang.GeneralDictionaryInspectionTransport.reobserve context next) model root payload
+Yulang.GeneralDictionaryNominalViewRegression175.view_changes : Ne.{1}
+  Yulang.GeneralDictionaryNominalViewRegression175.next.view
+  Yulang.GeneralDictionaryNominalViewRegression175.before.state.view
+Yulang.GeneralDictionaryNominalViewRegression175.query_allowed : Yulang.GeneralDictionaryNominalOnlyRefresh175.NominalOnly
+  Yulang.GeneralDictionaryNominalViewRegression175.query
+Yulang.GeneralDictionaryNominalViewRegression175.finished_before : Yulang.GeneralNominalRecursiveInspection.Finished
+  (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNominalViewRegression175.before.state
+    Yulang.GeneralDictionaryNominalViewRegression175.query (Prod.mk.{0, 0} 0 0) Option.none.{0})
+Yulang.GeneralDictionaryNominalViewRegression175.report_preserved : Eq.{1}
+  (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNominalViewRegression175.after.state
+    Yulang.GeneralDictionaryNominalViewRegression175.query (Prod.mk.{0, 0} 0 0) Option.none.{0})
+  (Yulang.GeneralDictionaryInspectionTransport.transferReport Yulang.GeneralDictionaryNominalViewRegression175.before
+    Yulang.GeneralDictionaryNominalViewRegression175.next
+    (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNominalViewRegression175.before.state
+      Yulang.GeneralDictionaryNominalViewRegression175.query (Prod.mk.{0, 0} 0 0) Option.none.{0}))
+Yulang.GeneralDictionaryNominalViewRegression175.finished_after : Yulang.GeneralNominalRecursiveInspection.Finished
+  (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNominalViewRegression175.after.state
+    Yulang.GeneralDictionaryNominalViewRegression175.query (Prod.mk.{0, 0} 0 0) Option.none.{0})
+Yulang.GeneralDictionaryNominalViewRegression175.capture_before : Eq.{1}
+  (Yulang.GeneralNominalRecursiveInspection.bindings Yulang.GeneralDictionaryNominalViewRegression175.before.state
+    (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNominalViewRegression175.before.state
+      Yulang.GeneralDictionaryNominalViewRegression175.query (Prod.mk.{0, 0} 0 0) Option.none.{0}))
+  (List.cons.{0} (Prod.mk.{0, 0} 0 (Prod.mk.{0, 0} 1 1)) List.nil.{0})
+Yulang.GeneralDictionaryNominalViewRegression175.capture_after : Eq.{1}
+  (Yulang.GeneralNominalRecursiveInspection.bindings Yulang.GeneralDictionaryNominalViewRegression175.after.state
+    (Yulang.GeneralNominalRecursiveInspection.inspect Yulang.GeneralDictionaryNominalViewRegression175.after.state
+      Yulang.GeneralDictionaryNominalViewRegression175.query (Prod.mk.{0, 0} 0 0) Option.none.{0}))
+  (List.cons.{0} (Prod.mk.{0, 0} 0 (Prod.mk.{0, 0} 1 1)) List.nil.{0})
+Yulang.GeneralDictionaryNominalViewRegression175.known_progress : ¬Yulang.GeneralNominalState.Known
+      Yulang.GeneralDictionaryNominalViewRegression175.before.state 1 ∧
+  Yulang.GeneralNominalState.Known Yulang.GeneralDictionaryNominalViewRegression175.after.state 1
+Yulang.GeneralDictionaryNominalViewRegression175.models_nonempty : Yulang.GeneralNominalState.Models
+    Yulang.GeneralDictionaryNominalViewRegression175.before.state Yulang.GeneralNominalExamples.model ∧
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryNominalViewRegression175.after.state
+    Yulang.GeneralNominalExamples.model

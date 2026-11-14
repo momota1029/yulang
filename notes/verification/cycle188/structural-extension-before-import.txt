@@ -1,0 +1,6 @@
+✖ [2/2] Running Yulang.GeneralNominalHeadStructuralExtension188
+error: no such file or directory (error code: 2)
+  file: /workspace/scratch/1d0b4aaa3394/yulang183/lean/Yulang/GeneralNominalHeadStructuralExtension188.lean
+Some required targets logged failures:
+- Yulang.GeneralNominalHeadStructuralExtension188
+error: build failed

@@ -1,0 +1,1 @@
+PASS: all 5298 upstream paths retained; old Lean exact except appended root; INDEX prefix; checkpoint1 proof sources unchanged; all new modules imported exactly once

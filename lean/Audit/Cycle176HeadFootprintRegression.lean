@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryHeadFootprintRegression176
+
+#print axioms Yulang.GeneralDictionaryHeadFootprintRegression176.agrees
+#print axioms Yulang.GeneralDictionaryHeadFootprintRegression176.finished
+#print axioms Yulang.GeneralDictionaryHeadFootprintRegression176.view_changes
+#print axioms Yulang.GeneralDictionaryHeadFootprintRegression176.model_nonempty
+#print axioms Yulang.GeneralDictionaryHeadFootprintRegression176.report_preserved
+#print axioms Yulang.GeneralDictionaryHeadFootprintRegression176.scalar_not_nominal_only

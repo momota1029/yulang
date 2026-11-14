@@ -1,0 +1,17 @@
+'Yulang.GeneralDictionaryCenteredFootprint176.RecordedFootprints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.At' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.Step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.at_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.steps_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.flexible_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.flexible_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.refresh_instance' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.step_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.trace_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.initial_trace_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredFootprint176.initial_trace_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryCenteredRootNominal178
+set_option pp.fullNames true
+set_option pp.universes true
+#check Yulang.GeneralDictionaryCenteredRootNominal178.root_point
+#check Yulang.GeneralDictionaryCenteredRootNominal178.located_point
+#check Yulang.GeneralDictionaryCenteredRootNominal178.reachable_root_point_bounds
+#check Yulang.GeneralDictionaryCenteredRootNominal178.LinearTerminalAt
+#check Yulang.GeneralDictionaryCenteredRootNominal178.point_linear_evidence_at_G_root

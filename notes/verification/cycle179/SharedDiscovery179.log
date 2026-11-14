@@ -1,0 +1,15 @@
+'Yulang.GeneralDictionaryNominalSharedDiscovery179.shared_shape_exists' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNominalSharedDiscovery179.candidate_holds_iff_shared_merges' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNominalSharedDiscovery179.candidate_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNominalSharedDiscoveryExample179.repeated_names' depends on axioms: [propext]
+'Yulang.GeneralDictionaryNominalSharedDiscoveryExample179.query_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryNominalSharedDiscoveryExample179.inspection_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNominalSharedDiscoveryExample179.shape_recovered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

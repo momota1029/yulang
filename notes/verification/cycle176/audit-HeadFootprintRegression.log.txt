@@ -1,0 +1,6 @@
+'Yulang.GeneralDictionaryHeadFootprintRegression176.agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.view_changes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.model_nonempty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.report_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHeadFootprintRegression176.scalar_not_nominal_only' does not depend on any axioms

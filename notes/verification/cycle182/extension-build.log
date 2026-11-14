@@ -1,0 +1,14 @@
+DEPENDENCY_CLOSURE 835 REBUILD 6
+START Yulang.GeneralNominalCenteredHeadCandidates
+END Yulang.GeneralNominalCenteredHeadCandidates 0
+START Yulang.GeneralNominalCenteredHeadOutputs
+END Yulang.GeneralNominalCenteredHeadOutputs 0
+START Yulang.GeneralNominalCenteredHeadStepEffects
+END Yulang.GeneralNominalCenteredHeadStepEffects 0
+START Yulang.GeneralNominalHeadLedgerFrame182
+END Yulang.GeneralNominalHeadLedgerFrame182 0
+START Yulang.GeneralNominalPredicateExtension182
+END Yulang.GeneralNominalPredicateExtension182 0
+START Yulang.GeneralNominalHeadLedgerExtension182
+END Yulang.GeneralNominalHeadLedgerExtension182 0
+PASS 6

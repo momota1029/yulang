@@ -1,0 +1,13 @@
+PATH=/tmp/yulang183-toolchain/lean-4.35.0-linux/bin:$PATH
+cd lean
+lake build --wfail Yulang.GeneralNominalReusableRegression192 Yulang.GeneralNominalForestBoundary192
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle192PublicTypes.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle192Gate.lean
+for f in Yulang/*192.lean; do lake env lean --trust=0 -DwarningAsError=true "$f"; done
+# All commands exit0. Public signatures, axiom declarations and kernel gate in checkpoint-verification.log.
+# Strict individual sources exit0 in strict-source.log.
+# ReachCycle192 uses explicit general/local-roots.txt via YULANG_REACH_ROOTS and YULANG_REACH_OUTPUT.
+# Both runs exit0; general0/35, local26/35. Read-only syntactic dependency, not theorem coverage.
+cd ..
+bash tools/verify-lean.sh . e98b673ac409727e4fba5d0aee71b3fddb5565a9 --no-build
+# exit0, PASS diff only,1 REVIEW. Full output diff-only.log. No full build or remote CI claimed.

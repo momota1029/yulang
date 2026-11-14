@@ -1,0 +1,22 @@
+'Yulang.GeneralDictionaryCenteredNested179.nested_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNested179.nested_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNested179.recognized_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNested179.candidate_point_bounds' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNested179.nested_evidence_at_G' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNested179.nested_evidence_at_G_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedExample179.nested_recognized' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedExample179.not_unary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedExample179.actual_discovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedExample179.inhabited_discovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

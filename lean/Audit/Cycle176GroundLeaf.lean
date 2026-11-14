@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryCenteredGroundLeaf176
+#print axioms Yulang.GeneralDictionaryCenteredGroundLeaf176.ground
+#print axioms Yulang.GeneralDictionaryCenteredGroundLeaf176.initial
+#print axioms Yulang.GeneralDictionaryCenteredGroundLeaf176.reachable
+#print axioms Yulang.GeneralDictionaryCenteredGroundLeaf176.reachable_evidence_without_tree

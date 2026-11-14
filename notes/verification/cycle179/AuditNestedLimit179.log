@@ -1,0 +1,12 @@
+'Yulang.GeneralDictionaryCenteredNestedLimit179.outer_point' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedLimit179.completed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedLimit179.inner_nonpoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedLimit179.not_point_inspection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedLimit179.inhabited_point_candidate_without_structural_points' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNestedLimit179.evidence_despite_failed_structural_check' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

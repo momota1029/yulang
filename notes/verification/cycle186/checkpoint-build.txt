@@ -1,0 +1,5 @@
+✔ [994/997] Built Yulang.GeneralNominalChildSemantic186 (3.3s)
+✔ [995/997] Built Yulang.GeneralNominalHeadSchemaSemantic186 (4.5s)
+✔ [996/997] Built Yulang.GeneralNominalHeadIdentityInduction186 (1.6s)
+✔ [997/997] Built Yulang.GeneralNominalHeadIdentityCenters186 (2.4s)
+Build completed successfully (997 jobs).

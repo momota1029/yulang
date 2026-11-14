@@ -1,0 +1,15 @@
+import Yulang.GeneralDictionaryCenteredRevision176
+
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.RecordedFootprints
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.At
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.Step
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.at_actual
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.step_actual
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.steps_actual
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.footprint_step
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.footprint_steps
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.revision_instance
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.step_recorded
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.trace_recorded
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.initial_trace_recorded
+#print axioms Yulang.GeneralDictionaryCenteredRevision176.initial_trace_evidence

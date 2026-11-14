@@ -1,0 +1,9 @@
+✔ [1003/1010] Built Yulang.GeneralNominalRegisteredCoverage183 (1.1s)
+✔ [1004/1010] Built Yulang.GeneralNominalHeadBinderIdentity185 (1.1s)
+✔ [1005/1010] Built Yulang.GeneralNominalHeadRootOverlap185 (1.0s)
+✔ [1006/1010] Built Yulang.GeneralNominalOverlapProvenance184 (1.2s)
+✔ [1007/1010] Built Yulang.GeneralNominalOverlapIdentity184 (1.1s)
+✔ [1008/1010] Built Yulang.GeneralNominalRootOverlap184 (1.0s)
+✔ [1009/1010] Built Yulang.GeneralNominalRootExtension184 (974ms)
+✔ [1010/1010] Built Yulang.GeneralNominalHeadRootExtension185 (990ms)
+Build completed successfully (1010 jobs).

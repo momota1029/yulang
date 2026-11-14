@@ -1,0 +1,12 @@
+import Yulang.GeneralNominalCenteredFrame179
+#print axioms Yulang.GeneralNominalCenteredFrame179.observes_iff
+#print axioms Yulang.GeneralNominalCenteredFrame179.head_iff
+#print axioms Yulang.GeneralNominalCenteredFrame179.same_iff
+#print axioms Yulang.GeneralNominalCenteredFrame179.site_iff
+#print axioms Yulang.GeneralNominalCenteredFrame179.schema_iff
+#print axioms Yulang.GeneralNominalCenteredFrame179.capture_mem
+#print axioms Yulang.GeneralNominalCenteredFrame179.equations_iff
+#print axioms Yulang.GeneralNominalCenteredFrame179.ledger_frame
+#print axioms Yulang.GeneralNominalCenteredFrame179.assign_agree
+#print axioms Yulang.GeneralNominalCenteredFrame179.equations_assign
+#print axioms Yulang.GeneralNominalCenteredFrame179.ledger_assign

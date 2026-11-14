@@ -1,0 +1,14 @@
+DEPENDENCY_CLOSURE 913 REBUILD 6
+START Yulang.GeneralDictionaryCenteredJournalPoint180
+END Yulang.GeneralDictionaryCenteredJournalPoint180 0
+START Yulang.GeneralDictionaryCenteredJournalCandidate180
+END Yulang.GeneralDictionaryCenteredJournalCandidate180 0
+START Yulang.GeneralDictionaryCenteredJournalOverlap180
+END Yulang.GeneralDictionaryCenteredJournalOverlap180 0
+START Yulang.GeneralNominalCenteredExtensionExact180
+END Yulang.GeneralNominalCenteredExtensionExact180 0
+START Yulang.GeneralNominalSourceExtension180
+END Yulang.GeneralNominalSourceExtension180 0
+START Yulang.GeneralNominalSourceCompatibility180
+END Yulang.GeneralNominalSourceCompatibility180 0
+PASS 6

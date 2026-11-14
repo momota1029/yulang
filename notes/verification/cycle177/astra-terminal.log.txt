@@ -1,0 +1,14 @@
+DEPENDENCY_CLOSURE 862 REBUILD 6
+START Yulang.GeneralNominalCenteredAdministrativeOrder
+END Yulang.GeneralNominalCenteredAdministrativeOrder 0
+START Yulang.GeneralNominalCenteredAdministrativeComposition
+END Yulang.GeneralNominalCenteredAdministrativeComposition 0
+START Yulang.GeneralNominalCenteredCommitment
+END Yulang.GeneralNominalCenteredCommitment 0
+START Yulang.GeneralNominalCenteredSelectedCompletion
+END Yulang.GeneralNominalCenteredSelectedCompletion 0
+START Yulang.GeneralNominalCenteredTerminalForkSource
+END Yulang.GeneralNominalCenteredTerminalForkSource 0
+START Yulang.GeneralNominalCenteredTerminalObservations
+END Yulang.GeneralNominalCenteredTerminalObservations 0
+PASS 6
