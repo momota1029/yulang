@@ -1,0 +1,4 @@
+CHECK=Yulang/GeneralNominalNonleafPlan193.lean
+EXIT=0
+CHECK=Yulang/GeneralNominalNonleafLocal193.lean
+EXIT=0
