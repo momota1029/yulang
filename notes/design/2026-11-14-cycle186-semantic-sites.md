@@ -22,3 +22,27 @@ all capture bounds, linkage, classification and children bridges are connected.
 Publication only work/dots-main; preserve all old source bytes and append root
 imports. Focused Lean4.35.0 builds, strict kernel/axiom gate and source-preservation
 checks only. Full build and whole verify-lean remain supervisor work.
+
+## Enlarged support instead of an unjustified endpoint premise
+
+A current candidate can allocate merge endpoints that are not yet in the old
+journal footprint. Requiring every endpoint already in that footprint was
+unnecessarily restrictive. Preserve the finite candidate endpoint list in
+addition to fullSources. Actual head origins lie in registered input centers
+(the former fallback0 approximation is removed using role arity alignment).
+Purpose8 nonpoint binders are disjoint from every candidate endpoint, so no
+extra historical overlap is introduced. Point binders are handled by their
+exact bounds. The resulting iff has no endpoint/origin linkage premise and
+allows mixed point/nonpoint captures; observation existence, Fits and repeated
+binder coherence remain the explicit, necessary compatibility criterion.
+
+## Revisited whole heads
+
+The whole head equation bundle, not only its variable list, is now connected
+to the actual Frame interface. For an existing registered historical plan at
+the same numeric identity and declaration, semantic test transport supplies
+all tests and actual use observations. Equal nonpoint binders have equal names;
+point/nonpoint collisions are impossible; point/point collisions are handled by
+Fits. Thus the remaining necessary-and-sufficient condition is current capture
+BoundsFit. Neither selection implying this condition nor first-installation
+compatibility is claimed. Outputs and child evidence remain separate.

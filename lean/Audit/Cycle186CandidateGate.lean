@@ -1,0 +1,7 @@
+import Yulang.GeneralNominalHeadCandidateSemantic186
+import Yulang.GeneralNominalHeadCandidateOverlap186
+import Yulang.GeneralNominalHeadCandidateExtension186
+#print axioms Yulang.GeneralNominalHeadCandidateSemantic186.candidate_actual
+#print axioms Yulang.GeneralNominalHeadCandidateSemantic186.candidate_nonpoint_overlap
+#print axioms Yulang.GeneralNominalHeadCandidateOverlap186.candidate_overlap
+#print axioms Yulang.GeneralNominalHeadCandidateExtension186.candidate_extension_iff

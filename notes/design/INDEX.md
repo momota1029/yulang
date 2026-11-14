@@ -563,3 +563,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle185 日本語の主張・量化範囲・次の橋](2026-11-14-cycle185-claims-ja.md)
 
 - [Cycle186 semantic identity coherence](2026-11-14-cycle186-semantic-sites.md): actual WF centers and head schema transport.
+
+- [Cycle186 quantified claims](2026-11-14-cycle186-claims-ja.md): whole-head extension, historical bounds criterion and remaining EvidenceNode gaps.

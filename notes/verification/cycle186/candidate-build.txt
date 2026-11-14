@@ -1,0 +1,4 @@
+✔ [1015/1017] Built Yulang.GeneralNominalHeadCandidateSemantic186 (1.8s)
+✔ [1016/1017] Built Yulang.GeneralNominalHeadCandidateOverlap186 (1.4s)
+✔ [1017/1017] Built Yulang.GeneralNominalHeadCandidateExtension186 (973ms)
+Build completed successfully (1017 jobs).

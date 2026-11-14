@@ -1,0 +1,782 @@
+PASS: 5464 prior paths retained; old Lean byte-exact; root and INDEX prefix; both published186 checkpoints unchanged; 15 modules each imported once
+✔ [1023/1025] Built Yulang.GeneralNominalHeadBinderCollisions186 (1.1s)
+✔ [1024/1025] Built Yulang.GeneralNominalHeadTestSemantic186 (2.2s)
+✔ [1025/1025] Built Yulang.GeneralNominalHeadRevisitExtension186 (974ms)
+Build completed successfully (1025 jobs).
+AXIOM-GATE-PASS: 90 declarations (definitions/private/generated included)
+@Yulang.GeneralNominalChildSemantic186.child_centers : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles),
+  Eq.{1} first.packet.context.state.seed last.packet.context.state.seed →
+    Eq.{1} first.packet.site.occurrence.identity last.packet.site.occurrence.identity →
+      Eq.{1} first.packet.declaration last.packet.declaration →
+        ∀ (clause : Yulang.GeneralDeclarations.Clause),
+          Membership.mem.{0, 0} first.packet.declaration.requirements clause →
+            ∀ (signature : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+              (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              (∀ (name : Nat),
+                  Membership.mem.{0, 0} first.packet.declaration.inputNames name →
+                    Yulang.GeneralNominalOriginTerms.Same model
+                      (Yulang.GeneralNominalRecursiveInspection.Origin.source (first.binder name))
+                      (Yulang.GeneralNominalRecursiveInspection.Origin.source (last.binder name))) →
+                ∀ (index : Fin (roles clause.role).arity),
+                  Yulang.GeneralNominalOriginTerms.Same model
+                    (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                      ((first.childSite clause signature).center index))
+                    (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                      ((last.childSite clause signature).center index))
+@Yulang.GeneralNominalChildSemantic186.child_centers_list : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles),
+  Eq.{1} first.packet.context.state.seed last.packet.context.state.seed →
+    Eq.{1} first.packet.site.occurrence.identity last.packet.site.occurrence.identity →
+      Eq.{1} first.packet.declaration last.packet.declaration →
+        ∀ (clause : Yulang.GeneralDeclarations.Clause),
+          Membership.mem.{0, 0} first.packet.declaration.requirements clause →
+            ∀ (signature : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+              (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              (∀ (name : Nat),
+                  Membership.mem.{0, 0} first.packet.declaration.inputNames name →
+                    Yulang.GeneralNominalOriginTerms.Same model
+                      (Yulang.GeneralNominalRecursiveInspection.Origin.source (first.binder name))
+                      (Yulang.GeneralNominalRecursiveInspection.Origin.source (last.binder name))) →
+                ∀ (index : Nat),
+                  Yulang.GeneralNominalOriginTerms.Same model
+                    (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                      (Option.getD.{0}
+                        (getElem?.{0, 0, 0} (List.ofFn.{0} (first.childSite clause signature).center) index) 0))
+                    (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                      (Option.getD.{0}
+                        (getElem?.{0, 0, 0} (List.ofFn.{0} (last.childSite clause signature).center) index) 0))
+@Yulang.GeneralNominalHeadBinderCollisions186.point_binder : ∀ {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (name : Nat),
+  ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames name →
+    Eq.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name))
+        (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name)) →
+      Eq.{1} (candidate.binder name)
+        (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name))
+@Yulang.GeneralNominalHeadBinderCollisions186.nonpoint_name : ∀ {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (first last : Nat),
+  ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames first →
+    ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames last →
+      Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs first))
+          (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs first)) →
+        Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs last))
+            (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs last)) →
+          Eq.{1} (candidate.binder first) (candidate.binder last) → Eq.{1} first last
+@Yulang.GeneralNominalHeadBinderCollisions186.point_fits : ∀ {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (name : Nat),
+  ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames name →
+    Eq.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name))
+        (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name)) →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment) (value : Yulang.CommonNominalFullCarrier.Ty),
+        Yulang.GeneralNominalCaptureMerges.Fits model
+            ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name) value →
+          Yulang.CommonNominalFullCarrier.Equivalent value (Prod.fst.{0, 0} (model (candidate.binder name)))
+@Yulang.GeneralNominalHeadBinderCollisions186.historical_coherence : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (historical candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.plans historical →
+          Membership.mem.{0, 0} state.core.sites candidate.input →
+            Eq.{1} candidate.packet.site.occurrence.identity historical.packet.site.occurrence.identity →
+              Eq.{1} candidate.packet.context state.core.erased.current.context →
+                Eq.{1} candidate.packet.declaration historical.packet.declaration →
+                  ∀ (first last : Yulang.GeneralNominalMaterialization.Use),
+                    Membership.mem.{0, 0} candidate.headSchema.variables first →
+                      Membership.mem.{0, 0} candidate.headSchema.variables last →
+                        Eq.{1} first.mode Yulang.GeneralNominalMaterialization.Mode.actual →
+                          Eq.{1} last.mode Yulang.GeneralNominalMaterialization.Mode.actual →
+                            ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames first.name →
+                              ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames last.name →
+                                ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                                  Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                                    ∀ (a b : Yulang.CommonNominalFullCarrier.Ty),
+                                      Yulang.GeneralNominalRecursiveInspection.Observes model first.origin a →
+                                        Yulang.GeneralNominalRecursiveInspection.Observes model last.origin b →
+                                          Yulang.GeneralNominalCaptureMerges.Fits model
+                                              ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs
+                                                first.name)
+                                              a →
+                                            Yulang.GeneralNominalCaptureMerges.Fits model
+                                                ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs
+                                                  last.name)
+                                                b →
+                                              Eq.{1} (candidate.binder first.name) (candidate.binder last.name) →
+                                                Yulang.CommonNominalFullCarrier.Equivalent a b
+@Yulang.GeneralNominalHeadCandidateExtension186.candidate_extension_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {count : Nat},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.sites candidate.input →
+          Eq.{1} candidate.packet.context state.core.erased.current.context →
+            Membership.mem.{0, 0} registry.declarations candidate.packet.declaration →
+              ∀ (entries : Fin count → Yulang.GeneralNominalMaterialization.Use),
+                (∀ (i : Fin count), Membership.mem.{0, 0} candidate.headSchema.variables (entries i)) →
+                  (∀ (i : Fin count), Eq.{1} (entries i).mode Yulang.GeneralNominalMaterialization.Mode.actual) →
+                    (∀ (i : Fin count),
+                        ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames (entries i).name) →
+                      ∀ (previous : Yulang.GeneralNominalCommonBridge.Assignment),
+                        Yulang.GeneralNominalCenteredHeadStepEffects.Models state previous →
+                          (∀ (i : Fin count),
+                              Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+                                  (Prod.fst.{0, 0}
+                                    (Yulang.GeneralNominalRootExtension184.argument candidate
+                                          (entries i)).argument.endpoints) ∧
+                                Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+                                    (Prod.snd.{0, 0}
+                                      (Yulang.GeneralNominalRootExtension184.argument candidate
+                                            (entries i)).argument.endpoints) ∧
+                                  Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+                                    (Yulang.GeneralNominalCenteredModelExtension.originSource (entries i).origin)) →
+                            ((Exists.{1} fun extended =>
+                                Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+                                  (∀ (name : Nat),
+                                      Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+                                          name →
+                                        Eq.{1} (extended name) (previous name)) ∧
+                                    ∀ (i : Fin count),
+                                      (Yulang.GeneralNominalRootExtension184.argument candidate (entries i)).Holds
+                                        extended) ↔
+                              (∀ (i : Fin count),
+                                  Exists.{1} fun value =>
+                                    Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin
+                                      value) ∧
+                                (∀ (i : Fin count) (value : Yulang.CommonNominalFullCarrier.Ty),
+                                    Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin
+                                        value →
+                                      Yulang.GeneralNominalCaptureMerges.Fits previous
+                                        ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs
+                                          (entries i).name)
+                                        value) ∧
+                                  ∀ (i j : Fin count) (first last : Yulang.CommonNominalFullCarrier.Ty),
+                                    Eq.{1} (candidate.binder (entries i).name) (candidate.binder (entries j).name) →
+                                      Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin
+                                          first →
+                                        Yulang.GeneralNominalRecursiveInspection.Observes previous (entries j).origin
+                                            last →
+                                          Yulang.CommonNominalFullCarrier.Equivalent first last)
+@Yulang.GeneralNominalHeadCandidateOverlap186.candidate_overlap : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.sites candidate.input →
+          Eq.{1} candidate.packet.context state.core.erased.current.context →
+            Membership.mem.{0, 0} registry.declarations candidate.packet.declaration →
+              ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+                Membership.mem.{0, 0} candidate.headSchema.variables entry →
+                  Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual →
+                    ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames entry.name →
+                      Ne.{1}
+                          (Prod.fst.{0, 0}
+                            ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name))
+                          (Prod.snd.{0, 0}
+                            ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name)) →
+                        Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+                            (candidate.binder entry.name) →
+                          ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                            Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                              Yulang.GeneralNominalOriginTerms.Same model entry.origin
+                                (Yulang.GeneralNominalRecursiveInspection.Origin.source (candidate.binder entry.name))
+@Yulang.GeneralNominalHeadCandidateSemantic186.candidate_actual : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (historical candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.plans historical →
+          Membership.mem.{0, 0} state.core.sites candidate.input →
+            Eq.{1} candidate.packet.site.occurrence.identity historical.packet.site.occurrence.identity →
+              Eq.{1} candidate.packet.context state.core.erased.current.context →
+                Eq.{1} candidate.packet.declaration historical.packet.declaration →
+                  ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+                    Membership.mem.{0, 0} candidate.headSchema.variables entry →
+                      Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual →
+                        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                          Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                            Yulang.GeneralNominalOriginTerms.Same model entry.origin
+                              (Yulang.GeneralNominalRecursiveInspection.Origin.source (historical.binder entry.name))
+@Yulang.GeneralNominalHeadCandidateSemantic186.candidate_nonpoint_overlap : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (historical candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.plans historical →
+          Membership.mem.{0, 0} state.core.sites candidate.input →
+            Eq.{1} candidate.packet.site.occurrence.identity historical.packet.site.occurrence.identity →
+              Eq.{1} candidate.packet.context state.core.erased.current.context →
+                Eq.{1} candidate.packet.declaration historical.packet.declaration →
+                  ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+                    Membership.mem.{0, 0} candidate.headSchema.variables entry →
+                      Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual →
+                        ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames entry.name →
+                          Ne.{1}
+                              (Prod.fst.{0, 0}
+                                ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name))
+                              (Prod.snd.{0, 0}
+                                ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs entry.name)) →
+                            Ne.{1}
+                                (Prod.fst.{0, 0}
+                                  ((Yulang.GeneralNominalPacketSupport.capture historical.packet).inputs entry.name))
+                                (Prod.snd.{0, 0}
+                                  ((Yulang.GeneralNominalPacketSupport.capture historical.packet).inputs entry.name)) →
+                              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                                Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                                  Yulang.GeneralNominalOriginTerms.Same model entry.origin
+                                    (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                                      (candidate.binder entry.name))
+@Yulang.GeneralNominalHeadCandidateSupport186.schemas_bounded_roots : ∀ {names : List.{0} Nat}
+  (queries : List.{0} Yulang.GeneralNominalInspection.Query)
+  (origins : Nat → Yulang.GeneralNominalRecursiveInspection.Origin) (mode : Yulang.GeneralNominalMaterialization.Mode)
+  (offset : Nat),
+  (∀ (index : Nat),
+      LE.le.{0} offset index →
+        LT.lt.{0} index (HAdd.hAdd.{0, 0, 0} offset (List.length.{0} queries)) →
+          Membership.mem.{0, 0} names (Yulang.GeneralNominalCenteredModelExtension.originSource (origins index))) →
+    Yulang.GeneralNominalGeneratedSupport184.Roots
+      (Yulang.GeneralNominalMaterialization.schemas queries origins mode offset) names
+Yulang.GeneralNominalHeadCandidateSupport186.normalized_length : ∀
+  (patterns : List.{0} Yulang.GeneralDeclarationPatterns.Pattern),
+  Eq.{1} (List.length.{0} (Yulang.GeneralDeclarationPatterns.normalizeArgs patterns)) (List.length.{0} patterns)
+@Yulang.GeneralNominalHeadCandidateSupport186.head_roots : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles),
+  Eq.{1} plan.packet.declaration.role plan.input.occurrence.demand.role →
+    Yulang.GeneralNominalGeneratedSupport184.Roots plan.headSchema (List.ofFn.{0} plan.input.center)
+@Yulang.GeneralNominalHeadCandidateSupport186.current_source : ∀ {roles : Yulang.Roles.RoleDecls} {name : Nat}
+  (state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles),
+  Membership.mem.{0, 0} (Yulang.GeneralNominalState.sources state.core.erased.current.context.state) name →
+    Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state) name
+@Yulang.GeneralNominalHeadCandidateSupport186.registered_center : ∀ {roles : Yulang.Roles.RoleDecls} {name : Nat}
+  (state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles) (site : Yulang.GeneralNominalCenters.Site roles),
+  Membership.mem.{0, 0} state.core.sites site →
+    Membership.mem.{0, 0} (List.ofFn.{0} site.center) name →
+      Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state) name
+@Yulang.GeneralNominalHeadCandidateSupport186.candidate_origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles),
+  Membership.mem.{0, 0} state.core.sites candidate.input →
+    Eq.{1} candidate.packet.declaration.role candidate.input.occurrence.demand.role →
+      ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+        Membership.mem.{0, 0} candidate.headSchema.variables entry →
+          Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+            (Yulang.GeneralNominalCenteredModelExtension.originSource entry.origin)
+@Yulang.GeneralNominalHeadCandidateSupport186.singleton_endpoints : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles)
+  (candidate : Yulang.GeneralNominalCenters.Plan roles),
+  Eq.{1} candidate.packet.context state.core.erased.current.context →
+    ∀ (name : Nat) (bounds : Yulang.GeneralSourceState.Interval),
+      Eq.{1} (Yulang.GeneralNominalAllocation.occurrences candidate.packet.bindings name)
+          (List.cons.{0} bounds List.nil.{0}) →
+        Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+            (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name)) ∧
+          Membership.mem.{0, 0} (Yulang.GeneralNominalHeadLedgerFrame182.fullSources state)
+            (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name))
+@Yulang.GeneralNominalHeadCandidateSupport186.current_capture_separate : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.B4Target.Vocabulary.Registry.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {root : Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {purpose invocation declaration owner position : Nat},
+  Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+    ∀ (packet : Yulang.GeneralNominalSaturationState.Packet roles),
+      Eq.{1} packet.context state.core.erased.current.context →
+        LE.le.{0} 7 purpose →
+          ∀ (name : Nat),
+            Ne.{1}
+                (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration
+                  purpose owner position)
+                (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture packet).inputs name)) ∧
+              Ne.{1}
+                (Yulang.GeneralNominalCenters.fresh state.core.erased.current.context.state.seed invocation declaration
+                  purpose owner position)
+                (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture packet).inputs name))
+@Yulang.GeneralNominalHeadCandidateSupport186.nonpoint_binder_endpoints_separate : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.B4Target.Vocabulary.Registry.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {root : Yulang.B4Target.Vocabulary.Demand.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)},
+  Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+    ∀ (candidate : Yulang.GeneralNominalCenters.Plan roles),
+      Eq.{1} candidate.packet.context state.core.erased.current.context →
+        ∀ (name : Nat),
+          ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames name →
+            Ne.{1} (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name))
+                (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs name)) →
+              ∀ (other : Nat),
+                Ne.{1} (candidate.binder name)
+                    (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs other)) ∧
+                  Ne.{1} (candidate.binder name)
+                    (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs other))
+@Yulang.GeneralNominalHeadConservativeExtension186.lower_mem : ∀ {roles : Yulang.Roles.RoleDecls} {count : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (entries : Fin count → Yulang.GeneralNominalMaterialization.Use)
+  (index : Fin count),
+  Membership.mem.{0, 0} (Yulang.GeneralNominalHeadConservativeExtension186.captureEndpoints candidate entries)
+    (Prod.fst.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs (entries index).name))
+@Yulang.GeneralNominalHeadConservativeExtension186.upper_mem : ∀ {roles : Yulang.Roles.RoleDecls} {count : Nat}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (entries : Fin count → Yulang.GeneralNominalMaterialization.Use)
+  (index : Fin count),
+  Membership.mem.{0, 0} (Yulang.GeneralNominalHeadConservativeExtension186.captureEndpoints candidate entries)
+    (Prod.snd.{0, 0} ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs (entries index).name))
+@Yulang.GeneralNominalHeadConservativeExtension186.conservative_extension_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {count : Nat},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.sites candidate.input →
+          Eq.{1} candidate.packet.declaration.role candidate.input.occurrence.demand.role →
+            Eq.{1} candidate.packet.context state.core.erased.current.context →
+              Membership.mem.{0, 0} registry.declarations candidate.packet.declaration →
+                ∀ (entries : Fin count → Yulang.GeneralNominalMaterialization.Use),
+                  (∀ (i : Fin count), Membership.mem.{0, 0} candidate.headSchema.variables (entries i)) →
+                    (∀ (i : Fin count), Eq.{1} (entries i).mode Yulang.GeneralNominalMaterialization.Mode.actual) →
+                      (∀ (i : Fin count),
+                          ¬Membership.mem.{0, 0} candidate.packet.declaration.outputNames (entries i).name) →
+                        ∀ (previous : Yulang.GeneralNominalCommonBridge.Assignment),
+                          Yulang.GeneralNominalCenteredHeadStepEffects.Models state previous →
+                            ((Exists.{1} fun extended =>
+                                Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+                                  (∀ (name : Nat),
+                                      Membership.mem.{0, 0}
+                                          (Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                                            entries)
+                                          name →
+                                        Eq.{1} (extended name) (previous name)) ∧
+                                    ∀ (i : Fin count),
+                                      (Yulang.GeneralNominalRootExtension184.argument candidate (entries i)).Holds
+                                        extended) ↔
+                              (∀ (i : Fin count),
+                                  Exists.{1} fun value =>
+                                    Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin
+                                      value) ∧
+                                (∀ (i : Fin count) (value : Yulang.CommonNominalFullCarrier.Ty),
+                                    Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin
+                                        value →
+                                      Yulang.GeneralNominalCaptureMerges.Fits previous
+                                        ((Yulang.GeneralNominalPacketSupport.capture candidate.packet).inputs
+                                          (entries i).name)
+                                        value) ∧
+                                  ∀ (i j : Fin count) (first last : Yulang.CommonNominalFullCarrier.Ty),
+                                    Eq.{1} (candidate.binder (entries i).name) (candidate.binder (entries j).name) →
+                                      Yulang.GeneralNominalRecursiveInspection.Observes previous (entries i).origin
+                                          first →
+                                        Yulang.GeneralNominalRecursiveInspection.Observes previous (entries j).origin
+                                            last →
+                                          Yulang.CommonNominalFullCarrier.Equivalent first last)
+@Yulang.GeneralNominalHeadEquationExtension186.uses_mem : ∀ {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (index : Fin (List.length.{0} candidate.headSchema.variables)),
+  Membership.mem.{0, 0} candidate.headSchema.variables
+    (Yulang.GeneralNominalHeadEquationExtension186.uses candidate index)
+@Yulang.GeneralNominalHeadEquationExtension186.uses_cover : ∀ {roles : Yulang.Roles.RoleDecls}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles) (entry : Yulang.GeneralNominalMaterialization.Use),
+  Membership.mem.{0, 0} candidate.headSchema.variables entry →
+    Exists.{1} fun index => Eq.{1} (Yulang.GeneralNominalHeadEquationExtension186.uses candidate index) entry
+@Yulang.GeneralNominalHeadEquationExtension186.tests_frame : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  (candidate : Yulang.GeneralNominalCenters.Plan roles),
+  Membership.mem.{0, 0} state.core.sites candidate.input →
+    Eq.{1} candidate.packet.declaration.role candidate.input.occurrence.demand.role →
+      ∀ (previous extended : Yulang.GeneralNominalCommonBridge.Assignment),
+        (∀ (name : Nat),
+            Membership.mem.{0, 0}
+                (Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                  (Yulang.GeneralNominalHeadEquationExtension186.uses candidate))
+                name →
+              Eq.{1} (extended name) (previous name)) →
+          ∀
+            (test :
+              Prod.{0, 0} Yulang.GeneralNominalRecursiveInspection.Origin
+                Yulang.GeneralNominalRecursiveInspection.Test),
+            Membership.mem.{0, 0} candidate.headSchema.tests test →
+              (Yulang.GeneralNominalOriginTerms.Head previous (Prod.fst.{0, 0} test) (Prod.snd.{0, 0} test) ↔
+                Yulang.GeneralNominalOriginTerms.Head extended (Prod.fst.{0, 0} test) (Prod.snd.{0, 0} test))
+@Yulang.GeneralNominalHeadEquationExtension186.head_equations_extension_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.sites candidate.input →
+          Eq.{1} candidate.packet.declaration.role candidate.input.occurrence.demand.role →
+            Eq.{1} candidate.packet.context state.core.erased.current.context →
+              Membership.mem.{0, 0} registry.declarations candidate.packet.declaration →
+                Yulang.GeneralNominalRecursiveInspection.Finished
+                    (Yulang.GeneralNominalQueryProvenance183.headInspection candidate) →
+                  ∀ (previous : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalCenteredHeadStepEffects.Models state previous →
+                      ((Exists.{1} fun extended =>
+                          Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+                            (∀ (name : Nat),
+                                Membership.mem.{0, 0}
+                                    (Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                                      (Yulang.GeneralNominalHeadEquationExtension186.uses candidate))
+                                    name →
+                                  Eq.{1} (extended name) (previous name)) ∧
+                              Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate extended) ↔
+                        Yulang.GeneralNominalHeadEquationExtension186.Compatible candidate previous)
+@Yulang.GeneralNominalHeadFrameExtension186.frame_finished : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {candidate : Yulang.GeneralNominalCenters.Plan roles} {key : Nat},
+  Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate →
+    Yulang.GeneralNominalRecursiveInspection.Finished (Yulang.GeneralNominalQueryProvenance183.headInspection candidate)
+@Yulang.GeneralNominalHeadFrameExtension186.frame_aligned : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {candidate : Yulang.GeneralNominalCenters.Plan roles} {key : Nat},
+  Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate →
+    Eq.{1} candidate.packet.declaration.role candidate.input.occurrence.demand.role
+@Yulang.GeneralNominalHeadFrameExtension186.frame_extension_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {candidate : Yulang.GeneralNominalCenters.Plan roles} {key : Nat},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate →
+        ∀ (previous : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models state previous →
+            ((Exists.{1} fun extended =>
+                Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+                  (∀ (name : Nat),
+                      Membership.mem.{0, 0}
+                          (Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                            (Yulang.GeneralNominalHeadEquationExtension186.uses candidate))
+                          name →
+                        Eq.{1} (extended name) (previous name)) ∧
+                    Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate extended) ↔
+              Yulang.GeneralNominalHeadEquationExtension186.Compatible candidate previous)
+@Yulang.GeneralNominalHeadIdentityCenters186.trace_registered_binders : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles},
+  Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state →
+    ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+      Membership.mem.{0, 0} state.core.plans first →
+        Membership.mem.{0, 0} state.core.plans last →
+          Eq.{1} first.packet.declaration last.packet.declaration →
+            ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                Yulang.GeneralNominalHeadIdentityInduction186.CentersSame model first.input last.input →
+                  ∀ (name : Nat),
+                    Membership.mem.{0, 0} first.packet.declaration.inputNames name →
+                      Yulang.GeneralNominalOriginTerms.Same model
+                        (Yulang.GeneralNominalRecursiveInspection.Origin.source (first.binder name))
+                        (Yulang.GeneralNominalRecursiveInspection.Origin.source (last.binder name))
+@Yulang.GeneralNominalHeadIdentityCenters186.trace_registered_identity_centers_same : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+        (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state →
+      ∀ (first last : Yulang.GeneralNominalCenters.Site roles),
+        Membership.mem.{0, 0} state.core.sites first →
+          Membership.mem.{0, 0} state.core.sites last →
+            Eq.{1} first.occurrence.identity last.occurrence.identity →
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                  Yulang.GeneralNominalHeadIdentityInduction186.CentersSame model first last
+@Yulang.GeneralNominalHeadIdentityCenters186.registered_identity_centers_same : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (first last : Yulang.GeneralNominalCenters.Site roles),
+        Membership.mem.{0, 0} state.core.sites first →
+          Membership.mem.{0, 0} state.core.sites last →
+            Eq.{1} first.occurrence.identity last.occurrence.identity →
+              ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                  Yulang.GeneralNominalHeadIdentityInduction186.CentersSame model first last
+@Yulang.GeneralNominalHeadIdentityCenters186.registered_identity_binders_same : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.plans first →
+          Membership.mem.{0, 0} state.core.plans last →
+            Eq.{1} first.packet.site.occurrence.identity last.packet.site.occurrence.identity →
+              Eq.{1} first.packet.declaration last.packet.declaration →
+                ∀ (name : Nat),
+                  Membership.mem.{0, 0} first.packet.declaration.inputNames name →
+                    ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                        Yulang.GeneralNominalOriginTerms.Same model
+                          (Yulang.GeneralNominalRecursiveInspection.Origin.source (first.binder name))
+                          (Yulang.GeneralNominalRecursiveInspection.Origin.source (last.binder name))
+@Yulang.GeneralNominalHeadIdentityInduction186.centers_self : ∀ {roles : Yulang.Roles.RoleDecls}
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) (site : Yulang.GeneralNominalCenters.Site roles),
+  Yulang.GeneralNominalHeadIdentityInduction186.CentersSame model site site
+@Yulang.GeneralNominalHeadIdentityInduction186.trace_identity_centers : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4Target.Steps.{1} (Yulang.GeneralNominalCenteredHeadStepKernel.Step registry root)
+        (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state →
+      ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+        (∀ (first : Yulang.GeneralNominalCenters.Plan roles),
+            Membership.mem.{0, 0} state.core.plans first →
+              ∀ (last : Yulang.GeneralNominalCenters.Plan roles),
+                Membership.mem.{0, 0} state.core.plans last →
+                  Eq.{1} first.packet.declaration last.packet.declaration →
+                    Yulang.GeneralNominalHeadIdentityInduction186.CentersSame model first.input last.input →
+                      ∀ (name : Nat),
+                        Membership.mem.{0, 0} first.packet.declaration.inputNames name →
+                          Yulang.GeneralNominalOriginTerms.Same model
+                            (Yulang.GeneralNominalRecursiveInspection.Origin.source (first.binder name))
+                            (Yulang.GeneralNominalRecursiveInspection.Origin.source (last.binder name))) →
+          ∀ (first last : Yulang.GeneralNominalCenters.Site roles),
+            Membership.mem.{0, 0} state.core.sites first →
+              Membership.mem.{0, 0} state.core.sites last →
+                Eq.{1} first.occurrence.identity last.occurrence.identity →
+                  Yulang.GeneralNominalHeadIdentityInduction186.CentersSame model first last
+@Yulang.GeneralNominalHeadRevisitExtension186.compatible_iff_bounds : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (historical candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.plans historical →
+          Membership.mem.{0, 0} state.core.sites candidate.input →
+            Eq.{1} candidate.packet.site.occurrence.identity historical.packet.site.occurrence.identity →
+              Eq.{1} candidate.packet.context state.core.erased.current.context →
+                Eq.{1} candidate.packet.declaration historical.packet.declaration →
+                  ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                      (Yulang.GeneralNominalHeadEquationExtension186.Compatible candidate model ↔
+                        Yulang.GeneralNominalHeadRevisitExtension186.BoundsFit candidate model)
+@Yulang.GeneralNominalHeadRevisitExtension186.revisit_extension_iff_bounds : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles} {key : Nat},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (historical candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.plans historical →
+          Yulang.GeneralNominalCenteredHeadOutputs.Frame registry state.core focus key candidate →
+            Eq.{1} candidate.packet.site.occurrence.identity historical.packet.site.occurrence.identity →
+              Eq.{1} candidate.packet.declaration historical.packet.declaration →
+                ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                  Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                    ((Exists.{1} fun extended =>
+                        Yulang.GeneralNominalCenteredHeadStepEffects.Models state extended ∧
+                          (∀ (name : Nat),
+                              Membership.mem.{0, 0}
+                                  (Yulang.GeneralNominalHeadConservativeExtension186.support state candidate
+                                    (Yulang.GeneralNominalHeadEquationExtension186.uses candidate))
+                                  name →
+                                Eq.{1} (extended name) (model name)) ∧
+                            Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations candidate extended) ↔
+                      Yulang.GeneralNominalHeadRevisitExtension186.BoundsFit candidate model)
+Yulang.GeneralNominalHeadSchemaNames186.schema_actual : ∀ (query : Yulang.GeneralNominalInspection.Query)
+  (origin : Yulang.GeneralNominalRecursiveInspection.Origin) (entry : Yulang.GeneralNominalMaterialization.Use),
+  Membership.mem.{0, 0}
+      (Yulang.GeneralNominalMaterialization.schema query origin
+          Yulang.GeneralNominalMaterialization.Mode.actual).variables
+      entry →
+    Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual
+Yulang.GeneralNominalHeadSchemaNames186.schemas_actual : ∀ (queries : List.{0} Yulang.GeneralNominalInspection.Query)
+  (origins : Nat → Yulang.GeneralNominalRecursiveInspection.Origin) (offset : Nat)
+  (entry : Yulang.GeneralNominalMaterialization.Use),
+  Membership.mem.{0, 0}
+      (Yulang.GeneralNominalMaterialization.schemas queries origins Yulang.GeneralNominalMaterialization.Mode.actual
+          offset).variables
+      entry →
+    Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual
+@Yulang.GeneralNominalHeadSchemaNames186.head_actual : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (entry : Yulang.GeneralNominalMaterialization.Use),
+  Membership.mem.{0, 0} plan.headSchema.variables entry →
+    Eq.{1} entry.mode Yulang.GeneralNominalMaterialization.Mode.actual
+@Yulang.GeneralNominalHeadSchemaNames186.head_input : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (entry : Yulang.GeneralNominalMaterialization.Use),
+  Membership.mem.{0, 0} plan.headSchema.variables entry →
+    Membership.mem.{0, 0} plan.packet.declaration.inputNames entry.name
+@Yulang.GeneralNominalHeadSchemaNames186.input_not_output : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (name : Nat),
+  Membership.mem.{0, 0} plan.packet.declaration.inputNames name →
+    ¬Membership.mem.{0, 0} plan.packet.declaration.outputNames name
+@Yulang.GeneralNominalHeadSchemaNames186.head_not_output : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (entry : Yulang.GeneralNominalMaterialization.Use),
+  Membership.mem.{0, 0} plan.headSchema.variables entry →
+    ¬Membership.mem.{0, 0} plan.packet.declaration.outputNames entry.name
+@Yulang.GeneralNominalHeadSchemaSemantic186.related_symm : ∀ {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin},
+  Yulang.GeneralNominalHeadSchemaSemantic186.Related model first last →
+    Yulang.GeneralNominalHeadSchemaSemantic186.Related model last first
+@Yulang.GeneralNominalHeadSchemaSemantic186.related_holds : ∀ {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin}
+  {term : Yulang.GeneralNominalOriginTerms.Expr Yulang.GeneralNominalRecursiveInspection.Origin},
+  Yulang.GeneralNominalHeadSchemaSemantic186.Related model first last →
+    Yulang.GeneralNominalOriginTerms.Holds model term first → Yulang.GeneralNominalOriginTerms.Holds model term last
+@Yulang.GeneralNominalHeadSchemaSemantic186.structural_related : ∀
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} {first last : Yulang.GeneralNominalRecursiveInspection.Origin},
+  Yulang.GeneralNominalHeadSchemaSemantic186.Related model first last →
+    ∀ (shape : Yulang.GeneralNormalizedObservation.Shape) (index : Nat),
+      Yulang.GeneralNominalHeadSchemaSemantic186.Related model (first.structural shape index)
+        (last.structural shape index)
+@Yulang.GeneralNominalHeadSchemaSemantic186.nominal_related : ∀ {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin},
+  Yulang.GeneralNominalHeadSchemaSemantic186.Related model first last →
+    ∀ (name index : Nat),
+      Yulang.GeneralNominalHeadSchemaSemantic186.Related model (first.nominal name index) (last.nominal name index)
+@Yulang.GeneralNominalHeadSchemaSemantic186.schema_correspondence : ∀
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} (query : Yulang.GeneralNominalInspection.Query)
+  (first last : Yulang.GeneralNominalRecursiveInspection.Origin) (mode : Yulang.GeneralNominalMaterialization.Mode),
+  Yulang.GeneralNominalHeadSchemaSemantic186.Related model first last →
+    ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.schema query first mode).variables entry →
+        Exists.{1} fun other =>
+          Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.schema query last mode).variables other ∧
+            Eq.{1} entry.name other.name ∧
+              Eq.{1} entry.mode other.mode ∧
+                Yulang.GeneralNominalHeadSchemaSemantic186.Related model entry.origin other.origin
+@Yulang.GeneralNominalHeadSchemaSemantic186.schemas_correspondence : ∀
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} (queries : List.{0} Yulang.GeneralNominalInspection.Query)
+  (first last : Nat → Yulang.GeneralNominalRecursiveInspection.Origin)
+  (mode : Yulang.GeneralNominalMaterialization.Mode) (index : Nat),
+  (∀ (i : Nat), Yulang.GeneralNominalHeadSchemaSemantic186.Related model (first i) (last i)) →
+    ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.schemas queries first mode index).variables entry →
+        Exists.{1} fun other =>
+          Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.schemas queries last mode index).variables other ∧
+            Eq.{1} entry.name other.name ∧
+              Eq.{1} entry.mode other.mode ∧
+                Yulang.GeneralNominalHeadSchemaSemantic186.Related model entry.origin other.origin
+@Yulang.GeneralNominalHeadSchemaSemantic186.head_correspondence : ∀
+  {model : Yulang.GeneralNominalCommonBridge.Assignment} {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles),
+  Eq.{1} first.packet.declaration last.packet.declaration →
+    Eq.{1} first.packet.context.state.constructors last.packet.context.state.constructors →
+      Eq.{1} first.packet.context.interpretation last.packet.context.interpretation →
+        (∀ (index : Nat),
+            Yulang.GeneralNominalOriginTerms.Same model
+              (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                (Option.getD.{0} (getElem?.{0, 0, 0} (List.ofFn.{0} first.input.center) index) 0))
+              (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                (Option.getD.{0} (getElem?.{0, 0, 0} (List.ofFn.{0} last.input.center) index) 0))) →
+          ∀ (entry : Yulang.GeneralNominalMaterialization.Use),
+            Membership.mem.{0, 0} first.headSchema.variables entry →
+              Exists.{1} fun other =>
+                Membership.mem.{0, 0} last.headSchema.variables other ∧
+                  Eq.{1} entry.name other.name ∧
+                    Eq.{1} entry.mode other.mode ∧
+                      Yulang.GeneralNominalHeadSchemaSemantic186.Related model entry.origin other.origin
+@Yulang.GeneralNominalHeadSchemaSemantic186.input_use : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles),
+  Yulang.GeneralNominalRecursiveInspection.Finished (Yulang.GeneralNominalQueryProvenance183.headInspection plan) →
+    ∀ (name : Nat),
+      Membership.mem.{0, 0} plan.packet.declaration.inputNames name →
+        Exists.{1} fun origin =>
+          Membership.mem.{0, 0} plan.headSchema.variables
+            { name := name, origin := origin, mode := Yulang.GeneralNominalMaterialization.Mode.actual }
+@Yulang.GeneralNominalHeadSchemaSemantic186.binder_same : ∀ {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {roles : Yulang.Roles.RoleDecls} (first last : Yulang.GeneralNominalCenters.Plan roles),
+  Eq.{1} first.packet.declaration last.packet.declaration →
+    Eq.{1} first.packet.context.state.constructors last.packet.context.state.constructors →
+      Eq.{1} first.packet.context.interpretation last.packet.context.interpretation →
+        (∀ (index : Nat),
+            Yulang.GeneralNominalOriginTerms.Same model
+              (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                (Option.getD.{0} (getElem?.{0, 0, 0} (List.ofFn.{0} first.input.center) index) 0))
+              (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                (Option.getD.{0} (getElem?.{0, 0, 0} (List.ofFn.{0} last.input.center) index) 0))) →
+          first.SchemaHolds first.headSchema model →
+            last.SchemaHolds last.headSchema model →
+              Yulang.GeneralNominalRecursiveInspection.Finished
+                  (Yulang.GeneralNominalQueryProvenance183.headInspection first) →
+                ∀ (name : Nat),
+                  Membership.mem.{0, 0} first.packet.declaration.inputNames name →
+                    Yulang.GeneralNominalOriginTerms.Same model
+                      (Yulang.GeneralNominalRecursiveInspection.Origin.source (first.binder name))
+                      (Yulang.GeneralNominalRecursiveInspection.Origin.source (last.binder name))
+@Yulang.GeneralNominalHeadTestSemantic186.related_head : ∀ {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {first last : Yulang.GeneralNominalRecursiveInspection.Origin} {test : Yulang.GeneralNominalRecursiveInspection.Test},
+  Yulang.GeneralNominalHeadSchemaSemantic186.Related model first last →
+    Yulang.GeneralNominalOriginTerms.Head model first test → Yulang.GeneralNominalOriginTerms.Head model last test
+@Yulang.GeneralNominalHeadTestSemantic186.schema_tests : ∀ {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  (query : Yulang.GeneralNominalInspection.Query) (first last : Yulang.GeneralNominalRecursiveInspection.Origin)
+  (mode : Yulang.GeneralNominalMaterialization.Mode),
+  Yulang.GeneralNominalHeadSchemaSemantic186.Related model first last →
+    ∀
+      (test :
+        Prod.{0, 0} Yulang.GeneralNominalRecursiveInspection.Origin Yulang.GeneralNominalRecursiveInspection.Test),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.schema query first mode).tests test →
+        Exists.{1} fun other =>
+          Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.schema query last mode).tests other ∧
+            Eq.{1} (Prod.snd.{0, 0} test) (Prod.snd.{0, 0} other) ∧
+              Yulang.GeneralNominalHeadSchemaSemantic186.Related model (Prod.fst.{0, 0} test) (Prod.fst.{0, 0} other)
+@Yulang.GeneralNominalHeadTestSemantic186.schemas_tests : ∀ {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  (queries : List.{0} Yulang.GeneralNominalInspection.Query)
+  (first last : Nat → Yulang.GeneralNominalRecursiveInspection.Origin)
+  (mode : Yulang.GeneralNominalMaterialization.Mode) (offset : Nat),
+  (∀ (index : Nat), Yulang.GeneralNominalHeadSchemaSemantic186.Related model (first index) (last index)) →
+    ∀
+      (test :
+        Prod.{0, 0} Yulang.GeneralNominalRecursiveInspection.Origin Yulang.GeneralNominalRecursiveInspection.Test),
+      Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.schemas queries first mode offset).tests test →
+        Exists.{1} fun other =>
+          Membership.mem.{0, 0} (Yulang.GeneralNominalMaterialization.schemas queries last mode offset).tests other ∧
+            Eq.{1} (Prod.snd.{0, 0} test) (Prod.snd.{0, 0} other) ∧
+              Yulang.GeneralNominalHeadSchemaSemantic186.Related model (Prod.fst.{0, 0} test) (Prod.fst.{0, 0} other)
+@Yulang.GeneralNominalHeadTestSemantic186.head_tests : ∀ {model : Yulang.GeneralNominalCommonBridge.Assignment}
+  {roles : Yulang.Roles.RoleDecls} (first last : Yulang.GeneralNominalCenters.Plan roles),
+  Eq.{1} first.packet.declaration last.packet.declaration →
+    Eq.{1} first.packet.context.state.constructors last.packet.context.state.constructors →
+      Eq.{1} first.packet.context.interpretation last.packet.context.interpretation →
+        (∀ (index : Nat),
+            Yulang.GeneralNominalOriginTerms.Same model
+              (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                (Option.getD.{0} (getElem?.{0, 0, 0} (List.ofFn.{0} first.input.center) index) 0))
+              (Yulang.GeneralNominalRecursiveInspection.Origin.source
+                (Option.getD.{0} (getElem?.{0, 0, 0} (List.ofFn.{0} last.input.center) index) 0))) →
+          ∀
+            (test :
+              Prod.{0, 0} Yulang.GeneralNominalRecursiveInspection.Origin
+                Yulang.GeneralNominalRecursiveInspection.Test),
+            Membership.mem.{0, 0} first.headSchema.tests test →
+              Exists.{1} fun other =>
+                Membership.mem.{0, 0} last.headSchema.tests other ∧
+                  Eq.{1} (Prod.snd.{0, 0} test) (Prod.snd.{0, 0} other) ∧
+                    Yulang.GeneralNominalHeadSchemaSemantic186.Related model (Prod.fst.{0, 0} test)
+                      (Prod.fst.{0, 0} other)
+@Yulang.GeneralNominalHeadTestSemantic186.candidate_tests : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.B4Target.Vocabulary.State.{0} (Yulang.GeneralNominalCenteredHeadStepBoundary.vocabulary roles)},
+  Yulang.GeneralDeclarations.Checked registry →
+    Yulang.B4TargetV6.Reachable.{0} (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry root state →
+      ∀ (historical candidate : Yulang.GeneralNominalCenters.Plan roles),
+        Membership.mem.{0, 0} state.core.plans historical →
+          Membership.mem.{0, 0} state.core.sites candidate.input →
+            Eq.{1} candidate.packet.site.occurrence.identity historical.packet.site.occurrence.identity →
+              Eq.{1} candidate.packet.context state.core.erased.current.context →
+                Eq.{1} candidate.packet.declaration historical.packet.declaration →
+                  ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+                      ∀
+                        (test :
+                          Prod.{0, 0} Yulang.GeneralNominalRecursiveInspection.Origin
+                            Yulang.GeneralNominalRecursiveInspection.Test),
+                        Membership.mem.{0, 0} candidate.headSchema.tests test →
+                          Yulang.GeneralNominalOriginTerms.Head model (Prod.fst.{0, 0} test) (Prod.snd.{0, 0} test)
+SOURCE Yulang/GeneralNominalChildSemantic186.lean
+SOURCE Yulang/GeneralNominalHeadBinderCollisions186.lean
+SOURCE Yulang/GeneralNominalHeadCandidateExtension186.lean
+SOURCE Yulang/GeneralNominalHeadCandidateOverlap186.lean
+SOURCE Yulang/GeneralNominalHeadCandidateSemantic186.lean
+SOURCE Yulang/GeneralNominalHeadCandidateSupport186.lean
+SOURCE Yulang/GeneralNominalHeadConservativeExtension186.lean
+SOURCE Yulang/GeneralNominalHeadEquationExtension186.lean
+SOURCE Yulang/GeneralNominalHeadFrameExtension186.lean
+SOURCE Yulang/GeneralNominalHeadIdentityCenters186.lean
+SOURCE Yulang/GeneralNominalHeadIdentityInduction186.lean
+SOURCE Yulang/GeneralNominalHeadRevisitExtension186.lean
+SOURCE Yulang/GeneralNominalHeadSchemaNames186.lean
+SOURCE Yulang/GeneralNominalHeadSchemaSemantic186.lean
+SOURCE Yulang/GeneralNominalHeadTestSemantic186.lean
+REACH: 3 roots; 0/90 cycle186 declarations reachable
+REACH: 3 roots; 76/90 cycle186 declarations reachable
