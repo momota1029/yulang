@@ -581,3 +581,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered total-materialization finite cover](2026-11-15-centered-head-mat-ground-cover.md) — concrete semantic/center/source inventories and unrestricted successor accessibility from an installation-depth bound; the depth producer, exit lifting, general completion, and exhaustive K2 remain open.
 
 - [Total semantic labels and successor ancestry](2026-11-15-centered-head-mat-semantic-depth.md) — full-carrier normalization and corrected child-center readback, original ground-source conversion, and unrestricted retrospective ancestry conditional on finite enabled-head captures and their mass bound; unconditional depth and progress remain open.
+
+- [Ground head readback for total materialization](2026-11-15-centered-head-mat-head-readback.md) — semantic projection and head-mass inversion for arbitrary counted labels, finite center captures from the actual head-only frame, and unconditional ground depth, finite cover, accessibility and progress for the unrestricted successor Step.
