@@ -1,0 +1,417 @@
+Yulang.GeneralNominalReuseCatalogue195.reusable_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles}
+  (reuse : Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.core.erased.current.context model
+    plan.packet.site.occurrence plan.packet.declaration.id plan.packet.children
+Yulang.GeneralNominalReuseCatalogue195.packet_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plans : List (Yulang.GeneralNominalCenters.Plan roles)} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (ready :
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ plans → Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  (packet : Yulang.GeneralNominalSaturationState.Packet roles)
+  (member : packet ∈ (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans).packets)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.core.erased.current.context model
+    packet.site.occurrence packet.declaration.id packet.children
+Yulang.GeneralNominalReuseCatalogue195.uniform_dictionary {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plans : List (Yulang.GeneralNominalCenters.Plan roles)} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (ready :
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ plans → Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  (covered :
+    Yulang.GeneralDictionaryJournalTree.Covered (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root) :
+  ∃ tree,
+    tree.root = root ∧
+      Yulang.GeneralSourceDictionaries.Evidence
+          (Yulang.GeneralDictionaryJournalTree.Recorded (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans))
+          tree ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root
+              (Yulang.GeneralSourceDictionaries.erase tree)
+Yulang.GeneralNominalReuseCatalogue195.evidence_node {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plans : List (Yulang.GeneralNominalCenters.Plan roles)} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {context : Yulang.GeneralNominalCandidates.Context}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (ready :
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ plans → Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (recorded :
+    ∃ packet,
+      packet ∈ (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans).packets ∧ packet.site.occurrence = focus)
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload)
+  (childEvidence :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) children payloads) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model focus
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key payloads)
+Yulang.GeneralNominalSelectedCatalogue195.selected_recorded {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {context : Yulang.GeneralNominalCandidates.Context}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plans : List (Yulang.GeneralNominalCenters.Plan roles)}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (ready :
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ plans → Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  (covered :
+    Yulang.GeneralDictionaryJournalTree.Covered (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root)
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (reached :
+    Yulang.GeneralDictionaryJournalTree.Reach (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root focus)
+  {key : Nat} {children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.core.erased.current.context model focus key
+      children ∧
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      child ∈ children →
+        Yulang.GeneralDictionaryJournalTree.Reach (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root
+          child
+Yulang.GeneralNominalSelectedCatalogue195.selected_sound {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {context : Yulang.GeneralNominalCandidates.Context}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plans : List (Yulang.GeneralNominalCenters.Plan roles)}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (ready :
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ plans → Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  (covered :
+    Yulang.GeneralDictionaryJournalTree.Covered (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root)
+  (dictionary : Yulang.GeneralDictionaryReadback.Payload)
+  (derived :
+    Yulang.B4TargetV6.Classify (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry state root
+      (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root dictionary
+Yulang.GeneralNominalSelectedCatalogue195.dictionary_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {context : Yulang.GeneralNominalCandidates.Context}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plans : List (Yulang.GeneralNominalCenters.Plan roles)}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (ready :
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ plans → Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  (covered :
+    Yulang.GeneralDictionaryJournalTree.Covered (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (dictionary : Yulang.GeneralDictionaryReadback.Payload) (focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (reached :
+    Yulang.GeneralDictionaryJournalTree.Reach (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root focus)
+  (derived :
+    Yulang.B4TargetV6.Classify (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry state focus
+      (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model focus dictionary
+Yulang.GeneralNominalSelectedCatalogue195.dictionaries_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {context : Yulang.GeneralNominalCandidates.Context}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plans : List (Yulang.GeneralNominalCenters.Plan roles)}
+  (path :
+    Yulang.B4Target.Steps (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep registry root)
+      (Yulang.GeneralNominalCenteredHeadStepEffects.initial context root) state)
+  (ready :
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ plans → Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  (covered :
+    Yulang.GeneralDictionaryJournalTree.Covered (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (dictionaries : List Yulang.GeneralDictionaryReadback.Payload)
+  (demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (reached :
+    ∀ (focus : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      focus ∈ demands →
+        Yulang.GeneralDictionaryJournalTree.Reach (Yulang.GeneralNominalReuseCatalogue195.catalogue state plans) root
+          focus)
+  (derived :
+    Yulang.CommonRoleOutermostResolver.All₂
+      (fun focus dictionary =>
+        Yulang.B4TargetV6.Classify (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry state focus
+          (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+      demands dictionaries) :
+  Yulang.CommonRoleOutermostResolver.All₂
+    ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) demands dictionaries
+Yulang.GeneralNominalNonleafCatalogue195.reusable
+  (p : Yulang.GeneralNominalCenters.Plan Yulang.GeneralDeclarationExamples.roles) :
+  p ∈ Yulang.GeneralNominalNonleafCatalogue195.plans →
+    Yulang.GeneralNominalReuseCatalogue195.Reusable Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalNonleafInstallation193.finish p
+Yulang.GeneralNominalNonleafCatalogue195.packets_exact :
+  (Yulang.GeneralNominalReuseCatalogue195.catalogue Yulang.GeneralNominalNonleafInstallation193.finish
+        Yulang.GeneralNominalNonleafCatalogue195.plans).packets =
+    [Yulang.GeneralNominalNonleafPlan193.packet, Yulang.GeneralNominalNonleafChild193.childPacket]
+Yulang.GeneralNominalNonleafCatalogue195.child_empty : Yulang.GeneralNominalNonleafChild193.childPacket.children = []
+Yulang.GeneralNominalNonleafCatalogue195.reached_cases
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles}
+  (reached :
+    Yulang.GeneralDictionaryJournalTree.Reach
+      (Yulang.GeneralNominalReuseCatalogue195.catalogue Yulang.GeneralNominalNonleafInstallation193.finish
+        Yulang.GeneralNominalNonleafCatalogue195.plans)
+      Yulang.GeneralNominalExamples.displayRoot focus) :
+  focus = Yulang.GeneralNominalExamples.displayRoot ∨ focus = Yulang.GeneralNominalExamples.displayChild
+Yulang.GeneralNominalNonleafCatalogue195.covered :
+  Yulang.GeneralDictionaryJournalTree.Covered
+    (Yulang.GeneralNominalReuseCatalogue195.catalogue Yulang.GeneralNominalNonleafInstallation193.finish
+      Yulang.GeneralNominalNonleafCatalogue195.plans)
+    Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralNominalNonleafCatalogue195.ordinary_path :
+  Yulang.B4Target.Steps
+    (Yulang.GeneralNominalOrdinaryEvidence191.OrdinaryStep Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalExamples.displayRoot)
+    Yulang.GeneralNominalNonleafPlan193.start Yulang.GeneralNominalNonleafInstallation193.finish
+Yulang.GeneralNominalNonleafCatalogue195.genuine_reuse :
+  ¬Yulang.GeneralDictionaryJournalTree.Covered Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+        Yulang.GeneralNominalExamples.displayRoot ∧
+    Yulang.GeneralDictionaryJournalTree.Covered
+        (Yulang.GeneralNominalReuseCatalogue195.catalogue Yulang.GeneralNominalNonleafInstallation193.finish
+          Yulang.GeneralNominalNonleafCatalogue195.plans)
+        Yulang.GeneralNominalExamples.displayRoot ∧
+      ∀ (p : Yulang.GeneralNominalCenters.Plan Yulang.GeneralDeclarationExamples.roles),
+        p ∈ Yulang.GeneralNominalNonleafCatalogue195.plans →
+          Yulang.GeneralNominalReuseCatalogue195.Reusable Yulang.GeneralNominalExamples.registry
+            Yulang.GeneralNominalNonleafInstallation193.finish p
+Yulang.GeneralNominalNonleafCatalogue195.uniform_dictionary :
+  ∃ tree,
+    tree.root = Yulang.GeneralNominalExamples.displayRoot ∧
+      Yulang.GeneralSourceDictionaries.Evidence
+          (Yulang.GeneralDictionaryJournalTree.Recorded
+            (Yulang.GeneralNominalReuseCatalogue195.catalogue Yulang.GeneralNominalNonleafInstallation193.finish
+              Yulang.GeneralNominalNonleafCatalogue195.plans))
+          tree ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish model →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence
+              Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish model
+              Yulang.GeneralNominalExamples.displayRoot (Yulang.GeneralSourceDictionaries.erase tree)
+Yulang.GeneralNominalNonleafCatalogue195.selected_sound (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish model →
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish model
+      Yulang.GeneralNominalExamples.displayRoot
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralNominalCurrentCompletion195.selected_instance {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (complete : Yulang.GeneralNominalCurrentCompletion195.SelectedCompletion registry state root)
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root focus) {key : Nat}
+  {children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance registry state.core.erased.current.context model focus key
+      children ∧
+    ∀ (child : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      child ∈ children → Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root child
+Yulang.GeneralNominalCurrentCompletion195.dictionary_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (complete : Yulang.GeneralNominalCurrentCompletion195.SelectedCompletion registry state root)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (dictionary : Yulang.GeneralDictionaryReadback.Payload) (focus : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root focus)
+  (derived :
+    Yulang.B4TargetV6.Classify (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry state focus
+      (Yulang.CommonRoleOutermostResolver.Result.selected dictionary)) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model focus dictionary
+Yulang.GeneralNominalCurrentCompletion195.dictionaries_evidence {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (complete : Yulang.GeneralNominalCurrentCompletion195.SelectedCompletion registry state root)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (dictionaries : List Yulang.GeneralDictionaryReadback.Payload)
+  (demands : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (generated :
+    ∀ (focus : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      focus ∈ demands → Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root focus)
+  (derived :
+    Yulang.CommonRoleOutermostResolver.All₂
+      (fun focus dictionary =>
+        Yulang.B4TargetV6.Classify (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry state focus
+          (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+      demands dictionaries) :
+  Yulang.CommonRoleOutermostResolver.All₂
+    ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) demands dictionaries
+Yulang.GeneralNominalCurrentCompletion195.selected_sound {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (complete : Yulang.GeneralNominalCurrentCompletion195.SelectedCompletion registry state root)
+  (dictionary : Yulang.GeneralDictionaryReadback.Payload)
+  (derived :
+    Yulang.B4TargetV6.Classify (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles) registry state root
+      (Yulang.CommonRoleOutermostResolver.Result.selected dictionary))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root dictionary
+Yulang.GeneralNominalCurrentCompletion195.evidence_node {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (complete : Yulang.GeneralNominalCurrentCompletion195.SelectedCompletion registry state root)
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (generated : Yulang.GeneralNominalSaturationState.Generated state.core.erased.current root focus) {key : Nat}
+  {children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)}
+  (selected :
+    Yulang.GeneralNominalCenteredHeadWFBoundary.Local registry state focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children))
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models state model)
+  (payloads : List Yulang.GeneralDictionaryReadback.Payload)
+  (childrenEvidence :
+    Yulang.CommonRoleOutermostResolver.All₂
+      ((Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model) children payloads) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model focus
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node key payloads)
+Yulang.GeneralNominalCompletionObstruction195.no_reusable
+  (candidate : Yulang.GeneralNominalCenters.Plan Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+  (same : candidate.packet.site.occurrence = Yulang.GeneralNominalCenteredHeadWFJoinSource.root) :
+  ¬Yulang.GeneralNominalReuseCatalogue195.Reusable Yulang.GeneralNominalCenteredHeadWFJoinSource.registry
+      Yulang.GeneralNominalCenteredHeadWFJoinSource.start candidate
+Yulang.GeneralNominalCompletionObstruction195.no_selected_completion :
+  ¬Yulang.GeneralNominalCurrentCompletion195.SelectedCompletion Yulang.GeneralNominalCenteredHeadWFJoinSource.registry
+      Yulang.GeneralNominalCenteredHeadWFJoinSource.start Yulang.GeneralNominalCenteredHeadWFJoinSource.root
+Yulang.GeneralNominalCompletionObstruction195.stable_selected_missing_completion :
+  Yulang.B4TargetV6.Reachable
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalCenteredHeadWFJoinSource.roles)
+      Yulang.GeneralNominalCenteredHeadWFJoinSource.registry Yulang.GeneralNominalCenteredHeadWFJoinSource.root
+      Yulang.GeneralNominalCenteredHeadWFJoinSource.start ∧
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralNominalCenteredHeadWFJoinSource.roles).Stable
+        Yulang.GeneralNominalCenteredHeadWFJoinSource.registry Yulang.GeneralNominalCenteredHeadWFJoinSource.start
+        Yulang.GeneralNominalCenteredHeadWFJoinSource.root ∧
+      Yulang.GeneralNominalCenteredHeadWFBoundary.Local Yulang.GeneralNominalCenteredHeadWFJoinSource.registry
+          Yulang.GeneralNominalCenteredHeadWFJoinSource.start Yulang.GeneralNominalCenteredHeadWFJoinSource.root
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected 37
+            Yulang.GeneralNominalCenteredHeadWFJoinSource.children) ∧
+        (∃ model,
+            Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalCenteredHeadWFJoinSource.start
+              model) ∧
+          ¬Yulang.GeneralNominalCurrentCompletion195.SelectedCompletion
+              Yulang.GeneralNominalCenteredHeadWFJoinSource.registry Yulang.GeneralNominalCenteredHeadWFJoinSource.start
+              Yulang.GeneralNominalCenteredHeadWFJoinSource.root
+Yulang.GeneralNominalCurrentTree195.child_rank {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {plan : Yulang.GeneralNominalCenters.Plan roles}
+  (reuse : Yulang.GeneralNominalReuseCatalogue195.Reusable registry state plan)
+  {child : Yulang.GeneralSourceDictionaries.Occurrence roles} (member : child ∈ plan.packet.children) :
+  Yulang.GeneralNominalCurrentTree195.rank state child <
+    Yulang.GeneralNominalCurrentTree195.rank state plan.packet.site.occurrence
+Yulang.GeneralNominalCurrentTree195.tree_exists {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (complete : Yulang.GeneralNominalCurrentTree195.TotalCompletion registry state root) :
+  ∃ tree,
+    tree.root = root ∧
+      Yulang.GeneralSourceDictionaries.Evidence (Yulang.GeneralNominalCurrentTree195.Rule registry state) tree
+Yulang.GeneralNominalCurrentTree195.uniform_dictionary {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (complete : Yulang.GeneralNominalCurrentTree195.TotalCompletion registry state root) :
+  ∃ tree,
+    tree.root = root ∧
+      Yulang.GeneralSourceDictionaries.Evidence (Yulang.GeneralNominalCurrentTree195.Rule registry state) tree ∧
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models state model →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary roles).Evidence registry state model root
+              (Yulang.GeneralSourceDictionaries.erase tree)
+Yulang.GeneralNominalCurrentTree195.selected_completion {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {state : Yulang.GeneralNominalCenteredHeadStepEffects.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  (complete : Yulang.GeneralNominalCurrentTree195.TotalCompletion registry state root) :
+  Yulang.GeneralNominalCurrentCompletion195.SelectedCompletion registry state root
+Yulang.GeneralNominalNonleafCurrent195.current_instance (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish assignment) :
+  Yulang.GeneralDictionaryRecursiveEvidence.Instance Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafSafety193.current assignment Yulang.GeneralNominalExamples.displayRoot 1
+    [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralNominalNonleafCurrent195.current_branch (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish assignment) :
+  Yulang.GeneralNominalRecursiveCandidates.RequestReady Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalNonleafSafety193.current Yulang.GeneralNominalExamples.displayRoot
+      Yulang.GeneralDeclarationExamples.display Yulang.GeneralDeclarationExamples.display_checked [(0, 0)] ∧
+    Yulang.GeneralNominalNonleafFinal194.parentPacket.Holds assignment
+Yulang.GeneralNominalNonleafCurrent195.lift_raw_model (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalSaturationState.Models Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+      assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish assignment
+Yulang.GeneralNominalNonleafCurrent195.parent_children :
+  Yulang.GeneralNominalNonleafFinal194.parentPacket.children = [Yulang.GeneralNominalExamples.displayChild]
+Yulang.GeneralNominalNonleafCurrent195.parent_committed :
+  Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+    Yulang.GeneralNominalNonleafFinal194.parentPacket
+Yulang.GeneralNominalNonleafCurrent195.parent_reusable :
+  Yulang.GeneralNominalReuseCatalogue195.Reusable Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish Yulang.GeneralNominalNonleafFinal194.parentPlan
+Yulang.GeneralNominalNonleafCurrent195.generated_cases
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles}
+  (generated :
+    Yulang.GeneralNominalSaturationState.Generated
+      Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current Yulang.GeneralNominalExamples.displayRoot
+      focus) :
+  focus = Yulang.GeneralNominalExamples.displayRoot ∨ focus = Yulang.GeneralNominalExamples.displayChild
+Yulang.GeneralNominalNonleafCurrent195.total_completion :
+  Yulang.GeneralNominalCurrentTree195.TotalCompletion Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish Yulang.GeneralNominalExamples.displayRoot
+Yulang.GeneralNominalNonleafCurrent195.uniform_current_dictionary :
+  ∃ tree,
+    tree.root = Yulang.GeneralNominalExamples.displayRoot ∧
+      Yulang.GeneralSourceDictionaries.Evidence
+          (Yulang.GeneralNominalCurrentTree195.Rule Yulang.GeneralNominalExamples.registry
+            Yulang.GeneralNominalNonleafInstallation193.finish)
+          tree ∧
+        ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish
+              assignment →
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence
+              Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish assignment
+              Yulang.GeneralNominalExamples.displayRoot (Yulang.GeneralSourceDictionaries.erase tree)
+Yulang.GeneralNominalNonleafCurrent195.selected_current_sound
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish assignment →
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish assignment
+      Yulang.GeneralNominalExamples.displayRoot
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])

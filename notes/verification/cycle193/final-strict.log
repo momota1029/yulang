@@ -1,0 +1,14 @@
+COMMAND: lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalNonleafAdministrative193.lean
+EXIT:0
+COMMAND: lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalNonleafChild193.lean
+EXIT:0
+COMMAND: lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalNonleafInstallation193.lean
+EXIT:0
+COMMAND: lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalNonleafLocal193.lean
+EXIT:0
+COMMAND: lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalNonleafPlan193.lean
+EXIT:0
+COMMAND: lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalNonleafReuse193.lean
+EXIT:0
+COMMAND: lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalNonleafSafety193.lean
+EXIT:0

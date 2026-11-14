@@ -580,6 +580,11 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered total-materialization refresh regression](2026-11-15-centered-head-mat-refresh-regression.md) — actual justified-refresh trace with R pending, finite-progress reduction, centered head descent, and fixed-context total-packet rebasing; general cover, exit lifting, model extension, and exhaustive K2 remain open.
 - [Centered total-materialization finite cover](2026-11-15-centered-head-mat-ground-cover.md) — concrete semantic/center/source inventories and unrestricted successor accessibility from an installation-depth bound; the depth producer, exit lifting, general completion, and exhaustive K2 remain open.
 
+- [Cycle194 final classification design](2026-11-14-cycle194-final-classification.md): concrete WF nonleaf completion and general ordinary journal readback; general EvidenceNode remains open.
+- [Cycle194 quantified module guide](2026-11-14-cycle194-module-guide.md): 35 theorem statements and explicit remaining contracts.
+- Cycle194 structural refinement: module guide now includes 4 further journal-accessibility theorems (39 total); ordinary readback needs coverage but no independent Acc certificate.
+- Cycle194 selected-payload refinement: module guide now includes 7 further theorems (46 total), deriving actual selected Classify payload Evidence from ordinary execution and journal coverage.
+- Cycle194 final local boundary: 51 total theorems; recorded-node Evidence and concrete Stable-but-not-journal-Covered witness distinguish successful reuse from missing semantic evidence.
 - [Total semantic labels and successor ancestry](2026-11-15-centered-head-mat-semantic-depth.md) — full-carrier normalization and corrected child-center readback, original ground-source conversion, and unrestricted retrospective ancestry conditional on finite enabled-head captures and their mass bound; unconditional depth and progress remain open.
 
 - [Ground head readback for total materialization](2026-11-15-centered-head-mat-head-readback.md) — semantic projection and head-mass inversion for arbitrary counted labels, finite center captures from the actual head-only frame, and unconditional ground depth, finite cover, accessibility and progress for the unrestricted successor Step.
@@ -587,7 +592,8 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Canonical exits and live class retention for total materialization](2026-11-15-centered-head-mat-canonical-closure.md) — unrestricted two-way permutation simulation, unconditional canonical exit lifting and order laws, and reachable installation request invariance discharging all future live effects; head baseline, corrected packet assembly, choice agreement, and exhaustive K2 projections remain open.
 
 - [Output targets lose their clause identity](2026-11-15-centered-head-mat-output-target-collision.md) — checked WF ground initial counterexample: two distinct child clauses reuse a locally valid output equation ID, so total materialization gives one target incompatible meanings; stable selected parent refutes PacketAssembly and generated-child production.
+- [Cycle195 mixed readback catalogue](2026-11-14-cycle195-reuse-catalogue.md) and [module guide](2026-11-14-cycle195-catalogue-module-guide.md).
+- [Cycle195 current completion and limits](2026-11-14-cycle195-current-completion-guide.md).
 
 - [Clause-aware child-output allocation](2026-11-15-centered-head-allocation.md) — additive paired clause/equation allocation, unchanged source contract and shared output binders, twelve closed successor laws, actual two-child collision repair, and independent private-output model extension; general completion retains three named hypotheses.
-
 - [A required merge can empty the journal before completion](2026-11-15-centered-head-merge-conflict.md) — checked WF ground source, inhabited parent installation, actual same-input merge, and stable generated R selection with an empty full journal; refutes unconditional HeadBaseline and SelectedCompletion, without claiming a GeneratedChildren or Statement counterexample.

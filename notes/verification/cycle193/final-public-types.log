@@ -1,0 +1,449 @@
+Yulang.GeneralNominalNonleafAdministrative193.raw_sites :
+  Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current.sites =
+    [Yulang.GeneralNominalDemandMerging.pointSite Yulang.GeneralNominalExamples.displayRoot,
+      Yulang.GeneralNominalSharedEmission.childSite Yulang.GeneralNominalNonleafPlan193.packet
+        Yulang.GeneralNominalExamples.displayChild]
+'Yulang.GeneralNominalNonleafAdministrative193.raw_sites' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafAdministrative193.center_sites :
+  Yulang.GeneralNominalNonleafInstallation193.finish.core.sites =
+    [Yulang.GeneralNominalNonleafPlan193.plan.input, Yulang.GeneralNominalNonleafPlan193.centerSite]
+'Yulang.GeneralNominalNonleafAdministrative193.center_sites' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafAdministrative193.raw_closed
+  (first last : Yulang.GeneralNominalDemandMerging.Site Yulang.GeneralDeclarationExamples.roles)
+  (one : first ∈ Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current.sites)
+  (two : last ∈ Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current.sites)
+  (same :
+    Yulang.GeneralNominalFeedbackSites.SameInputs Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+      first last) :
+  Yulang.GeneralNominalSaturationState.Alias Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+    first.occurrence.identity last.occurrence.identity
+'Yulang.GeneralNominalNonleafAdministrative193.raw_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafAdministrative193.center_closed
+  (first last : Yulang.GeneralNominalCenters.Site Yulang.GeneralDeclarationExamples.roles)
+  (one : first ∈ Yulang.GeneralNominalNonleafInstallation193.finish.core.sites)
+  (two : last ∈ Yulang.GeneralNominalNonleafInstallation193.finish.core.sites)
+  (same :
+    Yulang.GeneralNominalCenters.SameInputs
+      (Yulang.GeneralNominalCenteredSteps.Models Yulang.GeneralNominalNonleafInstallation193.finish.core) first last) :
+  Yulang.GeneralNominalSaturationState.Alias Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+    first.occurrence.identity last.occurrence.identity
+'Yulang.GeneralNominalNonleafAdministrative193.center_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafAdministrative193.child_ready :
+  Yulang.GeneralNominalCenteredAdministrativeLocal.AdministrativeReady
+    Yulang.GeneralNominalNonleafInstallation193.finish.core Yulang.GeneralNominalExamples.displayChild
+'Yulang.GeneralNominalNonleafAdministrative193.child_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafAdministrative193.parent_ready :
+  Yulang.GeneralNominalCenteredAdministrativeLocal.AdministrativeReady
+    Yulang.GeneralNominalNonleafInstallation193.finish.core Yulang.GeneralNominalExamples.displayRoot
+'Yulang.GeneralNominalNonleafAdministrative193.parent_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafChild193.survivor :
+  Yulang.GeneralNominalCenteredHeadCandidates.Survivor Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafSafety193.current Yulang.GeneralNominalExamples.displayChild 3 []
+'Yulang.GeneralNominalNonleafChild193.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafChild193.prepared :
+  Yulang.GeneralNominalCenteredHeadCandidates.Prepared Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafSafety193.current Yulang.GeneralNominalExamples.displayChild
+    Yulang.GeneralNominalExamples.intDisplay
+'Yulang.GeneralNominalNonleafChild193.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafChild193.wrong_failed :
+  Yulang.GeneralNominalCenteredHeadCandidates.Failed Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafSafety193.current Yulang.GeneralNominalExamples.displayChild
+    Yulang.GeneralDeclarationExamples.display
+'Yulang.GeneralNominalNonleafChild193.wrong_failed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafChild193.unique :
+  Yulang.GeneralNominalCenteredHeadCandidates.Unique Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafSafety193.current Yulang.GeneralNominalExamples.displayChild 3 []
+'Yulang.GeneralNominalNonleafChild193.unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafChild193.frame :
+  Yulang.GeneralNominalCenteredHeadOutputs.Frame Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish.core Yulang.GeneralNominalExamples.displayChild 3
+    Yulang.GeneralNominalNonleafChild193.childPlan
+'Yulang.GeneralNominalNonleafChild193.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafChild193.safe :
+  Yulang.B4TargetV6.SafeKnown
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish
+    Yulang.GeneralNominalExamples.displayChild
+'Yulang.GeneralNominalNonleafChild193.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.installed_requests_empty :
+  Yulang.GeneralNominalCenteredHeadOutputs.requests Yulang.GeneralNominalNonleafInstallation193.installedCore
+      Yulang.GeneralNominalExamples.displayRoot =
+    []
+'Yulang.GeneralNominalNonleafInstallation193.installed_requests_empty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.installation_models
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalExamples.state true) assignment) :
+  Yulang.GeneralNominalCenteredHeadStepKernel.InstallationModels Yulang.GeneralNominalNonleafPlan193.start
+    Yulang.GeneralNominalNonleafPlan193.plan [] assignment
+'Yulang.GeneralNominalNonleafInstallation193.installation_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.enabled :
+  Yulang.GeneralNominalCenteredHeadStepKernel.Installable Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafPlan193.start Yulang.GeneralNominalNonleafPlan193.plan []
+'Yulang.GeneralNominalNonleafInstallation193.enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.novel :
+  ¬Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralNominalNonleafPlan193.start.core.erased.current
+      Yulang.GeneralNominalNonleafPlan193.plan.packet
+'Yulang.GeneralNominalNonleafInstallation193.novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.actual_step :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Step
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralNominalNonleafPlan193.start Yulang.GeneralNominalNonleafInstallation193.finish
+'Yulang.GeneralNominalNonleafInstallation193.actual_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.reachable :
+  Yulang.B4TargetV6.Reachable
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralNominalNonleafInstallation193.finish
+'Yulang.GeneralNominalNonleafInstallation193.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.final_model :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish
+    Yulang.GeneralNominalExamples.model
+'Yulang.GeneralNominalNonleafInstallation193.final_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.child_generated :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Generated
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalExamples.displayChild
+'Yulang.GeneralNominalNonleafInstallation193.child_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.leaf_evidence (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish assignment) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish assignment
+    Yulang.GeneralNominalExamples.displayChild (Yulang.CommonRoleOutermostResolver.Dictionary.node 3 [])
+'Yulang.GeneralNominalNonleafInstallation193.leaf_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.recursive_evidence
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid :
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish assignment) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish assignment
+    Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+'Yulang.GeneralNominalNonleafInstallation193.recursive_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.source_recursive_sound :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Checked
+      Yulang.GeneralNominalExamples.registry ∧
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Initial
+        Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+        Yulang.GeneralNominalNonleafPlan193.start ∧
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Step
+          Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+          Yulang.GeneralNominalNonleafPlan193.start Yulang.GeneralNominalNonleafInstallation193.finish ∧
+        Yulang.B4TargetV6.Reachable
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+            Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+            Yulang.GeneralNominalNonleafInstallation193.finish ∧
+          (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Generated
+              Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish
+              Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalExamples.displayChild ∧
+            Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish
+                Yulang.GeneralNominalExamples.model ∧
+              ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish
+                    assignment →
+                  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary
+                        Yulang.GeneralDeclarationExamples.roles).Evidence
+                    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish assignment
+                    Yulang.GeneralNominalExamples.displayRoot
+                    (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+                      [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+'Yulang.GeneralNominalNonleafInstallation193.source_recursive_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.final_models_iff
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish assignment ↔
+    Yulang.GeneralNominalState.Models (Yulang.GeneralNominalExamples.state true) assignment
+'Yulang.GeneralNominalNonleafInstallation193.final_models_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.initial_recursive_evidence
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafPlan193.start assignment) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafPlan193.start assignment
+    Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+'Yulang.GeneralNominalNonleafInstallation193.initial_recursive_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalNonleafInstallation193.source_not_stable :
+  ¬(Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Stable
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafPlan193.start
+      Yulang.GeneralNominalExamples.displayRoot
+'Yulang.GeneralNominalNonleafInstallation193.source_not_stable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.prepared :
+  Yulang.GeneralNominalCenteredHeadCandidates.Prepared Yulang.GeneralNominalExamples.registry
+    (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralDeclarationExamples.display
+'Yulang.GeneralNominalNonleafLocal193.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.frame :
+  Yulang.GeneralNominalCenteredHeadOutputs.Frame Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafPlan193.start.core Yulang.GeneralNominalExamples.displayRoot 1
+    Yulang.GeneralNominalNonleafPlan193.plan
+'Yulang.GeneralNominalNonleafLocal193.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.known :
+  ¬Yulang.GeneralNominalState.RootPending (Yulang.GeneralNominalExamples.state true)
+      Yulang.GeneralNominalExamples.displayRoot.demand
+'Yulang.GeneralNominalNonleafLocal193.known' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.survivor :
+  Yulang.GeneralNominalCenteredHeadCandidates.Survivor Yulang.GeneralNominalExamples.registry
+    (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayRoot 1
+    [Yulang.GeneralNominalExamples.displayChild]
+'Yulang.GeneralNominalNonleafLocal193.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.wrong_failed :
+  Yulang.GeneralNominalCenteredHeadCandidates.Failed Yulang.GeneralNominalExamples.registry
+    (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralNominalExamples.intDisplay
+'Yulang.GeneralNominalNonleafLocal193.wrong_failed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.unique :
+  Yulang.GeneralNominalCenteredHeadCandidates.Unique Yulang.GeneralNominalExamples.registry
+    (Yulang.GeneralNominalExamples.context true) Yulang.GeneralNominalExamples.displayRoot 1
+    [Yulang.GeneralNominalExamples.displayChild]
+'Yulang.GeneralNominalNonleafLocal193.unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.requests_empty :
+  Yulang.GeneralNominalCenteredHeadOutputs.requests Yulang.GeneralNominalNonleafPlan193.start.core
+      Yulang.GeneralNominalExamples.displayRoot =
+    []
+'Yulang.GeneralNominalNonleafLocal193.requests_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.effects_ready :
+  Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady Yulang.GeneralNominalNonleafPlan193.start.core
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalNonleafPlan193.plan
+'Yulang.GeneralNominalNonleafLocal193.effects_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.no_output_conflict :
+  ¬Yulang.GeneralNominalCenteredHeadStepBoundary.OutputConflict Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalNonleafPlan193.start Yulang.GeneralNominalExamples.displayRoot 1
+'Yulang.GeneralNominalNonleafLocal193.no_output_conflict' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.safe :
+  Yulang.B4TargetV6.SafeKnown
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafPlan193.start
+    Yulang.GeneralNominalExamples.displayRoot
+'Yulang.GeneralNominalNonleafLocal193.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafLocal193.selected :
+  Yulang.GeneralNominalCenteredHeadWFBoundary.Local Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafPlan193.start Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected 1 [Yulang.GeneralNominalExamples.displayChild])
+'Yulang.GeneralNominalNonleafLocal193.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.query :
+  Yulang.GeneralNominalInspection.queries (Yulang.GeneralNominalExamples.state true)
+      Yulang.GeneralNominalExamples.interpretation Yulang.GeneralNominalNonleafPlan193.declaration =
+    [Yulang.GeneralNominalInspection.Query.nominal 0 [Yulang.GeneralNominalInspection.Query.variables [0]]]
+'Yulang.GeneralNominalNonleafPlan193.query' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.raw_report :
+  Yulang.GeneralNominalPacketSupport.report Yulang.GeneralNominalNonleafPlan193.packet =
+    Yulang.GeneralNominalUnaryCaptureFacts.captured (Yulang.GeneralNominalExamples.state true) 0 0 0 (1, 1)
+'Yulang.GeneralNominalNonleafPlan193.raw_report' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.inherited :
+  (Yulang.GeneralNominalSharedCaptures.inheritedReport Yulang.GeneralNominalNonleafPlan193.packet).captures =
+    [{ name := 0, bounds := (1, 1), origin := some Yulang.GeneralNominalNonleafPlan193.origin }]
+'Yulang.GeneralNominalNonleafPlan193.inherited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.bindings : Yulang.GeneralNominalNonleafPlan193.packet.bindings = [(0, 1, 1)]
+'Yulang.GeneralNominalNonleafPlan193.bindings' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.binder_zero : Yulang.GeneralNominalNonleafPlan193.plan.binder 0 = 1
+'Yulang.GeneralNominalNonleafPlan193.binder_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.named_empty :
+  Yulang.GeneralNominalPacketSupport.namedSchema Yulang.GeneralNominalNonleafPlan193.packet = { }
+'Yulang.GeneralNominalNonleafPlan193.named_empty' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.input_empty :
+  Yulang.GeneralNominalPacketSupport.inputSchema Yulang.GeneralNominalNonleafPlan193.packet = { }
+'Yulang.GeneralNominalNonleafPlan193.input_empty' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.head_schema :
+  Yulang.GeneralNominalNonleafPlan193.plan.headSchema =
+    {
+      variables :=
+        [{ name := 0, origin := Yulang.GeneralNominalNonleafPlan193.origin,
+            mode := Yulang.GeneralNominalMaterialization.Mode.actual }],
+      tests :=
+        [(Yulang.GeneralNominalRecursiveInspection.Origin.source 0,
+            Yulang.GeneralNominalRecursiveInspection.Test.nominal 0 1)] }
+'Yulang.GeneralNominalNonleafPlan193.head_schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.first_child :
+  Yulang.GeneralNominalNonleafPlan193.plan.childSite Yulang.GeneralDeclarationExamples.displayChild ⋯ =
+    Yulang.GeneralNominalNonleafPlan193.centerSite
+'Yulang.GeneralNominalNonleafPlan193.first_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.equations (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalExamples.state true) m) :
+  Yulang.GeneralNominalNonleafPlan193.plan.Equations m
+'Yulang.GeneralNominalNonleafPlan193.equations' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.branch (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalExamples.state true) m) :
+  Yulang.GeneralNominalNonleafPlan193.packet.Holds m
+'Yulang.GeneralNominalNonleafPlan193.branch' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.holds (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models (Yulang.GeneralNominalExamples.state true) m) :
+  Yulang.GeneralNominalNonleafPlan193.plan.Holds m
+'Yulang.GeneralNominalNonleafPlan193.holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.children_exact :
+  Yulang.GeneralNominalNonleafPlan193.plan.packet.children = [Yulang.GeneralNominalExamples.displayChild]
+'Yulang.GeneralNominalNonleafPlan193.children_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.initial_source :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Initial
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+    Yulang.GeneralNominalNonleafPlan193.start
+'Yulang.GeneralNominalNonleafPlan193.initial_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafPlan193.source_models (m : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafPlan193.start m ↔
+    Yulang.GeneralNominalState.Models (Yulang.GeneralNominalExamples.state true) m
+'Yulang.GeneralNominalNonleafPlan193.source_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.query :
+  Yulang.GeneralNominalInspection.queries Yulang.GeneralNominalNonleafSafety193.current.state
+      Yulang.GeneralNominalNonleafSafety193.current.interpretation Yulang.GeneralNominalExamples.intDisplay =
+    [Yulang.GeneralNominalInspection.Query.scalar Yulang.Inference.Base.int]
+'Yulang.GeneralNominalNonleafReuse193.query' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.report_exact :
+  Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralNominalNonleafSafety193.current
+      Yulang.GeneralNominalExamples.intDisplay [(1, 1)] =
+    { inspected := [(1, 1)], checked := [(1, 1), (1, 1)] }
+'Yulang.GeneralNominalNonleafReuse193.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.packet_models (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalState.Models Yulang.GeneralNominalNonleafSafety193.current.state assignment) :
+  Yulang.GeneralNominalNonleafChild193.childPacket.Holds assignment
+'Yulang.GeneralNominalNonleafReuse193.packet_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.committed :
+  Yulang.GeneralNominalFeedbackSteps.Committed Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+    Yulang.GeneralNominalNonleafChild193.childPacket
+'Yulang.GeneralNominalNonleafReuse193.committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.head_schema :
+  Yulang.GeneralNominalNonleafChild193.childPlan.headSchema =
+    {
+      tests :=
+        [(Yulang.GeneralNominalRecursiveInspection.Origin.source 1,
+            Yulang.GeneralNominalRecursiveInspection.Test.scalar Yulang.Inference.Base.int)] }
+'Yulang.GeneralNominalNonleafReuse193.head_schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.head_equations :
+  Yulang.GeneralNominalCenteredHeadOutputs.HeadEquations Yulang.GeneralNominalNonleafChild193.childPlan
+    Yulang.GeneralNominalExamples.model
+'Yulang.GeneralNominalNonleafReuse193.head_equations' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.holds :
+  Yulang.GeneralNominalNonleafChild193.childPlan.Holds Yulang.GeneralNominalExamples.model
+'Yulang.GeneralNominalNonleafReuse193.holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.requests_empty
+  (root : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles) :
+  Yulang.GeneralNominalCenteredHeadOutputs.requests Yulang.GeneralNominalNonleafInstallation193.finish.core root = []
+'Yulang.GeneralNominalNonleafReuse193.requests_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.ready :
+  Yulang.GeneralNominalCenteredHeadOutputs.EffectsReady Yulang.GeneralNominalNonleafInstallation193.finish.core
+    Yulang.GeneralNominalExamples.displayChild Yulang.GeneralNominalNonleafChild193.childPlan
+'Yulang.GeneralNominalNonleafReuse193.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.selected :
+  Yulang.GeneralNominalCenteredHeadWFBoundary.Local Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish Yulang.GeneralNominalExamples.displayChild
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected 3 [])
+'Yulang.GeneralNominalNonleafReuse193.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.alias_identity {first last : Nat}
+  (related :
+    Yulang.GeneralNominalSaturationState.Alias Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+      first last) :
+  first = last
+'Yulang.GeneralNominalNonleafReuse193.alias_identity' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.choice :
+  Yulang.GeneralNominalCycleSteps.ChoiceCompatible
+    Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current
+    Yulang.GeneralNominalNonleafChild193.childPacket
+'Yulang.GeneralNominalNonleafReuse193.choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.support_ready_at (slot : Fin 2) :
+  Yulang.GeneralNominalSupport.ReadyAt Yulang.GeneralNominalNonleafInstallation193.finish.core.erased [] ↑slot
+'Yulang.GeneralNominalNonleafReuse193.support_ready_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.value_guard :
+  Yulang.GeneralNominalValueSupport.PacketGuard Yulang.GeneralNominalNonleafInstallation193.finish.core.erased
+    Yulang.GeneralNominalNonleafChild193.childPacket []
+'Yulang.GeneralNominalNonleafReuse193.value_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.installation_model :
+  Yulang.GeneralNominalCenteredHeadStepKernel.InstallationModels Yulang.GeneralNominalNonleafInstallation193.finish
+    Yulang.GeneralNominalNonleafChild193.childPlan [] Yulang.GeneralNominalExamples.model
+'Yulang.GeneralNominalNonleafReuse193.installation_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.child_enabled :
+  Yulang.GeneralNominalCenteredHeadStepKernel.Installable Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish Yulang.GeneralNominalNonleafChild193.childPlan []
+'Yulang.GeneralNominalNonleafReuse193.child_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.child_build :
+  Yulang.GeneralNominalReusableForest192.Build Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalNonleafInstallation193.finish
+    [Yulang.GeneralNominalExamples.displayChild] [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []]
+    Yulang.GeneralNominalNonleafInstallation193.finish
+'Yulang.GeneralNominalNonleafReuse193.child_build' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.source_build :
+  Yulang.GeneralNominalReusableForest192.Build Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralNominalNonleafPlan193.start
+    [Yulang.GeneralNominalExamples.displayRoot]
+    [Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []]]
+    Yulang.GeneralNominalNonleafInstallation193.finish
+'Yulang.GeneralNominalNonleafReuse193.source_build' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafReuse193.source_tree_sound :
+  Yulang.B4TargetV6.Reachable
+      (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles)
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.displayRoot
+      Yulang.GeneralNominalNonleafInstallation193.finish ∧
+    (∃ assignment,
+        Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish
+          assignment) ∧
+      ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafInstallation193.finish
+            assignment →
+          Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalNonleafPlan193.start assignment ∧
+            (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence
+              Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalNonleafInstallation193.finish assignment
+              Yulang.GeneralNominalExamples.displayRoot
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+                [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+'Yulang.GeneralNominalNonleafReuse193.source_tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.feedback_acyclic (source : Nat) :
+  ¬Yulang.GeneralNominalFeedbackK2.Cycle Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current source
+'Yulang.GeneralNominalNonleafSafety193.feedback_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.graph_tests :
+  (Yulang.GeneralNominalCenteredSteps.graph Yulang.GeneralNominalNonleafInstallation193.finish.core).tests =
+    [(Yulang.GeneralNominalRecursiveInspection.Origin.source 0,
+        Yulang.GeneralNominalRecursiveInspection.Test.nominal 0 1)]
+'Yulang.GeneralNominalNonleafSafety193.graph_tests' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.center_distinct :
+  ¬Yulang.GeneralNominalOriginTerms.Same Yulang.GeneralNominalExamples.model
+      (Yulang.GeneralNominalRecursiveInspection.Origin.source 0)
+      (Yulang.GeneralNominalRecursiveInspection.Origin.source 1)
+'Yulang.GeneralNominalNonleafSafety193.center_distinct' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.centered_acyclic (origin : Yulang.GeneralNominalRecursiveInspection.Origin) :
+  ¬Yulang.GeneralNominalCenteredSteps.Cyclic Yulang.GeneralNominalNonleafInstallation193.finish.core origin
+'Yulang.GeneralNominalNonleafSafety193.centered_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.ready_at (slot : Fin 2) :
+  Yulang.GeneralNominalSharedSupport.ReadyAt Yulang.GeneralNominalNonleafInstallation193.finish.core.erased ↑slot
+'Yulang.GeneralNominalNonleafSafety193.ready_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.child_decision :
+  Yulang.GeneralNominalCenteredSteps.DecisionGuard Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish.core Yulang.GeneralNominalExamples.displayChild
+'Yulang.GeneralNominalNonleafSafety193.child_decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.parent_decision :
+  Yulang.GeneralNominalCenteredSteps.DecisionGuard Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish.core Yulang.GeneralNominalExamples.displayRoot
+'Yulang.GeneralNominalNonleafSafety193.parent_decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.feedback_selected
+  {demand : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles} {key : Nat}
+  {kids : List (Yulang.GeneralNominalCycleBoundary.vocabulary Yulang.GeneralDeclarationExamples.roles).Demand}
+  (old :
+    Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralDictionarySupportRecursiveExample.finish.current demand
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key kids)) :
+  Yulang.GeneralNominalFeedbackK2.Local Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish.core.erased.current demand
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected key kids)
+'Yulang.GeneralNominalNonleafSafety193.feedback_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.child_center_selected :
+  Yulang.GeneralNominalCenteredBoundary.Local Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish.core Yulang.GeneralNominalExamples.displayChild
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected 3 [])
+'Yulang.GeneralNominalNonleafSafety193.child_center_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalNonleafSafety193.parent_center_selected :
+  Yulang.GeneralNominalCenteredBoundary.Local Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalNonleafInstallation193.finish.core Yulang.GeneralNominalExamples.displayRoot
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected 1 [Yulang.GeneralNominalExamples.displayChild])
+'Yulang.GeneralNominalNonleafSafety193.parent_center_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT:0
