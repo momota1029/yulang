@@ -585,6 +585,12 @@ The type-inference core calculus will be written in Lean and a companion documen
 - Cycle194 structural refinement: module guide now includes 4 further journal-accessibility theorems (39 total); ordinary readback needs coverage but no independent Acc certificate.
 - Cycle194 selected-payload refinement: module guide now includes 7 further theorems (46 total), deriving actual selected Classify payload Evidence from ordinary execution and journal coverage.
 - Cycle194 final local boundary: 51 total theorems; recorded-node Evidence and concrete Stable-but-not-journal-Covered witness distinguish successful reuse from missing semantic evidence.
+- [Total semantic labels and successor ancestry](2026-11-15-centered-head-mat-semantic-depth.md) — full-carrier normalization and corrected child-center readback, original ground-source conversion, and unrestricted retrospective ancestry conditional on finite enabled-head captures and their mass bound; unconditional depth and progress remain open.
 
+- [Ground head readback for total materialization](2026-11-15-centered-head-mat-head-readback.md) — semantic projection and head-mass inversion for arbitrary counted labels, finite center captures from the actual head-only frame, and unconditional ground depth, finite cover, accessibility and progress for the unrestricted successor Step.
+
+- [Canonical exits and live class retention for total materialization](2026-11-15-centered-head-mat-canonical-closure.md) — unrestricted two-way permutation simulation, unconditional canonical exit lifting and order laws, and reachable installation request invariance discharging all future live effects; head baseline, corrected packet assembly, choice agreement, and exhaustive K2 projections remain open.
+
+- [Output targets lose their clause identity](2026-11-15-centered-head-mat-output-target-collision.md) — checked WF ground initial counterexample: two distinct child clauses reuse a locally valid output equation ID, so total materialization gives one target incompatible meanings; stable selected parent refutes PacketAssembly and generated-child production.
 - [Cycle195 mixed readback catalogue](2026-11-14-cycle195-reuse-catalogue.md) and [module guide](2026-11-14-cycle195-catalogue-module-guide.md).
 - [Cycle195 current completion and limits](2026-11-14-cycle195-current-completion-guide.md).
