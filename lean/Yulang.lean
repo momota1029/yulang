@@ -3244,3 +3244,6 @@ import Yulang.GeneralNominalInitialOutputExact189
 import Yulang.GeneralNominalInitialLeafFixture189
 import Yulang.GeneralNominalInitialLeafLocal189
 import Yulang.GeneralNominalInitialLeafNonvacuity189
+import Yulang.GeneralNominalSingleVariableModels189
+import Yulang.GeneralNominalInitialNamedEvidence189
+import Yulang.GeneralNominalSourceVariableInstall189
