@@ -42,7 +42,7 @@ is used.
 
 ## Full centered traces and coarse source predicates
 
-`GeneralNominalCenteredTrace` proves source/configuration preservation,
+`GeneralNominalCenteredSourceTrace` proves source/configuration preservation,
 registration of generated occurrences, packet and site lineage, exact
 plan-to-packet correspondence, and interpretation of trusted facts along the
 full `GeneralNominalCenteredSteps.Step` relation. `trusted_models` maps actual

@@ -22,7 +22,7 @@ theorem lineage_used (lineage : Lineage registry seed root packets depth occurre
 theorem site_used (path : B4Target.Steps (Step registry root) (initial context root) state)
     (member : site ∈ state.sites) : Used root state.erased.current.packets site.occurrence.identity := by
   obtain ⟨raw,present,same⟩ := GeneralNominalCenteredProgress.sites_correspond path site member
-  obtain ⟨depth,lineage⟩ := GeneralNominalCenteredTrace.sites_lineage path raw present
+  obtain ⟨depth,lineage⟩ := GeneralNominalCenteredSourceTrace.sites_lineage path raw present
   exact same ▸ lineage_used lineage
 
 theorem new_packet_extension (checked : Checked registry)
@@ -36,13 +36,13 @@ theorem new_packet_extension (checked : Checked registry)
       (packet.declaration.requirements ≠ [] → Nonempty (Presentation context labels packet)) := by
   have seed : packet.context.state.seed = context.state.seed := by
     rw [enabled.1.2.1]
-    exact (GeneralNominalCenteredTrace.configuration_trace path).1
+    exact (GeneralNominalCenteredSourceTrace.configuration_trace path).1
   obtain ⟨labels,indexed,preserved,same,history,presented⟩ :=
     GeneralNominalIdentityJournal.new_packet_extension_preserving checked journal identity packet enabled.1.2.2.2.1
-      (GeneralNominalCenteredTrace.sites_lineage path packet.site enabled.1.2.2.1)
-      (fun prior member => ⟨(GeneralNominalCenteredTrace.packet_configuration path prior member).1.trans seed.symm,
-        (GeneralNominalCenteredTrace.packet_configuration path prior member).2,
-        GeneralNominalCenteredTrace.packets_lineage path prior member⟩) matching
+      (GeneralNominalCenteredSourceTrace.sites_lineage path packet.site enabled.1.2.2.1)
+      (fun prior member => ⟨(GeneralNominalCenteredSourceTrace.packet_configuration path prior member).1.trans seed.symm,
+        (GeneralNominalCenteredSourceTrace.packet_configuration path prior member).2,
+        GeneralNominalCenteredSourceTrace.packets_lineage path prior member⟩) matching
   exact ⟨labels,indexed,same,fun site member => preserved site.occurrence (site_used path member),history,presented⟩
 
 theorem install_journal (checked : Checked registry)

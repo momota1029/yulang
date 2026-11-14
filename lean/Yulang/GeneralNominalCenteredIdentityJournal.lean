@@ -1,4 +1,4 @@
-import Yulang.GeneralNominalCenteredTrace
+import Yulang.GeneralNominalCenteredSourceTrace
 
 /-! Identity-indexed journals initialize with unknown source holes and extend
 along full centered traces. Historical compatibility is constructed from the
@@ -6,7 +6,7 @@ allocation genealogy; only new head matching remains a producer premise. -/
 namespace Yulang.GeneralNominalCenteredIdentityJournal
 open GeneralDeclarations GeneralSourceDictionaries GeneralNominalCenteredSteps
 open GeneralNominalCanonicalHoleJournal GeneralNominalHoleElimination
-open GeneralNominalIdentityJournal GeneralNominalCenteredTrace
+open GeneralNominalIdentityJournal GeneralNominalCenteredSourceTrace
 open GeneralNominalSourceProducerHandoff GeneralNominalCompatibleJournalExtension
 open GeneralNominalCanonicalPacketTransport
 

@@ -41,7 +41,7 @@ theorem coarse_models (step : Step registry root before after) (facts : List (Fa
     GeneralNominalSharedSupport.Models after.erased facts = GeneralNominalSharedSupport.Models before.erased facts := by
   funext model
   simp only [GeneralNominalSharedSupport.Models,GeneralNominalSettledSupport.Models,
-    (GeneralNominalCenteredTrace.source_step step).1]
+    (GeneralNominalCenteredSourceTrace.source_step step).1]
 
 theorem trusted_step (step : Step registry root before after)
     (trusted : Trusted before.erased facts readbacks) : Trusted after.erased facts readbacks := by

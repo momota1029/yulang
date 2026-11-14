@@ -3,7 +3,7 @@ import Yulang.GeneralNominalIdentityJournal
 
 /-! Structural and semantic invariants for the full centered relation.
 These proofs do not require erasure into the older guarded relation. -/
-namespace Yulang.GeneralNominalCenteredTrace
+namespace Yulang.GeneralNominalCenteredSourceTrace
 open GeneralDeclarations GeneralSourceDictionaries GeneralNominalCenters GeneralNominalCenteredSteps
 open GeneralNominalPatersonLineage
 
@@ -249,4 +249,4 @@ theorem trusted_inhabited (path : B4Target.Steps (Step registry root) (initial c
   obtain ⟨model,valid⟩ := inhabited
   exact ⟨model,trusted_models path trusted valid⟩
 
-end Yulang.GeneralNominalCenteredTrace
+end Yulang.GeneralNominalCenteredSourceTrace

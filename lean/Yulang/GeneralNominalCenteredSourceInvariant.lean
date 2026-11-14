@@ -123,7 +123,7 @@ theorem registered_site (path : B4Target.Steps (Step registry root) (initial con
     (coverage : Coverage registry context root state inventory journal) (member : site ∈ state.sites) :
     SiteValues (Models state) context inventory.holes (keyMenu registry) (testMenu context registry) journal.labels site :=
   site_restrict (coverage.sites site member)
-    (fun _ valid => GeneralNominalCenteredTrace.trusted_models path coverage.centeredTrusted valid)
+    (fun _ valid => GeneralNominalCenteredSourceTrace.trusted_models path coverage.centeredTrusted valid)
 
 theorem promoted_output (path : B4Target.Steps (Step registry root) (initial context root) state)
     (coverage : Coverage registry context root state inventory journal)

@@ -21,7 +21,7 @@ theorem models_step (step : Step registry root before after) (facts : List (Fact
       GeneralNominalCenteredSupport.Models before.erased before.sourceSites facts := by
   funext model
   simp only [GeneralNominalCenteredSupport.Models,
-    (GeneralNominalCenteredTrace.source_step step).1,(GeneralNominalCenteredTrace.source_step step).2]
+    (GeneralNominalCenteredSourceTrace.source_step step).1,(GeneralNominalCenteredSourceTrace.source_step step).2]
 
 theorem trusted_step (step : Step registry root before after)
     (trusted : Trusted before.erased before.sourceSites before.plans facts) :
@@ -84,7 +84,7 @@ theorem output_configuration
         rcases List.mem_cons.mp member with impossible | member
         · cases impossible
         · cases List.mem_singleton.mp member
-          have config := GeneralNominalCenteredTrace.configuration_trace path
+          have config := GeneralNominalCenteredSourceTrace.configuration_trace path
           exact ⟨enabled.1.2.2.2.1,
             (congrArg (fun ctx : GeneralNominalCandidates.Context => ctx.state.constructors) enabled.1.2.1).trans config.2.1,
             (congrArg GeneralNominalCandidates.Context.interpretation enabled.1.2.1).trans config.2.2⟩

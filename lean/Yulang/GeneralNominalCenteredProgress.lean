@@ -1,4 +1,4 @@
-import Yulang.GeneralNominalCenteredTrace
+import Yulang.GeneralNominalCenteredSourceTrace
 import Yulang.GeneralNominalWhereRequestMembership
 
 /-! Finite administrative progress for the full centered transition relation.
@@ -264,7 +264,7 @@ theorem step_cases (path : B4Target.Steps (Step registry root) (initial context 
     apply Or.inl
     cases action with
     | enqueue linked absent =>
-      obtain ⟨site,member,same⟩ := GeneralNominalCenteredTrace.generated_registered path generated
+      obtain ⟨site,member,same⟩ := GeneralNominalCenteredSourceTrace.generated_registered path generated
       exact False.elim (absent site member same)
     | refresh context certificate source member unknown known =>
       exact progress_of_update (registry := registry) (.ordinary (.refresh focus context certificate source member unknown known))

@@ -1,5 +1,5 @@
 import Yulang.GeneralNominalIdentityJournal
-import Yulang.GeneralNominalCenteredTrace
+import Yulang.GeneralNominalCenteredSourceTrace
 import Yulang.GeneralNominalCenteredIdentityJournal
 import Yulang.GeneralNominalCenteredProgress
 import Yulang.GeneralNominalCenteredSnapshot
@@ -28,22 +28,22 @@ import Yulang.GeneralNominalCenteredSiteLabels
 #print axioms Yulang.GeneralNominalIdentityJournal.new_packet_extension
 #print axioms Yulang.GeneralNominalIdentityJournal.packet_configuration
 #print axioms Yulang.GeneralNominalIdentityJournal.reachable_new_packet
-#print axioms Yulang.GeneralNominalCenteredTrace.configuration_step
-#print axioms Yulang.GeneralNominalCenteredTrace.configuration_trace
-#print axioms Yulang.GeneralNominalCenteredTrace.source_step
-#print axioms Yulang.GeneralNominalCenteredTrace.source_trace
-#print axioms Yulang.GeneralNominalCenteredTrace.Recorded
-#print axioms Yulang.GeneralNominalCenteredTrace.recorded_step
-#print axioms Yulang.GeneralNominalCenteredTrace.recorded_trace
-#print axioms Yulang.GeneralNominalCenteredTrace.generated_registered
-#print axioms Yulang.GeneralNominalCenteredTrace.sites_lineage
-#print axioms Yulang.GeneralNominalCenteredTrace.packets_lineage
-#print axioms Yulang.GeneralNominalCenteredTrace.packet_configuration
-#print axioms Yulang.GeneralNominalCenteredTrace.plan_packets
-#print axioms Yulang.GeneralNominalCenteredTrace.all_models
-#print axioms Yulang.GeneralNominalCenteredTrace.plan_models
-#print axioms Yulang.GeneralNominalCenteredTrace.trusted_models
-#print axioms Yulang.GeneralNominalCenteredTrace.trusted_inhabited
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.configuration_step
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.configuration_trace
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.source_step
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.source_trace
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.Recorded
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.recorded_step
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.recorded_trace
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.generated_registered
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.sites_lineage
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.packets_lineage
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.packet_configuration
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.plan_packets
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.all_models
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.plan_models
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.trusted_models
+#print axioms Yulang.GeneralNominalCenteredSourceTrace.trusted_inhabited
 #print axioms Yulang.GeneralNominalCenteredIdentityJournal.initial_journal
 #print axioms Yulang.GeneralNominalCenteredIdentityJournal.identity_transform
 #print axioms Yulang.GeneralNominalCenteredIdentityJournal.refinement_journal

@@ -3,7 +3,7 @@ import Yulang.GeneralNominalCenteredProgress
 /-! A finite signature cover for each bounded full centered journal. -/
 namespace Yulang.GeneralNominalCenteredSnapshot
 open GeneralDeclarations GeneralSourceDictionaries GeneralNominalSaturationState
-open GeneralNominalCenters GeneralNominalCenteredSteps GeneralNominalCenteredTrace
+open GeneralNominalCenters GeneralNominalCenteredSteps GeneralNominalCenteredSourceTrace
 open GeneralNominalInvocationAncestry GeneralNominalAllocationSupport GeneralNominalOccurrenceEnumeration
 open GeneralNominalSharedBudget (Signature Represents)
 open GeneralNominalSnapshotCover (Parents signatures)
@@ -30,7 +30,7 @@ theorem snapshot (checked : Checked registry)
     | administrative focus after action =>
       cases action with
       | enqueue linked absent =>
-        obtain ⟨site,member,same⟩ := GeneralNominalCenteredTrace.generated_registered path generated
+        obtain ⟨site,member,same⟩ := GeneralNominalCenteredSourceTrace.generated_registered path generated
         exact False.elim (absent site member same)
       | refresh after certificate identity member unknown known =>
         have old := ih parents
