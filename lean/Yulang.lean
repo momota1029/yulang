@@ -2880,3 +2880,4 @@ import Yulang.GeneralDictionaryCenteredScalar177
 import Yulang.GeneralDictionaryCenteredScalarDiscovery177
 import Yulang.GeneralDictionaryCenteredScalarRegression177
 import Yulang.GeneralDictionaryCenteredRootScalar177
+import Yulang.GeneralDictionaryHeadFootprintRegression176
