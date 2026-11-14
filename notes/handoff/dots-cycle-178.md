@@ -46,3 +46,38 @@ Its 28 added files and two append-only indexes were incorporated without droppin
 any earlier work/dots-main file. This includes Astra's counterexample to the
 nonterminal installation preservation contract, not to termination or G.
 Focused validation of those upstream additions is running separately.
+
+## Second checkpoint: corrected CI and stable comparison
+
+The initial CI on 56a8a338 passed core but failed the Lean job because its build
+policy treats an unused-simp warning as failure. The redundant simp argument
+was removed without changing the theorem statement. Focused compilation now
+uses `-DwarningAsError=true` as well as `--trust=0`. This was a verification
+failure, not a newly introduced false theorem. Full CI will be rechecked on
+the corrected source commit.
+
+Thirteen source modules are now locally validated; the expanded small audit
+passes all 285 declarations. Descriptor/parameter witnesses are recovered from
+actual Finished inspection. Additional unconditional producers cover point
+outer nominal arguments with arbitrary finite linear type binders, and
+nullary nominal heads at either point or nonpoint endpoints.
+
+A third assignment sets the explicit actual binder center to int and proves
+full centered Plan.Holds. It must not be confused with the earlier corrected
+raw-branch assignment. Source value support, raw Joint, raw Installable and
+full centered Installable are constructed for the finite fixture. Consequently
+`stable_not_selected` proves its bad-fixed-model state cannot simultaneously
+be Stable and selected. The apparent gap is therefore not a stable-selection
+counterexample.
+
+The source-support construction is generalized to arbitrary finite nominal-pair
+shapes in an initial singleton registry. The initial adapter derives raw Joint
+and raw Installable from Candidate+selected, then full Installable from the
+explicit common-centered-model existence premise. General production of that
+common model remains OPEN. This nonpoint initial shape does not directly meet
+G's point-root Initial predicate; support preservation to arbitrary reachable
+states also remains open.
+
+Independent review found no model substitution or G completion overclaim and
+recompiled the point/nonpoint contrast separately. The two roots/states in
+that contrast are different, despite equal nominal endpoint values.

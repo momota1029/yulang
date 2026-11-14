@@ -52,7 +52,7 @@ theorem metadata : Metadata registry context := by
     have same : GeneralCandidateInspection.Primitive.scalar .int = primitive := Option.some.inj recorded
     subst primitive
     exact ⟨⟨[],2⟩,rfl,rfl⟩
-  · simp [GeneralNominalExamples.interpretation,two] at recorded
+  · simp [two] at recorded
 
 theorem prepared : Prepared registry context root declaration packet.checked := by
   refine ⟨metadata,?_,?_,[(0,1)],located,?_,?_,assignment true,branch_good⟩
