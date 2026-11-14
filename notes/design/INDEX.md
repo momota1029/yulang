@@ -481,3 +481,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered administrative ground composition](2026-11-14-centered-administrative-composition.md) — merge-aware Local, eleven unconditional V5 fields, all-state where accessibility, fixed-snapshot reordering, and explicit production/final-observation residuals.
 
 - [Centered production and terminal observation limits](2026-11-14-centered-terminal-production.md) — persistent packet commitment, exact selected-frame completion residual, same-center merge availability, and an actual ground terminal fork refuting full primitive-observation confluence; the two V5 fields remain open.
+
+- [Centered completion and registered terminal confluence](2026-11-14-centered-completion-registered-confluence.md) — initial Joint/value-support proofs, exact generated/unregistered Local split, and actual inhabited terminal executions refuting literal Local confluence at a generated root; semantic child inputs agree and general production remains open.
