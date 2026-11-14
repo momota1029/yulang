@@ -19,3 +19,5 @@ restricted relation. General refresh/reobserve remains outside it.
 Independent performance work replaces repeated recursive role-height evaluation
 with a finite table, preserving the original checker extensionally. No language
 rejection or new role-DAG restriction is introduced.
+
+Cycle176 recovery note: cycle175 final publication recorded implementation and focused trust-zero verification complete. Integrated design lines above are retained unchanged.

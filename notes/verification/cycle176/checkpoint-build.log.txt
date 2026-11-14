@@ -1,0 +1,50 @@
+DEPENDENCY_CLOSURE 838 REBUILD 24
+START Yulang.GeneralNominalCenteredInspection
+END Yulang.GeneralNominalCenteredInspection 0
+START Yulang.GeneralNominalRelationalMatching
+END Yulang.GeneralNominalRelationalMatching 0
+START Yulang.GeneralNominalCenteredCaptureSchema
+END Yulang.GeneralNominalCenteredCaptureSchema 0
+START Yulang.GeneralNominalCenteredHeadMatching
+END Yulang.GeneralNominalCenteredHeadMatching 0
+START Yulang.GeneralNominalCenteredCaptureLabels
+END Yulang.GeneralNominalCenteredCaptureLabels 0
+START Yulang.GeneralPatternCoveredResult
+END Yulang.GeneralPatternCoveredResult 0
+START Yulang.GeneralNominalCenteredProduction
+END Yulang.GeneralNominalCenteredProduction 0
+START Yulang.GeneralNominalFiniteProgress
+END Yulang.GeneralNominalFiniteProgress 0
+START Yulang.GeneralNominalCenteredTrace
+END Yulang.GeneralNominalCenteredTrace 0
+START Yulang.GeneralNominalCenteredPointSource
+END Yulang.GeneralNominalCenteredPointSource 0
+START Yulang.GeneralNominalCenteredAncestry
+END Yulang.GeneralNominalCenteredAncestry 0
+START Yulang.GeneralNominalCenteredEnumeration
+END Yulang.GeneralNominalCenteredEnumeration 0
+START Yulang.GeneralNominalCenteredAccessibility
+END Yulang.GeneralNominalCenteredAccessibility 0
+START Yulang.GeneralNominalCenteredGroundBoundary
+END Yulang.GeneralNominalCenteredGroundBoundary 0
+START Yulang.GeneralDictionaryCenteredCandidate176
+END Yulang.GeneralDictionaryCenteredCandidate176 0
+START Yulang.GeneralDictionaryCenteredRecorded176
+END Yulang.GeneralDictionaryCenteredRecorded176 0
+START Yulang.GeneralDictionaryCenteredLedger176
+END Yulang.GeneralDictionaryCenteredLedger176 0
+START Yulang.GeneralDictionaryCenteredReady176
+END Yulang.GeneralDictionaryCenteredReady176 0
+START Yulang.GeneralDictionaryCenteredFlexible176
+END Yulang.GeneralDictionaryCenteredFlexible176 0
+START Yulang.GeneralDictionaryCenteredTree176
+END Yulang.GeneralDictionaryCenteredTree176 0
+START Yulang.GeneralNominalCenteredAllocation
+END Yulang.GeneralNominalCenteredAllocation 0
+START Yulang.GeneralNominalCenteredSelection
+END Yulang.GeneralNominalCenteredSelection 0
+START Yulang.GeneralNominalCenteredWhere
+END Yulang.GeneralNominalCenteredWhere 0
+START Yulang.GeneralNominalCenteredGroundComposition
+END Yulang.GeneralNominalCenteredGroundComposition 0
+PASS 24

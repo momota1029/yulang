@@ -1,0 +1,10 @@
+'Yulang.GeneralDictionaryCenteredReady176.stable_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.stable_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.selected_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.selected_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.ModeledSelectedInstallable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredReady176.evidenceNode_of_modeledSelectedInstallable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
