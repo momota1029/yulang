@@ -81,3 +81,36 @@ states also remains open.
 Independent review found no model substitution or G completion overclaim and
 recompiled the point/nonpoint contrast separately. The two roots/states in
 that contrast are different, despite equal nominal endpoint values.
+
+## Final fragment: repeated binders and a restricted G consumer
+
+Sixteen new source modules pass serial focused compilation with trust zero and
+warnings as errors. The final small audit checks all 327 new declarations.
+The shared-binder extension removes the distinct-name hypothesis: exact Holds
+now requires same-model repeated-name coherence plus actual fresh endpoint
+merges. Coherence is equivalent to the necessary projection condition;
+it is not silently assumed automatic from Candidate.
+
+Under a role-local restriction that every visible matching declaration has a
+nullary nominal query, no input names, no associated outputs and no requirements,
+GeneralDictionaryCenteredNullary178.evidence_at_G produces Evidence on the actual
+G boundary for root or generated instances, using the supplied current model.
+The associated=[] premise is not confused with outputNames. This restricted
+consumer does NOT discharge unrestricted G.EvidenceNode: OPEN, 0 completed fields.
+
+Independent review recompiled the shared-binder and nullary-G modules with
+trust zero and warnings as errors. No model substitution or hidden distinctness
+was found. The merge-only residual is conditional on source/order/coherence;
+comments now explicitly state this qualification.
+
+Checkpoint 30f8f6beb36c680babe4b1dac92e1e3be4244db3 passed both GitHub CI jobs:
+core 43543184819, proof 43543184926. The proof job's Lean action, all-declaration
+audit and executable examples all succeeded. Its 25 changed paths were fetched
+back and matched byte hashes. This CI covers the thirteen-module checkpoint,
+not automatically the later additions; final CI is checked separately.
+
+Final declaration types were printed with full names (155 public checks).
+The read-only dependency report reaches 257/327 new declarations from seven
+fragment consumers and 50/327 from the restricted nullary G consumer alone.
+The unchanged unrestricted composition reaches 0/327: no completion is claimed.
+All three reach scans, the final 327-declaration axiom gate and type checks exit0.

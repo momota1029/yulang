@@ -27,3 +27,20 @@ no new Yulang2 runtime behavior is asserted.
 Focused dependency-cache build, separate small trust-zero audit, raw logs and
 source hashes. No local full build. Exact source checkpoint and full CI status
 will be recorded separately. End this cycle within 55 minutes.
+
+## Repeated names and actual G use
+
+NominalPairShared178 drops distinctness. Four-direction projection coherence
+is exactly controlled by source models, outer endpoint order and equality of
+repeated lower-side parameters. The centered same-model residual is coherence
+plus merges; Candidate does not imply these automatically.
+
+CenteredNullary178 proves evidence_at_G at the actual groundBoundary for the
+role-local nullary/no-associated-output/no-requirement fragment. It does not
+export the general EvidenceNode field or modify GroundComposition.
+
+Scope ledger: finite linear nominal pairs have exact residual/discovery/point
+producer; repeated names have exact coherence-and-merges residual; nullary role
+fragment has an actual restricted G consumer. General joint centered model
+production and reachable source support preservation remain OPEN. The general
+G field and all other fields remain unchanged.
