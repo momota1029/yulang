@@ -488,3 +488,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered source retention and the selected-ledger readback obstruction](2026-11-14-centered-source-live-retention.md) — full-frontier strengthened coverage, transport through centered steps and semantic eliminations, and a reachable counterexample to exact selected-ledger input readback; unconditional Class P accessibility remains open.
 
 - [Exact snapshot support cannot be completed by a trusted ledger](2026-11-14-centered-source-snapshot-ledger.md) — snapshot-supported initializer and conditional input promotion; a reachable refresh excludes every trusted exact-readback ledger, so invariant-only completion of that contract is impossible; Class P accessibility remains open.
+
+- [An unsettled-output refresh changes an actual centered decision](2026-11-14-centered-source-unsettled-refresh.md) — Checked unknown-input source, paired equal-model refreshes, source-supported pending versus actual selected/install, and an unsupported descriptor link; owner repair proposed, Step unchanged.
