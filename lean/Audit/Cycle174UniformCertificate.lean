@@ -1,0 +1,16 @@
+import Yulang.GeneralDictionaryAgreedUniform174
+
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.belowCount_le_length
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.belowCount_mono
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.belowCount_strict
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.child_mem_nodes
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.compressed_stratified
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.uniform_complete
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.certify_iff
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.certify_reorders
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.certified_run_resolves_iff
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.certified_completed_iff
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.wrap_certified
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.recursive_not_certified
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.computedHeight_le_fuel
+#print axioms Yulang.GeneralDictionaryAgreedUniform174.certified_descent_bound

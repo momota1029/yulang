@@ -87,3 +87,15 @@ Yulang2 の公開 oracle X1/C3-PARENT は fresh read したが、actual guard �
 
 ## 中間記録 20:52 UTC
 9 modules、11 audit files、namespace 95 declarations PASS。追加の954 closure/39 rebuildによる回収172含む再検証を実行中。これは最終終了報告ではない。
+
+## 表現の補足（レビュー反映）
+
+上の成果9の「実際に emit」は、**選択候補の children 計算から得られる checked clause/packet** の意味であり、実 Step による install 済み・journal 記録済みという意味ではない。selected_child_schema 自体は Installable、Committed、Step を結論に持たない。
+表の treeExecution は、より正確には **FrontierExact と Child-Acc を引数に取る当該フィールドの型** の証明。whereAccessible が証明済みになったわけではない。このため ground 10/14 supplied・4/14 未証明の計数を維持する。
+
+## 最終記録 2026-11-13 21:11 UTC
+
+- cycle173 を終了。開始から約47分。環境中断から21:09 UTCに復旧し、残存 Lean/lake writer がないことを確認した。
+- 最後の追加検証（954 closure / 39 rebuild、cycle172 全対象を含む）はログが途中で終わり、終了コードがないため **未完了**。これを成功とは扱わない。先に完了した941 closure / 38 rebuild と9 modules / 11 audit / 95 declarationsのgate PASSを今回の確認済み範囲とする。
+- 公開 checkpoint e7087f60d4fa2777541bad933d1de29726f1c689を再取得し確認。Leanソースにはそれ以降の変更なし。最終公開はこの報告、文言補正、途中ログ、完了心拍だけ。全体ビルド未実行。
+- 公開のためのwriterは終了後解放。次回はfresh integrationとinboxを読み直し、I-28の残件を継続する。
