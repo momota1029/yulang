@@ -493,3 +493,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle176 centered evidence](2026-11-14-cycle176-centered-evidence.md): actual centered recorded-source and current-context scope.
 - [2026-11-14 Centered ground composition](2026-11-14-centered-ground-composition.md) — ten V5 fields, a reachable selection/installation obstruction, general center model extension, and conditional P/W ledger rejection; source execution remains open.
+
+- [Cycle176 module guide](2026-11-14-cycle176-module-guide.md): exact declaration inventory and fragment limits.
+- [Source syntax extraction and finite capture refinement](2026-11-14-source-syntax-refinement.md) — Unrestricted request templates/canonicality, coarse-ledger composition, finite simultaneous capture refinement, and conditional historical label extension; reachable source production and universal next remain open.

@@ -1,0 +1,9 @@
+'Yulang.GeneralDictionaryCenteredNonvacuous176.Step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.revision_trace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.aligned_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.actual_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCenteredNonvacuous176.initial_dictionary_nonvacuous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -109,3 +109,137 @@ Aggregate checkpoint gate PASS83 declarations. One invocation exited135
 cached object is a possible cause, not an established diagnosis. Further cache
 writes are serialized. Individual source and audit checks passed. The newer
 footprint and inhabited modules also have independent trust-zero source/audits.
+
+## 追加成果と限界（最終記録の前段）
+
+### 改善する descriptor revision を実履歴へ接続
+
+`GeneralDictionaryCenteredRevision176` は、既存の
+`GeneralDictionaryRecordedRevisionTrace.observation` と
+`GeneralDictionaryInspectionLocality.instance_of_footprint` を再利用する。
+任意の実 centered administrative reobserve のうち、各記録済み packet
+の親 occurrence と registry の有限宣言について、検査される nominal
+slot の descriptor が変わらない場合、current Instance を保持する。
+view・carrier・descriptor domain は revision の定義どおり固定する。
+既存の Certified と Improves は必要。Refines は要求しない。
+改善する descriptor revision を Refines と誤認しない。
+
+この更新と以前の footprint/flexible 更新を混ぜた任意の有限履歴で、
+空の初期 journal から RecordedCurrent を導く。最終状態の既存
+RecordedTree 構文から、任意の同一最終 centered model に対する辞書全体の
+Evidence を導く。子 Evidence は仮定しない。検査条件は有限な構文的述語であり、
+実行可能な boolean checker を新設したという主張ではない。
+新たな Instance/Evidence/report 等号の guard はないが、実際の更新が持つ
+既存の意味論的 certification はそのまま必要になる。
+
+### 非空モデルを伴う最外側の有限履歴定理
+
+`GeneralDictionaryCenteredNonvacuous176.initial_dictionary_nonvacuous`:
+任意の点 root、初期 source context、そこを満たす明示モデル、同じ状態列上の
+revision/footprint 更新かつ output-aligned merge の有限履歴、最終 root の
+有限 RecordedTree を取る。このとき構造的 Discharged、最終状態を満たし
+辞書 Evidence も満たすモデルの存在、全最終モデルでの同じ辞書 Evidence
+を得る。健全性側の定理であり、入力定理の前提を消した完成性ではない。
+一般の ground executor がこの履歴断片に属すること、また有限の辞書木が
+存在することは証明していない。
+
+### 回帰例の強さを区別
+
+`HeadFootprintRegression176`: slot1 の scalar Int を検査し、未検査 slot0 の
+normalized deferred 理由を unresolved から unsupported(var0) に変える。
+view 不一致、Agrees、Finished、Refines、同じ具体モデルで新旧充足、report
+保存、query が nominal-only でないことを kernel で確認した。
+これは局所性の回帰であり、情報が増える known-progress 付き Refresh 実行例
+ではない。新しい非空 journal の revision 実行例を作ったとは主張しない。
+
+既存 NonemptyRevisionExample を centered 履歴へ持ち上げる案は未完。
+旧 packet.Holds から Plan.Equations と共通モデルは自動では出ず、旧
+FeedbackSites.emitted と SharedEmission.emitted・保持される sites/plans/facts
+の対応、centered install の support/safety guard、実インストール後の
+revision 証明移送が別途必要。到達不能な erased journal で代用しなかった。
+
+### 最新 integration の確認
+
+23:55再取得で cf6e554f292c15102fc7a18da3e22a2adb5ed610 に進んだ。
+追加14パスを取り込み、I-30変更なしを確認した。source-syntax の10モジュールは
+旧Actual Step上のもの。common_ledger は Trusted 証明をまとめるが任意の
+モデルを結合せず、reachable_promoted_output は TrustedInputs を仮定する。
+したがって今回の centered 共通モデル・Joint・support 残差を閉じたとは言わない。
+
+## V5の14フィールド（正確なcentered ground G）
+
+|field|現状|
+|---|---|
+|progress|既存ground progress|
+|execution|既存GroundComposition.executor|
+|halted|同executorの停止|
+|closure|既存centered closure|
+|stepModels|既存centered stepModels|
+|frontierLocal|既存対応|
+|localIdentity|既存定義的一致|
+|whereAccessible|未証明、Astra担当|
+|treeExecution|既存、型に明示されたAccを使用|
+|canonicalLocalOrder|未証明、Astra担当|
+|dictionaryRefl|既存|
+|evidenceNode|未証明。今回の条件付きconsumerと具体的履歴健全性はあるがproducer未完|
+|generatedChildren|未証明、Astra担当|
+|initialReorders|既存ground初期制限|
+
+10/14既存、4/14未完。このサイクルで新たに閉じた一般fieldは0。
+B4全体、一般の外側resolve_exact、完全性、主型性の完成は主張しない。
+
+## SourceBoundaryの13項目
+
+|項目|このサイクルでの扱い|
+|---|---|
+|Checked|既存registry checking、変更なし|
+|Models|ordinary journal＋center sites＋plan equations、同じ最終モデルを使う|
+|Step|既存actual centered、変更なし。別名で部分関係への所属を明示|
+|Stable|生成需要でactual Atがないこと、変更なし|
+|Generated|既存shared生成関係|
+|RootPending|既存、変更なし|
+|RootK2|既存centered graph含む、変更なし|
+|CandidateK2|既存、変更なし|
+|InspectionPending|既存、変更なし|
+|Survivor|既存、変更なし。独立なbranch witnessはcommon modelではない|
+|Evidence|current-context宣言的証拠。履歴の有限観測条件の下で今回輸送|
+|Reorders|既存、変更なし|
+|DictionaryEquivalent|既存、一般の最終順序独立は今回扱わない|
+
+Initial は既存の InitialSource・PointSource・GroundRoots の制限のまま。
+言語の拒否規則を増やしていない。履歴断片の条件は証明範囲の制限。
+
+## 次の名指しの橋（3項目）
+
+1. `ModeledSelectedInstallable` またはそれより弱い committed/current-Instance
+   producer を、正確なGの到達可能・Stable・Local selectedから構成する。
+   別々のpacketモデルとcentered journalモデルを同一視しない。
+2. 到達状態の raw SameInputs/MergesClosed と実中心名・support の対応を示す。
+   今回は同じ中心名の場合の `stable_named_alias` だけを閉じた。
+3. 実更新から有限観測／revision footprint条件を導くか、任意変更で本当に変わる
+   child occurrences を追跡する新しい証拠輸送を示す。一般executorの断片所属は未完。
+
+新しい意味論の選択質問は追加していない。監督役のG'指示が来た場合は次回再読する。
+
+## 最終候補の検証（00:02 UTC）
+
+14新規moduleについて既存176 objectを含めない別cacheを作り、依存関係込みで
+34moduleを source から focused `lean -j1 --trust=0` 再構築: PASS、exit0。
+全14moduleのprivate/generatedも含む247宣言の推移的公理ゲート: PASS、exit0。
+明示public宣言112個の型表示と個別公理表示もPASS。これには定義・構造も含み、
+112本の定理を追加したという意味ではない。全体build/verifyは未実行のまま。
+
+T7b読取解析: Gのcompositionから0/247、条件付きEvidenceNodeから6/247、
+非空モデルつき有限辞書履歴定理から112/247、主要7roots合計161/247。
+Gの本体へ新fieldが接続済みだと誤認しないための区別。削除は一切していない。
+詳細表・root名・全TSVは `notes/verification/cycle176/final-reach/`。
+
+## Journal-tree 証明書の必要条件ではないこと（00:08 UTC）
+
+`CenteredLeafRegression176` は実際の点入力 centered 初期sourceと具体モデルで、
+scalar Int の Evidence(node3[]) を示す。一方、journal は空なので任意payloadの
+RecordedTree はない。このleaf packetは全初期モデルで既にCommittedであり、
+実installが要求するnoveltyを満たさない。記録を作るためだけの実行を捏造しなかった。
+したがって今回のRecordedTree consumerは十分条件であって完全な証明書ではない。
+一般evidenceNodeには、未記録でも既にCommittedな候補を扱う経路が必要。
+この回帰の段階ではStableや一般executorの最終性は主張していない。
