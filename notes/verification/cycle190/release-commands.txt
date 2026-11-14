@@ -1,0 +1,12 @@
+Additional commands from lean/ (all exit0):
+lake build --wfail Yulang.GeneralNominalRepeatedSuccessor190
+lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalRepeatedSuccessor190.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle190CompletionGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle190CompletionTypes.lean
+lake build --wfail Yulang.GeneralNominalInstalledEvidence190
+lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralNominalInstalledEvidence190.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle190ReleaseGate.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle190InstalledTypes.lean
+YULANG_REACH_ROOTS=<absolute general/release-local roots> YULANG_REACH_OUTPUT=<absolute corresponding release TSV> lake env lean --trust=0 -DwarningAsError=true ../tools/ReachCycle190Release.lean
+From repo root (exit0): timeout 4m bash tools/verify-lean.sh . origin/integration/m1-final --no-build
+Only focused build targets were used; cached dependency job counts are not full-build invocations. All17 proof source modules checked across strict-source, successor-strict and installed-strict logs.

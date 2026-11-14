@@ -1,0 +1,2 @@
+Existing integration root bytes preserved as exact prefix; all16 proof modules imported. PASS
+All published prior-cycle Lean files unchanged locally; upstream three audit repairs inherited. PASS

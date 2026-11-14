@@ -1,0 +1,9 @@
+PATH=/tmp/yulang183-toolchain/lean-4.35.0-linux/bin:$PATH
+cd lean
+lake build --wfail Yulang.GeneralNominalForestRegression191 Yulang.GeneralNominalTwoInstallEvidence191
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle191PublicTypes.lean
+lake env lean --trust=0 -DwarningAsError=true Audit/Cycle191Gate.lean
+for f in Yulang/*191.lean; do lake env lean --trust=0 -DwarningAsError=true "$f"; done
+# focused build/types/gate exit0 in checkpoint-verification.log; all five strict sources exit0 in strict-source.log
+# Read-only reach uses explicit roots and output variables; see general/local-roots.txt and reach logs.
+# No full lake build or full verify-lean.sh build; supervisor handles full integration verification.

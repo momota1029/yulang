@@ -571,3 +571,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle190 source linear Evidence](2026-11-14-cycle190-source-linear-evidence.md): source-derived finite linear leaf interface; general EvidenceNode remains open.
 
 - [Cycle190 quantified claims](2026-11-14-cycle190-claims-ja.md): finite variable source Evidence, repeated-capture repair, operational availability boundary.
+
+- [Cycle191 WF installed trees](2026-11-14-cycle191-wf-installed-trees.md): ordinary trace transport and finite installed forests; certificate existence is explicit.
+- [Cycle191 quantified claims](2026-11-14-cycle191-claims-ja.md): exact installation/certificate premises and the remaining existence gap.
