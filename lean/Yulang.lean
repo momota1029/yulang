@@ -3214,3 +3214,9 @@ import Yulang.GeneralNominalHeadInitialExtension187
 import Yulang.GeneralNominalHeadProjectionFrame187
 import Yulang.GeneralNominalHeadMergeFrame187
 import Yulang.GeneralNominalHeadBranchFrame187
+
+import Yulang.GeneralNominalHeadInitialCommon188
+import Yulang.GeneralNominalPointProjection188
+import Yulang.GeneralNominalHeadPointBounds188
+import Yulang.GeneralNominalHeadInitialFrame188
+import Yulang.GeneralNominalHeadVariableExtension188
