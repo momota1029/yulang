@@ -1,0 +1,10 @@
+'Yulang.GeneralNominalGrowingReachable198.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalGrowingReachable198.metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalGrowingReachable198.source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalGrowingReachable198.ground' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalGrowingReachable198.coverage' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalGrowingReachable198.initial_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGrowingReachable198.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalGrowingReachable198.inhabited_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

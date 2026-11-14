@@ -309,3 +309,12 @@ cycle 181〜183 で `lean/Yulang.lean` の import を並べ替え、いくつか
 
 Astra は境界を G′ → head-only の後継（`GeneralNominalCenteredHeadWFBoundary.boundary`、V6 = `B4TargetV6`）へ移した。理由: ユーザーの決定「名前無し区間は引数で，名前あり区間は出力」（spec 6.3）。候補は head だけで照合し、出力のぶつかりは型エラー（V6 の `OutputConflict`）。
 - evidenceNode は、V6 の Classify（出力のぶつかりがないことが選択の条件）の上で書き直す必要がある。今の G 向けの作業は続けてよいが、移し先はこの WF 境界になる。
+
+## I-33（2026-11-15）evidenceNode の移し先（確定）
+
+Astra は V6 の後継境界を組み上げ、12 の性質・停止性・正規化 executor の順序非依存を前提なしで証明した。境界は `GeneralNominalCenteredHeadMatStepBoundary.boundary roles`（全部の型の形を翻訳、根拠のある頭部だけ覚える＝spec 6.3 の 2026-11-15 の決定、head だけで照合）。出力の割り当ての衝突を直した後継（`GeneralNominalCenteredHeadAlloc...`）に移る予定なので、最終的な移し先はそちらになるが、型の形は同じ。
+- dot の担当は次の型（`G := GeneralNominalCenteredHeadMatStepBoundary.boundary roles`）:
+  `B4SkeletonV5.EvidenceNode (B4TargetV6.prior G)`。
+  展開形は notes/design/2026-11-15-centered-head-mat-output-target-collision.md の「Exact evidence interface for dot」。
+- 前の G / G′ 向けの evidenceNode の作業は、この境界へ移してよい。モデルは「全部の型の形を翻訳した journal」の Models なので、古い packet の解釈には頼らないこと。
+- I-31（import は追記だけ）、I-27（前のサイクルのファイルは追記だけ）は引き続き守る。`pp.universes true` は監査ファイルに入れない（公理の検査が名前を読めなくなる）。
