@@ -3381,3 +3381,12 @@ import Yulang.GeneralNominalRootedViewExample196
 import Yulang.GeneralNominalInspectionTrace197
 import Yulang.GeneralNominalTraceDictionary197
 import Yulang.GeneralNominalTraceRefreshExample197
+
+import Yulang.GeneralNominalTraceEvidence197
+
+import Yulang.GeneralNominalRefinementTrace197
+import Yulang.GeneralNominalRefinementExample197
+
+import Yulang.GeneralNominalFinishedObservation197
+import Yulang.GeneralNominalSyntaxRefresh197
+import Yulang.GeneralNominalSyntaxExample197
