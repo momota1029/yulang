@@ -522,7 +522,20 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered source retention and the selected-ledger readback obstruction](2026-11-14-centered-source-live-retention.md) — full-frontier strengthened coverage, transport through centered steps and semantic eliminations, and a reachable counterexample to exact selected-ledger input readback; unconditional Class P accessibility remains open.
 
 - [Exact snapshot support cannot be completed by a trusted ledger](2026-11-14-centered-source-snapshot-ledger.md) — snapshot-supported initializer and conditional input promotion; a reachable refresh excludes every trusted exact-readback ledger, so invariant-only completion of that contract is impossible; Class P accessibility remains open.
+- [Cycle176 module guide](2026-11-14-cycle176-module-guide.md): exact declaration inventory and fragment limits.
+- [Cycle177 current committed candidates](2026-11-14-cycle177-committed-candidates.md): direct scalar/named current-model consumers; exact G general producer remains open.
+- [Centered permutation simulation and canonical local order](2026-11-14-centered-permutation-simulation.md) — complete reversible installation transport, coherent table extension, fixed-target Local correspondence, and unconditional canonical executor order; V5 composition has only evidenceNode and generatedChildren as inputs.
+- [Centered completion: reachable alias-class obstruction](2026-11-14-centered-completion-alias-obstruction.md) — actual inhabited ground installation/merge trace with merge-closed G′ selection and impossible Joint; stability and the general generatedChildren field remain open.
 
+- [An unsettled-output refresh changes an actual centered decision](2026-11-14-centered-source-unsettled-refresh.md) — Checked unknown-input source, paired equal-model refreshes, source-supported pending versus actual selected/install, and an unsupported descriptor link; owner repair proposed, Step unchanged.
+- [Centered class-wide applicability and the unchanged installation guard](2026-11-14-centered-class-local.md) — G″ filters candidates by joint alias-class requests and retains twelve V5 fields; the earlier snapshot enables equality feedback, and a new reachable feasible class selection is blocked by the frozen per-occurrence uniqueness guard. Stable child production remains conditional.
+
+- [Centered output conflicts: head selection, failed equations, and V5](2026-11-14-centered-output-conflict.md) — corrects G″'s output-based candidate filtering, locates installation consistency gates and the missing error contract, distinguishes the nonstable fixture from its unclassified stable extension, and proposes an additive head/effect split with field-by-field proof impact.
+
+- [Centered head choice and post-choice output errors: V6](2026-11-14-centered-head-output-v6.md) — head-only candidates, retained alias-class requests, covered post-choice output conflicts, V6 local laws and seven structural/local bridge analogues; complete effect interpretation, installation and V6 composition remain open.
+
+- [Centered head-only installation and class effects](2026-11-14-centered-head-step.md) — successor Step and live class-effect ledger, V6 installation agreement, model restriction, stable closure, unrestricted ground-point progress and terminal traces, preserved output coverage and all-state local child accessibility; schema/default, feedback, merge-error and final composition obligations remain.
+
+- [Centered V6 availability and canonical execution](2026-11-14-centered-head-availability-order.md) — complete head-step/effect-ledger permutation simulation and unconditional V6 canonical executor order, execution and exactness; selected availability reduced to explicit extension obligations, a source-formed defaults gap and positional schema interface, and the empty-model conflict limitation.
 - [Cycle179 module guide](2026-11-14-cycle179-module-guide.md): current-model discovery, initial common model and finite frame limits.
-
 - [Cycle180: exact extensions and actual centered-journal candidates](2026-11-14-cycle180-model-extension.md) — six focused verified modules; general G.EvidenceNode remains OPEN.
