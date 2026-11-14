@@ -487,3 +487,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered final Local agreement: fixed choice](2026-11-14-centered-final-local-agreement.md) — exact exit-choice normalization, packet-free order residual, concrete unequal exit predicates under reordered registries, and reachable packet-free Joint; fixed-executor order remains open.
 
 - [Centered canonical executor](2026-11-14-centered-canonical-executor.md) — invariant registry representative, actual packet-free trace transport, packet/center/emitter rebasing, and an original-registry executor retaining eleven bridges; canonical order remains conditional on exit lifting or concrete permutation simulation.
+
+- [Centered reachable permutation: correspondence and installation obligation](2026-11-14-centered-reachable-permutation.md) — concrete coherent packet pairing, reachable packet-free initialization, administrative/refresh/merge transport, trusted ledgers and value support; full installation transport and final Local agreement remain open.
