@@ -505,3 +505,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered V6 availability and canonical execution](2026-11-14-centered-head-availability-order.md) — complete head-step/effect-ledger permutation simulation and unconditional V6 canonical executor order, execution and exactness; selected availability reduced to explicit extension obligations, a source-formed defaults gap and positional schema interface, and the empty-model conflict limitation.
 
 - [Centered V6: stable selection without child materialization](2026-11-14-centered-head-materialization-obstruction.md) — checked inhabited ground InitialSource with V6 selection, positive chosen effects, and stability, but no enabled installation or generated child; constructor-interpretation coverage is absent from the source contract.
+
+- [Centered head source coverage and variant-row obstruction](2026-11-14-centered-head-wf-source.md) — constructor- and arity-aware Initial, positive source fixtures, twelve bridge transfers and three V6 properties; a legal multi-tag output row gives a stable selected counterexample to child production under the stronger boundary.
