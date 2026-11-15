@@ -33,3 +33,33 @@ equality remain in `Configuration209.reinspection_data`.
 This is a real restricted replay result, not the unrestricted field. Improving
 reobservation can replace report data. Arbitrary reobservation and fresh parents
 remain open; no closed counterexample to I38 was found.
+
+## Second checkpoint / final scope (10:14 UTC)
+
+The cycle did not stop after the first checkpoint. Continued work removed the
+syntactic input-center equality hypothesis: `SemanticReplay209.nominal_certificate`
+requires checked registry, corrected-boundary reachability, current Frame, stored
+historical parent at the same occurrence/key, point focus, nominal/variable head
+syntax, descriptor-preserving Refines, and the specified current model. It derives
+the current certificate without assuming a new certificate, same center names,
+same declaration, or report equality. Output expressions remain unrestricted.
+`nominal_generated_children` in that module needs no model or point premise.
+
+`HeadTransport209` transports actual head schemas for all query forms from semantic
+root/binder agreement. `FrameSemantics209` derives binder equality between current
+frames; `CurrentCertificate209.node_iff` fixes a chosen current witness frame in the
+exact node-evidence characterization. These do not establish evidence existence.
+
+`CollapsedCenters209` additionally replaces syntactic point endpoints by their
+semantic equivalence in the fixed model, with a complete restricted replay
+certificate. `CollapsedExamples209` proves a positive non-syntactic-point case.
+`TransportExamples209` proves distinct-center positive defaults and a negative
+noncollapsed interval case; `ReplayExamples209` tests complete packet recentering
+for a scalar head. The negative case refutes an omitted lemma hypothesis, NOT the
+assigned EvidenceNode target or the language design.
+
+Still open: arbitrary improving reobservation (not Refines), noncollapsed input
+intervals, and fresh selected parents without a matching historical plan.
+No new closed refutation of the assigned target. No change to Local, Models,
+Evidence, Step or selected-input semantics. The original global target remains.
+All 102 checked declarations, with quantified types: [inventory](2026-11-15-cycle209-declarations.md).
