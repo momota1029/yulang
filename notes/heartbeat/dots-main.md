@@ -1,13 +1,14 @@
 # dots-main heartbeat
-cycle: 211
+cycle: 212
 status: completed
-started: 2026-11-15T11:28:16Z
-updated: 2026-11-15T11:48:58Z
-elapsed_min: 20.7
-activity: I39 exhaustive plan; closed FreshCompletion helper refutation; same exact B4 Statement from EvidenceNode alone.241 constants in10 new modules trust0 audit PASS; focused builds and diff gate PASS.16 artifacts published and every blob SHA read back matched.
+started: 2026-11-15T12:26:40Z
+updated: 2026-11-15T13:15:40Z
+elapsed_min: 49.0
+activity: Research continued to approximately45min; verification/publication/readback finished within55min. Exact EvidenceNode fresh-terminal/history split and terminal joint-model reduction proved. Twelve focused modules --wfail PASS;127constants trust0 audit PASS; diff-only gate PASS (2 reviewed audit scanners).
 workspace: /workspace/scratch/1d0b4aaa3394/yulang183
-last_local_commit: c597db221
-publication: 5d7377e2e97ed7ed5b5dc41c65b7877d49307313
-report: notes/handoff/dots-cycle-211.md
-verification: notes/verification/dots-cycle-211.md
-resume_hint: Writer released. I34 false-goal stop applied; no further research pending. FreshCompletion is false, but EvidenceNode/B4 are NOT refuted. Full B4 now depends only on still-open EvidenceNode, not GeneratedChildren/FreshCompletion. Read fresh integration/orders/inbox next cycle for supervisor direction. No pending write; no full umbrella build claimed.
+last_local_commit: 436e5a571
+published: cdc6e23ea0e22025437e5fe25ac69432b2778c99
+verified_files: 18/18 artifact hashes matched at published commit; this heartbeat is the19th changed path.
+integration: 73bd0e7a32d684b2eb72702a5d8057ecf10ee25d
+remaining: EvidenceNode remains the one open B4 premise. Derive ChoiceCompatible and one joint journal/raw-head/effect model for fresh terminal nodes; unrestricted historical current-certificate replay remains open. No fresh contradiction closed; no semantic/selection guard changed.
+resume_hint: Writer released. Fresh-read integration/orders/inbox next cycle. Handoff notes/handoff/dots-cycle-212.md and full verification notes/verification/dots-cycle-212.md. No full umbrella build or Yulang2 runtime claim.
