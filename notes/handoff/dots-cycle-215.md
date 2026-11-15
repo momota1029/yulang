@@ -65,3 +65,7 @@ First checkpoint4580a8d817a621dee3d59efab2eecc74ab08e9f5 (16files) readback16/16
 - `GeneralDictionaryRecursiveBounds215`
 - `GeneralDictionaryStructuralProjection215`
 - `GeneralDictionaryWeakReport215`
+
+## Final integration/readback refresh (16:20UTC)
+
+Integration advanced during publication to e7d66f29c1ea06ebc28d1e0f45c740b88f76332d (completed214). It was merged locally as bb8e81e6d. Owner umbrella/index prefixes were selected exactly, then215 additions appended; resulting published source/index bytes were unchanged. Fresh diff-only gate against this exact new integration: exit0/PASS with1 reviewed audit metaprogram. Integration is an ancestor of local HEAD and of the GitHub publication history. Source publication1c8b186188c0e15bcac8878dd928bf146e369157 and report publicationc7d15f28af1f6d07147c39af60e92d9d0937f265 were read back;33/33 artifact blob hashes matched, untruncated tree. Completed heartbeat records the final release time.
