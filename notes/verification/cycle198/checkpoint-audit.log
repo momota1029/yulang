@@ -1,0 +1,14 @@
+'Yulang.GeneralNominalMixedCompletion198.node_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedCompletion198.packet_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedCompletion198.children_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedCompletion198.selected_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedCompletion198.dictionary_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedCompletion198.dictionaries_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalMixedCompletion198.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedCompletion198.evidence_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedCompletion198.selected_completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedTree198.child_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedTree198.tree_exists' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalMixedTree198.uniform_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]

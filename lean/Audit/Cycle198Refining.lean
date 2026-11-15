@@ -1,0 +1,22 @@
+import Yulang.GeneralNominalRefiningJournal198
+import Yulang.GeneralNominalRefiningCompletion198
+import Yulang.GeneralNominalRefiningTree198
+#print axioms Yulang.GeneralNominalRefiningJournal198.old_step
+#print axioms Yulang.GeneralNominalRefiningJournal198.refresh_step
+#print axioms Yulang.GeneralNominalRefiningJournal198.steps
+#print axioms Yulang.GeneralNominalRefiningJournal198.instance_update
+#print axioms Yulang.GeneralNominalRefiningJournal198.universal_evidence
+#print axioms Yulang.GeneralNominalRefiningJournal198.packet_instance
+#print axioms Yulang.GeneralNominalRefiningJournal198.recorded_tree_sound
+#print axioms Yulang.GeneralNominalRefiningJournal198.uniform_dictionary
+#print axioms Yulang.GeneralNominalRefiningCompletion198.node_instance
+#print axioms Yulang.GeneralNominalRefiningCompletion198.packet_edges
+#print axioms Yulang.GeneralNominalRefiningCompletion198.children_generated
+#print axioms Yulang.GeneralNominalRefiningCompletion198.selected_instance
+#print axioms Yulang.GeneralNominalRefiningCompletion198.dictionary_evidence
+#print axioms Yulang.GeneralNominalRefiningCompletion198.dictionaries_evidence
+#print axioms Yulang.GeneralNominalRefiningCompletion198.selected_sound
+#print axioms Yulang.GeneralNominalRefiningCompletion198.evidence_node
+#print axioms Yulang.GeneralNominalRefiningCompletion198.selected_completion
+#print axioms Yulang.GeneralNominalRefiningTree198.tree_exists
+#print axioms Yulang.GeneralNominalRefiningTree198.uniform_dictionary

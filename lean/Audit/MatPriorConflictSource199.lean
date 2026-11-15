@@ -1,0 +1,16 @@
+import Yulang.GeneralDictionaryMatPriorConflictSource199
+
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.declaration_checked
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.checked
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.source
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.ground
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.coverage
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.initial_source
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.reachable
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.source_model
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.inhabited
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.query
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.report_exact
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.bindings_empty
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.head_model
+#print axioms Yulang.GeneralDictionaryMatPriorConflictSource199.prepared

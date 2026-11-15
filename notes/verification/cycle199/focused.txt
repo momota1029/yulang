@@ -1,0 +1,20 @@
+
+===== checkpoint-build =====
+exit: 0
+Build completed successfully (1008 jobs).
+
+===== second-build =====
+exit: 0
+Build completed successfully (1013 jobs).
+
+===== node-build =====
+exit: 0
+Build completed successfully (957 jobs).
+
+===== trace-build-independent =====
+exit: 0
+Build completed successfully (1014 jobs).
+
+===== prior-build-independent =====
+exit: 0
+Build completed successfully (1017 jobs).

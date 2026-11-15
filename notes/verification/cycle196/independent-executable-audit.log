@@ -1,0 +1,48 @@
+Yulang.GeneralNominalExecutableView196.replaced (wide : Bool) :
+  Yulang.GeneralNominalViewTransport196.context (Yulang.GeneralNominalRefreshFork.context none)
+      (Yulang.GeneralNominalExecutableView196.next wide) =
+    Yulang.GeneralNominalRefreshFork.context (some wide)
+'Yulang.GeneralNominalExecutableView196.replaced' depends on axioms: [propext, Quot.sound]
+Yulang.GeneralNominalExecutableView196.actual_step (registry : Yulang.GeneralDeclarations.Registry) (wide : Bool) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Step registry
+    Yulang.GeneralNominalRefreshFork.root Yulang.GeneralNominalExecutableView196.start
+    (Yulang.GeneralNominalExecutableView196.finish wide)
+'Yulang.GeneralNominalExecutableView196.actual_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalExecutableView196.same_models (wide : Bool)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models (Yulang.GeneralNominalExecutableView196.finish wide) model ↔
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalExecutableView196.start model
+'Yulang.GeneralNominalExecutableView196.same_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalExecutableView196.inhabited (wide : Bool) :
+  Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalExecutableView196.start
+      Yulang.GeneralNominalRefreshFork.model ∧
+    Yulang.GeneralNominalCenteredHeadStepEffects.Models (Yulang.GeneralNominalExecutableView196.finish wide)
+      Yulang.GeneralNominalRefreshFork.model
+'Yulang.GeneralNominalExecutableView196.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalExecutableView196.descriptor_changed (wide : Bool) :
+  Yulang.GeneralNominalExecutableView196.start.core.erased.current.context.state.nominals ⟨0, ⋯⟩ = none ∧
+    (Yulang.GeneralNominalExecutableView196.finish wide).core.erased.current.context.state.nominals ⟨0, ⋯⟩ =
+      some (Yulang.GeneralNominalRefreshFork.descriptor (2, if wide = true then 4 else 2))
+'Yulang.GeneralNominalExecutableView196.descriptor_changed' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralNominalExecutableView196.preserve_variable_evidence (registry : Yulang.GeneralDeclarations.Registry)
+  (wide : Bool)
+  (shape :
+    ∀ (declaration : Yulang.GeneralDeclarations.Declaration),
+      declaration ∈ registry.declarations →
+        ∃ names,
+          Yulang.GeneralNominalInspection.queries (Yulang.GeneralNominalRefreshFork.state none)
+              (Yulang.GeneralNominalRefreshFork.context none).interpretation declaration =
+            List.map Yulang.GeneralNominalInspection.Query.variables names)
+  (model : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalCenteredHeadStepEffects.Models Yulang.GeneralNominalExecutableView196.start model)
+  (focus : Yulang.GeneralSourceDictionaries.Occurrence Yulang.GeneralDeclarationExamples.roles)
+  (payload : Yulang.GeneralDictionaryReadback.Payload)
+  (evidence :
+    (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence registry
+      Yulang.GeneralNominalExecutableView196.start model focus payload) :
+  (Yulang.GeneralNominalCenteredHeadWFBoundary.boundary Yulang.GeneralDeclarationExamples.roles).Evidence registry
+    (Yulang.GeneralNominalExecutableView196.finish wide) model focus payload
+'Yulang.GeneralNominalExecutableView196.preserve_variable_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+AXIOM-GATE-PASS: 67 declarations

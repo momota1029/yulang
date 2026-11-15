@@ -1,0 +1,35 @@
+import Yulang.GeneralNominalNonleafFinal194
+import Yulang.GeneralNominalForestClassification194
+
+#check Yulang.GeneralNominalNonleafFinal194.survivor
+#print axioms Yulang.GeneralNominalNonleafFinal194.survivor
+#check Yulang.GeneralNominalNonleafFinal194.prepared
+#print axioms Yulang.GeneralNominalNonleafFinal194.prepared
+#check Yulang.GeneralNominalNonleafFinal194.wrong_failed
+#print axioms Yulang.GeneralNominalNonleafFinal194.wrong_failed
+#check Yulang.GeneralNominalNonleafFinal194.unique
+#print axioms Yulang.GeneralNominalNonleafFinal194.unique
+#check Yulang.GeneralNominalNonleafFinal194.frame
+#print axioms Yulang.GeneralNominalNonleafFinal194.frame
+#check Yulang.GeneralNominalNonleafFinal194.safe
+#print axioms Yulang.GeneralNominalNonleafFinal194.safe
+#check Yulang.GeneralNominalNonleafFinal194.parent_bindings
+#print axioms Yulang.GeneralNominalNonleafFinal194.parent_bindings
+#check Yulang.GeneralNominalNonleafFinal194.parent_binder
+#print axioms Yulang.GeneralNominalNonleafFinal194.parent_binder
+#check Yulang.GeneralNominalNonleafFinal194.head_equations
+#print axioms Yulang.GeneralNominalNonleafFinal194.head_equations
+#check Yulang.GeneralNominalNonleafFinal194.no_output_conflict
+#print axioms Yulang.GeneralNominalNonleafFinal194.no_output_conflict
+#check Yulang.GeneralNominalNonleafFinal194.selected
+#print axioms Yulang.GeneralNominalNonleafFinal194.selected
+#check Yulang.GeneralNominalNonleafFinal194.child_classify
+#print axioms Yulang.GeneralNominalNonleafFinal194.child_classify
+#check Yulang.GeneralNominalNonleafFinal194.parent_classify
+#print axioms Yulang.GeneralNominalNonleafFinal194.parent_classify
+#check Yulang.GeneralNominalForestClassification194.classify_after
+#print axioms Yulang.GeneralNominalForestClassification194.classify_after
+#check Yulang.GeneralNominalForestClassification194.classify
+#print axioms Yulang.GeneralNominalForestClassification194.classify
+#check Yulang.GeneralNominalForestClassification194.source_classification_sound
+#print axioms Yulang.GeneralNominalForestClassification194.source_classification_sound

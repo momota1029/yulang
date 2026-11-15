@@ -1,0 +1,11 @@
+import Yulang.GeneralNominalRecordedNode194
+#check Yulang.GeneralNominalRecordedNode194.evidence_node
+#print axioms Yulang.GeneralNominalRecordedNode194.evidence_node
+#check Yulang.GeneralNominalRecordedNode194.child_packet_missing
+#print axioms Yulang.GeneralNominalRecordedNode194.child_packet_missing
+#check Yulang.GeneralNominalRecordedNode194.child_reached
+#print axioms Yulang.GeneralNominalRecordedNode194.child_reached
+#check Yulang.GeneralNominalRecordedNode194.not_covered
+#print axioms Yulang.GeneralNominalRecordedNode194.not_covered
+#check Yulang.GeneralNominalRecordedNode194.stable_not_covered
+#print axioms Yulang.GeneralNominalRecordedNode194.stable_not_covered

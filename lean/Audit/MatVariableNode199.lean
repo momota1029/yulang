@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryMatVariableNode199
+
+#print axioms Yulang.GeneralDictionaryMatVariableNode199.branch_of_total
+#print axioms Yulang.GeneralDictionaryMatVariableNode199.instance_of_total
+#print axioms Yulang.GeneralDictionaryMatVariableNode199.evidence_of_frame_total
+#print axioms Yulang.GeneralDictionaryMatVariableNode199.evidence_of_recorded

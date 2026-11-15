@@ -580,6 +580,11 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Centered total-materialization refresh regression](2026-11-15-centered-head-mat-refresh-regression.md) — actual justified-refresh trace with R pending, finite-progress reduction, centered head descent, and fixed-context total-packet rebasing; general cover, exit lifting, model extension, and exhaustive K2 remain open.
 - [Centered total-materialization finite cover](2026-11-15-centered-head-mat-ground-cover.md) — concrete semantic/center/source inventories and unrestricted successor accessibility from an installation-depth bound; the depth producer, exit lifting, general completion, and exhaustive K2 remain open.
 
+- [Cycle194 final classification design](2026-11-14-cycle194-final-classification.md): concrete WF nonleaf completion and general ordinary journal readback; general EvidenceNode remains open.
+- [Cycle194 quantified module guide](2026-11-14-cycle194-module-guide.md): 35 theorem statements and explicit remaining contracts.
+- Cycle194 structural refinement: module guide now includes 4 further journal-accessibility theorems (39 total); ordinary readback needs coverage but no independent Acc certificate.
+- Cycle194 selected-payload refinement: module guide now includes 7 further theorems (46 total), deriving actual selected Classify payload Evidence from ordinary execution and journal coverage.
+- Cycle194 final local boundary: 51 total theorems; recorded-node Evidence and concrete Stable-but-not-journal-Covered witness distinguish successful reuse from missing semantic evidence.
 - [Total semantic labels and successor ancestry](2026-11-15-centered-head-mat-semantic-depth.md) — full-carrier normalization and corrected child-center readback, original ground-source conversion, and unrestricted retrospective ancestry conditional on finite enabled-head captures and their mass bound; unconditional depth and progress remain open.
 
 - [Ground head readback for total materialization](2026-11-15-centered-head-mat-head-readback.md) — semantic projection and head-mass inversion for arbitrary counted labels, finite center captures from the actual head-only frame, and unconditional ground depth, finite cover, accessibility and progress for the unrestricted successor Step.
@@ -587,9 +592,18 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Canonical exits and live class retention for total materialization](2026-11-15-centered-head-mat-canonical-closure.md) — unrestricted two-way permutation simulation, unconditional canonical exit lifting and order laws, and reachable installation request invariance discharging all future live effects; head baseline, corrected packet assembly, choice agreement, and exhaustive K2 projections remain open.
 
 - [Output targets lose their clause identity](2026-11-15-centered-head-mat-output-target-collision.md) — checked WF ground initial counterexample: two distinct child clauses reuse a locally valid output equation ID, so total materialization gives one target incompatible meanings; stable selected parent refutes PacketAssembly and generated-child production.
+- [Cycle195 mixed readback catalogue](2026-11-14-cycle195-reuse-catalogue.md) and [module guide](2026-11-14-cycle195-catalogue-module-guide.md).
+- [Cycle195 current completion and limits](2026-11-14-cycle195-current-completion-guide.md).
 
 - [Clause-aware child-output allocation](2026-11-15-centered-head-allocation.md) — additive paired clause/equation allocation, unchanged source contract and shared output binders, twelve closed successor laws, actual two-child collision repair, and independent private-output model extension; general completion retains three named hypotheses.
-
 - [A required merge can empty the journal before completion](2026-11-15-centered-head-merge-conflict.md) — checked WF ground source, inhabited parent installation, actual same-input merge, and stable generated R selection with an empty full journal; refutes unconditional HeadBaseline and SelectedCompletion, without claiming a GeneratedChildren or Statement counterexample.
+- [Cycle196 descriptor-changing reinspection transport](2026-11-14-cycle196-view-transport.md): exact same-model source dictionary/readback transport through fixed-skeleton view replacement and actual WF refresh; variable-only automatic reinspection and inhabited descriptor-change regression. Unrestricted refresh and current-Frame production remain open.
+- [Cycle196 executable descriptor insertion](2026-11-14-cycle196-executable-view.md) — actual WF refresh and same-model readback.
+- [Cycle196 rooted reinspection](2026-11-14-cycle196-rooted-view.md) — finite dictionary support.
+- [Cycle196 strict locality regression](2026-11-14-cycle196-rooted-example.md) — local support without global report agreement.
+- [Cycle197 nominal observation and mixed journal recovery](../handoff/dots-cycle-197.md) — finite traces, premise-free same-slot nominal syntax refresh transport, and actual mixed-execution packet Instances; general EvidenceNode remains open.
 
+- [Cycle198: arbitrary-slot transport and reachable growing refresh](2026-11-14-cycle198-slot-transport.md)
+
+- [Cycle199: total-plan / partial evidence migration](2026-11-14-cycle199-mat-evidence-migration.md) — actual Mat packet obstruction and empty-request leaf bridge.
 - [V7 merged-output rejection and selected-only evidence](2026-11-15-centered-v7-merged-output-conflict.md) — same Alloc Step, twelve closed V7 laws and canonical executor, rejected merge regression, corrected cycle-199 evidence scope, and composition from selected-only EvidenceNode plus GeneratedChildren; a selected ancestor refutes the universal positive-baseline route.

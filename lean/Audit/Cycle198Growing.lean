@@ -1,0 +1,14 @@
+import Yulang.GeneralNominalGrowingRefresh198
+import Yulang.GeneralNominalGrowingEvidence198
+#print axioms Yulang.GeneralNominalGrowingRefresh198.forward
+#print axioms Yulang.GeneralNominalGrowingRefresh198.actual_step
+#print axioms Yulang.GeneralNominalGrowingRefresh198.growth_and_reindex
+#print axioms Yulang.GeneralNominalGrowingRefresh198.inhabited
+#print axioms Yulang.GeneralNominalGrowingEvidence198.declaration_checked
+#print axioms Yulang.GeneralNominalGrowingEvidence198.shape
+#print axioms Yulang.GeneralNominalGrowingEvidence198.lookup
+#print axioms Yulang.GeneralNominalGrowingEvidence198.schema
+#print axioms Yulang.GeneralNominalGrowingEvidence198.current_instance
+#print axioms Yulang.GeneralNominalGrowingEvidence198.source_payload
+#print axioms Yulang.GeneralNominalGrowingEvidence198.final_payload
+#print axioms Yulang.GeneralNominalGrowingEvidence198.inhabited_evidence

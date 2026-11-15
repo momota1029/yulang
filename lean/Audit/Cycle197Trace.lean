@@ -1,0 +1,20 @@
+import Yulang.GeneralNominalInspectionTrace197
+import Yulang.GeneralNominalTraceDictionary197
+import Yulang.GeneralNominalTraceRefreshExample197
+
+#print axioms Yulang.GeneralNominalInspectionTrace197.report_visit
+#print axioms Yulang.GeneralNominalInspectionTrace197.replace_nominals
+#print axioms Yulang.GeneralNominalInspectionTrace197.rechecked_of_trace
+#print axioms Yulang.GeneralNominalTraceDictionary197.support
+#print axioms Yulang.GeneralNominalTraceDictionary197.tree_transport
+#print axioms Yulang.GeneralNominalTraceDictionary197.readback_transport
+#print axioms Yulang.GeneralNominalTraceDictionary197.universal_refresh
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.computed_query
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.declaration_checked
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.nominal_trace
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.lookup
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.traced
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.actual_step
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.changed_outside_trace
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.preserved_report
+#print axioms Yulang.GeneralNominalTraceRefreshExample197.not_variable_only

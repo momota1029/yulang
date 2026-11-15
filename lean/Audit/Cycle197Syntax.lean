@@ -1,0 +1,13 @@
+import Yulang.GeneralNominalSyntaxExample197
+#print axioms Yulang.GeneralNominalFinishedObservation197.finished_visit
+#print axioms Yulang.GeneralNominalFinishedObservation197.finished_append
+#print axioms Yulang.GeneralNominalFinishedObservation197.observed_of_finished
+#print axioms Yulang.GeneralNominalFinishedObservation197.many_observed_of_finished
+#print axioms Yulang.GeneralNominalSyntaxRefresh197.node_transport
+#print axioms Yulang.GeneralNominalSyntaxRefresh197.tree_transport
+#print axioms Yulang.GeneralNominalSyntaxRefresh197.evidence_transport
+#print axioms Yulang.GeneralNominalSyntaxRefresh197.universal_refresh
+#print axioms Yulang.GeneralNominalSyntaxExample197.registry_syntax
+#print axioms Yulang.GeneralNominalSyntaxExample197.final_payload
+#print axioms Yulang.GeneralNominalSyntaxExample197.inhabited
+#print axioms Yulang.GeneralNominalSyntaxExample197.deferred_excluded
