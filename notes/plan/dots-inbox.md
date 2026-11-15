@@ -318,3 +318,39 @@ Astra は V6 の後継境界を組み上げ、12 の性質・停止性・正規�
   展開形は notes/design/2026-11-15-centered-head-mat-output-target-collision.md の「Exact evidence interface for dot」。
 - 前の G / G′ 向けの evidenceNode の作業は、この境界へ移してよい。モデルは「全部の型の形を翻訳した journal」の Models なので、古い packet の解釈には頼らないこと。
 - I-31（import は追記だけ）、I-27（前のサイクルのファイルは追記だけ）は引き続き守る。`pp.universes true` は監査ファイルに入れない（公理の検査が名前を読めなくなる）。
+
+## I-34（2026-11-15）I-33 の型を取り下げる。dot を主担当にする
+
+cycle 199 の反例（`GeneralDictionaryMatPriorConflict199.not_prior_evidenceNode`、Alloc 境界は `lean/Audit/Cycle199AllocPriorCheck.lean`）は正しい。I-33 で指定した `B4SkeletonV5.EvidenceNode (B4TargetV6.prior G)` は、OutputConflict で正しく拒否される状態にも辞書を要求するので成り立たない。監督役の指定の誤りで、意味論の問題ではない。この型は取り下げる。
+
+- **新しい担当（選ばれた場合だけの evidenceNode）**: `G := GeneralNominalCenteredHeadAllocBoundary.boundary roles` について、`B4SkeletonV5.EvidenceNode` と同じ形に、`Unique b r s d key children` の後ろへ前提 `¬ G.OutputConflict r s d key` を足したもの。dot は自分のモジュールにこの定義を置いて証明してよい。
+- Astra は V7（まとめた需要の出力の食い違い `MergedOutputConflict` を拒否に足したもの。spec 6.3 の 2026-11-15 の決定 2）の境界と、この形の field から `DictionarySound` を導く合成を作っている。統合されたら、正確な名前を追って書く。その V7 の field は前提に `¬ MergedOutputConflict` も持つ。dot の V6 版からは、前提を一つ足すだけで移せる見込み。
+- **運用の変更（ユーザーの指示, 2026-11-15）**: Astra を回し続けるのはやめる。残りの項目は dot が主担当になる。
+  1. 上記の evidenceNode（selected-only）。
+  2. `GeneratedChildren`（`GeneralNominalCenteredHeadAllocCompletion` の `HeadBaseline` / `PacketAssembly` / `ChoiceFromCommon`）。Astra が見つけた障害: 既に子を記録して selected のまま残る親（journal にモデルがない）では、一般の `HeadBaseline` は偽になる。「既にある子」と「新しい据え付け」を分けて述べ直す必要がある。詳細は Astra の V7 のノートが統合されてから書く。
+  3. K2 の射影の網羅。
+- 反例で型が偽と分かったら、今回のように閉じた反証と、型を遅らせる案を書いて止まること。勝手に型を弱めない。この進め方でよい。
+
+## I-35（2026-11-15）V7 の正確な担当型
+
+Astra の最後のターンが統合された（以後 Astra は回さない。I-34）。正確な担当は次の 2 本で、両方とも dot が担当する。境界は `b := GeneralNominalCenteredHeadAllocV7Boundary.boundary roles`。
+
+1. `B4SkeletonV7.EvidenceNode b`（別名 `GeneralNominalCenteredHeadAllocV7Composition.EvidenceNode roles`）。前提は `B4TargetV7.Local b r s d (.selected key children)` で、SafeKnown、head の一意性、`¬ OutputConflict`、`¬ MergedOutputConflict` を含む。展開形は `notes/design/2026-11-15-centered-v7-merged-output-conflict.md` の「Exact evidence field for dot」。cycle 199 の反例は、この field では空虚に成り立つ（`GeneralNominalCenteredHeadAllocV7Cycle199Regression.evidenceAt`）。I-34 の V6 版で始めた作業は、この型へ移す。
+2. `B4SkeletonV7.GeneratedChildren b`（別名 `GeneralNominalCenteredHeadAllocV7Composition.GeneratedChildren roles`）。
+
+この 2 本から主定理が出る: `GeneralNominalCenteredHeadAllocV7Composition.composition node generated : B4TargetV7.Statement b (GeneralNominalCenteredHeadAllocV7Executor.executor roles)`。ほかの前提はない。
+- 注意: 一般の `HeadBaseline` / `SelectedCompletion` は偽（`GeneralNominalCenteredHeadAllocV7ParentBaseline.not_headBaseline`, `not_selectedCompletion`）。子をすでに記録した selected の親があるため。GeneratedChildren をこの経路で示そうとしないこと。`PacketAssembly` と `ChoiceFromCommon` は未解決で、反証もされていない。
+- 優先順位: EvidenceNode を先に。K2 の射影の網羅はその後。
+
+## I-36（2026-11-15）根拠の判定を role の既定値に対応させる（dot の担当）
+
+cycle 202 の反例（`GeneralDictionaryAllocDefaultCounterexample202.not_selected_evidenceNode`, `not_v7_evidenceNode`）は正しい。原因は担当型ではなく、境界が受け継いでいる根拠の判定（`GeneralDictionaryRecursiveEvidence.Instance` → `RequestReady.RootDefined`）が、関連型の明示的な式しか認めないこと。spec 6.1（確定, 2026-11-04）では、role に default があれば impl は関連型を省略できる。したがって直すのは判定の側で、意味論の問題ではない。監督役は `notes/questions/2026-11-15-selected-default-evidence-target.md` の「Possible repair」を採る。
+
+- 次の順で進めること:
+  1. 新しい根拠の判定を作る。選ばれた impl について、関連型の本体が明示か default かを記録し、どちらも total expression で解釈する。古い判定は消さない（追記のみ）。
+  2. V7 の Alloc 境界と同じ境界で、`Evidence` だけをこの判定に差し替えた後継の境界を作る。12 の性質と Step・Stable・Local・Models は `Evidence` に依存しないはずなので、そのまま移す。依存していたら報告すること。
+  3. その後継で `B4SkeletonV7.EvidenceNode` を証明する。cycle 199 と 202 の 2 つの反例が、どちらも問題にならないことも示す（199 は拒否で空虚に成り立ち、202 は default で根拠が立つ）。
+  4. 合成（`GeneralNominalCenteredHeadAllocV7Composition.composition` に相当するもの）を後継の境界へ移す。
+- 新しい判定は、明示の式と default の両方を認める以外の点で、古い判定より緩くしないこと。新しい判定が spec の意味と一致することを示す小さな例（明示 1 つ、default 1 つ、上書き 1 つ）を付けること。
+- 明示の式だけの断片で証明できても、それを I-36 の完了とは呼ばない（名前を分ける）。cycle 202 のノートの方針どおりでよい。
+- GeneratedChildren は cycle 202 の分割（`FreshCompletion`）でよい。新しく据え付ける場合の証明は、EvidenceNode の後に回す。
