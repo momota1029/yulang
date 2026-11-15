@@ -3671,3 +3671,6 @@ import Yulang.GeneralDictionaryOwnedMerges216
 import Yulang.GeneralDictionaryPointExtrema216
 import Yulang.GeneralDictionaryRecordBracket216
 import Yulang.GeneralDictionarySharingBoundary216
+import Yulang.GeneralDictionaryCurrentAgreement217
+import Yulang.GeneralDictionaryCurrentChosen217
+import Yulang.GeneralDictionaryCurrentHeadEquations217
