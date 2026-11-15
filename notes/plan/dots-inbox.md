@@ -380,3 +380,23 @@ cycle 206 の判定の直し（`TotalEvidence206`, `TotalBoundary206`, `TotalJoi
   4. その境界で `B4SkeletonV7.EvidenceNode` を証明する。cycle 199・202・204・206 の 4 つの例を回帰として残す。206 の例は、据え付けが default の等式を足すので bottom のモデルが消える、という形で問題がなくなるはず。
 - 守ること: 選ばれる入力を狭めない。出力の等式を弱めない。結論を仮定に入れない。反例が出たら I-34 のとおり止まる。
 - 一周で終わらない大きさなので、途中の成果は checkpoint として公開してよい。12 の性質を証明し直すところまでで 1 周を使ってよい。
+
+## I-39（2026-11-15）evidenceNode の全体の計画を先に書く
+
+cycle 209・210 の部分的な結果（`SemanticReplay209`, `NominalFrame210` など）は正しく、制限の書き方も正確でよい。ただ、制限つきの断片が周ごとに増えていて、無条件の `B4SkeletonV7.EvidenceNode`（I-38 で直した境界）までの距離が見えない。
+- 次の周は、Lean の断片を増やす前に、design ノートに**無条件の EvidenceNode までの証明の計画**を書くこと。
+  - 選ばれた節点を場合に分けて、全部の場合を挙げる。例: 新しく据え付けた親、記録済みの親（入力が点・区間）、頭の形（変数・名前つき・構造・scalar）、merge の後、refresh の後。
+  - それぞれの場合について、いまある定理で済むのか、どの補題が足りないのかを書く。
+  - 足りない補題が偽かもしれないところは、先に小さな反例を探す。
+  - FreshCompletion（generatedChildren の、新しく据え付ける場合）についても同じ表を作る。
+- 計画を書いたら、残り時間で、一番大きな穴を埋める補題から進めてよい。
+- 計画の途中で、言語の意味を決めないと進めない場所が見つかったら、例を付けて質問のノートに書くこと（監督役がユーザーに聞く）。
+
+## I-40（2026-11-15）FreshCompletion は外す。残りは EvidenceNode の 1 本
+
+cycle 211 の計画（`notes/design/2026-11-15-cycle211-whole-evidence-plan.md`）と結果を受け入れる。
+- `GeneralDictionaryDefaultFreshProbe211Refutation.not_freshCompletion` は正しい。FreshCompletion は監督役が割り当てた補助で、それが強すぎた。取り下げる（質問ノートの遅延案どおり。選択の歯止めやモデルの存在の仮定は足さない）。
+- `GeneralDictionaryDefaultComposition211.composition` により、I-38 の境界の `B4TargetV7.Statement` は `B4SkeletonV7.EvidenceNode (DefaultBoundary208.boundary roles)` だけを前提にする。GeneratedChildren はもう要らない。**B4 の残りはこの 1 本**。
+- 次の担当: この EvidenceNode を無条件に証明する。計画の「Dependency graph and largest missing bridge」のとおり、(A) ChoiceCompatible と (B) 一つの代入で journal・packet・effect を同時に満たすこと、を選ばれた節点の範囲で示す。それが偽になる場所では、記録済みの証明書の持ち越し（replay）で埋める。
+- EvidenceNode は journal のモデルごとの主張なので、モデルが空の状態では空虚に成り立つ。(B) が要るのは、モデルがある状態だけ。計画の「Counterexample-first tests」を先に回し、(A)・(B) が偽になる例を探してから証明に入ること。
+- 制限つきの名前つき型の断片（`NominalFrame210` の類）は、計画の表で必要と分かった場合だけ足す。
