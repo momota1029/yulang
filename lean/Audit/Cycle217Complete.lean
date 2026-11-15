@@ -3,6 +3,7 @@ import Yulang.GeneralDictionaryCurrentChosen217
 import Yulang.GeneralDictionaryCurrentHeadEquations217
 import Yulang.GeneralDictionaryLooseGround217
 import Yulang.GeneralDictionaryLooseVariant217
+import Yulang.GeneralDictionaryObservationPersistence217
 import Yulang.GeneralDictionaryPointObservation217
 import Yulang.GeneralDictionarySharingObstruction217
 import Yulang.GeneralDictionaryTopLevelSharing217
@@ -11,7 +12,7 @@ open Lean Elab Command in
 run_cmd do
   let environment ← getEnv
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
-  let modules : Array Name := #[`Yulang.GeneralDictionaryCurrentAgreement217, `Yulang.GeneralDictionaryCurrentChosen217, `Yulang.GeneralDictionaryCurrentHeadEquations217, `Yulang.GeneralDictionaryLooseGround217, `Yulang.GeneralDictionaryLooseVariant217, `Yulang.GeneralDictionaryPointObservation217, `Yulang.GeneralDictionarySharingObstruction217, `Yulang.GeneralDictionaryTopLevelSharing217]
+  let modules : Array Name := #[`Yulang.GeneralDictionaryCurrentAgreement217, `Yulang.GeneralDictionaryCurrentChosen217, `Yulang.GeneralDictionaryCurrentHeadEquations217, `Yulang.GeneralDictionaryLooseGround217, `Yulang.GeneralDictionaryLooseVariant217, `Yulang.GeneralDictionaryObservationPersistence217, `Yulang.GeneralDictionaryPointObservation217, `Yulang.GeneralDictionarySharingObstruction217, `Yulang.GeneralDictionaryTopLevelSharing217]
   let mut checked : Nat := 0
   for (name, _) in environment.constants.toList do
     if let some index := environment.getModuleIdxFor? name then

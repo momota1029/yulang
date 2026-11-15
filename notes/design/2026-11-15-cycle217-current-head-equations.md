@@ -74,3 +74,42 @@ GeneralDictionarySharingObstruction217 rules out evidence only when sharing
 fails for ALL Frames. GeneralDictionaryTopLevelSharing217 reduces this for
 a repeated two-argument variable head to finite declaration and recorded-site
 checks; it does not supply reachable/stable/selected premises.
+
+## Next concrete fixture, not a claimed counterexample
+
+An exact nominal copy can enforce universal grounding without making the chosen
+root's descriptor initially point-valued. Candidate finite source layout:
+0=bottom, 1=top, 2=variant0(bottom), 3=variant0(top),
+4=variant0(int), 5=variant0(bool), 6=loose nominal root, 7=exact nominal copy.
+Ordinary equations fix 0--5 and equate 6 with7. Descriptor6 has two (2,3)
+parameter intervals; descriptor7 has point intervals (4,4),(5,5).
+A root at6 is then intended to be universally ground. This source has NOT been
+constructed/checked here. Its full metadata, normalized heads, coverage, source
+Models and GroundRoots proofs are still required.
+
+Install the distinct-variable parent before Reobserve pointifies descriptor6.
+For singleton captures, Allocation.capture passes the original bounds through;
+GeneralDeclarationDemands.inputInterval passes them directly for variable where
+arguments. Thus an old child can retain two loose (2,3) intervals even after
+its actual centers become the distinct parent binder values. Reobserve only
+changes nominal entries and retains sites/edges. ObservationPersistence217
+formally verifies this retention and preservation of the repeated-head sharing
+obstruction, but NOT Survivor or selected classification.
+
+A later parent reinstall can generate more precise child occurrences with the
+same identity but different arguments. One must not overlook it or simply assert
+parent Committed. Old occurrences are not deleted by these definitions, so a
+complete counterexample would still need to check every new generated occurrence,
+all stable transitions, alias/readiness/cycle/output tests, ChoiceCompatible,
+and a nonempty journal model. Alternatively a preservation theorem showing why
+one of those tests excludes the old loose child could repair this proof route.
+The current result is only a reproducible next investigation plan.
+
+## Independent review scope
+
+A read-only reviewer checked the first seven bridge/obstruction modules and
+relevant definitions. No critical flaw was found. The explicit missing premises
+(Agreement/BoundsFit/Overlap, all-Frame/all-site quantifiers, type-only point
+representation) remain necessary. CurrentChosen may change the model and does
+not retain all raw branch equations in its effect theorem. LooseGround and
+ObservationPersistence were locally compiled/audited, not independently reviewed.
