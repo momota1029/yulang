@@ -58,3 +58,36 @@ results, not creation of evidence from selection.
 At 11:05UTC the focused build passed for19 new modules,84 theorem audits passed
 under trust=0, and an all-constant axiom gate checked197 constants from exactly
 those19 modules. The full historical umbrella/supervisor gate was not run.
+
+## Final gap analysis and rejected shortcuts
+
+A source with a contradictory explicit output is not automatically an
+EvidenceNode counterexample: the unchanged Local boundary has OutputConflict,
+which tests joint journal Models + ChosenHead against joint ChosenEffects.
+The existing `StepAvailability.chosen_effects` already derives a common effects
+model from selection plus a joint head-model baseline. The real gap is obtaining
+that baseline and full report-sensitive packet support, not merely listing a
+candidate raw HeadModels witness. These models must not be silently identified.
+
+For nonterminal nominal collapse, total endpoint requests are materially different
+from the older partial materializer: its inputRequests retain lower/upper equations
+even for bare variable children. The older RequestSnapshot proof therefore cannot
+be copied wholesale to the total schema. The terminal restriction in the new replay
+is intentional; a next proof must account for changed literal child bounds,
+nonactual emitted equations, and source-indexed descendant evidence.
+
+The fixed-seed repeated-capture probe from the first checkpoint establishes a local
+packet incompatibility. Its guard shows the raw HeadModels/Prepared witness is
+excluded in that particular fixed-endpoint construction. It is therefore not a
+closed refutation of the selected/reachable/stable target. No STOP result was found.
+
+## Final strengthening at the verification boundary
+
+`GeneralDictionaryDefaultNominalFrame210` derives the destination Frame from the
+old Frame and replayed total packet along the actual revision. Its `certificate`
+therefore removes the explicit destination-Frame assumption of the previous
+checkpoint. The exact remaining restrictions are still terminal declaration,
+single specified nested nominal query, one input binder, a nonpoint retained leaf,
+a retained center, old total Certificate, and the fixed assignment's current raw
+Models. It does not add a current packet or Frame premise. This is preserved
+certificate existence, not the unrestricted selected-node theorem.

@@ -1,0 +1,3 @@
+import Yulang.GeneralDictionaryDefaultNominalFrame210
+#print axioms Yulang.GeneralDictionaryDefaultNominalFrame210.frame
+#print axioms Yulang.GeneralDictionaryDefaultNominalFrame210.certificate
