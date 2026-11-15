@@ -3674,3 +3674,9 @@ import Yulang.GeneralDictionarySharingBoundary216
 import Yulang.GeneralDictionaryCurrentAgreement217
 import Yulang.GeneralDictionaryCurrentChosen217
 import Yulang.GeneralDictionaryCurrentHeadEquations217
+
+import Yulang.GeneralDictionaryLooseGround217
+import Yulang.GeneralDictionaryLooseVariant217
+import Yulang.GeneralDictionaryPointObservation217
+import Yulang.GeneralDictionarySharingObstruction217
+import Yulang.GeneralDictionaryTopLevelSharing217
