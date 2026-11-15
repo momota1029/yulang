@@ -391,3 +391,12 @@ cycle 209・210 の部分的な結果（`SemanticReplay209`, `NominalFrame210` �
   - FreshCompletion（generatedChildren の、新しく据え付ける場合）についても同じ表を作る。
 - 計画を書いたら、残り時間で、一番大きな穴を埋める補題から進めてよい。
 - 計画の途中で、言語の意味を決めないと進めない場所が見つかったら、例を付けて質問のノートに書くこと（監督役がユーザーに聞く）。
+
+## I-40（2026-11-15）FreshCompletion は外す。残りは EvidenceNode の 1 本
+
+cycle 211 の計画（`notes/design/2026-11-15-cycle211-whole-evidence-plan.md`）と結果を受け入れる。
+- `GeneralDictionaryDefaultFreshProbe211Refutation.not_freshCompletion` は正しい。FreshCompletion は監督役が割り当てた補助で、それが強すぎた。取り下げる（質問ノートの遅延案どおり。選択の歯止めやモデルの存在の仮定は足さない）。
+- `GeneralDictionaryDefaultComposition211.composition` により、I-38 の境界の `B4TargetV7.Statement` は `B4SkeletonV7.EvidenceNode (DefaultBoundary208.boundary roles)` だけを前提にする。GeneratedChildren はもう要らない。**B4 の残りはこの 1 本**。
+- 次の担当: この EvidenceNode を無条件に証明する。計画の「Dependency graph and largest missing bridge」のとおり、(A) ChoiceCompatible と (B) 一つの代入で journal・packet・effect を同時に満たすこと、を選ばれた節点の範囲で示す。それが偽になる場所では、記録済みの証明書の持ち越し（replay）で埋める。
+- EvidenceNode は journal のモデルごとの主張なので、モデルが空の状態では空虚に成り立つ。(B) が要るのは、モデルがある状態だけ。計画の「Counterexample-first tests」を先に回し、(A)・(B) が偽になる例を探してから証明に入ること。
+- 制限つきの名前つき型の断片（`NominalFrame210` の類）は、計画の表で必要と分かった場合だけ足す。
