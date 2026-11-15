@@ -1,0 +1,53 @@
+# cycle216 verification logs
+
+## final-build.log
+Build completed successfully (1340 jobs).
+
+## final-build.exit
+0
+
+## final-audit.log
+CYCLE216-GATE-PASS: 150 constants in 19 modules
+
+## final-audit.exit
+0
+
+## diff-only gate (complete result with review excerpt)
+verify-lean: yulang183 @ 8a78ffd32 (base 7691d7257d9497ae16bfcde01f0237e01b2c11ec)
+ok: no removed lines in lean/ since 7691d7257d9497ae16bfcde01f0237e01b2c11ec
+ok: no sorry/native_decide/axiom-like constructs in added lines
+REVIEW: metaprogramming/#eval in added lines (a human must read these):
+22:+run_cmd do
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+verify-lean: PASS (diff checks only, NO build) with 1 REVIEW item(s) above
+Exit: 0
+
+The run_cmd is the standalone collectAxioms audit; it rejects all axioms except propext/Classical.choice/Quot.sound and rejects zero inspected constants. No untrusted evaluator proves object-level claims.
+
+## Counted-module independent audit
+COUNTED216-PASS: 63 constants in 6 modules
+
+## Operational failures corrected before validation
+Early local proof elaboration/name errors were corrected. The first combined audit invocation preceded MergeCriterion.olean and failed with missing object file; the full rerun above succeeds. No failed or timeout run is reported as PASS. GitHub blob batch response latency was about eight minutes; no uncertain request was duplicated.
+
+## Fidelity review
+Fresh work/dots-audit 55574b6052ef1534fd0fc36d6d3617ebede59a0e,
+notes/audit/y2-claims-casts-roles.md Y2-ROLE-003/004 inspected. Role re-expansion
+and lower/upper capture cross-constraints agree at the documented/component
+level, not source-wide exactness. The reference role-system explicitly says
+centers are not stored in the operational interval representation. This cycle's
+Assignment witnesses are semantic proof values, not a new language-level center
+allocation. No Yulang2 runtime result is claimed for these private transports.
+
+## Review of residual obligations
+CurrentCompletion216.common_iff eliminates free aggregate choices but retains
+existential journal validity, actual same-name capture Agreement, and protected
+Overlap. This does not reintroduce a SelectedFreshCompletion hypothesis into the
+boundary. Raw Prepared and the journal model must not be conflated. Global I40
+still needs choice compatibility and full packet/output/effect completion.
+SharingBoundary216.tests_not_sharing is explicitly a helper counterexample only:
+it has no checked registry, reachable trace, or Selected proof and does not refute
+EvidenceNode. PointExtrema216 requires genuinely point endpoint interpretations;
+Fits alone is not promoted to pointness. All initial point/ground/coverage inputs
+in the counted adapter are the unchanged actual boundary's Initial hypotheses.
