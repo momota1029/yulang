@@ -1,0 +1,34 @@
+import Yulang.GeneralNominalSlotObservation198
+import Yulang.GeneralNominalSlotReport198
+import Yulang.GeneralNominalSlotFacts198
+import Yulang.GeneralNominalSlotTransport198
+import Yulang.GeneralNominalSlotGrowth198
+#print axioms Yulang.GeneralNominalSlotObservation198.embed_injective
+#print axioms Yulang.GeneralNominalSlotObservation198.typeArguments_rename
+#print axioms Yulang.GeneralNominalSlotObservation198.typeArguments_rename_some
+#print axioms Yulang.GeneralNominalSlotObservation198.observed
+#print axioms Yulang.GeneralNominalSlotObservation198.observedMany
+#print axioms Yulang.GeneralNominalSlotReport198.report_append
+#print axioms Yulang.GeneralNominalSlotReport198.report_visit
+#print axioms Yulang.GeneralNominalSlotReport198.inspect_report
+#print axioms Yulang.GeneralNominalSlotReport198.inspectMany_report
+#print axioms Yulang.GeneralNominalSlotFacts198.bindings_report
+#print axioms Yulang.GeneralNominalSlotFacts198.selfChecks_report
+#print axioms Yulang.GeneralNominalSlotFacts198.finished_report
+#print axioms Yulang.GeneralNominalSlotFacts198.projection_report
+#print axioms Yulang.GeneralNominalSlotFacts198.materialization_report
+#print axioms Yulang.GeneralNominalSlotFacts198.candidate_report
+#print axioms Yulang.GeneralNominalSlotTransport198.allocation_capture
+#print axioms Yulang.GeneralNominalSlotTransport198.allocation_equal
+#print axioms Yulang.GeneralNominalSlotTransport198.merges_equal
+#print axioms Yulang.GeneralNominalSlotTransport198.allocation_frame
+#print axioms Yulang.GeneralNominalSlotTransport198.generated_eq
+#print axioms Yulang.GeneralNominalSlotTransport198.branch_transport
+#print axioms Yulang.GeneralNominalSlotTransport198.node_transport
+#print axioms Yulang.GeneralNominalSlotTransport198.tree_transport
+#print axioms Yulang.GeneralNominalSlotTransport198.evidence_transport
+#print axioms Yulang.GeneralNominalSlotGrowth198.proper_growth
+#print axioms Yulang.GeneralNominalSlotGrowth198.supported
+#print axioms Yulang.GeneralNominalSlotGrowth198.inhabited
+#print axioms Yulang.GeneralNominalSlotGrowth198.actual_reinspection
+#print axioms Yulang.GeneralNominalSlotGrowth198.global_bindings

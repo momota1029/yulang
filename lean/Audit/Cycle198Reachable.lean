@@ -1,0 +1,9 @@
+import Yulang.GeneralNominalGrowingReachable198
+#print axioms Yulang.GeneralNominalGrowingReachable198.checked
+#print axioms Yulang.GeneralNominalGrowingReachable198.metadata
+#print axioms Yulang.GeneralNominalGrowingReachable198.source
+#print axioms Yulang.GeneralNominalGrowingReachable198.ground
+#print axioms Yulang.GeneralNominalGrowingReachable198.coverage
+#print axioms Yulang.GeneralNominalGrowingReachable198.initial_source
+#print axioms Yulang.GeneralNominalGrowingReachable198.reachable
+#print axioms Yulang.GeneralNominalGrowingReachable198.inhabited_reachable

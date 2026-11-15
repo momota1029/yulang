@@ -1,0 +1,17 @@
+import Yulang.GeneralNominalMixedNonleaf198
+import Yulang.GeneralNominalInstalledRefresh198
+#print axioms Yulang.GeneralNominalMixedNonleaf198.mixed_path
+#print axioms Yulang.GeneralNominalMixedNonleaf198.parent_recorded
+#print axioms Yulang.GeneralNominalMixedNonleaf198.child_not_recorded
+#print axioms Yulang.GeneralNominalMixedNonleaf198.completion
+#print axioms Yulang.GeneralNominalMixedNonleaf198.uniform_dictionary
+#print axioms Yulang.GeneralNominalMixedNonleaf198.selected_sound
+#print axioms Yulang.GeneralNominalMixedNonleaf198.inhabited
+#print axioms Yulang.GeneralNominalInstalledRefresh198.installation
+#print axioms Yulang.GeneralNominalInstalledRefresh198.refresh_step
+#print axioms Yulang.GeneralNominalInstalledRefresh198.path
+#print axioms Yulang.GeneralNominalInstalledRefresh198.packet_recorded
+#print axioms Yulang.GeneralNominalInstalledRefresh198.packet_instance
+#print axioms Yulang.GeneralNominalInstalledRefresh198.evidence_node
+#print axioms Yulang.GeneralNominalInstalledRefresh198.leaf_evidence
+#print axioms Yulang.GeneralNominalInstalledRefresh198.models_iff

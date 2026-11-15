@@ -1,0 +1,11 @@
+import Yulang.GeneralDictionaryMatGuardTrace199
+
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.positions
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.alternatives
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.installable
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.children_nonempty
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.not_committed
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.install_step
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.not_stable
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.child_role
+#print axioms Yulang.GeneralDictionaryMatGuardTrace199.no_child_evidence

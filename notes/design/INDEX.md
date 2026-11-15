@@ -601,3 +601,9 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle196 executable descriptor insertion](2026-11-14-cycle196-executable-view.md) — actual WF refresh and same-model readback.
 - [Cycle196 rooted reinspection](2026-11-14-cycle196-rooted-view.md) — finite dictionary support.
 - [Cycle196 strict locality regression](2026-11-14-cycle196-rooted-example.md) — local support without global report agreement.
+- [Cycle197 nominal observation and mixed journal recovery](../handoff/dots-cycle-197.md) — finite traces, premise-free same-slot nominal syntax refresh transport, and actual mixed-execution packet Instances; general EvidenceNode remains open.
+
+- [Cycle198: arbitrary-slot transport and reachable growing refresh](2026-11-14-cycle198-slot-transport.md)
+
+- [Cycle199: total-plan / partial evidence migration](2026-11-14-cycle199-mat-evidence-migration.md) — actual Mat packet obstruction and empty-request leaf bridge.
+- [V7 merged-output rejection and selected-only evidence](2026-11-15-centered-v7-merged-output-conflict.md) — same Alloc Step, twelve closed V7 laws and canonical executor, rejected merge regression, corrected cycle-199 evidence scope, and composition from selected-only EvidenceNode plus GeneratedChildren; a selected ancestor refutes the universal positive-baseline route.
