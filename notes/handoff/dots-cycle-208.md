@@ -38,3 +38,19 @@ from exit selection, and explicit separation of the two remaining bridges.
 Diff-only gate follows the local commit before final publication.
 
 No edit to frozen aggregate Audit.lean or lean/README.md; no spec, plan, or lakefile edits.
+
+## Second checkpoint (09:05 UTC)
+
+All four requested semantic regressions are now retained under the successor.
+Seven additional modules: Semantic, Live, Cache, Availability, Recorded,
+Production, Provenance. The current audit contains170 theorem declarations.
+Actual stored plans enforce the entire current output class; generated children
+on that stored-plan branch need no common-model existence premise. FreshCompletion
+and EvidenceNode remain unproved, explicitly named in conditional composition.
+
+Operational correction: early cycle208 heartbeats used notes/handoff/dots-heartbeat.md
+instead of notes/heartbeat/dots-main.md. Canonical heartbeat corrected by c418293f
+at08:56. No work was lost, but the canonical heartbeat was stale until correction.
+One initial tree request was rejected because captured text was truncated. It was
+not committed. Full text was reread, critical blob hashes checked against local git,
+and the verified replacement tree alone was published as0a37d2018.
