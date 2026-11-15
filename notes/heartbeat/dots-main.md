@@ -1,10 +1,11 @@
-# dots-main heartbeat
-cycle: 213
+# Yulang cycle213 heartbeat
+
 status: running
-started: 2026-11-15T13:36:16Z
-updated: 2026-11-15T13:55:20Z
-elapsed_min: 19.1
-activity: Point/nonpoint nominal terminal replay and closed changed-binder regression pass. Reservation-free support now proved for complete corrected journal and total packet; exact tighter common-model splice passes. Closed raw+centered-versus-raw-head helper counterexample passes, not full EvidenceNode. Checkpoint blob batch still awaiting response; no branch publication yet confirmed.
-workspace: /workspace/scratch/1d0b4aaa3394/yulang183
-last_local_commit: 0f2104aab
-resume_hint: Pending GitHub blob batch; no duplicate writes. Local new *213 files, logs /tmp/y213-*.log. Audit initial six modules21constants passed; regression audit passed. Full EvidenceNode A/B remain open. Deadline14:25UTC.
+started_utc: 2026-11-15T13:36:16Z
+heartbeat_utc: 2026-11-15T14:03:00Z
+elapsed_minutes: 26.7
+hard_deadline_utc: 2026-11-15T14:25:00Z
+writer: cycle213; no concurrent same-branch writer observed
+integration: 73bd0e7a32d684b2eb72702a5d8057ecf10ee25d
+published_checkpoint: e9c46215ae4aa34a3b36893f7b53068116b1c4fd
+activity: checkpoint publication succeeded; 13 focused modules passed and trust=0 audit checked 104 constants; strengthening raw-head counterexample with nonempty output preservation and reviewing corrected trace provenance. A/B and unconditional EvidenceNode remain open.
