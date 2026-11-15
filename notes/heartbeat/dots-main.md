@@ -1,10 +1,10 @@
 # dots-main heartbeat
-cycle: 207
-status: completed
-started: 2026-11-15T07:28:21Z
-updated: 2026-11-15T07:31:30Z
-elapsed_min: 3.2
-activity: Fresh I37 exact refutation revalidated; I34 mandated stop, not crash. B4 remains2/14.
+cycle: 208
+status: running
+started: 2026-11-15T08:30:16Z
+updated: 2026-11-15T09:05:00Z
+elapsed_min: 35
+activity: I38 operational repair and all four regressions verified; final audit and semantic-bridge decomposition.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang183
-resume_hint: Read fresh inbox. Cycle206 default commitment gap requires operational repair authorization; do not weaken semantic Evidence.
-report: notes/handoff/dots-cycle-207.md
+last_local_commit: 029209092
+resume_hint: Preserve corrected Step and Local equality. EvidenceNode plus FreshCompletion remain open; no new refutation.
