@@ -1,0 +1,7 @@
+import Yulang.GeneralDictionaryMatEmptyLeaf199
+
+#print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.schema_empty
+#print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.branch_of_total
+#print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.instance_of_total
+#print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.evidence_of_total
+#print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.evidence_of_frame_total

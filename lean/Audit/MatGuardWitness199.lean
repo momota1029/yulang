@@ -1,0 +1,6 @@
+import Yulang.GeneralDictionaryMatGuardWitness199
+
+#print axioms Yulang.GeneralDictionaryMatGuardWitness199.packet_inhabited
+#print axioms Yulang.GeneralDictionaryMatGuardWitness199.holds_without_instance
+#print axioms Yulang.GeneralDictionaryMatGuardWitness199.reachable_selected_obstruction
+#print axioms Yulang.GeneralDictionaryMatGuardWitness199.no_total_instance_conversion

@@ -10856,3 +10856,14 @@ run_cmd do
 #print axioms Yulang.GeneralNominalOutputGrowthMeasures.minimum_unique
 #print axioms Yulang.GeneralNominalOutputGrowthMeasures.minimum_does_not_descend
 #print axioms Yulang.GeneralNominalOutputGrowthMeasures.boundary_example_whereAccessible
+
+-- Cycle199: actual total-packet / legacy source guard boundary.
+#print axioms Yulang.GeneralDictionaryMatGuardObstruction199.reachable
+#print axioms Yulang.GeneralDictionaryMatGuardObstruction199.selected
+#print axioms Yulang.GeneralDictionaryMatGuardObstruction199.no_instance
+#print axioms Yulang.GeneralDictionaryMatGuardWitness199.packet_inhabited
+#print axioms Yulang.GeneralDictionaryMatGuardWitness199.reachable_selected_obstruction
+#print axioms Yulang.GeneralDictionaryMatGuardWitness199.no_total_instance_conversion
+#print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.branch_of_total
+#print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.instance_of_total
+#print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.evidence_of_frame_total

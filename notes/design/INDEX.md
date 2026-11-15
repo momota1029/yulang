@@ -604,3 +604,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle197 nominal observation and mixed journal recovery](../handoff/dots-cycle-197.md) — finite traces, premise-free same-slot nominal syntax refresh transport, and actual mixed-execution packet Instances; general EvidenceNode remains open.
 
 - [Cycle198: arbitrary-slot transport and reachable growing refresh](2026-11-14-cycle198-slot-transport.md)
+
+- [Cycle199: total-plan / partial evidence migration](2026-11-14-cycle199-mat-evidence-migration.md) — actual Mat packet obstruction and empty-request leaf bridge.
