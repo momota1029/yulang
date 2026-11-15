@@ -330,3 +330,27 @@ cycle 199 の反例（`GeneralDictionaryMatPriorConflict199.not_prior_evidenceNo
   2. `GeneratedChildren`（`GeneralNominalCenteredHeadAllocCompletion` の `HeadBaseline` / `PacketAssembly` / `ChoiceFromCommon`）。Astra が見つけた障害: 既に子を記録して selected のまま残る親（journal にモデルがない）では、一般の `HeadBaseline` は偽になる。「既にある子」と「新しい据え付け」を分けて述べ直す必要がある。詳細は Astra の V7 のノートが統合されてから書く。
   3. K2 の射影の網羅。
 - 反例で型が偽と分かったら、今回のように閉じた反証と、型を遅らせる案を書いて止まること。勝手に型を弱めない。この進め方でよい。
+
+## I-35（2026-11-15）V7 の正確な担当型
+
+Astra の最後のターンが統合された（以後 Astra は回さない。I-34）。正確な担当は次の 2 本で、両方とも dot が担当する。境界は `b := GeneralNominalCenteredHeadAllocV7Boundary.boundary roles`。
+
+1. `B4SkeletonV7.EvidenceNode b`（別名 `GeneralNominalCenteredHeadAllocV7Composition.EvidenceNode roles`）。前提は `B4TargetV7.Local b r s d (.selected key children)` で、SafeKnown、head の一意性、`¬ OutputConflict`、`¬ MergedOutputConflict` を含む。展開形は `notes/design/2026-11-15-centered-v7-merged-output-conflict.md` の「Exact evidence field for dot」。cycle 199 の反例は、この field では空虚に成り立つ（`GeneralNominalCenteredHeadAllocV7Cycle199Regression.evidenceAt`）。I-34 の V6 版で始めた作業は、この型へ移す。
+2. `B4SkeletonV7.GeneratedChildren b`（別名 `GeneralNominalCenteredHeadAllocV7Composition.GeneratedChildren roles`）。
+
+この 2 本から主定理が出る: `GeneralNominalCenteredHeadAllocV7Composition.composition node generated : B4TargetV7.Statement b (GeneralNominalCenteredHeadAllocV7Executor.executor roles)`。ほかの前提はない。
+- 注意: 一般の `HeadBaseline` / `SelectedCompletion` は偽（`GeneralNominalCenteredHeadAllocV7ParentBaseline.not_headBaseline`, `not_selectedCompletion`）。子をすでに記録した selected の親があるため。GeneratedChildren をこの経路で示そうとしないこと。`PacketAssembly` と `ChoiceFromCommon` は未解決で、反証もされていない。
+- 優先順位: EvidenceNode を先に。K2 の射影の網羅はその後。
+
+## I-36（2026-11-15）根拠の判定を role の既定値に対応させる（dot の担当）
+
+cycle 202 の反例（`GeneralDictionaryAllocDefaultCounterexample202.not_selected_evidenceNode`, `not_v7_evidenceNode`）は正しい。原因は担当型ではなく、境界が受け継いでいる根拠の判定（`GeneralDictionaryRecursiveEvidence.Instance` → `RequestReady.RootDefined`）が、関連型の明示的な式しか認めないこと。spec 6.1（確定, 2026-11-04）では、role に default があれば impl は関連型を省略できる。したがって直すのは判定の側で、意味論の問題ではない。監督役は `notes/questions/2026-11-15-selected-default-evidence-target.md` の「Possible repair」を採る。
+
+- 次の順で進めること:
+  1. 新しい根拠の判定を作る。選ばれた impl について、関連型の本体が明示か default かを記録し、どちらも total expression で解釈する。古い判定は消さない（追記のみ）。
+  2. V7 の Alloc 境界と同じ境界で、`Evidence` だけをこの判定に差し替えた後継の境界を作る。12 の性質と Step・Stable・Local・Models は `Evidence` に依存しないはずなので、そのまま移す。依存していたら報告すること。
+  3. その後継で `B4SkeletonV7.EvidenceNode` を証明する。cycle 199 と 202 の 2 つの反例が、どちらも問題にならないことも示す（199 は拒否で空虚に成り立ち、202 は default で根拠が立つ）。
+  4. 合成（`GeneralNominalCenteredHeadAllocV7Composition.composition` に相当するもの）を後継の境界へ移す。
+- 新しい判定は、明示の式と default の両方を認める以外の点で、古い判定より緩くしないこと。新しい判定が spec の意味と一致することを示す小さな例（明示 1 つ、default 1 つ、上書き 1 つ）を付けること。
+- 明示の式だけの断片で証明できても、それを I-36 の完了とは呼ばない（名前を分ける）。cycle 202 のノートの方針どおりでよい。
+- GeneratedChildren は cycle 202 の分割（`FreshCompletion`）でよい。新しく据え付ける場合の証明は、EvidenceNode の後に回す。
