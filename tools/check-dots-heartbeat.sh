@@ -18,6 +18,10 @@ git fetch -q "${ref%%/*}" "${ref#*/}" 2>/dev/null || { echo "error: fetch failed
 hb=$(git show "$ref:notes/heartbeat/$dot.md" 2>/dev/null) || { echo "NO-HEARTBEAT ($ref notes/heartbeat/$dot.md)"; exit 2; }
 field() { printf '%s\n' "$hb" | sed -n "s/^[ -]*$1: *//p" | head -1; }
 status=$(field status); cycle=$(field cycle); updated=$(field updated); activity=$(field activity)
+# Some cycles write heartbeat_utc instead of updated, and no cycle field (title "# Yulang cycleNNN heartbeat").
+[ -n "$updated" ] || updated=$(field heartbeat_utc)
+[ -n "$cycle" ] || cycle=$(printf '%s\n' "$hb" | sed -n 's/^# .*[Cc]ycle *\([0-9][0-9]*\).*/\1/p' | head -1)
+[ -n "$updated" ] || { echo "error: no updated/heartbeat_utc field"; exit 2; }
 ts=$(date -u -d "$updated" +%s 2>/dev/null) || { echo "error: cannot parse updated: $updated"; exit 2; }
 age=$(( ( $(date +%s) - ts ) / 60 ))
 if [ "$status" = "completed" ]; then echo "completed $age min: cycle $cycle"; exit 0; fi
