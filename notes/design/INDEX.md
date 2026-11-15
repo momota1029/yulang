@@ -609,3 +609,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [V7 merged-output rejection and selected-only evidence](2026-11-15-centered-v7-merged-output-conflict.md) — same Alloc Step, twelve closed V7 laws and canonical executor, rejected merge regression, corrected cycle-199 evidence scope, and composition from selected-only EvidenceNode plus GeneratedChildren; a selected ancestor refutes the universal positive-baseline route.
 
 - [Cycle208 default schema successor](2026-11-15-cycle208-default-schema-checkpoint.md) — I38 corrected commitment and twelve operational laws; two semantic bridges remain open.
+
+- [Cycle209 current evidence reconstruction](2026-11-15-cycle209-current-evidence.md) (checkpoint, 2026-11-15).
