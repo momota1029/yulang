@@ -619,3 +619,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [Cycle215 current projection](2026-11-15-cycle215-current-projection.md): arbitrary recursive/alias-centered and raw reinspection; fixed-model merge-extrema residual.
 - [Cycle215 choice reduction](2026-11-15-cycle215-choice-reduction.md): selected Prepared/Failed split, generic conflicts exclusion, semantic fallback transport and remaining overlap obligations.
+
+- [Cycle216 counted current input tests](2026-11-15-cycle216-counted-input-tests.md): actual corrected ancestry, arbitrary normalized record tails, no historical same-declaration assumption.
+- [Cycle216 finite merge completion](2026-11-15-cycle216-merge-completion.md): constructive disjoint/owned/mixed support completion; exact overlap criterion and remaining repeated-capture sharing. I40 remains open.

@@ -45,3 +45,29 @@ separation from actual InitialSource.below_seed, giving an exact initial
 propagation satisfiability iff source-model plus compatibility. These do not
 establish separation in an arbitrary later journal. Existing installed extrema
 remain a genuine overlap case, not something reservation erasure solves.
+
+## Exact residuals, not an assumed whole-goal solution
+
+CountedProjection216 derives current anchors/tests from corrected actual counted
+inputs and proves centered ProjectionModels iff same-name capture Agreement,
+without a historical plan or same declaration assumption. CountedRawHead216
+then derives raw projection and the fixed-model HeadModels iff merge equations.
+The initial point/ground/coverage premises are the existing actual boundary's
+Initial premises, not a new finite-Expr restriction.
+
+PointExtrema216 / OwnedMerges216 retain existing slots when actual lower/upper
+extrema are equivalent; repeated **point** captures are one explicit sufficient
+case. Mere Fits is not pointness. MixedMerge216 leaves every protected value
+unchanged and assigns only free aggregate slots; protected overlap needs only
+semantic Equivalent to its newly computed extremum. MergeCriterion216 gives the
+necessary-and-sufficient criterion for a merge model preserving a finite pool
+that contains the binding endpoints. This is a local amalgamation theorem, not
+a proof that an arbitrary actual journal satisfies its overlap condition.
+
+Remaining I40: derive repeated-capture Agreement and protected overlap/common
+witness existence from the exact actual selected trace, then integrate choice
+and output/effect obligations. A single journal model failing Agreement is NOT
+a counterexample to existential EvidenceNode. Prepared supplies a potentially
+different raw model; counted ancestry is available for journal models and cannot
+be applied to that witness without a bridge. A variables-only head has no tests,
+so successful head-test derivation alone proves no repeated-capture equality.
