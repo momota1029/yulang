@@ -1,23 +1,14 @@
-# Yulang cycle215 completed
+# dots-main heartbeat
 
-cycle: 215
+cycle: 216
 status: completed
-started: 2026-11-15T15:34:02Z
-updated: 2026-11-15T16:21:45Z
-elapsed_min: 47.7
-research_stopped: 2026-11-15T16:15:00Z
-hard_deadline: 2026-11-15T16:25:00Z
-writer: released
-integration: e7d66f29c1ea06ebc28d1e0f45c740b88f76332d
-checkpoint: 4580a8d817a621dee3d59efab2eecc74ab08e9f5
-source_publication: 1c8b186188c0e15bcac8878dd928bf146e369157
-final_report_publication: b810c367b63be18d0a3277df9e233d16effbe9ae
-readback: PASS33/33 local artifact hashes matched final GitHub tree, untruncated; latest integrated214 owner prefixes preserved exactly; integration is ancestor of publication.
-verification: focused strict builds PASS1321 dependency jobs; trust0 audit261 constants/25modules PASS; refreshed diff-only gate PASS with1 reviewed audit run_cmd. No full umbrella/legacy Audit/runtime validation claimed.
-activity: Completed general structural/nominal anchor bounds, actual alias readback, pre-Prepared centered and raw projections, raw conflict exclusion, capture cross/self-checks, exact fixed-model HeadModels iff merge/extrema residual, conservative same-model alias head extension.
-limits: I40 EvidenceNode remains open. Selected ChoiceCompatible and common journal/packet/effect assignment not proved; current merge slots may overlap historical extrema constraints. No target refutation or semantics weakening.
+started_at_utc: 2026-11-15T16:33:28Z
+updated_at_utc: 2026-11-15T17:17:30Z
+elapsed_minutes: 44
+research_cutoff_utc: 2026-11-15T17:15:00Z
+deadline_utc: 2026-11-15T17:25:00Z
+activity: 19 modules strict build PASS;150 constants trust0 audit PASS. Source4df18e8d, report983a8760 published only on work/dots-main. All29 artifact hashes read back; recursive tree untruncated. I40 remains open; counted current tests and exact protected-overlap common-head criterion proved, repeated-capture agreement and full selected choice/packet/effect bridges remain.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang183
-last_local_commit: 6d6daeea9
-resume_hint: Read fresh integration and I40. Start from215 exact merge/extrema residual and choice reduction. Investigate counted-input invariant from actual ancestry for selected-head transport, and historical extrema overlap/replay; do not assume raw Prepared gives a journal-compatible witness.
-report: notes/handoff/dots-cycle-215.md
-verification_report: notes/verification/dots-cycle-215.md
+last_local_commit: c195987eafd37d84063c502b34400e182f2a16c0
+final_integration: 7691d7257d9497ae16bfcde01f0237e01b2c11ec
+resume: Read fresh integration and both instructions; recover notes/handoff/dots-cycle-216.md and verification. No pending publication call; no background writer. Writer released. Initialpoint/ground/coverage unchanged; no FreshCompletion reintroduction or target weakening.
