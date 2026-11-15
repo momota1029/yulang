@@ -51,3 +51,21 @@ in turn depends on unresolved PacketAssembly/ChoiceFromCommon. We must either
 prove that bridge, find a closed counterexample, or report it unresolved. We
 must not turn it into an assumed completed EvidenceNode. FreshCompletion and
 GeneratedChildren remain separate, not smuggled into the result.
+
+## Completed countercheck (cycle206, after initial checkpoint)
+
+The all-model output condition is now classified (c): it is indispensable to
+what it means to satisfy a role default, and a closed checked/initial/reachable
+stable selected counterexample falsifies it. The semantic packet alone does NOT
+include role-default output equations. Therefore Committed.1 is insufficient
+for ClassEffects, even if Extension were supplied. This corrects the earlier
+bridge sketch, which must not be read as asserting commitment suffices.
+
+`GeneralDictionaryDefaultGap206Counterexample.not_evidenceNode` refutes exactly
+the new semantic successor. `positive_premises` proves every positive boundary
+premise. `committed_without_default` exposes the omission. Source0 is linked,
+not a fresh unattached identifier; both compatible Int and counter bottom models
+are genuine source models. Only source1 is the point ground input. No hidden
+absence of models, old partial materializer, constructor injectivity, rejected
+selection, or ungenerated child is involved. Do not remove output semantics
+from Evidence to make this theorem true. See the separate question/delay note.
