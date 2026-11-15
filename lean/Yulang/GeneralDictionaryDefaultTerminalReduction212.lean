@@ -94,3 +94,34 @@ existential witness in `common` is joint; separate witnesses are not accepted. -
     (empty.symm ▸ CommonRoleOutermostResolver.All₂.nil)
 
 end Yulang.GeneralDictionaryDefaultTerminalReduction212
+
+namespace Yulang.GeneralDictionaryDefaultTerminalReduction212
+open GeneralDeclarations GeneralNominalCenters
+variable {roles : Roles.RoleDecls} {plan : Plan roles}
+
+ theorem no_output_binders (terminal : plan.packet.declaration.requirements = []) :
+     plan.packet.declaration.outputBinders = [] := by
+  apply List.eq_nil_iff_forall_not_mem.mpr
+  intro binder member
+  obtain ⟨clause,present,_⟩ := plan.packet.checked.produced binder member
+  rw [terminal] at present
+  cases present
+
+ theorem no_output_names (terminal : plan.packet.declaration.requirements = []) :
+     plan.packet.declaration.outputNames = [] := by
+  unfold Declaration.outputNames
+  rw [no_output_binders terminal]
+  rfl
+
+/-- Terminal associated expressions use only the implementation's input
+binders; the Produced condition rules out hidden child-produced outputs. -/
+ theorem associated_inputs_only (terminal : plan.packet.declaration.requirements = [])
+     (member : equation ∈ plan.packet.declaration.associated)
+     (used : name ∈ (GeneralDeclarationPatterns.normalize equation.rhs).variables) :
+     name ∈ plan.packet.declaration.inputNames := by
+  rcases plan.packet.checked.scope.2.1 equation member name used with input | output
+  · exact input
+  · rw [no_output_names terminal] at output
+    cases output
+
+end Yulang.GeneralDictionaryDefaultTerminalReduction212
