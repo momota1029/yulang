@@ -2,9 +2,10 @@
 cycle: 215
 status: running
 started: 2026-11-15T15:34:02Z
-updated: 2026-11-15T15:51:27Z
-elapsed_min: 17.4
-activity: General recursive structural/nominal anchor bounds, current centered ProjectionModels, same-model raw branch head extension PASS. Alias closure readback and pre-Frame current projection PASS; assembling alias-preserving extension. A remains current Failed exclusion.
+updated: 2026-11-15T16:03:58Z
+elapsed_min: 30
+activity: Full alias raw and centered projection plus all recursive conflict exclusion PASS. Fixed-journal raw HeadModels iff current merge equations/extrema PASS; no Prepared premise. Earlier16-file checkpoint verified. Continuing remaining model-overlap/backward-feasibility investigation and final expanded audit.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang183
-last_local_commit: 1dfbe7b39
-resume_hint: New215 modules in worktree; strict focused builds PASS. Checkpoint publication next. Research until16:15, verified publication/report by16:25UTC. No whole EvidenceNode claim. This timestamp corrects the previous heartbeat's estimated future timestamp using measured UTC.
+last_local_commit: a255dc092
+checkpoint: 4580a8d817a621dee3d59efab2eecc74ab08e9f5
+resume_hint: New25 modules on local commit; first14 published/audited103 constants. Unpublished additions11 modules include raw projection/conflicts/current raw-head exact residual; expand audit before final publication. Research until16:15, final report by16:25UTC. EvidenceNode still open.
