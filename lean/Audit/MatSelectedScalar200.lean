@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryMatSelectedScalar200
+
+#check Yulang.GeneralDictionaryMatSelectedScalar200.evidence_of_selected_common_model
+#print axioms Yulang.GeneralDictionaryMatSelectedScalar200.selected_children
+#print axioms Yulang.GeneralDictionaryMatSelectedScalar200.evidence_of_selected_common_model
