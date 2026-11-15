@@ -1,0 +1,8 @@
+import Yulang.GeneralDictionaryDefaultRank208
+
+#print axioms Yulang.GeneralDictionaryDefaultRank208.steps
+#print axioms Yulang.GeneralDictionaryDefaultRank208.remaining_le_length
+#print axioms Yulang.GeneralDictionaryDefaultRank208.budget
+#print axioms Yulang.GeneralDictionaryDefaultRank208.length_bound
+#print axioms Yulang.GeneralDictionaryDefaultRank208.selections_length
+#print axioms Yulang.GeneralDictionaryDefaultRank208.ground_budget

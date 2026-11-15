@@ -3523,3 +3523,4 @@ import Yulang.GeneralDictionaryDefaultAvailability208
 import Yulang.GeneralDictionaryDefaultRecorded208
 import Yulang.GeneralDictionaryDefaultProduction208
 import Yulang.GeneralDictionaryDefaultProvenance208
+import Yulang.GeneralDictionaryDefaultRank208
