@@ -68,3 +68,11 @@ branch, or produce an exact closed obstruction and stop under I34. Separately
 bridge current selected frames with historic stored plans for general EvidenceNode.
 Do not revive false global HeadBaseline, assume inhabitation for an inconsistent
 journal, or substitute enabled_stable_node for the requested unconditional field.
+
+## Quantitative trace budget
+
+Rank208.ground_budget constructs a finite uniform bound for every counted trace
+from each checked ground source under the unchanged point/coverage conditions.
+The finite-fact measure decreases at every Step; the cover is produced by Cover208.
+The output-subset enumeration has length 2^n. No efficient executable driver or
+polynomial complexity claim is made.
