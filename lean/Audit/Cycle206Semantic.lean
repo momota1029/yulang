@@ -1,0 +1,30 @@
+import Yulang.GeneralDictionaryTotalEvidence206
+import Yulang.GeneralDictionaryTotalBoundary206
+import Yulang.GeneralDictionaryTotalLegacy206
+import Yulang.GeneralDictionaryTotalJoin206
+import Yulang.GeneralDictionaryTotalDefault206
+import Yulang.GeneralDictionaryTotalRejected206
+
+#print axioms Yulang.GeneralDictionaryTotalEvidence206.certificate_of_semantics
+#print axioms Yulang.GeneralDictionaryTotalEvidence206.finished
+#print axioms Yulang.GeneralDictionaryTotalEvidence206.metadata
+#print axioms Yulang.GeneralDictionaryTotalEvidence206.center_holds
+#print axioms Yulang.GeneralDictionaryTotalEvidence206.instance_models
+#print axioms Yulang.GeneralDictionaryTotalEvidence206.evidence_node
+#print axioms Yulang.GeneralDictionaryTotalEvidence206.evidence_leaf
+#print axioms Yulang.GeneralDictionaryTotalBoundary206.local_iff
+#print axioms Yulang.GeneralDictionaryTotalBoundary206.reachable_iff
+#print axioms Yulang.GeneralDictionaryTotalBoundary206.bridges
+#print axioms Yulang.GeneralDictionaryTotalBoundary206.composition
+#print axioms Yulang.GeneralDictionaryTotalLegacy206.terminal_default_old_to_new
+#print axioms Yulang.GeneralDictionaryTotalLegacy206.terminal_default_leaf
+#print axioms Yulang.GeneralDictionaryTotalJoin206.certificate
+#print axioms Yulang.GeneralDictionaryTotalJoin206.evidence_model
+#print axioms Yulang.GeneralDictionaryTotalJoin206.selected
+#print axioms Yulang.GeneralDictionaryTotalJoin206.evidenceAt
+#print axioms Yulang.GeneralDictionaryTotalDefault206.selected
+#print axioms Yulang.GeneralDictionaryTotalDefault206.evidence_model
+#print axioms Yulang.GeneralDictionaryTotalDefault206.evidenceAt
+#print axioms Yulang.GeneralDictionaryTotalRejected206.rejected
+#print axioms Yulang.GeneralDictionaryTotalRejected206.no_selected
+#print axioms Yulang.GeneralDictionaryTotalRejected206.evidenceAt
