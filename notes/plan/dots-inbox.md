@@ -330,3 +330,14 @@ cycle 199 の反例（`GeneralDictionaryMatPriorConflict199.not_prior_evidenceNo
   2. `GeneratedChildren`（`GeneralNominalCenteredHeadAllocCompletion` の `HeadBaseline` / `PacketAssembly` / `ChoiceFromCommon`）。Astra が見つけた障害: 既に子を記録して selected のまま残る親（journal にモデルがない）では、一般の `HeadBaseline` は偽になる。「既にある子」と「新しい据え付け」を分けて述べ直す必要がある。詳細は Astra の V7 のノートが統合されてから書く。
   3. K2 の射影の網羅。
 - 反例で型が偽と分かったら、今回のように閉じた反証と、型を遅らせる案を書いて止まること。勝手に型を弱めない。この進め方でよい。
+
+## I-35（2026-11-15）V7 の正確な担当型
+
+Astra の最後のターンが統合された（以後 Astra は回さない。I-34）。正確な担当は次の 2 本で、両方とも dot が担当する。境界は `b := GeneralNominalCenteredHeadAllocV7Boundary.boundary roles`。
+
+1. `B4SkeletonV7.EvidenceNode b`（別名 `GeneralNominalCenteredHeadAllocV7Composition.EvidenceNode roles`）。前提は `B4TargetV7.Local b r s d (.selected key children)` で、SafeKnown、head の一意性、`¬ OutputConflict`、`¬ MergedOutputConflict` を含む。展開形は `notes/design/2026-11-15-centered-v7-merged-output-conflict.md` の「Exact evidence field for dot」。cycle 199 の反例は、この field では空虚に成り立つ（`GeneralNominalCenteredHeadAllocV7Cycle199Regression.evidenceAt`）。I-34 の V6 版で始めた作業は、この型へ移す。
+2. `B4SkeletonV7.GeneratedChildren b`（別名 `GeneralNominalCenteredHeadAllocV7Composition.GeneratedChildren roles`）。
+
+この 2 本から主定理が出る: `GeneralNominalCenteredHeadAllocV7Composition.composition node generated : B4TargetV7.Statement b (GeneralNominalCenteredHeadAllocV7Executor.executor roles)`。ほかの前提はない。
+- 注意: 一般の `HeadBaseline` / `SelectedCompletion` は偽（`GeneralNominalCenteredHeadAllocV7ParentBaseline.not_headBaseline`, `not_selectedCompletion`）。子をすでに記録した selected の親があるため。GeneratedChildren をこの経路で示そうとしないこと。`PacketAssembly` と `ChoiceFromCommon` は未解決で、反証もされていない。
+- 優先順位: EvidenceNode を先に。K2 の射影の網羅はその後。
