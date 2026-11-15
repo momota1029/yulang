@@ -2,9 +2,10 @@
 cycle: 210
 status: running
 started: 2026-11-15T10:28:19Z
-updated: 2026-11-15T10:36:30Z
-elapsed_min: 8.2
-activity: Retained historical centers remove point/collapsed restrictions from existential replay. Nonnominal report preservation across genuine Revision and pre/post Frame certificates built. Inspecting nominal repeated-capture obstruction.
+updated: 2026-11-15T10:46:06Z
+elapsed_min: 17.8
+activity: Published checkpoint772d8891:9 modules45 theorems;12 changed blobs matched remote tree exactly. Whole structural Evidence equivalence across certified Revision, existential interval replay, local capture obstruction plus rejection guard. Continuing nominal/fresh-gap analysis.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang183
-last_local_commit: 62788c591
-resume_hint: New210 files in working tree, focused logs in yulang210-logs. Continue ≤11:23:19UTC; verification/publication from11:13. General EvidenceNode/FreshCompletion remain open; repeated-capture concern is not a closed refutation. This corrects the preceding heartbeat timestamp estimated ahead of actual clock.
+last_local_commit: 02a15b289
+publication: 772d88918eaaa5a1d1b907743cadb7f40c49f98d
+resume_hint: Published210 files append-only from now. Build/audit/diff gates passed. No full umbrella build. General EvidenceNode/FreshCompletion open; local allocation probe is not a target counterexample. Continue substantive work until11:13 then final checks/publication≤11:23:19UTC.
