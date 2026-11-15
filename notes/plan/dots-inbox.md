@@ -368,3 +368,15 @@ cycle 204 の default の直しは正しい（`DefaultSelected204.evidenceAt`, `
 - 古い判定とのつながりは、古い判定で扱えていた範囲で新しい判定が成り立つこと（old → new）を示せばよい。逆向き（new → old）は要らない。
 - 守ること: 選ばれる入力を勝手に狭めない。constructor の解釈が単射だと仮定しない。結論を仮定に入れない。明示だけの断片などの部分的な結果には、別の名前を付ける。
 - その上で `B4SkeletonV7.EvidenceNode` を後継の境界で証明する。反例が出たら、I-34 のとおり閉じた反証と案を書いて止まる。
+
+## I-38（2026-11-15）据え付けに role の既定値の出力を含める（操作の側の直し）
+
+cycle 206 の判定の直し（`TotalEvidence206`, `TotalBoundary206`, `TotalJoin206` など）は正しい。新しい反例（`GeneralDictionaryDefaultGap206Counterexample.not_evidenceNode`）も正しい。原因は操作の側にある: packet の emitted schema が role の default の出力を含まないので、`Committed` が default の式を確かめずに成り立ち、据え付けが起きない。spec 6.1（確定, 2026-11-04）では、impl が関連型を省略すると default が使われる。したがって、選ばれた impl の出力の等式に default の本体を含めるのが spec どおりの動きで、意味論の変更ではない。`notes/questions/2026-11-15-cycle206-default-commitment.md` の「Possible next repair」の 1 つ目を採る。
+
+- **やること**:
+  1. emitted schema（据え付けで足す出力の等式）に、明示・default・上書きのすべてを、本体の出どころつきで入れる。`Committed` がそれを確かめるようにする。別の遷移（effect-completion）を足す案は採らない。
+  2. Step を変えた後継の境界を作り、12 の性質（progress、停止性、closure、stepModels、canonicalLocalOrder など）を証明し直す。前の証明を使い回せるところは使い回す。古いモジュールは追記のみ。
+  3. 合わせて、まとめた需要と、子をすでに記録した親についても、default の出力を同じように扱えているか確かめる（I-37 のとおり、一度にまとめて点検する）。
+  4. その境界で `B4SkeletonV7.EvidenceNode` を証明する。cycle 199・202・204・206 の 4 つの例を回帰として残す。206 の例は、据え付けが default の等式を足すので bottom のモデルが消える、という形で問題がなくなるはず。
+- 守ること: 選ばれる入力を狭めない。出力の等式を弱めない。結論を仮定に入れない。反例が出たら I-34 のとおり止まる。
+- 一周で終わらない大きさなので、途中の成果は checkpoint として公開してよい。12 の性質を証明し直すところまでで 1 周を使ってよい。
