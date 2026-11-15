@@ -1,0 +1,5 @@
+import Yulang.GeneralDictionaryDefaultPointRegression213
+#print axioms Yulang.GeneralDictionaryDefaultPointRegression213.old_holds
+#print axioms Yulang.GeneralDictionaryDefaultPointRegression213.replayed
+#print axioms Yulang.GeneralDictionaryDefaultPointRegression213.binder_changes
+#print axioms Yulang.GeneralDictionaryDefaultPointRegression213.semantic_binder_agreement
