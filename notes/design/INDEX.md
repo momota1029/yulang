@@ -615,3 +615,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle209 exact checked declaration types](2026-11-15-cycle209-declarations.md) —102 theorem signatures, explicitly restricted replay and auxiliary semantics.
 
 - [Cycle213 semantic binder replay](2026-11-15-cycle213-semantic-replay.md): I40 historical point/nonpoint capture-collapse case; unrestricted EvidenceNode remains open.
+- [Cycle214 corrected actual origins and overlap plan](2026-11-15-cycle214-overlap-plan.md): I40 full-domain bridge plan and precise remaining obligations.
