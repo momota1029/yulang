@@ -354,3 +354,17 @@ cycle 202 の反例（`GeneralDictionaryAllocDefaultCounterexample202.not_select
 - 新しい判定は、明示の式と default の両方を認める以外の点で、古い判定より緩くしないこと。新しい判定が spec の意味と一致することを示す小さな例（明示 1 つ、default 1 つ、上書き 1 つ）を付けること。
 - 明示の式だけの断片で証明できても、それを I-36 の完了とは呼ばない（名前を分ける）。cycle 202 のノートの方針どおりでよい。
 - GeneratedChildren は cycle 202 の分割（`FreshCompletion`）でよい。新しく据え付ける場合の証明は、EvidenceNode の後に回す。
+
+## I-37（2026-11-15）根拠の判定を式の意味で決める。古い歯止めはまとめて点検する
+
+cycle 204 の default の直しは正しい（`DefaultSelected204.evidenceAt`, `DefaultRejected204.evidenceAt`）。cycle 204 の反例（`GeneralDictionaryDefaultEvidence204JoinCounterexample.not_evidenceNode`）も正しい。原因は、I-36 で監督役が「明示と default のほかは古い判定より緩くしない」と書いたことにある。この指示は取り下げる。
+
+- **方針**: 根拠の判定（Evidence）は、操作の側の Models と同じく、式の意味（total expression）で決める。古い部分的な変換器の構文的な歯止め（`generated_ready` / unknown=false など）は残さない。`notes/questions/2026-11-15-cycle204-total-expression-evidence.md` の「Possible next repair」を採る。言語の意味は変えない。
+- **点検はまとめて行う**: 歯止めが 1 周に 1 つずつ見つかっている（199 は拒否、202 は default、204 は部分変換器）。次の周では、新しい Certificate に残っている全部の条件を一覧にすること。それぞれについて、次の 3 つのどれに当たるかを書く。
+  - (a) Step・Stable・Models・Local・Frame から導ける（導いて、条件から外す）。
+  - (b) 意味の対応物に置き換える（total expression の等式、根拠の出どころ、順序つきの子）。
+  - (c) 本当に必要で、反例があっても外せない。この場合は、その反例と理由を書いて止まる。
+  一覧は design ノートに書くこと。
+- 古い判定とのつながりは、古い判定で扱えていた範囲で新しい判定が成り立つこと（old → new）を示せばよい。逆向き（new → old）は要らない。
+- 守ること: 選ばれる入力を勝手に狭めない。constructor の解釈が単射だと仮定しない。結論を仮定に入れない。明示だけの断片などの部分的な結果には、別の名前を付ける。
+- その上で `B4SkeletonV7.EvidenceNode` を後継の境界で証明する。反例が出たら、I-34 のとおり閉じた反証と案を書いて止まる。
