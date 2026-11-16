@@ -10867,3 +10867,6 @@ run_cmd do
 #print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.branch_of_total
 #print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.instance_of_total
 #print axioms Yulang.GeneralDictionaryMatEmptyLeaf199.evidence_of_frame_total
+
+#print axioms Yulang.B4TargetV8.selected_iff
+#print axioms Yulang.B4SkeletonV8.b4_of_bridges

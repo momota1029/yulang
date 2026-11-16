@@ -4728,3 +4728,5 @@ source Evidence. This does not implement Step or change selection semantics.
 prove fixed-context computed-frame, reconstruction, preparation, branch and
 independent semantic Evidence invariance under checked visible/where reordering.
 The same source witness and the same full assignment are retained.
+
+- Cycle220 target checkpoint: V8 sharing-conflict diagnostic and generic bridge skeleton. This is not an unconditional EvidenceNode proof.

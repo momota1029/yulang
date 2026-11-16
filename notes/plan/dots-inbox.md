@@ -400,3 +400,15 @@ cycle 211 の計画（`notes/design/2026-11-15-cycle211-whole-evidence-plan.md`�
 - 次の担当: この EvidenceNode を無条件に証明する。計画の「Dependency graph and largest missing bridge」のとおり、(A) ChoiceCompatible と (B) 一つの代入で journal・packet・effect を同時に満たすこと、を選ばれた節点の範囲で示す。それが偽になる場所では、記録済みの証明書の持ち越し（replay）で埋める。
 - EvidenceNode は journal のモデルごとの主張なので、モデルが空の状態では空虚に成り立つ。(B) が要るのは、モデルがある状態だけ。計画の「Counterexample-first tests」を先に回し、(A)・(B) が偽になる例を探してから証明に入ること。
 - 制限つきの名前つき型の断片（`NominalFrame210` の類）は、計画の表で必要と分かった場合だけ足す。
+
+## I-41（2026-11-16）型変数を共有する impl は、実際の引数の等式を足す（ユーザー決定）
+
+dot が止まっている間に、監督役が Astra を 1 ターンだけ使い、cycle 217 の候補を確かめた。結果は本物の反例だった（`GeneralDictionaryGroundCopy218SaturatedRefutation.not_evidenceNode`, `positive_premises`、ノート `notes/questions/2026-11-16-cycle218-ground-copy-counterexample.md`）。
+- 反例の中身: `impl P (Foo 'x 'y): where 'x: R 'y` と `impl R 't 't` がある。子の需要 `R (:{tick int}) (:{tick bool})` の区間がまだゆるいうちに、`impl R 't 't` が区間だけで選ばれる。親を据え付け直して根全体が安定した後でも、古い子が selected のまま残り、辞書の根拠がない。
+- **ユーザーの決定（spec 6.5 に追記, 2026-11-16）**: 候補の照合は今までどおり区間の端点と既知の頭だけで行う。型変数を共有する impl を選んだら、その位置の実際の引数（中心）どうしが等しいという等式を制約として足す。矛盾すれば、その需要の拒否（型エラー）として報告する。OutputConflict と同じ扱いで、保留は作らない。
+- **dot の担当**:
+  1. 据え付けの effect / packet に、選んだ宣言の head の型変数の共有から来る、中心の等式を含める（I-38 で default の出力を入れたのと同じ場所）。
+  2. 拒否の理由に「共有の等式が矛盾する」を足した後継の target（V8。V7 と同じく、曖昧が先で、保留にはしない）と、その境界を作る。12 の性質を移す（I-38 のときのように Step が変わるなら証明し直す）。
+  3. 218 の反例が、後継の境界では拒否になることを回帰として示す。
+  4. 後継の境界で EvidenceNode を証明する（cycle 211 の合成を移す）。199・202・204・206・218 の回帰を残す。
+- 218 周目の途中の成果（Lean）は公開前に止まったため、残っていない。Astra の 218 のモジュール（`GeneralDictionaryGroundCopy218*`）が統合に入っている。I-34（反例で止まる）、I-31（import は追記だけ）は引き続き守る。
