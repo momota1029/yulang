@@ -10870,3 +10870,8 @@ run_cmd do
 
 #print axioms Yulang.B4TargetV8.selected_iff
 #print axioms Yulang.B4SkeletonV8.b4_of_bridges
+
+-- Cycle220: sharing-aware concrete boundary, twelve laws, conditional composition.
+#print axioms Yulang.GeneralDictionaryHeadSharingLaws220.twelveLaws
+#print axioms Yulang.GeneralDictionaryHeadSharingComposition220.composition
+#print axioms Yulang.GeneralDictionaryHeadSharingRegression220.final_rejected
