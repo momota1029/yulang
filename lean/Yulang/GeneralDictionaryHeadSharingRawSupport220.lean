@@ -92,3 +92,95 @@ theorem private_sources_raw (packet : GeneralNominalSaturationState.Packet roles
   · exact checks_sources_raw packet.context.state (GeneralNominalPacketSupport.report packet) old
 
 end Yulang.GeneralDictionaryHeadSharingRawSupport220
+
+namespace Yulang.GeneralDictionaryHeadSharingRawSupport220
+open GeneralDeclarations GeneralSourceDictionaries
+open GeneralNominalAllocation GeneralNominalAllocationSupport GeneralNominalState
+local notation "RawSources" => GeneralDictionaryDefaultRawSupport213.sources
+variable {roles : Roles.RoleDecls}
+
+/-- The only new semantic raw names belong to the declaration being propagated. -/
+def localTargets (state : GeneralNominalState.State) (registry : Registry) (invocation : Nat)
+    (declaration : Declaration) : List Nat :=
+  declaration.inputNames.flatMap fun name =>
+    [source state registry invocation (origin invocation declaration.id 0 name 0),
+     source state registry invocation (origin invocation declaration.id 1 name 0)]
+
+theorem capture_targets_local (state : GeneralNominalState.State)
+    (supported : Endpoints bindings pool) (declared : name ∈ declaration.inputNames) :
+    ((capture state registry invocation declaration.id bindings).inputs name).1 ∈
+        pool ++ localTargets state registry invocation declaration ∧
+    ((capture state registry invocation declaration.id bindings).inputs name).2 ∈
+        pool ++ localTargets state registry invocation declaration := by
+  have low : source state registry invocation (origin invocation declaration.id 0 name 0) ∈
+      localTargets state registry invocation declaration :=
+    List.mem_flatMap.mpr ⟨name,declared,by simp⟩
+  have high : source state registry invocation (origin invocation declaration.id 1 name 0) ∈
+      localTargets state registry invocation declaration :=
+    List.mem_flatMap.mpr ⟨name,declared,by simp⟩
+  cases found : occurrences bindings name with
+  | nil => simp only [capture,found]; exact ⟨List.mem_append_right _ low,List.mem_append_right _ high⟩
+  | cons first rest =>
+    cases rest with
+    | nil =>
+      have endpoints := occurrences_endpoints supported name first (by simp [found])
+      simp only [capture,found]
+      exact ⟨List.mem_append_left _ endpoints.1,List.mem_append_left _ endpoints.2⟩
+    | cons second tail =>
+      simp only [capture,found]
+      exact ⟨List.mem_append_right _ low,List.mem_append_right _ high⟩
+
+/-- This sharp one-step support theorem does not assert full-trace freshness. -/
+theorem private_sources_local (packet : GeneralNominalSaturationState.Packet roles) :
+    RawSources packet.privateContext.state ⊆ RawSources packet.context.state ++
+      localTargets packet.context.state packet.registry packet.site.occurrence.identity packet.declaration := by
+  apply private_sources_raw packet (fun _ member => List.mem_append_left _ member)
+  intro name declared
+  exact capture_targets_local packet.context.state
+    (report_endpoints_raw packet.context.state (GeneralNominalPacketSupport.report packet)) declared
+
+theorem localTargets_other_key (state : GeneralNominalState.State)
+    (different : otherKey ≠ declaration.id) :
+    source state registry invocation (origin otherInvocation otherKey purpose owner position) ∉
+      localTargets state registry invocation declaration := by
+  intro member
+  obtain ⟨name,_,member⟩ := List.mem_flatMap.mp member
+  rcases List.mem_cons.mp member with first | last
+  · have identities := (source_identity state registry invocation _ _).mp first
+    exact different (congrArg (fun key : Origin => key.2.1) identities)
+  · have identities := (source_identity state registry invocation _ _).mp (List.mem_singleton.mp last)
+    exact different (congrArg (fun key : Origin => key.2.1) identities)
+
+/-- Installing this declaration cannot newly constrain another declaration's
+aggregate identity through its private raw head, despite reserving every key. -/
+theorem private_other_key_prior (packet : GeneralNominalSaturationState.Packet roles)
+    (different : otherKey ≠ packet.declaration.id) :
+    source packet.context.state packet.registry packet.site.occurrence.identity
+      (origin otherInvocation otherKey purpose owner position) ∈ RawSources packet.privateContext.state →
+    source packet.context.state packet.registry packet.site.occurrence.identity
+      (origin otherInvocation otherKey purpose owner position) ∈ RawSources packet.context.state := by
+  intro member
+  rcases List.mem_append.mp (private_sources_local packet member) with old | localName
+  · exact old
+  · exact False.elim (localTargets_other_key packet.context.state different localName)
+
+/-- Exact provenance for a newly read allocated origin in one private head. -/
+theorem private_new_origin (packet : GeneralNominalSaturationState.Packet roles)
+    (key : Origin)
+    (absent : source packet.context.state packet.registry packet.site.occurrence.identity key ∉
+      RawSources packet.context.state)
+    (present : source packet.context.state packet.registry packet.site.occurrence.identity key ∈
+      RawSources packet.privateContext.state) :
+    ∃ name ∈ packet.declaration.inputNames,
+      key = origin packet.site.occurrence.identity packet.declaration.id 0 name 0 ∨
+      key = origin packet.site.occurrence.identity packet.declaration.id 1 name 0 := by
+  rcases List.mem_append.mp (private_sources_local packet present) with old | localName
+  · exact False.elim (absent old)
+  · obtain ⟨name,declared,member⟩ := List.mem_flatMap.mp localName
+    refine ⟨name,declared,?_⟩
+    rcases List.mem_cons.mp member with first | last
+    · exact Or.inl ((source_identity packet.context.state packet.registry packet.site.occurrence.identity _ _).mp first)
+    · exact Or.inr ((source_identity packet.context.state packet.registry packet.site.occurrence.identity _ _).mp
+        (List.mem_singleton.mp last))
+
+end Yulang.GeneralDictionaryHeadSharingRawSupport220

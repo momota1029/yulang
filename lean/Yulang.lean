@@ -3717,3 +3717,13 @@ import Yulang.GeneralDictionaryHeadSharingSpecification220
 import Yulang.GeneralDictionaryHeadSharingAmalgamation220
 import Yulang.GeneralDictionaryHeadSharingSemantic220
 import Yulang.GeneralDictionaryHeadSharingRawSupport220
+
+import Yulang.GeneralDictionaryAdministrativeSemanticSupport222
+
+import Yulang.GeneralDictionarySemanticDelta223
+
+import Yulang.GeneralDictionaryTightProjection224
+import Yulang.GeneralDictionaryTightPacket224
+
+import Yulang.GeneralDictionaryRelativePacket225
+import Yulang.GeneralDictionaryHeadSharingSemanticSupport220

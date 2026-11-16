@@ -1,0 +1,7 @@
+# Cycle225: packet dependence relative to old journal Models
+
+Current raw Models is already guaranteed by the old total journal for a snapshot-matched effect. Do not preserve the entire syntactic raw support again when proving installed Models invariant. Instead isolate new ordinary atoms (cross/merges/selfChecks), tight projection origins, and the unchanged total schema/children support. Prove packet_iff only between assignments both satisfying the packet's original context Models. Then combine with old semantic Depends to establish joint journal+packet invariance and installation dependence. This removes old raw ordinary/reservation bookkeeping from the *new delta*, without removing those constraints from Models or assuming candidate completion. Historical aggregate overlap remains a separate obligation.
+
+No language meaning changes; no Yulang2 run. All work local, dependent on held222 and local223/224. No publication retries.
+
+The implementation proves ordinary_exact, a context-relative head_iff and packet_iff, then joint_packet_iff under old Depends and a context match. install_depends obtains that match from the existing effect.frame and snapshot equality and uses the exact installation theorem. This keeps both assignments inside old Models before transporting the packet. There is no global claim of packet invariance on the smaller list alone. All new cross/merge/selfCheck atoms and every new/old live effect remain in the semantic condition.
