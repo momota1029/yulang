@@ -41,3 +41,39 @@ and capture Fits is derived by complete input capture and projected extrema.
 No initial source, point roots, ground roots, coverage, trace or separate
 Agreement hypotheses remain in227 packet_characterization/packet_iff or the
 new installation dependency theorem. No global reachability claim is inferred.
+
+
+## Semantic origin replay and full-trace support
+
+Explicit body reads now replace input binder assignment equality with semantic
+readback from the retained head origins. Finished plus both head schemas prove
+Equivalent values at every declared input binder. Normalized RHS scope and
+compiler semantics lift this to all explicit bodies; defaults keep their
+positional center interpretation. Every output binder is retained. This frame
+is not claimed a subset of the old syntactic list, but p0/p1 cannot enter through
+an output binder (purpose2).
+
+OriginClass227 combines that frame with new-name body reuse. OriginJournal227
+uses it for both the newly installed live class (head schema from packet Holds)
+and historical classes (head schema from registered journal plans). The actual
+trace supplies Finished, not a hypothetical packet completion. Its merge delta
+likewise keeps only changed historical classes and actual output atoms.
+
+SemanticTrace227 reconstructs an explicit finite footprint along real Step
+traces. Initial support is raw semantic sources plus the root site. This avoids
+a point-root restriction. Administrative/cache events add nothing; install and
+merge add their actual deltas. A first-introduction theorem gives the precise
+contributing step and prefix/suffix paths. InitialSource excludes fresh purposes
+other than the deliberately allocated root-center purpose7. FootprintCenters227
+proves that every registered actual center is already in the pool.
+
+RequestSeparation227 proves along the actual trace, without a depth bound,
+that requested outputs are initial sources or allocated purpose2/5. Combined
+with body provenance, any class/delta p0/p1 read belongs to a plan input center.
+This is stronger than a one-step source-list bound; the next step eliminates
+class effects as first introductions using registered-center preservation.
+
+Protected Overlap and EvidenceNode remain open. A purely raw bottom-to-int
+reinspection obstruction is rejected by the existing Prepared guard. A more
+subtle journal-only output refinement was considered but no reachable
+counterexample was established. Do not treat this discussion as a refutation.
