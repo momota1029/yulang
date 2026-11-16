@@ -3732,3 +3732,9 @@ import Yulang.GeneralDictionaryRelativeProvenance226
 import Yulang.GeneralDictionaryReadProjection226
 import Yulang.GeneralDictionaryReadPacket226
 import Yulang.GeneralDictionaryReachablePacket226
+
+import Yulang.GeneralDictionaryLiveDelta227
+import Yulang.GeneralDictionaryClassDelta227
+import Yulang.GeneralDictionaryHistoricalLive227
+import Yulang.GeneralDictionaryNameDelta227
+import Yulang.GeneralDictionaryReachableRest227
