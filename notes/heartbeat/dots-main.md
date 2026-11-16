@@ -1,11 +1,10 @@
-# Yulang cycle226
-cycle: 226
-status: completed
-started: 2026-11-16T22:36:14Z
-updated: 2026-11-16T22:48:00Z
-elapsed_min: 12
-activity: Four modules verified,48 constants audited. Reachable installation raw-head support reduced to merge atoms; exact report reads and one-head source provenance also proved. EvidenceNode remains open.
+# Yulang cycle227
+cycle: 227
+status: running
+started: 2026-11-16T23:31:55Z
+updated: 2026-11-16T23:33:20Z
+elapsed_min: 1
+activity: Read standing orders, current integration inbox and cycle226; restoring non-head schema/effect provenance proof plan.
 workspace: /tmp/yulang-admin-1730/repo
-last_local_commit: c20d7ecc9 plus verified reachable-packet completion
-report: notes/handoff/dots-cycle-226.md
-resume_hint: Read cycle226/design and ReachablePacket226.install_depends. Continue non-head effect/schema p0/p1 provenance and historical protected Overlap; do not infer full-trace freshness from report bounds. Cycle220/222–225 were already published5123fed6; cycle226 checkpoint07b8b853 and final report include all new work.
+last_local_commit: 0f6d7f7bf
+resume_hint: Cycle226 completed and published43ee6740; no recovery needed. Continue cycle227 with current integration and full55min budget, publish verified checkpoints. EvidenceNode remains open.
