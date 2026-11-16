@@ -19,7 +19,8 @@ def AtKey (registry : Registry) (state : State roles) (root : Occurrence roles) 
 
 def Conflict (value : Registry) (state : State roles) (root : Occurrence roles) : Prop :=
   ∃ key children, B4TargetV7.Unique (GeneralDictionaryDefaultBoundary208.boundary roles)
-    value state root key children ∧ AtKey (GeneralNominalCenteredHeadAllocEncoding.registry value) state root key
+    value state root key children ∧
+   B4TargetV7.SafeKnown (GeneralDictionaryDefaultBoundary208.boundary roles) value state root ∧ AtKey (GeneralNominalCenteredHeadAllocEncoding.registry value) state root key
 
 theorem atKey_inhabited (bad : AtKey registry state root key) : ∃ model, Models state model := bad.1
 
@@ -35,6 +36,7 @@ theorem atKey_iff (inhabited : ∃ model, Models state model)
 
 theorem no_conflict_feasible
     (unique : B4TargetV7.Unique (GeneralDictionaryDefaultBoundary208.boundary roles) value state root key children)
+    (safe : B4TargetV7.SafeKnown (GeneralDictionaryDefaultBoundary208.boundary roles) value state root)
     (inhabited : ∃ model, Models state model)
     (framed : ∃ plan, Frame (GeneralNominalCenteredHeadAllocEncoding.registry value) state.core root key plan)
     (clear : ¬ Conflict value state root) :
@@ -42,6 +44,6 @@ theorem no_conflict_feasible
   classical
   apply Classical.byContradiction
   intro absent
-  exact clear ⟨key,children,unique,inhabited,framed,absent⟩
+  exact clear ⟨key,children,unique,safe,inhabited,framed,absent⟩
 
 end Yulang.GeneralDictionaryHeadSharingConflict220

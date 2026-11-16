@@ -51,7 +51,10 @@ theorem conflict_order (order : Reorders value other) (roleEq : value.roles = ro
   have uniqueEq := GeneralNominalCenteredHeadStepOrder.unique compiled state.core.erased.current.context root
   change (∃ key children, GeneralNominalCenteredHeadCandidates.Unique _ _ _ key children ∧ _) ↔
     (∃ key children, GeneralNominalCenteredHeadCandidates.Unique _ _ _ key children ∧ _)
-  simp only [uniqueEq,atKeyEq]
+  have safeEq : B4TargetV7.SafeKnown (GeneralDictionaryDefaultBoundary208.boundary roles) value state root ↔
+      B4TargetV7.SafeKnown (GeneralDictionaryDefaultBoundary208.boundary roles) other state root :=
+    GeneralNominalCenteredHeadMatStepOrder.safe compiled state root
+  simp only [uniqueEq,atKeyEq,safeEq]
 
 theorem conflict_related (same : Related relation first last) (value : Registry) (roleEq : value.roles = roles) :
     Conflict value first root ↔ Conflict value last root := by
@@ -62,7 +65,11 @@ theorem conflict_related (same : Related relation first last) (value : Registry)
     (GeneralNominalCenteredHeadAllocEncoding.registry value) root
   change (∃ key children, GeneralNominalCenteredHeadCandidates.Unique _ _ _ key children ∧ _) ↔
     (∃ key children, GeneralNominalCenteredHeadCandidates.Unique _ _ _ key children ∧ _)
-  simp only [uniqueEq,atKeyEq]
+  have safeEq : B4TargetV7.SafeKnown (GeneralDictionaryDefaultBoundary208.boundary roles) value first root ↔
+      B4TargetV7.SafeKnown (GeneralDictionaryDefaultBoundary208.boundary roles) value last root :=
+    GeneralNominalCenteredHeadMatPermutationLocal.safe same
+      (GeneralNominalCenteredHeadAllocEncoding.registry value) roleEq root
+  simp only [uniqueEq,atKeyEq,safeEq]
 
 theorem local_order (order : Reorders value other) (roleEq : value.roles = roles)
     (state : State roles) (focus frontier) : Local value state focus frontier ↔ Local other state focus frontier := by

@@ -17,7 +17,7 @@ theorem feasible_not_conflict
     (unique : B4TargetV7.Unique (GeneralDictionaryDefaultBoundary208.boundary roles) value state focus key children)
     (good : Feasible (registry value) state focus key) :
     ¬ GeneralDictionaryHeadSharingConflict220.Conflict value state focus := by
-  rintro ⟨other,kids,only,bad⟩
+  rintro ⟨other,kids,only,_safe,bad⟩
   have same := (unique.2 other kids only.1).1
   subst other
   exact bad.2.2 good
@@ -41,7 +41,11 @@ theorem selected_feasible
     have prior := (B4TargetV7.selected_iff.mp old).1
     cases prior with
     | selected _ unique _ => exact unique
-  exact GeneralDictionaryHeadSharingConflict220.no_conflict_feasible unique inhabited ⟨plan,frame⟩ clear
+  have safe : B4TargetV7.SafeKnown (GeneralDictionaryDefaultBoundary208.boundary roles) value state focus := by
+    have prior := (B4TargetV7.selected_iff.mp old).1
+    cases prior with
+    | selected safe _ _ => exact safe
+  exact GeneralDictionaryHeadSharingConflict220.no_conflict_feasible unique safe inhabited ⟨plan,frame⟩ clear
 
 theorem selected_agreement
     (reachable : B4TargetV8.Reachable (boundary roles) value root state)

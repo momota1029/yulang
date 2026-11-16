@@ -1,0 +1,11 @@
+# Cycle220: 次のfreshness橋のための狭いraw support
+
+既存private_sourcesは全registryのreservedを上界にするため、別key未実行の
+freshnessを証明するには粗すぎる。予約帳簿はModelsに影響しないので、
+DefaultRawSupport213.sourcesについて、旧semantic sourcesと当該宣言の
+capture input endpointだけでcross/merges/private self checksを包む補題を作る。
+量化は任意state/registry/invocation/declaration/bindings/pool。
+前提は旧raw sources⊆pool、binding endpoint⊆pool、当該inputNameのcapture
+lower/upperがpoolに入ること。全reservedの包含や宣言visibleは要求しない。
+これは一回のpropagate/privateContextのsupport補題であり、全traceの
+HistoricalInvocation由来や一般Separateを主張しない。

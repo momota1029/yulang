@@ -4732,3 +4732,7 @@ The same source witness and the same full assignment are retained.
 - Cycle220 target checkpoint: V8 sharing-conflict diagnostic and generic bridge skeleton. This is not an unconditional EvidenceNode proof.
 
 - Cycle220 concrete checkpoint: actual repeated-variable head equations, conflict rejection, same operational Step, twelve operational laws, and the full Statement conditional only on the unchanged EvidenceNode. GroundCopy218 is rejected; prior default/join evidence and selection are retained. EvidenceNode remains OPEN.
+
+- Cycle220 follow-up: SafeKnown gates sharing rejection; pending and ambiguity are exactly preserved from V7. Reachable non-repeated head captures preserve selection. Separated aggregate support (in particular singleton captures) proves a genuine common-head amalgamation fragment, not general EvidenceNode.
+
+- Cycle220 tight raw support: private propagation depends on old semantic sources and the current declaration capture endpoints, not unused reserved registry keys. This is a single-transition support lemma, not historical freshness.

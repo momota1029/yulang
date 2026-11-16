@@ -22,3 +22,12 @@ assumption. GroundCopy218 must be explicitly rejected in the new boundary.
 
 Work ownership: new B4TargetV8/B4SkeletonV8; new HeadSharing220; new concrete
 boundary/transport/regression modules. Parent alone edits imports/Audit/report.
+
+## Exact guard specification follow-up
+For a reachable state with at least one full journal model, V8 selection at
+(key, children) is equivalent to V7 selection at that exact pair plus Feasible
+for that key. The equivalence must retain reachability and model inhabitation;
+without them, no-conflict need not provide a frame/model. For a fixed reachable
+frame, current common-head existence is exactly a model satisfying the new
+Holds equations plus protected Overlap. This is a reformulation of the known
+common-head theorem, not a proof that Overlap follows from selection.

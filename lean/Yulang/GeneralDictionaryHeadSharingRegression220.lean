@@ -28,7 +28,12 @@ theorem final_conflict : Conflict sourceRegistry final childSite.occurrence := b
     have prior := (B4TargetV7.selected_iff.mp final_selected).1
     cases prior with
     | selected safe unique clear => exact unique
-  exact ⟨1,[],unique,⟨model,final_models⟩,final_frames,final_no_sharing⟩
+  have safe : B4TargetV7.SafeKnown (GeneralDictionaryDefaultBoundary208.boundary roles)
+      sourceRegistry final childSite.occurrence := by
+    have prior := (B4TargetV7.selected_iff.mp final_selected).1
+    cases prior with
+    | selected safe _ _ => exact safe
+  exact ⟨1,[],unique,safe,⟨model,final_models⟩,final_frames,final_no_sharing⟩
 
 theorem final_rejected : Local sourceRegistry final childSite.occurrence .rejected :=
   GeneralDictionaryHeadSharingBoundary220.conflict_rejected final_conflict
