@@ -9,3 +9,11 @@ capture input endpointだけでcross/merges/private self checksを包む補題�
 lower/upperがpoolに入ること。全reservedの包含や宣言visibleは要求しない。
 これは一回のpropagate/privateContextのsupport補題であり、全traceの
 HistoricalInvocation由来や一般Separateを主張しない。
+
+## 局所provenanceまでの追加
+private_sources_localは旧semantic raw sources＋当該宣言のp0/p1 targetsだけで
+privateContext全体を包む。private_other_key_priorは別宣言keyの源の新規出現を
+除外し、private_new_originは新規allocated originが当該invocation/declarationの
+inputName、purpose0/1、position0に限られることを示す。
+これで全reservedの粗い上界を使わず一回のinstallのraw provenanceを扱える。
+refresh/reobserve/equate/alias、site/packet/effect supportを含む全traceへの帰納は未実施。

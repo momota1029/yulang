@@ -121,3 +121,13 @@ AllocationSupport.private_sourcesはcurrent raw supportを「旧support＋当該
 不在をこの包含からは得られない。次はmerges_sourcesの生成元をより細かく追い、
 raw ordinary中の当該p0/p1出現から同keyの実際のinstall履歴を復元する補題が必要。
 このtrace provenance補題は今回未証明。freshだから自動的にSeparateと主張しない。
+
+## Refreshを跨ぐsupportの注意と改善
+Refresh.supportの包含先はreservedを含む粗いsourcesなので、p0/p1のsyntactic
+非出現を単純に帰納するには不足する。RawSupport220は一回のprivate headで
+新規semantic originが当該keyのp0/p1に限ることを証明したが、全traceへの帰納は
+主張しない。SemanticSupport220は代わりにModelsの有限pool依存性Dependsを導入し、
+refresh/reobserveで同じpoolを保存する。任意の証明済みDepends pool上の
+support-preserving extension iff Overlap、およびexact common_headを証明した。
+これによりsyntactic current supportの過剰な保護を避ける余地がある。
+ただし適切な小さいpoolとOverlapを全selectedに与える一般不変量は未証明。

@@ -1,0 +1,14 @@
+# Cycle220: syntactic supportを固定しない共通モデル橋
+
+Refresh.supportはreservedを含むGeneralNominalState.sourcesに対する包含である。
+一方でsemantic raw supportはreservedを除く。したがってprivate_new_originの
+一回のinstall解析を、そのままrefreshを含む全traceのsyntactic provenanceへ
+一般化してはいけない。RefreshはModelsそのものを保存するため、同じ有限poolで
+Modelsが決まるというsemantic dependencyを引き継げる。
+
+新しいDepends state poolを「pool上で一致する任意2モデルでModelsが同値」とする。
+CurrentCompletion216.completion_iffのjournalSources⊆poolをこの独立した意味的
+依存性に置き換え、agreementSources包含とbinding Endpoints、Overlapは残す。
+これによりpoolを固定のcurrent syntactic supportでなく、証明済みの小さいpoolで
+選べる。新しい選択条件にはしない。任意selectedからDepends・Overlapを供給する
+一般証明はまだ要求される。Refresh/ReobserveはDependsをそのまま輸送する。

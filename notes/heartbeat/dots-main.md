@@ -1,11 +1,10 @@
-# Yulang cycle220
-
-cycle: 220
-status: running
-started: 2026-11-16T06:33:57Z
-updated: 2026-11-16T07:15:09Z
-elapsed_min: 41
-activity: Corrected checkpoint c75cb1e0 verified. Final focused21 modules and whole-new-module axiom audit underway; semantic support bridge added.
-workspace: /workspace/scratch/1d0b4aaa3394/yulang220
-last_local_commit: 3d09a24c3
-resume_hint: c75cb1e0 contains SafeKnown correction. Working tree adds RawSupport private_new_origin and SemanticSupport220 exact pool-relative extension/common_head; read focused220-final-build.log and complete220-final-audit.log. Report draft dots-cycle-220.md. EvidenceNode OPEN.
+# Yulang owner-requested publication recovery
+cycle: 225
+status: completed
+started: 2026-11-16T21:39:42Z
+updated: 2026-11-16T21:42:00Z
+activity: Owner requested renewed publication; cycles220 and222–225 combined and reverified. EvidenceNode remains OPEN.
+workspace: /tmp/yulang-admin-1730/repo
+last_local_commit: 557cdd811 plus reviewed combined publication
+report: notes/handoff/dots-publication-220-225.md
+resume_hint: Read combined publication report and225 relative support. Historical held/local-only notes record earlier attempts. Verify branch before assuming publication; next proof target is new-source provenance and protected Overlap.
