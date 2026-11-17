@@ -108,3 +108,22 @@ preservation with explicit supports; a finite fact/dirty-work progress calculus 
 proved rank. Connect actual merge atoms in a source-stable, non-escaping fragment.
 Do not label these helpers a complete operational boundary. If actual ownership/ground
 closure cannot be produced, report the precise missing bridge and retain this as partial.
+
+## Implementation/recovery update
+
+The finite work machine has an actual table service operation and a strict rank.
+The owner projection uses actual merge formulas and retains protected atoms and
+actual Fits. Inline241 rewrites ordinary consumers under simultaneous finite
+patch semantics; InlineSyntax retains an escaped equality as a source expression.
+Neither performs a cyclic fixed-point solution or total support elimination.
+ChildProduction proves one real versioned birth's strict mass descent;
+LiveLabels transports an existing bound only when ALL live actual centers are
+protected. Protecting just the source or the current declaration's inputs is not
+a substitute. BackExtension constructs the old private extension in the explicit
+non-escaping interval-refinement fragment, not for every historical journal.
+
+An environment reset removed unpublished temporary sources. Reconstructed files
+are freshly compiled/audited; original byte identity is not claimed.
+Remaining global producers are exactly: finite source/owner/endpoint/fact closure;
+actual whole-consumer semantic back-extension/output preservation; complete
+simulation of needed source operations and terminal evidence in the scheduler.

@@ -14,3 +14,15 @@ Noop/Escapeは無制約置換の危険を示す独立の小例で、選択設計
 
 継続:230型具体private再評価の回帰、原sourceからの有限owner/観測閉包producer調査、
 意味contractと機械serviceの接続。未証明な全境界Acc/EvidenceNodeを主張しない。
+
+## Recovery checkpoint
+
+13:55頃に共有環境が切断・置換され、旧/tmp worktreeと未公開ファイルを失った。
+9モジュール190定義の中間公開8dc6c7adと設計はGitHubから取得照合済みで保全。
+永続領域の同版Lean4.35と220のキャッシュを使い、71個の不足依存を焦点再ビルド。
+未公開ソースを会話中の作成内容・保存された証明の型から再構成し、新たに検証した。
+元ファイルとのbyte同一性は主張しない。再生成ファイルに以前の監査を転用しない。
+
+この復旧checkpointはInline/InlineSyntax/BackExtension/ChildProduction/LiveLabelsを含む。
+230Private/ServiceとInlineModelsは復旧再検証中であり、この時点では未公開。
+研究の拡大より、検証済み内容の保全・再公開を優先する。
