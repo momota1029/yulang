@@ -667,3 +667,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle241 semantic-key review](2026-11-17-cycle241-semantic-key-review.md)
 - [Cycle241 finite work progress](2026-11-17-cycle241-finite-work-progress.md)
 - [Cycle241 finite owner producer review](2026-11-17-cycle241-owner-producer-review.md)
+- [Cycle242 producer integration](2026-11-17-cycle242-producer-plan.md) — Draft: finite genealogy, consumer retention and checked scheduler.
