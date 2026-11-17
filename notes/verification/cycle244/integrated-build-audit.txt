@@ -1,0 +1,10 @@
+BUILD:GeneralFiniteWitnessSupport244
+BUILD:GeneralFiniteWitnessReadback244
+BUILD:GeneralNominalRebaseSyntaxGrowth244
+BUILD:GeneralFiniteDependencyRewrite244
+BUILD:GeneralPresenceDefinitionRewrite244
+BUILD:GeneralPresenceSubstitutionSupport244
+BUILD:GeneralPresenceOwnerRewrite244
+BUILD:GeneralPresenceOwnerCheck244
+BUILD:GeneralPresenceOwnerSequence244
+CYCLE244-PASS: 315 constants in 9 modules

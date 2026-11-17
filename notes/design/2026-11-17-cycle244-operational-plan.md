@@ -37,3 +37,60 @@ distinction prevents claiming witness persistence as a complete decision procedu
 Yulang2: read Y2-ROLE-003/004/005 and X13–16 from work/dots-audit. Stable finalization
 is historical context; current spec and I41/I45 control centers and point sources.
 No new runtime comparison was performed. No language semantics change was made.
+
+## Independent sufficient condition after the syntax diagnostic
+
+Do not resume the false finite-syntax implication. A different, explicitly
+conditional lemma is useful for the next investigation: a numeric rank on source
+names that strictly decreases on every retained definition dependency. If every
+replaced RHS also reads strictly lower-ranked names, inlining preserves this
+rank inequality. Therefore it cannot introduce a self-read and its dependency
+relation is accessible. This is only dependency accessibility, NOT language
+transition Acc. No rank-producing theorem for actual Yulang operations is known.
+A finite list support rewriting abstraction can be freshly checked without the
+lost language-module cache, and then later connected to InlineSupport243 only
+after that real producer is established. This is not a new acceptance condition,
+source canonicalization, or a language-semantics decision.
+
+A smaller real-language import closure was identified: PresenceNormalForm has
+36 dependencies, unlike the full journal's1425. Only those36 were rebuilt with
+2 workers and a5-minute timeout, successfully. GeneralPresenceDefinitionRewrite244
+uses the actual TyTerm/CompTerm/Atom/Model types and the same two inequality
+syntax as GeneralNominalAllocation.equations. It proves physical transformed
+blocks and uniform model iff when another owner's targets are not rewritten.
+The high-level GeneralNominalAllocation naming adapter remains unverified,
+but this is not a toy replacement AST. Next: actual substitution source supports
+and a sufficient rank condition that prevents introducing self-dependencies.
+
+## Closed narrow producer after recovery
+
+The real Presence AST module now proves other-owner block form and meaning
+uniformly for every Model and assignment. A target-disjoint substitution leaves
+the retained LHS variables literal, and rewrites exactly its RHS terms. Coherent
+entries stay coherent. The direct CrossRead condition says every removed RHS
+avoids all retained targets; together with External(retained), this generates
+External of the transformed retained list, including type occurrences inside
+arrow rows. No numeric rank is needed for this local theorem. The separate rank
+condition is only one possible sufficient producer for many steps, not a newly
+imposed restriction on user programs.
+
+retainedCheck computes disjoint targets, retained External and CrossRead; true
+implies block shape, uniform readback iff and transformed External. It does NOT
+check the removed block's own External or Coherent, nor prove reachable
+operations satisfy it. readyCheck is likewise a diagnostic, not a complete
+rebase readiness checker. False is NOT a language rejection. The complete
+journal, escaped certificate and final boundary linkage still need the large
+cache and actual semantic operation invariants.
+
+OwnerSequence244 composes any given finite list of substitutions on a retained
+block: exact readback uses the correctly ordered nested interpreted assignment;
+targets and coherence persist. Under a fixed explicitly given decreasing rank,
+External persists as well. It does not bound the number of real operations, give
+all reachable states that rank, or establish solver Acc.
+
+Independent review notes: CrossRead is deliberately sufficient, not minimal.
+It checks even removed entries the retained block never uses. The finite
+sequence is provided by the caller, not extracted from a constructed scheduler's
+mutating owner store. These restrictions are not hidden behind a completeness
+claim. The main next obligation remains production of these checks from actual
+report/reobserve/source provenance, including same-owner promotion.

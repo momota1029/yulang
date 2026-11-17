@@ -26,3 +26,20 @@ not an actual reachable Yulang counterexample, nor an I47 semantic failure.
 EscapedStore242 also rewrites other owners' blocks, so in the two-cycle example
 an externality guard can fail before a second real rebase. That distinction is
 preserved; the false auxiliary target is stopped.
+
+## 16:57 checkpoint
+
+10 new modules, 337 constants are the current integrated candidate (the exact
+count is authoritative in final-10-audit.txt). Only36 required old core modules
+were rebuilt, under5min with2workers. Full1425 journal closure remains unbuilt.
+The real Presence TyTerm/RowTerm/CompTerm/Atom/Model are used by the new block
+rewrite modules; these are not replacement toy types. Their atom equation pair
+matches Allocation.equations syntax, but the higher-level named adapter remains
+unverified because that import closure is unavailable.
+
+Closed: retained target-disjoint block physical form; uniform model readback;
+Coherent preservation; direct sufficient CrossRead plus retained External gives
+transformed External. A Boolean diagnostic produces those premises, not a new
+language acceptance decision. An alternative explicit rank condition yields
+dependency accessibility and External across a caller-supplied finite sequence.
+Neither actual rank-producing operation invariant nor full solver Acc is proved.

@@ -146,3 +146,83 @@ freshness/known、全実stepの activation check、有限進捗 producer は未�
 別建てに保持した他ownerの定義 RHS は Journal.Models に自動では含まれず、追加
 read set または combined External の義務が必要。singleton→multipleを無条件に
 許すため hidden domain を広げる旧shortcutも再導入しない。
+
+## 追記: 他owner定義の書換えが挟まる追加義務
+
+point担当の指摘を確認した。SyntaxGrowth244 の2固定block交互代入は実rebase列
+ではない。A→join(B,B)、B→join(A,A) を同時に保持し、実 EscapedStore242 の
+操作として A を除去・inlineすると、B の定義自体も書換わり B を自己参照する。
+次回も元の未変換B blockを使う toy iterate は実Store操作と異なる。したがって
+syntax growth例は有限名から構文有限が出ない診断であり、I47Aの反証でも、実操作
+無限列でもない。
+
+全Journal Same-congruence が閉じても、実owner操作にはもう一段必要となる。
+他ownerの定義blockを全てinlineし、変換後にも Coherent/External/activation条件が
+成立する producer を用意し、その新blockを次回操作へ渡す必要がある。元の条件を
+そのまま次回へコピーすることはできない。
+
+## 復旧後8本の独立read-only QA
+
+### finite witness / readback
+
+SupportedAt は特定modelの既存証人を有限readset上で保持する片方向局所主張。
+Supports は全model間の双方向同値であり区別されている。witness_write は有限な
+特定証人の保護域を返す。bounded_family_write は有限itemsと各要素のsupportを
+明示するので、全候補を暗黙有限扱いしていない。これら単独では実Evidenceの
+有限支持producerが完成したことにはならない。
+
+### syntax / dependency
+
+SyntaxGrowthは保存構文を2固定代入で膨張させる独立toy syntax。有限2名でも
+構文pool有限ではないことを示すだけで、実kernel Stepや言語意味失敗を主張しない。
+DependencyRewrite の Acc は定義依存 Edge の方向（source→owner）についての
+rank降下によるもの。solver transition の Acc、全探索停止、式サイズ上界ではない。
+
+### 実Presence ASTとrow支持
+
+DefinitionRewriteは実TyTerm/RowTerm/Atomに対する代入。retained targetのtype
+mappingがvarそのものという前提から、blockを全atom置換した結果とRHSだけ置換した
+target維持blockが構文的に一致する。Allモデル同値も任意Model/assignmentである。
+
+SubstitutionSupport.typeSources はarrowのincoming/outgoingのrowSourcesを含み、
+mappingSourcesはtypeSourcesとrowSourcesの両方を含む。row varの代入でもtype側を
+余分に含む保守的な上界であり、rowを消す過小supportではない。
+
+### 複数target owner
+
+transformed_externalは、rankが各dependency上で狭義減少し、同ownerの全targetが
+同じrankであるという追加条件を使う。そのため別targetへの参照も排除できる。
+各entryの自己参照不在だけをExternalと誤認していない。targets_preservedと
+transform_coherentはそれぞれ実target一覧と重複targetの同一RHS条件を保持する。
+owner_block_shape/exactはremoved/retainedのtarget非交差を明示する。
+
+### readyCheckの正確な限界
+
+readyCheck=true は removedとretainedのrank条件、retained全target同rank、
+target非交差を検査する。これは現checked_shape/exact/checked_externalに十分。
+ただし Coherent は検査していない。またremoved全target同rankを要求しないため、
+removed block内でrankが低い別targetを読むことは許され、removed自身の全block
+Externalは導出されない。従って完全なpublic replacementの準備完了チェックではない。
+old definition projectionに使うときはremovedのCoherent/External等を別途渡す。
+falseは十分条件を認証できない診断で、言語の拒否・選択変更を意味しない。
+
+実到達stateからこのrank／owner分割を生成するproducer、各step後にもそれを維持する
+producer、操作metadataとexpression-storeの対応はまだ必要である。
+
+## 追加2本の独立read-only QA
+
+OwnerSequence244のreadManyは先頭removedの読替えを残り列の読替えの外側に置き、
+rewriteManyの実代入順と一致する。targets不変から各後続stepへの非交差を導き、
+有限列全体のAll意味同値を帰納している。Coherent/同rank/共通rank下Externalの
+保存もその量化内で健全。ただしblocksは呼出側が与える列であり、全owner storeから
+書換え後のremoved blockを選び続ける実schedulerやその到達性を構成してはいない。
+
+CrossRead244はrank不要の実局所十分条件を与える。retainedの元Externalを別入力とし、
+removed RHSの全supportがretained targetsを避けるなら変換後もExternal。rowsを含む
+support上界を利用するのでrow参照を落としていない。retainedCheck=trueから形・任意
+Modelでの意味・変換後Externalを導く範囲は正しい。
+
+なおこのCrossReadを『最小条件』とは呼ばない。retainedが参照していないremoved entry
+のRHSまで全検査するため、必要条件より強い十分条件である。将来細分化するならretained
+RHSから実際に到達するlookupだけへ検査を限定できるが、今回の健全性に不要である。
+removed自身のExternal/Coherentや実操作時の全条件は依然として別義務。

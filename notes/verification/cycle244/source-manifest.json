@@ -1,5 +1,12 @@
 {
   "GeneralFiniteWitnessSupport244": "92dfff8ca0e40f567af4aa37cd561f6a7de667027d67750c5cede60f5b961421",
   "GeneralFiniteWitnessReadback244": "5f176c85fe4c78f6b8a147a9c6c90f96e3f1952d90f067870a068ad372f21d6e",
-  "GeneralNominalRebaseSyntaxGrowth244": "a7db76047ea211fac0a89768bf081848fe87210efdf1fdd05314f0f8c5cce0ea"
+  "GeneralNominalRebaseSyntaxGrowth244": "a7db76047ea211fac0a89768bf081848fe87210efdf1fdd05314f0f8c5cce0ea",
+  "GeneralFiniteDependencyRewrite244": "777cc28050fa1b2bda041af15df6487ee29380f54e1c8f131448e90dac305605",
+  "GeneralPresenceDefinitionRewrite244": "838b717b361c82786ce2ef2e56b2bef081440e61811e6127541222ff0ec0cb6a",
+  "GeneralPresenceSubstitutionSupport244": "34373512d7454210bdbd053cec80ed15081e0d036fc98b819bd3fa1d64dfb389",
+  "GeneralPresenceOwnerRewrite244": "1888cd0af737a8baeb6dad1bd671bd428fdc6938b6d21d0e3ab7d3cdfcac856a",
+  "GeneralPresenceOwnerCheck244": "bc4be1720b9a4037905116d2f97fdeea4325317a098abfc3b3c174111f6aaacb",
+  "GeneralPresenceOwnerSequence244": "a1b165a790493fe57c7c25e43b7dfb676b9e4ff6029fb9dbd5862edbc92d7e36",
+  "GeneralPresenceCrossRead244": "bca903672591e4feee4432f5a6c07021af63fdafdd5b1645be0679078f6fb90a"
 }

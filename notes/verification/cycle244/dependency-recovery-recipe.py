@@ -13,6 +13,7 @@ def collect(n):
 for n in targets:collect(n)
 print('FOCUSED_DEPENDENCY_COUNT',len(deps),flush=True)
 if os.environ.get('COUNT_ONLY'):raise SystemExit
+if len(deps)>100:raise SystemExit('NOT RUN: dependency closure exceeds focused recovery budget; use a supervised full-build environment')
 while not Path(lean).exists():time.sleep(2)
 env=dict(os.environ,LEAN_PATH=str(out)); done={n for n in deps if (out/(n.replace('.','/')+'.olean')).exists()};running={};start=time.time()
 def run(n):
