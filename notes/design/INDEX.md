@@ -641,3 +641,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [2026-11-17-cycle236-administrative-progress.md](2026-11-17-cycle236-administrative-progress.md) — cycle236 additive proof decomposition.
 - [2026-11-17-cycle236-choice-history.md](2026-11-17-cycle236-choice-history.md) — cycle236 additive proof decomposition.
 - [2026-11-17-cycle236-fresh-aggregate-realization.md](2026-11-17-cycle236-fresh-aggregate-realization.md) — cycle236 additive proof decomposition.
+
+- [Cycle236 remaining bridges](2026-11-17-cycle236-remaining-bridges.md) — exact coverage, common model, installation termination.
