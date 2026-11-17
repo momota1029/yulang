@@ -197,3 +197,16 @@ are also covered by the audits.
 - `GeneralDictionarySemanticTrace227`: `Contribution`, `Contribution.step`, `classify`, `Contribution.depends`, `initialSources`, `Footprint`, `Footprint.path`, `Footprint.depends`, `from_path`, `Footprint.introduced`, `Contribution.nonempty_kind`, `Footprint.first_introduced`, `initial_fresh_absent`, `Footprint.fresh_first`.
 - `GeneralDictionaryV8Footprint227`: `reachable_footprint`, `uniform_pool`, `uniform_tail_pool`, `patch_preserves`.
 - `GeneralDictionaryV8Residual227`: `uniform_residual_pool`.
+
+
+## Verified publication receipt
+
+Final artifact commit: `2432349767a9d920552bbdfb96747d126e8e40c2`.
+Tree: `ed13f868fe76f14ea4e7e1bdfd91a1469c7404b1`.
+Fetched by exact SHA and `git diff --exit-code HEAD FETCH_HEAD` returned0;
+working tree was clean and diff --check passed at2026-11-17T00:17:35Z.
+The final artifact batch published9paths; the cycle changes35paths relative
+to the previously published226 commit, including3integration-restored files.
+All24new modules and4new audits are included. This receipt/heartbeat-only
+follow-up does not change the verified Lean tree. Final verification elapsed
+about46minutes; no files remain held or unfinished.
