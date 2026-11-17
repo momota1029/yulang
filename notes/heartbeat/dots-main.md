@@ -3,9 +3,9 @@
 - cycle: 235
 - status: running
 - started: 2026-11-17T07:35:51Z
-- updated: 2026-11-17T07:39:30Z
-- elapsed_min: 3
-- activity: Mixed Stable elimination laws compiled; 218 current child allocation/frame and general Evidence reduction in progress.
+- updated: 2026-11-17T07:45:45Z
+- elapsed_min: 10
+- activity: Five general mixed-kernel modules compiled: stable consequences, historical commitment, duplicate-free ledger, occurrence coverage, and role/request invariants. Actual 218 child Fresh/Prepared/Unique proved; rejection connection underway.
 - workspace: /tmp/yulang-admin-1730/repo
 - last_local_commit: 49ca61010 (supervisor merge; new235 modules uncommitted)
 - integration: 60faa7b26f272710d4bed3b0e4228b84ae8e8691
