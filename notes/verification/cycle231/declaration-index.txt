@@ -1,0 +1,357 @@
+Cycle231 source declaration index (not the count of audited constants).
+Exact theorem types and proofs are in the named Lean files.
+
+lean/Yulang/GeneralDictionaryVersionedCompletion231.lean
+  def NewMerges (m : Assignment) : Prop :=
+  def InstallationModels (m : Assignment) : Prop :=
+  theorem compatible (m : Assignment) : GeneralNominalAllocation.Compatible newBindings m := by
+  theorem self_checks (m : Assignment) :
+  theorem ordinary (new : NewMerges m) : GeneralNominalVersionedPlans231.Ordinary currentPacket m := by
+  theorem input_fits (valid : InstallationModels m) (name : Nat)
+  theorem packet_holds (valid : InstallationModels m) : GeneralNominalVersionedPlans231.Holds currentPlan m := by
+  theorem class_effects (valid : InstallationModels m) :
+  theorem certificate (valid : InstallationModels m) :
+  theorem evidence (valid : InstallationModels m) :
+  theorem inhabited : ∃ m, InstallationModels m :=
+  theorem nonvacuous_modelwise_completion :
+lean/Yulang/GeneralDictionaryVersionedEvidence231.lean
+  theorem frame : GeneralNominalVersionedEvidence231.Frame registry after.core root declaration.id currentPlan :=
+  theorem children_empty : GeneralNominalVersionedFrame231.children currentPacket = [] := by
+  theorem class_effects : GeneralNominalVersionedEffects231.ClassEffects after.core root currentPlan extended := by
+  theorem certificate : GeneralNominalVersionedEvidence231.Certificate
+  theorem evidence : GeneralNominalVersionedEvidence231.Evidence
+  theorem old_no_instance : ¬ GeneralDictionaryTotalEvidence206.Instance
+  theorem old_no_evidence (dictionaries) : ¬ GeneralDictionaryTotalEvidence206.Evidence
+  theorem common_model_evidence :
+lean/Yulang/GeneralDictionaryVersionedFinal231.lean
+  theorem frame : GeneralNominalVersionedEvidence231.Frame
+  theorem request_exact (member : output ∈ GeneralNominalCenteredHeadOutputs.requests reconstructed.core root) :
+  theorem ready : GeneralNominalCenteredHeadMatEffects.Ready reconstructed.core root replayed := by
+  theorem class_effects (valid : GeneralNominalCenteredHeadMatStepJournal.Models reconstructed m) :
+  theorem certificate (valid : GeneralNominalCenteredHeadMatStepJournal.Models reconstructed m) :
+  theorem evidence (valid : GeneralNominalCenteredHeadMatStepJournal.Models reconstructed m) :
+  theorem nonvacuous_current_frame_completion :
+lean/Yulang/GeneralDictionaryVersionedMerge231.lean
+  theorem capture_exact :
+  theorem merge_model : PresenceNormalForm.All CommonNominalFullCarrier.model extended
+  theorem compatible : GeneralNominalAllocation.Compatible newBindings extended := by
+  theorem propagated_model : GeneralNominalState.Models
+  theorem actual_fits : GeneralNominalCaptureMerges.Fits extended
+  theorem common_model :
+lean/Yulang/GeneralDictionaryVersionedModelExtension231.lean
+  noncomputable def extend (m : Assignment) :=
+  theorem retains (valid : GeneralNominalCenteredHeadMatStepJournal.Models after m) :
+  theorem value (m : Assignment) (index : Fin 2) :
+  theorem outside (m : Assignment) (source : Nat)
+  theorem source_preserved (m : Assignment) (source : Nat)
+  theorem two (m : Assignment) : extend m 2 = m 2 := by
+  theorem merges (m : Assignment) : GeneralDictionaryVersionedCompletion231.NewMerges (extend m) := by
+  theorem reconstructed_model (valid : GeneralNominalCenteredHeadMatStepJournal.Models after m) :
+  theorem every_model_extends (valid : GeneralNominalCenteredHeadMatStepJournal.Models after m) :
+lean/Yulang/GeneralDictionaryVersionedNames231.lean
+  abbrev oldBindings := GeneralDictionaryDefaultMergeRevisionProbe210.twice 0 4 2
+  abbrev newBindings := GeneralDictionaryDefaultMergeRevisionProbe210.twice 0 2 2
+  abbrev freshName (purpose : Nat) := slot snapshot.seed root.identity declaration.id purpose 0 newBindings
+  abbrev oldVersionName (purpose : Nat) := slot snapshot.seed root.identity declaration.id purpose 0 oldBindings
+  theorem version_changed (purpose : Nat) : oldVersionName purpose ≠ freshName purpose := by
+  theorem fresh_above (purpose : Nat) : 4 < freshName purpose := above_seed _ _ _ _ _ _
+  theorem fresh_not_legacy (purpose other : Nat) :
+  theorem fresh_outside (purpose : Nat) :
+  theorem outside_journal (purpose : Nat) :
+  abbrev names (index : Fin 2) : Nat := freshName index.val
+  abbrev values (_ : Fin 2) : Ty := .emptyRecord
+  noncomputable def extended := GeneralNominalCenteredModelExtension.assign model names values
+  theorem retains_journal : GeneralNominalCenteredHeadMatStepJournal.Models after extended :=
+  theorem fresh_value (index : Fin 2) : (extended (names index)).1 = .emptyRecord :=
+  theorem old_value (name : Nat) (member : name ∈ GeneralDictionaryVersionedSupport231.pool) :
+  theorem lower_retained : (extended lo).1 = GeneralDictionaryOptionalOutput229.value := by
+  theorem upper_retained : (extended hi).1 = .emptyRecord := by
+  theorem actual_retained : (extended actual).1 = .emptyRecord := by
+  theorem two_retained : (extended 2).1 = .emptyRecord := by
+  theorem output_retained : (extended 4).1 = GeneralDictionaryOptionalOutput229.value := by
+lean/Yulang/GeneralDictionaryVersionedPacket231.lean
+  theorem binder_exact : binder currentPlan 0 = actual := by
+  theorem head_holds : SchemaHolds currentPlan currentPlan.headSchema extended := by
+  theorem emitted_schema : emittedSchema currentPlan =
+  theorem outputs : Outputs currentPlan extended := by
+  theorem input_fits (name : Nat)
+  theorem packet_holds : Holds currentPlan extended := by
+  theorem journal_and_new_total_packet :
+lean/Yulang/GeneralDictionaryVersionedPrepared231.lean
+  theorem raw_support : GeneralNominalState.sources extendedSnapshot ⊆ GeneralDictionaryVersionedSupport231.pool := by
+  theorem fresh : GeneralNominalVersionedAllocation231.Fresh extendedSnapshot registry root.identity newBindings := by
+  theorem prepared : GeneralNominalVersionedCandidates231.Prepared registry extendedContext root declaration := by
+  theorem children_empty :
+  theorem survivor : GeneralNominalVersionedCandidates231.Survivor registry extendedContext root declaration.id [] :=
+  theorem unique : GeneralNominalVersionedCandidates231.Unique registry extendedContext root declaration.id [] := by
+lean/Yulang/GeneralDictionaryVersionedProjection231.lean
+  abbrev origin0 : Origin := .nominal (.source 0) 0 0
+  abbrev origin1 : Origin := .nominal (.source 0) 0 1
+  theorem seen0 : Observes extended origin0 .emptyRecord := by
+  theorem seen1 : Observes extended origin1 .emptyRecord := by
+  theorem observed_value (index : Nat) (small : index < 2) (seen : Observes extended (.nominal (.source 0) 0 index) value) :
+  theorem fit_observed (index : Nat) (small : index < 2) (seen : Observes extended (.nominal (.source 0) 0 index) value) :
+  theorem raw_projection : ProjectionModels (currentContext).state (report (currentContext) declaration [(0,0)]) extended := by
+  theorem self_checks : PresenceNormalForm.All CommonNominalFullCarrier.model extended
+  theorem ordinary : GeneralNominalVersionedPlans231.Ordinary packet extended := by
+  theorem head_models : GeneralNominalVersionedPlans231.HeadModels packet extended :=
+lean/Yulang/GeneralDictionaryVersionedReconstruction231.lean
+  noncomputable def replayed := GeneralNominalVersionedInstallation231.replayPlan currentPlan
+  noncomputable def reconstructed :=
+  theorem models_iff (m : Assignment) :
+  theorem inhabited : ∃ m, GeneralNominalCenteredHeadMatStepJournal.Models reconstructed m := by
+  theorem packet_holds (valid : GeneralNominalCenteredHeadMatStepJournal.Models reconstructed m) :
+  theorem source_preserved (slot : Fin extendedSnapshot.base.slots) :
+  theorem centers_preserved : reconstructed.core.sites = after.core.sites := rfl
+  theorem historical_plans_preserved : reconstructed.core.plans = after.core.plans := rfl
+  theorem historical_effects_preserved : reconstructed.effects = after.effects := rfl
+  theorem children_empty : GeneralNominalVersionedFrame231.children replayed.packet = [] := by
+lean/Yulang/GeneralDictionaryVersionedSupport231.lean
+  abbrev pool : List Nat := [0,1,2,3,4,lo,hi,actual]
+  theorem packet_support : GeneralDictionaryDefaultPacketSupport213.packetSources plan ⊆ pool := by
+  theorem head_support : GeneralNominalHeadLedgerFrame182.headSources plan ⊆ pool := by
+  theorem class_support (state : GeneralNominalCenteredSteps.State roles)
+  theorem effect_support : GeneralDictionaryDefaultJournalSupport213.effectSources after effect ⊆ pool := by
+  theorem journal_support : GeneralDictionaryDefaultJournalSupport213.journalSources after ⊆ pool := by
+lean/Yulang/GeneralDictionaryVersionedUniversal231.lean
+  theorem old_packet : GeneralNominalCenteredHeadMatStepPackets.Holds plan m := by
+  theorem observed_bounds (index : Nat) (small : index < 2) :
+  theorem observed_value (index : Nat) (small : index < 2)
+  theorem projection : ProjectionModels extendedSnapshot (GeneralNominalPacketSupport.report currentPacket) m := by
+  theorem old_head : plan.SchemaHolds plan.headSchema m :=
+  theorem head_holds : GeneralNominalVersionedPlans231.SchemaHolds currentPlan currentPlan.headSchema m := by
+  theorem actual_fits : GeneralNominalCaptureMerges.Fits m (2,2) (m actual).1 := by
+  theorem outputs : GeneralNominalVersionedPlans231.Outputs currentPlan m := by
+lean/Yulang/GeneralNominalAggregateVersion231.lean
+  def code : List GeneralSourceState.Interval → Nat
+  theorem code_injective : Function.Injective code := by
+  def version (bindings : Bindings) (name : Nat) : Nat :=
+  theorem version_eq_iff : version first name = version last name ↔
+  def key (root declaration purpose name : Nat) (bindings : Bindings) : Origin :=
+  theorem key_eq_iff (root declaration purpose name : Nat) :
+  theorem not_legacy (root declaration purpose name : Nat) (bindings : Bindings)
+  def slot (seed root declaration purpose name : Nat) (bindings : Bindings) : Nat :=
+  theorem slot_eq_iff (seed root declaration purpose name : Nat) :
+  theorem above_seed (seed root declaration purpose name : Nat) (bindings : Bindings) :
+  theorem not_legacy_slot (seed root declaration purpose name : Nat) (bindings : Bindings)
+  theorem distinct_purpose (seed root declaration first last name : Nat)
+lean/Yulang/GeneralNominalVersionedAllocation231.lean
+  def declarationKeys (root : Nat) (declaration : Declaration) (bindings : Bindings) :
+  def keys (registry : Registry) (root : Nat) (bindings : Bindings) :=
+  def reserved (state : GeneralNominalState.State) (registry : Registry) (root : Nat) (bindings : Bindings) :=
+  def Fresh (state : GeneralNominalState.State) (registry : Registry) (root : Nat) (bindings : Bindings) : Prop :=
+  def capture (state : GeneralNominalState.State) (registry : Registry) (root declaration : Nat)
+  def merges (state : GeneralNominalState.State) (registry : Registry) (root : Nat)
+  def propagate (state : GeneralNominalState.State) (registry : Registry) (root : Nat)
+  theorem propagate_models (state : GeneralNominalState.State) (registry : Registry) (root : Nat)
+  theorem seed_preserved : (propagate state registry root declaration bindings).seed = state.seed := rfl
+  theorem source_preserved (old) :
+  theorem capture_outputs (name) :
+  theorem singleton_input (observed : occurrences bindings name = [bounds]) :
+  theorem reserved_key (member : k ∈ keys registry root bindings) :
+  theorem fresh_key (fresh : Fresh state registry root bindings)
+  theorem input_keys (visible : declaration ∈ registry.declarations)
+  theorem aggregate_reserved (visible : declaration ∈ registry.declarations)
+  theorem old_allocated (member : k ∈ state.allocated) :
+  theorem new_allocated (member : k ∈ keys registry root bindings) :
+lean/Yulang/GeneralNominalVersionedCandidates231.lean
+  abbrev inputs := @GeneralNominalCenteredHeadCandidates.inputs
+  def privateState (registry : Registry) (context : Context) (root : Occurrence roles)
+  def children (registry : Registry) (context : Context) (root : Occurrence roles)
+  def HeadModels (registry : Registry) (context : Context) (root : Occurrence roles)
+  def Prepared (registry : Registry) (context : Context) (root : Occurrence roles)
+  def Survivor (registry : Registry) (context : Context) (root : Occurrence roles)
+  def Failed (registry : Registry) (context : Context) (root : Occurrence roles)
+  def InspectionPending (registry : Registry) (context : Context) (root : Occurrence roles) : Prop :=
+  def Unique (registry : Registry) (context : Context) (root : Occurrence roles)
+  theorem inputs_idempotent (root : Occurrence roles) : inputs (inputs root) = inputs root := rfl
+  theorem prepared_ignores_outputs {first last : Occurrence roles} (same : inputs first = inputs last) :
+  theorem failed_ignores_outputs {first last : Occurrence roles} (same : inputs first = inputs last) :
+  theorem survivor_ignores_outputs (first last : Occurrence roles) (same : inputs first = inputs last) :
+  theorem survivor_children_functional (checked : Checked registry)
+  theorem unique_excludes_two (unique : Unique registry context root key kids)
+  theorem private_packet_eq (packet : GeneralNominalSaturationState.Packet roles) :
+  theorem headModels_packet_iff (packet : GeneralNominalSaturationState.Packet roles) (model) :
+  theorem private_models_iff (registry : Registry) (context : Context) (root : Occurrence roles)
+  theorem private_seed (registry : Registry) (context : Context) (root : Occurrence roles)
+  theorem inspectionPending_ignores_outputs (first last : Occurrence roles) (same : inputs first = inputs last) :
+  theorem unique_ignores_outputs (first last : Occurrence roles) (same : inputs first = inputs last) :
+  theorem children_identities (registry : Registry) (context : Context) (root : Occurrence roles)
+  theorem children_roles (registry : Registry) (context : Context) (root : Occurrence roles)
+lean/Yulang/GeneralNominalVersionedCapture231.lean
+  theorem capture_interval_exact (state : GeneralNominalState.State) (registry : Registry)
+  theorem propagated_capture_exact (state : GeneralNominalState.State) (registry : Registry)
+  theorem capture_registry_independent (state : GeneralNominalState.State) (a b : Registry)
+  theorem capture_extend (state : GeneralNominalState.State) (registry : Registry)
+lean/Yulang/GeneralNominalVersionedConservative231.lean
+  def EndpointAgreement (packet : Packet roles) (model : Assignment) : Prop := ∀ name,
+  theorem fits_iff (agreement : EndpointAgreement packet model) (name : Nat) (value : Ty) :
+  theorem variables_eq (plan : Plan roles) (model : Assignment) (agreement : EndpointAgreement plan.packet model) :
+  theorem variableHolds_iff (agreement : EndpointAgreement packet model) (name mode value) :
+  theorem schemaHolds_iff (plan : Plan roles) (model : Assignment) (agreement : EndpointAgreement plan.packet model)
+  private theorem all_flatMap_iff (items : List α) (make : α → List (PresenceNormalForm.Atom Nat)) (model : Assignment) :
+  theorem merges_iff (packet : Packet roles) (model : Assignment) (agreement : EndpointAgreement packet model) :
+  theorem ordinary_iff (packet : Packet roles) (model : Assignment) (agreement : EndpointAgreement packet model) :
+  theorem child_inputs_values (packet : Packet roles) (model : Assignment) (agreement : EndpointAgreement packet model)
+  theorem childSite_holds_iff (plan : Plan roles) (model : Assignment) (agreement : EndpointAgreement plan.packet model)
+  theorem terminal_emittedSchema_eq (plan : Plan roles) (terminal : plan.packet.declaration.requirements = []) :
+  theorem terminal_holds_iff (plan : Plan roles) (model : Assignment)
+lean/Yulang/GeneralNominalVersionedEffects231.lean
+  theorem actual_value (first last : Mode → Nat → Ty)
+  theorem actual_values (first last : Mode → Nat → Ty)
+  theorem actual_expression (plan : Plan roles) (model : Assignment) (expression : Expr) :
+  def bodyVariables (plan : Plan roles) (model : Assignment) : Body → Mode → Nat → Ty
+  def BodyHolds (plan : Plan roles) (target : Nat) (model : Assignment) (body : Body) : Prop :=
+  theorem body_holds_iff (plan : Plan roles) (target : Nat) (model : Assignment) (body : Body) :
+  def ClassEffects (state : GeneralNominalCenteredSteps.State roles) (root : Occurrence roles)
+  theorem class_effects_iff (state : GeneralNominalCenteredSteps.State roles) (root : Occurrence roles)
+  def SchemaHolds (state : GeneralNominalCenteredSteps.State roles) (root : Occurrence roles)
+  theorem schema_holds_iff (state : GeneralNominalCenteredSteps.State roles) (root : Occurrence roles)
+lean/Yulang/GeneralNominalVersionedEvidence231.lean
+  structure Frame (registry : Registry) (state : GeneralNominalCenteredSteps.State roles)
+  structure Certificate (registry : Registry) (state : GeneralNominalCenteredSteps.State roles)
+  def Instance (registry : Registry) (state : GeneralNominalCenteredSteps.State roles)
+  def Evidence (registry : Registry) (state : GeneralNominalCenteredSteps.State roles)
+  theorem certificate_of_semantics (frame : Frame registry state root key plan)
+  theorem finished (source : Certificate registry state model root key children plan) :
+  theorem metadata (source : Certificate registry state model root key children plan) :
+  theorem center_holds (source : Certificate registry state model root key children plan) :
+  theorem instance_models (source : Instance registry state model root key children) :
+  theorem evidence_node (source : Instance registry state model root key children)
+  theorem evidence_leaf (source : Instance registry state model root key []) :
+lean/Yulang/GeneralNominalVersionedFiniteBindings231.lean
+  def words (alphabet : List α) : Nat → List (List α)
+  theorem mem_words (alphabet : List α) (bound : Nat) (items : List α)
+  def alphabet (names endpoints : List Nat) : List (Nat × (Nat × Nat)) :=
+  theorem mem_alphabet (hn : name ∈ names) (hl : lo ∈ endpoints) (hh : hi ∈ endpoints) :
+  def candidates (names endpoints : List Nat) (bound : Nat) : List Bindings :=
+  theorem bindings_included (bindings : Bindings)
+  theorem reserved_included (bindings : Bindings)
+lean/Yulang/GeneralNominalVersionedFrame231.lean
+  def frame (packet : Packet roles) : GeneralDictionaryEmissionPlans.Frame roles where
+  def capture (packet : Packet roles) : GeneralDeclarationDemands.Capture :=
+  def binder (plan : Plan roles) (name : Nat) : Nat :=
+  theorem capture_outputs (packet : Packet roles) (name : Nat) :
+  theorem binder_eq (plan : Plan roles) (name : Nat) : binder plan name = plan.binder name := by
+  def clauseChild (packet : Packet roles) (clause : Clause) (valid : clause.Signature roles) : Occurrence roles :=
+  def children (packet : Packet roles) : List (Occurrence roles) :=
+  theorem allocation_eq (packet : Packet roles) :
+  theorem identity_eq (packet : Packet roles) :
+  theorem child_identity (packet : Packet roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem child_role (packet : Packet roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem output_target_eq (packet : Packet roles) (allocate : Nat → Nat) (equation : Equation) :
+  theorem child_outputs_eq (packet : Packet roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem children_identity_eq (packet : Packet roles) :
+  theorem children_role_eq (packet : Packet roles) :
+  theorem children_length_eq (packet : Packet roles) : (children packet).length = packet.children.length := by
+  def emittedCenter (plan : Plan roles) (clause position : Nat)
+  theorem emittedCenter_eq (plan : Plan roles) (clause position : Nat)
+  def childSite (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) : Site roles where
+  theorem childSite_center_eq (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles)
+  theorem childSite_identity_eq (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) :
+lean/Yulang/GeneralNominalVersionedInstallation231.lean
+  def atoms (packet : Packet roles) : List (PresenceNormalForm.Atom Nat) :=
+  def reserved (packet : Packet roles) : List Nat :=
+  def allocated (packet : Packet roles) : List GeneralNominalIdentities.Origin :=
+  def replayPlan (plan : Plan roles) : Plan roles :=
+  theorem atoms_iff (packet : Packet roles) (model : Assignment) :
+  theorem replay_holds_iff (plan : Plan roles) (model : Assignment) :
+  theorem replay_private_models (plan : Plan roles) (model : Assignment) :
+  theorem replay_source (plan : Plan roles) (slot : Fin plan.packet.context.state.base.slots) :
+  theorem replay_seed (plan : Plan roles) :
+  theorem replay_center (plan : Plan roles) (name : Nat) :
+  theorem replay_children (plan : Plan roles) :
+  theorem replay_known (plan : Plan roles) (name : Nat) :
+  theorem replay_keys_owned (plan : Plan roles) (member : key ∈ allocated plan.packet) :
+  theorem replay_valid (plan : Plan roles) (model : Assignment) (valid : Holds plan model) :
+lean/Yulang/GeneralNominalVersionedPlans231.lean
+  def Ordinary (packet : Packet roles) (model : Assignment) : Prop :=
+  def privateState (packet : Packet roles) : GeneralNominalState.State :=
+  theorem private_models_iff (packet : Packet roles) (model : Assignment) :
+  def HeadModels (packet : Packet roles) (model : Assignment) : Prop :=
+  def SchemaHolds (plan : Plan roles) (schema : GeneralNominalMaterialization.Schema) (model : Assignment) : Prop :=
+  def variables (plan : Plan roles) (model : Assignment) (mode : GeneralNominalMaterialization.Mode) (name : Nat) : Ty :=
+  theorem actual_variables (plan : Plan roles) (model : Assignment) (name : Nat) :
+  def emittedRequests (packet : Packet roles) : List GeneralNominalMaterialization.Request :=
+  def emittedSchema (plan : Plan roles) : GeneralNominalCenteredHeadMatSchemas.Schema :=
+  def childRequests (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) :
+  def childSchema (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem childRequests_eq (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem childSchema_eq (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) :
+  def Inputs (plan : Plan roles) (model : Assignment) : Prop :=
+  def Outputs (plan : Plan roles) (model : Assignment) : Prop :=
+  def Holds (plan : Plan roles) (model : Assignment) : Prop :=
+  theorem head_models (valid : Holds plan model) : HeadModels plan.packet model :=
+  theorem shared_center (valid : Inputs plan model)
+  theorem emitted_equation (valid : Outputs plan model) (member : equation ∈ (emittedSchema plan).equations) :
+lean/Yulang/GeneralNominalVersionedPool231.lean
+  def keyPool (registry : Registry) (root : Nat) (candidates : List Bindings) :
+  def sourcePool (state : GeneralNominalState.State) (registry : Registry) (root : Nat)
+  theorem keys_included (present : bindings ∈ candidates) :
+  theorem reserved_included (present : bindings ∈ candidates) :
+  theorem keyPool_mono (included : first ⊆ last) :
+  theorem sourcePool_mono (included : first ⊆ last) :
+  private theorem flatMap_congr (items : List α) (first last : α → List β)
+  theorem declarationKeys_revisit (same : ∀ name ∈ declaration.inputNames,
+  theorem keys_revisit (same : ∀ declaration ∈ registry.declarations, ∀ name ∈ declaration.inputNames,
+  theorem reserved_revisit (same : ∀ declaration ∈ registry.declarations, ∀ name ∈ declaration.inputNames,
+  theorem sourcePool_seed (same : first.seed = last.seed) :
+  theorem sourcePool_propagate :
+  theorem reserved_covered (observed : Bindings → Prop) (cover : ∀ bindings, observed bindings → bindings ∈ candidates) :
+lean/Yulang/GeneralNominalVersionedPreparedTransport231.lean
+  theorem metadata_iff (registry : Registry) (context : Context) :
+  theorem linked_forward (context : Context) (root : Occurrence roles)
+  theorem located_eq (context : Context) (root : Occurrence roles) :
+  theorem finished_iff (context : Context) (declaration : Declaration)
+  theorem fresh_owned (context : Context) (registry : Registry) (root : Nat) (captured)
+  theorem prepared_extended (context : Context) (registry : Registry) (root : Occurrence roles)
+  theorem frame_extended (registry : Registry) (state : GeneralNominalCenteredSteps.State roles)
+  theorem frame_extended_of_old_holds (registry : Registry) (state : GeneralNominalCenteredSteps.State roles)
+lean/Yulang/GeneralNominalVersionedRefinement231.lean
+  def installed (packet : Packet roles) :
+  theorem source_identity (packet : Packet roles) (slot : Fin packet.context.state.base.slots) :
+  theorem row_identity (packet : Packet roles) (slot : Fin packet.context.state.base.slots) :
+  theorem known_iff (packet : Packet roles) (name : Nat) :
+  theorem sources_mono (packet : Packet roles) :
+  theorem models_restrict (packet : Packet roles) (model : GeneralNominalCommonBridge.Assignment)
+  theorem keys_owned (packet : Packet roles) (member : key ∈ GeneralNominalVersionedAllocation231.keys
+  theorem revisit_fresh (packet : Packet roles) :
+  theorem preserves_linked (packet : Packet roles) (demand : GeneralSourceState.Demand roles)
+lean/Yulang/GeneralNominalVersionedRevisit231.lean
+  abbrev propagatedContext (context : GeneralNominalCandidates.Context) (registry : Registry)
+  theorem bindings_propagate (context : GeneralNominalCandidates.Context) (registry : Registry)
+  theorem reinspected_keys (context : GeneralNominalCandidates.Context) (registry : Registry)
+  theorem reinspected_version (context : GeneralNominalCandidates.Context) (registry : Registry)
+  theorem capture_propagate (state : GeneralNominalState.State) (registry : Registry) (root : Nat)
+  theorem merges_propagate (state : GeneralNominalState.State) (registry : Registry) (root : Nat)
+  theorem reserved_propagate (state : GeneralNominalState.State) (registry : Registry) (root : Nat)
+  theorem reinspected_reserved (context : GeneralNominalCandidates.Context) (registry : Registry)
+  theorem propagate_models_idempotent (state : GeneralNominalState.State) (registry : Registry)
+  theorem fresh_revisit (state : GeneralNominalState.State) (registry : Registry)
+lean/Yulang/GeneralNominalVersionedTransport231.lean
+  def extendedPacket (packet : Packet roles) : Packet roles :=
+  def extendedPlan (plan : Plan roles) : Plan roles :=
+  theorem plan_packet (plan : Plan roles) :
+  theorem plan_input (plan : Plan roles) :
+  theorem packet_declaration (packet : Packet roles) :
+  theorem needed_iff (packet : Packet roles) (name : Nat) :
+  theorem packet_bindings (packet : Packet roles) :
+  theorem frame_eq (packet : Packet roles) :
+  theorem capture_eq (packet : Packet roles) :
+  theorem binder_eq (plan : Plan roles) (name : Nat) :
+  theorem children_eq (packet : Packet roles) :
+  theorem clauseChild_eq (packet : Packet roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem emittedCenter_eq (plan : Plan roles) (clause position : Nat) (pattern) :
+  theorem childSite_eq (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem emittedRequests_eq (packet : Packet roles) :
+  theorem emittedSchema_eq (plan : Plan roles) :
+  theorem variables_eq (plan : Plan roles) (model) :
+  theorem childRequests_eq (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem childSchema_eq (plan : Plan roles) (clause : Clause) (valid : clause.Signature roles) :
+  theorem headSchema_eq (plan : Plan roles) :
+  theorem schemaHolds_iff (plan : Plan roles) (schema) (model) :
+  theorem ordinary_iff (packet : Packet roles) (model) :
+  theorem projection_iff (packet : Packet roles) (model) :
+  theorem inputs_iff (plan : Plan roles) (model) :
+  theorem outputs_iff (plan : Plan roles) (model) :
+  theorem holds_iff (plan : Plan roles) (model) :

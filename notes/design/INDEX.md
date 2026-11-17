@@ -624,3 +624,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle216 finite merge completion](2026-11-15-cycle216-merge-completion.md): constructive disjoint/owned/mixed support completion; exact overlap criterion and remaining repeated-capture sharing. I40 remains open.
 
 - [Cycle217 current actual head equations](2026-11-15-cycle217-current-head-equations.md)
+
+- [Cycle232 versioned journal proof plan (Draft)](2026-11-17-cycle232-versioned-journal.md) — I44 representation integration, not a language design decision.
