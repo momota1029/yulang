@@ -1,0 +1,3 @@
+# Cycle243 executable live view
+Draft, 2026-11-17. Continue I47 option A; retain I45.
+Build a finite expression-valued snapshot from actual raw source, including source/row slot expressions, ordinary atoms, structural heads, intervals and nominal descriptor bounds. Output contains syntax, not a raw-State Models closure. Prove exact interpretation for every mapping and assignment. Compile live centers and outputs under that same readback. Repeated-substitution size and whole effect/schema/Evidence remain separate. Parallel work targets real allocation endpoint pool and checked activation; do not revive invalid union-domain shortcut.

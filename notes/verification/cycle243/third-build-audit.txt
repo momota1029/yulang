@@ -1,0 +1,7 @@
+BUILD GeneralNominalRebaseProjectionView243
+BUILD GeneralNominalRebaseSchemaView243
+BUILD GeneralNominalRebasePacketView243
+BUILD GeneralNominalRebaseEvidenceView243
+BUILD GeneralDictionaryRebaseViewActivation230243
+BUILD GeneralNominalRebaseOriginActivation243
+CYCLE243-THIRD-PASS: 850 constants in 21 modules

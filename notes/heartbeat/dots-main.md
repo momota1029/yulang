@@ -1,11 +1,11 @@
 # dots-main heartbeat
 
-- cycle: 243
+- cycle: 244
 - status: running
-- started: 2026-11-17T15:30:54Z
-- updated: 2026-11-17T15:46:00Z
-- elapsed_min: 15.1
-- activity: Finite executable raw view implemented, checking exactness for heads/nominals/rows. Parallel checked fresh activation and real stable-allocation endpoint pool producer.
+- started: 2026-11-17T16:30:00Z
+- updated: 2026-11-17T16:30:00Z
+- elapsed_min: 0
+- activity: Re-read unchanged integration caecfb3bb and I47 ACTIVE; previous cycle243 fully published. Planning full journal rewriting and retained definitions/evidence support for repeated stable-owner operations.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang241-recovery
-- last_local_commit: b1973869f
-- resume_hint: New RawView243 source in main; compile and audit before publishing. Agents use separate persistent242 workdirs. I47 unchanged; no global successor claimed.
+- last_local_commit: 7078e992e
+- resume_hint: No competing previous process. Preserve frozen Audit.lean/README.md, append root imports only. Full successor Acc and EvidenceNode remain open. Finish by 17:25 UTC.
