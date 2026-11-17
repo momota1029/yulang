@@ -1,0 +1,14 @@
+import Yulang.GeneralDictionaryRebase230Executor242
+import Yulang.GeneralNominalRebaseLookup242
+open Yulang
+open GeneralDictionaryRebase230Scheduler242
+open GeneralDictionaryRebase230Service241 (ownerAt owner)
+open GeneralNominalRebaseExecutor242
+#eval ((run ownerAt compile discover initial).work.facts 0,
+       (run ownerAt compile discover initial).work.dirty 0,
+       ((run ownerAt compile discover initial).table.blocks owner).length)
+#eval (GeneralNominalRebaseProgress241.rank initial.work,
+       GeneralNominalRebaseProgress241.rank observed.work,
+       GeneralNominalRebaseProgress241.rank final.work)
+#eval (GeneralNominalRebaseLookup242.lookup [(3,Core.PresenceGeneration.TyTerm.var 0)] 3).isSome
+#eval (GeneralNominalRebaseLookup242.lookup [(3,Core.PresenceGeneration.TyTerm.var 0)] 2).isSome

@@ -4390,3 +4390,6 @@ import Yulang.GeneralDictionaryRebaseNewCellObstruction242
 import Yulang.GeneralNominalRebaseExecutor242
 import Yulang.GeneralNominalRebaseMergeExternal242
 import Yulang.GeneralDictionaryRebase230Executor242
+import Yulang.GeneralNominalRebasePublicModel242
+import Yulang.GeneralDictionaryRebase230Public242
+import Yulang.GeneralNominalRebaseLookup242

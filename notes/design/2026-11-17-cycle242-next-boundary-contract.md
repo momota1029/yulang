@@ -79,3 +79,35 @@ not yet construct this successor Models/Readback or its evidence interpretation.
 The existing V8 target is not weakened, and stepModels is not silently replaced
 by an existential law with different quantifiers. The new representation must
 make its required same-public-model law genuinely true.
+
+## Evidence cannot choose a different private witness per child
+
+Public Models hides internal private coordinates existentially. It does not
+license defining each child Evidence by an unrelated existential internal
+witness: separate witnesses for child1 and child2 need not satisfy the same
+parent/effect snapshot. The original EvidenceAt composes children in one model.
+
+A successor therefore needs source/public readback that determines the live
+argument/output expressions relevant to evidence, together with invariance of
+the independent declarative Evidence judgement under internal witness changes.
+An alternative intermediate definition can quantify over all internal witnesses
+of the same projected state, but it must then be shown equal to the intended
+public judgement, not substituted as a weaker goal. This is part of the whole
+live consumer bridge, not a new semantic choice or permission to weaken V8.
+
+## Newly completed local compatibility
+
+PublicModel242 defines a fixed PublicAgree (all rows literal, private-outside
+values exact) and existential Models. Its replacement_models_iff keeps the SAME
+public assignment on both sides and changes only internal witnesses. Its
+raw_step_models is a local same-public-model implication from actual raw/atom
+congruence plus coherent/external/private-domain hypotheses. The230 concrete
+application uses old/new real merge entries and rawsnapshot+publicAtoms.
+This closes the quantifier mismatch for that local replacement; the complete
+successor state/evidence readback and all operations are still to be built.
+
+The expression rewrite need not depend on unbounded choice: Lookup242 implements
+substitution/patch/new-RHS rewrite using finite List.find?, proves equality to the
+existing semantic operations under coherence, preserves every row, and computes
+`x := x ∪ x` through old `x := a` to `x := a ∪ a`. This is a syntactic step toward
+an executable view, not a proof that all observation growth is finite.
