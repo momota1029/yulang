@@ -2,9 +2,9 @@
 
 Construct a new checked registry over the genuine five-slot source, with optional associated output and variant where argument. Preserve actual initial installation guards and perform real reobservation. First goal is auxiliary current fullHolds/common obstruction; no EvidenceNode refutation without its separate complete hypotheses. No semantic changes. First checkpoint checks declaration validity before building any packet.
 
-## Verified result (frozen 11:03 UTC)
+## Verified result (final freeze 11:08 UTC)
 
-19 new `GeneralDictionaryCompound*238` modules, 215 public declarations.
+21 new `GeneralDictionaryCompound*238` modules, 223 public declarations.
 Direct Lean `--trust=0 -DwarningAsError=true` compilation and combined axiom audit
 passed; only propext, Classical.choice and Quot.sound. No new axiom, sorry,
 native_decide or language/kernel change.
@@ -71,3 +71,25 @@ A useful next local task is to characterize child lookup/inspection after this
 actual two-step prefix. For root selection, the remaining SafeKnown semantic
 cycle proof must cover the two extra finite forms variant(V), variant(W), not
 reuse the old four-form OptionalCycles229 classification unchanged.
+
+
+## Final child/evidence diagnosis
+
+Two additional verified modules settle the scope positively:
+
+- `CompoundChildPending238.unlocated`: the generated compound child has no
+  physical source-slot bounds in the current five-slot snapshot. Hence it has
+  no current Frame, Instance or Evidence, for ANY assignment. This is an
+  inspection/refresh gap, not a proved child rejection.
+- `CompoundVacuity238.evidenceAt`: the actual mixed-source `EvidenceAt` property
+  **holds at this two-step point**. Every generated occurrence is the root or
+  this child. A selected child would give a Frame, contradicting unlocated.
+  A selected root has exactly this child, whose required Evidence antecedent
+  is impossible. This proof does not assume selection, stability, completion,
+  a target law, or an empty journal model class.
+
+Therefore this exact reached state is definitively NOT an EvidenceNode
+counterexample. It remains a real nonempty-model counterexample to universal
+current same-model full-packet completion, and a current root Instance gap.
+The evidence implication survives vacuously because its child-evidence premise
+cannot hold. No claim is made about future refreshed states or a richer registry.

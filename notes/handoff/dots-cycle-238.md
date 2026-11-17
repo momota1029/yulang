@@ -102,3 +102,51 @@ Backは実lower aggregate等式がordinaryに含まれるという構造前提�
 
 11:04の再読でintegrationはd8623f96へ更新（236/237公開の取り込み）。
 standing-orders/inboxの差分なし、I44継続、STOPなし。凍結を維持。
+
+## 第五追加（検証中の記録）: 子前提の積極的な確認
+
+CompoundChildPending238/Vacuity238は元fixtureの子locatorがnoneで、任意modelについて
+子Frame/Instance/Evidenceが無いと示す。Generatedはroot/childのみであるため、
+根のルールのchildEvidence前提が成立せず、実際に SourceBoundary EvidenceAt が真になる。
+この例をEvidenceNode反例として拡張解釈しない。selected/Stableを仮定する必要もなかった。
+現在completion補助の普遍主張だけが偽で、停止したのはその補助の証明。
+
+FamilyInstallation238は下側aggregate式が実replayPlan ordinaryに入ることを示す。
+FamilyExpose238は実replayPlan後の新lower support・unknown→known・Refinesを示す。
+これらを単独で完全な混合Refresh/reobserveや全n journal到達とは呼ばない。
+
+統合は237途中checkpointだったため、監督版の本文を優先したうえで、既公開237最終追記を
+消失させないよう末尾に再配置して保存した。Lean既存証明は差分なし、barrelは追加のみ。
+
+第五追加4モジュール27 constants、direct/axiom audit PASS。ここまで56モジュール720 constants。
+第三checkpoint52モジュールは83d32d99、明示SHA fetch全tree一致・remote ref一致を確認済み。
+
+## 最終局所橋: 履歴から本物のTrusted/Cache/Refresh
+
+FamilyHistory/Trusted/Cache/Refresh238:
+- 任意n・任意代入・元source Models・全index<nの実Inputsからlower(n)≃Foo(Int)を帰納で導出。
+- 元source一致と全過去familyplanのjournal記録から、本物のTrusted constructorを用いてfactsを生成。
+  n番目のInputを追加する前にfacts nでreadback nを証明するので循環しない。
+- そのTrusted factsからpoint/loose両snapshotのmixed CacheSoundを生成。
+- current=replayPlan(familyplan n)、元source一致、index<n+1の全plan記録という明記された
+  構造前提から、完全mixed Refresh certificateと実Kernel.Stepを構成。
+  これは全nでそのjournalが存在するとの仮定・結論ではない。
+History/Trustedは別作業者のread-only独立査読で射程・非循環・ordinary=[]観測輸送を確認済み。
+
+## 未完了・次に優先する3点
+
+1. FamilyRefresh238の前提を全nで実現するindexed journalを作る。certifiedReobserve、
+   全段のFresh/SafeKnown/Installable/nonCommittedを組み、初めて無限実行の可否を判定する。
+2. Compoundは本点のEvidenceAtが真と分かったため、同じ例を反例と呼ばない。
+   実child refresh後の新状態を評価する場合もnoInstanceやvacuityの保存を仮定しない。
+   別leaf registryならcheckedness・source prefix・予約/freshness・全guard・childEvidenceを作り直す。
+3. 一般EvidenceNodeのselected＋childEvidenceの場合に限定して、過剰なcurrent completionを避け、
+   実actual replay/child意味と現Certificateの関係を詰める。未決の意味・操作変更はしない。
+
+今回新規の言語判断はしていない。質問ノートは追加なし。completion補助の偽命題は停止済み。
+全体lake build/verify-lean.shは実行せず（監督専用）。新Yulang2全体検証も行っていない。
+使用量枠は不明。各Audit/Cycle238{First,Second,Third,Fourth,Fifth,Sixth}.leanで
+`lake env lean --trust=0 -DwarningAsError=true` を実行。許可公理は3標準のみ。
+各新モジュールは同コマンドで個別oleanを生成。宣言一覧は verification/cycle238/declarations.md。
+
+第六追加4モジュール37 constants、direct/axiom audit PASS。計60モジュール757 constants。

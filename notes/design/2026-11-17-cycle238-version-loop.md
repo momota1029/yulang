@@ -34,3 +34,43 @@ Arithmetic name generation is not an actual indexed kernel trace. Uniform
 source extensions, observation certificates, total packet models, all guards
 and novelty at every iteration remain to be constructed before any claim of
 nontermination or a target refutation.
+
+## Final concrete result and uniform partial construction
+The first and second installations are now genuine guarded mixed-kernel
+steps. SecondStep238 gives the original-source four-step path
+install → refresh → retarget → install, with an explicit full model and both
+historical plans recorded. This is a finite path, not a termination refutation.
+
+Uniform modules remain sharply separated from that actual finite regression:
+- FamilyBase/Snapshot/Packet/Head/Full define the n+4-slot point stage, compute
+  its repeated-capture report and construct its total versioned packet model.
+- FamilyFresh proves next lower/upper outside the defined finite reservation
+  history and base sources. It does not claim exclusion from full historical
+  journal support.
+- FamilyRefines gives the exact structural source-preserving refinement to the
+  next loose lower; FamilyRevision gives its syntactic retargeting revision
+  and strict point-improvement guard.
+- FamilyBack proves semantic raw-back from structural inclusion of the actual
+  lower equations in ordinary atoms; FamilyInstallation generates that
+  inclusion from the real replayPlan private-installation transformer.
+- FamilyExpose proves new lower support and unknown→known for the real replay
+  context; it supplies Refines and support without a cache assumption.
+- FamilyHistory works for arbitrary assignments and arbitrary per-stage
+  bookkeeping: original-source Models plus historical Inputs imply every
+  earlier lower denotes Foo(Int), and imply the point-stage raw observations.
+- FamilyTrusted constructs Trusted facts by induction in an arbitrary journal
+  retaining that original source and all the corresponding recorded plans.
+  Crucially Readback for input n uses only facts below n; it does not assume
+  input n before adding it.
+- FamilyCache derives point and loose mixed caches from those actual Trusted
+  histories; FamilyRefresh combines this with the structural guards and
+  original-source base semantics to produce a complete mixed Refresh
+  certificate and actual Kernel.Step at each indexed shape.
+
+Remaining obligations for a genuine infinite family are not hidden in these
+results: construct indexed journals satisfying the source/current/recorded-plan
+shape hypotheses, close the uniform certified Reobserve, prove subsequent
+Prepared/full Installable/novelty (including full historical support exclusion),
+and link every transition into an infinite actual path. None is replaced by a
+hypothesis asserting the desired path or global termination failure. No exact
+counterexample to the termination target has been established in this cycle.
