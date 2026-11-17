@@ -1,14 +1,10 @@
 # dots-main heartbeat
-
-- cycle: 247
-- status: completed
-- result: partial-verified; actual ordered textual rebase and explicit query preservation, source boundary remains open
-- started: 2026-11-17T20:30:33Z
-- updated: 2026-11-17T21:17:13Z
-- elapsed_min: 46.7
-- activity: Published30 verified modules/503 audited constants at aa0d947ec199ef3523a873a9b8d481884094329d; full expected tree cc873f7c26444d53a7064e5da2e640b43637a292 matched retrieved GitHub tree. Clean131-module source closure verified. Recovered21:09 environment disconnect without lost verified files.
-- report: notes/handoff/dots-cycle-247.md
-- receipt: notes/verification/cycle247/publication-receipt.md
+- cycle: 248
+- status: running
+- started: 2026-11-17T21:31:22Z
+- updated: 2026-11-17T21:32:43Z
+- elapsed_min: 1.4
+- activity: Re-read integration/inbox and completed247; reconciling locally untracked files with published bytes, no competing writer. Preparing actual source-origin adapter with staged bounded dependency builds.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
 - last_local_commit: 6012681fd
-- resume_hint: Fetch latest remote before writing: final source files and reports are published, but this thread became read-only after reconnect, so local final files remain dirty/untracked and HEAD is phase3. Compare bytes, do not delete or publish them twice. No live build/writer. Continue actual source/metadata adapter and finite progress;30 new modules/131 clean focused dependencies are cached. Heavy Definitions241 closure710 was not built. Unverified244 and247 quarantine drafts are not results.
+- resume_hint: Prior247 was fully published at44be57afdae5ac2809fa3a4111a30de44a9b7d9a. Dirty/untracked final247 files are already published; compare bytes before reconciling. Build only targeted bounded chunks, no whole lake build. Research until22:16, finish by22:26 UTC.
