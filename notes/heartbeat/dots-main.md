@@ -1,11 +1,11 @@
 # dots-main heartbeat
 
-- cycle: 242
+- cycle: 243
 - status: running
-- started: 2026-11-17T14:30:13Z
-- updated: 2026-11-17T14:31:00Z
-- elapsed_min: 1
-- activity: I47 continued; latest integration a254e23e merged, no STOP or competing process. Execution transport disconnected immediately after start; reconnecting.
+- started: 2026-11-17T15:30:54Z
+- updated: 2026-11-17T15:46:00Z
+- elapsed_min: 15.1
+- activity: Finite executable raw view implemented, checking exactness for heads/nominals/rows. Parallel checked fresh activation and real stable-allocation endpoint pool producer.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang241-recovery
-- last_local_commit: 39eaf1583
-- resume_hint: Preserve persistent workspace and public cycle241. No new proof yet; restore execution then read cycle242 design. No global build, frozen files unchanged.
+- last_local_commit: b1973869f
+- resume_hint: New RawView243 source in main; compile and audit before publishing. Agents use separate persistent242 workdirs. I47 unchanged; no global successor claimed.
