@@ -1,0 +1,80 @@
+import Yulang.GeneralPresenceSnapshotRegression250
+import Yulang.GeneralNominalPersistentOwner250
+import Yulang.GeneralNominalSourceDelta250
+import Yulang.GeneralPresenceReserveBlock250
+import Yulang.GeneralNominalFrameReservation250
+import Yulang.GeneralNominalPostInstall250
+import Yulang.GeneralNominalStableSlots250
+import Yulang.GeneralNominalPersistentSequence250
+import Lean
+open Lean Elab Command in
+run_cmd do
+ let environment ← getEnv
+ let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
+ let names := #[``Yulang.GeneralPresenceSnapshotRegression250.old,
+  ``Yulang.GeneralPresenceSnapshotRegression250.raw,
+  ``Yulang.GeneralPresenceSnapshotRegression250.next,
+  ``Yulang.GeneralPresenceSnapshotRegression250.old_safe,
+  ``Yulang.GeneralPresenceSnapshotRegression250.raw_not_safe,
+  ``Yulang.GeneralPresenceSnapshotRegression250.snapshot_shape,
+  ``Yulang.GeneralPresenceSnapshotRegression250.next_safe,
+  ``Yulang.GeneralPresenceSnapshotRegression250.full_targets,
+  ``Yulang.GeneralPresenceSnapshotRegression250.before,
+  ``Yulang.GeneralPresenceSnapshotRegression250.after,
+  ``Yulang.GeneralPresenceSnapshotRegression250.snapshot_satisfied,
+  ``Yulang.GeneralPresenceSnapshotRegression250.same_equations_not_satisfied,
+  ``Yulang.GeneralPresenceSnapshotRegression250.omitted_slots_retained,
+  ``Yulang.GeneralPresenceSnapshotRegression250.later_slot_reactivated,
+  ``Yulang.GeneralNominalPersistentOwner250.Block,
+  ``Yulang.GeneralNominalPersistentOwner250.update,
+  ``Yulang.GeneralNominalPersistentOwner250.safe_update,
+  ``Yulang.GeneralNominalPersistentOwner250.targets_update,
+  ``Yulang.GeneralNominalPersistentOwner250.public_models_iff,
+  ``Yulang.GeneralNominalPersistentOwner250.raw_constraints,
+  ``Yulang.GeneralNominalPersistentOwner250.update_attach,
+  ``Yulang.GeneralNominalPersistentOwner250.augmented_public_models_iff,
+  ``Yulang.GeneralNominalSourceDelta250.SourceDelta,
+  ``Yulang.GeneralNominalSourceDelta250.SourceDelta.Holds,
+  ``Yulang.GeneralNominalSourceDelta250.compile,
+  ``Yulang.GeneralNominalSourceDelta250.compile_exact,
+  ``Yulang.GeneralNominalSourceDelta250.attached_source_exact,
+  ``Yulang.GeneralNominalSourceDelta250.source_update_public_iff,
+  ``Yulang.GeneralPresenceReserveBlock250.reserve,
+  ``Yulang.GeneralPresenceReserveBlock250.coherent,
+  ``Yulang.GeneralPresenceReserveBlock250.member_iff,
+  ``Yulang.GeneralPresenceReserveBlock250.safe,
+  ``Yulang.GeneralPresenceReserveBlock250.safe_append,
+  ``Yulang.GeneralPresenceReserveBlock250.support,
+  ``Yulang.GeneralPresenceReserveBlock250.append_safe,
+  ``Yulang.GeneralNominalFrameReservation250.pool,
+  ``Yulang.GeneralNominalFrameReservation250.extend,
+  ``Yulang.GeneralNominalFrameReservation250.Fresh,
+  ``Yulang.GeneralNominalFrameReservation250.keeps_pool,
+  ``Yulang.GeneralNominalFrameReservation250.models_forward,
+  ``Yulang.GeneralNominalFrameReservation250.models_backward,
+  ``Yulang.GeneralNominalFrameReservation250.safe_extend,
+  ``Yulang.GeneralNominalFrameReservation250.public_models_iff,
+  ``Yulang.GeneralNominalPostInstall250.delta_iff,
+  ``Yulang.GeneralNominalPostInstall250.delta_ordered,
+  ``Yulang.GeneralNominalPostInstall250.post_public_models_iff,
+  ``Yulang.GeneralNominalStableSlots250.slots,
+  ``Yulang.GeneralNominalStableSlots250.slot_member,
+  ``Yulang.GeneralNominalStableSlots250.slots_above,
+  ``Yulang.GeneralNominalStableSlots250.slot_count,
+  ``Yulang.GeneralNominalStableSlots250.entries_covered,
+  ``Yulang.GeneralNominalStableSlots250.install,
+  ``Yulang.GeneralNominalStableSlots250.actual_equations,
+  ``Yulang.GeneralNominalStableSlots250.install_safe,
+  ``Yulang.GeneralNominalStableSlots250.install_public_models_iff,
+  ``Yulang.GeneralNominalPersistentSequence250.run,
+  ``Yulang.GeneralNominalPersistentSequence250.targets_run,
+  ``Yulang.GeneralNominalPersistentSequence250.safe_run,
+  ``Yulang.GeneralNominalPersistentSequence250.targets_length,
+  ``Yulang.GeneralNominalPersistentSequence250.raw_coverage,
+  ``Yulang.GeneralNominalPersistentSequence250.public_models_iff,
+  ``Yulang.GeneralNominalPersistentSequence250.actual_owner_coverage]
+ for name in names do
+  unless environment.contains name do throwError "Missing declaration {name}"
+  for dependency in ← collectAxioms name do
+   unless allowed.contains dependency do throwError "Forbidden dependency {name}: {dependency}"
+ logInfo m!"CYCLE250-PHASE3-PASS: {names.size} explicit declarations in 8 modules"
