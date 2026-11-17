@@ -1,0 +1,23 @@
+import Yulang.GeneralDictionaryPointGround218240
+import Yulang.GeneralDictionaryMixedGround218FinalRegression235
+import Yulang.GeneralDictionaryMixedGround218FinalOutcome235
+import Yulang.GeneralNominalPointEvidenceTransfer240
+set_option backward.isDefEq.respectTransparency false
+namespace Yulang.GeneralDictionaryPointGroundOutcome240
+open GeneralDictionaryGroundCopy218Source
+open GeneralDictionaryMixedGround218FinalState235
+
+theorem stable : GeneralNominalPointKernel240.Stable registry finalState root :=
+ GeneralNominalPointErasure240.old_stable GeneralDictionaryMixedGround218FinalRegression235.stable
+
+theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalPointSourceBoundary240.boundary roles) sourceRegistry finalState root :=
+ GeneralNominalPointEvidenceTransfer240.evidenceAt GeneralDictionaryMixedGround218FinalRegression235.stable
+ (fun _ _ _ reached chosen _ member => GeneralDictionaryMixedGround218FinalRegression235.generated_children reached chosen member)
+ GeneralDictionaryMixedGround218FinalRegression235.evidenceAt
+
+theorem regression : B4TargetV8.Reachable (GeneralNominalPointSourceBoundary240.boundary roles) sourceRegistry root finalState ∧
+ (∃ model, GeneralNominalVersionedJournal232.Models finalState model) ∧
+ GeneralNominalPointKernel240.Stable registry finalState root ∧
+ B4SkeletonV8.EvidenceAt (GeneralNominalPointSourceBoundary240.boundary roles) sourceRegistry finalState root :=
+ ⟨GeneralDictionaryPointGround218240.final_reachable,⟨_,final_model⟩,stable,evidenceAt⟩
+end Yulang.GeneralDictionaryPointGroundOutcome240

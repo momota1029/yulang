@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-- cycle: 239
-- status: completed
-- started: 2026-11-17T11:33:03Z
-- updated: 2026-11-17T11:52:54Z
-- elapsed_min: 19.9
-- activity: STOP under I34 after closed actual-target refutation.25 new modules/344 constants audited PASS; actual source all-index guarded rounds prove initial_no_acc and no_saturation/no_statement for every executor of unchanged I44 mixed-source boundary. Independent audit/review PASS. Published6f952cb5 tree+remote verified.
+- cycle: 240
+- status: completed-stopped-awaiting-decision
+- started: 2026-11-17T12:32:58Z
+- updated: 2026-11-17T12:57:53Z
+- elapsed_min: 24.9
+- activity: I45 successor verified but closed five-slot actual nontermination found. All64 direct trust0 builds PASS; 885-constant audit PASS; final6 independently audited. Research stopped12:53:54; publication0fa032527 and full-tree comparison PASS.
 - workspace: /tmp/yulang-admin-1730/repo
-- last_local_commit: d6e9302a7
-- report: notes/handoff/dots-cycle-239.md
-- resume_hint: Read latest integration/inbox and answer to notes/questions/2026-11-17-cycle239-versioned-iteration-nontermination.md FIRST. Without decision do not resume proof/repair of this false target. No semantic or operational changes authorized here. Preserve counterexample; not a claim that every schedule diverges or that EvidenceNode is false. Frozen files intact.
+- last_local_commit: abe654978
+- resume_hint: Read cycle240 question and await explicit supervisor decision. Do not resume false Acc target or implement semantic repair without decision. Previous12:53 heartbeat timestamp was recorded a few minutes ahead; this timestamp is clock-verified.

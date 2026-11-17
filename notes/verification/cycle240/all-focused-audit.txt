@@ -1,0 +1,1 @@
+CYCLE240-ALL-PASS: 885 constants in 64 modules

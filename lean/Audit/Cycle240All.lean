@@ -1,0 +1,81 @@
+import Yulang.GeneralDictionaryLooseFamilyBack240
+import Yulang.GeneralDictionaryLooseFamilyBase240
+import Yulang.GeneralDictionaryLooseFamilyCache240
+import Yulang.GeneralDictionaryLooseFamilyExpose240
+import Yulang.GeneralDictionaryLooseFamilyFresh240
+import Yulang.GeneralDictionaryLooseFamilyFull240
+import Yulang.GeneralDictionaryLooseFamilyHead240
+import Yulang.GeneralDictionaryLooseFamilyHistory240
+import Yulang.GeneralDictionaryLooseFamilyInstallation240
+import Yulang.GeneralDictionaryLooseFamilyNames240
+import Yulang.GeneralDictionaryLooseFamilyNovel240
+import Yulang.GeneralDictionaryLooseFamilyPacket240
+import Yulang.GeneralDictionaryLooseFamilyRefines240
+import Yulang.GeneralDictionaryLooseFamilyRefresh240
+import Yulang.GeneralDictionaryLooseFamilyReobserve240
+import Yulang.GeneralDictionaryLooseFamilyRevision240
+import Yulang.GeneralDictionaryLooseFamilySnapshot240
+import Yulang.GeneralDictionaryLooseFamilyTrusted240
+import Yulang.GeneralDictionaryLooseIterationAtomSupport240
+import Yulang.GeneralDictionaryLooseIterationBook240
+import Yulang.GeneralDictionaryLooseIterationBookSupport240
+import Yulang.GeneralDictionaryLooseIterationFrame240
+import Yulang.GeneralDictionaryLooseIterationFresh240
+import Yulang.GeneralDictionaryLooseIterationInstall240
+import Yulang.GeneralDictionaryLooseIterationIteration240
+import Yulang.GeneralDictionaryLooseIterationNontermination240
+import Yulang.GeneralDictionaryLooseIterationPacketSupport240
+import Yulang.GeneralDictionaryLooseIterationPatched240
+import Yulang.GeneralDictionaryLooseIterationRound240
+import Yulang.GeneralDictionaryLooseIterationSafety240
+import Yulang.GeneralDictionaryLooseIterationStage240
+import Yulang.GeneralDictionaryLooseLoopFrame240
+import Yulang.GeneralDictionaryLooseLoopFull240
+import Yulang.GeneralDictionaryLooseLoopInitial240
+import Yulang.GeneralDictionaryLooseLoopInstall240
+import Yulang.GeneralDictionaryLooseLoopPacket240
+import Yulang.GeneralDictionaryLooseLoopPrefix240
+import Yulang.GeneralDictionaryLooseLoopRefresh240
+import Yulang.GeneralDictionaryLooseLoopRefreshBase240
+import Yulang.GeneralDictionaryLooseLoopRetarget240
+import Yulang.GeneralDictionaryLooseLoopSafety240
+import Yulang.GeneralDictionaryLooseLoopSource240
+import Yulang.GeneralDictionaryPointCompound240
+import Yulang.GeneralDictionaryPointCompoundOutcome240
+import Yulang.GeneralDictionaryPointGap206240
+import Yulang.GeneralDictionaryPointGapOutcome240
+import Yulang.GeneralDictionaryPointGround218240
+import Yulang.GeneralDictionaryPointGroundOutcome240
+import Yulang.GeneralDictionaryPointOptional240
+import Yulang.GeneralDictionaryPointOptionalOutcome240
+import Yulang.GeneralDictionaryPointReobserve240
+import Yulang.GeneralDictionaryPointRevisions240
+import Yulang.GeneralDictionaryVersionLoopBlocked240
+import Yulang.GeneralDictionaryVersionLoopLooseRevision240
+import Yulang.GeneralNominalPointBoundary240
+import Yulang.GeneralNominalPointEqualityTrace240
+import Yulang.GeneralNominalPointErasure240
+import Yulang.GeneralNominalPointEvidenceTransfer240
+import Yulang.GeneralNominalPointKernel240
+import Yulang.GeneralNominalPointRecord240
+import Yulang.GeneralNominalPointRecordSteps240
+import Yulang.GeneralNominalPointRevision240
+import Yulang.GeneralNominalPointSourceBoundary240
+import Yulang.GeneralNominalPointTransport240
+import Lean
+open Lean Elab Command in
+run_cmd do
+  let environment ← getEnv
+  let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
+  let modules : Array Name := #[`Yulang.GeneralDictionaryLooseFamilyBack240, `Yulang.GeneralDictionaryLooseFamilyBase240, `Yulang.GeneralDictionaryLooseFamilyCache240, `Yulang.GeneralDictionaryLooseFamilyExpose240, `Yulang.GeneralDictionaryLooseFamilyFresh240, `Yulang.GeneralDictionaryLooseFamilyFull240, `Yulang.GeneralDictionaryLooseFamilyHead240, `Yulang.GeneralDictionaryLooseFamilyHistory240, `Yulang.GeneralDictionaryLooseFamilyInstallation240, `Yulang.GeneralDictionaryLooseFamilyNames240, `Yulang.GeneralDictionaryLooseFamilyNovel240, `Yulang.GeneralDictionaryLooseFamilyPacket240, `Yulang.GeneralDictionaryLooseFamilyRefines240, `Yulang.GeneralDictionaryLooseFamilyRefresh240, `Yulang.GeneralDictionaryLooseFamilyReobserve240, `Yulang.GeneralDictionaryLooseFamilyRevision240, `Yulang.GeneralDictionaryLooseFamilySnapshot240, `Yulang.GeneralDictionaryLooseFamilyTrusted240, `Yulang.GeneralDictionaryLooseIterationAtomSupport240, `Yulang.GeneralDictionaryLooseIterationBook240, `Yulang.GeneralDictionaryLooseIterationBookSupport240, `Yulang.GeneralDictionaryLooseIterationFrame240, `Yulang.GeneralDictionaryLooseIterationFresh240, `Yulang.GeneralDictionaryLooseIterationInstall240, `Yulang.GeneralDictionaryLooseIterationIteration240, `Yulang.GeneralDictionaryLooseIterationNontermination240, `Yulang.GeneralDictionaryLooseIterationPacketSupport240, `Yulang.GeneralDictionaryLooseIterationPatched240, `Yulang.GeneralDictionaryLooseIterationRound240, `Yulang.GeneralDictionaryLooseIterationSafety240, `Yulang.GeneralDictionaryLooseIterationStage240, `Yulang.GeneralDictionaryLooseLoopFrame240, `Yulang.GeneralDictionaryLooseLoopFull240, `Yulang.GeneralDictionaryLooseLoopInitial240, `Yulang.GeneralDictionaryLooseLoopInstall240, `Yulang.GeneralDictionaryLooseLoopPacket240, `Yulang.GeneralDictionaryLooseLoopPrefix240, `Yulang.GeneralDictionaryLooseLoopRefresh240, `Yulang.GeneralDictionaryLooseLoopRefreshBase240, `Yulang.GeneralDictionaryLooseLoopRetarget240, `Yulang.GeneralDictionaryLooseLoopSafety240, `Yulang.GeneralDictionaryLooseLoopSource240, `Yulang.GeneralDictionaryPointCompound240, `Yulang.GeneralDictionaryPointCompoundOutcome240, `Yulang.GeneralDictionaryPointGap206240, `Yulang.GeneralDictionaryPointGapOutcome240, `Yulang.GeneralDictionaryPointGround218240, `Yulang.GeneralDictionaryPointGroundOutcome240, `Yulang.GeneralDictionaryPointOptional240, `Yulang.GeneralDictionaryPointOptionalOutcome240, `Yulang.GeneralDictionaryPointReobserve240, `Yulang.GeneralDictionaryPointRevisions240, `Yulang.GeneralDictionaryVersionLoopBlocked240, `Yulang.GeneralDictionaryVersionLoopLooseRevision240, `Yulang.GeneralNominalPointBoundary240, `Yulang.GeneralNominalPointEqualityTrace240, `Yulang.GeneralNominalPointErasure240, `Yulang.GeneralNominalPointEvidenceTransfer240, `Yulang.GeneralNominalPointKernel240, `Yulang.GeneralNominalPointRecord240, `Yulang.GeneralNominalPointRecordSteps240, `Yulang.GeneralNominalPointRevision240, `Yulang.GeneralNominalPointSourceBoundary240, `Yulang.GeneralNominalPointTransport240]
+  let mut checked : Nat := 0
+  for (name, _) in environment.constants.toList do
+    if let some index := environment.getModuleIdxFor? name then
+      if modules.contains environment.header.moduleNames[index.toNat]! then
+        checked := checked + 1
+        let axioms ← collectAxioms name
+        for dependency in axioms do
+          unless allowed.contains dependency do
+            throwError "CYCLE240-ALL-FAIL: {name} depends on {dependency}"
+  if checked = 0 then throwError "CYCLE240-ALL-FAIL: no constants checked"
+  logInfo m!"CYCLE240-ALL-PASS: {checked} constants in {modules.size} modules"
