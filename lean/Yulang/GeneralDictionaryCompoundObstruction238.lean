@@ -1,0 +1,75 @@
+import Yulang.GeneralDictionaryCompoundPoint238
+import Yulang.GeneralNominalVersionedCompoundEndpoint237
+set_option backward.isDefEq.respectTransparency false
+namespace Yulang.GeneralDictionaryCompoundObstruction238
+open GeneralDictionaryJournalRefinement228Source
+open GeneralDictionaryCompoundSource238
+open GeneralDictionaryCompoundPoint238
+open GeneralNominalVersionedPlans231
+open GeneralNominalCommonBridge (Assignment)
+open GeneralNominalCenters
+open CommonNominalFullCarrier
+abbrev oldPlan := GeneralDictionaryCompoundPacket238.plan
+noncomputable abbrev currentPlan := GeneralDictionaryCompoundCurrent238.plan allocated reserved ordinary
+
+private theorem union_same {a b : Ty} (equal : Equivalent a (.union b b)) : Equivalent a b :=
+  ⟨subtype_trans equal.1 ((common_union_is_join _ _ _).mpr ⟨subtype_refl _,subtype_refl _⟩),
+    subtype_trans ((common_union_is_join _ _ _).mp (subtype_refl (.union b b))).1 equal.2⟩
+
+theorem old_lower (model : Assignment) (valid : Holds oldPlan model) :
+    Equivalent (model ((GeneralNominalVersionedFrame231.capture oldPlan.packet).inputs 0).1).1 (model 4).1 := by
+  have merges := valid.2.1.1.2.1
+  rw [GeneralDictionaryCompoundPacket238.bindings_exact] at merges
+  change PresenceNormalForm.All CommonNominalFullCarrier.model model
+    ((GeneralNominalAllocation.equations (GeneralDictionaryCompoundVersionedModel238.names 0) (.union (.var 4) (.var 4)) ++ _) ++ _) at merges
+  have lower := (PresenceNormalForm.all_append ..).mp ((PresenceNormalForm.all_append ..).mp merges).1 |>.1
+  have equal := (GeneralNominalCaptureMerges.equations_exact ..).mp lower
+  have capture : ((GeneralNominalVersionedFrame231.capture oldPlan.packet).inputs 0).1 = GeneralDictionaryCompoundVersionedModel238.names 0 := by decide +kernel
+  rw [capture]
+  exact union_same equal
+
+theorem current_lower (model : Assignment) (valid : Holds currentPlan model) :
+    Equivalent (model ((GeneralNominalVersionedFrame231.capture currentPlan.packet).inputs 0).1).1 (model 2).1 := by
+  have merges := valid.2.1.1.2.1
+  rw [GeneralDictionaryCompoundCurrent238.bindings_exact] at merges
+  change PresenceNormalForm.All CommonNominalFullCarrier.model model
+    ((GeneralNominalAllocation.equations
+      (GeneralNominalAggregateVersion231.slot snapshot.seed root.identity declaration.id 0 0 [(0,2,2),(0,2,2)])
+      (.union (.var 2) (.var 2)) ++ _) ++ _) at merges
+  have lower := (PresenceNormalForm.all_append ..).mp ((PresenceNormalForm.all_append ..).mp merges).1 |>.1
+  have equal := (GeneralNominalCaptureMerges.equations_exact ..).mp lower
+  have capture : ((GeneralNominalVersionedFrame231.capture currentPlan.packet).inputs 0).1 =
+      GeneralNominalAggregateVersion231.slot snapshot.seed root.identity declaration.id 0 0 [(0,2,2),(0,2,2)] := by
+    change ((GeneralNominalVersionedAllocation231.capture _ _ _ _ currentPlan.packet.bindings).inputs 0).1 = _
+    rw [GeneralDictionaryCompoundCurrent238.bindings_exact]
+    rfl
+  rw [capture]
+  exact union_same equal
+
+theorem associated_value (model : Assignment) (valid : Holds oldPlan model) :
+    Equivalent (model 4).1 GeneralDictionaryOptionalOutput229.value := by
+  have outputs := valid.2.2
+  unfold Outputs at outputs
+  rw [GeneralDictionaryCompoundVersionedPacket238.emitted_schema,GeneralDictionaryCompoundTotal238.emitted_schema] at outputs
+  exact outputs _ (List.mem_cons_self ..)
+
+theorem no_current_packet (model : Assignment) (valid : GeneralNominalVersionedJournal232.Models point model) :
+    ¬ Holds currentPlan model := by
+  intro current
+  have old := valid.2.1 oldPlan original_plan_retained
+  have fixed := GeneralNominalVersionedCompoundEndpoint237.simultaneous_lower_equivalent oldPlan currentPlan model child
+    (List.mem_singleton_self _) (List.mem_singleton_self _) (by exact ⟨rfl,by intro _ h; cases h⟩) 0 rfl
+    (by decide +kernel) (by decide +kernel) rfl rfl rfl old.2.2 current.2.2
+  have lo := old_lower model old
+  have hi := current_lower model current
+  have associated := associated_value model old
+  have width := width_two model old.1
+  exact GeneralDictionaryOptionalOutput229.not_width
+    ⟨subtype_trans associated.2 (subtype_trans lo.2 (subtype_trans fixed.1 (subtype_trans hi.1 width.1))),
+      subtype_trans width.2 (subtype_trans hi.2 (subtype_trans fixed.2 (subtype_trans lo.1 associated.1)))⟩
+
+theorem no_common : ¬ ∃ model, GeneralNominalVersionedJournal232.Models point model ∧ Holds currentPlan model := by
+  rintro ⟨model,valid,held⟩
+  exact no_current_packet model valid held
+
+end Yulang.GeneralDictionaryCompoundObstruction238
