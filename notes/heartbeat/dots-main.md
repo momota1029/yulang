@@ -3,9 +3,9 @@
 - cycle: 243
 - status: running
 - started: 2026-11-17T15:30:54Z
-- updated: 2026-11-17T15:33:00Z
-- elapsed_min: 2.1
-- activity: Re-read I47 and integration caecfb3bb; cycle242 complete, no conflicting active process. Developing full live readback, finite endpoint facts, safe newly active private-cell projection.
+- updated: 2026-11-17T15:46:00Z
+- elapsed_min: 15.1
+- activity: Finite executable raw view implemented, checking exactness for heads/nominals/rows. Parallel checked fresh activation and real stable-allocation endpoint pool producer.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang241-recovery
-- last_local_commit: d26d3c4b
-- resume_hint: Preserve verified242 modules; merge caecfb3bb and investigate I47 producer gaps. No new STOP; invalid union-domain shortcut remains prohibited.
+- last_local_commit: b1973869f
+- resume_hint: New RawView243 source in main; compile and audit before publishing. Agents use separate persistent242 workdirs. I47 unchanged; no global successor claimed.
