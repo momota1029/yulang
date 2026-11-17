@@ -691,3 +691,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Public model equivalence](2026-11-17-cycle245-public-model-equivalence.md)
 - [Scheduler interface and limitations](2026-11-17-cycle245-scheduler-review.md)
 - [Actual metadata adapter review](2026-11-17-cycle245-metadata-adapter-review.md)
+
+## Cycle246: guarded actual Presence blocks
+- [Constructive guarded-block plan and scope](2026-11-17-cycle246-guarded-presence-blocks.md)
