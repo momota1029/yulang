@@ -59,11 +59,11 @@ I47(a)の同じownerの私的集約を置き換える方針を継続した。今
 
 最終module数・全定数監査数は末尾の確定欄。全新moduleを`lean/Yulang.lean`末尾へimport。既存Lean proof moduleは変更していない。`lean/Audit.lean`・`lean/README.md`はintegrationとbyte一致。
 
-実行:
+実行（Lean 4.35.0のbinをPATH、focused object directoryをLEAN_PATHに設定）:
 ```
 cd lean
-lake env lean --trust=0 -DwarningAsError=true Yulang/<module>.lean -o .lake/build/lib/lean/Yulang/<module>.olean
-lake env lean --trust=0 -DwarningAsError=true Audit/Cycle243All.lean
+lean --trust=0 -DwarningAsError=true Yulang/<module>.lean -o .lake/build/lib/lean/Yulang/<module>.olean
+lean --trust=0 -DwarningAsError=true Audit/Cycle243All.lean
 ```
 監査は全新module内の全定数について推移的axiomsを調べ、`propext`・`Classical.choice`・`Quot.sound`だけを許容。空の検査は失敗にする。
 
@@ -108,3 +108,11 @@ lake env lean --trust=0 -DwarningAsError=true Audit/Cycle243All.lean
 新規37モジュール、1119定数の統合監査PASS。許可した公理はpropext/Classical.choice/Quot.soundのみ。最後のJournalSupport243は、実journal全fieldの有限支持、支持上の一致からModels iff、Boolean checkから単一patchによる新Definitionsと全journal Models保持を生成する。LegacyEmptyを明示して実journalへ接続した。別置きの既存定義ブロックはこの支持に自動では入らず、連続操作にはそのRHS支持またはcombined Externalの追加が必要。全stepのcheck成立は未証明。
 
 全37 sourceのSHA256をsource-manifest.jsonへ記録。forbidden lexical scan、全import存在、integration root prefix保持、凍結2ファイルbyte一致を再確認。研究は開始約45分で終了し、最終公開・照合へ移った。
+
+## 公開照合確定
+
+最終成果commit: `d41f00330fdf4d904a82d4625cf12356db9c6f5a`。
+Tree: `8fcda3ab257fe0209aaf83053088d624b49730be`。
+2026-11-17T16:15:16Z にGitHubからwork/dots-mainを再取得し、検証済みローカルHEADとの**全tree diffが空**であることを確認。worktreeもclean。開始後44分22秒。前cycle最終公開から63ファイル変更、新規proof37モジュール。既存proof module変更なし。GitHub combined statusは空であり、CI実行済み・成功とは報告しない。
+
+この記録と完了心拍は上記成果の後続receiptとして公開する。最終receiptのSHAは連絡で示す。未公開Lean成果は残していない。
