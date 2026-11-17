@@ -1,0 +1,28 @@
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+GeneralPresenceGuardedRecovery247 EXIT 0
+GeneralPresenceGuardedAbsorption247 EXIT 0
+GeneralPresenceGuardedConsumers247 EXIT 0
+GeneralPresenceGuardedAllocation247 EXIT 0
+GeneralPresenceGuardedEnvironment247 EXIT 0
+GeneralPresenceGuardedCommutation247 EXIT 0
+GeneralPresenceGuardedCompression247 EXIT 0
+GeneralPresenceGuardedExamples247 EXIT 0
+GeneralPresenceGuardedRebase247 EXIT 0
+GeneralPresenceGuardedRebaseExample247 EXIT 0
+GeneralPresenceOrderedBlock247 EXIT 0
+GeneralPresenceOrderedAllocation247 EXIT 0
+GeneralPresenceOrderedCheck247 EXIT 0
+GeneralPresenceOrderedRecovery247 EXIT 0
+GeneralPresenceOrderedSubstitution247 EXIT 0
+GeneralPresenceOrderedDependence247 EXIT 0
+GeneralPresenceOrderedRebase247 EXIT 0
+GeneralPresenceOrderedCycleLimit247 EXIT 0
+GeneralPresenceOrderedRebaseExample247 EXIT 0
+GeneralPresenceOrderedRefreshSequence247 EXIT 0
+GeneralPresenceOrderedSyntax247 EXIT 0
+GeneralPresenceOrderedRefreshSyntax247 EXIT 0
+GeneralPresenceOrderedRewriteAbsorption247 EXIT 0
+GeneralPresenceOrderedSupport247 EXIT 0
+AUDIT EXIT 0 CYCLE247-PHASE3-PASS: 365 constants in 24 modules
+
+VERIFIED_MODULES 24
