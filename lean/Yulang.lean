@@ -4446,3 +4446,9 @@ import Yulang.GeneralPresenceFixedInline244
 import Yulang.GeneralPresenceOwnerTable244
 import Yulang.GeneralPresenceOwnerTableCheck244
 import Yulang.GeneralPresenceOwnerOwnership244
+import Yulang.GeneralPresenceCheckClosureLimit245
+import Yulang.GeneralPresenceRankedTable245
+import Yulang.GeneralPresenceReadback245
+import Yulang.GeneralPresenceReadbackLimit245
+import Yulang.GeneralPresenceUsedSupport245
+import Yulang.GeneralPresenceUsedTable245
