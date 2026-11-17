@@ -632,3 +632,8 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle233 new-only source trace](2026-11-17-cycle233-new-source-trace.md)
 
 - [Cycle234 mixed trusted-cache kernel](2026-11-17-cycle234-mixed-cache-kernel.md) — Draft implementation and explicit regression/stability scope.
+
+- [Cycle 235: mixed stable evidence and actual 218 child](2026-11-17-cycle235-stable-evidence-218.md)
+- [Cycle235 proof detail](2026-11-17-cycle235-stable-evidence-reducer.md)
+- [Cycle235 proof detail](2026-11-17-cycle235-ground218.md)
+- [Cycle235 uniform point packet](2026-11-17-cycle235-point218-packet.md)
