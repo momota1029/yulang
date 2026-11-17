@@ -1,9 +1,11 @@
-cycle: 233
-status: running
-started: 2026-11-17T05:30:05Z
-updated: 2026-11-17T06:00:05Z
-elapsed_min: 30
-activity: 29modules390constants published f260d9f1. Stable selected nonvacuous NEW3step regression closed. Sound versioned trusted slices, concrete input/output trust, source/growth/cache transport now built; auxiliary only, Kernel232 unchanged.
-last_local_commit: 011df3c93
-workspace: /tmp/yulang-admin-1730/repo
-resume_hint: Third audit of8modules running. New Observations/MixedObservations exact fullModel transport and cache growth auxiliary not adopted by kernel; Stable must be rechecked after adoption. Cycle202 regression being checked separately. Research to06:15, final before06:25.
+# dots-main heartbeat
+
+- cycle: 233
+- state: running; final verification and publication
+- started_utc: 2026-11-17T05:30:05Z
+- updated_utc: 2026-11-17T06:12:00Z
+- deadline_utc: 2026-11-17T06:25:05Z
+- integration: bc61dca4968d8a544561e9f406dbc04db475c7a5; standing-orders/inbox reread; I44 unchanged; no STOP
+- progress: 51 new modules; five trust=0 audit batches PASS, 821 constants. Actual NEW-only three-step source route, legacy-kernel Stable and EvidenceAt; concrete new-cache upper Refresh certificate with no legacy certificate. 199/202/204 new-source regressions complete; 206 post-install Stable/selected/EvidenceAt and 218 remain open.
+- checkpoint: 15bcc1e3ef7c506b7cea0b6ff7e788012fd3bdda
+- scope: frozen files unchanged; no full gate; no generic EvidenceNode claim; final publication pending.
