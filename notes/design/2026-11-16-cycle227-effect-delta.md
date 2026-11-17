@@ -103,3 +103,43 @@ Next refinement: use enabled packet witnesses to eliminate head-schema sources
 from first introductions. Merge constraints, emitted schema and child schema
 sources still require ownership/replay arguments. No EvidenceNode field is
 asserted complete by these finite-support reductions.
+
+
+## Concrete residual and simultaneous patches (final refinement)
+
+FirstPacketTail227 obtains the needed current model directly from
+Installable.common, so the global first-introduction theorem adds no
+satisfiability premise. EmittedFootprint227 removes actual-mode reads of any
+total expression, even without declared-variable scoping: a non-output point
+binder necessarily arises from an actual capture singleton. Output binders use
+purpose2; nonpoint binders use purpose8. FirstResidual227 defines an explicit
+ResidualSources list containing only raw merge atom sources, emitted equation
+targets/nonactual reads, and child site/schema sources. Its theorem retains the
+actual enabled installation, prior absence, Contribution and suffix trace.
+V8Residual227 selects a single uniform pool before querying identities/models
+for every actual V8 reachable state.
+
+CaptureDichotomy227 shows at least one endpoint of a current captured interval
+lies in the old pool when both endpoint sources are nonzero. It obtains the
+observation from headSchema itself. CapturePatch227 simultaneously changes any
+number of coordinates outside pool+[0], preserving the full journal and Fits
+at all observed current captures; it does not assume the changed assignment's
+head schema. This is a frame/patch lemma, not an extrema reconstruction.
+
+Independent read-only review confirmed the remaining distinction: a monotone
+finite pool only retains earlier protected names. The same allocation key
+still gives the same p0/p1 identity. First-use localization neither excludes
+later reuse nor identifies historical aggregate extrema with reinspection
+extrema. The top/bottom exceptions in endpoint necessity are essential and have
+not been removed. No closed new counterexample was established.
+
+Next proof obligations, in order:
+1. For mergeSources and emitted targets/range reads, distinguish local p0/p1
+   aggregate ownership from historical capture endpoints; replay same-key
+   extrema or construct a simultaneous extension consistent with old Models.
+2. Apply that construction through childSources (site lower/upper/center plus
+   total child schema), retaining live and snapshot output/default effects.
+3. Discharge ProtectedOverlap/ChoiceCompatible for every selected V8 Frame and
+   supply the unconditional EvidenceNode, using recorded-certificate replay
+   where an installation witness is not available. Do not add a freshness or
+   satisfiability gate to selected inputs.

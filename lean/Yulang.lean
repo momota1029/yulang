@@ -3755,3 +3755,10 @@ import Yulang.GeneralDictionaryV8Footprint227
 import Yulang.GeneralDictionaryHeadFootprint227
 import Yulang.GeneralDictionaryFirstPacketTail227
 import Yulang.GeneralDictionaryCaptureDichotomy227
+
+import Yulang.GeneralDictionaryEmittedFootprint227
+import Yulang.GeneralDictionaryFirstResidual227
+
+import Yulang.GeneralDictionaryV8Residual227
+
+import Yulang.GeneralDictionaryCapturePatch227
