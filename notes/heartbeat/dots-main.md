@@ -1,11 +1,11 @@
 # dots-main heartbeat
 
 - cycle: 241
-- status: running-design-first
+- status: running-recovery-validation
 - started: 2026-11-17T13:30:30Z
-- updated: 2026-11-17T13:51:30Z
-- elapsed_min: 21.0
-- activity: I47 permits design-first comparison of plan-private rebase and semantic keys after240 obstruction. Checkpoint8dc6c7ad published and tree matched. Concrete230 private overwrite preserves raw source and actualW; same-name stale conjunction rejected. Developing live-consumer inlining and source/live-center back-extension; full boundary still open.
-- workspace: /tmp/yulang-admin-1730/repo
-- last_local_commit: integration1c675172-merge
-- resume_hint: Research cutoff14:15:30; finish14:25:30. Design before Lean. Keep language semantics fixed, preserve frozen files, apply I46 added-line lexical check.
+- updated: 2026-11-17T14:01:39Z
+- elapsed_min: 31.2
+- activity: Cloud environment reset removed temporary worktree at13:55. Public checkpoint8dc6c7ad is intact. Restored checkout from GitHub and Lean4.35 from persistent workspace;71 missing focused dependencies rebuilt. Reconstructed unpublished sources are being freshly compiled/audited, not treated as byte-identical to lost originals.
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang241-recovery
+- last_local_commit: d64c4fb44
+- resume_hint: Prioritize recovered source publication before14:25:30. No general boundary Acc claim. Pending Private230/Service/InlineModels, recovered ChildProduction/LiveLabels/BackExtension/Inline proofs being consolidated.
