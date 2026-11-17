@@ -1,11 +1,12 @@
 # dots-main heartbeat
 
 - cycle: 244
-- status: final-verification
+- status: completed
+- result: partial-verified; full boundary obligations remain
 - started: 2026-11-17T16:30:00Z
-- updated: 2026-11-17T17:11:07Z
-- elapsed_min: 41.1
-- activity: Fourteen new modules/392 constants audited PASS. Current-table rebase transforms base and all retained owners; checked Models decomposition, External/Coherent and conditional ownership preservation. Six reconstructed full-journal drafts remain quarantined and unverified.
+- updated: 2026-11-17T17:13:55Z
+- activity: Fourteen modules /392 constants audited; result b7cada3fac75123f15ba7136b5785754892f6d21 published and full tree092a37b3a94ecd952d2767e0b0a7aec860b5e6ae matched.
+- report: notes/handoff/dots-cycle-244.md
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: d540fd416
-- resume_hint: Final source hashes/frozen/import scans PASS. Complete final report/publication/tree receipt by17:25 UTC. Actual SourceBoundary/inspection/cache invariants, reachable check producers, solver Acc and selected EvidenceNode are still open.
+- last_local_commit: d82cf41ca
+- resume_hint: Re-read integration/inbox. Full journal cache lost; six reconstructed drafts in notes/recovery/cycle244 require supervisor rebuild/audit before import. Only36 old core dependencies rebuilt; verified14 modules use that small closure. Actual table check/ownership producers, metadata and scheduler simulation, solver Acc/EvidenceNode remain open. No build process running.
