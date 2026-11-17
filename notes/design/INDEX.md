@@ -651,3 +651,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [2026-11-17-cycle237-semantic-support](2026-11-17-cycle237-semantic-support.md) — cycle237 additive proof plan.
 - [Cycle237 compound endpoint 次fixture](2026-11-17-cycle237-compound-endpoint-next.md) — 未構成の actual source prefix と guard を明示。
 - [Cycle237 installation progress](2026-11-17-cycle237-install-progress.md) — 実局所2stepと版変化。source到達・無限反復は未証明。
+- [Cycle238 equation normalization](2026-11-17-cycle238-equation-model-congruence.md) — 全nominal意味同値と既存歴史modelのaggregate正規化。
+- [Cycle238 version loop investigation](2026-11-17-cycle238-version-loop.md) — actual source prefix。無限traceは未証明。
