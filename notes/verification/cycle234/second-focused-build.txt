@@ -1,0 +1,3 @@
+Each new module compiled using lake env lean --trust=0 Yulang/<module>.lean -o .lake/build/lib/lean/Yulang/<module>.olean.
+The independent audit below imports all exact final modules and recursively checks every declaration dependency.
+CYCLE234-SECOND-PASS: 292 constants in 22 modules

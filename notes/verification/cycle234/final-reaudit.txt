@@ -1,0 +1,4 @@
+CYCLE234-FIRST-PASS: 209 constants in 18 modules
+CYCLE234-SECOND-PASS: 292 constants in 22 modules
+CYCLE234-THIRD-PASS: 76 constants in 8 modules
+CYCLE234-FOURTH-PASS: 52 constants in 5 modules
