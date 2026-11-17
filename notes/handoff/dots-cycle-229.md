@@ -128,3 +128,34 @@ the cycle; its focused build reached120seconds, then90seconds after reducing
 imports, without completion. It is excluded from the published Lean tree and
 barrel. No theorem or audit PASS is claimed for that wrapper. Existing23module
 checkpoint audits remain valid. The two final additions are checked separately.
+
+## Published source verification
+
+Final source checkpoint3576b2881c9ab8986cc8b9c0966aca9c8854d510 publishes all25
+new modules,4independent audit files,barrel imports,design note and this report.
+At02:19UTC, a fresh fetch exactly matched all local Lean/design/report bytes.
+The only local/remote difference was the remote heartbeat, as expected.
+The final2source modules passed focused builds (1398/1399 cached dependency
+jobs respectively); the separate final-additions audit was still running at
+this checkpoint. No source was held back pending the additional audit.
+
+## Final outcome (02:22 UTC)
+
+Research stopped at the02:15cutoff. Final split `lake env lean --trust=0
+Audit/Cycle229Final.lean` also reached240seconds (exit124) with no completion
+output. Therefore the precise audit status is:23modules/393constants PASS in
+three independent checkpoint audits; final2modules focused build PASS, axiom
+collection audit NOT COMPLETED. All25source modules are published, and no
+unverified conditional wrapper is imported or published. The pending audit
+file is published to make the remaining verification reproducible.
+
+No full gate or remote CI is claimed. `git diff --check` PASS and frozen files
+matched integration. No API publication was blocked. The computation limits
+were retained rather than silently extending this cycle past55minutes.
+
+First action next cycle: run the final2-module audit with a suitable bounded
+background budget, inspect its actual completion status, then pursue the
+six-slot trusted upper-head refresh construction. The late wrapper draft was
+unverified and is not a prerequisite for that work.
+
+Elapsed: about52minutes through final report/publication, within55minutes.
