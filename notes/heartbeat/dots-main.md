@@ -1,9 +1,9 @@
 cycle: 229
 status: running
 started: 2026-11-17T01:30:00Z
-updated: 2026-11-17T01:34:00Z
-elapsed_min: 4
-activity: recovering cycle228 final theorem and report; remote checkpoint c963b1e9 verified against surviving committed tree
+updated: 2026-11-17T01:39:00Z
+elapsed_min: 9
+activity: verified actual trusted exactEmpty refresh; cycle228 probe is not Stable; testing post-refresh raw rejection
 workspace: /tmp/yulang-admin-1730/repo
 last_local_commit: 9c6f409e4
-resume_hint: Cycle228 checkpoint included all 19 modules; V8Extreme228 was only untracked source and is preserved/rechecked. New audit Cycle228Recovered. Next inspect Stable/Local of reachable journal obstruction. Deadline02:25Z.
+resume_hint: Recovery public at01863ee3. New Snapshot229/Refresh229 build PASS1388 jobs; raw rejection module unfinished. Research until02:15; deadline02:25.
