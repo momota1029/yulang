@@ -1,0 +1,20 @@
+import Yulang.GeneralPresenceOwnerTableCheck244
+import Yulang.GeneralPresenceOwnerCheck244
+import Yulang.GeneralPresenceOwnerSequence244
+import Yulang.GeneralNominalRebaseSyntaxGrowth244
+import Yulang.GeneralFiniteWitnessSupport244
+open Yulang
+open GeneralPresenceDefinitionRewrite244
+open GeneralPresenceOwnerRewrite244
+open GeneralPresenceOwnerCheck244
+#eval readyCheck id removed retained
+#eval readyCheck id [(2,.var 3)] [(3,.var 2)]
+#eval transform (substitution removed) retained
+#eval GeneralPresenceOwnerSequence244.rewriteMany [[(2,.var 1)],[(1,.base .int)]] [(3,.var 2)]
+#eval GeneralFiniteWitnessSupport244.check ([5] : List Nat) [1,2,3]
+#eval GeneralFiniteWitnessSupport244.check ([2] : List Nat) [1,2,3]
+#eval (List.range 6).map (fun n => GeneralNominalRebaseSyntaxGrowth244.height (GeneralNominalRebaseSyntaxGrowth244.iterate n))
+
+#eval GeneralPresenceOwnerTableCheck244.check GeneralPresenceOwnerTableCheck244.exampleState 0
+#eval (GeneralPresenceOwnerTable244.rebase GeneralPresenceOwnerTableCheck244.exampleState 0 [(2,.var 0)]).entries 1
+#eval (GeneralPresenceOwnerTable244.rebase GeneralPresenceOwnerTableCheck244.exampleState 0 [(2,.var 0)]).base.length
