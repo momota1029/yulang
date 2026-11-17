@@ -1,6 +1,6 @@
 # Cycle238 — actual source prefixes and semantic normalization
 
-開始2026-11-17T10:31:28Z、55分上限11:26:28Z。これは途中checkpoint。
+開始2026-11-17T10:31:28Z、55分上限11:26:28Z。前半・中盤checkpointと最終成果を以下に記録。
 最新integration b8008c41、standing-orders/inbox/I44を再読。新STOPなし。
 237最終2a843efc、completed心拍、報告、local/remote全tree一致を確認。復旧損失・稼働競合なし。
 Yulang2 X13〜16とROLE-MORE-003/004の監査を開始側で再読。旧実機の局所比較を新kernelの全体保証にしない。
@@ -135,8 +135,7 @@ History/Trustedは別作業者のread-only独立査読で射程・非循環・or
 
 ## 未完了・次に優先する3点
 
-1. FamilyRefresh238の前提を全nで実現するindexed journalを作る。certifiedReobserve、
-   全段のFresh/SafeKnown/Installable/nonCommittedを組み、初めて無限実行の可否を判定する。
+1. FamilyRefresh238の前提を全nで実現するindexed journalを作る。全段のFresh/SafeKnown/Installable/nonCommittedを組み、初めて無限実行の可否を判定する。
 2. Compoundは本点のEvidenceAtが真と分かったため、同じ例を反例と呼ばない。
    実child refresh後の新状態を評価する場合もnoInstanceやvacuityの保存を仮定しない。
    別leaf registryならcheckedness・source prefix・予約/freshness・全guard・childEvidenceを作り直す。
@@ -150,3 +149,24 @@ History/Trustedは別作業者のread-only独立査読で射程・非循環・or
 各新モジュールは同コマンドで個別oleanを生成。宣言一覧は verification/cycle238/declarations.md。
 
 第六追加4モジュール37 constants、direct/axiom audit PASS。計60モジュール757 constants。
+
+60モジュールcheckpointは `dd9f74e7dbecce7130c95e121d39e8ce708ed3c4`。
+明示SHA fetch後全tree一致exit0、remote ref一致。tree `deec5569ce963a25bd76741ec253d738ab3e9227`。
+combined statusesは空配列で、CI成功とは扱わない。
+
+## 最終追加: 完全な条件付き Refresh → Reobserve
+
+FamilyReobserve238は元source維持・全index<n+1 plan記録からReobserveのraw-back/cacheを生成。
+current=replayPlan(familyplan n)も仮定すると、FamilyRefreshと合わせた実2step `two_steps` が成立。
+「任意nに対するこの形のjournalが実際に到達する」の帰納構成は依然として未完。
+一般の次installのFrame/Fresh/SafeKnown/common/novelty、とくに全歴史support外の証明を次に行う。
+これで61新モジュール、監査124+313+29+227+27+37+5=762 constants（定理数ではない）。
+第七auditもtrust0/warningAsError、3標準公理のみ。
+
+## 最終検証・範囲
+
+全61新モジュールをmain worktreeで個別direct compile。7本のfocused auditを実行。
+既存Lean証明の変更なし、barrelの元全文prefix保持・新61imports一意、凍結Audit.lean/README完全一致。
+新しいsorry/axiom/native_decideなし。semantic/operation/spec/plan/lake変更なし。
+公開済み237の最終追記も保全。最新integration d8623f96、inbox I44から変更なし。
+ディスク約2.2GiB使用、2.7GiB空き（45%）。使用量枠不明。

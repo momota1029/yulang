@@ -74,3 +74,17 @@ Prepared/full Installable/novelty (including full historical support exclusion),
 and link every transition into an infinite actual path. None is replaced by a
 hypothesis asserting the desired path or global termination failure. No exact
 counterexample to the termination target has been established in this cycle.
+
+## Final bounded follow-up: uniform Reobserve closed
+FamilyReobserve238 now composes FamilyRevision, replay_lower, raw_back and the
+point-cache producer at n+1 into a complete mixed Reobserve certificate and
+actual Kernel.Step from the indexed refreshed journal. Its explicit premises
+are the original source and all family plans through n recorded in that
+journal. This removes the uniform observation-certificate gap listed above.
+The all-index reachable-journal construction and uniform next-install
+Fresh/Frame/SafeKnown/common/novelty (especially full historical support
+exclusion) are still not constructed. No infinite actual path is claimed.
+Its `two_steps` theorem composes the actual Refresh and Reobserve steps with
+all source/current/recorded-plan hypotheses explicit. This is a reusable
+uniform two-step segment, not an assertion that arbitrary indexed stages are
+reachable or that the segments form an infinite execution.

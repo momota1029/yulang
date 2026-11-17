@@ -1,6 +1,6 @@
 # Cycle238 declaration index
 
-Definitions and lemmas are indexed below; this is not a theorem count. Full quantifiers and premises are in each source and the handoff report.
+Names include definitions and lemmas; not a theorem count. Explicit premises and full statements are in source and handoff report.
 
 ## GeneralDictionaryCompoundChildPending238
 
@@ -410,6 +410,14 @@ Definitions and lemmas are indexed below; this is not a theorem count. Full quan
 
 - `certificate`
 - `step`
+
+## GeneralDictionaryVersionLoopFamilyReobserve238
+
+- `refreshed`
+- `revision`
+- `certificate`
+- `step`
+- `two_steps`
 
 ## GeneralDictionaryVersionLoopFamilyRevision238
 
