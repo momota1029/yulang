@@ -57,3 +57,11 @@ I45は239反証を承認し、一点descriptorをReobserveで付け替えない�
 [質問ノート](../questions/2026-11-17-cycle240-point-preserving-nontermination.md)
 に監督判断が必要な意味条件を記録した。次の明示判断なしに偽の停止性目標や
 修正案を再開しない。版正準化を勝手に採らない。
+
+## Publication verification
+
+全成果公開 `0fa032527f4f1822230adf325c78047925732d7b`。
+公開tree `35c93bc6acb4a4b69cedca7e3c674afcdaeb5790` をGitHubから取得し、
+ローカル `abe654978f6ac70211bdbd1312a09501b75a2688` と `git diff --exit-code` で全tree一致（exit0）。
+64ソース・監査ログ・I45 inboxを含む。GitHub statusは空配列であり、CI成功とは主張しない。
+最終記録時刻12:57:53 UTC、経過24.9分。研究停止後の公開と検証まで完了。
