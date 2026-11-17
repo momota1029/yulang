@@ -672,3 +672,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle242 escaped consumers](2026-11-17-cycle242-escaped-projection.md) — Draft: ordinary/Store/raw projection and limits.
 - [Cycle242 live genealogy](2026-11-17-cycle242-live-genealogy.md) — Draft: actual source-derived finite owners.
 - [Cycle242 B4 bridge map](2026-11-17-cycle242-b4-bridge-map.md) — Draft: exact fourteen-field target correspondence and unclosed obligations.
+
+- [Cycle243 executable live view](2026-11-17-cycle243-live-view-plan.md)
