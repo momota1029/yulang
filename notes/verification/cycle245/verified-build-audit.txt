@@ -1,0 +1,22 @@
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+GeneralPresenceReadback245 EXIT 0 
+GeneralPresenceAbsorb245 EXIT 0 
+GeneralPresenceUsedSupport245 EXIT 0 
+GeneralPresenceUsedTable245 EXIT 0 
+GeneralPresenceRankedTable245 EXIT 0 
+GeneralPresenceCheckClosureLimit245 EXIT 0 
+GeneralPresenceModelCongruence245 EXIT 0 
+GeneralPresenceCommonLaws245 EXIT 0 
+GeneralPresenceModelExtension245 EXIT 0 
+GeneralPresencePreorderExtension245 EXIT 0 
+GeneralPresenceRebasePlan245 EXIT 0 
+GeneralPresenceQueryTransport245 EXIT 0 
+GeneralPresenceObservedPlan245 EXIT 0 
+GeneralPresenceCommonObserved245 EXIT 0 
+GeneralPresenceGuardedBlockLimit245 EXIT 0 
+GeneralPresencePlanTerminationLimit245 EXIT 0 
+GeneralPresenceReadbackLimit245 EXIT 0 
+GeneralPresenceRebaseExample245 EXIT 0 
+AUDIT EXIT 0 CYCLE245-OBSERVED-PASS: 381 constants in 18 modules
+
+VERIFIED_MODULES 18
