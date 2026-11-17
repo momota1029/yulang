@@ -1,0 +1,80 @@
+# cycle249: actual journal, finite owner rebase and source initialization
+
+## 結果と時刻
+
+開始2026-11-17T22:34:00Z。先にcycle248の遅延復旧・公開を完了し、最新integration/orders/inboxを読み直して開始。38新規Leanモジュールのstrict focused build PASS。全ソース宣言310個を明示列挙したCycle249CompleteAudit PASS。最終ソース公開68f75189c1bab80f7eef5dfbd4132d3ef04477df、全tree4dca0dd7eaafa1a16be07f56596acc2580e37b51をgit再取得しローカル全bytes一致。この後の完全監査・報告・receipt・完了heartbeatは子孫commitに公開する。
+
+親指定は約45分研究、開始55分以内に検証・公開・報告。研究・完了の実時刻は最後のheartbeat/receiptに残す。使用量枠は不明。書込先はwork/dots-mainのみ。開始integration1a070e8ed600d97da5a1cd0cfe20376e94de51dd、途中再読11f14b58ae547f5991505e61923f8884144fa276。後者は既公開247と248開始心拍の取込みで、standing orders/inbox変更なし、STOPなし。I47のstable-owner rebaseを継続しI45条件を変更しない。
+
+## 何が前進したか
+
+1. 予約情報と実モデルのreadsを分け、既に予約されたowner slotでも初回に未使用の集約を追加できる具体的なactual propagate例を証明。
+2. actual Raw/Live/Origin/Projection/Schema/Effect/Packet/Journalの全モデルfieldを有限typed supportとして列挙。全metadataを**同じ割当**で扱い、抽象Stable仮定で置き換えない。
+3. actual materialized Journal全fieldを本当に有限置換する関数を実装。そのowner-frame更新と任意の有限固定domain更新列の公開解集合保存を証明。最初の置換後はmetadata/consumersの構文が文字どおり固定される。
+4. actual versioned historical ledgerの数値下降から実行版prepare成功を供給し、actual Journal.Modelsからprepared old blockを導出。reachable mixed/point source snapshotをowner frameに初期化し、**追加のold-blockモデル仮定なし**で初期Models同値を得た。
+
+これは新source schedulerのStep・無条件Acc・EvidenceNodeの完成ではない。
+
+## Lean追加と主張（量化と前提）
+
+完全な名前一覧はverification/cycle249/CompleteAudit-declarations.txt、全38module一覧とハッシュはCompleteAudit-modules.txt / CompleteAudit-source-sha256.json。以下は各モジュールの主要定理と成立範囲。名称の先頭GeneralNominal/GeneralPresenceと末尾249を一部省略する。
+
+### A. 実予約poolとactual propagate（健全性・完全性の補助）
+
+- ActiveSupport: withoutReservations/activeSources、models_exact、active_sources、reservation_irrelevant、allocated_irrelevant、active_subset_sources、models_of_agrees/models_iff_of_agrees。任意actual StateのModelsはreserved/allocated bookkeepingを読まない。予約を実状態から削除する操作ではなく、モデル保存用のsupport補題。
+- ActiveMerge: endpointSources/protectedSourcesはactual active reads＋binding endpoints＋明示extra。endpoints_covered/active_covered/extra_covered、propagation_model、protected_of_bounded/bounded_propagation。任意registry/root/declaration/bindings、旧Modelsとfresh cross Compatible、およびowner lo/hiがprotectedSourcesから分離する条件の下で、actual propagateのモデルを構成し旧active値・extra値・全rowを保存する。全protected read≤seedならsource_above_seedから分離を供給。新key/未allocatedという条件は不要だが、実source eligibilityを自動供給したわけではない。
+- ActivePropagationModels.public_models_iff/bounded_public_models_iff: 任意有限public listと固定boundaryについて、旧State.Models **かつ新cross Compatible** の存在モデルとactual propagate.Modelsの存在モデルを同値にする。cross条件を勝手に落とさない。
+- ActiveMergeExample: 0-node/seed10のactual stateで、同じhead変数7をまず(0,1)一件でpropagateし予約、次に(1,0)も加えてpropagate。active_first=[0,1]、bounded_reads、first_models/second_modelを証明。old_pool_insufficientは248のfull-source pool条件が偽でもこのactive-pool法が使えることを示す。scheduler到達性は未主張。
+- ActiveCrossExample: constant_compatible/second_existsで実在モデルを供給。一方exactEmpty at0、width emptyRecord at1はfirst_modelを持つが、逆向きcrossが必要な第二段はpublic_second_impossible。これはcross強化の意図された挙動の回帰であり、言語の新反例・拒否規則ではない。
+
+### B. 新targetを許すconsumerと実metadata（健全性・完全性）
+
+- OrderedExpansion: Protected、rewritten_preserved、models_forward、public_models_iff/common版。任意old/fresh entries、任意consumer atomsについて、旧rewrite済みtyped readsがfresh targetsを避け、public値がold/fresh双方のtargets外、両blockがSafeOrderなら、公開boundaryごとの存在モデルが同値。旧target包含を不要にした。forwardだけは旧block既存モデルからrecoveryするのでoldSafe不要、backwardの旧block構成には必要。
+- type_rewrite_closed/rewrite_closed/protected_of_withinで旧SafeOrder＋fresh⊆oldなら保護を自動供給。ExpansionExampleはtarget3を新規追加し、ty consumerを保護しながらrow3 readを許す具体例。全rowは不変なのでprivate型targetのrow参照を禁止しない。
+- ViewSupport: actual RawViewのslot、head、ordinary、nominal parameter全型readを列挙。intervalはslot supportに含む。parameter_iff/fitsAll_iff/descriptor_iff/models_iffは全row等号＋列挙typed値のliteral等号から証明。
+- LiveSupport/OriginSupport/ProjectionSupport/SchemaSupport/EffectSupport/PacketSupport: actual全fieldの有限supportと成立同値。LiveはHoldsの引数だけでなくoutputs targetも保護する。Originはsource葉を含む同actual witnessの観測同値、Projectionはanchors/tests/captures/cross-capture、SchemaはRequirement/Use/Head/Same、Effectは再帰Expr/ExprList全constructorの評価等号、PacketはHolds全8fieldを覆う。
+- OrderedRawExpansion/OrderedPacketExpansion: 列挙されたactual compiled supportがfresh targets外なら、raw/packetとconsumers/block/publicの同一witness公開モデル同値。供給されたPlan listの段階では全journal列挙を仮定していない。
+- ClassSupport/ObservedSupport/JournalSupport: historical/live class equations＋equalities、observed bounds＋optional originsを追加し、実Journal.compileのcurrent/source/observed/sites/plans/effectsを全列挙。Effectのraw/projection/historical/live全4fieldも含む。ここでは任意に選んだPlan subsetではなく、actual compilerの全保存listを使う。
+- OrderedJournalExpansion.journal_exact/journal_forward/public_models_iff: LegacyEmpty、旧block既存モデル、実compiled support保護を明示してfullJournalへ接続。mixed_source_exact/point_source_exact、point_legacy_empty/point_journal_forwardはactual reachabilityからlegacy条件を供給。一般の任意oldblockを入れる定理では旧block前提は残るが、後述Dでactual prepared historyについて供給する。
+
+### C. 有限保護check、全field閉包と有限実操作（表現の健全性・完全性）
+
+- ProtectionCheck: check_exactはmaterialized read list対targetのBool全走査とProtected同値。protected_of_new/new_exactはold-target closureがある場合、新しく増えたtargetだけ追加保護すれば十分。above_boundはread最大値より上のtargetsという十分条件。check不成立をsource拒否にしない。
+- OrderedViewClosed/ObservationClosed/PacketClosed/ClassClosed/JournalClosed: actual compile(mapping old)の全typed supportから旧targetが除かれることを、各実constructorを辿って証明。old SafeOrderが必要。within_protectedで同domainなら保護を自動供給。
+- JournalCertificate.check/checked_public_models/check_of_within/protected_of_only_new: materialized Journalに対するSafeOrder＋metadata/consumer/public supportの有限Bool証明書。旧Safe・freshSafe・fresh⊆old・publicがold外ならcheck成功を証明。actual compile自体は従来のalias request列挙により非計算的なので、**source全体の実行可能solver**とは呼ばない。
+- ProjectionSchemaSubst/PacketSubst/JournalSubst: 任意mappingで全metadata fieldを有限map/再帰置換する実関数。Models/Holds exactはreadback割当と同値、ordered_exactはsolveへ同定、repeatedは2回の合成。materialized listを変換するだけで非計算的alias列挙を再実行しない。
+- JournalSubstClosed: 任意materialized Journal、旧SafeOrder、fresh targets⊆oldの下、2回目置換はliteral identity。journal_absorbs/journal_idempotent、各内部constructorの同じ補題を証明。警告やlinterを無効化していない。
+- JournalSubstSupport: 任意materialized Journalへの旧mapping代入後、全supportから旧targetを除去。後の更新でもwithin保護を供給する。
+- MaterializedDomain: actual LegacyEmpty compileから始めfinite substitutionで閉じるinductive Materializedを定義。read_compatible、models_iff、recoveredはactual238 congruenceから帰納証明。Stableを未知の仮定として置いていない。Materialized.sourceはreachabilityでなくLegacyEmptyを要求し、その逆のsource到達性は主張しない。
+- MaterializedOwnerFrame: metadata＋consumers＋definitionsを持つFrameと有限rebase関数。全metadata/consumerを旧mappingで書換え、definitionsをfreshで置換する。rebase_formed、models_forward/backward/public_models_iff。Formedだけでは保存に足りず、safe fresh、rewritten reads保護、old/fresh public分離が必要。
+- MaterializedSequence/SequenceModels: run/finalBlock/canonical、rebase_twice/run_canonical/run_nonempty、metadata_fixed/consumers_fixed/run_formed、run_models_iff。初期Formed、全入力block SafeOrder、全targetが**初期domain**内、publicが初期targets外なら、任意有限入力列の公開モデル存在が同値。途中domain縮小後の再拡大も初期domain内なら許す。metadata/consumersは初回後literal固定だが、最後のdefinitionsは最後の入力blockそのもの。block RHSサイズやrun長の上界は未証明。
+
+### D. actual sourceから旧blockと初期frameを供給（sourceへの橋）
+
+- VersionedPreparedHistory.ranked/prepares: actual versioned historical entriesの全RHS readsが数値targetより小さいという既存237.descendingを、248のsupport橋経由で247のNat identity rankへ接続。任意stateで実行版prepare成功＋SafeOrder sortedを得る。
+- historical_blockはactual full Journal.Modelsから全historical equationsを導く既存238定理をblockへ繋ぐ。sorted_blockはRecordedによるcoherenceとprepared_modelsでdedup/sort後へ移す。source_sorted_blockはactual mixed reachableからRecordedを供給。
+- source_public_models_iffの左辺はactual Journal.Models＋任意consumers＋publicであり、追加oldblock仮定はない。freshSafe、全compiled support保護、public分離は残る。これは**versioned actual history**のproducerであって、任意stable241 legacy block抽出ではない。
+- SourceOwnerFrame.sourceFrame/source_formed/source_models_iff: actual fullJournalをidentity mappingでcompileし、prepared sortedを入れた初期Frame。Modelsはactual Journal.Models＋consumersと正確に同値。source_run_models_iffはこの実source snapshotから有限same-initial-domain runへCの結果を接続。
+- initializeFrame/initialize_success/point_initialize_success: prepare結果からOption Frameを作り、reachable mixed/point sourceでは必ず成功しFormedとModels iffを得る。actual compileを使う初期化はnoncomputableであり、有限materialized rebase実操作の計算可能性と区別する。
+
+## 検証・公開
+
+Lean4.35.0。全38新規moduleを個別90秒上限で --trust=0 -DwarningAsError=true 再ビルドし全exit0（final-build.txt）。CompleteAuditは相互再帰の字下げ宣言とnoncomputable宣言も含む310個を明示列挙し、collectAxiomsでpropext/Classical.choice/Quot.sound以外を禁止。旧Final監査298件はその前の部分列挙として残し、新CompleteAuditが追加12宣言も検査した。監査ソースと全文出力はCycle249CompleteAudit.lean/complete-audit.txt。
+
+依存は前周cache1017件を再利用し、actual Journal/SourceCongruenceに不足する分だけ120秒chunk×5、各module90秒上限で準備。新規依存ビルド数は105/94/109/100/48、全成功。1473依存ソースのhash一致。最初のtarget指定に存在しないJournalCongruence238名があったが追加ビルド対象にならず、第2chunk以降正しいVersionedSourceCongruence238を使用した。全体lake build・verify-lean.shは未実行。Yulang2実機回帰も未実行。既存Lean・Audit/README凍結部分・spec/planに変更なし、barrel追記のみ。
+
+途中公開はcheckpoint69宣言7module→phase2 107/15→phase3 142/20→phase4 185/27→phase5 245/33→final38module。各公開treeをローカルgitの全treeと照合、branch更新はnonforce＋expected_sha。最終公開ファイル数・完了時刻はreceipt参照。未検証quarantine草稿は公開成果に含めない。
+
+## 未完と次の仕事
+
+- 新しいsource scheduler Stepとの対応、実owner別fresh blockの生成・SafeOrder・新target/public保護の不変量は未完成。source snapshotの初期化ができても、全新frameがsourceで到達可能とは限らない。
+- sourceの新観測・packet・effect追加、owner間の相互作用、live body成長は固定metadata finite runの外側。有限入力listを帰納したことは、生成される実source runが有限になることでもAccでもない。
+- 既存versioned identifiersを有限履歴として消去できたが、将来のstable-owner再利用と新owner追加の上界は別。I47のstable-owner方針を維持し、意味による版正準化へ切り替えていない。
+- 199/202/204/206/218/230/239/240の後継boundary回帰は未転送。旧239/240のnonterminationを新境界で解消したとは報告しない。I45一点descriptor条件は変更していない。
+- 無条件EvidenceNode、B4全法則、全体検証は未完成。新しい言語意味判断を要する反例は見つからず、質問noteは作成していない。
+
+次の候補: (1) owner識別子・fresh entries producerをFrameへ結び、旧history削除と新cross/metadata追加を区別した実Stepを作る、(2) 新target/public保護をsource形成不変量から供給、(3) 固定metadata結果に新規仕事・bodyの有限性を加えてAcc、その後に旧回帰とEvidenceNode。
+
+## 最終作業記録
+
+研究・境界レビューは23:19:32 UTCに終了（開始から45.5分）。23:18頃に環境再起動の通知があり、23:19に復帰。全Leanソースはその前に公開・全tree照合済みで、報告下書き・完全監査も復帰後に存在とhash一致を確認した。コードを再実装したり未確認の成功を仮定したりせず、残る報告等だけを公開した。完了時刻は最終heartbeat/receiptに記録する。

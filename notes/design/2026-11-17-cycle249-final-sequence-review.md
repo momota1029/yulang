@@ -88,3 +88,29 @@ prepares proves existence for every state using the concrete strict Nat rank.
 Recorded/coherence comes from reachability, and LegacyEmpty does too. Fresh
 SafeOrder, support protection and public-coordinate privacy remain explicit.
 The historical ledger is the actual versioned ledger, not stable241 entries.
+
+## Final actual-source initializer connection
+
+Read the completed SourceOwnerFrame249 after the parent reported strictPASS.
+initialize_success now gives, for EVERY actual mixed reachable snapshot, a
+successful initializeFrame result, Formed, and pointwise equivalence
+`Frame.Models frame assignment <-> actual Journal.Models state assignment /\
+All consumers assignment`. point_initialize_success supplies the same for the
+actual point boundary via existing point erasure. Historical constraints are
+not added to the model domain: they already follow from the actual journal.
+Thus initial actual-source correspondence is no longer an open gap for this
+initializer. Frame existence is not model satisfiability; an inconsistent
+journal correctly corresponds to an inconsistent frame.
+
+source_run_models_iff combines this initialization with any explicitly supplied
+finite list of safe blocks inside the prepared historical target domain and
+with public coordinates outside that domain. Its left side contains only
+actual Journal.Models, consumer All and public Agrees, not an added historical
+block premise. The resulting materialized run retains exact public model
+existence. No fresh block is synthesized by that theorem, and its output frame
+is not certified to be an actual source-reachable state. initializeFrame remains
+noncomputable because materializing actual alias-class requests is noncomputable;
+prepare itself is the finite executable routine. Stable-owner successor
+production, public-interface selection, source Step simulation, Acc and
+EvidenceNode remain separate. No contradiction with the preceding bounds was
+found; the initializer explicitly closes only their initial-source direction.
