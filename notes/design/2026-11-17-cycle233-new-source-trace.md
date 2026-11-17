@@ -42,3 +42,34 @@ must contain the original source and source sites, not assume full journal
 consistency. Prove full Models entails every trusted slice and track the
 versioned packet source of each output fact. Kernel adoption, legacy/new slice
 integration, availability/progress and global termination remain separate.
+
+## Final verified extensions
+
+The source-only three-step path is now closed through actual Kernel232 Stable,
+selected and nonempty literal EvidenceAt. The new versioned and mixed trusted
+interfaces are auxiliary: Kernel232 still reads the legacy cache. In particular,
+UpperRefresh233 constructs an actual new-cache Refresh certificate to the six-slot
+extended context, proves the new upper Unknown before / Known after, and rules
+out any legacy certificate for that same context. Model preservation is quantified
+over every assignment. Kernel adoption must therefore recheck operational
+stability; the current legacy no-refresh proof cannot simply be reused.
+
+New-source regressions 199 (rejection), 202 (default) and 204 (join Int/Int) close
+through Stable/EvidenceAt in their stated scopes. Gap206 reaches an actual guarded
+install, preserves an Int model, removes the bottom model and gives default
+Evidence for every installed model; post-install Stable/selected/EvidenceAt remain
+open. The 218 new-source regression and the remaining six general operational
+bridges, finite reachable version pool, termination and EvidenceNode remain open.
+
+### Operational handoff, not implemented in cycle233
+
+A successor kernel should update all three certificate positions together:
+Installable.cache, Administrative.refresh/reobserve, and At.refresh. Merely adding
+the new certificate to one refresh constructor would leave inconsistent cache
+availability across rules. Reuse the proven full-model transport rather than
+assuming observation completeness. MixedCache233 supplies preservation for
+independently justified old/new facts, but not an arbitrary mutually recursive
+old/new proof graph. Prove source initialization and each successor Step transport
+before transferring Reachable or the twelve-law package. The concrete upper
+certificate is a regression that prevents silently retaining the old terminal
+Stable theorem after this change.

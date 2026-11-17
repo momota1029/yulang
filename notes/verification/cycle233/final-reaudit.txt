@@ -1,0 +1,5 @@
+CYCLE233-FIRST-PASS: 251 constants in 20 modules
+CYCLE233-SECOND-PASS: 139 constants in 9 modules
+CYCLE233-THIRD-PASS: 203 constants in 8 modules
+CYCLE233-FOURTH-PASS: 86 constants in 6 modules
+CYCLE233-FINAL-PASS: 142 constants in 8 modules
