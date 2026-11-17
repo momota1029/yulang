@@ -1,0 +1,30 @@
+Focused recovery imports 1400 missing 28
+Yulang.GeneralNominalAcyclicEquations237 0 
+Yulang.GeneralNominalVersionedAggregateRealization236 0 
+Yulang.GeneralNominalVersionedDependency236 0 
+Yulang.GeneralNominalVersionedMixedCompletionRequests235 0 
+Yulang.GeneralNominalVersionedMixedCurrentEvidence235 0 
+Yulang.GeneralNominalVersionedMixedKernelCache234 0 
+Yulang.GeneralNominalVersionedMixedRecorded234 0 
+Yulang.GeneralNominalVersionedMixedRoles235 0 
+Yulang.GeneralNominalAcyclicNormalization238 0 
+Yulang.GeneralNominalVersionedMixedEmbedding234 0 
+Yulang.GeneralNominalVersionedMixedHistory235 0 
+Yulang.GeneralNominalVersionedMixedReady235 0 
+Yulang.GeneralNominalVersionedMixedStableEvidence235 0 
+Yulang.GeneralNominalVersionedSemanticCompletion236 0 
+Yulang.GeneralNominalVersionedMixedCurrentCandidate235 0 
+Yulang.GeneralNominalVersionedMixedFrameSelection235 0 
+Yulang.GeneralNominalVersionedMixedGuardReduction235 0 
+Yulang.GeneralNominalVersionedMixedSelectedFrame235 0 
+Yulang.GeneralNominalVersionedMixedSelectedEffect235 0 
+Yulang.GeneralNominalVersionedMixedCommon235 0 
+Yulang.GeneralNominalVersionedJournalFrame236 0 
+Yulang.GeneralNominalVersionedAggregateReuse236 0 
+Yulang.GeneralNominalVersionedAggregateEntries236 0 
+Yulang.GeneralNominalVersionedAggregateLedger236 0 
+Yulang.GeneralNominalVersionedMixedSeedLedger237 0 
+Yulang.GeneralNominalVersionedHistoryEquations237 0 
+Yulang.GeneralNominalVersionedHistoryNormalization238 0 
+Yulang.GeneralNominalVersionedSourceCongruence238 0 
+RECOVERY-FOCUSED-PASS

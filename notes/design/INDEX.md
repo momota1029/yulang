@@ -674,3 +674,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle242 B4 bridge map](2026-11-17-cycle242-b4-bridge-map.md) — Draft: exact fourteen-field target correspondence and unclosed obligations.
 
 - [Cycle243 executable live view](2026-11-17-cycle243-live-view-plan.md)
+
+- [Cycle243 activation checks](2026-11-17-cycle243-activation.md)
+- [Cycle243 stable source closure](2026-11-17-cycle243-stable-source-closure.md)
+- [Cycle243 boundary progress](2026-11-17-cycle243-boundary-progress.md)

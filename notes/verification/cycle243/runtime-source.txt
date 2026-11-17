@@ -1,0 +1,24 @@
+import Yulang.GeneralNominalRebasePacketActivation243
+open Yulang
+open Core.PresenceGeneration
+open GeneralNominalRebaseRawView243
+
+def sample : View where
+ slots := 2
+ slot := fun index => ⟨.var (index.val+3),.var (index.val+10)⟩
+ ordinary := [.tyLe (.var 3) (.var 4),.rowLe (.var 10) (.var 11)]
+ heads := fun index => if index.val = 0 then some (.union (.var 3) (.var 4)) else none
+ intervals := [(0,1)]
+ nominals := fun index => if index.val = 0 then some ⟨7,[.type (.var 3) (.var 4),.row (.var 10) (.var 11)]⟩ else none
+
+def rewritten := GeneralNominalRebaseViewSubst243.inline sample [(3,.var 0),(4,.var 1)]
+def support := GeneralNominalRebaseViewSupport243.sources rewritten
+#eval (support.contains 0,support.contains 1,support.contains 3,support.contains 4,support.contains 10,support.contains 11)
+#eval GeneralNominalRebaseOriginActivation243.sources
+ (GeneralNominalRebaseOriginView243.subst (GeneralNominalRebaseLookup242.substitution [(3,.var 0)])
+   (.nominal (.source (.var 3)) 7 0))
+#eval GeneralNominalRebaseEffectActivation243.sources
+ (GeneralNominalRebaseEffectView243.subst (GeneralNominalRebaseLookup242.substitution [(3,.var 0)])
+   (.nominal 7 [.source (.var 3)]))
+#eval GeneralNominalRebaseViewActivation243.check [(3,.var 2)] rewritten [] []
+#eval GeneralNominalRebaseViewActivation243.check [(0,.var 2)] rewritten [] []

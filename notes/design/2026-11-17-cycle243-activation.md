@@ -83,3 +83,57 @@ map for all emitted/child equations. PacketView.compile_exact includes every
 VersionedPlans.Holds component and only removes the redundant nonactual subset
 already entailed by total Outputs. It does not encompass ClassEffects,
 EqualOutputs, Ready, history/cache, or independent Evidence beyond that contract.
+
+## Complete packet finite support
+
+ProjectionSupport243 and SchemaSupport243 now generate finite read sets and
+meaning congruence directly from each actual compiled field. Projection support
+keeps every anchor existence/fit, universal test, cross-capture interval, and
+cross-capture actual equality. Schema support retains both actual Same and
+nonactual observed-value requirements, including all head tests.
+
+PacketSupport243 composes all eight Packet.Holds fields: raw View, ordinary,
+projection report, actual input, all binder intervals/centers, head schema,
+all child sites/equations and total output equations. Its models_iff is derived
+from these structures, not from a supplied congruence premise. compiled_iff
+connects it to the original VersionedPlans.Holds for arbitrary plan/mapping.
+
+PacketActivation243 gives an executable finite no-read check for a whole
+supplied list of compiled packets. Checked activation constructs one new model
+satisfying the new definitions and every packet Holds, using one common
+mapping/readback for all plans. It also proves exact existential projection.
+Full operational-journal enumeration (including external ClassEffects,
+EqualOutputs/Ready/caches) and invariant production of the no-read check remain
+separate. No whole-journal or EvidenceNode completion is claimed.
+
+## Final class-effect compiler
+`GeneralNominalRebaseClassView243` compiles the actual finite class requests:
+lookup bodies become expression equations and all same-name request pairs become
+two type inequalities. Its exactness theorem is quantified over arbitrary core,
+root, plan, mapping and assignment and matches versioned ClassEffects through
+the existing old/versioned equivalence. Failed expression translation gives an
+empty equation list exactly as original BodyHolds; this does not certify Ready.
+The request enumeration remains noncomputable because it uses the existing Alias
+predicate; the resulting consumer representation is a finite list of expressions.
+Direct trust-zero compilation with warnings treated as errors and an independent
+32-declaration axiom audit passed. Whole-journal enumeration and operational
+invariants are not asserted by this module.
+
+## Complete finite journal read set
+`GeneralNominalRebaseJournalSupport243` composes supports directly from all
+JournalView fields: both raw views; every observed argument's bounds and origin;
+all live sites; complete packets; each effect's private raw state, projection
+report, historical class and current live class. Class supports include both
+body expression equations and all same-name output equalities. Agreement on
+this concrete finite set implies Models equivalence, without an abstract
+predicate-congruence hypothesis. The Boolean check yields new definitions and
+preserves the entire compiled journal at a single patched assignment. The
+compiled activation theorem also uses the actual LegacyEmpty invariant and
+JournalView's exactness bridge.
+
+This preservation covers the journal predicate, not separately stored existing
+definition blocks. Sequential rebase then activation must additionally include
+those blocks' RHS supports in its check, or derive their preservation from an
+appropriate combined External condition. No universal per-step check invariant,
+source-adapter implementation, metadata transformation or termination claim is
+made here.
