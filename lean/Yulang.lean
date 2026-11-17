@@ -4569,3 +4569,4 @@ import Yulang.GeneralNominalFrameReservation250
 import Yulang.GeneralNominalPostInstall250
 import Yulang.GeneralNominalStableSlots250
 import Yulang.GeneralNominalPersistentSequence250
+import Yulang.GeneralNominalFiniteInstallTrace250
