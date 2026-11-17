@@ -1,6 +1,6 @@
 import Yulang.GeneralNominalRebaseProjection241
 set_option backward.isDefEq.respectTransparency false
-/-! Reconstructed from the preserved theorem summary; requires fresh verification.
+/-! Reconstructed from the preserved theorem summary and freshly verified.
 Existential old private extension under actual interval refinement. -/
 namespace Yulang.GeneralNominalRebaseBackExtension241
 open GeneralDeclarations GeneralNominalAllocation CommonNominalFullCarrier

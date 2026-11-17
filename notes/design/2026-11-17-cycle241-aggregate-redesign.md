@@ -127,3 +127,15 @@ are freshly compiled/audited; original byte identity is not claimed.
 Remaining global producers are exactly: finite source/owner/endpoint/fact closure;
 actual whole-consumer semantic back-extension/output preservation; complete
 simulation of needed source operations and terminal evidence in the scheduler.
+
+The recovered 230 private fixture is now directly exercised by a one-service
+finite-machine run. It preserves original raw source, actual W, cross and
+self-check atoms; the previous aggregate equations are incompatible with the
+new assignment and are not retained. This is a genuine local rebase regression,
+not source-boundary reachability or the complete dictionary theorem.
+OwnerBack constructs a previous owner-table model from explicit interval
+refinement, retaining other owners and checks. ProtectedLive additionally
+requires every live center in the pool. The independent reviewer confirmed
+these directions and the limits above. Ordinary inlining under a model already
+satisfying old definitions is now justified through type equivalence and row
+identity; it is not a transitive/cyclic support-elimination algorithm.

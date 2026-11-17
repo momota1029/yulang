@@ -26,3 +26,23 @@ Noop/Escapeは無制約置換の危険を示す独立の小例で、選択設計
 この復旧checkpointはInline/InlineSyntax/BackExtension/ChildProduction/LiveLabelsを含む。
 230Private/ServiceとInlineModelsは復旧再検証中であり、この時点では未公開。
 研究の拡大より、検証済み内容の保全・再公開を優先する。
+
+## Recovered implementation checkpoint
+
+復旧後19新モジュールを全て直接再compileし、294定義（生成宣言を含む）の公理監査PASS。
+230Private/Service/InlineModelsも回復できた。原Private51宣言の逐語再現ではなく、
+必要な主張を縮約再構成して再検証した版。新たな230Back回帰は未着手のままであり、
+完成したとは扱わない。
+
+- 230Private:実230のcurrent merge式と一致する定義を、元raw sourceとactual Wを保って
+  同名で再評価。cross/selfChecksを保持。新mergeとactual Fitsが成立し、旧mergeの
+  同時保持は矛盾。旧全journalの保存ではない。
+- 230Service:有限work×owner表で実1serviceを構成し、原source・actual W・public atomsを
+  保持して停止。全言語source境界のreachable pathではない。
+- Inline/InlineModels/InlineSyntax:実有限patchに対応するordinary consumerの同時代入。
+  元の定義方程式を満たすモデルでは型Equivalentとrow一致により意味を保持する。
+  循環の解生成や全支持消去とは主張しない。
+- ChildProduction:実versioned Frame/Holdsから子actualラベル・質量減少・identity ancestryを1段生成。
+- BackExtension/OwnerBack:明示した端点精密化と非escapeから、保護値・他owner・checksを保つ
+  旧private/owner表モデルの存在を構成。同一assignmentの歴史journal包含ではない。
+- LiveLabels/ProtectedLive:全既存live centerのpool包含を別途要求し、ラベル・深さ質量予算を保存。
