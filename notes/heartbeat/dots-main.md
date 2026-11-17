@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-- cycle: 237
-- status: completed
-- started: 2026-11-17T09:31:36Z
-- updated: 2026-11-17T10:16:51Z
-- elapsed_min: 45.3
-- activity: Final47 modules/574 audited constants published at1e9aa8629ccb56d15642ddda4ff65551d87ce3a5. Explicit-SHA fetch and whole-tree comparison PASS at10:16:28 UTC. CI statuses empty, not a CI pass.
+- cycle: 238
+- status: running
+- started: 2026-11-17T10:31:28Z
+- updated: 2026-11-17T10:32:30Z
+- elapsed_min: 1.0
+- activity: Read latest integration b8008c41, standing-orders and I44; no new STOP. Prior237 final2a843efc tree matches, completed report, no active Lean process. Investigating actual source prefixes for local version/compound diagnostics.
 - workspace: /tmp/yulang-admin-1730/repo
-- last_local_commit: 4d1ce0e65f4a728298fa0abe147185e33fba6b3c
-- integration: b8008c41de90006fc6206b8c79f8ec06130fc7d8; I44 unchanged.
-- resume_hint: Preserve verified47 modules. Local retarget2steps is not sourceReachable or a refutation. Next actual prefix/loop guards, compound actual fixture and common-model obligations. GeneralEvidenceNode/fulltermination remain open.
+- last_local_commit: 5823f99e5
+- resume_hint: Cycle238 began normally. Preserve237 verified47 modules. Build only focused new238 modules; freeze Audit.lean/README/spec/plan. Stop exact refuted targets; no semantics changes. Finish by11:26:28 UTC.
