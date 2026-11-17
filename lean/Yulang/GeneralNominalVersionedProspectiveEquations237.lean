@@ -1,5 +1,5 @@
 import Yulang.GeneralNominalVersionedHistoryEquations237
-/-! The actual historical and one current packet's aggregate equations admit
+/-! The actual historical and one current packet's aggregate equations have
 one common assignment. No full Models, selected success, or install is claimed. -/
 namespace Yulang.GeneralNominalVersionedProspectiveEquations237
 open GeneralNominalVersionedJournal232 GeneralNominalCenters
