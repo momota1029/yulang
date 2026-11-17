@@ -678,3 +678,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle243 activation checks](2026-11-17-cycle243-activation.md)
 - [Cycle243 stable source closure](2026-11-17-cycle243-stable-source-closure.md)
 - [Cycle243 boundary progress](2026-11-17-cycle243-boundary-progress.md)
+
+- [cycle244 repeated representation and recovery plan](2026-11-17-cycle244-operational-plan.md)
+- [cycle244 complete journal substitution review and lemma graph](2026-11-17-cycle244-journal-substitution-review.md)
