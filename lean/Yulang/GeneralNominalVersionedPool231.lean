@@ -2,7 +2,7 @@ import Yulang.GeneralNominalVersionedAllocation231
 
 /-! A finite allocation cover relative to an explicitly supplied finite list
 of capture-binding candidates. This is an allocation-layer auxiliary theorem:
-it does NOT prove that all versions on an actual reachable trace admit one
+it does NOT prove that all versions on an actual reachable trace have one
 finite cover, and does NOT transport the old termination theorem. -/
 namespace Yulang.GeneralNominalVersionedPool231
 open GeneralDeclarations
