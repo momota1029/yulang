@@ -24,3 +24,21 @@ Remaining outside this target: arbitrary source termination, six remaining
 bridges, generic EvidenceNode and 199/202/204/206/218 new-boundary regressions.
 Nonterminal trusted readback must distinguish legacy Packet.children from
 versioned children; no unjustified child-list identification is allowed.
+
+## Mid-cycle outcome and next scoped dependency
+
+The three-step source-only-new-kernel trace, simultaneous two-version full
+model, actual selected classification, universal model evidence and full
+Kernel232 Stable are now proved. Stable uses a source-supported cut to exclude
+new learned heads: legacy plans/effects are empty on this trace. This is a
+precise property of the current kernel, not completeness of learning.
+
+Next dependency: a sound versioned trusted-slice layer, without silently
+changing Kernel232. New input facts must use VersionedPlans.Inputs; output
+facts retain Outputs plus the recorded effect's full snapshot semantics.
+Trusted input promotion needs inspection readback; trusted output promotion
+needs class readback and settled ordered VERSIONED children. Slice Models
+must contain the original source and source sites, not assume full journal
+consistency. Prove full Models entails every trusted slice and track the
+versioned packet source of each output fact. Kernel adoption, legacy/new slice
+integration, availability/progress and global termination remain separate.
