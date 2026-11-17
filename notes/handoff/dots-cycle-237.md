@@ -114,3 +114,9 @@ Pair(Foo(Int),Foo(Int)) と終端 Pair(x,x) 宣言の installed fixture に具�
 propext/Classical.choice/Quot.sound のみ許容。sorry/new axiom/native_decideなし。
 
 研究・検証区切り 2026-11-17 10:15:59 UTC、開始から44.4分。最終公開・全tree照合を続ける。終了時空き約2.7GiB、使用45%。
+
+最終proof公開: `1e9aa8629ccb56d15642ddda4ff65551d87ce3a5`。GitHub connectorでlease付きref更新。
+2026-11-17T10:16:28Z、明示SHA fetch後 `git diff --exit-code HEAD FETCH_HEAD` exit0、
+remote work/dots-mainも同SHA。local proofcommit `4d1ce0e65`、tree `c9108196a8ba0235443dda2a0bd3f16f73d92bcb`。
+combined statusは空配列、CI成功とは扱わない。completed心拍・この照合記録を追記。
+完了処理時刻 2026-11-17T10:16:51Z、経過45.3分、55分上限内。全proof保持・作業tree cleanを確認。
