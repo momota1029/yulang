@@ -47,3 +47,16 @@ Audit/Cycle239First.lean（14module）とSecond.lean（11module）も同オプ�
 全体lake build/verify-lean.shは監督専用のため未実行。CI結果は公開後に確認する。
 Y2 X13–16/ROLE-MORE-003/004の旧監査を再読、旧局所実機結果を新kernel証明と混同しない。
 新実機検証なし。使用量枠不明。反証によるI34停止を通常45分研究より優先した。
+
+## 独立検査・公開照合
+
+Nontermination239の6宣言は別作業者が独立にtrust0/warningAsErrorと推移公理監査を実行、PASS。
+Acc.transGenの向き、source checked/Initial、future bad-model帰納の非循環をread-only査読済み。
+
+proof公開 `6f952cb54cd5cc691e0d433291653bebd0d09aa7`、tree
+`dcea97eb8488b4ce1de6cf7d14b541cc5ad147b8`、local `d6e9302a7`。
+11:52:48 UTCに明示SHA fetch全tree一致exit0、remote ref同SHAを確認。
+combined statuses空配列でCI成功は未確認。37成果ファイル＋心拍更新を公開。
+終了処理11:52:54 UTC、開始から19.9分。I34の真のtarget反証STOPが早期終了理由。
+ディスク使用約2.2GiB、空き2.7GiB（46%）。未公開の検証済みproofなし。
+次回は最新inbox/質問への回答を読む。決定が無ければ、この偽targetの再証明や修正を再開しない。
