@@ -1,10 +1,10 @@
 # dots-main heartbeat
-
 - cycle: 246
 - status: running
 - started: 2026-11-17T19:30:08Z
-- updated: 2026-11-17T19:30:58Z
-- elapsed_min: 0.8
-- activity: Latest integration/inbox I47 re-read; completed245 and clean workspace confirmed. Selecting an independent concrete adapter within the focused cache.
+- updated: 2026-11-17T20:28:30Z
+- elapsed_min: 58.4
+- activity: Recovery after unobserved19:35-to20:27 interval; deadline and intermediate heartbeats missed. Four modules/250 constants reverified; publishing final result now.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- resume_hint: Continue actual Common rebase semantics; eighteen245 modules audited/published. No overlapping writer. OriginView726 dependency closure remains unavailable; no whole-journal build. Work until20:15, verify/publish/report by20:25 UTC.
+- report: notes/handoff/dots-cycle-246.md
+- resume_hint: Do not start247 until246 publication and tree check finish. No live writer. Four source modules verified, broader recovery/example work not implemented. I47 remains active.

@@ -4464,3 +4464,7 @@ import Yulang.GeneralPresenceGuardedBlockLimit245
 import Yulang.GeneralPresenceObservedPlan245
 import Yulang.GeneralPresencePlanTerminationLimit245
 import Yulang.GeneralPresenceQueryTransport245
+import Yulang.GeneralFiniteAssignment246
+import Yulang.GeneralPresenceConsumerSupport246
+import Yulang.GeneralPresenceGuardedBlock246
+import Yulang.GeneralPresenceGuardedLayer246
