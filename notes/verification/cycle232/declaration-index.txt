@@ -1,0 +1,350 @@
+lean/Yulang/GeneralDictionaryVersionedEvidence232.lean:13: theorem frame : GeneralNominalVersionedEvidence231.Frame registry installed.core root declaration.id
+lean/Yulang/GeneralDictionaryVersionedEvidence232.lean:24: theorem certificate (valid : Models installed m) :
+lean/Yulang/GeneralDictionaryVersionedEvidence232.lean:35: theorem evidence (valid : Models installed m) :
+lean/Yulang/GeneralDictionaryVersionedEvidence232.lean:39: theorem nonvacuous_installed_evidence :
+lean/Yulang/GeneralDictionaryVersionedEvidence232.lean:44: theorem every_old_model_extends (valid : GeneralNominalCenteredHeadMatStepJournal.Models after m) :
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:12: noncomputable def before : State roles := lift after
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:14: noncomputable def effect : Effect roles where
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:24: noncomputable def installed : State roles := install before effect
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:26: theorem snapshot : effect.snapshot = before.core := rfl
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:27: theorem terminal : GeneralNominalVersionedFrame231.children effect.plan.packet = [] :=
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:30: theorem requests_iff :
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:35: theorem installation_models (valid : GeneralDictionaryVersionedCompletion231.InstallationModels m) :
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:46: theorem models_iff (m : Assignment) : Models installed m ↔
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:59: theorem inhabited : ∃ m, Models installed m := by
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:63: theorem actual_plan_recorded : currentPlan ∈ installed.plans := List.mem_cons_self ..
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:64: theorem actual_effect_recorded : effect ∈ installed.effects := List.mem_cons_self ..
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:65: theorem legacy_plans_retained : installed.core.plans = after.core.plans := rfl
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:66: theorem legacy_effects_retained : installed.legacy.effects = after.effects := rfl
+lean/Yulang/GeneralDictionaryVersionedInstalled232.lean:68: theorem every_model_extends (valid : GeneralNominalCenteredHeadMatStepJournal.Models after m) :
+lean/Yulang/GeneralDictionaryVersionedNovel232.lean:15: noncomputable def bad : Assignment :=
+lean/Yulang/GeneralDictionaryVersionedNovel232.lean:18: theorem bad_old : GeneralNominalCenteredHeadMatStepJournal.Models after bad :=
+lean/Yulang/GeneralDictionaryVersionedNovel232.lean:22: theorem bad_value (index : Fin 2) : (bad (names index)).1 = GeneralDictionaryOptionalOutput229.value :=
+lean/Yulang/GeneralDictionaryVersionedNovel232.lean:26: theorem bad_actual : (bad actual).1 = .emptyRecord := by
+lean/Yulang/GeneralDictionaryVersionedNovel232.lean:33: theorem no_packet : ¬ GeneralNominalVersionedPlans231.Holds currentPlan bad := by
+lean/Yulang/GeneralDictionaryVersionedNovel232.lean:45: theorem not_committed : ¬ GeneralNominalVersionedInstallStep232.Committed before currentPlan := by
+lean/Yulang/GeneralDictionaryVersionedStep232.lean:11: theorem enabled : GeneralNominalVersionedInstallStep232.Enabled registry before effect := by
+lean/Yulang/GeneralDictionaryVersionedStep232.lean:16: theorem step : GeneralNominalVersionedInstallStep232.Step registry root before installed :=
+lean/Yulang/GeneralDictionaryVersionedStep232.lean:21: theorem nonvacuous_migration :
+lean/Yulang/GeneralNominalVersionedChildren232.lean:14: def emitted (plan : Plan roles) : List (Site roles) :=
+lean/Yulang/GeneralNominalVersionedChildren232.lean:19: def rawSites (plan : Plan roles) : List (GeneralNominalDemandMerging.Site roles) :=
+lean/Yulang/GeneralNominalVersionedChildren232.lean:22: def edges (plan : Plan roles) : List (Occurrence roles × Occurrence roles) :=
+lean/Yulang/GeneralNominalVersionedChildren232.lean:25: theorem emitted_occurrences (plan : Plan roles) :
+lean/Yulang/GeneralNominalVersionedChildren232.lean:32: theorem emitted_holds (valid : GeneralNominalVersionedPlans231.Holds plan model)
+lean/Yulang/GeneralNominalVersionedChildren232.lean:38: theorem raw_holds (valid : GeneralNominalVersionedPlans231.Holds plan model)
+lean/Yulang/GeneralNominalVersionedChildren232.lean:43: theorem emitted_child_iff : child ∈ children plan.packet ↔
+lean/Yulang/GeneralNominalVersionedChildren232.lean:48: theorem edge_iff : edge ∈ edges plan ↔
+lean/Yulang/GeneralNominalVersionedChildren232.lean:52: theorem child_edge (member : child ∈ children plan.packet) :
+lean/Yulang/GeneralNominalVersionedChildren232.lean:56: theorem edge_site (member : (root,child) ∈ edges plan) :
+lean/Yulang/GeneralNominalVersionedChildren232.lean:62: theorem appended_sites_holds
+lean/Yulang/GeneralNominalVersionedChildren232.lean:69: theorem appended_raw_holds
+lean/Yulang/GeneralNominalVersionedChildren232.lean:76: theorem appended_child_edge (member : child ∈ children plan.packet) :
+lean/Yulang/GeneralNominalVersionedChildren232.lean:80: theorem emitted_length (plan : Plan roles) :
+lean/Yulang/GeneralNominalVersionedChildren232.lean:87: theorem child_raw_site (member : child ∈ children plan.packet) :
+lean/Yulang/GeneralNominalVersionedChildren232.lean:94: theorem generated_child (after : GeneralNominalSaturationState.State roles)
+lean/Yulang/GeneralNominalVersionedChildren232.lean:101: theorem appended_edge_iff : edge ∈ prior ++ edges plan ↔
+lean/Yulang/GeneralNominalVersionedCommitted232.lean:9: theorem replay_committed (state : State roles) (effect : Effect roles) :
+lean/Yulang/GeneralNominalVersionedCommitted232.lean:21: theorem no_replay_reinstall :
+lean/Yulang/GeneralNominalVersionedFrameTransport232.lean:14: theorem frame_forward {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrameTransport232.lean:31: theorem ready_iff {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrameTransport232.lean:38: theorem class_effects_iff {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrameTransport232.lean:45: theorem schema_holds_iff {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrameTransport232.lean:52: theorem ready_of_requests_eq {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrameTransport232.lean:58: theorem class_effects_of_requests_eq {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrameTransport232.lean:66: theorem certificate_forward {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrameTransport232.lean:74: theorem instance_forward {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedInstall232.lean:10: def installCore (core : GeneralNominalCenteredSteps.State roles) (plan : Plan roles) :
+lean/Yulang/GeneralNominalVersionedInstall232.lean:21: def installLegacy (legacy : Legacy.State roles) (plan : Plan roles) : Legacy.State roles :=
+lean/Yulang/GeneralNominalVersionedInstall232.lean:24: def install (state : State roles) (effect : Effect roles) : State roles :=
+lean/Yulang/GeneralNominalVersionedInstall232.lean:27: theorem requests_included (core : GeneralNominalCenteredSteps.State roles) (plan : Plan roles) :
+lean/Yulang/GeneralNominalVersionedInstall232.lean:33: def LegacyLive (legacy : Legacy.State roles) (plan : Plan roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedInstall232.lean:36: theorem legacy_install_models
+lean/Yulang/GeneralNominalVersionedInstall232.lean:56: def InstallationModels (state : State roles) (effect : Effect roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedInstall232.lean:62: theorem install_models (snapshot : effect.snapshot = state.core) :
+lean/Yulang/GeneralNominalVersionedInstall232.lean:88: theorem step_models (snapshot : effect.snapshot = state.core)
+lean/Yulang/GeneralNominalVersionedInstall232.lean:92: theorem installed_plan : effect.plan ∈ (install state effect).plans := List.mem_cons_self ..
+lean/Yulang/GeneralNominalVersionedInstall232.lean:93: theorem installed_effect : effect ∈ (install state effect).effects := List.mem_cons_self ..
+lean/Yulang/GeneralNominalVersionedInstall232.lean:95: theorem installed_child (member : child ∈ GeneralNominalVersionedFrame231.children effect.plan.packet) :
+lean/Yulang/GeneralNominalVersionedInstall232.lean:99: theorem legacy_plans_preserved : (install state effect).core.plans = state.core.plans := rfl
+lean/Yulang/GeneralNominalVersionedInstall232.lean:100: theorem legacy_effects_preserved : (install state effect).legacy.effects = state.legacy.effects := rfl
+lean/Yulang/GeneralNominalVersionedInstall232.lean:101: theorem source_preserved : (install state effect).core.erased.source = state.core.erased.source := rfl
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:16: theorem raw_sites_included : core.erased.current.sites ⊆ (installCore core plan).erased.current.sites :=
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:19: theorem centers_included : core.sites ⊆ (installCore core plan).sites :=
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:22: theorem edges_included : core.erased.current.edges ⊆ (installCore core plan).erased.current.edges :=
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:25: theorem aliases_equal : (installCore core plan).erased.current.aliases = core.erased.current.aliases := rfl
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:27: theorem alias_forward (given : Alias core.erased.current first last) :
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:35: theorem alias_iff : Alias (installCore core plan).erased.current first last ↔
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:46: theorem generated_preserved (given : Generated core.erased.current root focus) :
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:54: theorem children_generated (given : Generated core.erased.current root plan.packet.site.occurrence)
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:60: theorem source_base_preserved (context : plan.packet.context = core.erased.current.context) :
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:65: theorem seed_preserved (context : plan.packet.context = core.erased.current.context) :
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:70: theorem known_iff (context : plan.packet.context = core.erased.current.context) :
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:76: theorem keys_owned (member : key ∈ GeneralNominalVersionedInstallation231.allocated plan.packet) :
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:80: theorem old_keys_owned (context : plan.packet.context = core.erased.current.context)
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:86: theorem packets_included : core.erased.current.packets ⊆ (installCore core plan).erased.current.packets :=
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:89: theorem packet_recorded : plan.packet ∈ (installCore core plan).erased.current.packets := List.mem_cons_self ..
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:91: theorem plans_included : state.plans ⊆ (install state effect).plans :=
+lean/Yulang/GeneralNominalVersionedInstallProperties232.lean:94: theorem effects_included : state.effects ⊆ (install state effect).effects :=
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:12: def Committed (state : State roles) (plan : Plan roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:18: structure Enabled (registry : Registry) (state : State roles) (effect : Effect roles) : Prop where
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:23: inductive Step (registry : Registry) (root : Occurrence roles) : State roles → State roles → Prop
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:28: theorem step_models (step : Step registry root before after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:33: theorem step_inhabited (step : Step registry root before after) : ∃ model, Models after model := by
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:39: theorem installed_committed (state : State roles) (effect : Effect roles) :
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:46: theorem no_identical_reinstall :
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:49: theorem generated_preserved (step : Step registry root before after)
+lean/Yulang/GeneralNominalVersionedInstallStep232.lean:55: theorem steps_models (path : B4Target.Steps (Step registry root) before after)
+lean/Yulang/GeneralNominalVersionedJournal232.lean:11: abbrev State := GeneralNominalCenteredHeadMatStepJournal.State
+lean/Yulang/GeneralNominalVersionedJournal232.lean:12: abbrev Models := @GeneralNominalCenteredHeadMatStepJournal.Models
+lean/Yulang/GeneralNominalVersionedJournal232.lean:15: structure Effect (roles : Roles.RoleDecls) where
+lean/Yulang/GeneralNominalVersionedJournal232.lean:25: def Effect.Holds (effect : Effect roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedJournal232.lean:29: def Effect.Live (effect : Effect roles) (core : GeneralNominalCenteredSteps.State roles)
+lean/Yulang/GeneralNominalVersionedJournal232.lean:33: structure State (roles : Roles.RoleDecls) where
+lean/Yulang/GeneralNominalVersionedJournal232.lean:38: abbrev State.core (state : State roles) := state.legacy.core
+lean/Yulang/GeneralNominalVersionedJournal232.lean:40: def Models (state : State roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedJournal232.lean:45: def lift (legacy : Legacy.State roles) : State roles := ⟨legacy,[],[]⟩
+lean/Yulang/GeneralNominalVersionedJournal232.lean:47: theorem lift_models (legacy : Legacy.State roles) (model : Assignment) :
+lean/Yulang/GeneralNominalVersionedJournal232.lean:54: def initial (context : GeneralNominalCandidates.Context) (root : Occurrence roles) : State roles :=
+lean/Yulang/GeneralNominalVersionedJournal232.lean:57: theorem initial_models (context : GeneralNominalCandidates.Context) (root : Occurrence roles) (model : Assignment) :
+lean/Yulang/GeneralNominalVersionedJournal232.lean:63: theorem legacy_models (valid : Models state model) : Legacy.Models state.legacy model := valid.1
+lean/Yulang/GeneralNominalVersionedJournal232.lean:65: theorem plan_models (valid : Models state model) (present : plan ∈ state.plans) :
+lean/Yulang/GeneralNominalVersionedJournal232.lean:68: theorem effect_models (valid : Models state model) (present : effect ∈ state.effects) :
+lean/Yulang/GeneralNominalVersionedJournal232.lean:72: theorem live_restrict {effect : Effect roles} {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:16: theorem compile_body_eq (plan : Plan roles) (body : Body) :
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:20: theorem body_schema_eq (plan : Plan roles) (target : Nat) (body : Body) :
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:25: theorem body_variables_eq (plan : Plan roles) (model : Assignment) (body : Body) :
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:32: theorem body_holds_iff (plan : Plan roles) (target : Nat) (model : Assignment) (body : Body) :
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:38: theorem old_body_holds_iff (plan : Plan roles) (target : Nat) (model : Assignment) (body : Body) :
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:43: theorem ready_iff (state : GeneralNominalCenteredSteps.State roles) (root : Occurrence roles) (plan : Plan roles) :
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:48: theorem class_effects_iff (state : GeneralNominalCenteredSteps.State roles) (root : Occurrence roles)
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:55: theorem output_witness_iff (plan : Plan roles) (model : Assignment) (output : GeneralSourceState.Output) :
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:61: theorem replay_ready_iff (state : GeneralNominalCenteredSteps.State roles) (root : Occurrence roles) (plan : Plan roles) :
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:65: theorem replay_class_effects_iff (state : GeneralNominalCenteredSteps.State roles) (root : Occurrence roles)
+lean/Yulang/GeneralNominalVersionedReplayEffects232.lean:71: theorem replay_output_witness_iff (plan : Plan roles) (model : Assignment) (output : GeneralSourceState.Output) :
+lean/Yulang/GeneralNominalVersionedTerminal232.lean:8: theorem emitted_empty (terminal : GeneralNominalVersionedFrame231.children plan.packet = []) :
+lean/Yulang/GeneralNominalVersionedTerminal232.lean:15: theorem raw_empty (terminal : GeneralNominalVersionedFrame231.children plan.packet = []) :
+lean/Yulang/GeneralNominalVersionedTerminal232.lean:18: theorem sites_eq (terminal : GeneralNominalVersionedFrame231.children plan.packet = []) :
+lean/Yulang/GeneralNominalVersionedTerminal232.lean:23: theorem raw_eq (terminal : GeneralNominalVersionedFrame231.children plan.packet = []) :
+lean/Yulang/GeneralNominalVersionedTerminal232.lean:28: theorem requests_iff (terminal : GeneralNominalVersionedFrame231.children plan.packet = []) :
+lean/Yulang/GeneralNominalVersionedTerminal232.lean:39: theorem legacy_live (terminal : GeneralNominalVersionedFrame231.children plan.packet = [])
+lean/Yulang/GeneralDictionaryVersionedAcyclic232.lean:15: theorem model_form (identity : Nat) : ∃ form : Form, (extended identity).1 = form.value := by
+lean/Yulang/GeneralDictionaryVersionedAcyclic232.lean:27: theorem installed_model : GeneralNominalVersionedJournal232.Models installed extended :=
+lean/Yulang/GeneralDictionaryVersionedAcyclic232.lean:30: theorem acyclic (origin) : ¬ GeneralNominalVersionedCycles232.Cyclic installed origin :=
+lean/Yulang/GeneralDictionaryVersionedAcyclic232.lean:33: theorem no_root_cycle (root) : ¬ GeneralNominalVersionedCycles232.RootCycle installed root := by
+lean/Yulang/GeneralDictionaryVersionedAcyclic232.lean:38: theorem no_candidate_cycle (registry root) :
+lean/Yulang/GeneralDictionaryVersionedEvidenceAt232.lean:11: theorem selected : GeneralNominalVersionedBoundary232.Local registry installed root (.selected declaration.id []) :=
+lean/Yulang/GeneralDictionaryVersionedEvidenceAt232.lean:18: theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedBoundary232.boundary roles) registry installed root := by
+lean/Yulang/GeneralDictionaryVersionedEvidenceAt232.lean:27: theorem nonvacuous :
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:22:  theorem acyclic (origin) : ¬ GeneralNominalVersionedCycles232.Cyclic before origin :=
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:28: theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady before root := by
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:35: theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry before root := by
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:51: theorem cache : GeneralNominalCenteredHeadMatStepObservations.CacheSound before.legacy
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:57: theorem positions : GeneralNominalVersionedCycles232.Safe before currentPlan :=
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:81: theorem frame_plan (frame : GeneralNominalVersionedEvidence231.Frame registry before.core root key plan) :
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:86: theorem alternatives : GeneralNominalVersionedKernel232.AlternativesSafe registry before currentPlan.input := by
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:92: theorem choice : GeneralNominalCycleSteps.ChoiceCompatible before.core.erased.current currentPacket := by
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:97: theorem installable : GeneralNominalVersionedKernel232.Installable registry before effect := by
+lean/Yulang/GeneralDictionaryVersionedGuarded232.lean:104: theorem step : GeneralNominalVersionedKernel232.Step registry root before installed :=
+lean/Yulang/GeneralDictionaryVersionedGuardedRegression232.lean:12: theorem guarded_nonvacuous_repair :
+lean/Yulang/GeneralDictionaryVersionedInstallClosed232.lean:20:  theorem raw_sites : installed.core.erased.current.sites = [GeneralNominalDemandMerging.pointSite root] := by
+lean/Yulang/GeneralDictionaryVersionedInstallClosed232.lean:25: theorem centers : installed.core.sites = [rootSite snapshot.seed root] := by
+lean/Yulang/GeneralDictionaryVersionedInstallClosed232.lean:30: theorem edges_empty : installed.core.erased.current.edges = [] := by
+lean/Yulang/GeneralDictionaryVersionedInstallClosed232.lean:38: theorem generated_only (given : GeneralNominalSaturationState.Generated installed.core.erased.current root focus) :
+lean/Yulang/GeneralDictionaryVersionedInstallClosed232.lean:48: theorem frame_plan (frame : GeneralNominalVersionedEvidence231.Frame registry installed.core root key plan) :
+lean/Yulang/GeneralDictionaryVersionedInstallClosed232.lean:53: theorem no_install (next : State roles) : ¬ Step registry root installed next := by
+lean/Yulang/GeneralDictionaryVersionedRawAcyclic232.lean:10: noncomputable abbrev current := installed.core.erased.current.context
+lean/Yulang/GeneralDictionaryVersionedRawAcyclic232.lean:12: theorem source_form (slot : Fin 6) :
+lean/Yulang/GeneralDictionaryVersionedRawAcyclic232.lean:18: theorem raw_model : GeneralNominalState.Models current.state extended :=
+lean/Yulang/GeneralDictionaryVersionedRawAcyclic232.lean:21: theorem raw_edge_decreases {a b : Fin 6} (edge : GeneralNominalMixedRecurrence.Edge current.state a b) :
+lean/Yulang/GeneralDictionaryVersionedRawAcyclic232.lean:48: theorem no_raw_recurs (slot : Fin 6) : ¬ GeneralNominalCycleK2.RecursAt current.state slot := by
+lean/Yulang/GeneralDictionaryVersionedReachable232.lean:11: theorem old_path : B4Target.Steps (GeneralDictionaryDefaultKernel208.Step registry root)
+lean/Yulang/GeneralDictionaryVersionedReachable232.lean:15: theorem reachable : Reachable registry context root installed :=
+lean/Yulang/GeneralDictionaryVersionedReachable232.lean:20: theorem nonvacuous_reachable_evidence :
+lean/Yulang/GeneralDictionaryVersionedSelected232.lean:14: theorem packet (valid : Models installed m) : GeneralNominalVersionedPlans231.Holds replayed m :=
+lean/Yulang/GeneralDictionaryVersionedSelected232.lean:18: theorem effects (valid : Models installed m) :
+lean/Yulang/GeneralDictionaryVersionedSelected232.lean:23: theorem ready : GeneralNominalCenteredHeadMatEffects.Ready installed.core root replayed := by
+lean/Yulang/GeneralDictionaryVersionedSelected232.lean:28: theorem no_merged : ¬ GeneralNominalVersionedMergedConflict232.MergedOutputConflict installed root := by
+lean/Yulang/GeneralDictionaryVersionedSelected232.lean:33: theorem selected : GeneralNominalVersionedDiagnostic232.Local registry installed root (.selected declaration.id []) :=
+lean/Yulang/GeneralDictionaryVersionedSelected232.lean:42: theorem selected_with_evidence :
+lean/Yulang/GeneralDictionaryVersionedSelectionFacts232.lean:19: noncomputable abbrev context := installed.core.erased.current.context
+lean/Yulang/GeneralDictionaryVersionedSelectionFacts232.lean:21: theorem prepared : Prepared registry context root declaration :=
+lean/Yulang/GeneralDictionaryVersionedSelectionFacts232.lean:24: theorem known : ¬ GeneralNominalState.RootPending context.state (inputs root).demand := by
+lean/Yulang/GeneralDictionaryVersionedSelectionFacts232.lean:28: theorem children_empty : children registry context root declaration declaration_checked [((0 : Fin 6),(0 : Fin 6))] = [] := by
+lean/Yulang/GeneralDictionaryVersionedSelectionFacts232.lean:34: theorem survivor : Survivor registry context root declaration.id [] :=
+lean/Yulang/GeneralDictionaryVersionedSelectionFacts232.lean:37: theorem unique : Unique registry context root declaration.id [] := by
+lean/Yulang/GeneralDictionaryVersionedSelectionFacts232.lean:47: theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady installed root := by
+lean/Yulang/GeneralDictionaryVersionedSelectionFacts232.lean:58: theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry installed root := by
+lean/Yulang/GeneralDictionaryVersionedSourceRegression232.lean:9: theorem guarded_step : (GeneralNominalVersionedSourceBoundary232.boundary roles).Step sourceRegistry root before installed :=
+lean/Yulang/GeneralDictionaryVersionedSourceRegression232.lean:12: theorem selected : GeneralNominalVersionedSourceBoundary232.Local sourceRegistry installed root (.selected declaration.id []) :=
+lean/Yulang/GeneralDictionaryVersionedSourceRegression232.lean:15: theorem evidenceAt :
+lean/Yulang/GeneralDictionaryVersionedSourceRegression232.lean:22: theorem nonvacuous_source_repair :
+lean/Yulang/GeneralNominalVersionedAcyclic232.lean:13: theorem edge_decreases (valid : GeneralNominalVersionedJournal232.Models state model)
+lean/Yulang/GeneralNominalVersionedAcyclic232.lean:44: theorem acyclic (valid : GeneralNominalVersionedJournal232.Models state model)
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:14: def change (state : State roles) (after : GeneralNominalSaturationState.State roles) : State roles :=
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:17: def enqueue (state : State roles) (focus : Occurrence roles) : State roles :=
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:20: def equate (state : State roles) (first last : Nat) : State roles :=
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:23: def merge (state : State roles) (first last : Site roles) : State roles :=
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:26: theorem enqueue_models (valid : Models (enqueue state focus) model) : Models state model := by
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:44: theorem equate_models (valid : Models (equate state first last) model) : Models state model := by
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:62: def LegacyLive (state : State roles) (first last : Site roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:65: def NewLive (state : State roles) (first last : Site roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:68: theorem merge_models : Models (merge state first last) model ↔
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:87: theorem merge_restrict (valid : Models (merge state first last) model) : Models state model :=
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:90: theorem change_plans : (change state after).plans = state.plans := rfl
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:91: theorem change_effects : (change state after).effects = state.effects := rfl
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:92: theorem merge_plans : (merge state first last).plans = state.plans := rfl
+lean/Yulang/GeneralNominalVersionedAdministrative232.lean:93: theorem merge_effects : (merge state first last).effects = state.effects := rfl
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:13: def Initial (registry : Registry) (root : Occurrence roles) (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:16: def boundary (roles : Roles.RoleDecls) :
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:23: abbrev Local (registry : Registry) (state : State roles) := B4TargetV8.Local (boundary roles) registry state
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:27: theorem v6_local_iff : B4TargetV6.Local (boundary roles).toV7.toV6 registry state root frontier ↔
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:36: theorem v7_local_iff : B4TargetV7.Local (boundary roles).toV7 registry state root frontier ↔
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:41: theorem local_iff : Local registry state root frontier ↔
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:46: theorem local_total (checked : Checked registry) (state : State roles) (root : Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:51: theorem local_functional (one : Local registry state root first) (two : Local registry state root last) : first = last :=
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:54: theorem stepModels (step : (boundary roles).Step registry root before after)
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:58: theorem closure (halted : ∀ after, ¬ (boundary roles).Step registry root state after) :
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:63: theorem initialReorders (order : (boundary roles).Reorders first last)
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:68: theorem dictionaryRefl (dictionary : Dictionary) : (boundary roles).DictionaryEquivalent dictionary dictionary := rfl
+lean/Yulang/GeneralNominalVersionedBoundary232.lean:70: theorem source_initial {legacy : Legacy.State roles} {root : Occurrence roles} (source : GeneralNominalCenteredHeadMatStepBoundary.Initial registry root legacy) :
+lean/Yulang/GeneralNominalVersionedCycles232.lean:6: actual-position graph structure are unchanged. This is not boundary completion.
+lean/Yulang/GeneralNominalVersionedCycles232.lean:16: def Equal (state : State roles) (first last : Origin) : Prop :=
+lean/Yulang/GeneralNominalVersionedCycles232.lean:19: def Head (state : State roles) (origin : Origin) (test : Test) : Prop :=
+lean/Yulang/GeneralNominalVersionedCycles232.lean:22: def Edge (state : State roles) (first last : Origin) : Prop :=
+lean/Yulang/GeneralNominalVersionedCycles232.lean:26: inductive Path (state : State roles) : Origin → Origin → Prop
+lean/Yulang/GeneralNominalVersionedCycles232.lean:30: def Cyclic (state : State roles) (origin : Origin) : Prop :=
+lean/Yulang/GeneralNominalVersionedCycles232.lean:33: def RootCycle (state : State roles) (root : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedCycles232.lean:37: def CandidateCycle (registry : Registry) (state : State roles) (root : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedCycles232.lean:42: def Safe (state : State roles) (plan : Plan roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedCycles232.lean:51: def RawCandidateK2 (registry : Registry) (context : GeneralNominalRecursiveCandidates.Context)
+lean/Yulang/GeneralNominalVersionedCycles232.lean:60: theorem raw_candidate_not_pending (given : RawCandidateK2 registry context root) :
+lean/Yulang/GeneralNominalVersionedCycles232.lean:63: theorem semantic_self_cycle (head : Head state parent test)
+lean/Yulang/GeneralNominalVersionedCycles232.lean:69: theorem full_models_only (models : Models first = Models last) :
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:8: boundary and no operational/termination/EvidenceNode theorem is claimed. -/
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:15: def AdministrativeReady (state : State roles) (root : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:21: def vocabulary (roles : Roles.RoleDecls) : B4Target.Vocabulary where
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:27: def fields (roles : Roles.RoleDecls) : GeneralNominalLocalBoundary.Fields (vocabulary roles) where
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:45: def HeadEquations (plan : Plan roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:52: theorem head_equations (valid : GeneralNominalVersionedPlans231.Holds plan model) : HeadEquations plan model :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:55: def ChosenHead (registry : Registry) (state : State roles) (root : Occurrence roles) (key : Nat) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:60: def ChosenEffects (registry : Registry) (state : State roles) (root : Occurrence roles) (key : Nat) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:66: def OutputConflict (registry : Registry) (state : State roles) (root : Occurrence roles) (key : Nat) : Prop :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:70: def v6 (roles : Roles.RoleDecls) : B4TargetV6.SourceBoundary (vocabulary roles) where
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:80: def v7 (roles : Roles.RoleDecls) : B4TargetV7.SourceBoundary (vocabulary roles) where
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:84: def Feasible (registry : Registry) (state : State roles) (root : Occurrence roles) (key : Nat) : Prop :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:88: def AtKey (registry : Registry) (state : State roles) (root : Occurrence roles) (key : Nat) : Prop :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:92: def SharingConflict (registry : Registry) (state : State roles) (root : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:96: def boundary (roles : Roles.RoleDecls) : B4TargetV8.SourceBoundary (vocabulary roles) where
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:100: abbrev Local (registry : Registry) (state : State roles) := B4TargetV8.Local (boundary roles) registry state
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:102: theorem local_total (checked : Checked registry) (state : State roles) (root : Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedDiagnostic232.lean:107: theorem local_functional (one : Local registry state root first) (two : Local registry state root last) : first = last :=
+lean/Yulang/GeneralNominalVersionedDiagnosticLaws232.lean:8: theorem output_clear
+lean/Yulang/GeneralNominalVersionedDiagnosticLaws232.lean:19: theorem sharing_clear
+lean/Yulang/GeneralNominalVersionedDiagnosticLaws232.lean:32: theorem selected_of_model
+lean/Yulang/GeneralNominalVersionedFrameFunctional232.lean:10: theorem frame_plan_unique {registry : Registry} {state : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrameFunctional232.lean:33: theorem frame_key_unique {registry : Registry} {state : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedFrontiers232.lean:10: noncomputable def frontiers (roles : Roles.RoleDecls) (registry : Registry) (state : State roles) :
+lean/Yulang/GeneralNominalVersionedFrontiers232.lean:16: theorem frontierLocal (checked : (boundary roles).Checked registry) (state : State roles)
+lean/Yulang/GeneralNominalVersionedFrontiers232.lean:25: theorem localIdentity (registry : Registry) (state : State roles) :
+lean/Yulang/GeneralNominalVersionedHeadSharing232.lean:13: theorem schema_holds (plan : Plan roles) (model : Assignment)
+lean/Yulang/GeneralNominalVersionedHeadSharing232.lean:27: theorem packet_holds (plan : Plan roles) (model : Assignment)
+lean/Yulang/GeneralNominalVersionedHeadSharing232.lean:32: theorem packet_with_sharing_iff (plan : Plan roles) (model : Assignment) :
+lean/Yulang/GeneralNominalVersionedHeadSharing232.lean:37: theorem recorded_plan_holds (valid : GeneralNominalVersionedJournal232.Models state model)
+lean/Yulang/GeneralNominalVersionedKernel232.lean:17: abbrev Committed := @GeneralNominalVersionedInstallStep232.Committed
+lean/Yulang/GeneralNominalVersionedKernel232.lean:19: def AlternativesSafe (registry : Registry) (state : State roles) (input : Site roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedKernel232.lean:24: structure Installable (registry : Registry) (state : State roles) (effect : Effect roles) : Prop where
+lean/Yulang/GeneralNominalVersionedKernel232.lean:36: def Equal (state : State roles) (first last : Nat) : Prop :=
+lean/Yulang/GeneralNominalVersionedKernel232.lean:39: inductive Administrative (before : State roles) : Occurrence roles → State roles → Prop
+lean/Yulang/GeneralNominalVersionedKernel232.lean:60: inductive At (registry : Registry) (before : State roles) : Occurrence roles → State roles → Prop
+lean/Yulang/GeneralNominalVersionedKernel232.lean:75: def Step (registry : Registry) (root : Occurrence roles) (before after : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedKernel232.lean:78: def Stable (registry : Registry) (state : State roles) (root : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedKernel232.lean:81: theorem administrative_models (action : Administrative before focus after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedKernel232.lean:91: theorem step_models (step : Step registry root before after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedKernel232.lean:101: theorem closure (halted : ∀ after, ¬ Step registry root state after) :
+lean/Yulang/GeneralNominalVersionedKernel232.lean:106: theorem steps_models (path : B4Target.Steps (Step registry root) before after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:12: abbrev HistoryModels := @GeneralNominalCenteredHeadAllocMergedConflict.HistoryModels
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:13: abbrev ClassEquations := @GeneralNominalCenteredHeadAllocMergedConflict.ClassEquations
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:14: abbrev MergedClass := @GeneralNominalCenteredHeadAllocMergedConflict.MergedClass
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:15: abbrev Registered := @GeneralNominalCenteredHeadAllocMergedConflict.Registered
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:16: abbrev ContextPresent := @GeneralNominalCenteredHeadAllocMergedConflict.ContextPresent
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:19: def HistoryModels (state : State roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:24: def ClassEquations (state : State roles) (focus : Occurrence roles) (model : Assignment) : Prop :=
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:29: def ContextModels (state : State roles) (atoms : List (PresenceNormalForm.Atom Nat))
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:34: def MergedOutputConflict (state : State roles) (focus : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:39: theorem models_history (valid : Models state model) : HistoryModels state model :=
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:43: theorem class_of_models (valid : Models state model)
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:49: theorem history_lift (legacy : Legacy.State roles) (model : Assignment) :
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:53: theorem class_lift (legacy : Legacy.State roles) (focus : Occurrence roles) (model : Assignment) :
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:57: theorem context_lift (legacy : Legacy.State roles) (atoms classes) (model : Assignment) :
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:62: theorem conflict_lift (legacy : Legacy.State roles) (focus : Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:68: theorem conflict_inhabited (bad : MergedOutputConflict state focus) : ∃ model, HistoryModels state model := by
+lean/Yulang/GeneralNominalVersionedMergedConflict232.lean:72: theorem models_exclude_conflict (valid : Models state model)
+lean/Yulang/GeneralNominalVersionedMigration232.lean:15: inductive Step (registry : Registry) (root : Occurrence roles) : State roles → State roles → Prop
+lean/Yulang/GeneralNominalVersionedMigration232.lean:33: theorem step_models (step : Step registry root before after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedMigration232.lean:45: theorem lift_path (path : B4Target.Steps (GeneralDictionaryDefaultKernel208.Step registry root) before after) :
+lean/Yulang/GeneralNominalVersionedMigration232.lean:51: theorem steps_models (path : B4Target.Steps (Step registry root) before after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedMigration232.lean:57: def Reachable (registry : Registry) (context : GeneralNominalCandidates.Context) (root : Occurrence roles)
+lean/Yulang/GeneralNominalVersionedMigration232.lean:61: theorem reachable_step (path : Reachable registry context root before)
+lean/Yulang/GeneralNominalVersionedMigration232.lean:64: theorem source_models (path : Reachable registry context root state) (valid : Models state model) :
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:10: def Recorded (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:13: theorem lift (legacy : Legacy.State roles) : Recorded (GeneralNominalVersionedJournal232.lift legacy) := by
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:17: theorem initial (context : GeneralNominalCandidates.Context) (root : GeneralSourceDictionaries.Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:20: theorem install (given : Recorded state) : Recorded (GeneralNominalVersionedInstall232.install state effect) := by
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:26: theorem change (given : Recorded state) : Recorded (GeneralNominalVersionedAdministrative232.change state after) := given
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:28: theorem enqueue (given : Recorded state) : Recorded (GeneralNominalVersionedAdministrative232.enqueue state focus) := given
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:30: theorem equate (given : Recorded state) : Recorded (GeneralNominalVersionedAdministrative232.equate state first last) := given
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:32: theorem merge (given : Recorded state) : Recorded (GeneralNominalVersionedAdministrative232.merge state first last) := given
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:34: theorem refresh (given : Recorded state) : Recorded (GeneralNominalVersionedRefresh232.refresh state context) := given
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:36: theorem reobserve (given : Recorded state) : Recorded (GeneralNominalVersionedRefresh232.reobserve state revision) := given
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:38: theorem administrative (action : Administrative before focus after) (given : Recorded before) : Recorded after := by
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:41: theorem step (action : Step registry root before after) (given : Recorded before) : Recorded after := by
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:49: theorem steps (path : B4Target.Steps (Step registry root) before after) (given : Recorded before) : Recorded after := by
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:54: theorem reachable (path : B4TargetV8.Reachable (GeneralNominalVersionedBoundary232.boundary roles) registry root state) :
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:60: theorem effect_full_holds (recorded : Recorded state) (valid : Models state model)
+lean/Yulang/GeneralNominalVersionedRecorded232.lean:64: theorem reachable_effect_full_holds
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:19: def refresh (state : State roles) (context : GeneralNominalCandidates.Context) : State roles :=
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:22: def reobserve (state : State roles)
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:26: theorem requests_iff_of_same_lists {before after : GeneralNominalCenteredSteps.State roles}
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:35: theorem refresh_requests (state : State roles) (context : GeneralNominalCandidates.Context) :
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:39: theorem reobserve_requests (state : State roles)
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:44: theorem refresh_live_iff (state : State roles) (context : GeneralNominalCandidates.Context)
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:49: theorem reobserve_live_iff (state : State roles)
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:55: theorem refresh_models (certificate : GeneralNominalCenteredHeadMatStepRefresh.Refresh state.legacy context)
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:65: theorem reobserve_models {state : State roles}
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:77: theorem refresh_plans : (refresh state context).plans = state.plans := rfl
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:78: theorem refresh_effects : (refresh state context).effects = state.effects := rfl
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:79: theorem reobserve_plans : (reobserve state revision).plans = state.plans := rfl
+lean/Yulang/GeneralNominalVersionedRefresh232.lean:80: theorem reobserve_effects : (reobserve state revision).effects = state.effects := rfl
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:13: def boundary (roles : Roles.RoleDecls) :
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:25: abbrev Local (value : Registry) (state : State roles) := B4TargetV8.Local (boundary roles) value state
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:27: theorem checked_compiled (checked : (boundary roles).Checked value) :
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:31: theorem initial_compiled (initial : (boundary roles).Initial value root state) :
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:36: theorem reachable_compiled (reachable : B4TargetV8.Reachable (boundary roles) value root state) :
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:41: theorem v6_local_iff : B4TargetV6.Local (boundary roles).toV7.toV6 value state root frontier ↔
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:50: theorem v7_local_iff : B4TargetV7.Local (boundary roles).toV7 value state root frontier ↔
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:56: theorem local_iff {state : State roles} : Local value state root frontier ↔
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:62: theorem local_total (checked : (boundary roles).Checked value) (state : State roles) (root : Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:67: theorem local_functional (one : Local value state root first) (two : Local value state root last) : first = last :=
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:70: theorem evidenceAt_iff :
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:79: theorem stepModels (step : (boundary roles).Step value root before after)
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:83: theorem closure (halted : ∀ after, ¬ (boundary roles).Step value root state after) :
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:88: theorem initialReorders (order : (boundary roles).Reorders first last)
+lean/Yulang/GeneralNominalVersionedSourceBoundary232.lean:92: theorem dictionaryRefl (dictionary : Dictionary) : (boundary roles).DictionaryEquivalent dictionary dictionary := rfl
+lean/Yulang/GeneralNominalVersionedSourceFrontiers232.lean:9: noncomputable def frontiers (roles : Roles.RoleDecls) (value : Registry) (state : State roles) :
+lean/Yulang/GeneralNominalVersionedSourceFrontiers232.lean:15: theorem frontierLocal (checked : (boundary roles).Checked value) (state : State roles)
+lean/Yulang/GeneralNominalVersionedSourceFrontiers232.lean:24: theorem localIdentity (value : Registry) (state : State roles) :
+lean/Yulang/GeneralNominalVersionedCache232.lean:14: theorem install_growth (context : plan.packet.context = legacy.core.erased.current.context) :
+lean/Yulang/GeneralNominalVersionedCache232.lean:22: theorem recorded_replay (plan : GeneralNominalCenters.Plan roles)
+lean/Yulang/GeneralNominalVersionedCache232.lean:30: theorem install_cache (context : plan.packet.context = legacy.core.erased.current.context)
+lean/Yulang/GeneralNominalVersionedCache232.lean:37: theorem installed_cache (snapshot : effect.snapshot = state.core)
+lean/Yulang/GeneralNominalVersionedKernelCache232.lean:15: def Valid (state : State roles) : Prop := CacheSound state.legacy state.core.erased.current.context.state
+lean/Yulang/GeneralNominalVersionedKernelCache232.lean:17: theorem administrative_growth (action : Administrative before focus after) : Growth before.legacy after.legacy := by
+lean/Yulang/GeneralNominalVersionedKernelCache232.lean:32: theorem at_growth (action : At registry before focus after) : Growth before.legacy after.legacy := by
+lean/Yulang/GeneralNominalVersionedKernelCache232.lean:44: theorem administrative_cache (action : Administrative before focus after) (valid : Valid before) : Valid after := by
+lean/Yulang/GeneralNominalVersionedKernelCache232.lean:52: theorem at_cache (action : At registry before focus after) (valid : Valid before) : Valid after := by
+lean/Yulang/GeneralNominalVersionedKernelCache232.lean:65: theorem step_cache (action : Step registry root before after) (valid : Valid before) : Valid after :=
+lean/Yulang/GeneralNominalVersionedKernelCache232.lean:68: theorem steps_cache (path : B4Target.Steps (Step registry root) before after) (valid : Valid before) : Valid after := by
+lean/Yulang/GeneralNominalVersionedKernelCache232.lean:73: theorem reachable_cache
+lean/Yulang/GeneralNominalVersionedSourceInvariants232.lean:9: theorem recorded (path : B4TargetV8.Reachable (boundary roles) value root state) :
+lean/Yulang/GeneralNominalVersionedSourceInvariants232.lean:13: theorem effect_full_holds (path : B4TargetV8.Reachable (boundary roles) value root state)
+lean/Yulang/GeneralNominalVersionedSourceInvariants232.lean:18: theorem cache (path : B4TargetV8.Reachable (boundary roles) value root state) :
