@@ -1,11 +1,11 @@
 # dots-main heartbeat
 
-- cycle: 240
-- status: completed-stopped-awaiting-decision
-- started: 2026-11-17T12:32:58Z
-- updated: 2026-11-17T12:57:53Z
-- elapsed_min: 24.9
-- activity: I45 successor verified but closed five-slot actual nontermination found. All64 direct trust0 builds PASS; 885-constant audit PASS; final6 independently audited. Research stopped12:53:54; publication0fa032527 and full-tree comparison PASS.
-- workspace: /tmp/yulang-admin-1730/repo
-- last_local_commit: abe654978
-- resume_hint: Read cycle240 question and await explicit supervisor decision. Do not resume false Acc target or implement semantic repair without decision. Previous12:53 heartbeat timestamp was recorded a few minutes ahead; this timestamp is clock-verified.
+- cycle: 242
+- status: running
+- started: 2026-11-17T14:30:13Z
+- updated: 2026-11-17T14:31:00Z
+- elapsed_min: 1
+- activity: I47 continued; latest integration a254e23e merged, no STOP or competing process. Execution transport disconnected immediately after start; reconnecting.
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang241-recovery
+- last_local_commit: 39eaf1583
+- resume_hint: Preserve persistent workspace and public cycle241. No new proof yet; restore execution then read cycle242 design. No global build, frozen files unchanged.

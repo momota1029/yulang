@@ -1,0 +1,17 @@
+'Yulang.GeneralNominalRebaseChildProduction241.production' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRebaseChildProduction241.birth_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalRebaseChildProduction241.empty_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalRebaseChildProduction241.child_successor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseChildProduction241.child_ancestry' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.CentersAgree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.counted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.live_inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.Bounded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.bounded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.BackExtension' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.all_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.back_extension_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalRebaseLiveLabels241.back_extension_trans' depends on axioms: [propext, Quot.sound]
