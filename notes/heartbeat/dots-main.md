@@ -1,9 +1,10 @@
 cycle: 231
-status: running
+status: completed
 started: 2026-11-17T03:33:16Z
-updated: 2026-11-17T04:12:41Z
-elapsed_min: 39
-activity: I44 versioned allocation and total packet; reconstructed current-frame all-model evidence and arbitrary-old-model source-preserving extension proved. All 28 modules/468 constants independently audited with trust=0; focused extension build PASS. No operational boundary/12laws claim.
-last_local_commit: 8cfcd857f
+updated: 2026-11-17T04:19:40Z
+elapsed_min: 46
+report: notes/handoff/dots-cycle-231.md
+activity: I44 versioned allocation and total packet; all28 modules468constants trust=0 audited and re-audited; source-preserving extension of EVERY old230 full model and all-model new current-frame evidence. Published code6a4723b1 and verified remote content. No operational boundary/12laws/termination claim.
+last_local_commit: ccebf86a6
 workspace: /tmp/yulang-admin-1730/repo
-resume_hint: Preserve 9 pending Lean modules and Audit/Cycle231Final.lean; inspect /tmp/yulang231-final-audit.log and extension.log. Finish final report, focused validation, publish remaining files on work/dots-main. Next work is genuine successor journal transition and finite reachable version pool, not old false EvidenceNode.
+resume_hint: Read latest integration standing-orders/inbox first. Preserve cycle230 refutation. Continue genuine successor journal transition recording versioned plans/effects and child sites, prove arbitrary reachable-step preservation and finite endpoint/version pool, then nonvacuous230 EvidenceAt/12laws/general EvidenceNode. See cycle231 successor-journal-gap design note; do not treat reconstructed data state as a proved old Step.
