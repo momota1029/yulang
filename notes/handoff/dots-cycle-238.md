@@ -170,3 +170,13 @@ current=replayPlan(familyplan n)も仮定すると、FamilyRefreshと合わせ�
 新しいsorry/axiom/native_decideなし。semantic/operation/spec/plan/lake変更なし。
 公開済み237の最終追記も保全。最新integration d8623f96、inbox I44から変更なし。
 ディスク約2.2GiB使用、2.7GiB空き（45%）。使用量枠不明。
+
+## 公開・照合完了
+
+研究/個別検証の区切り2026-11-17T11:15:47Z（開始44.3分）。
+最終proof公開 `c815750cf5260755978cc93eefe893acbb082273`、tree
+`8d357b630fc698597a4a8f09f8ea626f5a8f6ae6`、local `9f0f730f5`。
+2026-11-17T11:16:46Z（45.3分）、明示SHA fetch後の全tree照合exit0、remote ref同SHA。
+combined statuses空配列のためCI成功は未確認。全体gateは監督へ委ねる。
+前cycle最終から84ファイルに差分（新61proof、7audit、ログ・報告・設計等）。
+completed心拍とこの照合記録を最終docs commitとして保存し、同様に全tree照合する。
