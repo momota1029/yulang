@@ -34,3 +34,15 @@ limited same-head/different-head interval observations; no oracle establishes th
 versioned allocation or trusted journal semantics. Those are internal proof
 representations justified by I44 and the current specification, not newly
 claimed Yulang2 runtime behavior. No fresh Yulang2 execution in this cycle.
+
+## Verified results at minute30
+
+The stronger cache is now used consistently in MixedKernel234. Original-source
+four-step 230/I44 regression closes through real full mixed Stable, selected,
+nonempty Models and current EvidenceAt after learning all three W aggregates.
+The default206 example requires install→equate→refresh: both earlier stopping
+points have real successors. The final mixed endpoint closes through the same
+nonvacuous Stable/selected/EvidenceAt obligations. The 199/202/204 source
+regressions also transfer after proving the explicit StableTransfer premises.
+The general six missing operational bridges remain missing. A further 218
+source-initial sharing-conflict path is under evaluation; no claim is made yet.

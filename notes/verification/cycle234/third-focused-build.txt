@@ -1,0 +1,3 @@
+Direct new-module compilation: lake env lean --trust=0 -DwarningAsError=true Yulang/<module>.lean -o .lake/build/lib/lean/Yulang/<module>.olean
+All 8 modules PASS. Independent complete-module audit:
+CYCLE234-THIRD-PASS: 76 constants in 8 modules
