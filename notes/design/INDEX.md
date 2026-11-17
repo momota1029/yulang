@@ -701,3 +701,11 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Support, duplicate targets and source freshness](2026-11-17-cycle247-ordered-support-adapter.md)
 - [Explicit ordered query transport](2026-11-17-cycle247-observed-queries.md)
 - [Final boundary review and next actual-origin adapter](2026-11-17-cycle247-final-boundary-review.md)
+
+## Cycle248: actual ordered source adapters
+- [Actual merge preparation](2026-11-17-cycle248-actual-merge.md)
+- [Actual raw and live state](2026-11-17-cycle248-actual-raw-view.md)
+- [Actual origin and packet transport](2026-11-17-cycle248-ordered-origin.md)
+- [Single-witness raw/live/packet bundle](2026-11-17-cycle248-common-bundle.md)
+- [Refresh target-domain limit](2026-11-17-cycle248-refresh-domain-limit.md)
+- [Full-source pool refresh limit](2026-11-17-cycle248-refresh-pool-limit.md)

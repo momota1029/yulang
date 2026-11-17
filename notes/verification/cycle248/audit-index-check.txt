@@ -1,0 +1,23 @@
+NAME Yulang.GeneralNominalOrderedSupport248.row_sources IDX some (3368) MOD some (Yulang.GeneralNominalOrderedSupport248)
+NAME Yulang.GeneralNominalOrderedMerge248.prepared IDX some (3373) MOD some (Yulang.GeneralNominalOrderedMerge248)
+NAME Yulang.GeneralNominalOrderedBundle248.public_models_iff IDX some (3366) MOD some (Yulang.GeneralNominalOrderedBundle248)
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_2
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_9
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.rowSources.match_1.eq_3
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.splitter
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_5
+SUPPORT Yulang.GeneralNominalOrderedSupport248.typed_reads_subset
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_7
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_4
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.rowSources.match_1.eq_2
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.splitter._sparseCasesOn_10
+SUPPORT Yulang.GeneralNominalOrderedSupport248.type_sources
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_6
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.rowSources.match_1.eq_1
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_8
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_10
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_1
+SUPPORT Yulang.GeneralNominalOrderedSupport248.row_sources
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.typeSources.match_1.eq_3
+SUPPORT _private.lean.Yulang.GeneralNominalOrderedSupport248.0.Yulang.GeneralNominalState.rowSources.match_1.splitter
+SUPPORT Yulang.GeneralNominalOrderedSupport248.safe_actual_pool

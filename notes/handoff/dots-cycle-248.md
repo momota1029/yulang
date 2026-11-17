@@ -1,0 +1,42 @@
+# cycle248: actual source adapters for ordered rebase
+
+## 状態と時間
+
+開始2026-11-17T21:31:22Z。最終13新規モジュールのstrict buildと88明示宣言の公理依存監査はPASS。11モジュールまで途中公開0a9dda18dffa9a00e6ed32dcb1671dbdc252bd94、取得した全treeがローカルと一致。最終公開と照合はpublication-receipt.mdを参照。
+
+22:08頃の最終検証後、次に実行を再開できたのが22:30であり、指定22:26期限と心拍間隔を超過した。最終監査は成功していたが、それを期限内の公開完了とは扱わない。21:31開始から最終完了までの時刻はheartbeatに残す。利用量枠は不明。
+
+開始integration a1c54ee3887603466d82b10515d887c78dbb017d、最終再読1a070e8ed600d97da5a1cd0cfe20376e94de51dd。変更は既存cycle246取込みで、standing orders/inboxは同一。I47継続、STOPなし。cycle247ローカル未追跡成果をremoteとbytes照合し、公開済みと確認して重複公開を防いだ。異なる復旧草稿はquarantineに保全し検証成果に数えていない。
+
+## 証明した範囲
+
+全宣言の名前はverification/cycle248/final-declarations.txt、型と前提は各新Leanソース。以下の短縮名はGeneralNominalOrderedを前置、248を後置する。
+
+- Support: row_sources/type_sources/typed_reads_subsetでactual Stateのsupportと244/247補助表現を同定。safe_actual_poolは任意entriesのdistinct target、全RHS support coverage、poolとtarget分離を前提にSafeOrderを供給。
+- Merge: 任意seed/root/decl/bindings/names/poolのactual Definitions241.entriesにcoherent/typed_supported/prepared/original_extensionを適用。EndpointsとDefinitions241.Freshの明示前提の下で実行版prepare成功と元equationsのモデルを構成し、全pool値・全rowを保存。merges_of_entries/actual_merge_extensionでactual Allocation.mergesへ接続。inputNamesの重複はcoherent dedupで扱い、拒否しない。
+- Initial: declared inputのinput_keyとprotected_of_new_keys。first_propagation_modelは旧stable Allocation.Freshに加え、全inputのlo/hi keyが未allocated、Endpointsが旧sourcesに含まれること、旧State.Models、cross Compatibleを要求する。そのときactual propagateのモデル拡張が存在し、旧sourcesの全値と全rowを保存する。Freshだけからの無条件定理でもversioned231/reused-owner refresh定理でもない。
+- MergeExample: seed10、input名7の重複、実union/inter entriesについてprotected_pool/endpoints/actual_entries/repeated_input_prepares/every_boundary_extends。任意boundary assignmentから拡張を構成。source到達可能性の主張ではない。
+- Raw: read_mapping/raw_exactでactual compiled raw-state Modelsをsolveへ同定。raw_forward/raw_public_models_iffは旧SafeOrder、fresh target包含、必要なfresh SafeOrderとpublic分離の下で、任意raw state/ordinary consumersの同一public境界ごとの存在モデル同値を示す。
+- Live: site_compatible/site_forward/sites_forwardでactual Site boundsを保存。outputs_forwardは任意の実outputごとに同じlabelのcompiled outputと型Equivalentを供給。role_identityはidentity/role不変。Site.Holdsだけではoutputの値を表していないため、output定理を別途示した。
+- Origin: compile/subst exact、Compatibleからのobserves/nominal/structural/head/same transportとiff、実Testのstability、rebase前後の観測。一般source観測のwitnessはEquivalentに移り、nominal/structuralだけliteral witnessを保持。外部Stable仮定を追加していない。
+- Packet: actual projection/packetのexact、既存blockモデルからrecovered、旧SafeOrder/target包含の下でrebase、全supplied plansの同一assignmentでのpackets_rebase。238 actual congruenceと243 compiler exactnessを使い、必要なstabilityを結論の言換えとして仮定していない。
+- PacketModels: models_forward/backward/public_models_iffでactual plans、任意consumer atoms、old/fresh block、public boundaryを一つのwitnessで結合する。
+- Bundle: sites_exactとpublic_models_iffでactual raw State.Models、actual live Sites、actual Plans、consumers、block、public boundaryを一つのwitnessで同時に保存。forwardはsolve fresh、backwardはsolve old。別々の存在witnessへ弱めていない。列挙されたlistが全current/history/cacheを尽くすことは未証明。
+- ViewSyntax: comp/parameter/descriptor/atom/view_absorbs。旧SafeOrderとfresh target包含の下で、actual243 Viewを旧mappingで書換えた後のfresh mapping再適用は文字どおり同一。この固定Viewの定理は、新しい観測やlive body追加を含む全体Accではない。
+
+## 実refresh接続に残る二つの正確な制限
+
+- RefreshDomainLimit: actual bindingsが同一名について単発→2件になる具体例ではstable_slotsが等しいのにold entries=[]、fresh entries=lo/hiの2件となりtargets_not_within。old_prepares/fresh_preparesの双方は成功。順序判定の失敗ではなくtarget-domain前提が満たされない例。
+- RefreshPoolLimit: 任意registryのdeclared input名・purpose0/1について、actual propagate後のsourcesには予約lo/hi slotが含まれる（slot_in_propagated_sources）。fresh occurrence数≠1なら全sourcesをpoolにしたDefinitions241.Freshは偽（not_full_pool_fresh）。これは再訪を許すAllocation.Freshの否定ではない。
+
+どちらも十分条件の適用限界であり、言語拒否、新しい意味反例、source到達性証明ではない。target-domainやprotected-poolの条件不成立をsource拒否に変更していない。promoted raw targetをpublicから勝手に隠してもいない。actual raw fieldの式へのcompileとrawNat座標そのものの公開固定は区別する。
+
+## 検証と制限
+
+Lean4.35.0、全13新規モジュールを個別90秒上限の --trust=0 -DwarningAsError=true で再検証。Cycle248Finalはソース宣言88個を明示列挙しcollectAxiomsでpropext/Classical.choice/Quot.soundだけを許す。監査PASS全文はfinal-audit.txt。途中監査の生成helper定数件数はimport順で変わるため、最終結果は明示宣言数で記録する。AuditIndexCheckで主要宣言のmodule対応も確認。
+
+依存は既存131件のclean cacheを再利用し、actual State/Origin/Packetの必要閉包を120秒の分割・90秒/moduleで準備。総1017ソースのhash一致を確認。chunk02は並行builder lockで安全停止、再実行は単一writer。FullJournal1379/SourceCongruence1400閉包は測定だけで実行していない。全体lake buildとverify-lean.shは未実行、Yulang2実機回帰も未実行。旧Lean・凍結Audit/README・spec・planは変更せずbarrel追記のみ。
+
+I47の実metadataモデル保存の補助部分は前進したが、後継State/Step・全metadata列挙・owner相対privacy・actual refreshのordering/domain producer・Acc・unconditional EvidenceNodeは未完成。I45の一点descriptor条件は変更していない。199/202/204/206/218/230/239/240の後継境界回帰はまだ未検証。新しい意味判断の質問noteはなし。
+
+次: (1) singleton→manyのtarget増加と既reserved slotを扱うowner相対表現を設計し公開境界を保存、(2) actual current/history/cache全列挙と更新をBundleへ接続、(3) 固定Viewの吸収に新規仕事の有限性を加えてAccを示してから回帰とEvidenceNodeへ。
