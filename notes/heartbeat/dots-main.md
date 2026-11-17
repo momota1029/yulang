@@ -1,11 +1,11 @@
 # dots-main heartbeat
 
-- cycle: 240
-- status: completed-stopped-awaiting-decision
-- started: 2026-11-17T12:32:58Z
-- updated: 2026-11-17T12:57:53Z
-- elapsed_min: 24.9
-- activity: I45 successor verified but closed five-slot actual nontermination found. All64 direct trust0 builds PASS; 885-constant audit PASS; final6 independently audited. Research stopped12:53:54; publication0fa032527 and full-tree comparison PASS.
+- cycle: 241
+- status: running-design-first
+- started: 2026-11-17T13:30:30Z
+- updated: 2026-11-17T13:30:30Z
+- elapsed_min: 0
+- activity: I47 permits design-first comparison of plan-private rebase and semantic keys after240 obstruction. Reading exact ownership/projection and finite-measure obligations before any Lean implementation.
 - workspace: /tmp/yulang-admin-1730/repo
-- last_local_commit: abe654978
-- resume_hint: Read cycle240 question and await explicit supervisor decision. Do not resume false Acc target or implement semantic repair without decision. Previous12:53 heartbeat timestamp was recorded a few minutes ahead; this timestamp is clock-verified.
+- last_local_commit: integration1c675172-merge
+- resume_hint: Research cutoff14:15:30; finish14:25:30. Design before Lean. Keep language semantics fixed, preserve frozen files, apply I46 added-line lexical check.
