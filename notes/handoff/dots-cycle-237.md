@@ -32,3 +32,27 @@ Yulang2 audit X13–16とrole003/004を開始時再読。旧実機の局所結�
 新たな対象反例は未確定。raw予約名の過剰支持とdescriptor付替えによる版増加は調査中の懸念で、
 反例証明でも意味変更の根拠でもない。一般EvidenceNode/Choice/全install停止性は未完。
 使用量枠不明。次のcheckpointで成果と限界を更新する。
+
+## 第二 checkpoint
+
+34モジュール、2監査174＋164＝338 constants PASS（定理数ではない）。
+最初の19は1fd295eeに公開し、明示SHA fetch後に全tree一致確認。
+追加成果:
+- 有限semantic supportが全registered centered siteの名前も含むことを実traceで証明。
+  小さいsupport版のselective代入もactual head/binderを保全し、全capture Fitsへ接続。
+- 全stored packetのseed一致を実Stepで証明。target IDだけの履歴検索からProtectedCoveredへ進める。
+  全historical aggregate entryは同IDなら同RHSでcoherent、RHSはtargetより小さい。
+  WellFounded.fixで、任意外部assignment/全rowを保ちながら全historical merge等式だけを満たす
+  一つのassignmentを構成。これは全journal Modelsの構成ではない。
+- mode依存の実expression評価で正規化を保全し、shadowed fieldに余分なFitsを要求しない。
+  checked.scopeにあるnormalized変数だけからchild lower≤actual≤upperを導出。
+  実sourceReachable/currentFrame/fullModelsの下でfullHoldsを
+  HeadModels・actualheadSchema・Outputs・全child actualschemaへ同値化。
+  inputHolds/captureFits/childSiteFitsを別前提にはしていない。
+- 実sourceのpoint/ground/Coverage条件から、全traceの登録center IDの固定有限coverを構成。
+  最終状態のModels非空は不要。版非依存purposeの有限予約poolも導出。
+  ただしaggregate版数有限はまだ証明していない。
+- 初期設計の過剰raw支持を除いたModelSupport系列は独立査読で論理的漏れ未検出。
+
+最新integration b8008c41を09:56再読、I44/停止条件に変更なし。
+このintegrationは236の途中checkpointまでなので、236最終成果と237追加を失わず統合する。

@@ -20,3 +20,14 @@ lets aggregate assignments avoid observation-only ghost names.
 This alone does not prove target-slot provenance or selected fullHolds. Those
 remaining conditions must stay explicit. No assumed model nonemptiness or
 installation bound is hidden in the support transport theorem.
+
+## Joint historical aggregate equations
+
+The actual trace has one seed for every stored packet. Therefore equal numeric
+aggregate IDs in different recorded packets imply syntactically equal RHS terms.
+Combine this with the already proved strict numeric dependency order to construct
+one assignment satisfying *all historical merge equations*, by well-founded
+recursive evaluation. Preserve arbitrary external values and all rows. This is
+only the pure aggregate equation subsystem: full journal/head/output constraints
+must not be inferred from its satisfiability. It is a producer for later common
+model reasoning, not an additional assumption of its desired conclusion.
