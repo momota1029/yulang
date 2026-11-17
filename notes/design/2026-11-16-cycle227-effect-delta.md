@@ -77,3 +77,29 @@ Protected Overlap and EvidenceNode remain open. A purely raw bottom-to-int
 reinspection obstruction is rejected by the existing Prepared guard. A more
 subtle journal-only output refinement was considered but no reachable
 counterexample was established. Do not treat this discussion as a refutation.
+
+## First packet and necessary capture support
+
+EffectProvenance227 eliminates historical/new class reads and output-equality
+atoms as first introductions of p0/p1 names: they already belong to registered
+input centers. Every first protected p0/p1 name on the actual trace therefore
+occurs in an installation packet. V8Footprint227 transfers the result to actual
+B4TargetV8.Reachable; its finite pool is selected before assignments/names.
+This is not yet local ownership or ProtectedOverlap.
+
+PointCaptureSupport227 uses the proved total-journal dependency, not an assumed
+freshness condition. An absent nonzero capture endpoint may be assigned any
+carrier value while preserving the journal and observations from current input
+centers. Hence an absent lower endpoint forces semantic top and an absent upper
+endpoint forces semantic bottom. A point capture must already be protected.
+BinderProvenance227 connects actual single-occurrence allocation to this result:
+non-eight input binders (especially p0/p1) already occur in the old pool.
+HeadFootprint227 proves the same for the actual-mode head schema support used
+by ReachableRest227. These local necessity results explicitly assume a current
+journal model and head-schema witness; they are not unconditional satisfiability
+claims. Default206's real installation still retains int and rejects bottom.
+
+Next refinement: use enabled packet witnesses to eliminate head-schema sources
+from first introductions. Merge constraints, emitted schema and child schema
+sources still require ownership/replay arguments. No EvidenceNode field is
+asserted complete by these finite-support reductions.
