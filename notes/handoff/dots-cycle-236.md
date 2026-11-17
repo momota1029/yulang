@@ -38,3 +38,15 @@ Where/Resolverとadministrative証明を独立レビュー済み。
 一般EvidenceNode/GeneratedChildren、全Stepのprogress/execution/halted/treeExecution/
 canonicalLocalOrderは未完。whereAccessibleは今回閉じた。
 追加研究を継続し、開始55分以内に最終公開・照合する。使用量枠は不明。
+
+## 第二 checkpoint（09:12 UTC）
+
+計32新モジュールへ拡張。full journalの有限意味支持、予約名を除いたraw支持、
+protected pool内を保全する選択的aggregate代入、実履歴の同slot同式からの再利用を追加。
+`MixedLedgerCompletion236.simultaneous` は構文的 `ProtectedCovered` と同一旧modelの
+cross/self/projection/current ClassEffectsを前提に、明示的に構成した一つのmodelで
+全履歴Models・候補HeadModels・current ClassEffectsを同時に満たす。
+任意sourceReachable/selectedからcoverageを得たとは主張しない。全candidate fullHoldsは未完。
+actual binder・変数・式の保存はFresh不要。任意selectedでmodel非空とも主張しない。
+32モジュールの全宣言は verification/cycle236/declarations.md、各量化子と前提はLean本体。
+独立レビューで支持漏れ・循環は未検出。最新integration 9222fe53を再読、I44変更なし。

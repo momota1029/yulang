@@ -4079,3 +4079,37 @@ import Yulang.GeneralNominalVersionedMixedResolver236
 import Yulang.GeneralNominalVersionedMixedWhere236
 import Yulang.GeneralNominalVersionedPrivateCompletion236
 import Yulang.GeneralNominalVersionedSemanticCompletion236
+
+import Yulang.GeneralNominalSelectiveEquationRealization236
+
+import Yulang.GeneralNominalVersionedAggregateActual236
+
+import Yulang.GeneralNominalVersionedAggregateEntries236
+
+import Yulang.GeneralNominalVersionedAggregateLedger236
+
+import Yulang.GeneralNominalVersionedAggregateReuse236
+
+import Yulang.GeneralNominalVersionedDependency236
+
+import Yulang.GeneralNominalVersionedExpressionFrame236
+
+import Yulang.GeneralNominalVersionedHeadFrame236
+
+import Yulang.GeneralNominalVersionedInitialCompletion236
+
+import Yulang.GeneralNominalVersionedJournalFrame236
+
+import Yulang.GeneralNominalVersionedMixedFreshCompletion236
+
+import Yulang.GeneralNominalVersionedMixedLedgerCompletion236
+
+import Yulang.GeneralNominalVersionedMixedSelectedWitness236
+
+import Yulang.GeneralNominalVersionedMixedSelectiveCompletion236
+
+import Yulang.GeneralNominalVersionedPacketFrame236
+
+import Yulang.GeneralNominalVersionedSelectiveActual236
+
+import Yulang.GeneralNominalVersionedSelectiveAggregate236
