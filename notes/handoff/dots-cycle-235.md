@@ -39,3 +39,20 @@ journal, shared-center rejection, or this proof kernel. No new live Yulang2 run
 or oracle equivalence claim. I41–I44/spec remain authority; semantics unchanged.
 
 Still running. Final report will state remaining obligations and complete counts.
+
+## Second verified checkpoint
+
+Additional18 modules /219 audited constants PASS. Whole cycle38 modules/402
+constants at this checkpoint. The actual218 path now has parentinstall, certified
+reobserve, then a second fully guarded parentinstall; the concrete model survives.
+Full Stable glue is not included yet. Generic equality-only saturation constructs
+a finite legal equate trace for every mixed state, preserving all models, sources
+and all structure except ordinary constraints, ending in EqualityClosed.
+
+The general current-effect common-model characterization is now stronger than
+the first checkpoint: all futureLive conditions disappear for every output-bearing
+child plan on source-reachable traces, not only output-free-child plans. Canonical
+child identity determines output targets; any emitted child in an existing alias
+class has the class's already-recorded requests. Nonempty current full packet plus
+current class equations is still an explicit SAME model requirement. No independent
+existential witnesses are combined. ChoiceCompatible remains an independent gap.
