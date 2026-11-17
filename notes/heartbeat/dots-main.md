@@ -1,9 +1,10 @@
 # dots-main heartbeat
-- cycle: 249
-- status: completed
-- started: 2026-11-17T22:34:00Z
-- updated: 2026-11-17T23:21:56Z
-- elapsed_min: 47.9
-- activity: All38 new modules strict PASS,310 explicit declarations audited; code68f75189 and full audit/reportee1ee70f fetched and fulltree matched. Published128 files; no verified Lean pending.
-- report: notes/handoff/dots-cycle-249.md
-- resume_hint: No active writer. Next read latest integration/orders/inbox. Actual history preparation/source-frame initialization and finite fixed-domain rebase proven; source fresh producer/Step/Acc/EvidenceNode remain. Preserve128-file verified snapshot; old quarantine drafts excluded.
+- cycle: 250
+- status: running
+- started: 2026-11-17T23:34:17Z
+- updated: 2026-11-17T23:37:00Z
+- elapsed_min: 2.7
+- activity: I47 successor owner-frame fresh-block producer and changing metadata; reviewing actual allocation dependencies. Integration/inbox unchanged,249 remote verified; no concurrent writer. Research ends00:19, final deadline00:29UTC.
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
+- last_local_commit: 0e8daef81
+- resume_hint: Prior249 fully published. New250 research not yet implemented; inspect250 design and logs before resuming. Focused builds only, preserve frozen modules.
