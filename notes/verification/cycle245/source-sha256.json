@@ -1,0 +1,20 @@
+{
+  "lean/Yulang/GeneralPresenceReadback245.lean": "26cb2c7a3b0b59c25aa2c21dc78e7d1189100b0ecc0783f6863f3b7cb18e3af1",
+  "lean/Yulang/GeneralPresenceAbsorb245.lean": "2c8c8693506d21b2e522d03c9b9ab53ab932f770ad3a89f58cb6ca422e3406e5",
+  "lean/Yulang/GeneralPresenceUsedSupport245.lean": "c3d8400ca3dcf8b1f2795a502c58c051086293fc06a99cd2645753fc269b1b4c",
+  "lean/Yulang/GeneralPresenceUsedTable245.lean": "9b4ffe2aab9577cf8c193106023c2a90c93a2a37ffa80496eed36bbcd19b8218",
+  "lean/Yulang/GeneralPresenceRankedTable245.lean": "8414b683018fee27d24144cfce77b56dffc6c26a47d95c2c0561151acecac1fc",
+  "lean/Yulang/GeneralPresenceCheckClosureLimit245.lean": "6112ec6c4685934823657bb0310d641aacd5fde1ad370f389238bc0a8a9c4c70",
+  "lean/Yulang/GeneralPresenceModelCongruence245.lean": "7d267dcf93f93a9c3a4622620f5838274f9948bcedcfd740bdc52a7a00f7d8a2",
+  "lean/Yulang/GeneralPresenceCommonLaws245.lean": "ef009d419fe28cb7567f45419f710cff55ff32d19f55df3101b3b3e4fb407340",
+  "lean/Yulang/GeneralPresenceModelExtension245.lean": "6fcf5aa74b789b5c0e41357ab0e4b359dc1dad76a91f3d4de453d112288d4b5d",
+  "lean/Yulang/GeneralPresencePreorderExtension245.lean": "3ed3f7879e2db7cfb53bc84a1673ccddb4672438329c6b5fee193ac84f81488f",
+  "lean/Yulang/GeneralPresenceRebasePlan245.lean": "4bd77721fbe6ff214718a732b4a06222fe5ea2060363431c8b307020d698eaab",
+  "lean/Yulang/GeneralPresenceQueryTransport245.lean": "27952fd2773fd5b77f1a7b7d536bc3703fff0bca418a7632f197ed0d31d498b7",
+  "lean/Yulang/GeneralPresenceObservedPlan245.lean": "c4e5dab407c9d13b0e1f2ecec331ed94171691f6bbda67936ed9b07fd1249ac5",
+  "lean/Yulang/GeneralPresenceCommonObserved245.lean": "6dccadf6700c9ac66c0ed344b97d6ec99c669066e4209ba357bdef8cefb05fd4",
+  "lean/Yulang/GeneralPresenceGuardedBlockLimit245.lean": "186be94ecbf89efa657eaefbf2c61080ebb866e9979def04ea1ee5125aaa5c7b",
+  "lean/Yulang/GeneralPresencePlanTerminationLimit245.lean": "6814d760a880f068e2ffd6ef1505f34fc063b9b013e9e3eccc422b7565a901e9",
+  "lean/Yulang/GeneralPresenceReadbackLimit245.lean": "e5818743434038e00f0da371ad75c577f5caf70dbc5034536d1c1301a27e3f34",
+  "lean/Yulang/GeneralPresenceRebaseExample245.lean": "db82dcb6d501cefa20f593129a7300d81084ba47d749ff6c5a908139217f3638"
+}

@@ -1,0 +1,10 @@
+FOCUSED_DEPENDENCY_COUNT 58
+Yulang.CommonNominalFullFiniteMaskOrder 0 
+Yulang.CommonNominalFiniteConstructors 0 
+Yulang.CommonNominalFiniteMask 0 
+Yulang.CommonNominalFiniteMaskOrder 0 
+Yulang.CommonNominalFinitePresence 0 
+Yulang.CommonNominalLayerCongruence 0 
+Yulang.CommonNominalFullLayerCongruence 0 
+Yulang.CommonNominalFullGuardedClosure 0 
+FOCUSED CACHE RESTORED 58

@@ -4459,3 +4459,8 @@ import Yulang.GeneralPresenceModelExtension245
 import Yulang.GeneralPresencePreorderExtension245
 import Yulang.GeneralPresenceRebaseExample245
 import Yulang.GeneralPresenceRebasePlan245
+import Yulang.GeneralPresenceCommonObserved245
+import Yulang.GeneralPresenceGuardedBlockLimit245
+import Yulang.GeneralPresenceObservedPlan245
+import Yulang.GeneralPresencePlanTerminationLimit245
+import Yulang.GeneralPresenceQueryTransport245
