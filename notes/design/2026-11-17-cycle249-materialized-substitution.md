@@ -19,3 +19,18 @@ sequential solve without SafeOrder; repeated gives two-step exact readback.
 These are semantic exactness facts, not a claim of syntax idempotence or
 bounded-size repeated rewriting. Existing identifiers and unknown flags are
 preserved by the definitions, with every listed semantic field transformed.
+
+Further verified: GeneralNominalJournalSubstClosed249 proves literal absorption
+of a second mapping whose target set lies within the first safe ordered block,
+for the complete materialized Journal syntax, plus literal idempotence.
+GeneralNominalJournalSubstSupport249 proves direct old-target elimination from
+the full calculated typed support after subst on ANY materialized Journal,
+not only an original compile result. Its within_protected supplies the metadata
+half of an owner-frame protection certificate for subset-domain refresh;
+OrderedExpansion249.protected_of_within supplies the consumer half.
+Both files pass --trust=0 -DwarningAsError=true with all linters enabled.
+
+The guarantee is for the fixed materialized fields and consumer list passed
+through these substitutions. Additional observations/packets, changes of live
+bodies, growing definitions, and an actual scheduler transition are not bounded
+by syntax absorption. Materialized provenance is not source reachability.
