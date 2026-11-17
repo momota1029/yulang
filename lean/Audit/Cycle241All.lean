@@ -13,6 +13,7 @@ import Yulang.GeneralNominalRebaseNames241
 import Yulang.GeneralNominalRebaseNoop241
 import Yulang.GeneralNominalRebaseOwner241
 import Yulang.GeneralNominalRebaseOwnerBack241
+import Yulang.GeneralNominalRebaseOwnerLive241
 import Yulang.GeneralNominalRebaseProgress241
 import Yulang.GeneralNominalRebaseProjection241
 import Yulang.GeneralNominalRebaseProtectedLive241
@@ -22,7 +23,7 @@ open Lean Elab Command in
 run_cmd do
   let environment ← getEnv
   let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
-  let modules : Array Name := #[`Yulang.GeneralDictionaryRebase230Private241, `Yulang.GeneralDictionaryRebase230Service241, `Yulang.GeneralNominalRebaseBackExtension241, `Yulang.GeneralNominalRebaseChildProduction241, `Yulang.GeneralNominalRebaseDefinitions241, `Yulang.GeneralNominalRebaseEscape241, `Yulang.GeneralNominalRebaseInline241, `Yulang.GeneralNominalRebaseInlineModels241, `Yulang.GeneralNominalRebaseInlineSyntax241, `Yulang.GeneralNominalRebaseLiveLabels241, `Yulang.GeneralNominalRebaseMachine241, `Yulang.GeneralNominalRebaseNames241, `Yulang.GeneralNominalRebaseNoop241, `Yulang.GeneralNominalRebaseOwner241, `Yulang.GeneralNominalRebaseOwnerBack241, `Yulang.GeneralNominalRebaseProgress241, `Yulang.GeneralNominalRebaseProjection241, `Yulang.GeneralNominalRebaseProtectedLive241, `Yulang.GeneralNominalRebaseStore241]
+  let modules : Array Name := #[`Yulang.GeneralDictionaryRebase230Private241, `Yulang.GeneralDictionaryRebase230Service241, `Yulang.GeneralNominalRebaseBackExtension241, `Yulang.GeneralNominalRebaseChildProduction241, `Yulang.GeneralNominalRebaseDefinitions241, `Yulang.GeneralNominalRebaseEscape241, `Yulang.GeneralNominalRebaseInline241, `Yulang.GeneralNominalRebaseInlineModels241, `Yulang.GeneralNominalRebaseInlineSyntax241, `Yulang.GeneralNominalRebaseLiveLabels241, `Yulang.GeneralNominalRebaseMachine241, `Yulang.GeneralNominalRebaseNames241, `Yulang.GeneralNominalRebaseNoop241, `Yulang.GeneralNominalRebaseOwner241, `Yulang.GeneralNominalRebaseOwnerBack241, `Yulang.GeneralNominalRebaseOwnerLive241, `Yulang.GeneralNominalRebaseProgress241, `Yulang.GeneralNominalRebaseProjection241, `Yulang.GeneralNominalRebaseProtectedLive241, `Yulang.GeneralNominalRebaseStore241]
   let mut checked : Nat := 0
   for (name, _) in environment.constants.toList do
     if let some index := environment.getModuleIdxFor? name then

@@ -139,3 +139,11 @@ requires every live center in the pool. The independent reviewer confirmed
 these directions and the limits above. Ordinary inlining under a model already
 satisfying old definitions is now justified through type equivalence and row
 identity; it is not a transitive/cyclic support-elimination algorithm.
+
+Final owner-live connection: OwnerLive241 instantiates the old/new model
+families with the actual owner Store.Models, retained checks and CapturedFits.
+It applies OwnerBack and the explicit all-live-center pool containment to
+construct BackExtension, then transports the existing bounded-label invariant.
+The interval refinement and support conditions are still independent premises;
+constructing them for every actual reachable replacement remains future work.
+Final focused audit:20 modules,298 definitions including generated declarations.

@@ -60,6 +60,10 @@
     "sha256": "b4d736fbeb943470e20d00ff44762a8a19f8ad8f0b65339257ab986df72eb7fd"
   },
   {
+    "path": "lean/Yulang/GeneralNominalRebaseOwnerLive241.lean",
+    "sha256": "df2d9c629762b5ee2deb71ee6acfa86054fdd2485c66fbfbe5d14a4d0db8ff47"
+  },
+  {
     "path": "lean/Yulang/GeneralNominalRebaseProgress241.lean",
     "sha256": "1f978f36260bd65b3f06bf1070b902df97cf12ef8b94a085095b8003adfcdb0f"
   },
