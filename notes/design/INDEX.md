@@ -694,3 +694,10 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 ## Cycle246: guarded actual Presence blocks
 - [Constructive guarded-block plan and scope](2026-11-17-cycle246-guarded-presence-blocks.md)
+
+## Cycle247: guarded and actual ordered rebase
+- [Guarded recovery plan](2026-11-17-cycle247-guarded-recovery.md)
+- [Actual ordered aggregate scope](2026-11-17-cycle247-ordered-aggregate-review.md)
+- [Support, duplicate targets and source freshness](2026-11-17-cycle247-ordered-support-adapter.md)
+- [Explicit ordered query transport](2026-11-17-cycle247-observed-queries.md)
+- [Final boundary review and next actual-origin adapter](2026-11-17-cycle247-final-boundary-review.md)

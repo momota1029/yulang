@@ -1,0 +1,24 @@
+# Observed clean-extension verification transcript
+
+The initial isolated-cache129-module build and its exact stdout are in
+focused-closure-build.txt; it completed in176.55 seconds with exit0.
+The following commands used that same clean cache, not the ordinary cache:
+
+for n in GeneralPresenceOrderedQueries247 GeneralPresenceOrderedQueryLimit247; do
+  LEAN_PATH="$PWD/lean/.lake/cycle247-clean" ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o "lean/.lake/cycle247-clean/Yulang/$n.olean" "lean/Yulang/$n.lean" || exit $?
+done
+LEAN_PATH="$PWD/lean/.lake/cycle247-clean" ../toolchain244/bin/lean --trust=0 -DwarningAsError=true lean/Audit/Cycle247Final.lean
+
+Observed output (both added modules were silent; commands/session exit0):
+CLEAN_CLOSURE_SOURCE_CHANGED []
+CYCLE247-FINAL-PASS: 503 constants in 30 modules
+CLEAN_FINAL_CLOSURE 131
+
+After environment reconnection:
+final-source-sha256.json 30 CHANGED []
+clean-final-source-sha256.json 131 CHANGED []
+BANNED_TOKEN_SCAN_PASS
+
+A later attempt to create a convenience extension-verification script failed
+before process creation during the environment disconnect. No such script is
+claimed present or run. This transcript records the earlier successful commands.
