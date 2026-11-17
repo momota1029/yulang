@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-- cycle: 236
-- status: completed
-- started: 2026-11-17T08:32:27Z
-- updated: 2026-11-17T09:16:57Z
-- elapsed_min: 44.5
-- activity: 32 new modules direct trust0 rechecked; 4 audits391 constants PASS. Final publication follows this completed payload; verify remote tree before reporting completion.
+- cycle: 237
+- status: running
+- started: 2026-11-17T09:31:36Z
+- updated: 2026-11-17T09:32:45Z
+- elapsed_min: 1.2
+- activity: Read latest integration9222fe53/standing/inbox I44; previous236 published a4f19c64 exact tree verified, no active competing work. Investigating historical protected aggregate coverage.
 - workspace: /tmp/yulang-admin-1730/repo
-- last_local_commit: f6dac4e4255bca440dae3bd24644e706e7506872
-- integration: 9222fe53e5add0c35d6e8650530a83dd37b9cae6; I44 active, no STOP.
-- resume_hint: Exact whereAccessible closed;218 root selected/pending. Next derive ProtectedCovered from real source trace and complete same-model fullHolds/Choice, then actual installation descent. Read cycle236 report and remaining-bridges note. First checkpoint cef57a6f and second115be38b verified. No lost work; frozen files untouched.
+- last_local_commit: f37f00585
+- resume_hint: No recovery loss. Prior236 remaining-bridges plan governs. Freeze Audit.lean/README.md; full gate remains supervisor. Read current237 report once created.
