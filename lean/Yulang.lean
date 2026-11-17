@@ -4498,3 +4498,4 @@ import Yulang.GeneralPresenceOrderedPrepared247
 import Yulang.GeneralPresenceOrderedQueries247
 import Yulang.GeneralPresenceOrderedQueryLimit247
 import Yulang.GeneralPresenceOrderedSort247
+import Yulang.GeneralNominalOrderedSupport248
