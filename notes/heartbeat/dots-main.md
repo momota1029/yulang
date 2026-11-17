@@ -1,11 +1,11 @@
 # dots-main heartbeat
 
 - cycle: 240
-- status: running
+- status: stopped-counterexample-publishing
 - started: 2026-11-17T12:32:58Z
-- updated: 2026-11-17T12:53:00Z
-- elapsed_min: 20.0
-- activity: Point-preserving successor, literal record conservation and old-loop rejection verified; first audit147 declarations/16 modules PASS. New nonpoint-root source prefix verified independently; uniform infinite execution remains unproved and is under investigation.
+- updated: 2026-11-17T12:56:41Z
+- elapsed_min: 23.7
+- activity: I45 successor verified but closed five-slot actual nontermination found. All64 direct trust0 builds PASS; 885-constant audit PASS; final6 independently audited. Research stopped12:53:54; only publication/verification continues.
 - workspace: /tmp/yulang-admin-1730/repo
-- last_local_commit: integration-merged
-- resume_hint: Research until13:17:58, finish13:27:58. Keep frozen files unchanged. Do not claim global Acc or its refutation before actual guarded iteration closes.
+- last_local_commit: first-checkpoint-2b085eaf9
+- resume_hint: Read cycle240 question and await explicit supervisor decision. Do not resume false Acc target or implement semantic repair without decision. Previous12:53 heartbeat timestamp was recorded a few minutes ahead; this timestamp is clock-verified.

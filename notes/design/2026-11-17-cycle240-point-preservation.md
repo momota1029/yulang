@@ -42,3 +42,44 @@ may be replaced by desired reachability or finite-support assumptions. In
 particular the local syntactic test alone neither refutes Acc nor validates an
 infinite actual execution. It does show that I45 alone does not imply literal
 stability of descriptors that remain nonpoint.
+
+## Verified concrete successor prefix
+
+The five-slot proposal above is now instantiated in LooseLoopSource240 and
+Initial240. The initial boundary is PointSourceBoundary240, with its actual
+source formation, GroundRoots, checked declaration and a concrete model.
+Packet/Frame/Full/Safety/Install240 establish the full guarded first install,
+not a lifted assumed state. RefreshBase/Refresh/Retarget240 expose lower_1 as
+slot5 Foo(0,1), then revise it to Foo(0,0) while changing root bounds (2,4) to
+(5,4). The old root is nonpoint; original point Foo descriptors at 2 and4 stay
+literal. The new Preserves guard holds. Prefix240 proves the real three-step
+source path, reachability, a surviving full model and actual root change.
+This finite prefix does not prove new target falsity.
+
+## Uniform reobservation layer
+
+LooseFamilyRefines/Revision/Back/Installation/Expose/History/Trusted/Cache/
+Refresh/Reobserve240 port the guarded observation layer. All arbitrary carrier
+models are preserved through exact raw-back/cache proofs. The source-fixed
+upper endpoint4 is semantically Foo(Int) from original source, and only the
+lower aggregate chain is needed for history. Revision.preserves excludes the
+nonpoint root and newly exposed loose Foo from its preservation obligation,
+while proving every old point descriptor unchanged. The actual PointKernel
+reobserve constructor is used, with its new guard, not erased old steps.
+
+These uniform certificates explicitly require current=replay(plan_n), original
+source and all prior plans recorded. They do not assume or conclude these
+histories exist for all n. Indexed source states, common-model induction,
+future upper novelty and every install guard must still be constructed by
+separate modules before any infinite-trace/Acc assertion is justified.
+
+## Final status: actual uniform obstruction closed
+
+The previously open bridges above were subsequently closed in the 240 family
+and LooseIteration modules. Book/Frame/Fresh/Safety/Install/Round establish all
+guards; Support/Patched/Stage preserve future-upper novelty witnesses; Iteration
+constructs every reachable stage. Nontermination proves initial_no_acc and
+no_saturation/no_statement for the actual PointSourceBoundary240. Thus the
+finite-prefix caveats above describe intermediate stages, not the final result.
+Research stopped on the closed obstruction; no semantic repair was implemented.
+See the cycle240 question note for the exact scope and required decision.

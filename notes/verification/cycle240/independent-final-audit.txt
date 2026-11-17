@@ -1,0 +1,1 @@
+IndependentNontermination240-PASS: 6 declarations

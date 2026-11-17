@@ -657,3 +657,8 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle239 semantic support and iteration guards](2026-11-17-cycle239-version-support.md)
 - [Cycle239 indexed journals](2026-11-17-cycle239-indexed-journals.md)
 - [Cycle239 compound child refresh](2026-11-17-cycle239-compound-child-refresh.md)
+- [Cycle240 point-preserving successor](2026-11-17-cycle240-point-preserving-successor.md)
+
+- [Cycle240 point-preservation regression and obstruction](2026-11-17-cycle240-point-preservation.md)
+- [Cycle240 guarded source regressions](2026-11-17-cycle240-point-regressions.md)
+- [Cycle240: point-preserving termination question](../questions/2026-11-17-cycle240-point-preserving-nontermination.md)
