@@ -4559,3 +4559,5 @@ import Yulang.GeneralNominalSchemaViewCongruence250
 import Yulang.GeneralNominalExprViewCongruence250
 import Yulang.GeneralNominalJournalViewCongruence250
 import Yulang.GeneralNominalArbitraryOwnerFrame250
+import Yulang.GeneralNominalJournalAppend250
+import Yulang.GeneralPresencePersistentSnapshot250
