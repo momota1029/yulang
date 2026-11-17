@@ -1,12 +1,12 @@
 # dots-main heartbeat
 
-- cycle: 235
+- cycle: 236
 - status: running
-- started: 2026-11-17T07:35:51Z
-- updated: 2026-11-17T08:04:11Z
-- elapsed_min: 28
-- activity: Actual218 second parent install (third step) proved with nonempty model. Generic finite equality-only saturation compiled; assembling full Stable endpoint. Current-model installation iff generalized to all output-bearing child plans; 18 additional modules under integrated audit.
+- started: 2026-11-17T08:32:27Z
+- updated: 2026-11-17T09:02:15Z
+- elapsed_min: 29.8
+- activity: First15 published cef57a6f and exact-tree verified. Full mixed semantic support and fresh/reused aggregate completion now compile; partial fresh assignment under integration.
 - workspace: /tmp/yulang-admin-1730/repo
-- last_local_commit: 45d07ced2; second checkpoint in preparation
-- integration: 60faa7b26f272710d4bed3b0e4228b84ae8e8691
-- resume_hint: First20 verified235 modules published6a57ea38. Continue 218 actual point stage and new parent install, then equality-only closure/full Stable if possible. Generic Absorbed request conservation compiled in main; QuietInstall and point proofs in agent worktrees. Preserve frozen files; direct compiles only.
+- last_local_commit: c3278d303
+- integration: d8f2f959e2b58976cc2a7f7247733b0c42fe92ba; I44 active.
+- resume_hint: New236 support/aggregate files beyond first15 are in worktree; first3 audits PASS345constants/24modules. Preserve selective equation/aggregate entries additions for next audit. General EvidenceNode and installation termination remain open.

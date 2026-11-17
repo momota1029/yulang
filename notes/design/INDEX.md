@@ -637,3 +637,7 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle235 proof detail](2026-11-17-cycle235-stable-evidence-reducer.md)
 - [Cycle235 proof detail](2026-11-17-cycle235-ground218.md)
 - [Cycle235 uniform point packet](2026-11-17-cycle235-point218-packet.md)
+
+- [2026-11-17-cycle236-administrative-progress.md](2026-11-17-cycle236-administrative-progress.md) — cycle236 additive proof decomposition.
+- [2026-11-17-cycle236-choice-history.md](2026-11-17-cycle236-choice-history.md) — cycle236 additive proof decomposition.
+- [2026-11-17-cycle236-fresh-aggregate-realization.md](2026-11-17-cycle236-fresh-aggregate-realization.md) — cycle236 additive proof decomposition.

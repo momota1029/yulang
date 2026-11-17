@@ -1,0 +1,358 @@
+lean/Yulang/GeneralDictionaryMixedGround218Cycles235.lean:6:theorem edge_decreases (valid : GeneralNominalVersionedJournal232.Models state model)
+lean/Yulang/GeneralDictionaryMixedGround218Cycles235.lean:37:theorem acyclic (valid : GeneralNominalVersionedJournal232.Models state model)
+lean/Yulang/GeneralDictionaryMixedGround218FinalEvidence235.lean:14:theorem old_infeasible (sites : Sites state) (recorded : plan ∈ state.plans)
+lean/Yulang/GeneralDictionaryMixedGround218FinalEvidence235.lean:34:theorem old_not_selected
+lean/Yulang/GeneralDictionaryMixedGround218FinalEvidence235.lean:48:theorem evidenceAt
+lean/Yulang/GeneralDictionaryMixedGround218FinalEvidence235.lean:71:theorem generated_children {child : Occurrence roles}
+lean/Yulang/GeneralDictionaryMixedGround218FinalFresh235.lean:12:theorem new_atoms : GeneralNominalVersionedInstallation231.atoms packet =
+lean/Yulang/GeneralDictionaryMixedGround218FinalFresh235.lean:22:theorem installed_owned (member : identity ∈ GeneralNominalState.sources installed.core.erased.current.context.state) : Owned identity := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalFresh235.lean:50:theorem source_owned (member : identity ∈ GeneralNominalState.sources finalState.core.erased.current.context.state) : Owned identity :=
+lean/Yulang/GeneralDictionaryMixedGround218FinalFresh235.lean:53:theorem missing : ∀ identity ∈ GeneralNominalState.sources finalState.core.erased.current.context.state,
+lean/Yulang/GeneralDictionaryMixedGround218FinalFresh235.lean:58:theorem fresh (bindings) : GeneralNominalVersionedAllocation231.Fresh finalState.core.erased.current.context.state
+lean/Yulang/GeneralDictionaryMixedGround218FinalFresh235.lean:66:theorem prepared : GeneralNominalVersionedCandidates231.Prepared registry finalState.core.erased.current.context
+lean/Yulang/GeneralDictionaryMixedGround218FinalFresh235.lean:75:theorem unique : GeneralNominalVersionedCandidates231.Unique registry finalState.core.erased.current.context
+lean/Yulang/GeneralDictionaryMixedGround218FinalOutcome235.lean:14:theorem old_generated : GeneralNominalSaturationState.Generated finalState.core.erased.current root oldChild := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalOutcome235.lean:19:theorem new_generated : GeneralNominalSaturationState.Generated finalState.core.erased.current root
+lean/Yulang/GeneralDictionaryMixedGround218FinalOutcome235.lean:25:theorem new_root_pending : GeneralNominalState.RootPending finalState.core.erased.current.context.state
+lean/Yulang/GeneralDictionaryMixedGround218FinalOutcome235.lean:30:theorem source_regression :
+lean/Yulang/GeneralDictionaryMixedGround218FinalPending235.lean:12:theorem equal_outputs (focus : GeneralSourceDictionaries.Occurrence roles) :
+lean/Yulang/GeneralDictionaryMixedGround218FinalPending235.lean:19:theorem no_merged_conflict : ¬ GeneralNominalVersionedMergedConflict232.MergedOutputConflict finalState newChild.occurrence :=
+lean/Yulang/GeneralDictionaryMixedGround218FinalPending235.lean:23:theorem no_sharing_conflict : ¬ GeneralNominalVersionedDiagnostic232.SharingConflict registry finalState newChild.occurrence := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalPending235.lean:27:theorem pending : GeneralNominalVersionedMixedSourceBoundary234.Local sourceRegistry finalState newChild.occurrence .pending :=
+lean/Yulang/GeneralDictionaryMixedGround218FinalRegression235.lean:13:theorem sites : GeneralDictionaryMixedGround218PointStable235.Sites finalState := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalRegression235.lean:17:theorem stable : Stable registry finalState root :=
+lean/Yulang/GeneralDictionaryMixedGround218FinalRegression235.lean:21:theorem no_step (after : State roles) : ¬ Step registry root finalState after := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalRegression235.lean:25:theorem children_stable {child : GeneralSourceDictionaries.Occurrence roles} (generated : GeneralNominalSaturationState.Generated finalState.core.erased.current root child) :
+lean/Yulang/GeneralDictionaryMixedGround218FinalRegression235.lean:29:theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedMixedSourceBoundary234.boundary roles)
+lean/Yulang/GeneralDictionaryMixedGround218FinalRegression235.lean:34:theorem generated_children {child : GeneralSourceDictionaries.Occurrence roles}
+lean/Yulang/GeneralDictionaryMixedGround218FinalRegression235.lean:42:theorem source_regression :
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:12:noncomputable abbrev current := GeneralDictionaryGroundCopy218Reobserve.pointExtended allocated reserved ordinary
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:14:theorem raw_model : GeneralNominalState.Models current model := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:18:theorem raw_edge_decreases {a b : Fin 8} (edge : GeneralNominalMixedRecurrence.Edge current a b) :
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:55:theorem no_raw_recurs (slot : Fin 8) : ¬ GeneralNominalCycleK2.RecursAt current slot := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:71:theorem acyclic (origin) : ¬ GeneralNominalVersionedCycles232.Cyclic finalState origin :=
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:74:theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady finalState oldChild := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:80:theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry finalState oldChild := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:99:noncomputable abbrev packet : GeneralNominalSaturationState.Packet roles :=
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:102:noncomputable abbrev plan : Plan roles := ⟨packet,childSite,rfl⟩
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:104:theorem frame : GeneralNominalVersionedEvidence231.Frame registry finalState.core oldChild 1 plan := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:110:theorem conflict : GeneralNominalVersionedDiagnostic232.SharingConflict registry finalState oldChild := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalRejection235.lean:117:theorem rejected : GeneralNominalVersionedMixedSourceBoundary234.Local sourceRegistry finalState oldChild .rejected := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:16:noncomputable def finalState : State roles := Classical.choose (exists_closed installed)
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:18:theorem equality_path : Trace installed finalState := (Classical.choose_spec (exists_closed installed)).1
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:20:theorem equalities : GeneralNominalVersionedMixedTerminalStable234.EqualityClosed finalState :=
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:23:theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles)
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:35:theorem final_model : Models finalState model := (trace_models equality_path model).mpr installed_model
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:37:theorem models_iff (given) : Models finalState given ↔ Models installed given := trace_models equality_path given
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:39:noncomputable abbrev allocated := installed.core.erased.current.context.state.allocated
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:40:noncomputable abbrev reserved := installed.core.erased.current.context.state.reserved
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:41:noncomputable abbrev ordinary := finalState.core.erased.current.context.state.ordinary
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:43:theorem installed_context : installed.core.erased.current.context = contextFor allocated reserved
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:46:theorem final_context : finalState.core.erased.current.context = contextFor allocated reserved ordinary := by
+lean/Yulang/GeneralDictionaryMixedGround218FinalState235.lean:52:theorem recorded : GeneralDictionaryGroundCopy218Install.plan ∈ finalState.plans := by
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:9:theorem declaration_invocation {declaration : GeneralDeclarations.Declaration}
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:18:theorem key_invocation (member : key ∈ GeneralNominalVersionedAllocation231.keys value invocation bindings) : key.1 = invocation := by
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:22:theorem ordinary_exact : ctx.state.ordinary =
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:36:theorem source_owned (member : identity ∈ GeneralNominalState.sources ctx.state) : Owned identity := by
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:57:theorem missing : ∀ identity ∈ GeneralNominalState.sources ctx.state, identity ≠ lo ∧ identity ≠ hi := by
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:61:theorem fresh (bindings) : GeneralNominalVersionedAllocation231.Fresh ctx.state registry childId bindings := by
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:65:theorem context_eq : GeneralDictionaryMixedGround218Install234.installed.core.erased.current.context = ctx := rfl
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:67:theorem current_model : GeneralNominalState.Models ctx.state GeneralDictionaryGroundCopy218Install.model :=
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:70:theorem prepared : GeneralNominalVersionedCandidates231.Prepared registry ctx oldChild leafDecl :=
+lean/Yulang/GeneralDictionaryMixedGround218Fresh235.lean:73:theorem unique : GeneralNominalVersionedCandidates231.Unique registry ctx oldChild 1 [] :=
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:16:abbrev childId := fresh 7 0 0 6 0 0
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:17:abbrev oldChild : Occurrence roles := ⟨childId,⟨1,fun _ => (2,3),[],by intro _ h; cases h⟩⟩
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:18:abbrev leafDecl := GeneralNominalCenteredHeadAllocEncoding.declaration leaf
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:19:abbrev leafCheck := GeneralNominalCenteredHeadAllocEncoding.declaration_checked leaf_checked
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:20:abbrev parentPacket := GeneralDictionaryGroundCopy218Install.packet
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:21:noncomputable abbrev ctx : Context := ⟨{ snapshot with
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:25:abbrev lo := GeneralNominalAggregateVersion231.slot 7 childId 1 0 0 [(0,2,3),(0,2,3)]
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:26:abbrev hi := GeneralNominalAggregateVersion231.slot 7 childId 1 1 0 [(0,2,3),(0,2,3)]
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:28:theorem query :
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:34:theorem report_exact : report ctx leafDecl [(2,3),(2,3)] =
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:40:theorem distinct : lo ≠ hi := by
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:46:def patch (model : Assignment) : Assignment := fun identity =>
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:51:theorem patch_outside (model : Assignment) (one : identity ≠ lo) (two : identity ≠ hi) :
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:54:theorem head_model (model : Assignment)
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:112:theorem linked :
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:122:theorem located : arguments ctx
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:125:theorem known :
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:130:theorem prepared (model : Assignment)
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:141:theorem leaf_only (visible : d ∈ registry.declarations) (role : d.role = 1) : d = leafDecl := by
+lean/Yulang/GeneralDictionaryMixedGround218Leaf235.lean:146:theorem unique (model : Assignment)
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:12:theorem child_eq : childSite.occurrence = oldChild := by
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:18:theorem emitted_eq : GeneralNominalVersionedChildren232.emitted GeneralDictionaryGroundCopy218Install.plan = [childSite] := by
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:40:theorem sites_exact : installed.core.sites = [GeneralDictionaryGroundCopy218Install.plan.input,childSite] := by
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:44:theorem raw_sites_exact : installed.core.erased.current.sites =
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:49:noncomputable abbrev packet : GeneralNominalSaturationState.Packet roles :=
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:51:noncomputable abbrev plan : Plan roles := ⟨packet,childSite,rfl⟩
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:53:theorem frame : GeneralNominalVersionedEvidence231.Frame registry installed.core oldChild 1 plan := by
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:58:theorem candidate_input {candidate : Plan roles} {key}
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:70:theorem candidate_queries {candidate : Plan roles}
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:78:theorem infeasible : ¬ GeneralNominalVersionedDiagnostic232.Feasible registry installed oldChild 1 := by
+lean/Yulang/GeneralDictionaryMixedGround218LeafFrame235.lean:83:theorem at_key : GeneralNominalVersionedDiagnostic232.AtKey registry installed oldChild 1 :=
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:9:noncomputable abbrev allocated := ctx.state.allocated
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:10:noncomputable abbrev reserved := ctx.state.reserved
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:11:noncomputable abbrev ordinary := ctx.state.ordinary
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:13:theorem context_same : installed.core.erased.current.context.state =
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:15:noncomputable abbrev point := result allocated reserved ordinary context_same
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:17:theorem step : GeneralNominalVersionedMixedKernel234.Step registry root installed point :=
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:20:theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles)
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:25:theorem models_iff (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:29:theorem point_model : GeneralNominalVersionedJournal232.Models point GeneralDictionaryGroundCopy218Install.model :=
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:32:theorem point_snapshot : point.core.erased.current.context.state =
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:36:theorem no_reobserve (revision : GeneralNominalReobservationSteps.Revision point.core.erased.current) :
+lean/Yulang/GeneralDictionaryMixedGround218Point235.lean:42:theorem installed_not_stable : ¬ GeneralNominalVersionedMixedKernel234.Stable registry installed root := by
+lean/Yulang/GeneralDictionaryMixedGround218PointAllModels235.lean:15:theorem projected_zero (valid : GeneralNominalState.Models packet.context.state model) : (∃ actual, Observes model (.nominal (.source 6) 5 0) actual) ∧
+lean/Yulang/GeneralDictionaryMixedGround218PointAllModels235.lean:19:theorem projected_one (valid : GeneralNominalState.Models packet.context.state model) : (∃ actual, Observes model (.nominal (.source 6) 5 1) actual) ∧
+lean/Yulang/GeneralDictionaryMixedGround218PointAllModels235.lean:22:theorem projections (valid : GeneralNominalState.Models packet.context.state model) : ProjectionModels packet.context.state (report packet.context declaration [(6,6)]) model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointAllModels235.lean:45:theorem heads (valid : GeneralNominalState.Models packet.context.state model) : SchemaHolds plan plan.headSchema model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointAllModels235.lean:66:theorem ordinary : Ordinary packet model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointAllModels235.lean:83:theorem fit (name : Nat) (member : name=0 ∨ name=1) :
+lean/Yulang/GeneralDictionaryMixedGround218PointAllModels235.lean:91:theorem packet_holds (valid : GeneralNominalState.Models packet.context.state model) : Holds plan model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointAllModels235.lean:122:theorem all_models (model) (held : GeneralNominalVersionedJournal232.Models point model) : Holds plan model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointChildren235.lean:14:theorem child_arguments (valid : clause.Signature roles) (i) :
+lean/Yulang/GeneralDictionaryMixedGround218PointChildren235.lean:27:theorem children_eq : GeneralNominalVersionedFrame231.children (packetFor allocated reserved ordinary) =
+lean/Yulang/GeneralDictionaryMixedGround218PointChildren235.lean:39:theorem quiet : GeneralNominalVersionedMixedQuietInstall235.Quiet (planFor allocated reserved ordinary) := by
+lean/Yulang/GeneralDictionaryMixedGround218PointFrame235.lean:12:theorem source_owned (member : identity ∈ GeneralNominalState.sources packet.context.state) :
+lean/Yulang/GeneralDictionaryMixedGround218PointFrame235.lean:33:theorem fresh (bindings) : GeneralNominalVersionedAllocation231.Fresh packet.context.state registry root.identity bindings := by
+lean/Yulang/GeneralDictionaryMixedGround218PointFrame235.lean:42:theorem prepared : GeneralNominalVersionedCandidates231.Prepared registry packet.context root declaration := by
+lean/Yulang/GeneralDictionaryMixedGround218PointFrame235.lean:50:theorem frame : GeneralNominalVersionedEvidence231.Frame registry point.core root 0 plan := by
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:14:theorem children_eq : GeneralNominalVersionedFrame231.children packet =
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:34:theorem unique : GeneralNominalVersionedCandidates231.Unique registry point.core.erased.current.context root 0
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:48:theorem ready : GeneralNominalCenteredHeadMatEffects.Ready point.core root plan :=
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:51:noncomputable def effect : Effect roles := ⟨registry,point.core,plan,frame,unique,ready⟩
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:52:noncomputable abbrev installed := install point effect
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:54:theorem requests_empty (focus : GeneralSourceDictionaries.Occurrence roles) :
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:62:theorem classes (given : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:67:theorem common : InstallationModels point effect model :=
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:71:theorem installable : Installable registry point effect := by
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:89:theorem novel : ¬ Committed point plan := by
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:101:theorem step : Step registry root point installed := ⟨root,.root,.install effect installable novel⟩
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:103:theorem reachable_installed : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles)
+lean/Yulang/GeneralDictionaryMixedGround218PointInstall235.lean:108:theorem installed_model : Models installed model := (install_models rfl).mpr common
+lean/Yulang/GeneralDictionaryMixedGround218PointInstalledShape235.lean:15:theorem child_eq (allocated reserved ordinary) (valid : clause.Signature roles) :
+lean/Yulang/GeneralDictionaryMixedGround218PointInstalledShape235.lean:31:theorem emitted_eq (allocated reserved ordinary) : emitted (planFor allocated reserved ordinary) = [newChild] := by
+lean/Yulang/GeneralDictionaryMixedGround218PointInstalledShape235.lean:50:theorem initial_child_eq (valid : clause.Signature roles) :
+lean/Yulang/GeneralDictionaryMixedGround218PointInstalledShape235.lean:63:theorem initial_emitted : emitted GeneralDictionaryGroundCopy218Install.plan = [childSite] := by
+lean/Yulang/GeneralDictionaryMixedGround218PointInstalledShape235.lean:81:theorem sites : GeneralDictionaryMixedGround218PointStable235.Sites installed := by
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:15:abbrev childId := fresh 7 0 0 6 0 0
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:16:abbrev oldChild : Occurrence roles := ⟨childId,⟨1,fun _ => (2,3),[],by intro _ h; cases h⟩⟩
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:17:abbrev leafDecl := GeneralNominalCenteredHeadAllocEncoding.declaration leaf
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:18:abbrev leafCheck := GeneralNominalCenteredHeadAllocEncoding.declaration_checked leaf_checked
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:19:abbrev ctx (allocated : List GeneralNominalIdentities.Origin) (reserved : List Nat)
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:21:abbrev lo := GeneralNominalAggregateVersion231.slot 7 childId 1 0 0 [(0,2,3),(0,2,3)]
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:22:abbrev hi := GeneralNominalAggregateVersion231.slot 7 childId 1 1 0 [(0,2,3),(0,2,3)]
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:24:theorem query (allocated reserved atoms) :
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:30:theorem report_exact (allocated reserved atoms) : report (ctx allocated reserved atoms) leafDecl [(2,3),(2,3)] =
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:36:theorem distinct : lo ≠ hi := by
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:42:def patch (model : Assignment) : Assignment := fun identity =>
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:47:theorem patch_outside (model : Assignment) (one : identity ≠ lo) (two : identity ≠ hi) :
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:50:theorem head_model (allocated reserved atoms) (model : Assignment)
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:108:theorem linked (allocated reserved atoms) :
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:118:theorem located (allocated reserved atoms) : arguments (ctx allocated reserved atoms)
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:121:theorem known (allocated reserved atoms) :
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:126:theorem prepared (allocated reserved atoms) (model : Assignment)
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:137:theorem leaf_only (visible : d ∈ registry.declarations) (role : d.role = 1) : d = leafDecl := by
+lean/Yulang/GeneralDictionaryMixedGround218PointLeaf235.lean:142:theorem unique (allocated reserved atoms) (model : Assignment)
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:12:noncomputable abbrev plan := GeneralDictionaryGroundCopy218SaturatedParent.planFor allocated reserved ordinary
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:13:noncomputable abbrev packet := plan.packet
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:15:theorem context_eq : packet.context = point.core.erased.current.context := by
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:19:theorem bindings_exact : packet.bindings = [(0,4,4),(1,5,5)] :=
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:22:theorem capture (name : Nat) (member : name = 0 ∨ name = 1) :
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:30:theorem old_holds : GeneralNominalCenteredHeadMatStepPackets.Holds plan model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:38:theorem emitted_schema : emittedSchema plan =
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:47:theorem outputs (given : GeneralNominalCommonBridge.Assignment) : Outputs plan given := by
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:60:theorem head_schema : SchemaHolds plan plan.headSchema model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:69:theorem binder (name : Nat) : plan.binder name = GeneralDictionaryGroundCopy218Reinstall.newPlan.binder name :=
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:72:theorem fit (name : Nat) (member : name=0 ∨ name=1) :
+lean/Yulang/GeneralDictionaryMixedGround218PointPacket235.lean:80:theorem packet_holds : Holds plan model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointRefresh235.lean:8:theorem unknown_shape (allocated reserved atoms) (unknown : ¬ GeneralNominalState.Known (GeneralDictionaryGroundCopy218Reobserve.pointExtended allocated reserved atoms) identity) :
+lean/Yulang/GeneralDictionaryMixedGround218PointRefresh235.lean:41:theorem no_refresh {state : GeneralNominalVersionedJournal232.State roles}
+lean/Yulang/GeneralDictionaryMixedGround218PointSafety235.lean:13:theorem raw_edge_decreases {a b : Fin 8} (edge : GeneralNominalMixedRecurrence.Edge (GeneralDictionaryGroundCopy218Reobserve.pointExtended allocated reserved ordinary) a b) :
+lean/Yulang/GeneralDictionaryMixedGround218PointSafety235.lean:50:theorem no_raw_recurs (slot : Fin 8) : ¬ GeneralNominalCycleK2.RecursAt (GeneralDictionaryGroundCopy218Reobserve.pointExtended allocated reserved ordinary) slot := by
+lean/Yulang/GeneralDictionaryMixedGround218PointSafety235.lean:62:theorem acyclic (origin) : ¬ GeneralNominalVersionedCycles232.Cyclic point origin :=
+lean/Yulang/GeneralDictionaryMixedGround218PointSafety235.lean:65:theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady point root := by
+lean/Yulang/GeneralDictionaryMixedGround218PointSafety235.lean:79:theorem known : ¬ GeneralNominalState.RootPending point.core.erased.current.context.state root.demand := by
+lean/Yulang/GeneralDictionaryMixedGround218PointSafety235.lean:84:theorem current_no_raw_recurs : ∀ slot, ¬ GeneralNominalCycleK2.RecursAt point.core.erased.current.context.state slot := by
+lean/Yulang/GeneralDictionaryMixedGround218PointSafety235.lean:88:theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry point root := by
+lean/Yulang/GeneralDictionaryMixedGround218PointStable235.lean:17:def Sites (state : State roles) : Prop :=
+lean/Yulang/GeneralDictionaryMixedGround218PointStable235.lean:22:theorem generated_only (sites : Sites state)
+lean/Yulang/GeneralDictionaryMixedGround218PointStable235.lean:40:theorem frame_old_input (sites : Sites state)
+lean/Yulang/GeneralDictionaryMixedGround218PointStable235.lean:56:theorem no_install_old (sites : Sites state) (recorded : plan ∈ state.plans)
+lean/Yulang/GeneralDictionaryMixedGround218PointStable235.lean:81:theorem new_pending (allocated reserved atoms)
+lean/Yulang/GeneralDictionaryMixedGround218PointStable235.lean:97:theorem merges_closed (sites : Sites state)
+lean/Yulang/GeneralDictionaryMixedGround218PointStable235.lean:106:theorem stable (sites : Sites state) (recorded : plan ∈ state.plans)
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:15:theorem bindings_exact : (packet).bindings = [(0,4,4),(1,5,5)] :=
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:18:theorem capture (name : Nat) (member : name = 0 ∨ name = 1) :
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:26:theorem emitted_schema : emittedSchema plan =
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:35:theorem outputs (given : GeneralNominalCommonBridge.Assignment) : Outputs plan given := by
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:48:theorem binder (name : Nat) : (plan).binder name = GeneralDictionaryGroundCopy218Reinstall.newPlan.binder name :=
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:54:theorem projected_zero (valid : GeneralNominalState.Models (packet).context.state model) : (∃ actual, Observes model (.nominal (.source 6) 5 0) actual) ∧
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:58:theorem projected_one (valid : GeneralNominalState.Models (packet).context.state model) : (∃ actual, Observes model (.nominal (.source 6) 5 1) actual) ∧
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:61:theorem projections (valid : GeneralNominalState.Models (packet).context.state model) : ProjectionModels (packet).context.state (report (packet).context declaration [(6,6)]) model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:84:theorem heads (valid : GeneralNominalState.Models (packet).context.state model) : SchemaHolds plan (plan).headSchema model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:105:theorem ordinary : Ordinary packet model := by
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:122:theorem fit (name : Nat) (member : name=0 ∨ name=1) :
+lean/Yulang/GeneralDictionaryMixedGround218PointUniform235.lean:130:theorem packet_holds (valid : GeneralNominalState.Models (packet).context.state model) : Holds plan model := by
+lean/Yulang/GeneralDictionaryMixedGround218Refresh235.lean:14:theorem no_new_head
+lean/Yulang/GeneralDictionaryMixedGround218Refresh235.lean:40:theorem unknown_shape (unknown : ¬ GeneralNominalState.Known ctx.state identity) :
+lean/Yulang/GeneralDictionaryMixedGround218Refresh235.lean:73:theorem no_refresh
+lean/Yulang/GeneralDictionaryMixedGround218Rejection235.lean:11:theorem conflict : GeneralNominalVersionedDiagnostic232.SharingConflict registry installed oldChild :=
+lean/Yulang/GeneralDictionaryMixedGround218Rejection235.lean:15:theorem rejected : GeneralNominalVersionedMixedSourceBoundary234.Local sourceRegistry installed oldChild .rejected := by
+lean/Yulang/GeneralDictionaryMixedGround218Rejection235.lean:21:theorem generated : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Generated
+lean/Yulang/GeneralDictionaryMixedGround218Rejection235.lean:26:theorem source_regression :
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:15:def revision (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:19:def result (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:23:theorem certificate (source : state.core.erased.source.state = snapshot) (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:28:theorem step (source : state.core.erased.source.state = snapshot) (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:36:theorem models_iff (source : state.core.erased.source.state = snapshot) (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:41:theorem nonempty (source : state.core.erased.source.state = snapshot) (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:47:theorem current_snapshot (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:52:theorem plans_unchanged (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:56:theorem effects_unchanged (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:60:theorem source_unchanged (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:64:theorem raw_sites_unchanged (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218Reobserve235.lean:68:theorem centered_sites_unchanged (allocated reserved ordinary)
+lean/Yulang/GeneralDictionaryMixedGround218RootCommitted235.lean:15:theorem frame_plan (sites : Sites state) (allocated reserved atoms)
+lean/Yulang/GeneralDictionaryMixedGround218RootCommitted235.lean:58:theorem requests_empty (sites : Sites state) (focus : Occurrence roles) :
+lean/Yulang/GeneralDictionaryMixedGround218RootCommitted235.lean:67:theorem classes (sites : Sites state) (candidate : Plan roles) (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedGround218RootCommitted235.lean:72:theorem frame_holds (sites : Sites state) (allocated reserved atoms)
+lean/Yulang/GeneralDictionaryMixedGround218RootCommitted235.lean:82:theorem frame_committed (sites : Sites state) (allocated reserved atoms)
+lean/Yulang/GeneralDictionaryMixedGround218RootCommitted235.lean:94:theorem root_committed (sites : Sites state) (allocated reserved atoms)
+lean/Yulang/GeneralDictionaryMixedGround218RootCommitted235.lean:102:theorem stable (sites : Sites state) (recorded : plan ∈ state.plans)
+lean/Yulang/GeneralDictionaryMixedGround218Safety235.lean:12:theorem raw_edge_decreases {a b : Fin 8} (edge : GeneralNominalMixedRecurrence.Edge ctx.state a b) :
+lean/Yulang/GeneralDictionaryMixedGround218Safety235.lean:49:theorem no_raw_recurs (slot : Fin 8) : ¬ GeneralNominalCycleK2.RecursAt ctx.state slot := by
+lean/Yulang/GeneralDictionaryMixedGround218Safety235.lean:64:theorem acyclic (origin) : ¬ GeneralNominalVersionedCycles232.Cyclic installed origin :=
+lean/Yulang/GeneralDictionaryMixedGround218Safety235.lean:67:theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady installed oldChild := by
+lean/Yulang/GeneralDictionaryMixedGround218Safety235.lean:78:theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry installed oldChild := by
+lean/Yulang/GeneralNominalVersionedMixedCommon235.lean:18:theorem requests_iff
+lean/Yulang/GeneralNominalVersionedMixedCommon235.lean:29:theorem installation_models_iff
+lean/Yulang/GeneralNominalVersionedMixedCommon235.lean:57:theorem source_installable_iff
+lean/Yulang/GeneralNominalVersionedMixedCompletionRequests235.lean:15:theorem emitted_formed (valid : Invariant registry seed root state.core)
+lean/Yulang/GeneralNominalVersionedMixedCompletionRequests235.lean:38:theorem install (valid : Invariant registry seed root state.core)
+lean/Yulang/GeneralNominalVersionedMixedCompletionRequests235.lean:63:theorem initial (context : GeneralNominalCandidates.Context) :
+lean/Yulang/GeneralNominalVersionedMixedCompletionRequests235.lean:71:theorem step (recorded : GeneralNominalVersionedMixedTrace235.Registered before root)
+lean/Yulang/GeneralNominalVersionedMixedCompletionRequests235.lean:95:theorem trace
+lean/Yulang/GeneralNominalVersionedMixedCompletionRequests235.lean:104:theorem reachable
+lean/Yulang/GeneralNominalVersionedMixedCompletionRequests235.lean:115:theorem install_requests (checked : Checked registry) (valid : Invariant registry seed root state.core)
+lean/Yulang/GeneralNominalVersionedMixedCurrentCandidate235.lean:12:structure Current (registry : Registry) (state : State roles) (demand : Occurrence roles) (effect : Effect roles) : Prop where
+lean/Yulang/GeneralNominalVersionedMixedCurrentCandidate235.lean:22:theorem selected_safe
+lean/Yulang/GeneralNominalVersionedMixedCurrentCandidate235.lean:30:theorem installable (current : Current registry state demand effect)
+lean/Yulang/GeneralNominalVersionedMixedCurrentCandidate235.lean:37:theorem source_installable
+lean/Yulang/GeneralNominalVersionedMixedCurrentEvidence235.lean:13:theorem selected_unique
+lean/Yulang/GeneralNominalVersionedMixedCurrentEvidence235.lean:21:theorem selected_identifies
+lean/Yulang/GeneralNominalVersionedMixedCurrentEvidence235.lean:30:theorem current_certificate (snapshot : effect.snapshot = state.core)
+lean/Yulang/GeneralNominalVersionedMixedCurrentEvidence235.lean:37:theorem selected_certificate
+lean/Yulang/GeneralNominalVersionedMixedCurrentEvidence235.lean:48:theorem selected_evidence
+lean/Yulang/GeneralNominalVersionedMixedCurrentEvidence235.lean:57:theorem selected_child_edge
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:13:theorem equate_models_iff (equal : Equal state first last) (model : Assignment) :
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:37:theorem equate_sources_iff
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:50:theorem raw_preserved (raw : GeneralNominalFeedbackSteps.RawEqual state.core.erased.current a b) :
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:55:inductive Trace : State roles → State roles → Prop
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:63:theorem trace_models (path : Trace state after) (model : Assignment) : Models after model ↔ Models state model := by
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:68:theorem trace_sources (path : Trace state after) :
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:75:theorem trace_raw (path : Trace state after)
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:82:theorem trace_trans (one : Trace state middle) (two : Trace middle after) : Trace state after := by
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:87:theorem trace_steps (path : Trace state after) (registry : GeneralDeclarations.Registry)
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:93:def withOrdinary (state : State roles) (atoms : List (PresenceNormalForm.Atom Nat)) : State roles :=
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:98:theorem trace_shape (path : Trace state after) :
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:109:theorem trace_known (path : Trace state after) :
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:115:theorem trace_pointClosed (path : Trace state after)
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:121:theorem close_pairs (pairs : List (Nat × Nat)) (state : State roles)
+lean/Yulang/GeneralNominalVersionedMixedEqualityClosure235.lean:158:theorem exists_closed (state : State roles) : ∃ after, Trace state after ∧
+lean/Yulang/GeneralNominalVersionedMixedEvidenceReduction235.lean:13:abbrev Boundary (roles : Roles.RoleDecls) := GeneralNominalVersionedMixedSourceBoundary234.boundary roles
+lean/Yulang/GeneralNominalVersionedMixedEvidenceReduction235.lean:15:def Available (roles : Roles.RoleDecls) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedEvidenceReduction235.lean:23:def InhabitedAvailable (roles : Roles.RoleDecls) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedEvidenceReduction235.lean:32:theorem inhabited_of_available (available : Available roles) : InhabitedAvailable roles :=
+lean/Yulang/GeneralNominalVersionedMixedEvidenceReduction235.lean:36:theorem evidenceNode (available : InhabitedAvailable roles) : B4SkeletonV8.EvidenceNode (Boundary roles) := by
+lean/Yulang/GeneralNominalVersionedMixedEvidenceReduction235.lean:43:theorem generatedChildren (available : Available roles) : B4SkeletonV8.GeneratedChildren (Boundary roles) := by
+lean/Yulang/GeneralNominalVersionedMixedEvidenceReduction235.lean:50:theorem inhabited_generated_children (available : InhabitedAvailable roles)
+lean/Yulang/GeneralNominalVersionedMixedEvidenceReduction235.lean:63:theorem semantic_bridges (available : Available roles) :
+lean/Yulang/GeneralNominalVersionedMixedFrameSelection235.lean:12:theorem frame_survivor
+lean/Yulang/GeneralNominalVersionedMixedFrameSelection235.lean:27:theorem selected_identifies
+lean/Yulang/GeneralNominalVersionedMixedFrameSelection235.lean:34:noncomputable def effect_of_selected
+lean/Yulang/GeneralNominalVersionedMixedFrameSelection235.lean:44:theorem effect_registry (selected : GeneralNominalVersionedMixedBoundary234.Local registry state root (.selected key children)) (frame : Frame registry state.core root key plan) (ready) :
+lean/Yulang/GeneralNominalVersionedMixedFrameSelection235.lean:47:theorem effect_snapshot (selected : GeneralNominalVersionedMixedBoundary234.Local registry state root (.selected key children)) (frame : Frame registry state.core root key plan) (ready) :
+lean/Yulang/GeneralNominalVersionedMixedFrameSelection235.lean:50:theorem effect_plan (selected : GeneralNominalVersionedMixedBoundary234.Local registry state root (.selected key children)) (frame : Frame registry state.core root key plan) (ready) :
+lean/Yulang/GeneralNominalVersionedMixedGuardReduction235.lean:12:theorem positions
+lean/Yulang/GeneralNominalVersionedMixedGuardReduction235.lean:23:theorem alternatives
+lean/Yulang/GeneralNominalVersionedMixedGuardReduction235.lean:29:theorem current
+lean/Yulang/GeneralNominalVersionedMixedGuardReduction235.lean:44:theorem installable_iff
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:13:def Recorded (root : Occurrence roles) (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:19:theorem lift (legacy : Legacy.State roles) : Recorded root (GeneralNominalVersionedJournal232.lift legacy) := by
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:23:theorem old_effect (growth : GeneralNominalVersionedMixedGrowth234.Monotone before after)
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:31:theorem step (action : Step registry root before after) (recorded : Recorded root before) : Recorded root after := by
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:46:theorem steps (path : B4Target.Steps (Step registry root) before after)
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:52:theorem reachable
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:59:theorem parent_generated
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:64:theorem child_generated
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:71:theorem committed
+lean/Yulang/GeneralNominalVersionedMixedHistory235.lean:80:theorem no_identical_reinstall
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean:13:def Absorbed (state : State roles) (plan : Plan roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean:17:theorem no_outputs
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean:28:theorem recorded_raw
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean:33:theorem requests_iff (absorbed : Absorbed state plan) :
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean:45:theorem versioned_live_iff (absorbed : Absorbed state plan) (prior : Effect roles) :
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean:49:theorem legacy_live_iff (absorbed : Absorbed state plan)
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean:56:theorem installation_iff (snapshot : effect.snapshot = state.core) (absorbed : Absorbed state effect.plan) :
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean:70:theorem no_outputs_installation_iff (snapshot : effect.snapshot = state.core)
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:12:def Synced (state : State roles) : Prop := state.plans = state.effects.map Effect.plan
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:14:theorem lift (legacy : Legacy.State roles) : Synced (GeneralNominalVersionedJournal232.lift legacy) := rfl
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:16:theorem step_sync (action : Step registry root before after) (synced : Synced before) : Synced after := by
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:24:theorem plan_committed (synced : Synced state)
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:35:theorem novel_not_recorded (synced : Synced state)
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:40:def Invariant (root : Occurrence roles) (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:43:theorem lift_invariant (legacy : Legacy.State roles) :
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:47:theorem step (action : Step registry root before after) (invariant : Invariant root before) : Invariant root after := by
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:57:theorem steps (path : B4Target.Steps (Step registry root) before after)
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:63:theorem reachable
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:70:theorem reachable_plan_committed
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean:75:theorem reachable_nodup
+lean/Yulang/GeneralNominalVersionedMixedQuietInstall235.lean:14:def Quiet (plan : Plan roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedQuietInstall235.lean:17:theorem terminal_quiet (terminal : GeneralNominalVersionedFrame231.children plan.packet = []) : Quiet plan := by
+lean/Yulang/GeneralNominalVersionedMixedQuietInstall235.lean:22:theorem requests_iff (quiet : Quiet plan) :
+lean/Yulang/GeneralNominalVersionedMixedQuietInstall235.lean:43:theorem installation_models_iff
+lean/Yulang/GeneralNominalVersionedMixedQuietInstall235.lean:60:theorem common_iff (snapshot : effect.snapshot = state.core) (quiet : Quiet effect.plan) :
+lean/Yulang/GeneralNominalVersionedMixedQuietInstall235.lean:71:theorem source_installable_iff
+lean/Yulang/GeneralNominalVersionedMixedReady235.lean:10:theorem coverage
+lean/Yulang/GeneralNominalVersionedMixedReady235.lean:20:theorem ready (checked : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry)
+lean/Yulang/GeneralNominalVersionedMixedReady235.lean:30:theorem emitted_covered {plan : Plan roles}
+lean/Yulang/GeneralNominalVersionedMixedReady235.lean:49:theorem materialized
+lean/Yulang/GeneralNominalVersionedMixedRoles235.lean:13:theorem emitted_origin (valid : Invariant registry seed root state.core)
+lean/Yulang/GeneralNominalVersionedMixedRoles235.lean:26:theorem install (valid : Invariant registry seed root state.core)
+lean/Yulang/GeneralNominalVersionedMixedRoles235.lean:41:theorem step (checked : Checked registry)
+lean/Yulang/GeneralNominalVersionedMixedRoles235.lean:62:theorem trace (checked : Checked registry)
+lean/Yulang/GeneralNominalVersionedMixedRoles235.lean:71:theorem reachable (checked : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry)
+lean/Yulang/GeneralNominalVersionedMixedRoles235.lean:83:theorem requests_declared (checked : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry)
+lean/Yulang/GeneralNominalVersionedMixedSelectedEffect235.lean:14:theorem source_effect
+lean/Yulang/GeneralNominalVersionedMixedSelectedEffect235.lean:26:def Extension (state : State roles) (effect : Effect roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedSelectedEffect235.lean:30:theorem source_installable_iff
+lean/Yulang/GeneralNominalVersionedMixedSelectedFrame235.lean:11:theorem administrative_ready
+lean/Yulang/GeneralNominalVersionedMixedSelectedFrame235.lean:18:theorem source_frame
+lean/Yulang/GeneralNominalVersionedMixedStableEvidence235.lean:13:theorem certificate
+lean/Yulang/GeneralNominalVersionedMixedStableEvidence235.lean:24:theorem selected_node
+lean/Yulang/GeneralNominalVersionedMixedStableEvidence235.lean:36:theorem selected_generated_children
+lean/Yulang/GeneralNominalVersionedMixedStableLaws235.lean:11:theorem equality_closed (stable : Stable registry state root) :
+lean/Yulang/GeneralNominalVersionedMixedStableLaws235.lean:18:theorem no_new_known (stable : Stable registry state root)
+lean/Yulang/GeneralNominalVersionedMixedStableLaws235.lean:26:theorem no_reobserve (stable : Stable registry state root)
+lean/Yulang/GeneralNominalVersionedMixedStableLaws235.lean:32:theorem generated_site (stable : Stable registry state root)
+lean/Yulang/GeneralNominalVersionedMixedStableLaws235.lean:42:theorem same_inputs_alias (stable : Stable registry state root)
+lean/Yulang/GeneralNominalVersionedMixedStableLaws235.lean:51:theorem install_committed (stable : Stable registry state root)
+lean/Yulang/GeneralNominalVersionedMixedStableLaws235.lean:58:theorem install_semantics (stable : Stable registry state root)
+lean/Yulang/GeneralNominalVersionedMixedStableLaws235.lean:65:theorem install_children (stable : Stable registry state root)
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:13:def Registered (state : State roles) (root : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:18:def Centered (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:22:def Covered (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:26:theorem generated_registered (recorded : Registered state root)
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:34:theorem at_registered (recorded : Registered before root) (action : At registry before focus after) :
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:60:theorem at_centered (recorded : Centered before) (action : At registry before focus after) : Centered after := by
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:79:theorem step_covered (registered : Registered before root) (covered : Covered before)
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:99:def Invariant (state : State roles) (root : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:102:theorem initial (context : GeneralNominalCandidates.Context) :
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:109:theorem step (invariant : Invariant before root) (action : Step registry root before after) : Invariant after root :=
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:113:theorem steps (invariant : Invariant before root) (path : B4Target.Steps (Step registry root) before after) :
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:119:theorem reachable
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:127:theorem centered_registered
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:133:theorem generated_center
+lean/Yulang/GeneralNominalVersionedMixedTrace235.lean:141:theorem administrative_ready

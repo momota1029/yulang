@@ -15,3 +15,18 @@ use it to isolate EvidenceNode/GeneratedChildren, not claim they are complete.
 
 New modules and audits only. Frozen files unchanged. Focused trust=0 checks;
 full gate remains supervisor responsibility.
+
+## Verified expansion
+
+Current Frame/Effect, Ready/materialized and cycle guards were derived from
+source reachability and selection. The more general CompletionRequests invariant
+tracks canonical child identity/output targets, independent of input aggregate
+versions; it removes futureLive requirements even for output-bearing children.
+Common235 retains exactly ChoiceCompatible and one current model satisfying full
+packet and live class equations. This is not unconditional model availability.
+
+218 has an actual three-step prefix, then finite semantic-equality-only closure.
+The resulting mathematical endpoint is nonempty/fullStable and satisfies literal
+EvidenceAt. Root dictionary existence is not asserted: the new point child is
+pending, and the old child has incompatible actual sharing. Classical endpoint
+selection is not an executable driver. General eight B4 bridge fields remain open.
