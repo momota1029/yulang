@@ -24,3 +24,13 @@ requires a separate semantic congruence theorem, not literal assignment equality
 Parallel counterexample-first work checks actual source prefixes for the two
 cycle237 diagnostic fixtures. No semantic change or refutation is inferred from
 conditional local obstructions. Exact target refutations stop that target.
+
+
+Implemented scope: full expression/row/atom/raw-model congruence; observational
+origin witnesses, ProjectionModels, total packet equations, actual/default class
+effects and all current/historical live obligations are transported. Actual
+mixed-source traces have empty legacy plan/effect lists, derived from the trace,
+so SourceCongruence238.source_models_iff preserves the entire mixed journal.
+normalized_full_model combines this with historical equation normalization.
+This proof does not add prospective equations. The actual compound no_common
+counterexample remains intact. Independent read-only review found no scope gap.

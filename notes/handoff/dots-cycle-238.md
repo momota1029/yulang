@@ -63,3 +63,42 @@ Origin/ProjectionCongruence238:
 全identityのtype意味同値・row同一な二代入で、観測originの値は存在証人と意味同値を保って移る。
 Head/shared-origin/actual expressionとProjectionModels/privateHeadModelsの同値を証明。
 sourceの観測値を文字通り同じだとは仮定していない。
+
+
+## 第三追加: full Models 保全と actual replay
+
+5モジュール29 constants監査PASS、ここまで36モジュール466 constants。
+第二31モジュールは5fc6824cへ公開し全tree一致・remote ref一致を確認した。
+
+- SourceCongruence238.source_models_iff は実source traceからLegacyEmptyを導出し、
+  型意味同値・row同一の代入で全mixed journal Modelsを同値輸送。
+  privateHead、observational origin、全modeのheadschema、child/出力のtotal expression、
+  explicit/default class effects、全historical/current Liveまで含む。
+- normalized_full_model は237の歴史aggregate solutionを既存fullModelに適用しても
+  全fullModelsを保持すると示す。未充足のprospective packetを加える定理ではなく、
+  CompoundObstruction238.no_commonを解消したとはしない。別作業者のread-only査読済み。
+- CompoundReplay238: 全point Modelsで現在planのactual_head、child_actual、child_intervalを
+  旧保存packetから再生できる。child_siteは文字通り同一。
+  old actual意味が破綻したのではなく、再生成lower/upper式が邪魔していることを切り分けた。
+  現CertificateはcurrentFrameとfullHoldsを要求するので、このreplayだけで現EvidenceAtを作ったとはしない。
+
+## 第四追加: 障害の切り分けと任意版の局所橋
+
+16モジュール227 constants監査PASS、計52モジュール693 constants。
+Compound Sites/NoInstance/PointModel/PointHead/Prepared/Operational/Feasible:
+全current FrameのplanはcurrentPlanに一意。全fullModels・任意key/childrenでInstanceは無い。
+notCommittedかつ同planのInstallableは無い。実拡張modelでUnique/Ready/HeadEquations/
+ClassEffectsとsharing/output/merged conflict否定を閉じた。
+ただしSafeKnown、Stable、selected、childEvidenceは未証明。EvidenceNodeには子Evidence前提が
+あるため、noInstanceだけをその反証とは絶対に扱わない。
+
+Family Base/Snapshot/Packet/Head/Full/Refines/Fresh/Revision/Back:
+任意nのsource-preserving snapshotとpacket、具体モデル、Refinesと厳密なpoint改善、
+過去reservation・base sourceからの新lo/hi freshnessを証明。
+Full/rawModelはordinary atomsを満たすという明記前提がある。
+Backは実lower aggregate等式がordinaryに含まれるという構造前提からraw Modelsを逆輸送。
+全journal support freshness、trusted cache、Refresh/Reobserve証明書、全n actual reachable、
+無限実行はまだ示していない。局所橋を停止性の反証とは呼ばない。
+
+11:04の再読でintegrationはd8623f96へ更新（236/237公開の取り込み）。
+standing-orders/inboxの差分なし、I44継続、STOPなし。凍結を維持。

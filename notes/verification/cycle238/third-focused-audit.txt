@@ -1,0 +1,6 @@
+CHECK:GeneralNominalSchemaCongruence238
+CHECK:GeneralNominalVersionedPacketCongruence238
+CHECK:GeneralNominalVersionedEffectCongruence238
+CHECK:GeneralNominalVersionedSourceCongruence238
+CHECK:GeneralDictionaryCompoundReplay238
+CYCLE238-THIRD-PASS: 29 constants in 5 modules
