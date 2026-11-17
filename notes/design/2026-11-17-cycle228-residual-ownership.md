@@ -51,3 +51,21 @@ incompatible with the journal. This is not yet a closed reachable counterexample
 A source/model construction and the actual Local/Stable/evidence premises must
 all be checked before any refutation is claimed. Existing Guard210 excludes
 only uniformly raw-inconsistent cases, not automatically this candidate.
+
+## Verified second checkpoint and correction of the exploratory candidate
+
+The actual checked fixture uses emptyRecord (width record), exactEmpty, and
+unchanged upper endpoint emptyRecord, not int/bottom/top from the exploratory
+paragraph. A source equality grounds Foo(width,width) while permitting x to vary
+between exactEmpty and width. The terminal implementation writes x=exactEmpty.
+Cycles/Enable establish actual initial Installable and a non-committed install
+step, without assuming safe/cycle/common guards. A certified source-supported
+Reobserve then replaces the wide root intervals by point width intervals.
+Reachable proves the two-step V8 initial-source path. Stage proves a surviving
+full journal model and absence of every current Instance at that model.
+RawStage separately proves current raw HeadModels/Prepared using modelHigh.
+Thus raw applicability and initial reachability do not alone provide full-journal
+instance extraction. Stable and selected Local are NOT proved for the final
+state. This is NOT a counterexample to the complete EvidenceNode statement,
+and no I-34 semantic-stop claim follows. Refresh/administrative closure remains
+the essential next check; no semantic definition has been changed.
