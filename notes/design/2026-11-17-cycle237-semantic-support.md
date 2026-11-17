@@ -31,3 +31,9 @@ recursive evaluation. Preserve arbitrary external values and all rows. This is
 only the pure aggregate equation subsystem: full journal/head/output constraints
 must not be inferred from its satisfiability. It is a producer for later common
 model reasoning, not an additional assumption of its desired conclusion.
+
+The same seed/coherence/DAG argument also includes one prospective current plan,
+without an actual install step: augment only the equation ledger, then solve
+all old and current merges jointly. The augmented record is a proof device,
+not a claimed reachable or installed state. This precisely isolates I44's
+aggregate-equation benefit from fixed compound-output endpoint obligations.

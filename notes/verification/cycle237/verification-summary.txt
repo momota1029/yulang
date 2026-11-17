@@ -1,0 +1,13 @@
+Cycle237 verification
+47 newly added Yulang modules; declaration index in declarations.md.
+Direct module command: PATH=/tmp/lean435/bin:$PATH lake env lean --trust=0 -DwarningAsError=true Yulang/NAME.lean -o .lake/build/lib/lean/Yulang/NAME.olean
+Every new module passed this command; no full lake build or verify-lean.sh run.
+Audit commands: lake env lean --trust=0 -DwarningAsError=true Audit/Cycle237{First,Second,Third,Fourth}.lean
+Audits: 174/19 + 164/15 + 23/5 + 213/8 = 574 constants / 47 modules.
+Constants include generated definitions, not a theorem count.
+Allowed axioms only: propext, Classical.choice, Quot.sound.
+No sorry/new axiom/native_decide in new modules.
+Frozen lean/Audit.lean and lean/README.md byte-identical to cycle236 final f37f00585.
+No existing lean/Yulang proof changed. Barrel preserves old prefix exactly; all47 new imports occur exactly once. Older duplicate imports are preserved, not cleaned up.
+Independent review: point/materialization chain and model-support/DAG equation chain checked; local version-loop modules independently audited and then recompiled in primary worktree.
+No new Yulang2 live run, no full agreement or CI success claim.
