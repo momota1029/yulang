@@ -82,3 +82,12 @@ I45は元source descriptorの保護として残す。旧239/240の偽目標を�
 ただし上のproducerなしに一般Accや全回帰完成を主張しない。
 
 最終焦点監査結果:20 modules /298 constants、全direct compileと推移公理監査exit0。
+
+## 最終公開の照合
+
+成果公開 `0f75cb17c4d9ff05eaf6526875c8c81746461db0`、tree
+`3a10a8712b017e7c145938e4d3acbbe30beb8e01` をGitHubから再取得し、
+ローカル `a98d46920` と全tree差分0（git diff --exit-code、exit0）。
+サイクル前の公開63f7c4c0から43ファイルの追加・変更（20Lean本体と統合由来の変更を含む）。
+GitHub statusは空配列、CI成功とは主張しない。作業treeはclean。
+照合時刻14:14:34 UTC、経過44.1分。回復を含め約45分作業し、55分上限内で保存・検証を完了。
