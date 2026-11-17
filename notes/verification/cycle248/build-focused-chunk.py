@@ -15,7 +15,9 @@ def visit(module):
     for dep in line.split()[1:]:
      if (root/'lean'/(dep.replace('.','/')+'.lean')).exists():visit(dep)
   order.append(module)
-visit(target);(folder/'dependency-order.json').write_text(json.dumps(order,indent=2)+'\n')
+
+for chosen in target.split(','):visit(chosen)
+(folder/'dependency-order.json').write_text(json.dumps(order,indent=2)+'\n')
 env=dict(os.environ,LEAN_PATH=str(cache));start=time.monotonic();built=0;remaining=0
 for module in order:
  source=root/'lean'/(module.replace('.','/')+'.lean');key=str(source.relative_to(root));sha=hashlib.sha256(source.read_bytes()).hexdigest();output=cache/(module.replace('.','/')+'.olean')
