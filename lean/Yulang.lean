@@ -3813,7 +3813,6 @@ import Yulang.GeneralDictionaryOptionalStageSafety229
 
 import Yulang.GeneralDictionaryOptionalJoint229
 import Yulang.GeneralDictionaryOptionalOpenRefresh229
-
 import Yulang.GeneralDictionaryUpper230Base
 import Yulang.GeneralDictionaryUpper230Snapshot
 import Yulang.GeneralDictionaryUpper230Refresh
@@ -3830,3 +3829,9 @@ import Yulang.GeneralDictionaryUpper230Joint
 import Yulang.GeneralDictionaryUpper230Closure
 import Yulang.GeneralDictionaryUpper230Equality
 import Yulang.GeneralDictionaryUpper230Regression
+import Yulang.GeneralNominalAggregateVersion231
+import Yulang.GeneralNominalVersionedAllocation231
+import Yulang.GeneralNominalVersionedCapture231
+import Yulang.GeneralDictionaryVersionedSupport231
+import Yulang.GeneralDictionaryVersionedNames231
+import Yulang.GeneralDictionaryVersionedMerge231
