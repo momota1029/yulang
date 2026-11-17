@@ -4007,3 +4007,10 @@ import Yulang.GeneralDictionaryMixedGap206Selected234
 import Yulang.GeneralDictionaryMixedGap206Stable234
 import Yulang.GeneralDictionaryMixedJoin204234
 import Yulang.GeneralNominalVersionedMixedStableTransfer234
+
+-- Cycle234: actual nonterminal source install and finite trusted-slice composition
+import Yulang.GeneralDictionaryMixedGround218Frame234
+import Yulang.GeneralDictionaryMixedGround218Install234
+import Yulang.GeneralDictionaryMixedGround218Obstruction234
+import Yulang.GeneralDictionaryMixedGround218Packet234
+import Yulang.GeneralNominalVersionedSupportUnion234

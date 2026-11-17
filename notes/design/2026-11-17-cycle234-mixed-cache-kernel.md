@@ -46,3 +46,33 @@ nonvacuous Stable/selected/EvidenceAt obligations. The 199/202/204 source
 regressions also transfer after proving the explicit StableTransfer premises.
 The general six missing operational bridges remain missing. A further 218
 source-initial sharing-conflict path is under evaluation; no claim is made yet.
+
+## General support composition (minute33)
+
+A useful remaining general bridge is finite composition of independently trusted
+versioned slices. For arbitrary state and lists F/G, prove SliceModels(F++G)
+iff SliceModels(F) and SliceModels(G), then Trusted(F) and Trusted(G) imply
+Trusted(F++G), by restricting every Readback/ClassReadback premise to the
+stronger combined slice. This does not postulate mutually recursive trust or
+solve availability; it supplies a sound reusable finite conjunction rule.
+
+## Exact final scope
+
+Independent claim review checked that ClosedStep begins at the original source,
+that Models iff preserves the explicit witness, and that ClosedFrame's packet
+premise is supplied noncircularly by the retained journal and exact transport.
+ClosedStable excludes every mixed At constructor, not only install. Its halted
+corollary concerns this single endpoint, not the generic executor bridge.
+
+The 218 nonterminal prefix is now an actual source-initial guarded parent install,
+with a nonempty model and versioned generated child. The sharing obstruction is
+quantified over all installed models but explicitly conditions candidate.input
+and candidate head queries. Current leaf Frame/Prepared/SafeKnown and final V8
+rejection are not proved. Parent singleton captures are checked individually;
+unused capture names are not silently identified with the legacy allocation.
+
+For the next 218 step, separate the child invocation's versioned keys from the
+parent allocation history (NameSeparation233.other_root/outside_history), build
+its current Prepared/Frame, and show every such frame has the input/queries used
+by child_input_infeasible. Only then discharge AtKey/SharingConflict and the
+source-facing Local rejected. Nonempty parent install is not a rejection result.

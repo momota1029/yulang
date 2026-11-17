@@ -1,0 +1,477 @@
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:5: abbrev oldHi := GeneralDictionaryVersionedInitialModel233.names 1
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:6: abbrev newLo := GeneralDictionaryVersionedNames231.freshName 0
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:7: abbrev newHi := GeneralDictionaryVersionedNames231.freshName 1
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:10: abbrev embed (slot : Fin 5) : Fin 8 := ⟨slot.val,by omega⟩
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:11: def source (slot : Fin 8) : Nat := if slot.val < 5 then slot.val else if slot.val = 5 then oldHi else if slot.val = 6 then newLo else newHi
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:13: theorem source_embed (slot : Fin 5) : source (embed slot) = slot.val := by
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:15: theorem source_five : source 5 = oldHi := rfl
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:16: theorem source_six : source 6 = newLo := rfl
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:17: theorem source_seven : source 7 = newHi := rfl
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:19: theorem source_injective : Function.Injective source := by unfold Function.Injective; decide +kernel
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:21: abbrev shapes (_ : Fin 1) : GeneralSourceState.Shape 8 := .emptyRecord
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:22: abbrev heads (slot : Fin 8) : GeneralSourceState.Head shapes :=
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:25: abbrev extendedBase : GeneralSourceState.State where
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:58: abbrev viewShapes (_ : Fin 1) : GeneralNormalizedObservation.Shape := .record []
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:59: abbrev viewHeads (slot : Fin 8) : GeneralNormalizedObservation.Head viewShapes 8 :=
+lean/Yulang/GeneralDictionaryMixedClosedBase234.lean:61: abbrev extendedView : GeneralNormalizedObservation.Snapshot extendedBase where
+lean/Yulang/GeneralDictionaryMixedClosedEvidence234.lean:13: theorem old_plan : oldPlan = GeneralNominalVersionedInstallation231.replayPlan
+lean/Yulang/GeneralDictionaryMixedClosedEvidence234.lean:16: theorem packet {model : Assignment} (valid : Models next model) :
+lean/Yulang/GeneralDictionaryMixedClosedEvidence234.lean:22: theorem evidence {model : Assignment} (valid : Models next model) :
+lean/Yulang/GeneralDictionaryMixedClosedEvidence234.lean:26: theorem unique {model : Assignment} (valid : Models next model) :
+lean/Yulang/GeneralDictionaryMixedClosedEvidence234.lean:30: theorem inhabited_evidence : ∃ model, Models next model ∧
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:17:  theorem raw_sites : next.core.erased.current.sites = [GeneralNominalDemandMerging.pointSite root] :=
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:20: theorem centers : next.core.sites = [rootSite snapshot.seed root] :=
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:23: theorem owned (member : key ∈ GeneralNominalVersionedAllocation231.keys registry root.identity packet.bindings) :
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:31: theorem prepared {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:43: theorem known : ¬ GeneralNominalState.RootPending extendedContext.state root.demand := by
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:47: theorem frame {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:53: theorem unique {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:67: theorem request_exact (member : output ∈ GeneralNominalCenteredHeadOutputs.requests next.core root) :
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:70: theorem ready : GeneralNominalCenteredHeadMatEffects.Ready next.core root plan := by
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:75: theorem class_effects {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedClosedFrame234.lean:97: theorem evidence {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:15: noncomputable abbrev packet : GeneralNominalSaturationState.Packet roles :=
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:18: noncomputable abbrev plan : Plan roles :=
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:20: noncomputable abbrev oldPlan := GeneralDictionaryVersionedPoint233.plan allocated reserved ordinary
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:22: theorem query :
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:28: theorem report_exact : report extendedContext declaration [(0,0)] =
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:47: theorem bindings_exact :
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:53: theorem capture_exact :
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:60: theorem binder_exact : GeneralNominalVersionedFrame231.binder plan 0 = actual := by
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:76: theorem children_empty : GeneralNominalVersionedFrame231.children packet = [] := by
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:82: theorem emitted_schema : emittedSchema plan =
+lean/Yulang/GeneralDictionaryMixedClosedPlan234.lean:89: theorem head_schema : plan.headSchema = GeneralDictionaryOptionalInstall229.plan.headSchema := rfl
+lean/Yulang/GeneralDictionaryMixedClosedRefresh234.lean:16: noncomputable def certificate : GeneralNominalVersionedMixedObservations233.Refresh installed extendedContext where
+lean/Yulang/GeneralDictionaryMixedClosedRefresh234.lean:129: theorem model_preserved (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedClosedRegression234.lean:14: abbrev boundary := GeneralNominalVersionedMixedSourceBoundary234.boundary roles
+lean/Yulang/GeneralDictionaryMixedClosedRegression234.lean:16: theorem checked : boundary.Checked sourceRegistry := GeneralDictionaryOptionalInitial229.boundary_checked
+lean/Yulang/GeneralDictionaryMixedClosedRegression234.lean:18: theorem source_unchanged : next.core.erased.source =
+lean/Yulang/GeneralDictionaryMixedClosedRegression234.lean:21: theorem all_models_evidence {model : GeneralNominalCommonBridge.Assignment} (valid : Models next model) :
+lean/Yulang/GeneralDictionaryMixedClosedRegression234.lean:25: theorem generated_only (generated : boundary.Generated sourceRegistry next root demand) : demand = root :=
+lean/Yulang/GeneralDictionaryMixedClosedRegression234.lean:29: theorem evidenceAt : B4SkeletonV8.EvidenceAt boundary sourceRegistry next root := by
+lean/Yulang/GeneralDictionaryMixedClosedRegression234.lean:41: theorem generated_stable (generated : boundary.Generated sourceRegistry next root demand) :
+lean/Yulang/GeneralDictionaryMixedClosedRegression234.lean:46: theorem positive_regression :
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:16: abbrev slotForm (slot : Fin 8) : Form :=
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:19: theorem source_form (slot : Fin 8) :
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:30: theorem acyclic (origin) : ¬ GeneralNominalVersionedCycles232.Cyclic next origin :=
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:33: theorem frame : GeneralNominalVersionedEvidence231.Frame registry next.core root declaration.id
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:37: theorem raw_edge_decreases {a b : Fin 8}
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:65: theorem no_raw_recurs (slot : Fin 8) :
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:80: theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady next root := by
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:90: theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry next root := by
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:104: theorem equal_outputs (focus) : GeneralNominalCenteredHeadOutputs.EqualOutputs next.core focus extended := by
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:116: theorem selected : GeneralNominalVersionedMixedBoundary234.Local registry next root (.selected declaration.id []) := by
+lean/Yulang/GeneralDictionaryMixedClosedSelected234.lean:126: theorem source_selected : GeneralNominalVersionedMixedSourceBoundary234.Local sourceRegistry next root (.selected declaration.id []) :=
+lean/Yulang/GeneralDictionaryMixedClosedSemantics234.lean:9: theorem ordinary_eq (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedClosedSnapshot234.lean:8: noncomputable abbrev allocated := installed.core.erased.current.context.state.allocated
+lean/Yulang/GeneralDictionaryMixedClosedSnapshot234.lean:9: noncomputable abbrev reserved := installed.core.erased.current.context.state.reserved
+lean/Yulang/GeneralDictionaryMixedClosedSnapshot234.lean:10: noncomputable abbrev ordinary := installed.core.erased.current.context.state.ordinary
+lean/Yulang/GeneralDictionaryMixedClosedSnapshot234.lean:13: abbrev pointDesc : GeneralNominalState.Descriptor 8 :=
+lean/Yulang/GeneralDictionaryMixedClosedSnapshot234.lean:15: noncomputable abbrev extendedSnapshot : GeneralNominalState.State where
+lean/Yulang/GeneralDictionaryMixedClosedSnapshot234.lean:35: noncomputable abbrev extendedContext : GeneralNominalCandidates.Context := ⟨extendedSnapshot,interpretation⟩
+lean/Yulang/GeneralDictionaryMixedClosedSnapshot234.lean:37: noncomputable def refines : GeneralNominalRefinements.Refines
+lean/Yulang/GeneralDictionaryMixedClosedSnapshot234.lean:87: theorem assignment_transport (m : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:18:  theorem valid : Models next extended :=
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:21: theorem headless : HeadlessUnknown next := by
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:37: theorem point_closed : GeneralNominalReobservationSteps.PointClosed next.core.erased.current.context.state := by
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:49: theorem equality_closed : EqualityClosed next :=
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:53: theorem edges_empty : next.core.erased.current.edges = [] :=
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:56: theorem committed : Committed next plan := by
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:65: theorem no_install (effect : Effect roles) (enabled : Installable registry next effect)
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:74: theorem stable : Stable registry next root :=
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:77: theorem halted : ∀ after, ¬ Step registry root next after := by
+lean/Yulang/GeneralDictionaryMixedClosedStable234.lean:81: theorem source_stable : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Stable sourceRegistry next root := stable
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:18: noncomputable abbrev next := GeneralNominalVersionedRefresh232.refresh installed extendedContext
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:19: noncomputable def mixedCertificate : GeneralNominalVersionedMixedObservations233.Refresh installed extendedContext :=
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:22: theorem action : At registry installed root next :=
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:26: theorem step : Step registry root installed next := ⟨root,.root,action⟩
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:28: theorem not_stable : ¬ Stable registry installed root := by
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:32: theorem old_stable : GeneralNominalVersionedKernel232.Stable registry installed root :=
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:35: theorem source_reachable :
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:40: theorem models_iff (model : GeneralNominalCommonBridge.Assignment) : Models next model ↔ Models installed model :=
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:43: theorem nonempty_models : ∃ model, Models next model := by
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:46: theorem cache : GeneralNominalVersionedMixedKernelCache234.Valid next :=
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:49: theorem source_preserved : next.core.erased.source = installed.core.erased.source := rfl
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:51: theorem plans_preserved : next.plans = installed.plans := rfl
+lean/Yulang/GeneralDictionaryMixedClosedStep234.lean:53: theorem effects_preserved : next.effects = installed.effects := rfl
+lean/Yulang/GeneralDictionaryMixedClosedTransport234.lean:9: theorem capture_eq : GeneralNominalVersionedFrame231.capture packet =
+lean/Yulang/GeneralDictionaryMixedClosedTransport234.lean:15: theorem binder_eq : GeneralNominalVersionedFrame231.binder plan =
+lean/Yulang/GeneralDictionaryMixedClosedTransport234.lean:20: theorem projection_eq (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedClosedTransport234.lean:29: theorem schema_eq (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedClosedTransport234.lean:35: theorem inputs (model : GeneralNominalCommonBridge.Assignment) (old : Inputs oldPlan model) : Inputs plan model := by
+lean/Yulang/GeneralDictionaryMixedClosedTransport234.lean:49: theorem variables_eq (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedClosedTransport234.lean:54: theorem outputs (model : GeneralNominalCommonBridge.Assignment) (old : Outputs oldPlan model) : Outputs plan model := by
+lean/Yulang/GeneralDictionaryMixedClosedTransport234.lean:61: theorem holds (raw : GeneralNominalState.Models packet.context.state model)
+lean/Yulang/GeneralDictionaryMixedClosedTrust234.lean:12:  theorem first_readback : Readback installed [] GeneralDictionaryOptionalInstall229.plan := by
+lean/Yulang/GeneralDictionaryMixedClosedTrust234.lean:17:  theorem first_trusted : Trusted installed [.input GeneralDictionaryOptionalInstall229.plan] :=
+lean/Yulang/GeneralDictionaryMixedClosedTrust234.lean:20:  theorem old_upper {model : GeneralNominalCommonBridge.Assignment}
+lean/Yulang/GeneralDictionaryMixedClosedTrust234.lean:39:  theorem justified (slot : Fin 8) (high : 5 ≤ slot.val) :
+lean/Yulang/GeneralDictionaryMixedClosedTrust234.lean:50:  theorem supported (slot : Fin 8) : source slot ∈
+lean/Yulang/GeneralDictionaryMixedConflict199234.lean:10: theorem initial : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root current :=
+lean/Yulang/GeneralDictionaryMixedConflict199234.lean:13: theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root current :=
+lean/Yulang/GeneralDictionaryMixedConflict199234.lean:16: theorem headless : GeneralNominalVersionedMixedTerminalStable234.HeadlessUnknown current :=
+lean/Yulang/GeneralDictionaryMixedConflict199234.lean:20: theorem stable : GeneralNominalVersionedMixedKernel234.Stable registry current root :=
+lean/Yulang/GeneralDictionaryMixedConflict199234.lean:25: theorem rejected : GeneralNominalVersionedMixedSourceBoundary234.Local registry current root .rejected :=
+lean/Yulang/GeneralDictionaryMixedConflict199234.lean:28: theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry current root :=
+lean/Yulang/GeneralDictionaryMixedConflict199234.lean:31: theorem regression :
+lean/Yulang/GeneralDictionaryMixedDefault202234.lean:10: theorem initial : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root current :=
+lean/Yulang/GeneralDictionaryMixedDefault202234.lean:13: theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root current :=
+lean/Yulang/GeneralDictionaryMixedDefault202234.lean:16: theorem headless : GeneralNominalVersionedMixedTerminalStable234.HeadlessUnknown current :=
+lean/Yulang/GeneralDictionaryMixedDefault202234.lean:20: theorem stable : GeneralNominalVersionedMixedKernel234.Stable registry current root :=
+lean/Yulang/GeneralDictionaryMixedDefault202234.lean:25: theorem selected : GeneralNominalVersionedMixedSourceBoundary234.Local registry current root (.selected 37 []) :=
+lean/Yulang/GeneralDictionaryMixedDefault202234.lean:28: theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry current root :=
+lean/Yulang/GeneralDictionaryMixedDefault202234.lean:31: theorem regression :
+lean/Yulang/GeneralDictionaryMixedGap206Evidence234.lean:10: theorem request_exact (member : output ∈ GeneralNominalCenteredHeadOutputs.requests refreshed.core root) :
+lean/Yulang/GeneralDictionaryMixedGap206Evidence234.lean:17: theorem ready : GeneralNominalCenteredHeadMatEffects.Ready refreshed.core root plan :=
+lean/Yulang/GeneralDictionaryMixedGap206Evidence234.lean:24: theorem class_effects (assignment) (valid : Models refreshed assignment) :
+lean/Yulang/GeneralDictionaryMixedGap206Evidence234.lean:41: theorem certificate (assignment) (valid : Models refreshed assignment) :
+lean/Yulang/GeneralDictionaryMixedGap206Evidence234.lean:46: theorem evidence (assignment) (valid : Models refreshed assignment) :
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:11: noncomputable abbrev packet : GeneralNominalSaturationState.Packet roles :=
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:13: noncomputable abbrev plan : Plan roles := ⟨packet,rootSite snapshot.seed root,rfl⟩
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:15: theorem raw_sites : refreshed.core.erased.current.sites = [GeneralNominalDemandMerging.pointSite root] :=
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:18: theorem centers : refreshed.core.sites = [rootSite snapshot.seed root] :=
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:21: theorem query : GeneralNominalInspection.queries snapshot context.interpretation declaration = [.scalar .int] := by
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:25: theorem report_exact : GeneralNominalRecursiveCandidates.report context declaration [(1,1)] =
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:32: theorem bindings_empty : packet.bindings = [] := by
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:36: theorem scalar (assignment) (valid : GeneralNominalState.Models snapshot assignment) :
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:39: theorem head_schema : plan.headSchema = { tests := [(.source 1,.scalar .int)] } := by
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:45: theorem ordinary (assignment : Assignment) : GeneralNominalVersionedPlans231.Ordinary packet assignment := by
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:58: theorem head_models (assignment : Assignment) (valid : GeneralNominalState.Models snapshot assignment) :
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:66: theorem fresh : GeneralNominalVersionedAllocation231.Fresh snapshot registry root.identity packet.bindings := by
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:71: theorem prepared : GeneralNominalVersionedCandidates231.Prepared registry context root declaration := by
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:76: theorem frame : GeneralNominalVersionedEvidence231.Frame registry refreshed.core root 37 plan :=
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:79: theorem children_empty : GeneralNominalVersionedFrame231.children packet = [] := by
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:85: theorem emitted_empty : GeneralNominalVersionedPlans231.emittedSchema plan = ⟨[],false⟩ := by
+lean/Yulang/GeneralDictionaryMixedGap206Frame234.lean:91: theorem packet_holds (assignment : Assignment) (valid : Models refreshed assignment) :
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:13: theorem scalar_all (assignment) (valid : Models feedback assignment) (slot : Fin 3) :
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:20: noncomputable def certificate : GeneralNominalVersionedMixedObservations233.Refresh feedback context where
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:61: noncomputable def refreshed := GeneralNominalVersionedRefresh232.refresh feedback context
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:63: theorem step : GeneralNominalVersionedMixedKernel234.Step registry root feedback refreshed := by
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:68: theorem not_stable : ¬ GeneralNominalVersionedMixedKernel234.Stable registry feedback root := by
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:73: theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root refreshed := by
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:77: theorem models_iff (assignment) : Models refreshed assignment ↔ Models feedback assignment :=
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:80: theorem model_retained : Models refreshed model :=
+lean/Yulang/GeneralDictionaryMixedGap206Refresh234.lean:83: theorem counter_removed : ¬ Models refreshed counter :=
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:10: theorem frame_plan {candidate : Plan roles}
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:15: theorem known : ¬ GeneralNominalState.RootPending refreshed.core.erased.current.context.state root.demand := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:19: theorem survivor : GeneralNominalVersionedCandidates231.Survivor registry refreshed.core.erased.current.context root 37 [] := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:26: theorem unique : GeneralNominalVersionedCandidates231.Unique registry refreshed.core.erased.current.context root 37 [] := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:36: theorem scalar_no_edge (last : GeneralNominalRecursiveInspection.Origin) :
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:54: theorem scalar_acyclic : ¬ GeneralNominalVersionedCycles232.Cyclic refreshed (.source 1) := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:59: theorem no_raw_edge (first last : Fin 3) : ¬ GeneralNominalMixedRecurrence.Edge refreshed.core.erased.current.context.state first last := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:66: theorem no_raw_recurs (slot : Fin 3) : ¬ GeneralNominalCycleK2.RecursAt refreshed.core.erased.current.context.state slot := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:71: theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady refreshed root := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:79: theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry refreshed root := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:104: theorem equal_outputs (assignment : GeneralNominalCommonBridge.Assignment) (focus) :
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:117: theorem selected : GeneralNominalVersionedMixedSourceBoundary234.Local registry refreshed root (.selected 37 []) := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:127: theorem edges_empty : refreshed.core.erased.current.edges = [] := by
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:133: theorem generated_only (generated : GeneralNominalSaturationState.Generated refreshed.core.erased.current root focus) : focus = root :=
+lean/Yulang/GeneralDictionaryMixedGap206Selected234.lean:137: theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry refreshed root := by
+lean/Yulang/GeneralDictionaryMixedGap206Snapshot234.lean:10: abbrev base : GeneralSourceState.State where
+lean/Yulang/GeneralDictionaryMixedGap206Snapshot234.lean:36: abbrev view : GeneralNormalizedObservation.Snapshot base where
+lean/Yulang/GeneralDictionaryMixedGap206Snapshot234.lean:48: noncomputable abbrev snapshot : GeneralNominalState.State where
+lean/Yulang/GeneralDictionaryMixedGap206Snapshot234.lean:60: noncomputable abbrev context : GeneralNominalCandidates.Context := ⟨snapshot,GeneralNominalExamples.interpretation⟩
+lean/Yulang/GeneralDictionaryMixedGap206Snapshot234.lean:62: noncomputable def refines : GeneralNominalRefinements.Refines feedback.core.erased.current.context.state snapshot := by
+lean/Yulang/GeneralDictionaryMixedGap206Snapshot234.lean:87: theorem support : ∀ identity ∈ GeneralNominalState.sources snapshot,
+lean/Yulang/GeneralDictionaryMixedGap206Snapshot234.lean:92: theorem zero_unknown : ¬ GeneralNominalState.Known feedback.core.erased.current.context.state 0 := by
+lean/Yulang/GeneralDictionaryMixedGap206Snapshot234.lean:99: theorem zero_known : GeneralNominalState.Known snapshot 0 :=
+lean/Yulang/GeneralDictionaryMixedGap206Stable234.lean:11: theorem raw_to_models (assignment) (valid : GeneralNominalState.Models refreshed.core.erased.current.context.state assignment) :
+lean/Yulang/GeneralDictionaryMixedGap206Stable234.lean:17: theorem headless : GeneralNominalVersionedMixedTerminalStable234.HeadlessUnknown refreshed := by
+lean/Yulang/GeneralDictionaryMixedGap206Stable234.lean:26: theorem committed : Committed refreshed plan := by
+lean/Yulang/GeneralDictionaryMixedGap206Stable234.lean:33: theorem stable : Stable registry refreshed root := by
+lean/Yulang/GeneralDictionaryMixedGap206Stable234.lean:44: theorem regression :
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:11: theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root feedback :=
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:14: theorem selected : GeneralNominalVersionedMixedSourceBoundary234.Local registry feedback root (.selected 37 []) :=
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:17: theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry feedback root :=
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:20: theorem readback : Readback feedback [] plan := by
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:25: theorem input_trusted : Trusted feedback [.input plan] :=
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:28: theorem class_readback : ClassReadback feedback [.input plan] effect := by
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:37: theorem settled : PacketSettled feedback plan := terminal_settled (List.mem_cons_self ..) children_empty
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:39: theorem output_trusted : Trusted feedback [.output effect,.input plan] :=
+lean/Yulang/GeneralDictionaryMixedGap206Trusted234.lean:43: theorem zero_int (assignment) (valid : SliceModels feedback [.output effect,.input plan] assignment) :
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:11: theorem fresh : GeneralNominalVersionedAllocation231.Fresh snapshot registry root.identity packet.bindings := by
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:17: theorem prepared : GeneralNominalVersionedCandidates231.Prepared registry context root declaration :=
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:22: theorem frame : GeneralNominalVersionedEvidence231.Frame registry initial.core root 0 plan :=
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:25: theorem children_eq : GeneralNominalVersionedFrame231.children packet = children := by
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:43: theorem unique : GeneralNominalVersionedCandidates231.Unique registry context root 0 children := by
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:54: theorem edge_old (edge : GeneralNominalVersionedCycles232.Edge initial first last) :
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:62: theorem path_old {first last : GeneralNominalRecursiveInspection.Origin}
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:69: theorem acyclic (origin) : ¬ GeneralNominalVersionedCycles232.Cyclic initial origin := by
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:74: theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady initial root := by
+lean/Yulang/GeneralDictionaryMixedGround218Frame234.lean:81: theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry initial root := by
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:13: noncomputable def effect : Effect roles :=
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:16: noncomputable abbrev installed := install initial effect
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:18: theorem requests_empty_after (focus : GeneralSourceDictionaries.Occurrence roles) :
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:37: theorem classes : GeneralNominalVersionedEffects231.ClassEffects initial.core root plan model :=
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:40: theorem live : effect.Live installed.core model := by
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:44: theorem common : InstallationModels initial effect model :=
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:48: theorem frame_plan {candidate : GeneralNominalCenters.Plan roles} {key}
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:60: theorem positions : GeneralNominalVersionedCycles232.Safe initial plan :=
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:63: theorem installable : Installable registry initial effect := by
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:76: theorem novel : ¬ Committed initial plan := by
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:81: theorem step : Step registry root initial installed := ⟨root,.root,.install effect installable novel⟩
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:83: theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles)
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:87: theorem installed_model : Models installed model := (install_models rfl).mpr common
+lean/Yulang/GeneralDictionaryMixedGround218Install234.lean:89: theorem generated_child : GeneralNominalSaturationState.Generated installed.core.erased.current root childSite.occurrence :=
+lean/Yulang/GeneralDictionaryMixedGround218Obstruction234.lean:14: theorem centers_different (given : GeneralNominalCommonBridge.Assignment)
+lean/Yulang/GeneralDictionaryMixedGround218Obstruction234.lean:38: theorem child_input_infeasible (candidate : Plan roles)
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:15: noncomputable abbrev initial := GeneralNominalVersionedJournal232.initial context root
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:17: theorem initial_source : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root initial :=
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:20: theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) sourceRegistry root initial :=
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:23: theorem initial_model : GeneralNominalVersionedJournal232.Models initial model :=
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:26: theorem capture (name : Nat) (member : name = 0 ∨ name = 1) :
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:34: theorem ordinary : Ordinary packet model := by
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:39: theorem head_schema : SchemaHolds plan plan.headSchema model := by
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:47: theorem emitted_schema : emittedSchema plan =
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:56: theorem outputs : Outputs plan model := by
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:69: theorem child_arguments_new (valid : clause.Signature roles) (i) :
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:79: theorem child_holds_new (valid : clause.Signature roles) :
+lean/Yulang/GeneralDictionaryMixedGround218Packet234.lean:85: theorem packet_holds : Holds plan model := by
+lean/Yulang/GeneralDictionaryMixedJoin204234.lean:10: theorem initial : (GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root current :=
+lean/Yulang/GeneralDictionaryMixedJoin204234.lean:13: theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root current :=
+lean/Yulang/GeneralDictionaryMixedJoin204234.lean:16: theorem headless : GeneralNominalVersionedMixedTerminalStable234.HeadlessUnknown current :=
+lean/Yulang/GeneralDictionaryMixedJoin204234.lean:20: theorem stable : GeneralNominalVersionedMixedKernel234.Stable registry current root :=
+lean/Yulang/GeneralDictionaryMixedJoin204234.lean:25: theorem selected : GeneralNominalVersionedMixedSourceBoundary234.Local registry current root (.selected 37 []) :=
+lean/Yulang/GeneralDictionaryMixedJoin204234.lean:28: theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry current root :=
+lean/Yulang/GeneralDictionaryMixedJoin204234.lean:31: theorem regression :
+lean/Yulang/GeneralDictionaryMixedUpperEvidence234.lean:13: theorem old_plan : oldPlan = GeneralNominalVersionedInstallation231.replayPlan
+lean/Yulang/GeneralDictionaryMixedUpperEvidence234.lean:16: theorem packet {model : Assignment} (valid : Models next model) :
+lean/Yulang/GeneralDictionaryMixedUpperEvidence234.lean:22: theorem evidence {model : Assignment} (valid : Models next model) :
+lean/Yulang/GeneralDictionaryMixedUpperEvidence234.lean:26: theorem unique {model : Assignment} (valid : Models next model) :
+lean/Yulang/GeneralDictionaryMixedUpperEvidence234.lean:30: theorem inhabited_evidence : ∃ model, Models next model ∧
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:17:  theorem raw_sites : next.core.erased.current.sites = [GeneralNominalDemandMerging.pointSite root] :=
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:20: theorem centers : next.core.sites = [rootSite snapshot.seed root] :=
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:23: theorem owned (member : key ∈ GeneralNominalVersionedAllocation231.keys registry root.identity packet.bindings) :
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:31: theorem prepared {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:43: theorem known : ¬ GeneralNominalState.RootPending extendedContext.state root.demand := by
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:47: theorem frame {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:53: theorem unique {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:67: theorem request_exact (member : output ∈ GeneralNominalCenteredHeadOutputs.requests next.core root) :
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:70: theorem ready : GeneralNominalCenteredHeadMatEffects.Ready next.core root plan := by
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:75: theorem class_effects {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedUpperFrame234.lean:97: theorem evidence {model : Assignment} (valid : Holds plan model) :
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:15: noncomputable abbrev packet : GeneralNominalSaturationState.Packet roles :=
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:18: noncomputable abbrev plan : Plan roles :=
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:20: noncomputable abbrev oldPlan := GeneralDictionaryVersionedPoint233.plan allocated reserved ordinary
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:22: theorem query :
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:28: theorem report_exact : report extendedContext declaration [(0,0)] =
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:47: theorem bindings_exact :
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:53: theorem capture_exact :
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:60: theorem binder_exact : GeneralNominalVersionedFrame231.binder plan 0 = actual := by
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:76: theorem children_empty : GeneralNominalVersionedFrame231.children packet = [] := by
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:82: theorem emitted_schema : emittedSchema plan =
+lean/Yulang/GeneralDictionaryMixedUpperPlan234.lean:89: theorem head_schema : plan.headSchema = GeneralDictionaryOptionalInstall229.plan.headSchema := rfl
+lean/Yulang/GeneralDictionaryMixedUpperSemantics234.lean:9: theorem ordinary_eq (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:17: noncomputable abbrev next := GeneralNominalVersionedRefresh232.refresh installed extendedContext
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:18: noncomputable def mixedCertificate : GeneralNominalVersionedMixedObservations233.Refresh installed extendedContext :=
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:21: theorem action : At registry installed root next :=
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:25: theorem step : Step registry root installed next := ⟨root,.root,action⟩
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:27: theorem not_stable : ¬ Stable registry installed root := by
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:31: theorem old_stable : GeneralNominalVersionedKernel232.Stable registry installed root :=
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:34: theorem source_reachable :
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:39: theorem models_iff (model : GeneralNominalCommonBridge.Assignment) : Models next model ↔ Models installed model :=
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:42: theorem nonempty_models : ∃ model, Models next model := by
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:45: theorem cache : GeneralNominalVersionedMixedKernelCache234.Valid next :=
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:48: theorem source_preserved : next.core.erased.source = installed.core.erased.source := rfl
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:50: theorem plans_preserved : next.plans = installed.plans := rfl
+lean/Yulang/GeneralDictionaryMixedUpperStep234.lean:52: theorem effects_preserved : next.effects = installed.effects := rfl
+lean/Yulang/GeneralDictionaryMixedUpperTransport234.lean:9: theorem capture_eq : GeneralNominalVersionedFrame231.capture packet =
+lean/Yulang/GeneralDictionaryMixedUpperTransport234.lean:15: theorem binder_eq : GeneralNominalVersionedFrame231.binder plan =
+lean/Yulang/GeneralDictionaryMixedUpperTransport234.lean:20: theorem projection_eq (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedUpperTransport234.lean:29: theorem schema_eq (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedUpperTransport234.lean:35: theorem inputs (model : GeneralNominalCommonBridge.Assignment) (old : Inputs oldPlan model) : Inputs plan model := by
+lean/Yulang/GeneralDictionaryMixedUpperTransport234.lean:49: theorem variables_eq (model : GeneralNominalCommonBridge.Assignment) :
+lean/Yulang/GeneralDictionaryMixedUpperTransport234.lean:54: theorem outputs (model : GeneralNominalCommonBridge.Assignment) (old : Outputs oldPlan model) : Outputs plan model := by
+lean/Yulang/GeneralDictionaryMixedUpperTransport234.lean:61: theorem holds (raw : GeneralNominalState.Models packet.context.state model)
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:11: abbrev equations := GeneralNominalAllocation.equations 0 (.var 1)
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:12: noncomputable def currentPlan := extendedPlan [] equations [] (GeneralNominalVersionedInstallation231.replayPlan plan)
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:14: theorem models_iff (assignment) : Models feedback assignment ↔ Models installed assignment :=
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:17: theorem model_retained : Models feedback model := (models_iff model).mpr installed_model
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:19: theorem counter_removed : ¬ Models feedback counter := fun valid => bottom_removed ((models_iff counter).mp valid)
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:21: theorem reachable : B4TargetV8.Reachable (GeneralNominalVersionedSourceBoundary232.boundary roles) registry root feedback :=
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:24: theorem holds (assignment) (valid : Models feedback assignment) : GeneralNominalVersionedPlans231.Holds currentPlan assignment := by
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:30: theorem core_eq : feedback.core = GeneralNominalCenteredSteps.refresh installed.core
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:39:  theorem frame : GeneralNominalVersionedEvidence231.Frame registry feedback.core root 37 currentPlan := by
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:54: theorem terminal : GeneralNominalVersionedFrame231.children currentPlan.packet = [] := by
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:58: theorem ready : GeneralNominalCenteredHeadMatEffects.Ready feedback.core root currentPlan := by
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:66: theorem effects (assignment) (valid : Models feedback assignment) :
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:75: theorem certificate (assignment) (valid : Models feedback assignment) :
+lean/Yulang/GeneralDictionaryVersionedGap206After234.lean:79: theorem evidence (assignment) (valid : Models feedback assignment) :
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:11: theorem raw_sites : feedback.core.erased.current.sites = [GeneralNominalDemandMerging.pointSite root] :=
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:14: theorem centers : feedback.core.sites = [rootSite snapshot.seed root] :=
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:17: theorem frame : GeneralNominalVersionedEvidence231.Frame registry feedback.core root 37 currentPlan :=
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:20: theorem frame_plan {candidate : Plan roles}
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:25: theorem known : ¬ GeneralNominalState.RootPending feedback.core.erased.current.context.state root.demand := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:29: theorem survivor : GeneralNominalVersionedCandidates231.Survivor registry feedback.core.erased.current.context root 37 [] := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:36: theorem unique : GeneralNominalVersionedCandidates231.Unique registry feedback.core.erased.current.context root 37 [] := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:46: theorem scalar_no_edge (last : GeneralNominalRecursiveInspection.Origin) :
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:64: theorem scalar_acyclic : ¬ GeneralNominalVersionedCycles232.Cyclic feedback (.source 1) := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:69: theorem no_raw_edge (first last : Fin 3) : ¬ GeneralNominalMixedRecurrence.Edge feedback.core.erased.current.context.state first last := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:76: theorem no_raw_recurs (slot : Fin 3) : ¬ GeneralNominalCycleK2.RecursAt feedback.core.erased.current.context.state slot := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:81: theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady feedback root := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:89: theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry feedback root := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:113: theorem equal_outputs (assignment : GeneralNominalCommonBridge.Assignment) (focus) :
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:126: theorem selected : GeneralNominalVersionedSourceBoundary232.Local registry feedback root (.selected 37 []) := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:136: theorem edges_empty : feedback.core.erased.current.edges = [] := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:142: theorem generated_only (generated : GeneralNominalSaturationState.Generated feedback.core.erased.current root focus) : focus = root :=
+lean/Yulang/GeneralDictionaryVersionedGap206AfterSelected234.lean:146: theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedSourceBoundary232.boundary roles) registry feedback root := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterStable234.lean:12: theorem raw_to_models (assignment) (valid : GeneralNominalState.Models feedback.core.erased.current.context.state assignment) :
+lean/Yulang/GeneralDictionaryVersionedGap206AfterStable234.lean:43: theorem cut : GeneralNominalCenteredHeadMatStepObservations.Cut feedback.legacy counter := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterStable234.lean:62: theorem no_refresh (context : GeneralNominalCandidates.Context)
+lean/Yulang/GeneralDictionaryVersionedGap206AfterStable234.lean:82: theorem committed : Committed feedback currentPlan := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterStable234.lean:89: theorem stable : Stable registry feedback root := by
+lean/Yulang/GeneralDictionaryVersionedGap206AfterStable234.lean:114: theorem regression :
+lean/Yulang/GeneralDictionaryVersionedGap206Feedback234.lean:9: theorem installed_equal : Equal installed 0 1 := by
+lean/Yulang/GeneralDictionaryVersionedGap206Feedback234.lean:20: theorem raw_counter : GeneralNominalState.Models installed.core.erased.current.context.state counter := by
+lean/Yulang/GeneralDictionaryVersionedGap206Feedback234.lean:24: theorem not_raw_equal : ¬ GeneralNominalFeedbackSteps.RawEqual installed.core.erased.current 0 1 := by
+lean/Yulang/GeneralDictionaryVersionedGap206Feedback234.lean:28: noncomputable def feedback := GeneralNominalVersionedAdministrative232.equate installed 0 1
+lean/Yulang/GeneralDictionaryVersionedGap206Feedback234.lean:30: theorem feedback_step : Step registry root installed feedback := by
+lean/Yulang/GeneralDictionaryVersionedGap206Feedback234.lean:36: theorem not_stable : ¬ Stable registry installed root := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:9: theorem raw_sites : installed.core.erased.current.sites = [GeneralNominalDemandMerging.pointSite root] :=
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:12: theorem centers : installed.core.sites = [rootSite snapshot.seed root] :=
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:15: theorem frame : GeneralNominalVersionedEvidence231.Frame registry installed.core root 37
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:19: theorem frame_plan {candidate : Plan roles}
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:24: theorem known : ¬ GeneralNominalState.RootPending installed.core.erased.current.context.state root.demand := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:28: theorem survivor : GeneralNominalVersionedCandidates231.Survivor registry installed.core.erased.current.context root 37 [] := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:35: theorem unique : GeneralNominalVersionedCandidates231.Unique registry installed.core.erased.current.context root 37 [] := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:45: theorem scalar_no_edge (last : GeneralNominalRecursiveInspection.Origin) :
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:63: theorem scalar_acyclic : ¬ GeneralNominalVersionedCycles232.Cyclic installed (.source 1) := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:68: theorem no_raw_edge (first last : Fin 3) : ¬ GeneralNominalMixedRecurrence.Edge installed.core.erased.current.context.state first last := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:75: theorem no_raw_recurs (slot : Fin 3) : ¬ GeneralNominalCycleK2.RecursAt installed.core.erased.current.context.state slot := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:80: theorem administrative_ready : GeneralNominalVersionedDiagnostic232.AdministrativeReady installed root := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:88: theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles) registry installed root := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:112: theorem equal_outputs (assignment : GeneralNominalCommonBridge.Assignment) (focus) :
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:125: theorem selected : GeneralNominalVersionedSourceBoundary232.Local registry installed root (.selected 37 []) := by
+lean/Yulang/GeneralDictionaryVersionedGap206Selected234.lean:135: theorem evidenceAt : B4SkeletonV8.EvidenceAt (GeneralNominalVersionedSourceBoundary232.boundary roles) registry installed root :=
+lean/Yulang/GeneralNominalVersionedEquate234.lean:8: theorem models_iff (equal : GeneralNominalVersionedKernel232.Equal state first last) (model : Assignment) :
+lean/Yulang/GeneralNominalVersionedEquate234.lean:32: theorem feedback_equal : GeneralNominalFeedbackSteps.RawEqual (equate state first last).core.erased.current first last :=
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:13: def Initial (registry : Registry) (root : Occurrence roles) (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:16: def boundary (roles : Roles.RoleDecls) :
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:23: abbrev Local (registry : Registry) (state : State roles) := B4TargetV8.Local (boundary roles) registry state
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:27: theorem v6_local_iff : B4TargetV6.Local (boundary roles).toV7.toV6 registry state root frontier ↔
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:36: theorem v7_local_iff : B4TargetV7.Local (boundary roles).toV7 registry state root frontier ↔
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:41: theorem local_iff : Local registry state root frontier ↔
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:46: theorem local_total (checked : Checked registry) (state : State roles) (root : Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:51: theorem local_functional (one : Local registry state root first) (two : Local registry state root last) : first = last :=
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:54: theorem stepModels (step : (boundary roles).Step registry root before after)
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:58: theorem closure (halted : ∀ after, ¬ (boundary roles).Step registry root state after) :
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:63: theorem initialReorders (order : (boundary roles).Reorders first last)
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:68: theorem dictionaryRefl (dictionary : Dictionary) : (boundary roles).DictionaryEquivalent dictionary dictionary := rfl
+lean/Yulang/GeneralNominalVersionedMixedBoundary234.lean:70: theorem source_initial {legacy : Legacy.State roles} {root : Occurrence roles} (source : GeneralNominalCenteredHeadMatStepBoundary.Initial registry root legacy) :
+lean/Yulang/GeneralNominalVersionedMixedEmbedding234.lean:11: theorem reachable
+lean/Yulang/GeneralNominalVersionedMixedEmbedding234.lean:17: theorem local_iff :
+lean/Yulang/GeneralNominalVersionedMixedEmbedding234.lean:23: theorem source_cache
+lean/Yulang/GeneralNominalVersionedMixedEmbedding234.lean:29: theorem source_recorded
+lean/Yulang/GeneralNominalVersionedMixedEvidenceTransport234.lean:9: theorem models_iff :
+lean/Yulang/GeneralNominalVersionedMixedEvidenceTransport234.lean:13: theorem evidence_iff :
+lean/Yulang/GeneralNominalVersionedMixedEvidenceTransport234.lean:17: theorem stable_old
+lean/Yulang/GeneralNominalVersionedMixedEvidenceTransport234.lean:22: theorem evidenceAt
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:13: abbrev Monotone := @GeneralNominalVersionedGrowth233.Monotone
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:14: abbrev refl := @GeneralNominalVersionedGrowth233.refl
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:15: abbrev trans := @GeneralNominalVersionedGrowth233.trans
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:17: theorem administrative_growth (action : Administrative before focus after) : Growth before.legacy after.legacy := by
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:32: theorem at_growth_legacy (action : At registry before focus after) : Growth before.legacy after.legacy := by
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:44: theorem administrative (action : Administrative before focus after) : Monotone before after := by
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:65: theorem at_growth (action : At registry before focus after) : Monotone before after := by
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:88: theorem step (action : Step registry root before after) : Monotone before after := at_growth action.choose_spec.2
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:90: theorem steps (path : B4Target.Steps (Step registry root) before after) : Monotone before after := by
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:95: theorem step_source (action : Step registry root before after) : after.core.erased.source = before.core.erased.source :=
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:98: theorem steps_source (path : B4Target.Steps (Step registry root) before after) :
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:101: theorem steps_source_seed (path : B4Target.Steps (Step registry root) before after) :
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:105: theorem steps_plans (path : B4Target.Steps (Step registry root) before after) : before.plans ⊆ after.plans :=
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:108: theorem steps_effects (path : B4Target.Steps (Step registry root) before after) : before.effects ⊆ after.effects :=
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:111: theorem steps_sites (path : B4Target.Steps (Step registry root) before after) : before.core.sites ⊆ after.core.sites :=
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:114: theorem steps_edges (path : B4Target.Steps (Step registry root) before after) :
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:118: theorem generated (growth : Monotone before after)
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:128: theorem steps_generated (path : B4Target.Steps (Step registry root) before after)
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:132: theorem requests (growth : Monotone before after) :
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:138: theorem steps_requests (path : B4Target.Steps (Step registry root) before after) :
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:142: theorem reachable_origin
+lean/Yulang/GeneralNominalVersionedMixedGrowth234.lean:151: theorem reachable_source_seed
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:16: abbrev Committed := @GeneralNominalVersionedInstallStep232.Committed
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:18: def AlternativesSafe (registry : Registry) (state : State roles) (input : Site roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:23: structure Installable (registry : Registry) (state : State roles) (effect : Effect roles) : Prop where
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:35: def Equal (state : State roles) (first last : Nat) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:38: inductive Administrative (before : State roles) : Occurrence roles → State roles → Prop
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:59: inductive At (registry : Registry) (before : State roles) : Occurrence roles → State roles → Prop
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:74: def Step (registry : Registry) (root : Occurrence roles) (before after : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:77: def Stable (registry : Registry) (state : State roles) (root : Occurrence roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:80: theorem administrative_models (action : Administrative before focus after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:90: theorem step_models (step : Step registry root before after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:100: theorem closure (halted : ∀ after, ¬ Step registry root state after) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:105: theorem steps_models (path : B4Target.Steps (Step registry root) before after) (valid : Models after model) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:111: theorem of_old_installable (enabled : GeneralNominalVersionedKernel232.Installable registry state effect) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:117: theorem old_administrative (action : GeneralNominalVersionedKernel232.Administrative before focus after) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:129: theorem old_at (action : GeneralNominalVersionedKernel232.At registry before focus after) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:139: theorem old_step (action : GeneralNominalVersionedKernel232.Step registry root before after) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:142: theorem old_steps (path : B4Target.Steps (GeneralNominalVersionedKernel232.Step registry root) before after) :
+lean/Yulang/GeneralNominalVersionedMixedKernel234.lean:148: theorem stable_old (stable : Stable registry state root) : GeneralNominalVersionedKernel232.Stable registry state root :=
+lean/Yulang/GeneralNominalVersionedMixedKernelCache234.lean:16: def Valid (state : State roles) : Prop := CacheSound state state.core.erased.current.context.state
+lean/Yulang/GeneralNominalVersionedMixedKernelCache234.lean:18: theorem administrative_cache (action : Administrative before focus after) (valid : Valid before) : Valid after := by
+lean/Yulang/GeneralNominalVersionedMixedKernelCache234.lean:26: theorem at_cache (action : At registry before focus after) (valid : Valid before) : Valid after := by
+lean/Yulang/GeneralNominalVersionedMixedKernelCache234.lean:39: theorem step_cache (action : Step registry root before after) (valid : Valid before) : Valid after :=
+lean/Yulang/GeneralNominalVersionedMixedKernelCache234.lean:42: theorem steps_cache (path : B4Target.Steps (Step registry root) before after) (valid : Valid before) : Valid after := by
+lean/Yulang/GeneralNominalVersionedMixedKernelCache234.lean:47: theorem reachable_cache
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:10: def Recorded (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:13: theorem lift (legacy : Legacy.State roles) : Recorded (GeneralNominalVersionedJournal232.lift legacy) := by
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:17: theorem initial (context : GeneralNominalCandidates.Context) (root : GeneralSourceDictionaries.Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:20: theorem install (given : Recorded state) : Recorded (GeneralNominalVersionedInstall232.install state effect) := by
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:26: theorem change (given : Recorded state) : Recorded (GeneralNominalVersionedAdministrative232.change state after) := given
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:28: theorem enqueue (given : Recorded state) : Recorded (GeneralNominalVersionedAdministrative232.enqueue state focus) := given
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:30: theorem equate (given : Recorded state) : Recorded (GeneralNominalVersionedAdministrative232.equate state first last) := given
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:32: theorem merge (given : Recorded state) : Recorded (GeneralNominalVersionedAdministrative232.merge state first last) := given
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:34: theorem refresh (given : Recorded state) : Recorded (GeneralNominalVersionedRefresh232.refresh state context) := given
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:36: theorem reobserve (given : Recorded state) : Recorded (GeneralNominalVersionedRefresh232.reobserve state revision) := given
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:38: theorem administrative (action : Administrative before focus after) (given : Recorded before) : Recorded after := by
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:41: theorem step (action : Step registry root before after) (given : Recorded before) : Recorded after := by
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:49: theorem steps (path : B4Target.Steps (Step registry root) before after) (given : Recorded before) : Recorded after := by
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:54: theorem reachable (path : B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root state) :
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:60: theorem effect_full_holds (recorded : Recorded state) (valid : Models state model)
+lean/Yulang/GeneralNominalVersionedMixedRecorded234.lean:64: theorem reachable_effect_full_holds
+lean/Yulang/GeneralNominalVersionedMixedRefreshEquality234.lean:10: theorem equality_closed (certificate : Refresh state context) (closed : EqualityClosed state) :
+lean/Yulang/GeneralNominalVersionedMixedRefreshEquality234.lean:20: theorem old_equality_closed
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:10: def Recorded (registry : Registry) (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:15: theorem administrative (action : Administrative before focus after) (recorded : Recorded registry before) :
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:19: theorem at_recorded (action : At registry before focus after) (recorded : Recorded registry before) : Recorded registry after := by
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:40: theorem step (action : Step registry root before after) (recorded : Recorded registry before) : Recorded registry after :=
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:43: theorem steps (path : B4Target.Steps (Step registry root) before after) (recorded : Recorded registry before) :
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:49: theorem initial (registry : Registry) (context : GeneralNominalCandidates.Context) (root : Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:53: theorem reachable
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:61: theorem distinct_shared_packet_free
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:70: def LegacyEmpty (state : State roles) : Prop := state.core.plans = [] ∧ state.legacy.effects = []
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:72: theorem administrative_empty (action : Administrative before focus after) (empty : LegacyEmpty before) : LegacyEmpty after := by
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:75: theorem at_empty (action : At registry before focus after) (empty : LegacyEmpty before) : LegacyEmpty after := by
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:82: theorem steps_empty (path : B4Target.Steps (Step registry root) before after) (empty : LegacyEmpty before) : LegacyEmpty after := by
+lean/Yulang/GeneralNominalVersionedMixedRegistry234.lean:87: theorem reachable_legacy_empty
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:13: def boundary (roles : Roles.RoleDecls) :
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:25: abbrev Local (value : Registry) (state : State roles) := B4TargetV8.Local (boundary roles) value state
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:27: theorem checked_compiled (checked : (boundary roles).Checked value) :
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:31: theorem initial_compiled (initial : (boundary roles).Initial value root state) :
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:36: theorem reachable_compiled (reachable : B4TargetV8.Reachable (boundary roles) value root state) :
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:41: theorem v6_local_iff : B4TargetV6.Local (boundary roles).toV7.toV6 value state root frontier ↔
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:50: theorem v7_local_iff : B4TargetV7.Local (boundary roles).toV7 value state root frontier ↔
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:56: theorem local_iff {state : State roles} : Local value state root frontier ↔
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:62: theorem local_total (checked : (boundary roles).Checked value) (state : State roles) (root : Occurrence roles) :
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:67: theorem local_functional (one : Local value state root first) (two : Local value state root last) : first = last :=
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:70: theorem evidenceAt_iff :
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:79: theorem stepModels (step : (boundary roles).Step value root before after)
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:83: theorem closure (halted : ∀ after, ¬ (boundary roles).Step value root state after) :
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:88: theorem initialReorders (order : (boundary roles).Reorders first last)
+lean/Yulang/GeneralNominalVersionedMixedSourceBoundary234.lean:92: theorem dictionaryRefl (dictionary : Dictionary) : (boundary roles).DictionaryEquivalent dictionary dictionary := rfl
+lean/Yulang/GeneralNominalVersionedMixedSourceFrontiers234.lean:9: noncomputable def frontiers (roles : Roles.RoleDecls) (value : Registry) (state : State roles) :
+lean/Yulang/GeneralNominalVersionedMixedSourceFrontiers234.lean:15: theorem frontierLocal (checked : (boundary roles).Checked value) (state : State roles)
+lean/Yulang/GeneralNominalVersionedMixedSourceFrontiers234.lean:24: theorem localIdentity (value : Registry) (state : State roles) :
+lean/Yulang/GeneralNominalVersionedMixedStableTransfer234.lean:9: theorem installable
+lean/Yulang/GeneralNominalVersionedMixedStableTransfer234.lean:16: theorem stable
+lean/Yulang/GeneralNominalVersionedMixedStableTransfer234.lean:37: theorem headless_of_known (valid : Models state model)
+lean/Yulang/GeneralNominalVersionedMixedTerminalStable234.lean:13: theorem generated_only
+lean/Yulang/GeneralNominalVersionedMixedTerminalStable234.lean:22: def HeadlessUnknown (state : State roles) : Prop :=
+lean/Yulang/GeneralNominalVersionedMixedTerminalStable234.lean:28: theorem no_refresh (headless : HeadlessUnknown state)
+lean/Yulang/GeneralNominalVersionedMixedTerminalStable234.lean:42: def EqualityClosed (state : State roles) : Prop := ∀ first last,
+lean/Yulang/GeneralNominalVersionedMixedTerminalStable234.lean:47: theorem stable
+lean/Yulang/GeneralNominalVersionedSupportUnion234.lean:10: theorem models_append : SliceModels state (first ++ last) model ↔
+lean/Yulang/GeneralNominalVersionedSupportUnion234.lean:23: theorem trusted_append (one : Trusted state first) (two : Trusted state last) :
+lean/Yulang/GeneralNominalVersionedSupportUnion234.lean:43: theorem jointly_sound (observation : GeneralCanonicalObservations.Observation) (one : Trusted state first) (two : Trusted state last)
+lean/Yulang/GeneralNominalVersionedSupportUnion234.lean:48: theorem trusted_flatten {families : List (List (Fact roles))} (given : ∀ facts ∈ families, Trusted state facts) :
+lean/Yulang/GeneralNominalVersionedSupportUnion234.lean:56: theorem models_subset (included : first ⊆ last) (valid : SliceModels state last model) :
+lean/Yulang/GeneralNominalVersionedSupportUnion234.lean:60: theorem flatten_member {families : List (List (Fact roles))} (member : facts ∈ families)
