@@ -3,9 +3,9 @@
 - cycle: 242
 - status: running
 - started: 2026-11-17T14:30:13Z
-- updated: 2026-11-17T14:49:38Z
-- elapsed_min: 20
-- activity: First checkpoint faf6be79 verified. Actual240 reachable finite owner producer now proved without final model-inhabitation assumption; independent operational dependencies building (44 missing objects). Escaped Store/raw projection and finite aggregate normalization independently checking.
+- updated: 2026-11-17T14:56:49Z
+- elapsed_min: 27
+- activity: Actual240 reachable finite owners without model-inhabitation; deduplicated indices and stable private cells. Escaped Store/raw projection, rewritten new RHS, finite aggregate representatives and executable finite scheduler independently verified. Publishing checkpoint.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang241-recovery
 - last_local_commit: 4eb74bfa8
-- resume_hint: Pending verified sources in persistent tree and yulang242-point/review. Inspect notes/verification/cycle242/operational-dependencies.txt; continue focused audit then publish. Whole boundary Acc/EvidenceNode remain open.
+- resume_hint: All 242 sources in persistent tree. Review next-boundary-contract; continue concrete representation/consumer preservation, not false union-target shortcut. Full source-boundary Acc/EvidenceNode remain open.

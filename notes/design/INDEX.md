@@ -668,3 +668,6 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle241 finite work progress](2026-11-17-cycle241-finite-work-progress.md)
 - [Cycle241 finite owner producer review](2026-11-17-cycle241-owner-producer-review.md)
 - [Cycle242 producer integration](2026-11-17-cycle242-producer-plan.md) — Draft: finite genealogy, consumer retention and checked scheduler.
+- [Cycle242 next boundary contract](2026-11-17-cycle242-next-boundary-contract.md) — Draft: executable representation and remaining producer obligations.
+- [Cycle242 escaped consumers](2026-11-17-cycle242-escaped-projection.md) — Draft: ordinary/Store/raw projection and limits.
+- [Cycle242 live genealogy](2026-11-17-cycle242-live-genealogy.md) — Draft: actual source-derived finite owners.

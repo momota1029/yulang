@@ -22,3 +22,11 @@ these rather than treating finite stable cell names as a termination proof.
 
 All Lean additions have focused trust=0/warningAsError verification and transitive
 axiom audit. Full builds remain supervisor-only. Helpers are not B4 completion.
+
+## Finite aggregate syntax
+For a supplied finite endpoint-pair pool, filter the fixed pool by membership
+in the current occurrence list. Prove every-model lower/upper equivalence using
+join/meet universal laws, and enumerate all lists by a finite powerset. This
+removes permutation/duplication growth without choosing a model or identifying
+source names. The actual endpoint pool producer remains open. The legacy
+singleton capture rule and whole packet construction are not silently changed.
