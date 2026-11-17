@@ -3762,3 +3762,10 @@ import Yulang.GeneralDictionaryFirstResidual227
 import Yulang.GeneralDictionaryV8Residual227
 
 import Yulang.GeneralDictionaryCapturePatch227
+
+import Yulang.GeneralDictionaryMergeOwnership228
+import Yulang.GeneralDictionarySiteFootprint228
+import Yulang.GeneralDictionaryResidualOwnership228
+import Yulang.GeneralDictionaryCapturedOwnership228
+import Yulang.GeneralDictionaryFirstOwnership228
+import Yulang.GeneralDictionaryFirstExtreme228
