@@ -1,0 +1,7 @@
+CYCLE235-FIRST-PASS: 55 constants in 6 modules
+CYCLE235-SECOND-PASS: 53 constants in 8 modules
+CYCLE235-THIRD-PASS: 75 constants in 6 modules
+CYCLE235-FOURTH-PASS: 219 constants in 18 modules
+CYCLE235-FIFTH-PASS: 41 constants in 5 modules
+CYCLE235-SIXTH-PASS: 33 constants in 3 modules
+CYCLE235-SEVENTH-PASS: 4 constants in 1 modules
