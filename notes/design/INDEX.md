@@ -628,3 +628,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle232 versioned journal proof plan (Draft)](2026-11-17-cycle232-versioned-journal.md) — I44 representation integration, not a language design decision.
 
 - [Cycle232 remaining guarded-boundary bridges (Draft)](2026-11-17-cycle232-remaining-bridges.md) — exact proved/open scope after I44 repair.
+
+- [Cycle233 new-only source trace](2026-11-17-cycle233-new-source-trace.md)
