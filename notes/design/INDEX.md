@@ -684,3 +684,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 
 - [cycle244 source/site closure and syntax diagnostic](2026-11-17-cycle244-source-site-closure.md)
 - [cycle244 actual owner-dependency review](2026-11-17-cycle244-owner-dependency-review.md)
+- [cycle244 remaining actual-boundary and scheduler obligations](2026-11-17-cycle244-boundary-obligations.md)

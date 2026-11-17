@@ -5,3 +5,6 @@ false
 true
 false
 [0, 2, 4, 6, 8, 10]
+true
+[(3, Yulang.Core.PresenceGeneration.TyTerm.var 1)]
+1

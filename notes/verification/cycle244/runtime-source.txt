@@ -1,3 +1,4 @@
+import Yulang.GeneralPresenceOwnerTableCheck244
 import Yulang.GeneralPresenceOwnerCheck244
 import Yulang.GeneralPresenceOwnerSequence244
 import Yulang.GeneralNominalRebaseSyntaxGrowth244
@@ -13,3 +14,7 @@ open GeneralPresenceOwnerCheck244
 #eval GeneralFiniteWitnessSupport244.check ([5] : List Nat) [1,2,3]
 #eval GeneralFiniteWitnessSupport244.check ([2] : List Nat) [1,2,3]
 #eval (List.range 6).map (fun n => GeneralNominalRebaseSyntaxGrowth244.height (GeneralNominalRebaseSyntaxGrowth244.iterate n))
+
+#eval GeneralPresenceOwnerTableCheck244.check GeneralPresenceOwnerTableCheck244.exampleState 0
+#eval (GeneralPresenceOwnerTable244.rebase GeneralPresenceOwnerTableCheck244.exampleState 0 [(2,.var 0)]).entries 1
+#eval (GeneralPresenceOwnerTable244.rebase GeneralPresenceOwnerTableCheck244.exampleState 0 [(2,.var 0)]).base.length

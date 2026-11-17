@@ -94,3 +94,27 @@ sequence is provided by the caller, not extracted from a constructed scheduler's
 mutating owner store. These restrictions are not hidden behind a completeness
 claim. The main next obligation remains production of these checks from actual
 report/reobserve/source provenance, including same-owner promotion.
+
+A further independently checked distinction: one *fixed* External block has
+syntactically idempotent type/row/atom inlining (FixedInline244). Every actual
+TyTerm constructor is included, including arrow effects. This does not claim
+that replacing a block by new endpoint equations is idempotent, or that two
+alternating owners have bounded syntax. The old SyntaxGrowth diagnostic and
+this theorem concern different hypotheses and do not contradict one another.
+
+Final bounded unit: lift the freshly checked entry-level transformations to a
+finite owner-table component whose operation itself reads the old entries from
+the current table, substitutes them through base atoms and every other owner's
+entries, and installs the supplied new block. Prove the whole resulting table's
+Models decomposition and generate retained External/Coherent invariants from
+per-owner cross conditions. This is a real materialized definition-table
+operation, but deliberately has no inspection/cache/journal metadata and is NOT
+a SourceBoundary or a solver scheduler. New block semantics and the real
+operation's check production remain obligations, not part of a claimed iff
+between old and new public solution sets.
+
+OwnerOwnership244 additionally proves pairwise listed-owner target disjointness
+survives the table operation when fresh targets lie within that owner's old
+targets. The table check itself still does not test this containment. No
+unconditional ownership preservation or automatically successful next check is
+claimed. FreshExternal/freshCoherent also remain separate premises.

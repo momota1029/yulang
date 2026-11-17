@@ -226,3 +226,35 @@ Modelでの意味・変換後Externalを導く範囲は正しい。
 のRHSまで全検査するため、必要条件より強い十分条件である。将来細分化するならretained
 RHSから実際に到達するlookupだけへ検査を限定できるが、今回の健全性に不要である。
 removed自身のExternal/Coherentや実操作時の全条件は依然として別義務。
+
+## FixedInline244 の独立read-only QA
+
+固定entriesのfirst-match lookupで選ばれたRHSはlookup_memberによりentries内にある。
+External entriesからそのRHSが全targets外と分かり、type_fixed→rhs_fixed→任意TyTermの
+構文的冪等、AtomとそのListの冪等へ進む構成は健全。RowTermはmapping.row=varなので
+Externalを使わず恒等で、arrowのincoming/outgoingも維持される。
+
+Coherentを仮定しない点もこの定理では正しい。固定lookupが選ぶ構文の冪等性であり、
+全重複定義の同時モデル存在や等価性を主張しないためである。これは1固定blockの
+自己inlineが2回目以降に同じ構文になるという事実であり、変化するblock・交互owner・
+全Store操作列の有限性/停止性を保証しない。
+
+## OwnerTable244 / OwnerTableCheck244 の独立read-only QA
+
+実state.entries ownerをremovedとして読む点で、固定toy blocks列から実table内の
+取り出しへ進んでいる。baseの全atomsとownersリスト内の全他ownerを物理変換する。
+models_exactはpresentから新owner blockの制約を取り出し、旧Consumersのreadbackと
+双方向対応する。owner外の同名targetを変えない前提はdisjointを明示している。
+有限checkが各listed retained ownerへその条件とExternal/crossReadを供給する。
+型・row atomsの意味保存は元の任意Modelに対するatomSubst exactに基づく。
+
+追加の限定: freshは任意であり、fresh targetsと他owner targetsの非交差はこの
+checkの対象ではない。ExternalStateは各owner内のExternalの集まりであって全owner
+相互のtarget所有権非交差ではない。従って変換後に次回checkが自動でtrueになる、
+全owner ownershipが保たれる、全体Modelsが非空、旧/new public解集合が同じ、といった
+結論は出ない。rebase_coherentもold/freshのCoherentが別前提で、checkだけでは出ない。
+
+ownersリストにないfunction entriesの値はModelsに含まれない。models_exactは更新ownerの
+list membershipを要求するので、その制約が結果に消える穴はない。ownersの重複自体は
+同じ命題を重複させるだけでこの意味保存に影響しない。inspection/cache/journalや
+sourceBoundaryの操作としての接続は引き続き未完である。

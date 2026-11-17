@@ -8,5 +8,9 @@
   "GeneralPresenceOwnerRewrite244": "1888cd0af737a8baeb6dad1bd671bd428fdc6938b6d21d0e3ab7d3cdfcac856a",
   "GeneralPresenceOwnerCheck244": "bc4be1720b9a4037905116d2f97fdeea4325317a098abfc3b3c174111f6aaacb",
   "GeneralPresenceOwnerSequence244": "a1b165a790493fe57c7c25e43b7dfb676b9e4ff6029fb9dbd5862edbc92d7e36",
-  "GeneralPresenceCrossRead244": "bca903672591e4feee4432f5a6c07021af63fdafdd5b1645be0679078f6fb90a"
+  "GeneralPresenceCrossRead244": "bca903672591e4feee4432f5a6c07021af63fdafdd5b1645be0679078f6fb90a",
+  "GeneralPresenceFixedInline244": "142d298f06689d31cf065a693cab1568f1c8ca273127692e00f9ce760161ce55",
+  "GeneralPresenceOwnerTable244": "922c32aed1c3e4a866ccb5742366e152745cf0f34fff5defea3b59be34e7cc0a",
+  "GeneralPresenceOwnerTableCheck244": "eb04c914ee25ccbc6339436aa6af0d5f877c2a21800f04f4c7bfcee8f04dab23",
+  "GeneralPresenceOwnerOwnership244": "7df8f723bd4d1b22db6e8f1bd19739c49a7b6c898daf3c44017ce2ccf877b755"
 }

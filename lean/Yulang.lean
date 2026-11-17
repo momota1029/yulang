@@ -4442,3 +4442,7 @@ import Yulang.GeneralPresenceOwnerRewrite244
 import Yulang.GeneralPresenceOwnerCheck244
 import Yulang.GeneralPresenceOwnerSequence244
 import Yulang.GeneralPresenceCrossRead244
+import Yulang.GeneralPresenceFixedInline244
+import Yulang.GeneralPresenceOwnerTable244
+import Yulang.GeneralPresenceOwnerTableCheck244
+import Yulang.GeneralPresenceOwnerOwnership244
