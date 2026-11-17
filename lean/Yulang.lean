@@ -3782,3 +3782,5 @@ import Yulang.GeneralDictionaryJournalRefinement228Enable
 import Yulang.GeneralDictionaryJournalRefinement228Reachable
 import Yulang.GeneralDictionaryJournalRefinement228RawStage
 import Yulang.GeneralDictionaryJournalRefinement228Trusted
+
+import Yulang.GeneralDictionaryV8Extreme228
