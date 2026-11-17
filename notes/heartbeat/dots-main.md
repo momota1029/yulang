@@ -1,11 +1,12 @@
-# Yulang cycle226
-cycle: 226
+cycle: 227
 status: completed
-started: 2026-11-16T22:36:14Z
-updated: 2026-11-16T22:48:00Z
-elapsed_min: 12
-activity: Four modules verified,48 constants audited. Reachable installation raw-head support reduced to merge atoms; exact report reads and one-head source provenance also proved. EvidenceNode remains open.
+started: 2026-11-16T23:31:55Z
+updated: 2026-11-17T00:16:56.791768+00:00
+elapsed_min: 45.0
+activity: 24 modules / 222 constants verified; final residual provenance and simultaneous capture patch published with report
 workspace: /tmp/yulang-admin-1730/repo
-last_local_commit: c20d7ecc9 plus verified reachable-packet completion
-report: notes/handoff/dots-cycle-226.md
-resume_hint: Read cycle226/design and ReachablePacket226.install_depends. Continue non-head effect/schema p0/p1 provenance and historical protected Overlap; do not infer full-trace freshness from report bounds. Cycle220/222–225 were already published5123fed6; cycle226 checkpoint07b8b853 and final report include all new work.
+last_local_commit: b7cbf8b1f
+report: notes/handoff/dots-cycle-227.md
+resume_hint: Read cycle227 report and FirstResidual/V8Residual227. All verified cycle227 files included; continue merge/extrema residual ownership and child replay toward V8 EvidenceNode. Audit.lean/README must remain current integration bytes.
+verified_artifact_commit: 2432349767a9d920552bbdfb96747d126e8e40c2
+verified_artifact_tree: ed13f868fe76f14ea4e7e1bdfd91a1469c7404b1
