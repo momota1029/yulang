@@ -4468,3 +4468,9 @@ import Yulang.GeneralFiniteAssignment246
 import Yulang.GeneralPresenceConsumerSupport246
 import Yulang.GeneralPresenceGuardedBlock246
 import Yulang.GeneralPresenceGuardedLayer246
+import Yulang.GeneralPresenceGuardedAbsorption247
+import Yulang.GeneralPresenceGuardedAllocation247
+import Yulang.GeneralPresenceGuardedConsumers247
+import Yulang.GeneralPresenceGuardedEnvironment247
+import Yulang.GeneralPresenceGuardedExamples247
+import Yulang.GeneralPresenceGuardedRecovery247
