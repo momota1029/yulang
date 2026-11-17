@@ -42,3 +42,21 @@ closures; simply changing fresh equations while leaving raw private reads
 unchanged is not justified. Such action lists can grow, so no termination or
 finite-history claim follows. The actual source adapter and finite-work account
 remain separate.
+
+## Actual aggregate coverage correction
+
+Source inspection confirms GeneralNominalAllocation.lower/upper (lines148–158)
+produce unguarded variables and union/intersection chains. The guarded Layer246
+fragment does not encode these in general. Do not label guarded public-model
+preservation as implementation of those lo/hi aggregates.
+
+The next independent bridge uses actual TyTerm without a grammar restriction:
+a finite ordered definition list is solved sequentially by evaluating a RHS,
+writing its target type value and then solving the tail. Require no self typed
+read, no later target equal to the current target, and no later target in the
+current RHS's typed reads; apply these conditions recursively to the tail.
+All row values remain unchanged, so row-only private reads are allowed. These
+conditions describe acyclic ordered storage and have a finite syntactic check.
+They do not classify arbitrary cyclic source constraints as rejected. This
+covers unguarded alias/lattice examples once an actual producer supplies the
+order, while that producer remains separate for general journal states.

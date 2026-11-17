@@ -1,0 +1,18 @@
+{
+  "lean/Yulang/GeneralPresenceGuardedRecovery247.lean": "d97fbe2d62c6a598348c02b13279a8803fd835b9c537d8db4746971ba65c6e0a",
+  "lean/Yulang/GeneralPresenceGuardedAbsorption247.lean": "37c6444c79ff6667b918e8697d59f210ebb72cec9546c84dc26281fbb43a1b9f",
+  "lean/Yulang/GeneralPresenceGuardedConsumers247.lean": "4af9b645eae7eff2df0ee3712d9a41af23f85d6606ac811e652b7a339d7e5c87",
+  "lean/Yulang/GeneralPresenceGuardedAllocation247.lean": "a666c2977360bc4f357a42b0283e64e17b823c7374904cdc6dfd61fd50b96e4a",
+  "lean/Yulang/GeneralPresenceGuardedEnvironment247.lean": "d10ceb9ef1c9d265970378898168a77bda57ef6f30397f185833654a51ec9b32",
+  "lean/Yulang/GeneralPresenceGuardedCommutation247.lean": "0ac5d6594e1bec2a1f029c6a8d2f025c7f162388a7ac58360c85f3770939748a",
+  "lean/Yulang/GeneralPresenceGuardedCompression247.lean": "894bd64c9ae036260cc04b046adb249443ab705dd9a0e0ab54c43951bbe4d04b",
+  "lean/Yulang/GeneralPresenceGuardedExamples247.lean": "435897432d6b3e8110f4f4c719dc3d7eb7b2312e0605f7cdc1a0c278d2156a02",
+  "lean/Yulang/GeneralPresenceGuardedRebase247.lean": "bf7282b86c926020a1fb513c42f6690e8ed1ef3abd1da2d01ee4ca8eba902266",
+  "lean/Yulang/GeneralPresenceGuardedRebaseExample247.lean": "e5e8dd2aa65992080bab3a3c5699a12f05c3ad0c271dd7b16dc9d7519777b19d",
+  "lean/Yulang/GeneralPresenceOrderedBlock247.lean": "4db8921a2f70fe7450ffca400616a091490b4da0616df91fa25a74e6f648a6a0",
+  "lean/Yulang/GeneralPresenceOrderedCheck247.lean": "a239beec7987ba1d8ac2657dcb4ca7e1cacc86d618d78be524e7914aab1eda07",
+  "lean/Yulang/GeneralPresenceOrderedDependence247.lean": "1921dc5cee854ce3b435b26d7acc0c973224b015ce7b3664daccf6d9a0780aa2",
+  "lean/Yulang/GeneralPresenceOrderedRecovery247.lean": "ab2e7f66bfd58b0aa8d64cfea20e37e46261bc787ea12c508857a605b5b0647c",
+  "lean/Yulang/GeneralPresenceOrderedSubstitution247.lean": "2acd3c1f382712b4b7be19ea3928ed5f5d8529156525f25fa4bbfeb56fc53027",
+  "lean/Yulang/GeneralPresenceOrderedRebase247.lean": "db16912c07ca957fc800792e4093d556d98c74b18f41de30233562b3a4e1a7d1"
+}

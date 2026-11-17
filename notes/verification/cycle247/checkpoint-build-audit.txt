@@ -1,10 +1,10 @@
 Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
-GeneralPresenceGuardedRecovery247 EXIT 0 
-GeneralPresenceGuardedAbsorption247 EXIT 0 
-GeneralPresenceGuardedConsumers247 EXIT 0 
-GeneralPresenceGuardedAllocation247 EXIT 0 
-GeneralPresenceGuardedEnvironment247 EXIT 0 
-GeneralPresenceGuardedExamples247 EXIT 0 
+GeneralPresenceGuardedRecovery247 EXIT 0
+GeneralPresenceGuardedAbsorption247 EXIT 0
+GeneralPresenceGuardedConsumers247 EXIT 0
+GeneralPresenceGuardedAllocation247 EXIT 0
+GeneralPresenceGuardedEnvironment247 EXIT 0
+GeneralPresenceGuardedExamples247 EXIT 0
 AUDIT EXIT 0 CYCLE247-PASS: 119 constants in 6 modules
 
 VERIFIED_MODULES 6
