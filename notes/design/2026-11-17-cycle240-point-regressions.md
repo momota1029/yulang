@@ -1,0 +1,2 @@
+# I45 regression admissibility
+Prove exact descriptor preservation for the existing 5-slot 228/230/Compound and 8-slot 218 revision producers. Their loose descriptor is nonpoint; their already-point descriptor is unchanged. No universal old-Step embedding is claimed. Then evaluate actual successor paths once its kernel API is available. 206 has no reobservation in its existing regression path; transport must still be constructor-specific. No semantic repair or edits to published modules.
