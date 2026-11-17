@@ -4526,3 +4526,8 @@ import Yulang.GeneralNominalSchemaSupport249
 import Yulang.GeneralNominalEffectSupport249
 import Yulang.GeneralNominalPacketSupport249
 import Yulang.GeneralNominalOrderedPacketExpansion249
+import Yulang.GeneralNominalActiveCrossExample249
+import Yulang.GeneralPresenceProtectionCheck249
+import Yulang.GeneralNominalClassSupport249
+import Yulang.GeneralNominalObservedSupport249
+import Yulang.GeneralNominalOrderedViewClosed249
