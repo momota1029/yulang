@@ -1,8 +1,10 @@
 # dots-main heartbeat
-- cycle: 248
-- status: completed
-- started: 2026-11-17T21:31:22Z
-- updated: 2026-11-17T22:32:35Z
-- elapsed_min: 61.2
-- activity: Final13 modules,88 explicit declarations strict PASS; published4d70398b3ae50bc79c668bca168ccdcf05d5c947 and fetched fulltree6b1abeec128633ced86ccaefa005ac25991f5211 exactly matched local.
-- resume_hint: All verified248 code published. No active writer. Read latest integration/orders/inbox before249. Actual refresh domain and full-pool limitations are formalized; whole operational boundary/Acc remain open. Deadline exceeded, see report.
+- cycle: 249
+- status: running
+- started: 2026-11-17T22:34:00Z
+- updated: 2026-11-17T22:34:00Z
+- elapsed_min: 0
+- activity: Cycle248 final verified complete. Latest integration1a070e8ed and unchanged orders/inbox reread. Designing semantic support excluding reservation bookkeeping and expanding target-domain rebase with explicit consumer protection.
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
+- last_local_commit: 33f5f7ac6
+- resume_hint: No old writer. New249 files only; reuse hash-verified cycle247-clean cache. Research until23:19, final verification/publication/report by23:29. Do not treat unused reserved names as automatically private from packets/public interfaces.
