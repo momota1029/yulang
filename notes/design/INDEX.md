@@ -653,3 +653,4 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Cycle237 installation progress](2026-11-17-cycle237-install-progress.md) — 実局所2stepと版変化。source到達・無限反復は未証明。
 - [Cycle238 equation normalization](2026-11-17-cycle238-equation-model-congruence.md) — 全nominal意味同値と既存歴史modelのaggregate正規化。
 - [Cycle238 version loop investigation](2026-11-17-cycle238-version-loop.md) — actual source prefix。無限traceは未証明。
+- [Cycle238 compound actual fixture](2026-11-17-cycle238-compound-fixture.md) — sourceからの2stepと非空Models上のcurrent completion不能。EvidenceNode自体は未反証。
