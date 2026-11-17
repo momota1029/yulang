@@ -450,3 +450,9 @@ cycle 239 の反例（`GeneralDictionaryVersionLoopNontermination239.initial_no_
   4. 230・206・218 などの回帰が、後継の境界でも成り立つことを確かめる。
   5. そのうえで EvidenceNode を進める。
 - 「一点で確定した記述を固定すると、本来なら得られた細分化を逃す」例が見つかったら、反例として書いて止まること（意味の完全性に関わるので、監督役がユーザーに聞く）。
+
+## I-46（2026-11-17）コメントにも検査が拾う語を書かない
+
+cycle 231 と 237 で、コメントの英文に `admit`（「equations admit」「trace admit one」）が入り、統合の検査（追加行に sorry / admit などがないか）で落ちた。監督役がコメントの語を言い換えて統合した（`fix/dots-231`, `fix/dots-239`）。
+- Lean ファイルでは、コメントや docstring を含めて、`sorry`・`admit`・`native_decide` などの語を書かない（I-30 の再確認）。英文で「認める」と言いたいときは `have`・`allow`・`permit` などを使う。
+- 公開の前に、自分の追加行に `grep -nwE 'sorry|admit|native_decide'` をかけて確かめること。
