@@ -166,3 +166,55 @@ journal storage, certificates, allocated names, or operational step count follow
 The positive-stage restriction matters: the initial journal need not satisfy the
 new binder equality. Initial raw model projection is stable; full journal public
 projection stabilizes only after the first installed binder certificate.
+
+## Next boundary after the finite journal result
+
+The repair removes a concrete false shortcut: raw-view equality alone cannot
+justify journal equality. For arbitrary sources the next admissible design
+must enumerate which historical observations survive quotienting, preserve
+shared centers and child/output obligations, and construct certificates
+without replaying an ever-growing private history. The I45 terminal example
+shows two fixed binder atoms suffice locally; it does not show a fixed basis
+for all historical observations or an implementation that discards history.
+
+Before a new Step/Acc theorem, establish separately (a) semantic observational
+coverage for all packet consumers, (b) closure of canonical public references
+under actual source-origin transitions, and (c) strict novelty/progress after
+quotienting. A bisimulation for the old Step cannot by itself yield termination:
+that Step has the already-proved infinite loop. A new progress-gated relation
+needs its own meaning-preservation and completeness argument, rather than a
+claim that semantically repeated ordinary facts constitute progress.
+
+I50's output dependency depth bound stays open here. A later design must keep
+stored syntax finiteness separate from expanded ground readback, prove the
+finite owner reference graph really covers all produced dependencies, and
+justify cyclic rejection using actual K2 evidence. None of these is assumed
+as a conclusion in cycle257's finite View or journal equivalences.
+
+### Concrete consumer inventory for the next certificate
+
+A read of VersionedJournal232.Models and VersionedPlans231 (including
+SchemaHolds, variables, emittedSchema and childSchema) gives a more precise
+checklist than treating every observation as a plain subtype atom:
+
+1. Legacy current raw constraints plus legacy recorded packet/effect semantics.
+2. Every versioned plan's historical raw state, ordinary compatibility/merge/
+   self-check constraints, and ProjectionModels.
+3. Head-schema tests; actual-mode origin equality to the shared binder; in
+   lower/upper mode, existence of an observed value AND the universally
+   quantified VariableHolds condition on every observation.
+4. Shared capture Fits for needed inputs. This is the missing predicate caught
+   by BinderGap257, even when current raw slots and ordinary atoms are finite.
+5. Emitted equations interpreted by mode-sensitive variables. A name that is
+   an output reads its binder even in lower/upper mode, so flattening every
+   endpoint as if it were an input would be unsound.
+6. Child schemas/actual centers and effect.Live evaluated against the current
+   core, not merely the stored historical snapshot.
+
+A proposed future certificate must assign a canonical representation to each
+of these consumers and prove both directions of Models for its projection.
+Merely retaining a finite list of inequalities does not establish items 3 or 6.
+The present I45 family closes those obligations using its concrete head,
+constant observations and empty child/output lists; that is why the all-n
+journal theorem is possible without solving the general certificate problem.
+These are inspected implementation obligations, not new proved theorems.

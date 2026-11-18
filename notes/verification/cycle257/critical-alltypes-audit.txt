@@ -1,0 +1,646 @@
+Yulang.GeneralDictionaryUpperHistory257.upperEntry : Nat → Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat
+Yulang.GeneralDictionaryUpperHistory257.lowerEntry : Nat → Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat
+Yulang.GeneralDictionaryUpperHistory257.history : Nat → List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)
+Yulang.GeneralDictionaryUpperHistory257.upper_equations : ∀ (n : Nat),
+  Yulang.GeneralNominalAllocation.equations (Yulang.GeneralDictionaryLooseFamilyNames240.upper n)
+      ((Yulang.Core.PresenceGeneration.TyTerm.var 4).inter (Yulang.Core.PresenceGeneration.TyTerm.var 4)) ⊆
+    Yulang.GeneralDictionaryLooseIterationBook240.atoms (n + 1)
+Yulang.GeneralDictionaryUpperHistory257.block_in_source : ∀ (n : Nat),
+  Yulang.GeneralPresenceDefinitionRewrite244.block (Yulang.GeneralDictionaryUpperHistory257.history n) ⊆
+    Yulang.GeneralDictionaryLooseIterationBook240.atoms n
+Yulang.GeneralDictionaryUpperHistory257.targets_above : ∀ (n : Nat)
+  (e : Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat),
+  e ∈ Yulang.GeneralDictionaryUpperHistory257.history n → 4 < e.fst
+Yulang.GeneralDictionaryUpperHistory257.initial_fixed : ∀ (n name : Nat),
+  name ≤ 4 →
+    (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n) name).ty =
+      Yulang.Core.PresenceGeneration.TyTerm.var name
+Yulang.GeneralDictionaryFullExpansion257.snoc_other : ∀
+  (entries : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat))
+  (e : Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat) (name : Nat),
+  e.fst ≠ name →
+    (Yulang.GeneralPresenceOrderedSubstitution247.mapping (entries ++ [e]) name).ty =
+      (Yulang.GeneralPresenceOrderedSubstitution247.mapping entries name).ty
+Yulang.GeneralDictionaryFullExpansion257.current_lower : ∀ (n : Nat),
+  (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+        (Yulang.GeneralDictionaryLooseFamilyNames240.lower n)).ty =
+    Yulang.GeneralDictionaryAggregateHistory256.tree n
+Yulang.GeneralDictionaryFullExpansion257.past_lower : ∀ (n index : Nat),
+  index ≤ n →
+    (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+          (Yulang.GeneralDictionaryLooseFamilyNames240.lower index)).ty =
+      Yulang.GeneralDictionaryAggregateHistory256.tree index
+Yulang.GeneralDictionaryFullExpansion257.current_upper : ∀ (n : Nat),
+  (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history (n + 1))
+        (Yulang.GeneralDictionaryLooseFamilyNames240.upper n)).ty =
+    (Yulang.Core.PresenceGeneration.TyTerm.var 4).inter (Yulang.Core.PresenceGeneration.TyTerm.var 4)
+Yulang.GeneralDictionaryFullExpansion257.past_upper : ∀ (n index : Nat),
+  index < n →
+    (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+          (Yulang.GeneralDictionaryLooseFamilyNames240.upper index)).ty =
+      (Yulang.Core.PresenceGeneration.TyTerm.var 4).inter (Yulang.Core.PresenceGeneration.TyTerm.var 4)
+Yulang.GeneralPresenceIdempotentTree257.join : Yulang.Core.PresenceGeneration.TyTerm Nat →
+  Yulang.Core.PresenceGeneration.TyTerm Nat → Yulang.Core.PresenceGeneration.TyTerm Nat
+Yulang.GeneralPresenceIdempotentTree257.meet : Yulang.Core.PresenceGeneration.TyTerm Nat →
+  Yulang.Core.PresenceGeneration.TyTerm Nat → Yulang.Core.PresenceGeneration.TyTerm Nat
+Yulang.GeneralPresenceIdempotentTree257.reduce : Yulang.Core.PresenceGeneration.TyTerm Nat →
+  Yulang.Core.PresenceGeneration.TyTerm Nat
+Yulang.GeneralPresenceIdempotentTree257.meet_self : ∀ (value : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent (Yulang.CommonNominalSyntax.Layer.inter value value) value
+Yulang.GeneralPresenceIdempotentTree257.join_exact : ∀ (a b : Yulang.Core.PresenceGeneration.TyTerm Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralPresenceIdempotentTree257.join a b))
+    (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment (a.union b))
+Yulang.GeneralPresenceIdempotentTree257.meet_exact : ∀ (a b : Yulang.Core.PresenceGeneration.TyTerm Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralPresenceIdempotentTree257.meet a b))
+    (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment (a.inter b))
+Yulang.GeneralPresenceIdempotentTree257.equivalent : ∀ (term : Yulang.Core.PresenceGeneration.TyTerm Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralPresenceIdempotentTree257.reduce term))
+    (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment term)
+Yulang.GeneralPresenceIdempotentTree257.atom : Yulang.PresenceNormalForm.Atom Nat → Yulang.PresenceNormalForm.Atom Nat
+Yulang.GeneralPresenceIdempotentTree257.atom_exact : ∀ (value : Yulang.PresenceNormalForm.Atom Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.Atom.Holds Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralPresenceIdempotentTree257.atom value) ↔
+    Yulang.PresenceNormalForm.Atom.Holds Yulang.CommonNominalFullCarrier.model assignment value
+Yulang.GeneralPresenceIdempotentTree257.all_exact : ∀ (values : List (Yulang.PresenceNormalForm.Atom Nat))
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (List.map Yulang.GeneralPresenceIdempotentTree257.atom values) ↔
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment values
+Yulang.GeneralDictionaryOrdinaryShape257.crossAtom : Nat → Yulang.PresenceNormalForm.Atom Nat
+Yulang.GeneralDictionaryOrdinaryShape257.selfAtom : Yulang.PresenceNormalForm.Atom Nat
+Yulang.GeneralDictionaryOrdinaryShape257.lowerAtoms : Nat → List (Yulang.PresenceNormalForm.Atom Nat)
+Yulang.GeneralDictionaryOrdinaryShape257.upperAtoms : Nat → List (Yulang.PresenceNormalForm.Atom Nat)
+Yulang.GeneralDictionaryOrdinaryShape257.added_exact : ∀ (n : Nat),
+  Yulang.GeneralNominalVersionedInstallation231.atoms (Yulang.GeneralDictionaryLooseIterationBook240.packet n) =
+    [Yulang.GeneralDictionaryOrdinaryShape257.crossAtom n, Yulang.GeneralDictionaryOrdinaryShape257.crossAtom n,
+          Yulang.GeneralDictionaryOrdinaryShape257.crossAtom n, Yulang.GeneralDictionaryOrdinaryShape257.crossAtom n] ++
+        (Yulang.GeneralDictionaryOrdinaryShape257.lowerAtoms n ++
+            Yulang.GeneralDictionaryOrdinaryShape257.upperAtoms n ++
+          (Yulang.GeneralDictionaryOrdinaryShape257.lowerAtoms n ++
+            Yulang.GeneralDictionaryOrdinaryShape257.upperAtoms n)) ++
+      [Yulang.GeneralDictionaryOrdinaryShape257.selfAtom, Yulang.GeneralDictionaryOrdinaryShape257.selfAtom,
+        Yulang.GeneralDictionaryOrdinaryShape257.crossAtom n, Yulang.GeneralDictionaryOrdinaryShape257.crossAtom n]
+Yulang.GeneralDictionaryOrdinaryShape257.atom_cases : ∀ (n : Nat) (atom : Yulang.PresenceNormalForm.Atom Nat),
+  atom ∈ Yulang.GeneralDictionaryLooseIterationBook240.atoms n →
+    ∃ index,
+      index < n ∧
+        (atom = Yulang.GeneralDictionaryOrdinaryShape257.crossAtom index ∨
+          atom = Yulang.GeneralDictionaryOrdinaryShape257.selfAtom ∨
+            atom ∈ Yulang.GeneralDictionaryOrdinaryShape257.lowerAtoms index ∨
+              atom ∈ Yulang.GeneralDictionaryOrdinaryShape257.upperAtoms index)
+Yulang.GeneralDictionaryOrdinaryShape257.length_atoms : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryLooseIterationBook240.atoms n).length = 16 * n
+Yulang.GeneralDictionaryFullReduced257.reduce_tree : ∀ (n : Nat),
+  Yulang.GeneralPresenceIdempotentTree257.reduce (Yulang.GeneralDictionaryAggregateHistory256.tree n) =
+    Yulang.Core.PresenceGeneration.TyTerm.var 2
+Yulang.GeneralDictionaryFullReduced257.lower_fixed : ∀ (n index : Nat),
+  index ≤ n →
+    Yulang.GeneralPresenceIdempotentTree257.reduce
+        (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+            (Yulang.GeneralDictionaryLooseFamilyNames240.lower index)).ty =
+      Yulang.Core.PresenceGeneration.TyTerm.var 2
+Yulang.GeneralDictionaryFullReduced257.upper_fixed : ∀ (n index : Nat),
+  index < n →
+    Yulang.GeneralPresenceIdempotentTree257.reduce
+        (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+            (Yulang.GeneralDictionaryLooseFamilyNames240.upper index)).ty =
+      Yulang.Core.PresenceGeneration.TyTerm.var 4
+Yulang.GeneralDictionaryFullReduced257.initial_fixed : ∀ (n name : Nat),
+  name ≤ 4 →
+    Yulang.GeneralPresenceIdempotentTree257.reduce
+        (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+            name).ty =
+      Yulang.Core.PresenceGeneration.TyTerm.var name
+Yulang.GeneralDictionaryFullReduced257.lower_adapter_failure : ∀ (n index : Nat),
+  index < n →
+    Yulang.GeneralPresenceCheckedNormal252.prepare Yulang.GeneralPresenceCheckedNormal252.Side.lower
+        [Yulang.Core.PresenceGeneration.TyTerm.var 0, Yulang.Core.PresenceGeneration.TyTerm.var 1,
+          Yulang.Core.PresenceGeneration.TyTerm.var 2, Yulang.Core.PresenceGeneration.TyTerm.var 3,
+          Yulang.Core.PresenceGeneration.TyTerm.var 4]
+        (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+            (Yulang.GeneralDictionaryLooseFamilyNames240.upper index)).ty =
+      none
+Yulang.GeneralDictionaryFullReduced257.repaired_upper_prepare : ∀ (n index : Nat),
+  index < n →
+    Yulang.GeneralPresenceCheckedNormal252.prepare Yulang.GeneralPresenceCheckedNormal252.Side.lower
+        [Yulang.Core.PresenceGeneration.TyTerm.var 0, Yulang.Core.PresenceGeneration.TyTerm.var 1,
+          Yulang.Core.PresenceGeneration.TyTerm.var 2, Yulang.Core.PresenceGeneration.TyTerm.var 3,
+          Yulang.Core.PresenceGeneration.TyTerm.var 4]
+        (Yulang.GeneralPresenceIdempotentTree257.reduce
+          (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+              (Yulang.GeneralDictionaryLooseFamilyNames240.upper index)).ty) =
+      some (Yulang.Core.PresenceGeneration.TyTerm.var 4)
+Yulang.GeneralDictionaryOrdinaryFinite257.rewriteAtom : Nat →
+  Yulang.PresenceNormalForm.Atom Nat → Yulang.PresenceNormalForm.Atom Nat
+Yulang.GeneralDictionaryOrdinaryFinite257.le : Nat → Nat → Yulang.PresenceNormalForm.Atom Nat
+Yulang.GeneralDictionaryOrdinaryFinite257.candidates : List (Yulang.PresenceNormalForm.Atom Nat)
+Yulang.GeneralDictionaryOrdinaryFinite257.cross_fixed : ∀ (n index : Nat),
+  index ≤ n →
+    Yulang.GeneralDictionaryOrdinaryFinite257.rewriteAtom n (Yulang.GeneralDictionaryOrdinaryShape257.crossAtom index) =
+      Yulang.GeneralDictionaryOrdinaryFinite257.le 2 4
+Yulang.GeneralDictionaryOrdinaryFinite257.self_fixed : ∀ (n : Nat),
+  Yulang.GeneralDictionaryOrdinaryFinite257.rewriteAtom n Yulang.GeneralDictionaryOrdinaryShape257.selfAtom =
+    Yulang.GeneralDictionaryOrdinaryFinite257.le 3 3
+Yulang.GeneralDictionaryOrdinaryFinite257.lower_fixed : ∀ (n index : Nat),
+  index < n →
+    ∀ (atom : Yulang.PresenceNormalForm.Atom Nat),
+      atom ∈ Yulang.GeneralDictionaryOrdinaryShape257.lowerAtoms index →
+        Yulang.GeneralDictionaryOrdinaryFinite257.rewriteAtom n atom = Yulang.GeneralDictionaryOrdinaryFinite257.le 2 2
+Yulang.GeneralDictionaryOrdinaryFinite257.upper_fixed : ∀ (n index : Nat),
+  index < n →
+    ∀ (atom : Yulang.PresenceNormalForm.Atom Nat),
+      atom ∈ Yulang.GeneralDictionaryOrdinaryShape257.upperAtoms index →
+        Yulang.GeneralDictionaryOrdinaryFinite257.rewriteAtom n atom = Yulang.GeneralDictionaryOrdinaryFinite257.le 4 4
+Yulang.GeneralDictionaryOrdinaryFinite257.finite : ∀ (n : Nat) (atom : Yulang.PresenceNormalForm.Atom Nat),
+  atom ∈ Yulang.GeneralDictionaryLooseIterationBook240.atoms n →
+    Yulang.GeneralDictionaryOrdinaryFinite257.rewriteAtom n atom ∈ Yulang.GeneralDictionaryOrdinaryFinite257.candidates
+Yulang.GeneralDictionaryOrdinaryFinite257.rewritten : Nat → List (Yulang.PresenceNormalForm.Atom Nat)
+Yulang.GeneralDictionaryOrdinaryFinite257.rewritten_finite : ∀ (n : Nat),
+  Yulang.GeneralDictionaryOrdinaryFinite257.rewritten n ⊆ Yulang.GeneralDictionaryOrdinaryFinite257.candidates
+Yulang.GeneralDictionaryOrdinaryFinite257.length_rewritten : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryOrdinaryFinite257.rewritten n).length = 16 * n
+Yulang.GeneralDictionaryOrdinaryCanonical257.all_present : ∀ (n : Nat),
+  0 < n → Yulang.GeneralDictionaryOrdinaryFinite257.candidates ⊆ Yulang.GeneralDictionaryOrdinaryFinite257.rewritten n
+Yulang.GeneralDictionaryOrdinaryCanonical257.compact : Nat → List (Yulang.PresenceNormalForm.Atom Nat)
+Yulang.GeneralDictionaryOrdinaryCanonical257.membership : ∀ (n : Nat) (atom : Yulang.PresenceNormalForm.Atom Nat),
+  atom ∈ Yulang.GeneralDictionaryOrdinaryCanonical257.compact n ↔
+    atom ∈ Yulang.GeneralDictionaryOrdinaryFinite257.rewritten n
+Yulang.GeneralDictionaryOrdinaryCanonical257.exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralDictionaryOrdinaryCanonical257.compact n) ↔
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralDictionaryOrdinaryFinite257.rewritten n)
+Yulang.GeneralDictionaryOrdinaryCanonical257.length_bound : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryOrdinaryCanonical257.compact n).length ≤ 4
+Yulang.GeneralDictionaryOrdinaryCanonical257.stable : ∀ (n : Nat),
+  Yulang.GeneralDictionaryOrdinaryCanonical257.compact (n + 1) = Yulang.GeneralDictionaryOrdinaryFinite257.candidates
+Yulang.GeneralDictionaryCompactView257.expanded : Nat → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionaryCompactView257.normalized : Nat → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionaryCompactView257.baseAtoms : Nat → List (Yulang.PresenceNormalForm.Atom Nat)
+Yulang.GeneralDictionaryCompactView257.compact : Nat → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionaryCompactView257.normalized_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryCompactView257.normalized n).Models assignment ↔
+    (Yulang.GeneralDictionaryCompactView257.expanded n).Models assignment
+Yulang.GeneralDictionaryCompactView257.ordinary_split : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryCompactView257.normalized n).ordinary =
+    Yulang.GeneralDictionaryCompactView257.baseAtoms n ++ Yulang.GeneralDictionaryOrdinaryFinite257.rewritten n
+Yulang.GeneralDictionaryCompactView257.compact_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryCompactView257.compact n).Models assignment ↔
+    (Yulang.GeneralDictionaryCompactView257.expanded n).Models assignment
+Yulang.GeneralDictionaryCompactView257.compact_solved : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryCompactView257.compact n).Models assignment ↔
+    Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+      (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model
+        (Yulang.GeneralDictionaryUpperHistory257.history n) assignment)
+Yulang.GeneralDictionaryCompactView257.recovered : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralPresenceDefinitionRewrite244.block (Yulang.GeneralDictionaryUpperHistory257.history n)) →
+    ((Yulang.GeneralDictionaryCompactView257.compact n).Models assignment ↔
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment)
+Yulang.GeneralDictionaryCompactView257.hidden : Nat → List Nat
+Yulang.GeneralDictionaryCompactView257.public_models : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralNominalRebasePublicModel242.PublicAgree (Yulang.GeneralDictionaryCompactView257.hidden n) assignment
+          boundary ∧
+        Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralNominalRebasePublicModel242.PublicAgree (Yulang.GeneralDictionaryCompactView257.hidden n) assignment
+          boundary ∧
+        (Yulang.GeneralDictionaryCompactView257.compact n).Models assignment
+Yulang.GeneralDictionaryCompactView257.hidden_above : ∀ (n name : Nat),
+  name ∈ Yulang.GeneralDictionaryCompactView257.hidden n → 4 < name
+Yulang.GeneralDictionaryCompactView257.slot_count : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryCompactView257.compact n).slots = n + 5
+Yulang.GeneralDictionaryCompactFields257.slot_type : ∀ (n : Nat) (slot : Fin (n + 5)),
+  ((Yulang.GeneralDictionaryCompactView257.compact n).slot slot).ty =
+    Yulang.Core.PresenceGeneration.TyTerm.var (Yulang.GeneralDictionaryHistoricalFields256.representative slot)
+Yulang.GeneralDictionaryCompactFields257.foo : Yulang.GeneralNominalRebaseRawView243.Descriptor
+Yulang.GeneralDictionaryCompactFields257.pair : Yulang.GeneralNominalRebaseRawView243.Descriptor
+Yulang.GeneralDictionaryCompactFields257.original_type : ∀ (n : Nat) (slot : Fin 5),
+  Yulang.GeneralPresenceIdempotentTree257.reduce
+      (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+          (Yulang.GeneralDictionaryLooseFamilyBase240.source n
+            (Yulang.GeneralDictionaryLooseFamilyBase240.original n slot))).ty =
+    Yulang.Core.PresenceGeneration.TyTerm.var ↑slot
+Yulang.GeneralDictionaryCompactFields257.anchor_type : ∀ (n : Nat),
+  Yulang.GeneralPresenceIdempotentTree257.reduce
+      (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n)
+          (Yulang.GeneralDictionaryLooseFamilyBase240.source n
+            (Yulang.GeneralDictionaryLooseFamilyBase240.anchor n))).ty =
+    Yulang.Core.PresenceGeneration.TyTerm.var 2
+Yulang.GeneralDictionaryCompactFields257.foo_descriptor : ∀ (n : Nat),
+  Yulang.GeneralNominalViewTypeMap255.descriptor Yulang.GeneralPresenceIdempotentTree257.reduce
+      (Yulang.GeneralNominalRebaseRawView243.descriptor (Yulang.GeneralDictionaryLooseFamilyBase240.base n)
+        (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n))
+        (Yulang.GeneralDictionaryLooseFamilyBase240.foo n)) =
+    Yulang.GeneralDictionaryCompactFields257.foo
+Yulang.GeneralDictionaryCompactFields257.pair_descriptor : ∀ (n : Nat),
+  Yulang.GeneralNominalViewTypeMap255.descriptor Yulang.GeneralPresenceIdempotentTree257.reduce
+      (Yulang.GeneralNominalRebaseRawView243.descriptor (Yulang.GeneralDictionaryLooseFamilyBase240.base n)
+        (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryUpperHistory257.history n))
+        (Yulang.GeneralDictionaryLooseFamilyBase240.pair n)) =
+    Yulang.GeneralDictionaryCompactFields257.pair
+Yulang.GeneralDictionaryCompactFields257.nominal : ∀ (n : Nat) (slot : Fin (n + 5)),
+  (Yulang.GeneralDictionaryCompactView257.compact n).nominals slot =
+    if ↑slot = 3 then some Yulang.GeneralDictionaryCompactFields257.pair
+    else if ↑slot = 2 ∨ 4 ≤ ↑slot then some Yulang.GeneralDictionaryCompactFields257.foo else none
+Yulang.GeneralDictionaryCompactFields257.no_heads : ∀ (n : Nat) (slot : Fin (n + 5)),
+  (Yulang.GeneralDictionaryCompactView257.compact n).heads slot = none
+Yulang.GeneralDictionaryCompactFields257.no_intervals : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryCompactView257.compact n).intervals = []
+Yulang.GeneralDictionaryCompactFields257.baseFacts : List (Yulang.PresenceNormalForm.Atom Nat)
+Yulang.GeneralDictionaryCompactFields257.base_fixed : ∀ (n : Nat),
+  Yulang.GeneralDictionaryCompactView257.baseAtoms n = Yulang.GeneralDictionaryCompactFields257.baseFacts
+Yulang.GeneralDictionaryCompactFields257.ordinary : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryCompactView257.compact n).ordinary =
+    Yulang.GeneralDictionaryCompactFields257.baseFacts ++ Yulang.GeneralDictionaryOrdinaryCanonical257.compact n
+Yulang.GeneralDictionaryFiveSlot257.descriptor : Nat → Option Yulang.GeneralNominalRebaseRawView243.Descriptor
+@Yulang.GeneralDictionaryFiveSlot257.projection : {n : Nat} → Fin (n + 5) → Fin 5
+Yulang.GeneralDictionaryFiveSlot257.view : Nat → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionaryFiveSlot257.original_projection : ∀ (n : Nat) (index : Fin 5),
+  Yulang.GeneralDictionaryFiveSlot257.projection (Yulang.GeneralDictionaryLooseFamilyBase240.original n index) = index
+@Yulang.GeneralDictionaryFiveSlot257.projected_descriptor : ∀ {n : Nat} (slot : Fin (n + 5)),
+  Yulang.GeneralDictionaryFiveSlot257.descriptor ↑(Yulang.GeneralDictionaryFiveSlot257.projection slot) =
+    Yulang.GeneralDictionaryFiveSlot257.descriptor ↑slot
+Yulang.GeneralDictionaryFiveSlot257.compact_nominal : ∀ (n : Nat) (slot : Fin (n + 5)),
+  (Yulang.GeneralDictionaryCompactView257.compact n).nominals slot =
+    (Yulang.GeneralDictionaryFiveSlot257.view n).nominals (Yulang.GeneralDictionaryFiveSlot257.projection slot)
+Yulang.GeneralDictionaryFiveSlot257.compact_target : ∀ (n : Nat) (slot : Fin (n + 5)),
+  ((Yulang.GeneralDictionaryCompactView257.compact n).slot slot).ty =
+    ((Yulang.GeneralDictionaryFiveSlot257.view n).slot (Yulang.GeneralDictionaryFiveSlot257.projection slot)).ty
+Yulang.GeneralDictionaryFiveSlot257.models_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryCompactView257.compact n).Models assignment ↔
+    (Yulang.GeneralDictionaryFiveSlot257.view n).Models assignment
+Yulang.GeneralDictionaryFiveSlot257.stable : ∀ (n : Nat),
+  Yulang.GeneralDictionaryFiveSlot257.view (n + 1) = Yulang.GeneralDictionaryFiveSlot257.view 1
+Yulang.GeneralDictionaryFiveSlot257.five_slots : ∀ (n : Nat), (Yulang.GeneralDictionaryFiveSlot257.view n).slots = 5
+Yulang.GeneralDictionaryFiveSlot257.ordinary_bound : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryFiveSlot257.view n).ordinary.length ≤ 8
+Yulang.GeneralDictionaryInitialProjection257.Agree : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralDictionaryInitialProjection257.solve_agrees : ∀ (n : Nat)
+  (internal boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryInitialProjection257.Agree internal boundary →
+    Yulang.GeneralDictionaryInitialProjection257.Agree
+      (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model
+        (Yulang.GeneralDictionaryUpperHistory257.history n) internal)
+      boundary
+Yulang.GeneralDictionaryInitialProjection257.public_models : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ internal,
+      Yulang.GeneralDictionaryInitialProjection257.Agree internal boundary ∧
+        Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state internal) ↔
+    ∃ internal,
+      Yulang.GeneralDictionaryInitialProjection257.Agree internal boundary ∧
+        (Yulang.GeneralDictionaryFiveSlot257.view n).Models internal
+Yulang.GeneralDictionaryInitialProjection257.stable : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ internal,
+      Yulang.GeneralDictionaryInitialProjection257.Agree internal boundary ∧
+        Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context (n + 1)).state
+          internal) ↔
+    ∃ internal,
+      Yulang.GeneralDictionaryInitialProjection257.Agree internal boundary ∧
+        Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context 1).state internal
+Yulang.GeneralDictionaryFiniteView257.pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat)
+Yulang.GeneralDictionaryFiniteView257.two_views : ∀ (n : Nat),
+  Yulang.GeneralDictionaryFiveSlot257.view n = Yulang.GeneralDictionaryFiveSlot257.view 0 ∨
+    Yulang.GeneralDictionaryFiveSlot257.view n = Yulang.GeneralDictionaryFiveSlot257.view 1
+Yulang.GeneralDictionaryFiniteView257.terms_finite : ∀ (n : Nat),
+  Yulang.GeneralNominalViewTypeTerms255.terms (Yulang.GeneralDictionaryFiveSlot257.view n) ⊆
+    Yulang.GeneralDictionaryFiniteView257.pool
+Yulang.GeneralDictionaryFiniteView257.atoms_fixed : ∀ (n : Nat) (side : Yulang.GeneralPresenceCheckedNormal252.Side)
+  (term : Yulang.Core.PresenceGeneration.TyTerm Nat),
+  term ∈ Yulang.GeneralNominalViewTypeTerms255.terms (Yulang.GeneralDictionaryFiveSlot257.view n) →
+    Yulang.GeneralPresenceCheckedNormal252.prepare side Yulang.GeneralDictionaryFiniteView257.pool term = some term
+Yulang.GeneralDictionaryFiniteView257.no_private_type_reads : ∀ (n name : Nat),
+  4 < name →
+    ∀ (term : Yulang.Core.PresenceGeneration.TyTerm Nat),
+      term ∈ Yulang.GeneralNominalViewTypeTerms255.terms (Yulang.GeneralDictionaryFiveSlot257.view n) →
+        ¬name ∈ Yulang.GeneralPresenceSubstitutionSupport244.typeSources term
+Yulang.GeneralDictionaryFiniteView257.row_metadata : ∀ (n : Nat) (index : Fin 5),
+  ((Yulang.GeneralDictionaryFiveSlot257.view n).slot index).row = Yulang.Core.PresenceGeneration.RowTerm.var ↑index
+Yulang.GeneralDictionaryFiniteView257.no_strict_view_rank : ∀ (rank : Yulang.GeneralNominalRebaseRawView243.View → Nat),
+  ¬∀ (n : Nat),
+      rank (Yulang.GeneralDictionaryFiveSlot257.view (n + 2)) < rank (Yulang.GeneralDictionaryFiveSlot257.view (n + 1))
+Yulang.GeneralDictionaryNoModelRefinement257.initial_cross : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiveSlot257.view 0).Models assignment →
+    Yulang.CommonNominalFullCarrier.Subtype (assignment 2).fst (assignment 4).fst
+Yulang.GeneralDictionaryNoModelRefinement257.initial_facts : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiveSlot257.view 0).Models assignment →
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      Yulang.GeneralDictionaryOrdinaryFinite257.candidates
+Yulang.GeneralDictionaryNoModelRefinement257.one_iff_zero : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiveSlot257.view 1).Models assignment ↔
+    (Yulang.GeneralDictionaryFiveSlot257.view 0).Models assignment
+Yulang.GeneralDictionaryNoModelRefinement257.all_iff_zero : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiveSlot257.view n).Models assignment ↔
+    (Yulang.GeneralDictionaryFiveSlot257.view 0).Models assignment
+Yulang.GeneralDictionaryNoModelRefinement257.initial_public_models : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ internal,
+      Yulang.GeneralDictionaryInitialProjection257.Agree internal boundary ∧
+        Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state internal) ↔
+    ∃ internal,
+      Yulang.GeneralDictionaryInitialProjection257.Agree internal boundary ∧
+        Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context 0).state internal
+Yulang.GeneralDictionaryProjectionBoundary257.anchor_distinct : ∀ (n : Nat),
+  Yulang.GeneralDictionaryLooseFamilyBase240.anchor (n + 1) ≠
+    Yulang.GeneralDictionaryLooseFamilyBase240.original (n + 1) 2
+Yulang.GeneralDictionaryProjectionBoundary257.anchor_collapsed : ∀ (n : Nat),
+  Yulang.GeneralDictionaryFiveSlot257.projection (Yulang.GeneralDictionaryLooseFamilyBase240.anchor (n + 1)) =
+    Yulang.GeneralDictionaryFiveSlot257.projection (Yulang.GeneralDictionaryLooseFamilyBase240.original (n + 1) 2)
+Yulang.GeneralDictionaryProjectionBoundary257.not_injective : ∀ (n : Nat),
+  ¬Function.Injective Yulang.GeneralDictionaryFiveSlot257.projection
+Yulang.GeneralDictionaryProjectionBoundary257.state_slots : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryLooseIterationIteration240.state n).core.erased.current.context.state.base.slots = n + 5
+Yulang.GeneralDictionaryProjectionBoundary257.states_distinct : ∀ (a b : Nat),
+  a ≠ b →
+    Yulang.GeneralDictionaryLooseIterationIteration240.state a ≠
+      Yulang.GeneralDictionaryLooseIterationIteration240.state b
+Yulang.GeneralDictionaryProjectionBoundary257.distinct_with_same_view : ∀ (n : Nat),
+  Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1) ≠
+      Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 2) ∧
+    Yulang.GeneralDictionaryFiveSlot257.view (n + 1) = Yulang.GeneralDictionaryFiveSlot257.view (n + 2)
+Yulang.GeneralDictionaryKnownProjection257.known_slot : ∀ (raw : Yulang.GeneralNominalState.State)
+  (slot : Fin raw.base.slots),
+  Yulang.GeneralNominalState.Known raw (raw.base.source slot) ↔
+    raw.view.graph slot ≠ Yulang.CommonRoleRegularGraph.Node.unresolved ∨
+      ∃ descriptor, raw.nominals slot = some descriptor
+Yulang.GeneralDictionaryKnownProjection257.classified : ∀ (n : Nat) (slot : Fin (n + 5)),
+  Yulang.GeneralNominalState.Known (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+      (Yulang.GeneralDictionaryLooseFamilyBase240.source n slot) ↔
+    2 ≤ ↑slot
+@Yulang.GeneralDictionaryKnownProjection257.projection_threshold : ∀ {n : Nat} (slot : Fin (n + 5)),
+  2 ≤ ↑(Yulang.GeneralDictionaryFiveSlot257.projection slot) ↔ 2 ≤ ↑slot
+Yulang.GeneralDictionaryKnownProjection257.preserved : ∀ (n : Nat) (slot : Fin (n + 5)),
+  Yulang.GeneralNominalState.Known (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+      (Yulang.GeneralDictionaryLooseFamilyBase240.source n slot) ↔
+    Yulang.GeneralNominalState.Known (Yulang.GeneralDictionaryLooseIterationBook240.context 0).state
+      ↑(Yulang.GeneralDictionaryFiveSlot257.projection slot)
+Yulang.GeneralDictionaryPointProjection257.foo_point : ∀ (n : Nat),
+  Yulang.GeneralNominalReobservationSteps.PointDescriptor (Yulang.GeneralDictionaryLooseFamilyBase240.foo n)
+Yulang.GeneralDictionaryPointProjection257.pair_nonpoint : ∀ (n : Nat),
+  ¬Yulang.GeneralNominalReobservationSteps.PointDescriptor (Yulang.GeneralDictionaryLooseFamilyBase240.pair n)
+Yulang.GeneralDictionaryPointProjection257.classified : ∀ (n : Nat) (slot : Fin (n + 5)),
+  Yulang.GeneralNominalReobservationSteps.PointAt (Yulang.GeneralDictionaryLooseIterationBook240.context n).state slot ↔
+    ↑slot = 2 ∨ 4 ≤ ↑slot
+@Yulang.GeneralDictionaryPointProjection257.projected_kind : ∀ {n : Nat} (slot : Fin (n + 5)),
+  ↑(Yulang.GeneralDictionaryFiveSlot257.projection slot) = 2 ∨
+      4 ≤ ↑(Yulang.GeneralDictionaryFiveSlot257.projection slot) ↔
+    ↑slot = 2 ∨ 4 ≤ ↑slot
+Yulang.GeneralDictionaryPointProjection257.preserved : ∀ (n : Nat) (slot : Fin (n + 5)),
+  Yulang.GeneralNominalReobservationSteps.PointAt (Yulang.GeneralDictionaryLooseIterationBook240.context n).state slot ↔
+    Yulang.GeneralNominalReobservationSteps.PointAt (Yulang.GeneralDictionaryLooseIterationBook240.context 0).state
+      (Yulang.GeneralDictionaryFiveSlot257.projection slot)
+Yulang.GeneralDictionaryReportProjection257.bounds : (n : Nat) →
+  Yulang.GeneralNominalInspection.Bounds (Yulang.GeneralDictionaryLooseIterationBook240.context n).state →
+    Yulang.GeneralNominalInspection.Bounds (Yulang.GeneralDictionaryLooseIterationBook240.context 0).state
+Yulang.GeneralDictionaryReportProjection257.transport : (n : Nat) →
+  Yulang.GeneralNominalRecursiveInspection.Report (Yulang.GeneralDictionaryLooseIterationBook240.context n).state →
+    Yulang.GeneralNominalRecursiveInspection.Report (Yulang.GeneralDictionaryLooseIterationBook240.context 0).state
+Yulang.GeneralDictionaryReportProjection257.anchor_projected : ∀ (n : Nat),
+  Yulang.GeneralDictionaryFiveSlot257.projection (Yulang.GeneralDictionaryLooseFamilyBase240.anchor n) = 2
+Yulang.GeneralDictionaryReportProjection257.actual_report : ∀ (n : Nat),
+  Yulang.GeneralDictionaryReportProjection257.transport n
+      (Yulang.GeneralNominalPacketSupport.report (Yulang.GeneralDictionaryLooseIterationBook240.packet n)) =
+    Yulang.GeneralNominalPacketSupport.report (Yulang.GeneralDictionaryLooseIterationBook240.packet 0)
+Yulang.GeneralDictionaryReportProjection257.origins_unchanged : ∀ (n : Nat),
+  List.map (fun capture => capture.origin)
+      (Yulang.GeneralNominalPacketSupport.report (Yulang.GeneralDictionaryLooseIterationBook240.packet n)).captures =
+    List.map (fun capture => capture.origin)
+      (Yulang.GeneralNominalPacketSupport.report (Yulang.GeneralDictionaryLooseIterationBook240.packet 0)).captures
+Yulang.GeneralDictionaryBinderGap257.seed : Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDictionaryBinderGap257.witness : Nat → Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDictionaryBinderGap257.actual_above : 4 < Yulang.GeneralDictionaryLooseLoopPacket240.actual
+Yulang.GeneralDictionaryBinderGap257.seed_initial : ∀ (name : Nat),
+  name ≤ 4 → Yulang.GeneralDictionaryBinderGap257.seed name = Yulang.GeneralDictionaryLooseLoopSource240.model name
+Yulang.GeneralDictionaryBinderGap257.seed_models : Yulang.GeneralNominalVersionedJournal232.Models
+  Yulang.GeneralDictionaryLooseLoopSource240.initial Yulang.GeneralDictionaryBinderGap257.seed
+Yulang.GeneralDictionaryBinderGap257.raw_witness : ∀ (n : Nat),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+    (Yulang.GeneralDictionaryBinderGap257.witness n)
+Yulang.GeneralDictionaryBinderGap257.actual_outside : ∀ (n : Nat)
+  (entry : Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat),
+  entry ∈ Yulang.GeneralDictionaryUpperHistory257.history n →
+    entry.fst ≠ Yulang.GeneralDictionaryLooseLoopPacket240.actual
+Yulang.GeneralDictionaryBinderGap257.actual_bottom : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryBinderGap257.witness n Yulang.GeneralDictionaryLooseLoopPacket240.actual).fst =
+    Yulang.CommonNominalSyntax.Layer.bottom
+Yulang.GeneralDictionaryBinderGap257.lower_value : ∀ (n index : Nat),
+  index ≤ n →
+    Yulang.CommonNominalFullCarrier.Equivalent
+      (Yulang.GeneralDictionaryBinderGap257.witness n (Yulang.GeneralDictionaryLooseFamilyNames240.lower index)).fst
+      Yulang.GeneralDictionaryLooseLoopSource240.F
+Yulang.GeneralDictionaryBinderGap257.not_inputs : ∀ (n index : Nat),
+  index < n →
+    ¬Yulang.GeneralNominalVersionedPlans231.Inputs (Yulang.GeneralDictionaryLooseIterationBook240.plan index)
+        (Yulang.GeneralDictionaryBinderGap257.witness n)
+Yulang.GeneralDictionaryBinderGap257.not_journal : ∀ (n : Nat),
+  ¬Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+      (Yulang.GeneralDictionaryBinderGap257.witness (n + 1))
+Yulang.GeneralDictionaryBinderGap257.current_raw_not_journal : ∀ (n : Nat),
+  Yulang.GeneralNominalState.Models
+      (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1)).core.erased.current.context.state
+      (Yulang.GeneralDictionaryBinderGap257.witness (n + 1)) ∧
+    ¬Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+        (Yulang.GeneralDictionaryBinderGap257.witness (n + 1))
+Yulang.GeneralDictionaryHistoricalValues257.raw_initial : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot assignment
+Yulang.GeneralDictionaryHistoricalValues257.atoms_mono : ∀ (a b : Nat),
+  a ≤ b → Yulang.GeneralDictionaryLooseIterationBook240.atoms a ⊆ Yulang.GeneralDictionaryLooseIterationBook240.atoms b
+Yulang.GeneralDictionaryHistoricalValues257.lower_same : ∀ (n index : Nat),
+  index ≤ n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        Yulang.CommonNominalFullCarrier.Equivalent
+          (assignment (Yulang.GeneralDictionaryLooseFamilyNames240.lower index)).fst (assignment 2).fst
+Yulang.GeneralDictionaryHistoricalValues257.upper_same : ∀ (n index : Nat),
+  index < n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        Yulang.CommonNominalFullCarrier.Equivalent
+          (assignment (Yulang.GeneralDictionaryLooseFamilyNames240.upper index)).fst (assignment 4).fst
+Yulang.GeneralDictionaryHistoricalValues257.source_pair : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+    Yulang.CommonNominalFullCarrier.Equivalent (assignment 2).fst (assignment 4).fst
+Yulang.GeneralDictionaryBinderFact257.facts : List (Yulang.PresenceNormalForm.Atom Nat)
+Yulang.GeneralDictionaryBinderFact257.Holds : Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralDictionaryBinderFact257.facts_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      Yulang.GeneralDictionaryBinderFact257.facts ↔
+    Yulang.GeneralDictionaryBinderFact257.Holds assignment
+Yulang.GeneralDictionaryBinderFact257.fits_exact : ∀ (n index : Nat),
+  index < n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        (Yulang.GeneralNominalCaptureMerges.Fits assignment
+            (Yulang.GeneralDictionaryLooseFamilyNames240.lower (index + 1),
+              Yulang.GeneralDictionaryLooseFamilyNames240.upper index)
+            (assignment Yulang.GeneralDictionaryLooseLoopPacket240.actual).fst ↔
+          Yulang.GeneralDictionaryBinderFact257.Holds assignment)
+Yulang.GeneralDictionaryBinderFact257.all_past_fits : ∀ (n : Nat),
+  0 < n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        ((∀ (index : Nat),
+            index < n →
+              Yulang.GeneralNominalCaptureMerges.Fits assignment
+                (Yulang.GeneralDictionaryLooseFamilyNames240.lower (index + 1),
+                  Yulang.GeneralDictionaryLooseFamilyNames240.upper index)
+                (assignment Yulang.GeneralDictionaryLooseLoopPacket240.actual).fst) ↔
+          Yulang.GeneralDictionaryBinderFact257.Holds assignment)
+Yulang.GeneralDictionaryBinderFact257.input_requires : ∀ (n index : Nat),
+  index < n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        Yulang.GeneralNominalVersionedPlans231.Inputs (Yulang.GeneralDictionaryLooseIterationBook240.plan index)
+            assignment →
+          Yulang.GeneralDictionaryBinderFact257.Holds assignment
+Yulang.GeneralDictionaryBinderFact257.journal_requires : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+      assignment →
+    Yulang.GeneralDictionaryBinderFact257.Holds assignment
+Yulang.GeneralDictionaryBinderFact257.excludes_gap : ∀ (n : Nat),
+  ¬Yulang.GeneralDictionaryBinderFact257.Holds (Yulang.GeneralDictionaryBinderGap257.witness (n + 1))
+Yulang.GeneralDictionaryBinderFact257.facts_length : Yulang.GeneralDictionaryBinderFact257.facts.length = 2
+Yulang.GeneralDictionaryPastRaw257.raw_past : ∀ (n index : Nat),
+  index ≤ n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context index).state assignment
+Yulang.GeneralDictionaryPastRaw257.ordinary_past : ∀ (n index : Nat),
+  index < n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        Yulang.GeneralNominalVersionedPlans231.Ordinary (Yulang.GeneralDictionaryLooseIterationBook240.packet index)
+          assignment
+Yulang.GeneralDictionaryPastObservations257.observed : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot assignment →
+    ∀ (index : Nat),
+      index < 2 →
+        Yulang.GeneralNominalRecursiveInspection.Observes assignment
+          ((Yulang.GeneralNominalRecursiveInspection.Origin.source 3).nominal 5 index)
+          Yulang.GeneralDictionaryLooseLoopSource240.F
+Yulang.GeneralDictionaryPastObservations257.observed_value : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot assignment →
+    ∀ (index : Nat),
+      index < 2 →
+        ∀ (value : Yulang.CommonNominalFullCarrier.Ty),
+          Yulang.GeneralNominalRecursiveInspection.Observes assignment
+              ((Yulang.GeneralNominalRecursiveInspection.Origin.source 3).nominal 5 index) value →
+            Yulang.CommonNominalFullCarrier.Equivalent value Yulang.GeneralDictionaryLooseLoopSource240.F
+Yulang.GeneralDictionaryPastObservations257.endpoint_fit : ∀ (n index : Nat),
+  index ≤ n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        ∀ (value : Yulang.CommonNominalFullCarrier.Ty),
+          Yulang.CommonNominalFullCarrier.Equivalent value Yulang.GeneralDictionaryLooseLoopSource240.F →
+            Yulang.GeneralNominalCaptureMerges.Fits assignment
+              (Yulang.GeneralDictionaryLooseFamilyNames240.lower index, 4) value
+Yulang.GeneralDictionaryPastObservations257.projection : ∀ (n index : Nat),
+  index ≤ n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        Yulang.GeneralNominalRecursiveInspection.ProjectionModels
+          (Yulang.GeneralDictionaryLooseIterationBook240.context index).state
+          (Yulang.GeneralNominalPacketSupport.report (Yulang.GeneralDictionaryLooseIterationBook240.packet index))
+          assignment
+Yulang.GeneralDictionaryPastPacket257.actual_value : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+    Yulang.GeneralDictionaryBinderFact257.Holds assignment →
+      Yulang.CommonNominalFullCarrier.Equivalent (assignment Yulang.GeneralDictionaryLooseLoopPacket240.actual).fst
+        Yulang.GeneralDictionaryLooseLoopSource240.F
+Yulang.GeneralDictionaryPastPacket257.head_schema : ∀ (n index : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+    Yulang.GeneralDictionaryBinderFact257.Holds assignment →
+      Yulang.GeneralNominalVersionedPlans231.SchemaHolds (Yulang.GeneralDictionaryLooseIterationBook240.plan index)
+        (Yulang.GeneralDictionaryLooseIterationBook240.plan index).headSchema assignment
+Yulang.GeneralDictionaryPastPacket257.holds : ∀ (n index : Nat),
+  index < n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        Yulang.GeneralDictionaryBinderFact257.Holds assignment →
+          Yulang.GeneralNominalVersionedPlans231.Holds (Yulang.GeneralDictionaryLooseIterationBook240.plan index)
+            assignment
+Yulang.GeneralDictionaryJournalRepair257.earlier_journal : ∀ (n index : Nat),
+  index ≤ n →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment →
+        Yulang.GeneralDictionaryBinderFact257.Holds assignment →
+          Yulang.GeneralNominalVersionedJournal232.Models
+            (Yulang.GeneralDictionaryLooseIterationIteration240.state index) assignment
+Yulang.GeneralDictionaryJournalRepair257.exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+      assignment ↔
+    Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context (n + 1)).state assignment ∧
+      Yulang.GeneralDictionaryBinderFact257.Holds assignment
+Yulang.GeneralDictionaryFiniteJournal257.view : Nat → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionaryFiniteJournal257.models_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiniteJournal257.view n).Models assignment ↔
+    (Yulang.GeneralDictionaryFiveSlot257.view n).Models assignment ∧
+      Yulang.GeneralDictionaryBinderFact257.Holds assignment
+Yulang.GeneralDictionaryFiniteJournal257.solve_binder : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryBinderFact257.Holds
+      (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model
+        (Yulang.GeneralDictionaryUpperHistory257.history n) assignment) ↔
+    Yulang.GeneralDictionaryBinderFact257.Holds assignment
+Yulang.GeneralDictionaryFiniteJournal257.solved_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiniteJournal257.view (n + 1)).Models assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+      (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model
+        (Yulang.GeneralDictionaryUpperHistory257.history (n + 1)) assignment)
+Yulang.GeneralDictionaryFiniteJournal257.Agree : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralDictionaryFiniteJournal257.solve_agrees : ∀ (n : Nat)
+  (internal boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryFiniteJournal257.Agree internal boundary →
+    Yulang.GeneralDictionaryFiniteJournal257.Agree
+      (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model
+        (Yulang.GeneralDictionaryUpperHistory257.history n) internal)
+      boundary
+Yulang.GeneralDictionaryFiniteJournal257.public_models : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ internal,
+      Yulang.GeneralDictionaryFiniteJournal257.Agree internal boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models
+          (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1)) internal) ↔
+    ∃ internal,
+      Yulang.GeneralDictionaryFiniteJournal257.Agree internal boundary ∧
+        (Yulang.GeneralDictionaryFiniteJournal257.view (n + 1)).Models internal
+Yulang.GeneralDictionaryFiniteJournal257.stable : ∀ (n : Nat),
+  Yulang.GeneralDictionaryFiniteJournal257.view (n + 1) = Yulang.GeneralDictionaryFiniteJournal257.view 1
+Yulang.GeneralDictionaryFiniteJournal257.ordinary_bound : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryFiniteJournal257.view n).ordinary.length ≤ 10
