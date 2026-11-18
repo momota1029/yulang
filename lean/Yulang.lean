@@ -4605,3 +4605,8 @@ import Yulang.GeneralNominalPlanTraceModels251
 import Yulang.GeneralNominalPlanProducerRegression251
 import Yulang.GeneralPresenceSnapshotGrowth251
 import Yulang.GeneralPresenceDuplicateUnion251
+import Yulang.GeneralNominalRoleEffects251
+import Yulang.GeneralNominalRoleClass251
+import Yulang.GeneralNominalRoleClassCompleteness251
+import Yulang.GeneralNominalRoleJournalEffect251
+import Yulang.GeneralNominalRoleModeRegression251
