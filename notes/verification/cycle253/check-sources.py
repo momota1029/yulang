@@ -15,6 +15,8 @@ v.joinpath('dependency-source-sha256.json').write_text(json.dumps({p:hashlib.sha
 print(f'PASS import closure hashed: {len(seen)}')
 for m in mods:assert not re.search(r'\b(sorry|admit|native_decide)\b',Path('lean/Yulang/'+m+'.lean').read_text())
 print(f'PASS no forbidden tokens in {len(mods)} new modules')
+assert not re.search(r'\b(sorry|admit|native_decide)\b',Path('lean/Audit/Cycle253Usage.lean').read_text())
+print('PASS Usage also contains no forbidden tokens')
 base='47322fbb35e77031a800e4865eea340d90daea66'
 oldpaths=set(subprocess.check_output(['git','ls-tree','-r','--name-only',base,'lean'],text=True).splitlines())
 changed=subprocess.check_output(['git','diff','--name-only',base,'--','lean'],text=True).splitlines()
@@ -22,5 +24,5 @@ assert not [p for p in changed if p in oldpaths and p!='lean/Yulang.lean']
 oldbarrel=subprocess.check_output(['git','show',base+':lean/Yulang.lean'],text=True)
 assert Path('lean/Yulang.lean').read_text().startswith(oldbarrel)
 print('PASS old Lean sources frozen; barrel append-only')
-print('Latest integration42e33c1a9, I50 unchanged at09:47 UTC')
+print('Latest integration155c7aa0c, I50 unchanged at10:12 UTC; merged with identical bytes')
 print('Whole repository build, verify-lean.sh and Yulang2 runtime not run')

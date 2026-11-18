@@ -82,3 +82,14 @@
   `readback_depth/readback_depth_covered` はdepth≤encode.sizeで深さ上界も返す。
   coveredなleafには適用できるが、全leafを覆うとは言わない。output-only binderの
   child値やsource全体のreadback producerを仮定なしに得たわけではない。
+
+## 前提を読み替えないための補足
+
+- `AllHeadReadback253` のcaptureは与えたmodelごとに存在を示す。すべてのmodelで
+  同一の計算可能readbackを出力するsource producerを構成した、という意味ではない。
+- `Build` とRawFiniteのmembership補題はcapture/variablesの全像にpool条件を要求する。
+  未使用の変数にまで条件を課す保守的な型であり、任意のsourceプログラムをこの
+  certificateへ変換する完全性を主張しない。定数template自体のchoicesは空poolでも
+  一個に列挙されるが、全像条件が不要になるmembershipの局所化は別に必要。
+- pattern加算深さは指定したraw代入構文に対する上界。normalize/substの交換や、
+  semantic equivalenceで任意に冗長化した代表の深さ上界を含まない。

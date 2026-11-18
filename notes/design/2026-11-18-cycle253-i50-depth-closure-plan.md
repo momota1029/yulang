@@ -132,3 +132,32 @@ finite性や深さ上界そのものは仮定しない。非空whereは従来の
 供給し、leafでもcoveredHeadが計算で通るもの（252の単変数headなど）に適用できる。
 variant payload内のplainNames joinなど、Complete queryでもcoveredHeadが偽になりうる
 headは未対応なので、全leafを覆ったとは報告しない。
+
+## 10:13 次のproducer義務を具体化
+
+追加のstrict使用例で、head=`variant 0 (var 0 | var 1)`、whereなし、associated=var0
+の宣言が実DeclarationCheckedを満たし、inspection queryはCompleteだが
+coveredArgs(normalizeArgs head)=falseとなることを確認した。
+これは言語の反例やsource非停止ではなく、readback_coveredの適用範囲が全checked
+leafでないことを示す宣言レベルの検査例（Cycle253Usage.joinedLeaf）。
+
+次は二つの契約を分ける:
+1. **各入力名の個別Part・size/depth bound**: Complete queryの各variable使用を
+   source labelの構造projectionへ戻す。plainNamesが同じoriginを複数名に共有する
+   場合は各名を個別に読む。translated_namesで全inputNamesを覆う。
+2. **head全体の質量和bound**: Paterson/where descent用のcovered headでのみ使用。
+   上のquery名ごとの情報から、重複した使用をそのまま足してよいと仮定しない。
+
+これにchild出力のreadbackをNormalizedChild順で結ぶproducerを作る。ただし
+selected candidateとalias/historyの対応は別証明。strict新fact進捗はまだ供給しない。
+
+raw有限性についても、有限templateの列挙はまだ任意refreshのdescriptor/label
+vocabularyがsource由来であることを示さない。public portsの集合が有限なだけで
+任意のobserved構造やcompound endpoint式の集合まで有限と数えない。
+深さ補題は明記した構文と代表に対するもの。後段normalizeの深さや同値な任意の
+冗長表現の深さへ無条件に読み替えない。
+
+10:12にintegration155c7aa0cを確認。252成果とI50の統合で、指示の変更なし。
+merge時のbarrel/heartbeat競合は、integration barrelが253 barrelの完全なprefixで
+あることをbyte確認して既存＋253追記を保持し、心拍は稼働中253を保持して解決。
+merge前後の全treeのbytesに差分はない。

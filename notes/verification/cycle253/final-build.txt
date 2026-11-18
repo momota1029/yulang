@@ -35,6 +35,7 @@ EXIT 0 Cycle253Usage
 PASS previous dependency source hashes unchanged: 1514
 PASS import closure hashed: 1653
 PASS no forbidden tokens in 13 new modules
+PASS Usage also contains no forbidden tokens
 PASS old Lean sources frozen; barrel append-only
-Latest integration42e33c1a9, I50 unchanged at09:47 UTC
+Latest integration155c7aa0c, I50 unchanged at10:12 UTC; merged with identical bytes
 Whole repository build, verify-lean.sh and Yulang2 runtime not run

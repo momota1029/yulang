@@ -65,4 +65,37 @@ example (frame : GeneralNominalVersionedEvidence231.Frame registry state focus k
  depth (capture name) ≤ GeneralNominalPatersonLineage.mass labels := by
  obtain ⟨capture,_,_,bounds,_⟩ := GeneralNominalAllHeadReadback253.readback_depth_covered frame (by rfl) branch known
  exact ⟨capture,bounds⟩
+
+abbrev joinedLeaf : GeneralDeclarations.Declaration :=
+ ⟨253,0,[.variant 0 (.join (.var 0) (.var 1))],[],[⟨0,0,.var 0⟩],[]⟩
+abbrev joinedRoles : Roles.RoleDecls := fun _ => GeneralDeclarationExamples.outputRole 0
+
+example : GeneralDeclarations.DeclarationChecked GeneralDeclarationExamples.constructors joinedRoles joinedLeaf := by
+ constructor
+ · simp [GeneralDeclarations.Declaration.Signature,GeneralDeclarations.Declared]
+ · simp [GeneralDeclarations.Declaration.Identified,GeneralDeclarations.Declaration.outputNames]
+ · simp [GeneralDeclarations.Declaration.Produced]
+ · simp [GeneralDeclarations.Declaration.OutputOnly,GeneralDeclarations.Declaration.outputNames]
+ · simp [GeneralDeclarations.Declaration.Scoped,GeneralDeclarations.Declaration.inputNames,GeneralDeclarations.Declaration.outputNames,
+     normalizeArgs,normalize,variablesArgs,Pattern.variables,merge,variantRow]
+ · simp [GeneralDeclarations.Declaration.ConstructorScoped,ArgsWellScoped,WellScoped]
+ · intro clause member; cases member
+ · intro clause member; cases member
+ · intro clause member; cases member
+ · intro clause member; cases member
+example : coveredArgs (normalizeArgs joinedLeaf.head) = false := rfl
+example : GeneralNominalHeadMatchMass.Complete
+ (GeneralNominalInspection.translate GeneralDeclarationExamples.constructors GeneralDictionaryOutputDepth252.interpretation
+   (normalize (.variant 0 (.join (.var 0) (.var 1))))) := by
+ simp [normalize,merge,variantRow,GeneralNominalInspection.translate,GeneralCandidateInspection.plainNames,GeneralNominalHeadMatchMass.Complete]
+
+example : ∃ pattern : Pattern,
+ GeneralNominalCenteredHeadMatSchemaMass.Part
+   (GeneralNominalCenteredHeadMatCompilerSemantics.algebra GeneralDeclarationExamples.constructors GeneralDictionaryOutputDepth252.interpretation)
+   GeneralDictionaryOutputDepth252.plan GeneralDictionaryOutputDepth252.model 0 pattern ∧ depth pattern ≤ 2 := by
+ have input := GeneralNominalCenteredHeadMatSourceLabels.point_root_inputs
+   (fun index => rfl) GeneralDictionaryOutputDepth252.ground GeneralDictionaryOutputDepth252.source_model
+ obtain ⟨capture,_,parts,bounds,_⟩ := GeneralNominalAllHeadReadback253.readback_depth_covered
+   GeneralDictionaryOutputDepth252.frame (by rfl) GeneralDictionaryOutputDepth252.packet_holds input
+ exact ⟨capture 0,parts 0 (by decide),bounds 0 (by decide)⟩
 end Cycle253Usage
