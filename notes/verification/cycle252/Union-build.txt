@@ -1,0 +1,12 @@
+lean/Yulang/GeneralPresenceUnionNormal252.lean:160:5: error: Type mismatch
+  Or.inl (ihFirst one member)
+has type
+  name ∈ typedReads first ∨ ?m.127
+but is expected to have type
+  name ∈ typedReads first ++ typedReads last
+lean/Yulang/GeneralPresenceUnionNormal252.lean:161:5: error: Type mismatch
+  Or.inr (ihLast two member)
+has type
+  ?m.129 ∨ name ∈ typedReads last
+but is expected to have type
+  name ∈ typedReads first ++ typedReads last

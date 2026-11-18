@@ -1,0 +1,6 @@
+BUILD Yulang.GeneralNominalVersionedHeadMass237
+BUILD Yulang.GeneralNominalVersionedWeightedHead237
+BUILD Yulang.GeneralNominalVersionedHeadReadback237
+BUILD Yulang.GeneralNominalVersionedChildLabels237
+BUILD Yulang.GeneralNominalVersionedMixedAncestry237
+EXIT 0

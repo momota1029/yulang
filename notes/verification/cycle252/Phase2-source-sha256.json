@@ -1,0 +1,11 @@
+{
+  "lean/Yulang/GeneralPresenceUnionNormal252.lean": "452a753ddb9ad5ced516b66da8b7a79dae21dff98ba7d0e50fc6c903bfaaa87d",
+  "lean/Yulang/GeneralPresenceInterNormal252.lean": "3e21876e208e5a990f57d0d2cd13b017bac0aecbd5e83e6c9becb9f7278ec37b",
+  "lean/Yulang/GeneralPresenceNormalFinite252.lean": "49675af4fe76076e8cc46638ca2eee5bfe6688cc69ba0dc1725f7ac71bb29f8e",
+  "lean/Yulang/GeneralPresenceSnapshotNormal252.lean": "ff4f5f6f372c9142847801ff9f20a4be134221c6a668541b6964037910d640a1",
+  "lean/Yulang/GeneralPresenceCheckedNormal252.lean": "15b78c367fec89460a71bb62d9abaca71bb6f283cde721d3ac8f43033e979bd1",
+  "lean/Yulang/GeneralPresenceNormalBlock252.lean": "4bb9145c76e565d838b123fcca0fab7be7a1a35e5c2d66608433b3dfd7b9f929",
+  "lean/Yulang/GeneralPresenceFiniteBlocks252.lean": "9df48e76374654611e0d378353ed6aabff8afcefc22e75ae3d4b586cd7c4dc0b",
+  "lean/Yulang/GeneralNominalOwnerCandidates252.lean": "16db80f1b386eaed0cc8dda001f50306c15de7e92b7efa4a0311a0f5f6e9fdbc",
+  "lean/Yulang/GeneralNominalSourceOwnerCandidates252.lean": "e47709987ed780cf989256d7394f0f05ee0815644c1dee46160fecadf1dbb4b5"
+}
