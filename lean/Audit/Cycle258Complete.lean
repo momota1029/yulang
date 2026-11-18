@@ -23,6 +23,7 @@ import Yulang.GeneralDictionaryCompletedReadback258
 import Yulang.GeneralRebaseStep258
 import Yulang.GeneralDictionaryRebaseStep258
 import Yulang.GeneralDictionaryRebasePublic258
+import Yulang.GeneralRebaseBudget258
 
 #print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_lower
 #print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_upper
@@ -219,3 +220,8 @@ import Yulang.GeneralDictionaryRebasePublic258
 #print axioms Yulang.GeneralDictionaryRebasePublic258.final_public
 #print axioms Yulang.GeneralDictionaryRebasePublic258.projected_public
 #print axioms Yulang.GeneralDictionaryRebasePublic258.old_new
+#print axioms Yulang.GeneralRebaseBudget258.budget
+#print axioms Yulang.GeneralRebaseBudget258.source_budget
+#print axioms Yulang.GeneralRebaseBudget258.idempotent
+#print axioms Yulang.GeneralRebaseBudget258.duplicate_noop
+#print axioms Yulang.GeneralRebaseBudget258.fixture_budget

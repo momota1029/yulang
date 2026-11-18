@@ -51,3 +51,11 @@ No simulation of all old administrative microsteps, complete constructor or
 presence handling, 239 concrete correspondence, general source fixed basis,
 or general semantics-preserving termination theorem is established. The proved
 Acc applies to this newly defined gated relation only, not the old Step.
+
+## Numeric and duplicate-install regression
+`GeneralRebaseBudget258.Runs` counts actual new Step edges. The run length plus
+remaining facts is at most the initial remaining count. Starting from initial,
+there are at most basis.length steps; in the I45 fixture at most one. Rewriting
+the same proposal is idempotent and `tryWrite` then returns `none`. These are
+properties of the defined new relation, not an assertion that every source
+observation is represented, nor a bound on old microsteps or running time.

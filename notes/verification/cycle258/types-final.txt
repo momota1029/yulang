@@ -1,0 +1,76 @@
+Yulang.GeneralDictionaryUniformJournal258.all_stages : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (n : Nat),
+      Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+        (Yulang.GeneralDictionaryUniformFill258.fill assignment)) ↔
+    (Yulang.GeneralDictionaryFiniteJournal257.view 1).Models assignment
+Yulang.GeneralDictionarySourceExtension258.exchange : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (n : Nat),
+      ∃ assignment,
+        Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+          Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+            assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        ∀ (n : Nat),
+          Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+            assignment
+Yulang.GeneralDictionaryPrivateBoundary258.retained_binder_impossible : ∀ (n : Nat),
+  ¬∃ assignment,
+      Yulang.GeneralDictionaryFiniteJournal257.Agree assignment Yulang.GeneralDictionaryBinderGap257.seed ∧
+        Yulang.GeneralNominalVersionedJournal232.Models
+          (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1)) assignment
+Yulang.GeneralDictionaryOutputEvidence258.completed_evidence : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment →
+    Yulang.GeneralNominalVersionedEvidence231.Evidence Yulang.GeneralDictionaryOutputDepth252.registry
+      Yulang.GeneralDictionaryOutputDepth252.initial.core (Yulang.GeneralDictionaryOutputFrame258.complete assignment)
+      Yulang.GeneralDictionaryOutputDepth252.root (Yulang.CommonRoleOutermostResolver.Dictionary.node 0 [])
+Yulang.GeneralDictionaryOutputPublic258.public_models : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryOutputPublic258.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepthInstall252.installed
+          assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot boundary
+@Yulang.GeneralRebaseStep258.accessible : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis) (state : Yulang.GeneralRebaseStep258.State basis),
+  Acc (fun after before => Yulang.GeneralRebaseStep258.Step observe before after) state
+Yulang.GeneralDictionaryRebaseStep258.no_two_steps : ∀
+  (middle last : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  ¬(Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe
+        Yulang.GeneralDictionaryRebaseStep258.initialState middle ∧
+      Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe middle last)
+Yulang.GeneralDictionaryRebasePublic258.old_new : ∀ (n : Nat) (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+          assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralDictionaryRebasePublic258.Models (Yulang.GeneralDictionaryRebaseStep258.project n) assignment
+Yulang.GeneralDictionaryCompletedReadback258.closed : Yulang.GeneralDictionaryOutputDepth252.expanded.variables = []
+Yulang.GeneralDictionaryCompletedReadback258.meaning : Yulang.GeneralNominalCenteredHeadMatPatternSemantics.eval
+    (Yulang.GeneralNominalCenteredHeadMatCompilerSemantics.algebra Yulang.GeneralDeclarationExamples.constructors
+      Yulang.GeneralDictionaryOutputDepth252.interpretation)
+    (fun x => Yulang.CommonNominalSyntax.Layer.bottom) Yulang.GeneralDictionaryOutputDepth252.expanded =
+  Yulang.GeneralDictionaryOutputDepth252.P
+Yulang.GeneralDictionaryCompletedReadback258.depth : Yulang.GeneralPatternAdditiveDepth253.depth
+    Yulang.GeneralDictionaryOutputDepth252.expanded =
+  4
+Yulang.GeneralDictionaryCompletedReadback258.uniform : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment →
+    Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDictionaryOutputFrame258.complete assignment 3).fst
+        (Yulang.GeneralNominalCenteredHeadMatPatternSemantics.eval
+          (Yulang.GeneralNominalCenteredHeadMatCompilerSemantics.algebra Yulang.GeneralDeclarationExamples.constructors
+            Yulang.GeneralDictionaryOutputDepth252.interpretation)
+          (fun x => Yulang.CommonNominalSyntax.Layer.bottom) Yulang.GeneralDictionaryOutputDepth252.expanded) ∧
+      Yulang.GeneralDictionaryOutputDepth252.expanded.variables = [] ∧
+        Yulang.GeneralPatternAdditiveDepth253.depth Yulang.GeneralDictionaryOutputDepth252.expanded ≤ 4
+Yulang.GeneralDictionaryCompletedReadback258.not_before_completion : Yulang.GeneralNominalVersionedJournal232.Models
+    Yulang.GeneralDictionaryOutputDepth252.initial
+    (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom) ∧
+  ¬Yulang.CommonNominalFullCarrier.Equivalent
+      (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom 3).fst
+      (Yulang.GeneralNominalCenteredHeadMatPatternSemantics.eval
+        (Yulang.GeneralNominalCenteredHeadMatCompilerSemantics.algebra Yulang.GeneralDeclarationExamples.constructors
+          Yulang.GeneralDictionaryOutputDepth252.interpretation)
+        (fun x => Yulang.CommonNominalSyntax.Layer.bottom) Yulang.GeneralDictionaryOutputDepth252.expanded)

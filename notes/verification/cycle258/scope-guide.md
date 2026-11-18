@@ -15,14 +15,18 @@ reachable. Zero-sorry compilation is not evidence of general language semantics.
 - Modules14–22: fixed source252 arbitrary output gap and private output type
   completion, actual packet/effect/Evidence, public projection, closed depth4
   readback after completion. Not an I50 refutation or general producer.
-- Modules23–25: partial I52 successor. Finite fixed-fact write plus novelty gate
+- Modules23–26: partial I52 successor. Finite fixed-fact write plus novelty gate
   terminates for every supplied observer. I45 fixed-table observer installs once;
   completed old stages and projected new states have equivalent public models.
   General source observer/compiler, microstep simulation, 239 correspondence,
   constructor/presence coverage and general language termination remain open.
 
+The new relation additionally has a run-length budget bounded by the number
+of initial facts, duplicate writes are idempotent/no-op, and the I45 fixture
+allows at most one step. This bound does not count old administrative steps.
+
 ## Independent review
-All25 modules received read-only reviews at their checkpoint commits. No
+The first25 modules received read-only reviews at their checkpoint commits. No
 independent reviewer rebuild. Fifth review prompted only a wording correction:
 intermediate subsets formally get the else predicate, but its language
 correctness is not claimed. Reviews are retained separately.
@@ -103,3 +107,6 @@ correctness is not claimed. Reviews are retained separately.
 
 ### 25. `GeneralDictionaryRebasePublic258`
 `Models`, `initial_exact`, `final_exact`, `final_public`, `projected_public`, `old_new`
+
+### 26. `GeneralRebaseBudget258`
+`budget`, `source_budget`, `idempotent`, `duplicate_noop`, `fixture_budget`

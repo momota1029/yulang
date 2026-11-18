@@ -193,3 +193,8 @@ Yulang.GeneralDictionaryRebasePublic258.final_exact
 Yulang.GeneralDictionaryRebasePublic258.final_public
 Yulang.GeneralDictionaryRebasePublic258.projected_public
 Yulang.GeneralDictionaryRebasePublic258.old_new
+Yulang.GeneralRebaseBudget258.budget
+Yulang.GeneralRebaseBudget258.source_budget
+Yulang.GeneralRebaseBudget258.idempotent
+Yulang.GeneralRebaseBudget258.duplicate_noop
+Yulang.GeneralRebaseBudget258.fixture_budget

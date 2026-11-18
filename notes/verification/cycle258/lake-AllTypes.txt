@@ -1,0 +1,678 @@
+Yulang.GeneralDictionaryFamilyRecognition258.index_lower : ∀ (n : Nat),
+  n < Yulang.GeneralDictionaryLooseFamilyNames240.lower n
+Yulang.GeneralDictionaryFamilyRecognition258.index_upper : ∀ (n : Nat),
+  n < Yulang.GeneralDictionaryLooseFamilyNames240.upper n
+Yulang.GeneralDictionaryFamilyRecognition258.isLower : Nat → Bool
+Yulang.GeneralDictionaryFamilyRecognition258.isUpper : Nat → Bool
+Yulang.GeneralDictionaryFamilyRecognition258.lower_iff : ∀ (name : Nat),
+  Yulang.GeneralDictionaryFamilyRecognition258.isLower name = true ↔
+    ∃ index, Yulang.GeneralDictionaryLooseFamilyNames240.lower (index + 1) = name
+Yulang.GeneralDictionaryFamilyRecognition258.upper_iff : ∀ (name : Nat),
+  Yulang.GeneralDictionaryFamilyRecognition258.isUpper name = true ↔
+    ∃ index, Yulang.GeneralDictionaryLooseFamilyNames240.upper index = name
+Yulang.GeneralDictionaryFamilyRecognition258.disjoint : ∀ (name : Nat),
+  ¬(Yulang.GeneralDictionaryFamilyRecognition258.isLower name = true ∧
+      Yulang.GeneralDictionaryFamilyRecognition258.isUpper name = true)
+Yulang.GeneralDictionaryFamilyRecognition258.small : ∀ (name : Nat),
+  name ≤ 4 →
+    Yulang.GeneralDictionaryFamilyRecognition258.isLower name = false ∧
+      Yulang.GeneralDictionaryFamilyRecognition258.isUpper name = false
+Yulang.GeneralDictionaryUniformFill258.fill : Yulang.GeneralNominalCommonBridge.Assignment →
+  Nat → Yulang.CommonNominalFullCarrier.model.Ty × Yulang.CommonNominalFullCarrier.model.Row
+Yulang.GeneralDictionaryUniformFill258.rows : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat), (Yulang.GeneralDictionaryUniformFill258.fill assignment name).snd = (assignment name).snd
+Yulang.GeneralDictionaryUniformFill258.initial : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat), name ≤ 4 → Yulang.GeneralDictionaryUniformFill258.fill assignment name = assignment name
+Yulang.GeneralDictionaryUniformFill258.lower_value : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (index : Nat),
+  (Yulang.GeneralDictionaryUniformFill258.fill assignment
+        (Yulang.GeneralDictionaryLooseFamilyNames240.lower index)).fst =
+    (assignment 2).fst
+Yulang.GeneralDictionaryUniformFill258.upper_value : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (index : Nat),
+  (Yulang.GeneralDictionaryUniformFill258.fill assignment
+        (Yulang.GeneralDictionaryLooseFamilyNames240.upper index)).fst =
+    (assignment 4).fst
+Yulang.GeneralDictionaryUniformFill258.actual_tags : Yulang.GeneralDictionaryFamilyRecognition258.isLower
+      Yulang.GeneralDictionaryLooseLoopPacket240.actual =
+    false ∧
+  Yulang.GeneralDictionaryFamilyRecognition258.isUpper Yulang.GeneralDictionaryLooseLoopPacket240.actual = false
+Yulang.GeneralDictionaryUniformFill258.actual_fixed : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryUniformFill258.fill assignment Yulang.GeneralDictionaryLooseLoopPacket240.actual =
+    assignment Yulang.GeneralDictionaryLooseLoopPacket240.actual
+Yulang.GeneralDictionaryUniformFill258.outside : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat),
+  (∀ (index : Nat), Yulang.GeneralDictionaryLooseFamilyNames240.lower (index + 1) ≠ name) →
+    (∀ (index : Nat), Yulang.GeneralDictionaryLooseFamilyNames240.upper index ≠ name) →
+      Yulang.GeneralDictionaryUniformFill258.fill assignment name = assignment name
+Yulang.GeneralDictionaryUniformFill258.idempotent : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryUniformFill258.fill (Yulang.GeneralDictionaryUniformFill258.fill assignment) =
+    Yulang.GeneralDictionaryUniformFill258.fill assignment
+Yulang.GeneralDictionaryUniformFill258.agrees : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryFiniteJournal257.Agree (Yulang.GeneralDictionaryUniformFill258.fill assignment) assignment
+Yulang.GeneralDictionaryUniformBlock258.lower_equation : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (index : Nat),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model
+    (Yulang.GeneralDictionaryUniformFill258.fill assignment)
+    (Yulang.GeneralNominalAllocation.equations (Yulang.GeneralDictionaryLooseFamilyNames240.lower (index + 1))
+      ((Yulang.Core.PresenceGeneration.TyTerm.var (Yulang.GeneralDictionaryLooseFamilyNames240.lower index)).union
+        (Yulang.Core.PresenceGeneration.TyTerm.var (Yulang.GeneralDictionaryLooseFamilyNames240.lower index))))
+Yulang.GeneralDictionaryUniformBlock258.upper_equation : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (index : Nat),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model
+    (Yulang.GeneralDictionaryUniformFill258.fill assignment)
+    (Yulang.GeneralNominalAllocation.equations (Yulang.GeneralDictionaryLooseFamilyNames240.upper index)
+      ((Yulang.Core.PresenceGeneration.TyTerm.var 4).inter (Yulang.Core.PresenceGeneration.TyTerm.var 4)))
+Yulang.GeneralDictionaryUniformBlock258.all_blocks : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (n : Nat),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model
+    (Yulang.GeneralDictionaryUniformFill258.fill assignment)
+    (Yulang.GeneralPresenceDefinitionRewrite244.block (Yulang.GeneralDictionaryUpperHistory257.history n))
+Yulang.GeneralDictionaryUniformView258.support_small : ∀ (n name : Nat),
+  name ∈ Yulang.GeneralNominalViewSupport249.support (Yulang.GeneralDictionaryFiveSlot257.view n) → name ≤ 4
+Yulang.GeneralDictionaryUniformView258.view_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiveSlot257.view n).Models (Yulang.GeneralDictionaryUniformFill258.fill assignment) ↔
+    (Yulang.GeneralDictionaryFiveSlot257.view n).Models assignment
+Yulang.GeneralDictionaryUniformView258.binder_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryBinderFact257.Holds (Yulang.GeneralDictionaryUniformFill258.fill assignment) ↔
+    Yulang.GeneralDictionaryBinderFact257.Holds assignment
+Yulang.GeneralDictionaryUniformView258.journal_view_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiniteJournal257.view n).Models (Yulang.GeneralDictionaryUniformFill258.fill assignment) ↔
+    (Yulang.GeneralDictionaryFiniteJournal257.view n).Models assignment
+Yulang.GeneralDictionaryUniformView258.raw_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+      (Yulang.GeneralDictionaryUniformFill258.fill assignment) ↔
+    (Yulang.GeneralDictionaryFiveSlot257.view n).Models assignment
+Yulang.GeneralDictionaryUniformView258.journal_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+      (Yulang.GeneralDictionaryUniformFill258.fill assignment) ↔
+    (Yulang.GeneralDictionaryFiniteJournal257.view 1).Models assignment
+Yulang.GeneralDictionaryUniformJournal258.all_stages : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (n : Nat),
+      Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+        (Yulang.GeneralDictionaryUniformFill258.fill assignment)) ↔
+    (Yulang.GeneralDictionaryFiniteJournal257.view 1).Models assignment
+Yulang.GeneralDictionaryUniformJournal258.agree_trans : ∀
+  (first middle last : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryFiniteJournal257.Agree first middle →
+    Yulang.GeneralDictionaryFiniteJournal257.Agree middle last →
+      Yulang.GeneralDictionaryFiniteJournal257.Agree first last
+Yulang.GeneralDictionaryUniformJournal258.simultaneous_models : ∀
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryFiniteJournal257.Agree assignment boundary ∧
+        ∀ (n : Nat),
+          Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+            assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryFiniteJournal257.Agree assignment boundary ∧
+        (Yulang.GeneralDictionaryFiniteJournal257.view 1).Models assignment
+Yulang.GeneralDictionaryUniformJournal258.positive_models : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryFiniteJournal257.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models
+          (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1)) assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryFiniteJournal257.Agree assignment boundary ∧
+        ∀ (index : Nat),
+          Yulang.GeneralNominalVersionedJournal232.Models
+            (Yulang.GeneralDictionaryLooseIterationIteration240.state index) assignment
+Yulang.GeneralDictionaryUniformJournal258.recovered : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+      assignment →
+    (Yulang.GeneralDictionaryFiniteJournal257.view 1).Models assignment
+Yulang.GeneralDictionaryUniformJournal258.future : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+      assignment →
+    ∀ (index : Nat),
+      Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state index)
+        (Yulang.GeneralDictionaryUniformFill258.fill assignment)
+Yulang.GeneralDictionaryUniformAlias258.target : Nat → Nat
+Yulang.GeneralDictionaryUniformAlias258.mapping : Nat → Yulang.Core.PresenceGeneration.CompTerm Nat
+Yulang.GeneralDictionaryUniformAlias258.read_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRebaseRawView243.read Yulang.GeneralDictionaryUniformAlias258.mapping assignment =
+    Yulang.GeneralDictionaryUniformFill258.fill assignment
+Yulang.GeneralDictionaryUniformAlias258.initial : ∀ (name : Nat),
+  name ≤ 4 → Yulang.GeneralDictionaryUniformAlias258.target name = name
+Yulang.GeneralDictionaryUniformAlias258.actual_fixed : Yulang.GeneralDictionaryUniformAlias258.target
+    Yulang.GeneralDictionaryLooseLoopPacket240.actual =
+  Yulang.GeneralDictionaryLooseLoopPacket240.actual
+Yulang.GeneralDictionaryUniformAlias258.idempotent : ∀ (name : Nat),
+  Yulang.GeneralDictionaryUniformAlias258.target (Yulang.GeneralDictionaryUniformAlias258.target name) =
+    Yulang.GeneralDictionaryUniformAlias258.target name
+Yulang.GeneralDictionaryUniformAlias258.type_exact : ∀ (term : Yulang.Core.PresenceGeneration.TyTerm Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.GeneralDictionaryUniformAlias258.mapping term) =
+    Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model
+      (Yulang.GeneralDictionaryUniformFill258.fill assignment) term
+Yulang.GeneralDictionaryUniformAlias258.row_exact : ∀ (term : Yulang.Core.PresenceGeneration.RowTerm Nat),
+  Yulang.Core.PresenceGeneration.RowTerm.subst Yulang.GeneralDictionaryUniformAlias258.mapping term = term
+Yulang.GeneralDictionaryUniformAlias258.atom_exact : ∀ (atom : Yulang.PresenceNormalForm.Atom Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.Atom.Holds Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralNominalRebaseRawView243.atom Yulang.GeneralDictionaryUniformAlias258.mapping atom) ↔
+    Yulang.PresenceNormalForm.Atom.Holds Yulang.CommonNominalFullCarrier.model
+      (Yulang.GeneralDictionaryUniformFill258.fill assignment) atom
+Yulang.GeneralDictionaryDirectView258.view : Nat → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionaryDirectView258.raw_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryDirectView258.view n).Models assignment ↔
+    Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+      (Yulang.GeneralDictionaryUniformFill258.fill assignment)
+Yulang.GeneralDictionaryDirectView258.finite_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryDirectView258.view n).Models assignment ↔
+    (Yulang.GeneralDictionaryFiveSlot257.view n).Models assignment
+Yulang.GeneralDictionaryDirectView258.positive_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryDirectView258.view (n + 1)).Models assignment ∧
+      Yulang.GeneralDictionaryBinderFact257.Holds assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1))
+      (Yulang.GeneralDictionaryUniformFill258.fill assignment)
+Yulang.GeneralDictionaryDirectView258.slots : ∀ (n : Nat), (Yulang.GeneralDictionaryDirectView258.view n).slots = n + 5
+Yulang.GeneralDictionaryDirectView258.ordinary_length : ∀ (n : Nat),
+  (Yulang.GeneralDictionaryDirectView258.view n).ordinary.length = 4 + 16 * n
+Yulang.GeneralDictionaryDirectView258.public_models : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        (Yulang.GeneralDictionaryDirectView258.view n).Models assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment
+Yulang.GeneralDictionaryInitialFill258.bind : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDictionaryInitialFill258.complete : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDictionaryInitialFill258.rows : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat), (Yulang.GeneralDictionaryInitialFill258.bind assignment name).snd = (assignment name).snd
+Yulang.GeneralDictionaryInitialFill258.initial : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat), name ≤ 4 → Yulang.GeneralDictionaryInitialFill258.bind assignment name = assignment name
+Yulang.GeneralDictionaryInitialFill258.binder : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryBinderFact257.Holds (Yulang.GeneralDictionaryInitialFill258.bind assignment)
+Yulang.GeneralDictionaryInitialFill258.view_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiveSlot257.view n).Models (Yulang.GeneralDictionaryInitialFill258.bind assignment) ↔
+    (Yulang.GeneralDictionaryFiveSlot257.view n).Models assignment
+Yulang.GeneralDictionaryInitialFill258.raw_initial : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryFiveSlot257.view 0).Models assignment ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot assignment
+Yulang.GeneralDictionaryInitialFill258.all_stages : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (n : Nat),
+      Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+        (Yulang.GeneralDictionaryInitialFill258.complete assignment)) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot assignment
+Yulang.GeneralDictionaryInitialFill258.public_agrees : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryInitialProjection257.Agree (Yulang.GeneralDictionaryInitialFill258.complete assignment)
+    assignment
+Yulang.GeneralDictionaryInitialFill258.complete_binder : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryInitialFill258.complete assignment Yulang.GeneralDictionaryLooseLoopPacket240.actual).fst =
+    (assignment 2).fst
+Yulang.GeneralDictionarySourceExtension258.view_agree : ∀ (n : Nat)
+  (first last : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryInitialProjection257.Agree first last →
+    ((Yulang.GeneralDictionaryFiveSlot257.view n).Models first ↔
+      (Yulang.GeneralDictionaryFiveSlot257.view n).Models last)
+Yulang.GeneralDictionarySourceExtension258.model_initial : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      assignment →
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot assignment
+Yulang.GeneralDictionarySourceExtension258.simultaneous_models : ∀
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        ∀ (n : Nat),
+          Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+            assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot boundary
+Yulang.GeneralDictionarySourceExtension258.stage_models : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+          assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot boundary
+Yulang.GeneralDictionarySourceExtension258.exchange : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (n : Nat),
+      ∃ assignment,
+        Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+          Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+            assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        ∀ (n : Nat),
+          Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+            assignment
+Yulang.GeneralDictionaryPrivateBoundary258.seed_not_binder : ¬Yulang.GeneralDictionaryBinderFact257.Holds
+    Yulang.GeneralDictionaryBinderGap257.seed
+Yulang.GeneralDictionaryPrivateBoundary258.complete_holds : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryBinderFact257.Holds (Yulang.GeneralDictionaryInitialFill258.complete assignment)
+Yulang.GeneralDictionaryPrivateBoundary258.changes_seed : Yulang.GeneralDictionaryInitialFill258.complete
+    Yulang.GeneralDictionaryBinderGap257.seed ≠
+  Yulang.GeneralDictionaryBinderGap257.seed
+Yulang.GeneralDictionaryPrivateBoundary258.seed_extended : Yulang.GeneralDictionaryInitialProjection257.Agree
+    (Yulang.GeneralDictionaryInitialFill258.complete Yulang.GeneralDictionaryBinderGap257.seed)
+    Yulang.GeneralDictionaryBinderGap257.seed ∧
+  ∀ (n : Nat),
+    Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      (Yulang.GeneralDictionaryInitialFill258.complete Yulang.GeneralDictionaryBinderGap257.seed)
+Yulang.GeneralDictionaryPrivateBoundary258.retained_binder_impossible : ∀ (n : Nat),
+  ¬∃ assignment,
+      Yulang.GeneralDictionaryFiniteJournal257.Agree assignment Yulang.GeneralDictionaryBinderGap257.seed ∧
+        Yulang.GeneralNominalVersionedJournal232.Models
+          (Yulang.GeneralDictionaryLooseIterationIteration240.state (n + 1)) assignment
+Yulang.GeneralDictionaryEarlySearch258.search : (Nat → Nat) → Nat → Nat → Nat → Bool
+Yulang.GeneralDictionaryEarlySearch258.lower_mono : ∀ (a b : Nat),
+  a ≤ b → Yulang.GeneralDictionaryLooseFamilyNames240.lower a ≤ Yulang.GeneralDictionaryLooseFamilyNames240.lower b
+Yulang.GeneralDictionaryEarlySearch258.exact : ∀ (family : Nat → Nat),
+  (∀ (index : Nat), Yulang.GeneralDictionaryLooseFamilyNames240.lower index < family index) →
+    ∀ (name start fuel : Nat),
+      Yulang.GeneralDictionaryEarlySearch258.search family name start fuel = true ↔
+        ∃ index, start ≤ index ∧ index < start + fuel ∧ family index = name
+Yulang.GeneralDictionaryEarlySearch258.fastLower : Nat → Bool
+Yulang.GeneralDictionaryEarlySearch258.fastUpper : Nat → Bool
+Yulang.GeneralDictionaryEarlySearch258.lower_exact : ∀ (name : Nat),
+  Yulang.GeneralDictionaryEarlySearch258.fastLower name = true ↔
+    ∃ index, Yulang.GeneralDictionaryLooseFamilyNames240.lower (index + 1) = name
+Yulang.GeneralDictionaryEarlySearch258.upper_envelope : ∀ (index : Nat),
+  Yulang.GeneralDictionaryLooseFamilyNames240.lower index < Yulang.GeneralDictionaryLooseFamilyNames240.upper index
+Yulang.GeneralDictionaryEarlySearch258.upper_exact : ∀ (name : Nat),
+  Yulang.GeneralDictionaryEarlySearch258.fastUpper name = true ↔
+    ∃ index, Yulang.GeneralDictionaryLooseFamilyNames240.upper index = name
+Yulang.GeneralDictionaryEarlySearch258.lower_refines : ∀ (name : Nat),
+  Yulang.GeneralDictionaryEarlySearch258.fastLower name = Yulang.GeneralDictionaryFamilyRecognition258.isLower name
+Yulang.GeneralDictionaryEarlySearch258.upper_refines : ∀ (name : Nat),
+  Yulang.GeneralDictionaryEarlySearch258.fastUpper name = Yulang.GeneralDictionaryFamilyRecognition258.isUpper name
+Yulang.GeneralDictionarySearchCost258.probes : (Nat → Nat) → Nat → Nat → Nat → Nat
+Yulang.GeneralDictionarySearchCost258.fuel_bound : ∀ (family : Nat → Nat) (name start fuel : Nat),
+  Yulang.GeneralDictionarySearchCost258.probes family name start fuel ≤ fuel
+Yulang.GeneralDictionarySearchCost258.envelope_bound : ∀ (family : Nat → Nat) (name start fuel distance : Nat),
+  name < Yulang.GeneralDictionaryLooseFamilyNames240.lower (start + distance) →
+    Yulang.GeneralDictionarySearchCost258.probes family name start fuel ≤ distance + 1
+Yulang.GeneralDictionarySearchCost258.match_bound : ∀ (family : Nat → Nat) (name start fuel distance : Nat),
+  family (start + distance) = name → Yulang.GeneralDictionarySearchCost258.probes family name start fuel ≤ distance + 1
+Yulang.GeneralDictionarySearchCost258.lower_match : ∀ (index : Nat),
+  Yulang.GeneralDictionarySearchCost258.probes (fun i => Yulang.GeneralDictionaryLooseFamilyNames240.lower (i + 1))
+      (Yulang.GeneralDictionaryLooseFamilyNames240.lower (index + 1)) 0
+      (Yulang.GeneralDictionaryLooseFamilyNames240.lower (index + 1) + 1) ≤
+    index + 1
+Yulang.GeneralDictionarySearchCost258.upper_match : ∀ (index : Nat),
+  Yulang.GeneralDictionarySearchCost258.probes Yulang.GeneralDictionaryLooseFamilyNames240.upper
+      (Yulang.GeneralDictionaryLooseFamilyNames240.upper index) 0
+      (Yulang.GeneralDictionaryLooseFamilyNames240.upper index + 1) ≤
+    index + 1
+Yulang.GeneralDictionaryFastFill258.lower : Nat → Bool
+Yulang.GeneralDictionaryFastFill258.upper : Nat → Bool
+Yulang.GeneralDictionaryFastFill258.lower_exact : ∀ (name : Nat),
+  Yulang.GeneralDictionaryFastFill258.lower name = Yulang.GeneralDictionaryFamilyRecognition258.isLower name
+Yulang.GeneralDictionaryFastFill258.upper_exact : ∀ (name : Nat),
+  Yulang.GeneralDictionaryFastFill258.upper name = Yulang.GeneralDictionaryFamilyRecognition258.isUpper name
+Yulang.GeneralDictionaryFastFill258.fill : Yulang.GeneralNominalCommonBridge.Assignment →
+  Nat → Yulang.CommonNominalFullCarrier.model.Ty × Yulang.CommonNominalFullCarrier.model.Row
+Yulang.GeneralDictionaryFastFill258.fill_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryFastFill258.fill assignment = Yulang.GeneralDictionaryUniformFill258.fill assignment
+Yulang.GeneralDictionaryFastFill258.complete : Yulang.GeneralNominalCommonBridge.Assignment →
+  Nat → Yulang.CommonNominalFullCarrier.model.Ty × Yulang.CommonNominalFullCarrier.model.Row
+Yulang.GeneralDictionaryFastFill258.complete_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryFastFill258.complete assignment = Yulang.GeneralDictionaryInitialFill258.complete assignment
+Yulang.GeneralDictionaryFastFill258.all_stages : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (n : Nat),
+      Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+        (Yulang.GeneralDictionaryFastFill258.complete assignment)) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot assignment
+Yulang.GeneralDictionaryFastFill258.public_agrees : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryInitialProjection257.Agree (Yulang.GeneralDictionaryFastFill258.complete assignment)
+    assignment
+Yulang.GeneralDictionaryFastFill258.idempotent : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryFastFill258.fill (Yulang.GeneralDictionaryFastFill258.fill assignment) =
+    Yulang.GeneralDictionaryFastFill258.fill assignment
+Yulang.GeneralDictionaryPendingOutput258.replace : Yulang.CommonNominalFullCarrier.Ty →
+  Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDictionaryPendingOutput258.other : ∀ (output : Yulang.CommonNominalFullCarrier.Ty) (name : Nat),
+  name ≠ 3 →
+    Yulang.GeneralDictionaryPendingOutput258.replace output name = Yulang.GeneralDictionaryOutputDepth252.model name
+Yulang.GeneralDictionaryPendingOutput258.target : ∀ (output : Yulang.CommonNominalFullCarrier.Ty),
+  (Yulang.GeneralDictionaryPendingOutput258.replace output 3).fst = output
+Yulang.GeneralDictionaryPendingOutput258.base_models : ∀ (output : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalCommonBridge.Models Yulang.GeneralDictionaryOutputDepth252.base
+    (Yulang.GeneralDictionaryPendingOutput258.replace output)
+Yulang.GeneralDictionaryPendingOutput258.source_models : ∀ (output : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot
+    (Yulang.GeneralDictionaryPendingOutput258.replace output)
+Yulang.GeneralDictionaryPendingOutput258.initial_models : ∀ (output : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepth252.initial
+    (Yulang.GeneralDictionaryPendingOutput258.replace output)
+Yulang.GeneralDictionaryPendingOutput258.rhs_fixed : ∀ (output : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalCenteredHeadMatExpressions.value
+      (Yulang.GeneralNominalVersionedPlans231.variables Yulang.GeneralDictionaryOutputDepth252.plan
+        (Yulang.GeneralDictionaryPendingOutput258.replace output))
+      Yulang.GeneralNominalMaterialization.Mode.actual Yulang.GeneralDictionaryOutputDepth252.rhs =
+    Yulang.GeneralDictionaryOutputDepth252.P
+Yulang.GeneralDictionaryPendingOutput258.outputs_exact : ∀ (output : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralNominalVersionedPlans231.Outputs Yulang.GeneralDictionaryOutputDepth252.plan
+      (Yulang.GeneralDictionaryPendingOutput258.replace output) ↔
+    Yulang.CommonNominalFullCarrier.Equivalent output Yulang.GeneralDictionaryOutputDepth252.P
+Yulang.GeneralDictionaryOutputPremise258.bottom_not_expected : ¬Yulang.CommonNominalFullCarrier.Equivalent
+    Yulang.CommonNominalSyntax.Layer.bottom Yulang.GeneralDictionaryOutputDepth252.P
+Yulang.GeneralDictionaryOutputPremise258.initial_not_outputs : Yulang.GeneralNominalVersionedJournal232.Models
+    Yulang.GeneralDictionaryOutputDepth252.initial
+    (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom) ∧
+  ¬Yulang.GeneralNominalVersionedPlans231.Outputs Yulang.GeneralDictionaryOutputDepth252.plan
+      (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom)
+Yulang.GeneralDictionaryOutputPremise258.initial_not_packet : Yulang.GeneralNominalVersionedJournal232.Models
+    Yulang.GeneralDictionaryOutputDepth252.initial
+    (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom) ∧
+  ¬Yulang.GeneralNominalVersionedPlans231.Holds Yulang.GeneralDictionaryOutputDepth252.plan
+      (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom)
+Yulang.GeneralDictionaryOutputPremise258.frame_not_packet : Yulang.GeneralNominalVersionedEvidence231.Frame
+    Yulang.GeneralDictionaryOutputDepth252.registry Yulang.GeneralDictionaryOutputDepth252.initial.core
+    Yulang.GeneralDictionaryOutputDepth252.root 0 Yulang.GeneralDictionaryOutputDepth252.plan ∧
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepth252.initial
+      (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom) ∧
+    ¬Yulang.GeneralNominalVersionedPlans231.Holds Yulang.GeneralDictionaryOutputDepth252.plan
+        (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom)
+Yulang.GeneralDictionaryOutputPremise258.expected_outputs : Yulang.GeneralNominalVersionedPlans231.Outputs
+  Yulang.GeneralDictionaryOutputDepth252.plan
+  (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.GeneralDictionaryOutputDepth252.P)
+Yulang.GeneralDictionaryOutputInputs258.projection : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalRecursiveInspection.ProjectionModels Yulang.GeneralDictionaryOutputDepth252.snapshot
+    (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionaryOutputDepth252.packet) assignment
+Yulang.GeneralDictionaryOutputInputs258.ordinary : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.Ordinary Yulang.GeneralDictionaryOutputDepth252.packet assignment
+Yulang.GeneralDictionaryOutputInputs258.head_holds : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.SchemaHolds Yulang.GeneralDictionaryOutputDepth252.plan
+    Yulang.GeneralDictionaryOutputDepth252.plan.headSchema assignment
+Yulang.GeneralDictionaryOutputInputs258.inputs : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.Inputs Yulang.GeneralDictionaryOutputDepth252.plan assignment
+Yulang.GeneralDictionaryOutputInputs258.packet_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.Holds Yulang.GeneralDictionaryOutputDepth252.plan assignment ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment ∧
+      Yulang.GeneralNominalVersionedPlans231.Outputs Yulang.GeneralDictionaryOutputDepth252.plan assignment
+Yulang.GeneralNominalActiveSupport258.used : (view : Yulang.GeneralNominalRebaseRawView243.View) → Fin view.slots → Bool
+Yulang.GeneralNominalActiveSupport258.targetReads : (view : Yulang.GeneralNominalRebaseRawView243.View) →
+  Fin view.slots → List Nat
+Yulang.GeneralNominalActiveSupport258.perSlot : (view : Yulang.GeneralNominalRebaseRawView243.View) →
+  Fin view.slots → List Nat
+Yulang.GeneralNominalActiveSupport258.support : Yulang.GeneralNominalRebaseRawView243.View → List Nat
+Yulang.GeneralNominalActiveSupport258.slot_member : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (index : Fin view.slots) (name : Nat),
+  name ∈ Yulang.GeneralNominalActiveSupport258.perSlot view index →
+    name ∈ Yulang.GeneralNominalActiveSupport258.support view
+Yulang.GeneralNominalActiveSupport258.target_member : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (index : Fin view.slots),
+  Yulang.GeneralNominalActiveSupport258.used view index = true →
+    ∀ (name : Nat),
+      name ∈ Yulang.GeneralPresenceUsedSupport245.typedReads (view.slot index).ty →
+        name ∈ Yulang.GeneralNominalActiveSupport258.support view
+Yulang.GeneralNominalActiveSupport258.head_member : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (index : Fin view.slots) (term : Yulang.Core.PresenceGeneration.TyTerm Nat),
+  view.heads index = some term →
+    ∀ (name : Nat),
+      name ∈ Yulang.GeneralPresenceUsedSupport245.typedReads term →
+        name ∈ Yulang.GeneralNominalActiveSupport258.support view
+Yulang.GeneralNominalActiveSupport258.descriptor_member : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (index : Fin view.slots) (d : Yulang.GeneralNominalRebaseRawView243.Descriptor),
+  view.nominals index = some d →
+    ∀ (name : Nat),
+      name ∈ Yulang.GeneralNominalViewSupport249.descriptorReads d →
+        name ∈ Yulang.GeneralNominalActiveSupport258.support view
+@Yulang.GeneralNominalActiveSupport258.head_used : ∀ {term : Yulang.Core.PresenceGeneration.TyTerm Nat}
+  (view : Yulang.GeneralNominalRebaseRawView243.View) (index : Fin view.slots),
+  view.heads index = some term → Yulang.GeneralNominalActiveSupport258.used view index = true
+@Yulang.GeneralNominalActiveSupport258.nominal_used : ∀ {d : Yulang.GeneralNominalRebaseRawView243.Descriptor}
+  (view : Yulang.GeneralNominalRebaseRawView243.View) (index : Fin view.slots),
+  view.nominals index = some d → Yulang.GeneralNominalActiveSupport258.used view index = true
+Yulang.GeneralNominalActiveSupport258.interval_left : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (pair : Fin view.slots × Fin view.slots),
+  pair ∈ view.intervals → Yulang.GeneralNominalActiveSupport258.used view pair.fst = true
+Yulang.GeneralNominalActiveSupport258.interval_right : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (pair : Fin view.slots × Fin view.slots),
+  pair ∈ view.intervals → Yulang.GeneralNominalActiveSupport258.used view pair.snd = true
+Yulang.GeneralNominalActiveSupport258.models_iff : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (first last : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (name : Nat), (first name).snd = (last name).snd) →
+    (∀ (name : Nat), name ∈ Yulang.GeneralNominalActiveSupport258.support view → (first name).fst = (last name).fst) →
+      (view.Models first ↔ view.Models last)
+Yulang.GeneralDictionaryOutputFrame258.identity : Nat → Yulang.Core.PresenceGeneration.CompTerm Nat
+Yulang.GeneralDictionaryOutputFrame258.view : Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionaryOutputFrame258.models_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryOutputFrame258.view.Models assignment ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment
+Yulang.GeneralDictionaryOutputFrame258.support_small : ∀ (name : Nat),
+  name ∈ Yulang.GeneralNominalActiveSupport258.support Yulang.GeneralDictionaryOutputFrame258.view → name ≤ 2
+Yulang.GeneralDictionaryOutputFrame258.unused_output : ¬3 ∈
+    Yulang.GeneralNominalActiveSupport258.support Yulang.GeneralDictionaryOutputFrame258.view
+Yulang.GeneralDictionaryOutputFrame258.source_iff : ∀ (first last : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (name : Nat), (first name).snd = (last name).snd) →
+    (∀ (name : Nat), name ≤ 2 → (first name).fst = (last name).fst) →
+      (Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot first ↔
+        Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot last)
+Yulang.GeneralDictionaryOutputFrame258.complete : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDictionaryOutputFrame258.rows : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat), (Yulang.GeneralDictionaryOutputFrame258.complete assignment name).snd = (assignment name).snd
+Yulang.GeneralDictionaryOutputFrame258.outside : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat), name ≠ 3 → Yulang.GeneralDictionaryOutputFrame258.complete assignment name = assignment name
+Yulang.GeneralDictionaryOutputFrame258.source_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot
+      (Yulang.GeneralDictionaryOutputFrame258.complete assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment
+Yulang.GeneralDictionaryOutputCompletion258.expected : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.CommonNominalFullCarrier.Ty
+Yulang.GeneralDictionaryOutputCompletion258.rhs_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalCenteredHeadMatExpressions.value
+      (Yulang.GeneralNominalVersionedPlans231.variables Yulang.GeneralDictionaryOutputDepth252.plan assignment)
+      Yulang.GeneralNominalMaterialization.Mode.actual Yulang.GeneralDictionaryOutputDepth252.rhs =
+    Yulang.GeneralDictionaryOutputCompletion258.expected assignment
+Yulang.GeneralDictionaryOutputCompletion258.outputs_exact : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.Outputs Yulang.GeneralDictionaryOutputDepth252.plan assignment ↔
+    Yulang.CommonNominalFullCarrier.Equivalent (assignment 3).fst
+      (Yulang.GeneralDictionaryOutputCompletion258.expected assignment)
+Yulang.GeneralDictionaryOutputCompletion258.completed_outputs : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.Outputs Yulang.GeneralDictionaryOutputDepth252.plan
+    (Yulang.GeneralDictionaryOutputFrame258.complete assignment)
+Yulang.GeneralDictionaryOutputCompletion258.packet_exact : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.Holds Yulang.GeneralDictionaryOutputDepth252.plan
+      (Yulang.GeneralDictionaryOutputFrame258.complete assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment
+Yulang.GeneralDictionaryOutputCompletion258.classes : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.Outputs Yulang.GeneralDictionaryOutputDepth252.plan assignment →
+    Yulang.GeneralNominalVersionedEffects231.ClassEffects Yulang.GeneralDictionaryOutputDepth252.initial.core
+      Yulang.GeneralDictionaryOutputDepth252.root Yulang.GeneralDictionaryOutputDepth252.plan assignment
+Yulang.GeneralDictionaryOutputCompletion258.installation : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment →
+    Yulang.GeneralNominalVersionedInstall232.InstallationModels Yulang.GeneralDictionaryOutputDepth252.initial
+      Yulang.GeneralDictionaryOutputDepthInstall252.effect (Yulang.GeneralDictionaryOutputFrame258.complete assignment)
+Yulang.GeneralDictionaryOutputCompletion258.installed_models : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment →
+    Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepthInstall252.installed
+      (Yulang.GeneralDictionaryOutputFrame258.complete assignment)
+Yulang.GeneralDictionaryOutputEvidence258.no_initial_evidence : ∀ (payload : Yulang.GeneralDictionaryReadback.Payload),
+  ¬Yulang.GeneralNominalVersionedEvidence231.Evidence Yulang.GeneralDictionaryOutputDepth252.registry
+      Yulang.GeneralDictionaryOutputDepth252.initial.core
+      (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom)
+      Yulang.GeneralDictionaryOutputDepth252.root payload
+Yulang.GeneralDictionaryOutputEvidence258.completed_evidence : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment →
+    Yulang.GeneralNominalVersionedEvidence231.Evidence Yulang.GeneralDictionaryOutputDepth252.registry
+      Yulang.GeneralDictionaryOutputDepth252.initial.core (Yulang.GeneralDictionaryOutputFrame258.complete assignment)
+      Yulang.GeneralDictionaryOutputDepth252.root (Yulang.CommonRoleOutermostResolver.Dictionary.node 0 [])
+Yulang.GeneralDictionaryOutputPublic258.Agree : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralDictionaryOutputPublic258.completion_agrees : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryOutputPublic258.Agree (Yulang.GeneralDictionaryOutputFrame258.complete assignment) assignment
+Yulang.GeneralDictionaryOutputPublic258.source_agree : ∀ (first last : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryOutputPublic258.Agree first last →
+    (Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot first ↔
+      Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot last)
+Yulang.GeneralDictionaryOutputPublic258.installed_initial : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepthInstall252.installed assignment →
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment
+Yulang.GeneralDictionaryOutputPublic258.installed_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepthInstall252.installed
+      (Yulang.GeneralDictionaryOutputFrame258.complete assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment
+Yulang.GeneralDictionaryOutputPublic258.public_models : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryOutputPublic258.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepthInstall252.installed
+          assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot boundary
+Yulang.GeneralDictionaryCompletedReadback258.closed : Yulang.GeneralDictionaryOutputDepth252.expanded.variables = []
+Yulang.GeneralDictionaryCompletedReadback258.meaning : Yulang.GeneralNominalCenteredHeadMatPatternSemantics.eval
+    (Yulang.GeneralNominalCenteredHeadMatCompilerSemantics.algebra Yulang.GeneralDeclarationExamples.constructors
+      Yulang.GeneralDictionaryOutputDepth252.interpretation)
+    (fun x => Yulang.CommonNominalSyntax.Layer.bottom) Yulang.GeneralDictionaryOutputDepth252.expanded =
+  Yulang.GeneralDictionaryOutputDepth252.P
+Yulang.GeneralDictionaryCompletedReadback258.depth : Yulang.GeneralPatternAdditiveDepth253.depth
+    Yulang.GeneralDictionaryOutputDepth252.expanded =
+  4
+Yulang.GeneralDictionaryCompletedReadback258.uniform : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment →
+    Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDictionaryOutputFrame258.complete assignment 3).fst
+        (Yulang.GeneralNominalCenteredHeadMatPatternSemantics.eval
+          (Yulang.GeneralNominalCenteredHeadMatCompilerSemantics.algebra Yulang.GeneralDeclarationExamples.constructors
+            Yulang.GeneralDictionaryOutputDepth252.interpretation)
+          (fun x => Yulang.CommonNominalSyntax.Layer.bottom) Yulang.GeneralDictionaryOutputDepth252.expanded) ∧
+      Yulang.GeneralDictionaryOutputDepth252.expanded.variables = [] ∧
+        Yulang.GeneralPatternAdditiveDepth253.depth Yulang.GeneralDictionaryOutputDepth252.expanded ≤ 4
+Yulang.GeneralDictionaryCompletedReadback258.not_before_completion : Yulang.GeneralNominalVersionedJournal232.Models
+    Yulang.GeneralDictionaryOutputDepth252.initial
+    (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom) ∧
+  ¬Yulang.CommonNominalFullCarrier.Equivalent
+      (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom 3).fst
+      (Yulang.GeneralNominalCenteredHeadMatPatternSemantics.eval
+        (Yulang.GeneralNominalCenteredHeadMatCompilerSemantics.algebra Yulang.GeneralDeclarationExamples.constructors
+          Yulang.GeneralDictionaryOutputDepth252.interpretation)
+        (fun x => Yulang.CommonNominalSyntax.Layer.bottom) Yulang.GeneralDictionaryOutputDepth252.expanded)
+@Yulang.GeneralRebaseStep258.state_ext : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (first last : Yulang.GeneralRebaseStep258.State basis), first.remaining = last.remaining → first = last
+Yulang.GeneralRebaseStep258.initial : (basis : List Yulang.GeneralRebaseStep258.Fact) →
+  Yulang.GeneralRebaseStep258.State basis
+Yulang.GeneralRebaseStep258.done : (basis : List Yulang.GeneralRebaseStep258.Fact) →
+  Yulang.GeneralRebaseStep258.State basis
+Yulang.GeneralRebaseStep258.Proposal : Type
+@Yulang.GeneralRebaseStep258.write : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  Yulang.GeneralRebaseStep258.State basis →
+    Yulang.GeneralRebaseStep258.Proposal → Yulang.GeneralRebaseStep258.State basis
+Yulang.GeneralRebaseStep258.Observer : List Yulang.GeneralRebaseStep258.Fact → Type
+@Yulang.GeneralRebaseStep258.tryWrite : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  Yulang.GeneralRebaseStep258.State basis →
+    Yulang.GeneralRebaseStep258.Proposal → Option (Yulang.GeneralRebaseStep258.State basis)
+@Yulang.GeneralRebaseStep258.Step : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  Yulang.GeneralRebaseStep258.Observer basis →
+    Yulang.GeneralRebaseStep258.State basis → Yulang.GeneralRebaseStep258.State basis → Prop
+@Yulang.GeneralRebaseStep258.tryWrite_exact : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (state : Yulang.GeneralRebaseStep258.State basis) (proposal : Yulang.GeneralRebaseStep258.Proposal)
+  (after : Yulang.GeneralRebaseStep258.State basis),
+  Yulang.GeneralRebaseStep258.tryWrite state proposal = some after ↔
+    after = Yulang.GeneralRebaseStep258.write state proposal ∧ after.remaining ≠ state.remaining
+Yulang.GeneralRebaseStep258.filter_strict : ∀ (values : List Yulang.GeneralRebaseStep258.Fact)
+  (keep : Yulang.GeneralRebaseStep258.Fact → Bool),
+  List.filter keep values ≠ values → (List.filter keep values).length < values.length
+@Yulang.GeneralRebaseStep258.decreases : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  {before after : Yulang.GeneralRebaseStep258.State basis} (observe : Yulang.GeneralRebaseStep258.Observer basis),
+  Yulang.GeneralRebaseStep258.Step observe before after → after.remaining.length < before.remaining.length
+@Yulang.GeneralRebaseStep258.accessible : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis) (state : Yulang.GeneralRebaseStep258.State basis),
+  Acc (fun after before => Yulang.GeneralRebaseStep258.Step observe before after) state
+@Yulang.GeneralRebaseStep258.no_self_step : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis) (state : Yulang.GeneralRebaseStep258.State basis),
+  ¬Yulang.GeneralRebaseStep258.Step observe state state
+@Yulang.GeneralRebaseStep258.present : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  Yulang.GeneralRebaseStep258.State basis → List Yulang.GeneralRebaseStep258.Fact
+@Yulang.GeneralRebaseStep258.lowerAtoms : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  Yulang.GeneralRebaseStep258.State basis → Nat → List Nat
+@Yulang.GeneralRebaseStep258.upperAtoms : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  Yulang.GeneralRebaseStep258.State basis → Nat → List Nat
+@Yulang.GeneralRebaseStep258.binderFacts : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  Yulang.GeneralRebaseStep258.State basis → List Nat
+Yulang.GeneralDictionaryRebaseStep258.facts : List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralDictionaryRebaseStep258.initialState : Yulang.GeneralRebaseStep258.State
+  Yulang.GeneralDictionaryRebaseStep258.facts
+Yulang.GeneralDictionaryRebaseStep258.finalState : Yulang.GeneralRebaseStep258.State
+  Yulang.GeneralDictionaryRebaseStep258.facts
+Yulang.GeneralDictionaryRebaseStep258.observe : Yulang.GeneralRebaseStep258.Observer
+  Yulang.GeneralDictionaryRebaseStep258.facts
+Yulang.GeneralDictionaryRebaseStep258.project : Nat →
+  Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts
+Yulang.GeneralDictionaryRebaseStep258.writes_once : Yulang.GeneralRebaseStep258.write
+    Yulang.GeneralDictionaryRebaseStep258.initialState Yulang.GeneralDictionaryRebaseStep258.facts =
+  Yulang.GeneralDictionaryRebaseStep258.finalState
+Yulang.GeneralDictionaryRebaseStep258.first_step : Yulang.GeneralRebaseStep258.Step
+  Yulang.GeneralDictionaryRebaseStep258.observe Yulang.GeneralDictionaryRebaseStep258.initialState
+  Yulang.GeneralDictionaryRebaseStep258.finalState
+Yulang.GeneralDictionaryRebaseStep258.final_stops : ∀
+  (after : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  ¬Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe
+      Yulang.GeneralDictionaryRebaseStep258.finalState after
+Yulang.GeneralDictionaryRebaseStep258.first_unique : ∀
+  (after : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe
+      Yulang.GeneralDictionaryRebaseStep258.initialState after →
+    after = Yulang.GeneralDictionaryRebaseStep258.finalState
+Yulang.GeneralDictionaryRebaseStep258.no_two_steps : ∀
+  (middle last : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  ¬(Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe
+        Yulang.GeneralDictionaryRebaseStep258.initialState middle ∧
+      Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe middle last)
+Yulang.GeneralDictionaryRebaseStep258.terminating : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  Acc (fun after before => Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe before after)
+    state
+Yulang.GeneralDictionaryRebaseStep258.fixed_aggregates : Yulang.GeneralRebaseStep258.lowerAtoms
+      Yulang.GeneralDictionaryRebaseStep258.finalState 0 =
+    [0] ∧
+  Yulang.GeneralRebaseStep258.upperAtoms Yulang.GeneralDictionaryRebaseStep258.finalState 0 = [1] ∧
+    Yulang.GeneralRebaseStep258.binderFacts Yulang.GeneralDictionaryRebaseStep258.finalState = [0, 1]
+Yulang.GeneralDictionaryRebaseStep258.old_positive_project : ∀ (n : Nat),
+  Yulang.GeneralDictionaryRebaseStep258.project (n + 1) = Yulang.GeneralDictionaryRebaseStep258.finalState
+Yulang.GeneralDictionaryRebaseStep258.old_repetition_blocked : ∀ (n : Nat),
+  ¬Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe
+      (Yulang.GeneralDictionaryRebaseStep258.project (n + 1)) (Yulang.GeneralDictionaryRebaseStep258.project (n + 2))
+Yulang.GeneralDictionaryRebasePublic258.Models : Yulang.GeneralRebaseStep258.State
+    Yulang.GeneralDictionaryRebaseStep258.facts →
+  Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralDictionaryRebasePublic258.initial_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryRebasePublic258.Models Yulang.GeneralDictionaryRebaseStep258.initialState assignment ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot assignment
+Yulang.GeneralDictionaryRebasePublic258.final_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDictionaryRebasePublic258.Models Yulang.GeneralDictionaryRebaseStep258.finalState assignment ↔
+    (Yulang.GeneralDictionaryFiniteJournal257.view 1).Models assignment
+Yulang.GeneralDictionaryRebasePublic258.final_public : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralDictionaryRebasePublic258.Models Yulang.GeneralDictionaryRebaseStep258.finalState assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot boundary
+Yulang.GeneralDictionaryRebasePublic258.projected_public : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralDictionaryRebasePublic258.Models (Yulang.GeneralDictionaryRebaseStep258.project n) assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot boundary
+Yulang.GeneralDictionaryRebasePublic258.old_new : ∀ (n : Nat) (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+          assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralDictionaryRebasePublic258.Models (Yulang.GeneralDictionaryRebaseStep258.project n) assignment

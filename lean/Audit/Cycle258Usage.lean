@@ -1,3 +1,4 @@
+import Yulang.GeneralRebaseBudget258
 import Yulang.GeneralDictionaryRebasePublic258
 import Yulang.GeneralDictionaryCompletedReadback258
 namespace Yulang
@@ -74,3 +75,5 @@ end Yulang
 
 example : Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe Yulang.GeneralDictionaryRebaseStep258.initialState Yulang.GeneralDictionaryRebaseStep258.finalState := Yulang.GeneralDictionaryRebaseStep258.first_step
 example : ¬ Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe Yulang.GeneralDictionaryRebaseStep258.finalState Yulang.GeneralDictionaryRebaseStep258.finalState := Yulang.GeneralDictionaryRebaseStep258.final_stops _
+
+example (proposal : Yulang.GeneralRebaseStep258.Proposal) : Yulang.GeneralRebaseStep258.tryWrite (Yulang.GeneralRebaseStep258.write Yulang.GeneralDictionaryRebaseStep258.initialState proposal) proposal = none := Yulang.GeneralRebaseBudget258.duplicate_noop _ _
