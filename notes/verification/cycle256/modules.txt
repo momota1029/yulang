@@ -1,0 +1,6 @@
+GeneralNominalInputOccurrences256
+GeneralNominalAggregateAtoms256
+GeneralNominalSourceAggregate256
+GeneralNominalHistoricalAggregate256
+GeneralNominalFrameAggregate256
+GeneralNominalInitialAggregate256

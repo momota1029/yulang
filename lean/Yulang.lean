@@ -4669,3 +4669,9 @@ import Yulang.GeneralNominalCanonicalBasis255
 import Yulang.GeneralNominalNormalizedDepth255
 import Yulang.GeneralDictionaryTemplateMenu255
 import Yulang.GeneralNominalSourcePublicBasis255
+import Yulang.GeneralNominalInputOccurrences256
+import Yulang.GeneralNominalAggregateAtoms256
+import Yulang.GeneralNominalSourceAggregate256
+import Yulang.GeneralNominalHistoricalAggregate256
+import Yulang.GeneralNominalFrameAggregate256
+import Yulang.GeneralNominalInitialAggregate256

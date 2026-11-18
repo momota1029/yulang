@@ -1,0 +1,36 @@
+import Yulang.GeneralNominalInputOccurrences256
+import Yulang.GeneralNominalAggregateAtoms256
+import Yulang.GeneralNominalSourceAggregate256
+import Yulang.GeneralNominalHistoricalAggregate256
+import Yulang.GeneralNominalFrameAggregate256
+import Yulang.GeneralNominalInitialAggregate256
+
+#print axioms Yulang.GeneralNominalInputOccurrences256.frame_finished
+#print axioms Yulang.GeneralNominalInputOccurrences256.report_nonempty
+#print axioms Yulang.GeneralNominalInputOccurrences256.frame_nonempty
+#print axioms Yulang.GeneralNominalAggregateAtoms256.lower_atoms
+#print axioms Yulang.GeneralNominalAggregateAtoms256.upper_atoms
+#print axioms Yulang.GeneralNominalAggregateAtoms256.lower_supported_iff
+#print axioms Yulang.GeneralNominalAggregateAtoms256.upper_supported_iff
+#print axioms Yulang.GeneralNominalSourceAggregate256.source_variable
+#print axioms Yulang.GeneralNominalSourceAggregate256.report_lower
+#print axioms Yulang.GeneralNominalSourceAggregate256.report_upper
+#print axioms Yulang.GeneralNominalSourceAggregate256.report_prepared
+#print axioms Yulang.GeneralNominalSourceAggregate256.frame_prepared
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.rewrite
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.check
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.prepare
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.check_exact
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.supported_iff
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.prepare_exact
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.values
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.fits_exact
+#print axioms Yulang.GeneralNominalHistoricalAggregate256.finite
+#print axioms Yulang.GeneralNominalFrameAggregate256.nonempty
+#print axioms Yulang.GeneralNominalFrameAggregate256.prepare_iff
+#print axioms Yulang.GeneralNominalFrameAggregate256.identity_supported
+#print axioms Yulang.GeneralNominalFrameAggregate256.identity_prepared
+#print axioms Yulang.GeneralNominalFrameAggregate256.identity_fits
+#print axioms Yulang.GeneralNominalInitialAggregate256.prepared
+#print axioms Yulang.GeneralNominalInitialAggregate256.fits
