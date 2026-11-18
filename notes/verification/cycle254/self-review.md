@@ -29,3 +29,17 @@ DictionaryOutputReadback / RawOutputBudget254。独立レビューではない�
 
 後半の独立レビューを依頼したがagent枠上限で開始できなかった。
 前半3moduleのread-onlyレビューのみ別ファイルに保存。独立再buildは未実施。
+12. Evidence条件付きground boundを停止性の無条件invariantに使うと循環し得る。
+    その用途は明示的に禁止し、raw template経路でも繰返しsubstitution後のmenu
+    閉包は未証明と設計ノートへ明記した。244/251の構文増大診断は残っている。
+13. 境界例: root mass0/空要求では出力主張が空虚でも定義はtotal、rankはrootを含み
+    正値。実252ではraw template深さ2とground bound4、実202 defaultではraw0と
+    ground1を別々に検査。raw budgetをsemantic depthと取り違えない。
+14. 前回source1653件不変、今回1429件のsource hashを再照合。84宣言名のguide
+    記載、14module一覧、19使用例を機械確認。private/helperもFull audit対象。
+15. 文書照合: spec/06-roles.mdのdefault省略/上書き、中心の共有と一点記述固定、
+    K2の構造再帰goal拒否を再読。言語規則を変更しない。Yulang2 oracleは監査branch
+    55574b6052ef1534fd0fc36d6d3617ebede59a0eのX8/X12/X13を確認。X8はμを
+    実際に生成した証拠がなくK2一致と採用しない、X12は名前付きenumの実例のみ、
+    X13は任意区間制約を表せない。今回のモデル依存readback/有限menuの実機対応は
+    未照合。Yulang2実機を新しく走らせたり停止性を検証したとは主張しない。

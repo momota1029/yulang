@@ -47,6 +47,8 @@ example : ∃ result : Pattern, result.variables = [] ∧
  have body : GeneralNominalCenteredHeadMatEffects.BodyHolds plan 1 model (.default 0 0 (.var 0)) := (GeneralNominalCenteredHeadMatEffects.positional_default plan model (0 : Fin 1)).mpr
    ⟨CommonNominalFullCarrier.subtype_refl _,CommonNominalFullCarrier.subtype_refl _⟩
  exact GeneralNominalDefaultReadback254.default_readback inputs rfl rfl rfl body
+example : GeneralNominalRawOutputBudget254.templates registry context root = [.variable 0] := rfl
+example : GeneralNominalRawOutputBudget254.budget registry context root = 0 := by decide +kernel
 end Cycle254DefaultUsage
 
 namespace Cycle254BoundaryGuards

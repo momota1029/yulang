@@ -97,3 +97,40 @@ binderを継承し、compoundならpurpose9(clause.id,index)。versioned側に�
 一致補題がある。このためpurpose8/9の有限列挙だけでは不十分で、binderが継承する
 実端点名がpublic pool内であることをtrace全体で証明する必要がある。旧private
 aggregateを単にpublicとみなす拡張はしない。次回はこの分類をclosure設計へ使う。
+
+### 証明の依存を循環させないための注意
+
+今回のground代表上界はEvidenceを前提とするため、未完成のEvidenceNodeや
+停止性を証明するための無条件invariantとして使ってはいけない。これは既に辞書の
+根拠がある出力の量的readbackである。未解決output slotの任意model値まで有限な
+ground構文と同一視せず、停止性側ではopaque public referenceを保つraw経路を使う。
+
+RawOutputBudget254の有限menuはfreshなcompileBody出力に関するもの。旧consumerを
+mappingで繰り返し書き換えた後まで、同じmenu内に残るとは証明していない。
+既存SnapshotGrowth251とRebaseSyntaxGrowth244の構文増大診断を無効化する結果
+ではない。CheckedNormal252はprepare成功時の同値・idempotenceを与えるが、
+source到達の全consumerでprepareが成功することを別に示す必要がある。
+
+今後の安全な順序は、(i) source-derived raw templates＋public reference分類、
+(ii) 全consumerへの意味保存な置換とprepare成功、(iii) 新factのstrict進捗、
+(iv) operational Acc、(v) stable sourceのcurrent packet/Holds/child整合性から
+EvidenceNode。今回のground代表上界は(v)の結果または途中の既証明childに利用する。
+
+### pipelineのconsumer位置の確認
+
+`GeneralNominalPlanProducer251.fallback` はframe.definitionsのmappingで実capture
+端点を読む。env/commandはそれとRoleBinderをStableRoleEnvironment/Packetへ渡す。
+`GeneralNominalRebaseRawView243.compile` はordinary以外にもheads、intervals、
+nominal descriptorのtype/row引数を持ち、`OriginView243` はさらに観測pathを保持する。
+したがって新しいclosure証明のconsumer列挙は「output equationだけ」では足りない。
+SnapshotNormal252/CheckedNormal252はいまは一般的な支援関数で、source operational
+boundaryのStepを置き換えたものではない。次回はこのconsumer集合に対して
+準備成功・型/row読出しsupport・意味保存を同時に定式化してから実装する。
+
+### 上界の量の読み方
+
+Rはsourceの深さそのものではなく、正規化した初期入力のencode総サイズ。
+各入力depth≤Rを使う保守的な上界である。Nはsource invocation frontierのlist長で、
+重複を含み、ownerペア数や実際の辞書node数と同一視しない。body budget Tは全候補
+explicit/default bodyの上界で、実際に選ばれないbodyも含む。R+T*Nは停止時間・
+計算量の予測ではなく、Evidence条件つき意味代表の構文深さの証明用上界である。

@@ -1,6 +1,8 @@
 # Cycle254 宣言ガイド
 各節の共通前提を同節の定理に適用する。完全な量化順序・型はリンク先Leanと `Cycle254Complete.lean` を正とする。全84明示宣言を含む。
 
+M1上の位置づけ: 全て補助。意味同値readbackは健全性側の支援、有限menu・rank・深さは停止性/完全性側へ向けた支援だが、M1の健全性・完全性・主型性や外側Statementを完成したものではない。K2の新たな拒否規則を追加していない。
+
 ## GeneralNominalQueryReadback254
 ソース: `lean/Yulang/GeneralNominalQueryReadback254.lean`
 任意のquery・有限な正規ground親Pattern・実観測・実SchemaHoldsを対象とする。Shapedはdeferredを許さず、構造nodeのcanonical性とarityを要求する。複数nameのサイズを足し合わせない。

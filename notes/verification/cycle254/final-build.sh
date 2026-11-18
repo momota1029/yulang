@@ -9,7 +9,7 @@ while read -r module; do
   echo "$module exit=0"
 done < notes/verification/cycle254/modules.txt
 "$LEAN" --trust=0 -DwarningAsError=true -o "$LEAN_PATH/Audit/Cycle254Usage.olean" lean/Audit/Cycle254Usage.lean
-echo 'Usage 17 examples exit=0'
+echo 'Usage 19 examples exit=0'
 "$LEAN" --trust=0 -DwarningAsError=true lean/Audit/Cycle254Complete.lean > notes/verification/cycle254/complete-audit.txt
 echo 'Complete audit 84 explicit declarations exit=0'
 "$LEAN" --trust=0 -DwarningAsError=true lean/Audit/Cycle254Full.lean > notes/verification/cycle254/full-audit.txt
