@@ -1,0 +1,68 @@
+'Yulang.GeneralRebaseNormalizedBody263.explicit_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedBody263.explicit_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedBody263.Compatible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedBody263.default_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedBody263.supplied_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedBody263.lookup_body' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNormalizedBody263.effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNormalizedBody263.class_effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNormalizedFacts263.singleton_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedFacts263.local_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedFacts263.local_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNormalizedFacts263.stable_body_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNormalizedFacts263.stable_class_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNormalizedFacts263.of_global' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadSupport263.source_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadSupport263.head_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadSupport263.input_binder' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadSupport263.output_binder' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadSupport263.from_heads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadSupport263.from_inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedExamples263.shadow_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedExamples263.shadow_boundary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNormalizedExamples263.actual_head_support' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNormalizedExamples263.normalized_variable_used' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralRebaseHeadSupport263.from_inputs : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Layout first last →
+    first.packet.context.state.constructors = last.packet.context.state.constructors →
+      first.packet.context.state.seed = last.packet.context.state.seed →
+        first.packet.site.occurrence.identity = last.packet.site.occurrence.identity →
+          (∀ (index : Nat),
+              Yulang.CommonNominalFullCarrier.Equivalent
+                (assignment ((List.ofFn first.input.center)[index]?.getD 0)).fst
+                (assignment ((List.ofFn last.input.center)[index]?.getD 0)).fst) →
+            Yulang.GeneralNominalVersionedPlans231.Inputs first assignment →
+              Yulang.GeneralNominalVersionedPlans231.Inputs last assignment →
+                Yulang.GeneralNominalRecursiveInspection.Finished
+                    (Yulang.GeneralNominalQueryProvenance183.headInspection first) →
+                  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+@Yulang.GeneralRebaseNormalizedFacts263.stable_class_holds : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment →
+    ∀ (owner : Nat) (fact : Yulang.GeneralRebaseStep258.Fact),
+      Yulang.GeneralRebaseStableClass261.Holds first owner assignment fact ↔
+        Yulang.GeneralRebaseStableClass261.Holds last owner assignment fact
+'Yulang.GeneralRebaseRegisteredPlan263.metadata' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredPlan263.inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredPlan263.layout' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRegisteredPlan263.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredPlan263.source_compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredPlan263.source_layout' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredSites263.inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredSites263.origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredSites263.above_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredSites263.emitted_above_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.self' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.child_centers' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.centers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.source_compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.centers_from_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.compatible_from_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.source_compatible_from_heads' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

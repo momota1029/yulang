@@ -1,0 +1,53 @@
+import Yulang.GeneralRebaseSourceCenters263
+import Yulang.GeneralRebaseRegisteredPlan263
+import Yulang.GeneralRebaseNormalizedBody263
+import Yulang.GeneralRebaseNormalizedFacts263
+import Yulang.GeneralRebaseHeadSupport263
+import Yulang.GeneralRebaseNormalizedExamples263
+#print axioms Yulang.GeneralRebaseNormalizedBody263.explicit_value
+#print axioms Yulang.GeneralRebaseNormalizedBody263.explicit_body
+#print axioms Yulang.GeneralRebaseNormalizedBody263.Compatible
+#print axioms Yulang.GeneralRebaseNormalizedBody263.default_body
+#print axioms Yulang.GeneralRebaseNormalizedBody263.supplied_body
+#print axioms Yulang.GeneralRebaseNormalizedBody263.lookup_body
+#print axioms Yulang.GeneralRebaseNormalizedBody263.effects
+#print axioms Yulang.GeneralRebaseNormalizedBody263.class_effects
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.singleton_holds
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.local_meaning
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.local_holds
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.stable_body_holds
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.stable_class_holds
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.of_global
+#print axioms Yulang.GeneralRebaseHeadSupport263.source_same
+#print axioms Yulang.GeneralRebaseHeadSupport263.head_iff
+#print axioms Yulang.GeneralRebaseHeadSupport263.input_binder
+#print axioms Yulang.GeneralRebaseHeadSupport263.output_binder
+#print axioms Yulang.GeneralRebaseHeadSupport263.from_heads
+#print axioms Yulang.GeneralRebaseHeadSupport263.from_inputs
+#print axioms Yulang.GeneralRebaseNormalizedExamples263.shadow_body
+#print axioms Yulang.GeneralRebaseNormalizedExamples263.shadow_boundary
+#print axioms Yulang.GeneralRebaseNormalizedExamples263.actual_head_support
+#print axioms Yulang.GeneralRebaseNormalizedExamples263.normalized_variable_used
+#check @Yulang.GeneralRebaseHeadSupport263.from_inputs
+#check @Yulang.GeneralRebaseNormalizedFacts263.stable_class_holds
+
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.metadata
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.inputs
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.layout
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.compatible
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.source_compatible
+
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.source_layout
+#print axioms Yulang.GeneralRebaseRegisteredSites263.inputs
+#print axioms Yulang.GeneralRebaseRegisteredSites263.origin
+#print axioms Yulang.GeneralRebaseRegisteredSites263.above_root
+#print axioms Yulang.GeneralRebaseRegisteredSites263.emitted_above_root
+#print axioms Yulang.GeneralRebaseSourceCenters263.self
+#print axioms Yulang.GeneralRebaseSourceCenters263.child_centers
+#print axioms Yulang.GeneralRebaseSourceCenters263.centers
+#print axioms Yulang.GeneralRebaseSourceCenters263.compatible
+#print axioms Yulang.GeneralRebaseSourceCenters263.source_compatible
+#print axioms Yulang.GeneralRebaseSourceCenters263.heads
+#print axioms Yulang.GeneralRebaseSourceCenters263.centers_from_heads
+#print axioms Yulang.GeneralRebaseSourceCenters263.compatible_from_heads
+#print axioms Yulang.GeneralRebaseSourceCenters263.source_compatible_from_heads

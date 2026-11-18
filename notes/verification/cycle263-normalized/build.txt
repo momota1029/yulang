@@ -1,0 +1,10 @@
+BUILD lean/Yulang/GeneralRebaseNormalizedBody263.lean
+BUILD lean/Yulang/GeneralRebaseNormalizedFacts263.lean
+BUILD lean/Yulang/GeneralRebaseHeadSupport263.lean
+BUILD lean/Yulang/GeneralDictionaryDefault214ActualShadowRegression.lean
+BUILD lean/Yulang/GeneralNominalVersionedCurrentProjection237.lean
+BUILD lean/Yulang/GeneralRebaseNormalizedExamples263.lean
+BUILD lean/Yulang/GeneralRebaseRegisteredPlan263.lean
+BUILD lean/Yulang/GeneralRebaseRegisteredSites263.lean
+BUILD lean/Yulang/GeneralRebaseSourceCenters263.lean
+PASS 9

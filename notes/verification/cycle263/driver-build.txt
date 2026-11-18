@@ -1,0 +1,8 @@
+lean/Yulang/GeneralRebaseValidatedDriver263.lean:104:27: error: Application type mismatch: The argument
+  GeneralRebaseBudget258.budget observe path
+has type
+  history.length + after.remaining.length ≤ before.remaining.length
+but is expected to have type
+  history.length ≤ before.remaining.length
+in the application
+  And.intro (GeneralRebaseBudget258.budget observe path)

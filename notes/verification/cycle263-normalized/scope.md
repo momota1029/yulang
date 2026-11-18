@@ -1,0 +1,21 @@
+# Cycle263 normalized support and registered source plans
+
+New production modules restrict explicit-body support to variables of the normalized RHS. They do not assert that raw expression names lie in normalized support: the actual214 shadow regression contains raw name77 but no normalized variable77. The shadow example proves body transport without agreement at77. The actual OutputDepth252 plan/model supplies a separate inhabited nonempty-support example (variable0).
+
+`NormalizedBody263.Compatible` consists of structural Layout, semantic binder agreement only at normalized explicit RHS variables, and positional semantic center agreement. Body, Effects, ClassEffects and stable fact interpretation transport follow. This is at a supplied assignment, not automatic agreement at all assignments. Default bodies still need center agreement.
+
+`HeadSupport263.from_inputs` derives input-binder agreement from actual head schemas and Finished, and output-binder agreement from allocation identities. Checked declaration scope supplies the input/output case split. No raw-name inclusion premise is used.
+
+`RegisteredPlan263.metadata` inducts over actual mixed-kernel paths, preserving metadata for versioned `state.plans`, not confusing it with the legacy journal. Installable yields the actual Frame and Finished. Configuration preservation yields seed, constructors, interpretation. Registered Models yields packet Inputs.
+
+`RegisteredPlan263.source_compatible` compares two registered Plans of the same owner pair (root identity, declaration id) in independently source-reachable snapshots sharing one initial state. A checked registry turns equal declaration IDs into equal full declarations. Same assignment satisfying both snapshot Models yields both actual head schemas. Semantic center agreement remains explicit; no theorem here derives it merely from equal owner identities. No assumption is made about desired body/fact/effect equivalence. This pairwise bridge does not construct representatives for future owners or prove a source-wide observer family by itself.
+
+No assertion of model existence for arbitrary source snapshots, compiler completeness, old Step simulation or termination is made. Exact execution commands are in build.py; build.txt lists fresh modules. Cached cycle262 dependencies are reused, except CurrentProjection237 and actual214 regression, which are rebuilt. Source hashes cover all traversed imports. The focused audit imports only Yulang modules. No sorry/new axiom/native_decide and no frozen source edits.
+
+## Subsequent completed center induction
+
+`RegisteredSites263` derives actual input-site retention, origin (initial root or actual versioned producer), and numeric root lower bounds. `SourceCenters263.centers` proves semantic center coherence across two independent mixed paths by strong induction on invocation identity. Actual producer allocation identifies corresponding parent/declaration/clause; registered head Models transfer input binders and actual child emission transfers centers. `SourceCenters263.source_compatible` consequently removes all explicit center/binder semantic premises. It still requires one assignment satisfying BOTH actual snapshots' Models. `RegisteredPlan263.source_layout` needs only checked/source/path/membership/same-owner premises, no Models. These supersede the earlier explicit-center boundary above; no automatic cross-branch Models inclusion is claimed.
+
+## Output-independent support extraction
+
+The stronger Models premise was audited: the center proof only projects `SchemaHolds plan plan.headSchema assignment` for each registered producer. `SourceCenters263.Heads` now states exactly this. `centers_from_heads`, `compatible_from_heads`, and `source_compatible_from_heads` use Heads on the two actual snapshots, with no packet body or ClassEffects satisfaction premise. `heads` supplies it from Models as a convenience, but callers should use the head-only theorem when deriving output semantics. This removes the potential circularity of assuming full source output effects to justify finite output writes. Head satisfaction of a chosen unrelated representative still needs a producer; no automatic base-model implication is asserted.

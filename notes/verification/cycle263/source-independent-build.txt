@@ -1,0 +1,15 @@
+GeneralRebaseMultiObserver263
+PASS
+GeneralRebaseMultiRun263
+PASS
+GeneralRebaseMultiTrace263
+PASS
+GeneralRebaseMultiSource263
+PASS
+'Yulang.GeneralRebaseMultiSource263.source_bounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiSource263.source_completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiSource263.source_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiObserver263.write_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiRun263.outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiTrace263.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiTrace263.from_checked' depends on axioms: [propext, Classical.choice, Quot.sound]

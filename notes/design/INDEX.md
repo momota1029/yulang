@@ -754,3 +754,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [2026-11-18-cycle252-final-review](2026-11-18-cycle252-final-review.md)
 
 - [Cycle262 executable exact alias requests](2026-11-18-cycle262-executable-alias.md) (Draft, representation/proof scope).
+
+- [cycle263 multi-owner and Plan-free finite basis](2026-11-18-cycle263-multi-owner.md) — Draft, 2026-11-18, finite rebase/source-head bridges; not a complete compiler.

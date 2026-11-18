@@ -1,0 +1,14 @@
+# Independent review: multi-owner observer, checked run, trace, source bridge
+
+Reviewed coordinator `755fc5a8d` modules MultiObserver263, MultiRun263, MultiTrace263, MultiSource263 against OwnerTable263 and actual registered-plan/request producers. No proof or scope defect found.
+
+- source_bounds chooses owners and pool once from Initial, before representative/inspector/base are introduced. Coverage is simultaneous across all actual mixed-reachable snapshots. Source selections map the retained versioned `.plans`; request inspection uses `.core`. It does not confuse these two plan lists.
+- The inspector remains an arbitrary finite-state function satisfying individual snapshot reachability. Neither the statement nor proof claims adjacent inspected snapshots form an old-source transition. A representative Plan family is external. There is no construction of future representative Plans from finite owner identities alone.
+- LayoutCompatible has only syntactic table-identity data; BaseCompatible separately supplies normalized semantic agreement for every assignment satisfying base. write_actual uses priorModels to recover that base condition. It is not silently assuming arbitrary-assignment equivalence or the intended ClassEffects conclusion.
+- Every selected entry is checked on every round, before scheduler selection, including the terminal round. The error outcome identifies a selected entry and concrete checker error at an actual finite-run prefix state. This is an internal diagnostic, not language rejection. No all-pool Ready premise is introduced.
+- Event histories use the exact `inspect before` and selected owner/root/Plan for each effective write. Events exclude skipped no-op proposals; terminal Ready still concerns all final selected requests. Duplicate owners/selections are not assumed absent. Models equivalence is simultaneous for all assignments and conjoins precisely effective event ClassEffects.
+- The K*(N+N*N) bound counts effective finite writes, not source transitions or total observer/checker cost. Every step decreases the finite remaining-list length. The independent two-owner fixture tests a nonempty selection requiring two effective writes.
+
+Important reporting distinction: `source_completion` proves unvalidated `settle` succeeds under source coverage and Layout. It is NOT a guarantee that checked MultiRun.run succeeds. `source_certificate` assumes actual checked-run success and then proves final/event readiness and exact semantics. Generic MultiRun.outcome accounts for validation failure even when source coverage rules out outside-basis failures.
+
+Verification: four modules rebuilt in an independent cache with --trust=0 and warningAsError; seven public theorems axiom-audited. See source-independent-build.txt. Existing transitive artifacts came from the source-identical own cache; no whole-repository rebuild claimed.

@@ -1,0 +1,38 @@
+'Yulang.GeneralRebaseRegisteredOwners263.key' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRegisteredOwners263.code' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRegisteredOwners263.code_eq_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRegisteredOwners263.registered_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredOwners263.source_initial_empty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRegisteredOwners263.source_finite_keys' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredOwners263.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredOwners263.source_finite_codes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredOwners263.source_selection_covered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+@Yulang.GeneralRebaseRegisteredOwners263.registered_origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  start.plans = [] →
+    ∀ (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start state →
+        ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+          plan ∈ state.plans →
+            ∃ before effect,
+              Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start before ∧
+                Yulang.GeneralNominalSaturationState.Generated before.core.erased.current root
+                    effect.plan.packet.site.occurrence ∧
+                  Yulang.GeneralNominalVersionedMixedKernel234.Installable registry before effect ∧
+                    ¬Yulang.GeneralNominalVersionedMixedKernel234.Committed before effect.plan ∧ plan = effect.plan
+@Yulang.GeneralRebaseRegisteredOwners263.source_finite_codes : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ owners,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+            state →
+          ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+            plan ∈ state.plans → Yulang.GeneralRebaseRegisteredOwners263.code plan ∈ owners

@@ -1,0 +1,23 @@
+BUILD lean/Yulang/GeneralRebaseNormalizedBody263.lean 2026-11-18T19:49:01.009731+00:00
+BUILD lean/Yulang/GeneralRebaseNormalizedFacts263.lean 2026-11-18T19:49:02.534380+00:00
+BUILD lean/Yulang/GeneralRebaseHeadSupport263.lean 2026-11-18T19:49:03.528150+00:00
+BUILD lean/Yulang/GeneralRebaseOwnerTags263.lean 2026-11-18T19:49:05.058887+00:00
+BUILD lean/Yulang/GeneralRebaseOwnerTable263.lean 2026-11-18T19:49:06.130093+00:00
+BUILD lean/Yulang/GeneralRebaseMultiSelection263.lean 2026-11-18T19:49:07.538088+00:00
+BUILD lean/Yulang/GeneralRebaseMultiObserver263.lean 2026-11-18T19:49:09.035721+00:00
+BUILD lean/Yulang/GeneralRebaseValidatedDriver263.lean 2026-11-18T19:49:10.222503+00:00
+BUILD lean/Yulang/GeneralRebaseValidatedOutcome263.lean 2026-11-18T19:49:11.712152+00:00
+BUILD lean/Yulang/GeneralRebaseMultiRun263.lean 2026-11-18T19:49:13.081734+00:00
+BUILD lean/Yulang/GeneralRebaseRegisteredOwners263.lean 2026-11-18T19:49:14.268070+00:00
+BUILD lean/Yulang/GeneralRebaseMultiTrace263.lean 2026-11-18T19:49:15.775328+00:00
+BUILD lean/Yulang/GeneralRebaseMultiSource263.lean 2026-11-18T19:49:17.105787+00:00
+BUILD lean/Yulang/GeneralDictionaryDefault214ActualShadowRegression.lean 2026-11-18T19:49:18.239812+00:00
+BUILD lean/Yulang/GeneralNominalVersionedCurrentProjection237.lean 2026-11-18T19:49:19.262967+00:00
+BUILD lean/Yulang/GeneralRebaseNormalizedExamples263.lean 2026-11-18T19:49:20.300263+00:00
+BUILD lean/Yulang/GeneralRebaseRegisteredPlan263.lean 2026-11-18T19:49:21.304522+00:00
+BUILD lean/Yulang/GeneralRebaseRegisteredSites263.lean 2026-11-18T19:49:22.317544+00:00
+BUILD lean/Yulang/GeneralRebaseSourceCenters263.lean 2026-11-18T19:49:23.696622+00:00
+BUILD lean/Yulang/GeneralRebaseUniversalBasis263.lean 2026-11-18T19:49:26.351837+00:00
+BUILD lean/Yulang/GeneralRebaseUniversalObserver263.lean 2026-11-18T19:49:27.490068+00:00
+BUILD lean/Yulang/GeneralRebaseUniversalSource263.lean 2026-11-18T19:49:28.532579+00:00
+FRESH-PASS 22 DEPENDENCY-SOURCES 1727

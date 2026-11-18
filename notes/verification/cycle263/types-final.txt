@@ -1,0 +1,1495 @@
+@Yulang.GeneralRebaseNormalizedBody263.explicit_value : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Layout first last →
+    ∀ (equation : Yulang.GeneralDeclarations.Equation)
+      (expression : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+      Yulang.GeneralNominalCenteredHeadMatEffects.compileBody first
+            (Yulang.GeneralDictionaryAssociatedProvenance.Body.explicit equation) =
+          some expression →
+        (∀ (name : Nat),
+            name ∈ (Yulang.GeneralDeclarationPatterns.normalize equation.rhs).variables →
+              Yulang.CommonNominalFullCarrier.Equivalent (assignment (first.binder name)).fst
+                (assignment (last.binder name)).fst) →
+          Yulang.CommonNominalFullCarrier.Equivalent
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.value
+              (Yulang.GeneralNominalCenteredHeadMatEffects.variables first assignment)
+              Yulang.GeneralNominalMaterialization.Mode.actual expression)
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.value
+              (Yulang.GeneralNominalCenteredHeadMatEffects.variables last assignment)
+              Yulang.GeneralNominalMaterialization.Mode.actual expression)
+@Yulang.GeneralRebaseNormalizedBody263.explicit_body : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Layout first last →
+    ∀ (equation : Yulang.GeneralDeclarations.Equation) (target : Nat),
+      (∀ (name : Nat),
+          name ∈ (Yulang.GeneralDeclarationPatterns.normalize equation.rhs).variables →
+            Yulang.CommonNominalFullCarrier.Equivalent (assignment (first.binder name)).fst
+              (assignment (last.binder name)).fst) →
+        (Yulang.GeneralNominalVersionedEffects231.BodyHolds first target assignment
+            (Yulang.GeneralDictionaryAssociatedProvenance.Body.explicit equation) ↔
+          Yulang.GeneralNominalVersionedEffects231.BodyHolds last target assignment
+            (Yulang.GeneralDictionaryAssociatedProvenance.Body.explicit equation))
+@Yulang.GeneralRebaseNormalizedBody263.default_body : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Layout first last →
+    (∀ (index : Nat),
+        Yulang.CommonNominalFullCarrier.Equivalent (assignment ((List.ofFn first.input.center)[index]?.getD 0)).fst
+          (assignment ((List.ofFn last.input.center)[index]?.getD 0)).fst) →
+      ∀ (role name target : Nat) (term : Yulang.Roles.Term),
+        Yulang.GeneralNominalVersionedEffects231.BodyHolds first target assignment
+            (Yulang.GeneralDictionaryAssociatedProvenance.Body.default role name term) ↔
+          Yulang.GeneralNominalVersionedEffects231.BodyHolds last target assignment
+            (Yulang.GeneralDictionaryAssociatedProvenance.Body.default role name term)
+@Yulang.GeneralRebaseNormalizedBody263.supplied_body : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment →
+    ∀ (name target : Nat) (body : Yulang.GeneralDictionaryAssociatedProvenance.Body),
+      Yulang.GeneralDictionaryAssociatedProvenance.Supplies roles first.packet.declaration name body →
+        (Yulang.GeneralNominalVersionedEffects231.BodyHolds first target assignment body ↔
+          Yulang.GeneralNominalVersionedEffects231.BodyHolds last target assignment body)
+@Yulang.GeneralRebaseNormalizedBody263.lookup_body : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment →
+    ∀ (name target : Nat) (body : Yulang.GeneralDictionaryAssociatedProvenance.Body),
+      Yulang.GeneralDictionaryAssociatedProvenance.lookup roles first.packet.declaration name = some body →
+        (Yulang.GeneralNominalVersionedEffects231.BodyHolds first target assignment body ↔
+          Yulang.GeneralNominalVersionedEffects231.BodyHolds last target assignment body)
+@Yulang.GeneralRebaseNormalizedBody263.effects : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment →
+    ∀ (outputs : List Yulang.GeneralSourceState.Output),
+      Yulang.GeneralRebaseClassTable261.Effects first outputs assignment ↔
+        Yulang.GeneralRebaseClassTable261.Effects last outputs assignment
+@Yulang.GeneralRebaseNormalizedBody263.class_effects : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment →
+    ∀ (source : Yulang.GeneralNominalCenteredSteps.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.GeneralNominalVersionedEffects231.ClassEffects source root first assignment ↔
+        Yulang.GeneralNominalVersionedEffects231.ClassEffects source root last assignment
+Yulang.GeneralRebaseNormalizedFacts263.singleton_holds : ∀ (owner : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+  (variables : Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (fact : Yulang.GeneralRebaseStep258.Fact),
+  schema.equations.length ≤ 1 →
+    (Yulang.GeneralRebaseOwnedOutputKeys260.Holds owner schema variables assignment fact ↔
+      fact ∈ Yulang.GeneralRebaseOwnedOutputKeys260.keys owner schema ∧ schema.Holds variables assignment)
+@Yulang.GeneralRebaseNormalizedFacts263.local_meaning : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (output : Yulang.GeneralSourceState.Output)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (fact : Yulang.GeneralRebaseStep258.Fact),
+  Yulang.GeneralRebaseBodyTable261.localHolds plan owner output assignment fact ↔
+    fact ∈ Yulang.GeneralRebaseBodyTable261.keys plan owner output ∧
+      ∀ (body : Yulang.GeneralDictionaryAssociatedProvenance.Body),
+        Yulang.GeneralDictionaryAssociatedProvenance.lookup roles plan.packet.declaration output.name = some body →
+          Yulang.GeneralNominalVersionedEffects231.BodyHolds plan output.target assignment body
+@Yulang.GeneralRebaseNormalizedFacts263.local_holds : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment →
+    ∀ (owner : Nat) (output : Yulang.GeneralSourceState.Output) (fact : Yulang.GeneralRebaseStep258.Fact),
+      Yulang.GeneralRebaseBodyTable261.localHolds first owner output assignment fact ↔
+        Yulang.GeneralRebaseBodyTable261.localHolds last owner output assignment fact
+@Yulang.GeneralRebaseNormalizedFacts263.stable_body_holds : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment →
+    ∀ (owner : Nat) (fact : Yulang.GeneralRebaseStep258.Fact),
+      Yulang.GeneralRebaseStableBody261.Holds first owner assignment fact ↔
+        Yulang.GeneralRebaseStableBody261.Holds last owner assignment fact
+@Yulang.GeneralRebaseNormalizedFacts263.stable_class_holds : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment →
+    ∀ (owner : Nat) (fact : Yulang.GeneralRebaseStep258.Fact),
+      Yulang.GeneralRebaseStableClass261.Holds first owner assignment fact ↔
+        Yulang.GeneralRebaseStableClass261.Holds last owner assignment fact
+@Yulang.GeneralRebaseNormalizedFacts263.of_global : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Compatible first last assignment →
+    Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+Yulang.GeneralRebaseHeadSupport263.source_same : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (first last : Nat),
+  Yulang.CommonNominalFullCarrier.Equivalent (assignment first).fst (assignment last).fst →
+    Yulang.GeneralNominalOriginTerms.Same assignment (Yulang.GeneralNominalRecursiveInspection.Origin.source first)
+      (Yulang.GeneralNominalRecursiveInspection.Origin.source last)
+@Yulang.GeneralRebaseHeadSupport263.head_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.SchemaHolds plan plan.headSchema assignment ↔
+    plan.SchemaHolds plan.headSchema assignment
+@Yulang.GeneralRebaseHeadSupport263.input_binder : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  first.packet.declaration = last.packet.declaration →
+    first.packet.context.state.constructors = last.packet.context.state.constructors →
+      first.packet.context.interpretation = last.packet.context.interpretation →
+        (∀ (index : Nat),
+            Yulang.CommonNominalFullCarrier.Equivalent (assignment ((List.ofFn first.input.center)[index]?.getD 0)).fst
+              (assignment ((List.ofFn last.input.center)[index]?.getD 0)).fst) →
+          Yulang.GeneralNominalVersionedPlans231.SchemaHolds first first.headSchema assignment →
+            Yulang.GeneralNominalVersionedPlans231.SchemaHolds last last.headSchema assignment →
+              Yulang.GeneralNominalRecursiveInspection.Finished
+                  (Yulang.GeneralNominalQueryProvenance183.headInspection first) →
+                ∀ (name : Nat),
+                  name ∈ first.packet.declaration.inputNames →
+                    Yulang.CommonNominalFullCarrier.Equivalent (assignment (first.binder name)).fst
+                      (assignment (last.binder name)).fst
+@Yulang.GeneralRebaseHeadSupport263.output_binder : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  first.packet.declaration = last.packet.declaration →
+    first.packet.context.state.seed = last.packet.context.state.seed →
+      first.packet.site.occurrence.identity = last.packet.site.occurrence.identity →
+        ∀ (name : Nat),
+          name ∈ first.packet.declaration.outputNames →
+            Yulang.CommonNominalFullCarrier.Equivalent (assignment (first.binder name)).fst
+              (assignment (last.binder name)).fst
+@Yulang.GeneralRebaseHeadSupport263.from_heads : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Layout first last →
+    first.packet.context.state.constructors = last.packet.context.state.constructors →
+      first.packet.context.state.seed = last.packet.context.state.seed →
+        first.packet.site.occurrence.identity = last.packet.site.occurrence.identity →
+          (∀ (index : Nat),
+              Yulang.CommonNominalFullCarrier.Equivalent
+                (assignment ((List.ofFn first.input.center)[index]?.getD 0)).fst
+                (assignment ((List.ofFn last.input.center)[index]?.getD 0)).fst) →
+            Yulang.GeneralNominalVersionedPlans231.SchemaHolds first first.headSchema assignment →
+              Yulang.GeneralNominalVersionedPlans231.SchemaHolds last last.headSchema assignment →
+                Yulang.GeneralNominalRecursiveInspection.Finished
+                    (Yulang.GeneralNominalQueryProvenance183.headInspection first) →
+                  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+@Yulang.GeneralRebaseHeadSupport263.from_inputs : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Layout first last →
+    first.packet.context.state.constructors = last.packet.context.state.constructors →
+      first.packet.context.state.seed = last.packet.context.state.seed →
+        first.packet.site.occurrence.identity = last.packet.site.occurrence.identity →
+          (∀ (index : Nat),
+              Yulang.CommonNominalFullCarrier.Equivalent
+                (assignment ((List.ofFn first.input.center)[index]?.getD 0)).fst
+                (assignment ((List.ofFn last.input.center)[index]?.getD 0)).fst) →
+            Yulang.GeneralNominalVersionedPlans231.Inputs first assignment →
+              Yulang.GeneralNominalVersionedPlans231.Inputs last assignment →
+                Yulang.GeneralNominalRecursiveInspection.Finished
+                    (Yulang.GeneralNominalQueryProvenance183.headInspection first) →
+                  Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+Yulang.GeneralRebaseOwnerTags263.Tagged : Nat → Yulang.GeneralRebaseStep258.Fact → Prop
+@Yulang.GeneralRebaseOwnerTags263.body_tagged : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (output : Yulang.GeneralSourceState.Output)
+  (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralRebaseBodyTable261.keys plan owner output → Yulang.GeneralRebaseOwnerTags263.Tagged owner fact
+@Yulang.GeneralRebaseOwnerTags263.tagged : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (outputs : List Yulang.GeneralSourceState.Output)
+  (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralRebaseStableClass261.facts plan owner outputs →
+    Yulang.GeneralRebaseOwnerTags263.Tagged owner fact
+Yulang.GeneralRebaseOwnerTags263.owner_unique : ∀ (first last : Nat) (fact : Yulang.GeneralRebaseStep258.Fact),
+  Yulang.GeneralRebaseOwnerTags263.Tagged first fact → Yulang.GeneralRebaseOwnerTags263.Tagged last fact → first = last
+@Yulang.GeneralRebaseOwnerTags263.tables_separate : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (one two : Nat),
+  one ≠ two →
+    ∀ (outputs requests : List Yulang.GeneralSourceState.Output) (fact : Yulang.GeneralRebaseStep258.Fact),
+      ¬(fact ∈ Yulang.GeneralRebaseStableClass261.facts first one outputs ∧
+          fact ∈ Yulang.GeneralRebaseStableClass261.facts last two requests)
+@Yulang.GeneralRebaseOwnerTags263.foreign_holds : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner foreign : Nat),
+  owner ≠ foreign →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (fact : Yulang.GeneralRebaseStep258.Fact),
+      Yulang.GeneralRebaseOwnerTags263.Tagged foreign fact →
+        Yulang.GeneralRebaseStableClass261.Holds plan owner assignment fact
+@Yulang.GeneralRebaseOwnerTags263.tables_bound : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output),
+  (List.flatMap (fun owner => Yulang.GeneralRebaseStableClass261.facts (representative owner) owner pool)
+        owners).length ≤
+    owners.length * (pool.length + pool.length * pool.length)
+@Yulang.GeneralRebaseOwnerTags263.combined_holds : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (owner : Nat),
+  owner ∈ owners →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (fact : Yulang.GeneralRebaseStep258.Fact),
+      Yulang.GeneralRebaseOwnerTags263.Tagged owner fact →
+        ((∀ (other : Nat),
+            other ∈ owners → Yulang.GeneralRebaseStableClass261.Holds (representative other) other assignment fact) ↔
+          Yulang.GeneralRebaseStableClass261.Holds (representative owner) owner assignment fact)
+@Yulang.GeneralRebaseOwnerTable263.basis : {roles : Yulang.Roles.RoleDecls} →
+  List Nat →
+    (Nat → Yulang.GeneralNominalCenters.Plan roles) →
+      List Yulang.GeneralSourceState.Output → List Yulang.GeneralRebaseStep258.Fact
+@Yulang.GeneralRebaseOwnerTable263.Holds : {roles : Yulang.Roles.RoleDecls} →
+  List Nat →
+    (Nat → Yulang.GeneralNominalCenters.Plan roles) →
+      Yulang.GeneralNominalCommonBridge.Assignment → Yulang.GeneralRebaseStep258.Fact → Prop
+@Yulang.GeneralRebaseOwnerTable263.Models : {roles : Yulang.Roles.RoleDecls} →
+  (Yulang.GeneralNominalCommonBridge.Assignment → Prop) →
+    (owners : List Nat) →
+      (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) →
+        {pool : List Yulang.GeneralSourceState.Output} →
+          Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool) →
+            Yulang.GeneralNominalCommonBridge.Assignment → Prop
+@Yulang.GeneralRebaseOwnerTable263.member_basis : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (owner : Nat),
+  owner ∈ owners →
+    ∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈ Yulang.GeneralRebaseStableClass261.facts (representative owner) owner pool →
+        fact ∈ Yulang.GeneralRebaseOwnerTable263.basis owners representative pool
+@Yulang.GeneralRebaseOwnerTable263.basis_member : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralRebaseOwnerTable263.basis owners representative pool ↔
+    ∃ owner, owner ∈ owners ∧ fact ∈ Yulang.GeneralRebaseStableClass261.facts (representative owner) owner pool
+@Yulang.GeneralRebaseOwnerTable263.proposal_covered : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (owner : Nat),
+  owner ∈ owners →
+    ∀ (outputs : List Yulang.GeneralSourceState.Output),
+      (∀ (output : Yulang.GeneralSourceState.Output), output ∈ outputs → output ∈ pool) →
+        Yulang.GeneralRebaseStableClass261.facts (representative owner) owner outputs ⊆
+          Yulang.GeneralRebaseOwnerTable263.basis owners representative pool
+@Yulang.GeneralRebaseOwnerTable263.holds_owned : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (owner : Nat),
+  owner ∈ owners →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (fact : Yulang.GeneralRebaseStep258.Fact),
+      Yulang.GeneralRebaseOwnerTags263.Tagged owner fact →
+        (Yulang.GeneralRebaseOwnerTable263.Holds owners representative assignment fact ↔
+          Yulang.GeneralRebaseStableClass261.Holds (representative owner) owner assignment fact)
+@Yulang.GeneralRebaseOwnerTable263.all_exact : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (owner : Nat),
+  owner ∈ owners →
+    ∀ (outputs : List Yulang.GeneralSourceState.Output) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      (∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+          fact ∈ Yulang.GeneralRebaseStableClass261.facts (representative owner) owner outputs →
+            Yulang.GeneralRebaseOwnerTable263.Holds owners representative assignment fact) ↔
+        Yulang.GeneralRebaseClassTable261.Effects (representative owner) outputs assignment
+@Yulang.GeneralRebaseOwnerTable263.write_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (owner : Nat),
+  owner ∈ owners →
+    ∀ (outputs : List Yulang.GeneralSourceState.Output),
+      (∀ (output : Yulang.GeneralSourceState.Output), output ∈ outputs → output ∈ pool) →
+        ∀
+          (state :
+            Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))
+          (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralRebaseOwnerTable263.Models base owners representative
+              (Yulang.GeneralRebaseStep258.write state
+                (Yulang.GeneralRebaseStableClass261.facts (representative owner) owner outputs))
+              assignment ↔
+            Yulang.GeneralRebaseOwnerTable263.Models base owners representative state assignment ∧
+              Yulang.GeneralRebaseClassTable261.Effects (representative owner) outputs assignment
+@Yulang.GeneralRebaseOwnerTable263.actual_write : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (owner : Nat),
+  owner ∈ owners →
+    ∀ (source : Yulang.GeneralNominalCenteredSteps.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      (∀ (output : Yulang.GeneralSourceState.Output),
+          output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests source root → output ∈ pool) →
+        ∀
+          (state :
+            Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))
+          (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralRebaseOwnerTable263.Models base owners representative
+              (Yulang.GeneralRebaseStep258.write state
+                (Yulang.GeneralRebaseStableClass261.facts (representative owner) owner
+                  (Yulang.GeneralNominalCenteredHeadOutputs.requests source root)))
+              assignment ↔
+            Yulang.GeneralRebaseOwnerTable263.Models base owners representative state assignment ∧
+              Yulang.GeneralNominalVersionedEffects231.ClassEffects source root (representative owner) assignment
+@Yulang.GeneralRebaseOwnerTable263.initial_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseOwnerTable263.Models base owners representative
+      (Yulang.GeneralRebaseStep258.initial (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))
+      assignment ↔
+    base assignment
+@Yulang.GeneralRebaseOwnerTable263.done_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseOwnerTable263.Models base owners representative
+      (Yulang.GeneralRebaseStep258.done (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))
+      assignment ↔
+    base assignment ∧
+      ∀ (owner : Nat), owner ∈ owners → Yulang.GeneralRebaseClassTable261.Effects (representative owner) pool assignment
+@Yulang.GeneralRebaseOwnerTable263.basis_bound : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output),
+  (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool).length ≤
+    owners.length * (pool.length + pool.length * pool.length)
+@Yulang.GeneralRebaseOwnerTable263.run_bound : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (observe : Yulang.GeneralRebaseStep258.Observer (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))
+  {steps : Nat}
+  {before after :
+    Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)},
+  Yulang.GeneralRebaseBudget258.Runs observe steps before after →
+    steps ≤ owners.length * (pool.length + pool.length * pool.length)
+@Yulang.GeneralRebaseMultiSelection263.ofPlan : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenters.Plan roles → Yulang.GeneralRebaseMultiSelection263.Selection roles
+@Yulang.GeneralRebaseMultiSelection263.registered : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenteredSteps.State roles → List (Yulang.GeneralRebaseMultiSelection263.Selection roles)
+@Yulang.GeneralRebaseMultiSelection263.requests : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenteredSteps.State roles →
+    Yulang.GeneralRebaseMultiSelection263.Selection roles → List Yulang.GeneralSourceState.Output
+@Yulang.GeneralRebaseMultiSelection263.proposal : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenteredSteps.State roles →
+    Yulang.GeneralRebaseMultiSelection263.Selection roles → Yulang.GeneralRebaseStep258.Proposal
+@Yulang.GeneralRebaseMultiSelection263.registered_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralNominalCenteredSteps.State roles)
+  (selected : Yulang.GeneralRebaseMultiSelection263.Selection roles),
+  selected ∈ Yulang.GeneralRebaseMultiSelection263.registered source ↔
+    ∃ plan, plan ∈ source.plans ∧ Yulang.GeneralRebaseMultiSelection263.ofPlan plan = selected
+@Yulang.GeneralRebaseMultiSelection263.check : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenteredSteps.State roles →
+    List (Yulang.GeneralRebaseMultiSelection263.Selection roles) →
+      Except (Yulang.GeneralRebaseMultiSelection263.Diagnostic roles) Unit
+@Yulang.GeneralRebaseMultiSelection263.Ready : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenteredSteps.State roles → List (Yulang.GeneralRebaseMultiSelection263.Selection roles) → Prop
+@Yulang.GeneralRebaseMultiSelection263.check_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralNominalCenteredSteps.State roles)
+  (selected : List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  Yulang.GeneralRebaseMultiSelection263.check source selected = Except.ok () ↔
+    Yulang.GeneralRebaseMultiSelection263.Ready source selected
+@Yulang.GeneralRebaseMultiSelection263.error_selected : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralNominalCenteredSteps.State roles)
+  (selected : List (Yulang.GeneralRebaseMultiSelection263.Selection roles))
+  (reason : Yulang.GeneralRebaseMultiSelection263.Diagnostic roles),
+  Yulang.GeneralRebaseMultiSelection263.check source selected = Except.error reason →
+    reason.selected ∈ selected ∧
+      Yulang.GeneralRebaseClassCheck261.check reason.selected.plan
+          (Yulang.GeneralRebaseMultiSelection263.requests source reason.selected) =
+        Except.error reason.reason
+@Yulang.GeneralRebaseMultiObserver263.Current : {roles : Yulang.Roles.RoleDecls} →
+  List Nat → (Nat → Yulang.GeneralNominalCenters.Plan roles) → List Yulang.GeneralSourceState.Output → Type
+@Yulang.GeneralRebaseMultiObserver263.observe : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) →
+      (pool : List Yulang.GeneralSourceState.Output) →
+        (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+            Yulang.GeneralNominalCenteredSteps.State roles) →
+          (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+              List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+            Yulang.GeneralRebaseStep258.Observer (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)
+@Yulang.GeneralRebaseMultiObserver263.Listed : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) →
+      (pool : List Yulang.GeneralSourceState.Output) →
+        (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+            List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+          Prop
+@Yulang.GeneralRebaseMultiObserver263.LayoutCompatible : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) →
+      (pool : List Yulang.GeneralSourceState.Output) →
+        (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+            List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+          Prop
+@Yulang.GeneralRebaseMultiObserver263.BaseCompatible : {roles : Yulang.Roles.RoleDecls} →
+  (Yulang.GeneralNominalCommonBridge.Assignment → Prop) →
+    (owners : List Nat) →
+      (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) →
+        (pool : List Yulang.GeneralSourceState.Output) →
+          (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+              List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+            Prop
+@Yulang.GeneralRebaseMultiObserver263.closed : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  Yulang.GeneralRebaseMultiObserver263.Listed owners representative pool select →
+    Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool select →
+      (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+          Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+        Yulang.GeneralRebaseClosedObserver259.Closed
+          (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select)
+@Yulang.GeneralRebaseMultiObserver263.completion : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  Yulang.GeneralRebaseMultiObserver263.Listed owners representative pool select →
+    Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool select →
+      (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+          Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+        ∀ (before : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+          ∃ after steps,
+            Yulang.GeneralRebaseSettle259.settle
+                  (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) before =
+                Except.ok after ∧
+              Yulang.GeneralRebaseBudget258.Runs
+                  (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) steps before
+                  after ∧
+                steps ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                  ∀
+                    (next :
+                      Yulang.GeneralRebaseStep258.State
+                        (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+                    ¬Yulang.GeneralRebaseStep258.Step
+                        (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) after
+                        next
+@Yulang.GeneralRebaseMultiObserver263.write_actual : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  Yulang.GeneralRebaseMultiObserver263.Listed owners representative pool select →
+    Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool select →
+      Yulang.GeneralRebaseMultiObserver263.BaseCompatible base owners representative pool select →
+        (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+            Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+          ∀ (before : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool)
+            (selected : Yulang.GeneralRebaseMultiSelection263.Selection roles),
+            selected ∈ select before →
+              ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralRebaseOwnerTable263.Models base owners representative
+                    (Yulang.GeneralRebaseStep258.write before
+                      (Yulang.GeneralRebaseMultiSelection263.proposal (inspect before) selected))
+                    assignment ↔
+                  Yulang.GeneralRebaseOwnerTable263.Models base owners representative before assignment ∧
+                    Yulang.GeneralNominalVersionedEffects231.ClassEffects (inspect before) selected.root selected.plan
+                      assignment
+@Yulang.GeneralRebaseMultiObserver263.step_actual : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  Yulang.GeneralRebaseMultiObserver263.Listed owners representative pool select →
+    Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool select →
+      Yulang.GeneralRebaseMultiObserver263.BaseCompatible base owners representative pool select →
+        (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+            Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+          ∀ (before after : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+            Yulang.GeneralRebaseStep258.Step
+                (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) before after →
+              ∃ selected,
+                selected ∈ select before ∧
+                  ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralRebaseOwnerTable263.Models base owners representative after assignment ↔
+                      Yulang.GeneralRebaseOwnerTable263.Models base owners representative before assignment ∧
+                        Yulang.GeneralNominalVersionedEffects231.ClassEffects (inspect before) selected.root
+                          selected.plan assignment
+@Yulang.GeneralRebaseValidatedDriver263.run : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  {ε : Type} →
+    Yulang.GeneralRebaseStep258.Observer basis →
+      (Yulang.GeneralRebaseStep258.State basis → Except ε Unit) →
+        Yulang.GeneralRebaseStep258.State basis →
+          Except (Yulang.GeneralRebaseValidatedDriver263.Failure ε) (Yulang.GeneralRebaseStep258.State basis)
+@Yulang.GeneralRebaseValidatedDriver263.successful_trace : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit)
+  (state final : Yulang.GeneralRebaseStep258.State basis),
+  Yulang.GeneralRebaseValidatedDriver263.run observe validate state = Except.ok final →
+    ∃ history, Yulang.GeneralRebaseValidatedDriver263.Trace observe validate history state final
+@Yulang.GeneralRebaseValidatedDriver263.to_runs : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit)
+  {history : List (Yulang.GeneralRebaseStep258.State basis)} {before after : Yulang.GeneralRebaseStep258.State basis},
+  Yulang.GeneralRebaseValidatedDriver263.Trace observe validate history before after →
+    Yulang.GeneralRebaseBudget258.Runs observe history.length before after
+@Yulang.GeneralRebaseValidatedDriver263.states_valid : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit)
+  {history : List (Yulang.GeneralRebaseStep258.State basis)} {before after : Yulang.GeneralRebaseStep258.State basis},
+  Yulang.GeneralRebaseValidatedDriver263.Trace observe validate history before after →
+    (∀ (state : Yulang.GeneralRebaseStep258.State basis), state ∈ history → validate state = Except.ok ()) ∧
+      validate after = Except.ok ()
+@Yulang.GeneralRebaseValidatedDriver263.terminal : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit)
+  {history : List (Yulang.GeneralRebaseStep258.State basis)} {before after : Yulang.GeneralRebaseStep258.State basis},
+  Yulang.GeneralRebaseValidatedDriver263.Trace observe validate history before after →
+    Yulang.GeneralRebaseScheduler259.next observe after = Except.ok none
+@Yulang.GeneralRebaseValidatedDriver263.trace_success : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit)
+  {history : List (Yulang.GeneralRebaseStep258.State basis)} {before after : Yulang.GeneralRebaseStep258.State basis},
+  Yulang.GeneralRebaseValidatedDriver263.Trace observe validate history before after →
+    Yulang.GeneralRebaseValidatedDriver263.run observe validate before = Except.ok after
+@Yulang.GeneralRebaseValidatedDriver263.ordinary_settle : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit)
+  {history : List (Yulang.GeneralRebaseStep258.State basis)} {before after : Yulang.GeneralRebaseStep258.State basis},
+  Yulang.GeneralRebaseValidatedDriver263.Trace observe validate history before after →
+    Yulang.GeneralRebaseSettle259.settle observe before = Except.ok after
+@Yulang.GeneralRebaseValidatedDriver263.certificate : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit)
+  (before after : Yulang.GeneralRebaseStep258.State basis),
+  Yulang.GeneralRebaseValidatedDriver263.run observe validate before = Except.ok after →
+    ∃ history,
+      Yulang.GeneralRebaseValidatedDriver263.Trace observe validate history before after ∧
+        Yulang.GeneralRebaseBudget258.Runs observe history.length before after ∧
+          history.length ≤ before.remaining.length ∧
+            (∀ (state : Yulang.GeneralRebaseStep258.State basis), state ∈ history → validate state = Except.ok ()) ∧
+              validate after = Except.ok () ∧
+                ∀ (next : Yulang.GeneralRebaseStep258.State basis), ¬Yulang.GeneralRebaseStep258.Step observe after next
+@Yulang.GeneralRebaseValidatedOutcome263.At : {basis : List Yulang.GeneralRebaseStep258.Fact} →
+  {ε : Type} →
+    Yulang.GeneralRebaseStep258.Observer basis →
+      (Yulang.GeneralRebaseStep258.State basis → Except ε Unit) →
+        Yulang.GeneralRebaseStep258.State basis → Yulang.GeneralRebaseValidatedDriver263.Failure ε → Prop
+@Yulang.GeneralRebaseValidatedOutcome263.error_path : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit) (state : Yulang.GeneralRebaseStep258.State basis)
+  (failure : Yulang.GeneralRebaseValidatedDriver263.Failure ε),
+  Yulang.GeneralRebaseValidatedDriver263.run observe validate state = Except.error failure →
+    ∃ current steps,
+      Yulang.GeneralRebaseBudget258.Runs observe steps state current ∧
+        Yulang.GeneralRebaseValidatedOutcome263.At observe validate current failure
+@Yulang.GeneralRebaseValidatedOutcome263.no_outside : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit),
+  Yulang.GeneralRebaseClosedObserver259.Closed observe →
+    ∀ (state : Yulang.GeneralRebaseStep258.State basis) (missing : List Yulang.GeneralRebaseStep258.Fact),
+      Yulang.GeneralRebaseValidatedDriver263.run observe validate state ≠
+        Except.error (Yulang.GeneralRebaseValidatedDriver263.Failure.outside missing)
+@Yulang.GeneralRebaseValidatedOutcome263.outcome : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {ε : Type}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis)
+  (validate : Yulang.GeneralRebaseStep258.State basis → Except ε Unit),
+  Yulang.GeneralRebaseClosedObserver259.Closed observe →
+    ∀ (before : Yulang.GeneralRebaseStep258.State basis),
+      (∃ after history,
+          Yulang.GeneralRebaseValidatedDriver263.run observe validate before = Except.ok after ∧
+            Yulang.GeneralRebaseValidatedDriver263.Trace observe validate history before after ∧
+              history.length ≤ before.remaining.length) ∨
+        ∃ reason current steps,
+          Yulang.GeneralRebaseValidatedDriver263.run observe validate before =
+              Except.error (Yulang.GeneralRebaseValidatedDriver263.Failure.validation reason) ∧
+            Yulang.GeneralRebaseBudget258.Runs observe steps before current ∧
+              steps ≤ before.remaining.length ∧ validate current = Except.error reason
+@Yulang.GeneralRebaseMultiRun263.validate : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) →
+      (pool : List Yulang.GeneralSourceState.Output) →
+        (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+            Yulang.GeneralNominalCenteredSteps.State roles) →
+          (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+              List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+            Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+              Except (Yulang.GeneralRebaseMultiSelection263.Diagnostic roles) Unit
+@Yulang.GeneralRebaseMultiRun263.run : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) →
+      (pool : List Yulang.GeneralSourceState.Output) →
+        (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+            Yulang.GeneralNominalCenteredSteps.State roles) →
+          (Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+              List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+            Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool) →
+              Except
+                (Yulang.GeneralRebaseValidatedDriver263.Failure
+                  (Yulang.GeneralRebaseMultiSelection263.Diagnostic roles))
+                (Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))
+@Yulang.GeneralRebaseMultiRun263.certificate : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles))
+  (before after : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+  Yulang.GeneralRebaseMultiRun263.run owners representative pool inspect select before = Except.ok after →
+    ∃ history,
+      Yulang.GeneralRebaseValidatedDriver263.Trace
+          (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select)
+          (Yulang.GeneralRebaseMultiRun263.validate owners representative pool inspect select) history before after ∧
+        Yulang.GeneralRebaseBudget258.Runs
+            (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) history.length
+            before after ∧
+          history.length ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+            (∀
+                (state :
+                  Yulang.GeneralRebaseStep258.State
+                    (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+                state ∈ history → Yulang.GeneralRebaseMultiSelection263.Ready (inspect state) (select state)) ∧
+              Yulang.GeneralRebaseMultiSelection263.Ready (inspect after) (select after) ∧
+                ∀
+                  (next :
+                    Yulang.GeneralRebaseStep258.State
+                      (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+                  ¬Yulang.GeneralRebaseStep258.Step
+                      (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) after
+                      next
+@Yulang.GeneralRebaseMultiRun263.outcome : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  Yulang.GeneralRebaseMultiObserver263.Listed owners representative pool select →
+    Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool select →
+      (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+          Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+        ∀ (before : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+          (∃ after history,
+              Yulang.GeneralRebaseMultiRun263.run owners representative pool inspect select before = Except.ok after ∧
+                Yulang.GeneralRebaseValidatedDriver263.Trace
+                    (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select)
+                    (Yulang.GeneralRebaseMultiRun263.validate owners representative pool inspect select) history before
+                    after ∧
+                  history.length ≤ owners.length * (pool.length + pool.length * pool.length)) ∨
+            ∃ reason current steps,
+              Yulang.GeneralRebaseMultiRun263.run owners representative pool inspect select before =
+                  Except.error (Yulang.GeneralRebaseValidatedDriver263.Failure.validation reason) ∧
+                Yulang.GeneralRebaseBudget258.Runs
+                    (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) steps
+                    before current ∧
+                  steps ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                    reason.selected ∈ select current ∧
+                      Yulang.GeneralRebaseClassCheck261.check reason.selected.plan
+                          (Yulang.GeneralRebaseMultiSelection263.requests (inspect current) reason.selected) =
+                        Except.error reason.reason
+@Yulang.GeneralRebaseRegisteredOwners263.key : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenters.Plan roles → Nat × Nat
+@Yulang.GeneralRebaseRegisteredOwners263.code : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenters.Plan roles → Nat
+@Yulang.GeneralRebaseRegisteredOwners263.code_eq_iff : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles),
+  Yulang.GeneralRebaseRegisteredOwners263.code first = Yulang.GeneralRebaseRegisteredOwners263.code last ↔
+    Yulang.GeneralRebaseRegisteredOwners263.key first = Yulang.GeneralRebaseRegisteredOwners263.key last
+@Yulang.GeneralRebaseRegisteredOwners263.registered_origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  start.plans = [] →
+    ∀ (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start state →
+        ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+          plan ∈ state.plans →
+            ∃ before effect,
+              Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start before ∧
+                Yulang.GeneralNominalSaturationState.Generated before.core.erased.current root
+                    effect.plan.packet.site.occurrence ∧
+                  Yulang.GeneralNominalVersionedMixedKernel234.Installable registry before effect ∧
+                    ¬Yulang.GeneralNominalVersionedMixedKernel234.Committed before effect.plan ∧ plan = effect.plan
+@Yulang.GeneralRebaseRegisteredOwners263.source_initial_empty : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    start.plans = []
+@Yulang.GeneralRebaseRegisteredOwners263.source_finite_keys : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ keys,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+            state →
+          ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+            plan ∈ state.plans → Yulang.GeneralRebaseRegisteredOwners263.key plan ∈ keys
+@Yulang.GeneralRebaseRegisteredOwners263.selected : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalVersionedJournal232.State roles → List Nat
+@Yulang.GeneralRebaseRegisteredOwners263.source_finite_codes : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ owners,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+            state →
+          ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+            plan ∈ state.plans → Yulang.GeneralRebaseRegisteredOwners263.code plan ∈ owners
+@Yulang.GeneralRebaseRegisteredOwners263.source_selection_covered : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ owners,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+            state →
+          Yulang.GeneralRebaseRegisteredOwners263.selected state ⊆ owners
+@Yulang.GeneralRebaseMultiTrace263.to_runs : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles))
+  {history : List (Yulang.GeneralRebaseMultiTrace263.Event roles)}
+  {before after : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool},
+  Yulang.GeneralRebaseMultiTrace263.Trace owners representative pool inspect select history before after →
+    Yulang.GeneralRebaseBudget258.Runs
+      (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) history.length before
+      after
+@Yulang.GeneralRebaseMultiTrace263.models_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  Yulang.GeneralRebaseMultiObserver263.Listed owners representative pool select →
+    Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool select →
+      Yulang.GeneralRebaseMultiObserver263.BaseCompatible base owners representative pool select →
+        (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+            Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+          ∀ {history : List (Yulang.GeneralRebaseMultiTrace263.Event roles)}
+            {before after : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool},
+            Yulang.GeneralRebaseMultiTrace263.Trace owners representative pool inspect select history before after →
+              ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralRebaseOwnerTable263.Models base owners representative after assignment ↔
+                  Yulang.GeneralRebaseOwnerTable263.Models base owners representative before assignment ∧
+                    ∀ (event : Yulang.GeneralRebaseMultiTrace263.Event roles),
+                      event ∈ history →
+                        Yulang.GeneralNominalVersionedEffects231.ClassEffects event.source event.selected.root
+                          event.selected.plan assignment
+@Yulang.GeneralRebaseMultiTrace263.from_checked : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles))
+  {states :
+    List (Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))}
+  {before after :
+    Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)},
+  Yulang.GeneralRebaseValidatedDriver263.Trace
+      (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select)
+      (Yulang.GeneralRebaseMultiRun263.validate owners representative pool inspect select) states before after →
+    ∃ events,
+      events.length = states.length ∧
+        Yulang.GeneralRebaseMultiTrace263.Trace owners representative pool inspect select events before after ∧
+          ∀ (event : Yulang.GeneralRebaseMultiTrace263.Event roles),
+            event ∈ events →
+              Yulang.GeneralNominalCenteredHeadMatEffects.Ready event.source event.selected.root event.selected.plan
+@Yulang.GeneralRebaseMultiTrace263.certificate : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  Yulang.GeneralRebaseMultiObserver263.Listed owners representative pool select →
+    Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool select →
+      Yulang.GeneralRebaseMultiObserver263.BaseCompatible base owners representative pool select →
+        (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+            Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+          ∀ (before after : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+            Yulang.GeneralRebaseMultiRun263.run owners representative pool inspect select before = Except.ok after →
+              ∃ states events,
+                Yulang.GeneralRebaseValidatedDriver263.Trace
+                    (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select)
+                    (Yulang.GeneralRebaseMultiRun263.validate owners representative pool inspect select) states before
+                    after ∧
+                  Yulang.GeneralRebaseMultiTrace263.Trace owners representative pool inspect select events before
+                      after ∧
+                    events.length = states.length ∧
+                      events.length ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                        (∀ (event : Yulang.GeneralRebaseMultiTrace263.Event roles),
+                            event ∈ events →
+                              Yulang.GeneralNominalCenteredHeadMatEffects.Ready event.source event.selected.root
+                                event.selected.plan) ∧
+                          Yulang.GeneralRebaseMultiSelection263.Ready (inspect after) (select after) ∧
+                            (∀
+                                (next :
+                                  Yulang.GeneralRebaseStep258.State
+                                    (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+                                ¬Yulang.GeneralRebaseStep258.Step
+                                    (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect
+                                      select)
+                                    after next) ∧
+                              ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                                Yulang.GeneralRebaseOwnerTable263.Models base owners representative after assignment ↔
+                                  Yulang.GeneralRebaseOwnerTable263.Models base owners representative before
+                                      assignment ∧
+                                    ∀ (event : Yulang.GeneralRebaseMultiTrace263.Event roles),
+                                      event ∈ events →
+                                        Yulang.GeneralNominalVersionedEffects231.ClassEffects event.source
+                                          event.selected.root event.selected.plan assignment
+@Yulang.GeneralRebaseMultiSource263.selected : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalVersionedJournal232.State roles → List (Yulang.GeneralRebaseMultiSelection263.Selection roles)
+@Yulang.GeneralRebaseMultiSource263.source_bounds : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+    ∃ owners pool,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root)
+            start state →
+          (∀ (entry : Yulang.GeneralRebaseMultiSelection263.Selection roles),
+              entry ∈ Yulang.GeneralRebaseMultiSource263.selected state → entry.owner ∈ owners) ∧
+            Yulang.GeneralRebaseChildRequestPool262.Covered (Yulang.GeneralNominalVersionedJournal232.State.core state)
+              pool
+@Yulang.GeneralRebaseMultiSource263.source_completion : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+    ∃ owners pool,
+      ∀ (representative : Nat → Yulang.GeneralNominalCenters.Plan roles)
+        (inspect :
+          Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+            Yulang.GeneralNominalVersionedJournal232.State roles),
+        (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+            Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start
+              (inspect state)) →
+          (Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool fun state =>
+              Yulang.GeneralRebaseMultiSource263.selected (inspect state)) →
+            ∀
+              (before :
+                Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+              ∃ after steps,
+                Yulang.GeneralRebaseSettle259.settle
+                      (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool
+                        (fun state => (inspect state).core) fun state =>
+                        Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                      before =
+                    Except.ok after ∧
+                  Yulang.GeneralRebaseBudget258.Runs
+                      (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool
+                        (fun state => (inspect state).core) fun state =>
+                        Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                      steps before after ∧
+                    steps ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                      ∀
+                        (next :
+                          Yulang.GeneralRebaseStep258.State
+                            (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+                        ¬Yulang.GeneralRebaseStep258.Step
+                            (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool
+                              (fun state => (inspect state).core) fun state =>
+                              Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                            after next
+@Yulang.GeneralRebaseMultiSource263.source_certificate : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+    ∃ owners pool,
+      ∀ (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop)
+        (representative : Nat → Yulang.GeneralNominalCenters.Plan roles)
+        (inspect :
+          Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+            Yulang.GeneralNominalVersionedJournal232.State roles),
+        (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+            Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start
+              (inspect state)) →
+          (Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool fun state =>
+              Yulang.GeneralRebaseMultiSource263.selected (inspect state)) →
+            (Yulang.GeneralRebaseMultiObserver263.BaseCompatible base owners representative pool fun state =>
+                Yulang.GeneralRebaseMultiSource263.selected (inspect state)) →
+              ∀
+                (before after :
+                  Yulang.GeneralRebaseStep258.State
+                    (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+                Yulang.GeneralRebaseMultiRun263.run owners representative pool (fun state => (inspect state).core)
+                      (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) before =
+                    Except.ok after →
+                  ∃ events,
+                    Yulang.GeneralRebaseMultiTrace263.Trace owners representative pool
+                        (fun state => (inspect state).core)
+                        (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) events before after ∧
+                      events.length ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                        (∀ (event : Yulang.GeneralRebaseMultiTrace263.Event roles),
+                            event ∈ events →
+                              Yulang.GeneralNominalCenteredHeadMatEffects.Ready event.source event.selected.root
+                                event.selected.plan) ∧
+                          Yulang.GeneralRebaseMultiSelection263.Ready (inspect after).core
+                              (Yulang.GeneralRebaseMultiSource263.selected (inspect after)) ∧
+                            (∀
+                                (next :
+                                  Yulang.GeneralRebaseStep258.State
+                                    (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+                                ¬Yulang.GeneralRebaseStep258.Step
+                                    (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool
+                                      (fun state => (inspect state).core) fun state =>
+                                      Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                                    after next) ∧
+                              ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                                Yulang.GeneralRebaseOwnerTable263.Models base owners representative after assignment ↔
+                                  Yulang.GeneralRebaseOwnerTable263.Models base owners representative before
+                                      assignment ∧
+                                    ∀ (event : Yulang.GeneralRebaseMultiTrace263.Event roles),
+                                      event ∈ events →
+                                        Yulang.GeneralNominalVersionedEffects231.ClassEffects event.source
+                                          event.selected.root event.selected.plan assignment
+@Yulang.GeneralRebaseNormalizedExamples263.shadow_body : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Layout first last →
+    ∀ (target : Nat),
+      Yulang.GeneralNominalVersionedEffects231.BodyHolds first target assignment
+          (Yulang.GeneralDictionaryAssociatedProvenance.Body.explicit
+            Yulang.GeneralDictionaryDefault214ActualShadowRegression.equation) ↔
+        Yulang.GeneralNominalVersionedEffects231.BodyHolds last target assignment
+          (Yulang.GeneralDictionaryAssociatedProvenance.Body.explicit
+            Yulang.GeneralDictionaryDefault214ActualShadowRegression.equation)
+Yulang.GeneralRebaseNormalizedExamples263.shadow_boundary : 77 ∈
+    Yulang.GeneralNominalCenteredHeadMatExtension.names
+      Yulang.GeneralDictionaryDefault214ActualShadowRegression.expression ∧
+  ¬77 ∈
+      (Yulang.GeneralDeclarationPatterns.normalize
+          Yulang.GeneralDictionaryDefault214ActualShadowRegression.pattern).variables
+Yulang.GeneralRebaseNormalizedExamples263.actual_head_support : Yulang.GeneralRebaseNormalizedBody263.Compatible
+  Yulang.GeneralDictionaryOutputDepth252.plan Yulang.GeneralDictionaryOutputDepth252.plan
+  Yulang.GeneralDictionaryOutputDepth252.model
+Yulang.GeneralRebaseNormalizedExamples263.normalized_variable_used : 0 ∈
+  (Yulang.GeneralDeclarationPatterns.normalize Yulang.GeneralDictionaryOutputDepth252.template).variables
+@Yulang.GeneralRebaseRegisteredPlan263.metadata : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+      (Yulang.GeneralNominalVersionedJournal232.initial context root) state →
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ state.plans → Yulang.GeneralRebaseRegisteredPlan263.Metadata registry context plan
+@Yulang.GeneralRebaseRegisteredPlan263.inputs : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models state assignment →
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ state.plans → Yulang.GeneralNominalVersionedPlans231.Inputs plan assignment
+@Yulang.GeneralRebaseRegisteredPlan263.layout : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context) (first last : Yulang.GeneralNominalCenters.Plan roles),
+      Yulang.GeneralRebaseRegisteredPlan263.Metadata registry context first →
+        Yulang.GeneralRebaseRegisteredPlan263.Metadata registry context last →
+          first.packet.declaration.id = last.packet.declaration.id →
+            Yulang.GeneralRebasePlanSemantic262.Layout first last
+@Yulang.GeneralRebaseRegisteredPlan263.compatible : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+          (Yulang.GeneralNominalVersionedJournal232.initial context root) before →
+        Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+            (Yulang.GeneralNominalVersionedJournal232.initial context root) after →
+          ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+            first ∈ before.plans →
+              last ∈ after.plans →
+                first.packet.site.occurrence.identity = last.packet.site.occurrence.identity →
+                  first.packet.declaration.id = last.packet.declaration.id →
+                    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralNominalVersionedJournal232.Models before assignment →
+                        Yulang.GeneralNominalVersionedJournal232.Models after assignment →
+                          (∀ (index : Nat),
+                              Yulang.CommonNominalFullCarrier.Equivalent
+                                (assignment ((List.ofFn first.input.center)[index]?.getD 0)).fst
+                                (assignment ((List.ofFn last.input.center)[index]?.getD 0)).fst) →
+                            Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+@Yulang.GeneralRebaseRegisteredPlan263.source_compatible : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (start before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root)
+            start before →
+          Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start after →
+            ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+              first ∈ before.plans →
+                last ∈ after.plans →
+                  (first.packet.site.occurrence.identity, first.packet.declaration.id) =
+                      (last.packet.site.occurrence.identity, last.packet.declaration.id) →
+                    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralNominalVersionedJournal232.Models before assignment →
+                        Yulang.GeneralNominalVersionedJournal232.Models after assignment →
+                          (∀ (index : Nat),
+                              Yulang.CommonNominalFullCarrier.Equivalent
+                                (assignment ((List.ofFn first.input.center)[index]?.getD 0)).fst
+                                (assignment ((List.ofFn last.input.center)[index]?.getD 0)).fst) →
+                            Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+@Yulang.GeneralRebaseRegisteredPlan263.source_layout : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (start before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root)
+            start before →
+          Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start after →
+            ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+              first ∈ before.plans →
+                last ∈ after.plans →
+                  (first.packet.site.occurrence.identity, first.packet.declaration.id) =
+                      (last.packet.site.occurrence.identity, last.packet.declaration.id) →
+                    Yulang.GeneralRebasePlanSemantic262.Layout first last
+@Yulang.GeneralRebaseRegisteredSites263.inputs : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+      (Yulang.GeneralNominalVersionedJournal232.initial context root) state →
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles), plan ∈ state.plans → plan.input ∈ state.core.sites
+@Yulang.GeneralRebaseRegisteredSites263.origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+      (Yulang.GeneralNominalVersionedJournal232.initial context root) state →
+    ∀ (site : Yulang.GeneralNominalCenters.Site roles),
+      site ∈ state.core.sites →
+        site = Yulang.GeneralNominalCenters.rootSite context.state.seed root ∨
+          ∃ plan, plan ∈ state.plans ∧ site ∈ Yulang.GeneralNominalVersionedChildren232.emitted plan
+@Yulang.GeneralRebaseRegisteredSites263.above_root : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+      (Yulang.GeneralNominalVersionedJournal232.initial context root) state →
+    ∀ (site : Yulang.GeneralNominalCenters.Site roles),
+      site ∈ state.core.sites → root.identity ≤ site.occurrence.identity
+@Yulang.GeneralRebaseRegisteredSites263.emitted_above_root : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+      (Yulang.GeneralNominalVersionedJournal232.initial context root) state →
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ state.plans →
+        ∀ (site : Yulang.GeneralNominalCenters.Site roles),
+          site ∈ Yulang.GeneralNominalVersionedChildren232.emitted plan → root.identity < site.occurrence.identity
+@Yulang.GeneralRebaseSourceCenters263.Heads : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalVersionedJournal232.State roles → Yulang.GeneralNominalCommonBridge.Assignment → Prop
+@Yulang.GeneralRebaseSourceCenters263.heads : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models state assignment →
+    Yulang.GeneralRebaseSourceCenters263.Heads state assignment
+@Yulang.GeneralRebaseSourceCenters263.Centers : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCommonBridge.Assignment →
+    Yulang.GeneralNominalCenters.Site roles → Yulang.GeneralNominalCenters.Site roles → Prop
+@Yulang.GeneralRebaseSourceCenters263.self : ∀ {roles : Yulang.Roles.RoleDecls}
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (site : Yulang.GeneralNominalCenters.Site roles),
+  Yulang.GeneralRebaseSourceCenters263.Centers assignment site site
+@Yulang.GeneralRebaseSourceCenters263.child_centers : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles),
+  first.packet.context.state.seed = last.packet.context.state.seed →
+    first.packet.site.occurrence.identity = last.packet.site.occurrence.identity →
+      first.packet.declaration = last.packet.declaration →
+        ∀ (clause : Yulang.GeneralDeclarations.Clause),
+          clause ∈ first.packet.declaration.requirements →
+            ∀ (signature : Yulang.GeneralDeclarations.Clause.Signature roles clause)
+              (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+              (∀ (name : Nat),
+                  name ∈ first.packet.declaration.inputNames →
+                    Yulang.CommonNominalFullCarrier.Equivalent (assignment (first.binder name)).fst
+                      (assignment (last.binder name)).fst) →
+                Yulang.GeneralRebaseSourceCenters263.Centers assignment
+                  (Yulang.GeneralNominalVersionedFrame231.childSite first clause signature)
+                  (Yulang.GeneralNominalVersionedFrame231.childSite last clause signature)
+@Yulang.GeneralRebaseSourceCenters263.centers_from_heads : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+          (Yulang.GeneralNominalVersionedJournal232.initial context root) before →
+        Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+            (Yulang.GeneralNominalVersionedJournal232.initial context root) after →
+          ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralRebaseSourceCenters263.Heads before assignment →
+              Yulang.GeneralRebaseSourceCenters263.Heads after assignment →
+                ∀ (first last : Yulang.GeneralNominalCenters.Site roles),
+                  first ∈ before.core.sites →
+                    last ∈ after.core.sites →
+                      first.occurrence.identity = last.occurrence.identity →
+                        Yulang.GeneralRebaseSourceCenters263.Centers assignment first last
+@Yulang.GeneralRebaseSourceCenters263.compatible : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+          (Yulang.GeneralNominalVersionedJournal232.initial context root) before →
+        Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+            (Yulang.GeneralNominalVersionedJournal232.initial context root) after →
+          ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+            first ∈ before.plans →
+              last ∈ after.plans →
+                (first.packet.site.occurrence.identity, first.packet.declaration.id) =
+                    (last.packet.site.occurrence.identity, last.packet.declaration.id) →
+                  ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalVersionedJournal232.Models before assignment →
+                      Yulang.GeneralNominalVersionedJournal232.Models after assignment →
+                        Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+@Yulang.GeneralRebaseSourceCenters263.source_compatible : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (start before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root)
+            start before →
+          Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start after →
+            ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+              first ∈ before.plans →
+                last ∈ after.plans →
+                  (first.packet.site.occurrence.identity, first.packet.declaration.id) =
+                      (last.packet.site.occurrence.identity, last.packet.declaration.id) →
+                    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralNominalVersionedJournal232.Models before assignment →
+                        Yulang.GeneralNominalVersionedJournal232.Models after assignment →
+                          Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+@Yulang.GeneralRebaseSourceCenters263.compatible_from_heads : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+          (Yulang.GeneralNominalVersionedJournal232.initial context root) before →
+        Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+            (Yulang.GeneralNominalVersionedJournal232.initial context root) after →
+          ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+            first ∈ before.plans →
+              last ∈ after.plans →
+                (first.packet.site.occurrence.identity, first.packet.declaration.id) =
+                    (last.packet.site.occurrence.identity, last.packet.declaration.id) →
+                  ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralRebaseSourceCenters263.Heads before assignment →
+                      Yulang.GeneralRebaseSourceCenters263.Heads after assignment →
+                        Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+@Yulang.GeneralRebaseSourceCenters263.source_compatible_from_heads : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (start before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root)
+            start before →
+          Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start after →
+            ∀ (first last : Yulang.GeneralNominalCenters.Plan roles),
+              first ∈ before.plans →
+                last ∈ after.plans →
+                  (first.packet.site.occurrence.identity, first.packet.declaration.id) =
+                      (last.packet.site.occurrence.identity, last.packet.declaration.id) →
+                    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralRebaseSourceCenters263.Heads before assignment →
+                        Yulang.GeneralRebaseSourceCenters263.Heads after assignment →
+                          Yulang.GeneralRebaseNormalizedBody263.Compatible first last assignment
+@Yulang.GeneralRebaseSourceCenters263.centers : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralDeclarations.Checked registry →
+    ∀ (context : Yulang.GeneralNominalCandidates.Context) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (before after : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+          (Yulang.GeneralNominalVersionedJournal232.initial context root) before →
+        Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+            (Yulang.GeneralNominalVersionedJournal232.initial context root) after →
+          ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralNominalVersionedJournal232.Models before assignment →
+              Yulang.GeneralNominalVersionedJournal232.Models after assignment →
+                ∀ (first last : Yulang.GeneralNominalCenters.Site roles),
+                  first ∈ before.core.sites →
+                    last ∈ after.core.sites →
+                      first.occurrence.identity = last.occurrence.identity →
+                        Yulang.GeneralRebaseSourceCenters263.Centers assignment first last
+Yulang.GeneralRebaseUniversalBasis263.bodyKey : Nat →
+  Yulang.GeneralSourceState.Output → Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseUniversalBasis263.ownerFacts : Nat →
+  List Yulang.GeneralSourceState.Output → List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseUniversalBasis263.basis : List Nat →
+  List Yulang.GeneralSourceState.Output → List Yulang.GeneralRebaseStep258.Fact
+@Yulang.GeneralRebaseUniversalBasis263.body_key_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (output : Yulang.GeneralSourceState.Output)
+  (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralRebaseBodyTable261.keys plan owner output →
+    fact = Yulang.GeneralRebaseUniversalBasis263.bodyKey owner output
+@Yulang.GeneralRebaseUniversalBasis263.table_covered : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (outputs pool : List Yulang.GeneralSourceState.Output),
+  (∀ (output : Yulang.GeneralSourceState.Output), output ∈ outputs → output ∈ pool) →
+    Yulang.GeneralRebaseStableClass261.facts plan owner outputs ⊆
+      Yulang.GeneralRebaseUniversalBasis263.ownerFacts owner pool
+@Yulang.GeneralRebaseUniversalBasis263.proposal_covered : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat),
+  owner ∈ owners →
+    ∀ (outputs : List Yulang.GeneralSourceState.Output),
+      (∀ (output : Yulang.GeneralSourceState.Output), output ∈ outputs → output ∈ pool) →
+        Yulang.GeneralRebaseStableClass261.facts plan owner outputs ⊆
+          Yulang.GeneralRebaseUniversalBasis263.basis owners pool
+Yulang.GeneralRebaseUniversalBasis263.owner_bound : ∀ (owner : Nat) (pool : List Yulang.GeneralSourceState.Output),
+  (Yulang.GeneralRebaseUniversalBasis263.ownerFacts owner pool).length ≤ pool.length + pool.length * pool.length
+Yulang.GeneralRebaseUniversalBasis263.basis_bound : ∀ (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output),
+  (Yulang.GeneralRebaseUniversalBasis263.basis owners pool).length ≤
+    owners.length * (pool.length + pool.length * pool.length)
+Yulang.GeneralRebaseUniversalBasis263.run_bound : ∀ (owners : List Nat) (pool : List Yulang.GeneralSourceState.Output)
+  (observe : Yulang.GeneralRebaseStep258.Observer (Yulang.GeneralRebaseUniversalBasis263.basis owners pool))
+  {steps : Nat}
+  {before after : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseUniversalBasis263.basis owners pool)},
+  Yulang.GeneralRebaseBudget258.Runs observe steps before after →
+    steps ≤ owners.length * (pool.length + pool.length * pool.length)
+Yulang.GeneralRebaseUniversalObserver263.Current : List Nat → List Yulang.GeneralSourceState.Output → Type
+@Yulang.GeneralRebaseUniversalObserver263.observe : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (pool : List Yulang.GeneralSourceState.Output) →
+      (Yulang.GeneralRebaseUniversalObserver263.Current owners pool → Yulang.GeneralNominalCenteredSteps.State roles) →
+        (Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+            List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+          Yulang.GeneralRebaseStep258.Observer (Yulang.GeneralRebaseUniversalBasis263.basis owners pool)
+@Yulang.GeneralRebaseUniversalObserver263.validate : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (pool : List Yulang.GeneralSourceState.Output) →
+      (Yulang.GeneralRebaseUniversalObserver263.Current owners pool → Yulang.GeneralNominalCenteredSteps.State roles) →
+        (Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+            List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+          Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+            Except (Yulang.GeneralRebaseMultiSelection263.Diagnostic roles) Unit
+@Yulang.GeneralRebaseUniversalObserver263.run : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (pool : List Yulang.GeneralSourceState.Output) →
+      (Yulang.GeneralRebaseUniversalObserver263.Current owners pool → Yulang.GeneralNominalCenteredSteps.State roles) →
+        (Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+            List (Yulang.GeneralRebaseMultiSelection263.Selection roles)) →
+          Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseUniversalBasis263.basis owners pool) →
+            Except
+              (Yulang.GeneralRebaseValidatedDriver263.Failure (Yulang.GeneralRebaseMultiSelection263.Diagnostic roles))
+              (Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseUniversalBasis263.basis owners pool))
+@Yulang.GeneralRebaseUniversalObserver263.closed : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseUniversalObserver263.Current owners pool → Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  (∀ (state : Yulang.GeneralRebaseUniversalObserver263.Current owners pool)
+      (entry : Yulang.GeneralRebaseMultiSelection263.Selection roles), entry ∈ select state → entry.owner ∈ owners) →
+    (∀ (state : Yulang.GeneralRebaseUniversalObserver263.Current owners pool),
+        Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+      Yulang.GeneralRebaseClosedObserver259.Closed
+        (Yulang.GeneralRebaseUniversalObserver263.observe owners pool inspect select)
+@Yulang.GeneralRebaseUniversalObserver263.certificate : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseUniversalObserver263.Current owners pool → Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles))
+  (before after : Yulang.GeneralRebaseUniversalObserver263.Current owners pool),
+  Yulang.GeneralRebaseUniversalObserver263.run owners pool inspect select before = Except.ok after →
+    ∃ history,
+      Yulang.GeneralRebaseValidatedDriver263.Trace
+          (Yulang.GeneralRebaseUniversalObserver263.observe owners pool inspect select)
+          (Yulang.GeneralRebaseUniversalObserver263.validate owners pool inspect select) history before after ∧
+        Yulang.GeneralRebaseBudget258.Runs (Yulang.GeneralRebaseUniversalObserver263.observe owners pool inspect select)
+            history.length before after ∧
+          history.length ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+            (∀ (state : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseUniversalBasis263.basis owners pool)),
+                state ∈ history → Yulang.GeneralRebaseMultiSelection263.Ready (inspect state) (select state)) ∧
+              Yulang.GeneralRebaseMultiSelection263.Ready (inspect after) (select after) ∧
+                ∀ (next : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseUniversalBasis263.basis owners pool)),
+                  ¬Yulang.GeneralRebaseStep258.Step
+                      (Yulang.GeneralRebaseUniversalObserver263.observe owners pool inspect select) after next
+@Yulang.GeneralRebaseUniversalObserver263.outcome : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseUniversalObserver263.Current owners pool → Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles)),
+  (∀ (state : Yulang.GeneralRebaseUniversalObserver263.Current owners pool)
+      (entry : Yulang.GeneralRebaseMultiSelection263.Selection roles), entry ∈ select state → entry.owner ∈ owners) →
+    (∀ (state : Yulang.GeneralRebaseUniversalObserver263.Current owners pool),
+        Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+      ∀ (before : Yulang.GeneralRebaseUniversalObserver263.Current owners pool),
+        (∃ after history,
+            Yulang.GeneralRebaseUniversalObserver263.run owners pool inspect select before = Except.ok after ∧
+              Yulang.GeneralRebaseValidatedDriver263.Trace
+                  (Yulang.GeneralRebaseUniversalObserver263.observe owners pool inspect select)
+                  (Yulang.GeneralRebaseUniversalObserver263.validate owners pool inspect select) history before after ∧
+                history.length ≤ owners.length * (pool.length + pool.length * pool.length)) ∨
+          ∃ reason current steps,
+            Yulang.GeneralRebaseUniversalObserver263.run owners pool inspect select before =
+                Except.error (Yulang.GeneralRebaseValidatedDriver263.Failure.validation reason) ∧
+              Yulang.GeneralRebaseBudget258.Runs
+                  (Yulang.GeneralRebaseUniversalObserver263.observe owners pool inspect select) steps before current ∧
+                steps ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                  reason.selected ∈ select current ∧
+                    Yulang.GeneralRebaseClassCheck261.check reason.selected.plan
+                        (Yulang.GeneralRebaseMultiSelection263.requests (inspect current) reason.selected) =
+                      Except.error reason.reason
+@Yulang.GeneralRebaseUniversalSource263.source_closed : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+    ∃ owners pool,
+      ∀
+        (inspect :
+          Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+            Yulang.GeneralNominalVersionedJournal232.State roles),
+        (∀ (state : Yulang.GeneralRebaseUniversalObserver263.Current owners pool),
+            Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start
+              (inspect state)) →
+          Yulang.GeneralRebaseClosedObserver259.Closed
+            (Yulang.GeneralRebaseUniversalObserver263.observe owners pool (fun state => (inspect state).core)
+              fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+@Yulang.GeneralRebaseUniversalSource263.source_outcome : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+    ∃ owners pool,
+      ∀
+        (inspect :
+          Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+            Yulang.GeneralNominalVersionedJournal232.State roles),
+        (∀ (state : Yulang.GeneralRebaseUniversalObserver263.Current owners pool),
+            Yulang.B4Target.Steps
+              ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start
+              (inspect state)) →
+          ∀ (before : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseUniversalBasis263.basis owners pool)),
+            (∃ after history,
+                Yulang.GeneralRebaseUniversalObserver263.run owners pool (fun state => (inspect state).core)
+                      (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) before =
+                    Except.ok after ∧
+                  Yulang.GeneralRebaseValidatedDriver263.Trace
+                      (Yulang.GeneralRebaseUniversalObserver263.observe owners pool (fun state => (inspect state).core)
+                        fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                      (Yulang.GeneralRebaseUniversalObserver263.validate owners pool (fun state => (inspect state).core)
+                        fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                      history before after ∧
+                    history.length ≤ owners.length * (pool.length + pool.length * pool.length)) ∨
+              ∃ reason current steps,
+                Yulang.GeneralRebaseUniversalObserver263.run owners pool (fun state => (inspect state).core)
+                      (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) before =
+                    Except.error (Yulang.GeneralRebaseValidatedDriver263.Failure.validation reason) ∧
+                  Yulang.GeneralRebaseBudget258.Runs
+                      (Yulang.GeneralRebaseUniversalObserver263.observe owners pool (fun state => (inspect state).core)
+                        fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                      steps before current ∧
+                    steps ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                      reason.selected ∈ Yulang.GeneralRebaseMultiSource263.selected (inspect current) ∧
+                        Yulang.GeneralRebaseClassCheck261.check reason.selected.plan
+                            (Yulang.GeneralRebaseMultiSelection263.requests (inspect current).core reason.selected) =
+                          Except.error reason.reason
+Yulang.GeneralRebaseTwoOwnerRegression263.firstPlan : Yulang.GeneralNominalCenters.Plan
+  Yulang.GeneralNominalCenteredHeadAllocMergeSource.roles
+Yulang.GeneralRebaseTwoOwnerRegression263.lastPacket : Yulang.GeneralNominalSaturationState.Packet
+  Yulang.GeneralNominalCenteredHeadAllocMergeSource.roles
+Yulang.GeneralRebaseTwoOwnerRegression263.lastPlan : Yulang.GeneralNominalCenters.Plan
+  Yulang.GeneralNominalCenteredHeadAllocMergeSource.roles
+Yulang.GeneralRebaseTwoOwnerRegression263.first : Yulang.GeneralRebaseMultiSelection263.Selection
+  Yulang.GeneralNominalCenteredHeadAllocMergeSource.roles
+Yulang.GeneralRebaseTwoOwnerRegression263.last : Yulang.GeneralRebaseMultiSelection263.Selection
+  Yulang.GeneralNominalCenteredHeadAllocMergeSource.roles
+Yulang.GeneralRebaseTwoOwnerRegression263.owners_distinct : Yulang.GeneralRebaseTwoOwnerRegression263.first.owner ≠
+  Yulang.GeneralRebaseTwoOwnerRegression263.last.owner
+Yulang.GeneralRebaseTwoOwnerRegression263.owners : List Nat
+Yulang.GeneralRebaseTwoOwnerRegression263.representative : Nat →
+  Yulang.GeneralNominalCenters.Plan Yulang.GeneralNominalCenteredHeadAllocMergeSource.roles
+Yulang.GeneralRebaseTwoOwnerRegression263.rep_first : Yulang.GeneralRebaseTwoOwnerRegression263.representative
+    Yulang.GeneralRebaseTwoOwnerRegression263.first.owner =
+  Yulang.GeneralRebaseTwoOwnerRegression263.firstPlan
+Yulang.GeneralRebaseTwoOwnerRegression263.rep_last : Yulang.GeneralRebaseTwoOwnerRegression263.representative
+    Yulang.GeneralRebaseTwoOwnerRegression263.last.owner =
+  Yulang.GeneralRebaseTwoOwnerRegression263.lastPlan
+Yulang.GeneralRebaseTwoOwnerRegression263.pool : List Yulang.GeneralSourceState.Output
+Yulang.GeneralRebaseTwoOwnerRegression263.Current : Type
+Yulang.GeneralRebaseTwoOwnerRegression263.inspect : Yulang.GeneralRebaseTwoOwnerRegression263.Current →
+  Yulang.GeneralNominalCenteredSteps.State Yulang.GeneralNominalCenteredHeadAllocMergeSource.roles
+Yulang.GeneralRebaseTwoOwnerRegression263.select : Yulang.GeneralRebaseTwoOwnerRegression263.Current →
+  List (Yulang.GeneralRebaseMultiSelection263.Selection Yulang.GeneralNominalCenteredHeadAllocMergeSource.roles)
+Yulang.GeneralRebaseTwoOwnerRegression263.observe : Yulang.GeneralRebaseStep258.Observer
+  (Yulang.GeneralRebaseOwnerTable263.basis Yulang.GeneralRebaseTwoOwnerRegression263.owners
+    Yulang.GeneralRebaseTwoOwnerRegression263.representative Yulang.GeneralRebaseTwoOwnerRegression263.pool)
+Yulang.GeneralRebaseTwoOwnerRegression263.p : List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseTwoOwnerRegression263.q : List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseTwoOwnerRegression263.first_requests : Yulang.GeneralRebaseMultiSelection263.requests
+    (Yulang.GeneralNominalCenteredHeadAllocMergeState.stage []).core Yulang.GeneralRebaseTwoOwnerRegression263.first =
+  Yulang.GeneralRebaseMergeRequests261.outputs
+Yulang.GeneralRebaseTwoOwnerRegression263.last_requests : Yulang.GeneralRebaseMultiSelection263.requests
+    (Yulang.GeneralNominalCenteredHeadAllocMergeState.stage []).core Yulang.GeneralRebaseTwoOwnerRegression263.last =
+  Yulang.GeneralRebaseMergeRequests261.outputs
+Yulang.GeneralRebaseTwoOwnerRegression263.observed : ∀ (state : Yulang.GeneralRebaseTwoOwnerRegression263.Current),
+  Yulang.GeneralRebaseTwoOwnerRegression263.observe state =
+    [Yulang.GeneralRebaseTwoOwnerRegression263.p, Yulang.GeneralRebaseTwoOwnerRegression263.q]
+Yulang.GeneralRebaseTwoOwnerRegression263.basis_exact : Yulang.GeneralRebaseOwnerTable263.basis
+    Yulang.GeneralRebaseTwoOwnerRegression263.owners Yulang.GeneralRebaseTwoOwnerRegression263.representative
+    Yulang.GeneralRebaseTwoOwnerRegression263.pool =
+  Yulang.GeneralRebaseTwoOwnerRegression263.p ++ Yulang.GeneralRebaseTwoOwnerRegression263.q
+Yulang.GeneralRebaseTwoOwnerRegression263.disjoint : ∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+  ¬(fact ∈ Yulang.GeneralRebaseTwoOwnerRegression263.p ∧ fact ∈ Yulang.GeneralRebaseTwoOwnerRegression263.q)
+Yulang.GeneralRebaseTwoOwnerRegression263.p_nonempty : Yulang.GeneralRebaseTwoOwnerRegression263.p ≠ []
+Yulang.GeneralRebaseTwoOwnerRegression263.q_nonempty : Yulang.GeneralRebaseTwoOwnerRegression263.q ≠ []
+Yulang.GeneralRebaseTwoOwnerRegression263.checked : ∀ (state : Yulang.GeneralRebaseTwoOwnerRegression263.Current),
+  Yulang.GeneralRebaseMultiRun263.validate Yulang.GeneralRebaseTwoOwnerRegression263.owners
+      Yulang.GeneralRebaseTwoOwnerRegression263.representative Yulang.GeneralRebaseTwoOwnerRegression263.pool
+      Yulang.GeneralRebaseTwoOwnerRegression263.inspect Yulang.GeneralRebaseTwoOwnerRegression263.select state =
+    Except.ok ()
+Yulang.GeneralRebaseTwoOwnerRegression263.start : Yulang.GeneralRebaseTwoOwnerRegression263.Current
+Yulang.GeneralRebaseTwoOwnerRegression263.middle : Yulang.GeneralRebaseTwoOwnerRegression263.Current
+Yulang.GeneralRebaseTwoOwnerRegression263.finish : Yulang.GeneralRebaseTwoOwnerRegression263.Current
+Yulang.GeneralRebaseTwoOwnerRegression263.middle_remaining : Yulang.GeneralRebaseTwoOwnerRegression263.middle.remaining =
+  Yulang.GeneralRebaseTwoOwnerRegression263.q
+Yulang.GeneralRebaseTwoOwnerRegression263.finish_remaining : Yulang.GeneralRebaseTwoOwnerRegression263.finish.remaining =
+  []
+Yulang.GeneralRebaseTwoOwnerRegression263.first_progress : Yulang.GeneralRebaseTwoOwnerRegression263.middle.remaining ≠
+  Yulang.GeneralRebaseTwoOwnerRegression263.start.remaining
+Yulang.GeneralRebaseTwoOwnerRegression263.last_progress : Yulang.GeneralRebaseTwoOwnerRegression263.finish.remaining ≠
+  Yulang.GeneralRebaseTwoOwnerRegression263.middle.remaining
+Yulang.GeneralRebaseTwoOwnerRegression263.first_advance : Yulang.GeneralRebaseScheduler259.next
+    Yulang.GeneralRebaseTwoOwnerRegression263.observe Yulang.GeneralRebaseTwoOwnerRegression263.start =
+  Except.ok (some Yulang.GeneralRebaseTwoOwnerRegression263.middle)
+Yulang.GeneralRebaseTwoOwnerRegression263.last_advance : Yulang.GeneralRebaseScheduler259.next
+    Yulang.GeneralRebaseTwoOwnerRegression263.observe Yulang.GeneralRebaseTwoOwnerRegression263.middle =
+  Except.ok (some Yulang.GeneralRebaseTwoOwnerRegression263.finish)
+Yulang.GeneralRebaseTwoOwnerRegression263.terminal : Yulang.GeneralRebaseScheduler259.next
+    Yulang.GeneralRebaseTwoOwnerRegression263.observe Yulang.GeneralRebaseTwoOwnerRegression263.finish =
+  Except.ok none
+Yulang.GeneralRebaseTwoOwnerRegression263.checked_trace : Yulang.GeneralRebaseValidatedDriver263.Trace
+  Yulang.GeneralRebaseTwoOwnerRegression263.observe
+  (Yulang.GeneralRebaseMultiRun263.validate Yulang.GeneralRebaseTwoOwnerRegression263.owners
+    Yulang.GeneralRebaseTwoOwnerRegression263.representative Yulang.GeneralRebaseTwoOwnerRegression263.pool
+    Yulang.GeneralRebaseTwoOwnerRegression263.inspect Yulang.GeneralRebaseTwoOwnerRegression263.select)
+  [Yulang.GeneralRebaseTwoOwnerRegression263.start, Yulang.GeneralRebaseTwoOwnerRegression263.middle]
+  Yulang.GeneralRebaseTwoOwnerRegression263.start Yulang.GeneralRebaseTwoOwnerRegression263.finish
+Yulang.GeneralRebaseTwoOwnerRegression263.run_success : Yulang.GeneralRebaseMultiRun263.run
+    Yulang.GeneralRebaseTwoOwnerRegression263.owners Yulang.GeneralRebaseTwoOwnerRegression263.representative
+    Yulang.GeneralRebaseTwoOwnerRegression263.pool Yulang.GeneralRebaseTwoOwnerRegression263.inspect
+    Yulang.GeneralRebaseTwoOwnerRegression263.select Yulang.GeneralRebaseTwoOwnerRegression263.start =
+  Except.ok Yulang.GeneralRebaseTwoOwnerRegression263.finish
+Yulang.GeneralRebaseTwoOwnerRegression263.exactly_two_writes : Yulang.GeneralRebaseBudget258.Runs
+  Yulang.GeneralRebaseTwoOwnerRegression263.observe 2 Yulang.GeneralRebaseTwoOwnerRegression263.start
+  Yulang.GeneralRebaseTwoOwnerRegression263.finish
+Yulang.GeneralRebaseTwoOwnerRegression263.event_trace : Yulang.GeneralRebaseMultiTrace263.Trace
+  Yulang.GeneralRebaseTwoOwnerRegression263.owners Yulang.GeneralRebaseTwoOwnerRegression263.representative
+  Yulang.GeneralRebaseTwoOwnerRegression263.pool Yulang.GeneralRebaseTwoOwnerRegression263.inspect
+  Yulang.GeneralRebaseTwoOwnerRegression263.select
+  [{ source := (Yulang.GeneralNominalCenteredHeadAllocMergeState.stage []).core,
+      selected := Yulang.GeneralRebaseTwoOwnerRegression263.first },
+    { source := (Yulang.GeneralNominalCenteredHeadAllocMergeState.stage []).core,
+      selected := Yulang.GeneralRebaseTwoOwnerRegression263.last }]
+  Yulang.GeneralRebaseTwoOwnerRegression263.start Yulang.GeneralRebaseTwoOwnerRegression263.finish
+Yulang.GeneralRebaseTwoOwnerRegression263.models_exact : ∀ (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebaseOwnerTable263.Models base Yulang.GeneralRebaseTwoOwnerRegression263.owners
+      Yulang.GeneralRebaseTwoOwnerRegression263.representative Yulang.GeneralRebaseTwoOwnerRegression263.finish
+      assignment ↔
+    base assignment ∧
+      Yulang.GeneralNominalVersionedEffects231.ClassEffects
+          (Yulang.GeneralNominalCenteredHeadAllocMergeState.stage []).core
+          Yulang.GeneralRebaseTwoOwnerRegression263.first.root Yulang.GeneralRebaseTwoOwnerRegression263.first.plan
+          assignment ∧
+        Yulang.GeneralNominalVersionedEffects231.ClassEffects
+          (Yulang.GeneralNominalCenteredHeadAllocMergeState.stage []).core
+          Yulang.GeneralRebaseTwoOwnerRegression263.last.root Yulang.GeneralRebaseTwoOwnerRegression263.last.plan
+          assignment
