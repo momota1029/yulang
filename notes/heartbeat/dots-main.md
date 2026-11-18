@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 251
-- status: running
+- status: completed
 - started: 2026-11-18T00:31:00Z
-- updated: 2026-11-18T00:41:38Z
-- elapsed_min: 10.5
-- activity: Six modules / 55 declarations published9253bc73 with fulltree matched. Mixed-time total packet correctness and independent role expressions; integrating actual stable bounds into head/equation evaluation. No source acceptance claim.
+- updated: 2026-11-18T01:17:00Z
+- elapsed_min: 46.0
+- activity: Verified full remote tree ee297456,28 strict modules/237 audited declarations. I48 termination outlook unresolved; component additions stopped. Source and explicit stopping rationale preserved.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: e19108772
-- resume_hint: Continue cycle251 mixed-time packet compiler from250 actual bounds; preserve old reads separately from new aggregates. Research until01:16, verify/publish/report by01:26UTC. No source Acc claim.
+- last_local_commit: 69ad6c107
+- resume_hint: Read latest integration/inbox and cycle251 I48 termination-gate note. Do not continue packet components; finite source basis, constructor-depth and future public escape remain unproved.
+- report: notes/handoff/dots-cycle-251.md
