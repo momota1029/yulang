@@ -54,3 +54,19 @@ lower0/upper0はsource slot2と内部actual binderとの双方向subtype、binde
 初期は空、finalは全5factなのでraw source∧binder Equivalentになる。
 明示completeが全5factを満たすなら任意中間subsetも満たす。これにより任意有限
 stateの公開射影iff初期sourceを示せるが、239という固定terminal sourceの結果。
+
+## 一般finite-writeの意味保存則
+239のpresent-fact意味付けを任意basis、任意baseモデル述語、任意fact解釈へ分離する。
+固定FactのBoolean等号の正しさを証明した上で、write後presentへの所属は
+「元presentに所属、またはbasisとproposalの双方に所属」と同値になる。
+従ってwrite後Models iff 旧Models ∧ proposal中のbasis内fact全成立。
+これは一般observerの健全性を仮定に隠す定理ではなく、実装したfilter writeの
+正確な意味。言語sourceからbase/fact/observerを導く義務は引き続き別に残る。
+
+## proposal閉包を実行時にも分離する
+一般writeはbasis外factを無視するので、言語compilerを接続する前にchecked commitを
+追加する。proposal中のbasis外factをリストで返し、存在すれば状態を書かない。
+これは内部表現の未支持を報告する結果であり、source programの意味的拒否ではない。
+全factがbasis内なら既存tryWriteを使い、none（既処理）とsome（新install）を分ける。
+I45/239の実decoder proposalは既にfactsとの等号があるので検査を通る。
+この入口上でwrite後Models iff旧Models∧全proposal成立を証明する。

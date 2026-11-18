@@ -15,6 +15,10 @@ import Yulang.GeneralVersionReportProjection259
 import Yulang.GeneralVersionRebaseStep259
 import Yulang.GeneralVersionRebaseModels259
 import Yulang.GeneralVersionRebaseCertificate259
+import Yulang.GeneralRebaseFactSemantics259
+import Yulang.GeneralDictionaryRebaseFacts259
+import Yulang.GeneralRebaseCheckedWrite259
+import Yulang.GeneralRebaseCheckedFixtures259
 
 #print axioms Yulang.GeneralRebaseReportDecoder259.atom
 #print axioms Yulang.GeneralRebaseReportDecoder259.capture
@@ -125,3 +129,36 @@ import Yulang.GeneralVersionRebaseCertificate259
 #print axioms Yulang.GeneralVersionRebaseCertificate259.run_certificate
 #print axioms Yulang.GeneralVersionRebaseCertificate259.completed_round_simulation
 #print axioms Yulang.GeneralVersionRebaseCertificate259.old_novel_new_noop
+#print axioms Yulang.GeneralRebaseFactSemantics259.present_iff
+#print axioms Yulang.GeneralRebaseFactSemantics259.present_write
+#print axioms Yulang.GeneralRebaseFactSemantics259.Models
+#print axioms Yulang.GeneralRebaseFactSemantics259.write_exact
+#print axioms Yulang.GeneralRebaseFactSemantics259.initial_exact
+#print axioms Yulang.GeneralRebaseFactSemantics259.done_exact
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.value
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.factHolds
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.Models
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.initial_exact
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.final_exact
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.prior_final_exact
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.completed
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.public_models
+#print axioms Yulang.GeneralDictionaryRebaseFacts259.write_exact
+#print axioms Yulang.GeneralRebaseCheckedWrite259.outside
+#print axioms Yulang.GeneralRebaseCheckedWrite259.commit
+#print axioms Yulang.GeneralRebaseCheckedWrite259.outside_member
+#print axioms Yulang.GeneralRebaseCheckedWrite259.closed_iff
+#print axioms Yulang.GeneralRebaseCheckedWrite259.accepted
+#print axioms Yulang.GeneralRebaseCheckedWrite259.supported
+#print axioms Yulang.GeneralRebaseCheckedWrite259.unsupported
+#print axioms Yulang.GeneralRebaseCheckedWrite259.accepted_models
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.looseRun
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.versionRun
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.loose_exact
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.version_exact
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.loose_first
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.loose_stop
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.version_first
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.version_stop
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.unsupported_mixed
+#print axioms Yulang.GeneralRebaseCheckedFixtures259.version_unsupported

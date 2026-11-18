@@ -1,3 +1,4 @@
+import Yulang.GeneralRebaseCheckedFixtures259
 import Yulang.GeneralVersionRebaseCertificate259
 import Yulang.GeneralVersionPublicProjection259
 import Yulang.GeneralDictionaryRebaseRun259
@@ -34,3 +35,8 @@ example : GeneralVersionRebaseStep259.run GeneralVersionRebaseStep259.initialSta
 example : GeneralVersionRebaseStep259.run GeneralVersionRebaseStep259.finalState = none := GeneralVersionRebaseStep259.run_stop
 example (n : Nat) : ¬ GeneralNominalVersionedKernel232.Committed (GeneralDictionaryVersionLoopIteration239.state n) (GeneralDictionaryVersionLoopBook239.plan n) ∧ GeneralVersionRebaseStep259.run GeneralVersionRebaseStep259.finalState = none := GeneralVersionRebaseCertificate259.old_novel_new_noop n
 example (state : GeneralRebaseStep258.State GeneralVersionRebaseStep259.facts) (boundary : GeneralNominalCommonBridge.Assignment) (source : GeneralNominalState.Models GeneralDictionaryVersionLoopSource237.snapshot boundary) : GeneralVersionRebaseModels259.Models state (GeneralVersionBoundaryCompletion259.complete boundary) := GeneralVersionRebaseModels259.completed state boundary source
+
+example : GeneralRebaseCheckedFixtures259.looseRun GeneralDictionaryRebaseStep258.initialState = .ok (some GeneralDictionaryRebaseStep258.finalState) := GeneralRebaseCheckedFixtures259.loose_first
+example : GeneralRebaseCheckedFixtures259.versionRun GeneralVersionRebaseStep259.finalState = .ok none := GeneralRebaseCheckedFixtures259.version_stop
+example : GeneralRebaseCheckedWrite259.commit GeneralVersionRebaseStep259.initialState [.lower 0 1] = .error [.lower 0 1] := GeneralRebaseCheckedFixtures259.version_unsupported
+example (state : GeneralRebaseStep258.State GeneralDictionaryRebaseStep258.facts) (boundary : GeneralNominalCommonBridge.Assignment) (source : GeneralNominalState.Models GeneralDictionaryLooseLoopSource240.snapshot boundary) : GeneralDictionaryRebaseFacts259.Models state (GeneralDictionaryInitialFill258.complete boundary) := GeneralDictionaryRebaseFacts259.completed state boundary source

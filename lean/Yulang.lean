@@ -4752,3 +4752,7 @@ import Yulang.GeneralVersionReportProjection259
 import Yulang.GeneralVersionRebaseStep259
 import Yulang.GeneralVersionRebaseModels259
 import Yulang.GeneralVersionRebaseCertificate259
+import Yulang.GeneralRebaseFactSemantics259
+import Yulang.GeneralDictionaryRebaseFacts259
+import Yulang.GeneralRebaseCheckedWrite259
+import Yulang.GeneralRebaseCheckedFixtures259
