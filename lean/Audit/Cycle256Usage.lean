@@ -113,3 +113,36 @@ example (n : Nat) (boundary : Assignment) :
  · exact GeneralDictionaryAggregateHistory256.block_in_source n
  · intro entry member
    exact List.mem_map.mpr ⟨entry,member,rfl⟩
+
+-- Generic bridge stress tests, not source-reachable language fixtures:
+-- no SafeOrder premise is smuggled in for a cyclic retained block.
+example (boundary : Assignment) :
+ let entries : List (GeneralPresenceDefinitionRewrite244.Entry Nat) := [(7,.var 8),(8,.var 7)]
+ let raw := { GeneralDictionaryLooseLoopSource240.snapshot with ordinary := GeneralPresenceDefinitionRewrite244.block entries }
+ (∃ assignment, GeneralNominalRebasePublicModel242.PublicAgree [7,8] assignment boundary ∧ GeneralNominalState.Models raw assignment) ↔
+ (∃ assignment, GeneralNominalRebasePublicModel242.PublicAgree [7,8] assignment boundary ∧
+   (GeneralNominalRebaseRawView243.compile raw (GeneralPresenceOrderedSubstitution247.mapping entries)).Models assignment) := by
+ dsimp only
+ apply GeneralNominalOrderedRawPublic256.public_models
+ · exact List.Subset.refl _
+ · intro entry member
+   rcases List.mem_cons.mp member with rfl | member
+   · exact List.mem_cons_self ..
+   · cases List.mem_singleton.mp member
+     exact List.mem_cons_of_mem _ (List.mem_singleton_self _)
+
+-- No Coherent premise: repeated targets are interpreted in their actual order.
+example (boundary : Assignment) :
+ let entries : List (GeneralPresenceDefinitionRewrite244.Entry Nat) := [(7,.var 0),(7,.var 1)]
+ let raw := { GeneralDictionaryLooseLoopSource240.snapshot with ordinary := GeneralPresenceDefinitionRewrite244.block entries }
+ (∃ assignment, GeneralNominalRebasePublicModel242.PublicAgree [7] assignment boundary ∧ GeneralNominalState.Models raw assignment) ↔
+ (∃ assignment, GeneralNominalRebasePublicModel242.PublicAgree [7] assignment boundary ∧
+   (GeneralNominalRebaseRawView243.compile raw (GeneralPresenceOrderedSubstitution247.mapping entries)).Models assignment) := by
+ dsimp only
+ apply GeneralNominalOrderedRawPublic256.public_models
+ · exact List.Subset.refl _
+ · intro entry member
+   rcases List.mem_cons.mp member with rfl | member
+   · exact List.mem_singleton_self _
+   · cases List.mem_singleton.mp member
+     exact List.mem_singleton_self _
