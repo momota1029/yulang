@@ -23,6 +23,8 @@ import Yulang.GeneralReflexiveDefaultModels260
 import Yulang.GeneralReflexiveDefaultRun260
 import Yulang.GeneralReflexiveDefaultRegression260
 import Yulang.GeneralRebaseBodyActual260
+import Yulang.GeneralRebaseRequestBodyKeys260
+import Yulang.GeneralRebaseNamedRequest260
 
 #print axioms Yulang.GeneralRebaseOutputKeys260.key
 #print axioms Yulang.GeneralRebaseOutputKeys260.keys
@@ -220,3 +222,20 @@ import Yulang.GeneralRebaseBodyActual260
 #print axioms Yulang.GeneralRebaseBodyActual260.distinct_default_target
 #print axioms Yulang.GeneralRebaseBodyActual260.reflexive_default_target
 #print axioms Yulang.GeneralRebaseBodyActual260.target_not_interchangeable
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.space
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.key
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.space_identity
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.key_identity
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.compile
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.successful
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.equation_meaning
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.requests_separate
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.kinds_separate
+#print axioms Yulang.GeneralRebaseRequestBodyKeys260.probe_repaired
+#print axioms Yulang.GeneralRebaseNamedRequest260.code
+#print axioms Yulang.GeneralRebaseNamedRequest260.code_injective
+#print axioms Yulang.GeneralRebaseNamedRequest260.compile
+#print axioms Yulang.GeneralRebaseNamedRequest260.outputs_separate
+#print axioms Yulang.GeneralRebaseNamedRequest260.lookup_unique
+#print axioms Yulang.GeneralRebaseNamedRequest260.equation_meaning
+#print axioms Yulang.GeneralRebaseNamedRequest260.probe_repaired

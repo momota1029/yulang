@@ -4788,3 +4788,5 @@ import Yulang.GeneralReflexiveDefaultModels260
 import Yulang.GeneralReflexiveDefaultRun260
 import Yulang.GeneralReflexiveDefaultRegression260
 import Yulang.GeneralRebaseBodyActual260
+import Yulang.GeneralRebaseRequestBodyKeys260
+import Yulang.GeneralRebaseNamedRequest260

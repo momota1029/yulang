@@ -1,3 +1,5 @@
+import Yulang.GeneralRebaseNamedRequest260
+import Yulang.GeneralRebaseRequestBodyKeys260
 import Yulang.GeneralRebaseBodyActual260
 import Yulang.GeneralDefaultRebasePublic260
 namespace Cycle260Usage
@@ -42,4 +44,6 @@ example (boundary : GeneralNominalCommonBridge.Assignment)
 example : GeneralRebaseBodyActual260.explicitProposal = some GeneralOutputRebaseSource260.facts := GeneralRebaseBodyActual260.explicit_exact
 example : GeneralReflexiveDefaultRun260.run GeneralReflexiveDefaultSource260.initialState = .ok (some GeneralReflexiveDefaultSource260.finalState) := GeneralReflexiveDefaultRun260.first
 example (assignment : GeneralNominalCommonBridge.Assignment) : GeneralReflexiveDefaultModels260.Models GeneralReflexiveDefaultSource260.initialState assignment ↔ GeneralReflexiveDefaultModels260.Models GeneralReflexiveDefaultSource260.finalState assignment := GeneralReflexiveDefaultModels260.same_assignment ..
+example : GeneralRebaseRequestBodyKeys260.compile GeneralDictionaryDefaultGap206Source.plan 37 2 0 ⟨0,0⟩ ≠ GeneralRebaseRequestBodyKeys260.compile GeneralDictionaryDefaultGap206Source.plan 37 2 1 ⟨0,1⟩ := GeneralRebaseRequestBodyKeys260.probe_repaired
+example : GeneralRebaseNamedRequest260.compile GeneralDictionaryDefaultGap206Source.plan 37 2 ⟨0,0⟩ ≠ GeneralRebaseNamedRequest260.compile GeneralDictionaryDefaultGap206Source.plan 37 2 ⟨0,1⟩ := GeneralRebaseNamedRequest260.probe_repaired
 end Cycle260Usage

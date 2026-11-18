@@ -23,3 +23,5 @@ GeneralReflexiveDefaultModels260
 GeneralReflexiveDefaultRun260
 GeneralReflexiveDefaultRegression260
 GeneralRebaseBodyActual260
+GeneralRebaseRequestBodyKeys260
+GeneralRebaseNamedRequest260

@@ -1,0 +1,837 @@
+Yulang.GeneralRebaseOutputKeys260.key : Nat → Nat → Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseOutputKeys260.keys : Nat →
+  Yulang.GeneralNominalCenteredHeadMatSchemas.Schema → List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseOutputKeys260.Holds : Nat →
+  Yulang.GeneralNominalCenteredHeadMatSchemas.Schema →
+    (Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty) →
+      Yulang.GeneralNominalCommonBridge.Assignment → Yulang.GeneralRebaseStep258.Fact → Prop
+Yulang.GeneralRebaseOutputKeys260.key_injective : ∀ (offset : Nat) {first last : Nat},
+  Yulang.GeneralRebaseOutputKeys260.key offset first = Yulang.GeneralRebaseOutputKeys260.key offset last → first = last
+Yulang.GeneralRebaseOutputKeys260.member : ∀ (offset : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema) (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralRebaseOutputKeys260.keys offset schema ↔
+    ∃ index, fact = Yulang.GeneralRebaseOutputKeys260.key offset ↑index
+Yulang.GeneralRebaseOutputKeys260.at_index : ∀ (offset : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+  (variables : Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (index : Fin schema.equations.length),
+  Yulang.GeneralRebaseOutputKeys260.Holds offset schema variables assignment
+      (Yulang.GeneralRebaseOutputKeys260.key offset ↑index) ↔
+    Yulang.GeneralNominalCenteredHeadMatSchemas.Equation.Holds variables assignment schema.equations[↑index]
+Yulang.GeneralRebaseOutputKeys260.all_exact : ∀ (offset : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+  (variables : Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈ Yulang.GeneralRebaseOutputKeys260.keys offset schema →
+        Yulang.GeneralRebaseOutputKeys260.Holds offset schema variables assignment fact) ↔
+    schema.Holds variables assignment
+Yulang.GeneralRebaseOutputKeys260.below_offset : ∀ (offset : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema) (index : Nat),
+  index < offset → ¬Yulang.GeneralRebaseStep258.Fact.binder index ∈ Yulang.GeneralRebaseOutputKeys260.keys offset schema
+Yulang.GeneralRebaseOutputKeys260.length : ∀ (offset : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema),
+  (Yulang.GeneralRebaseOutputKeys260.keys offset schema).length = schema.equations.length
+@Yulang.GeneralRebaseOutputDecoder260.compile : {roles : Yulang.Roles.RoleDecls} →
+  (plan : Yulang.GeneralNominalCenters.Plan roles) →
+    Nat →
+      (Fin plan.packet.context.state.base.slots → Option Nat) →
+        Except Yulang.GeneralRebaseOutputDecoder260.Failure Yulang.GeneralRebaseStep258.Proposal
+@Yulang.GeneralRebaseOutputDecoder260.translated : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat)
+  (atom : Fin plan.packet.context.state.base.slots → Option Nat) (proposal : Yulang.GeneralRebaseStep258.Proposal),
+  Yulang.GeneralRebaseOutputDecoder260.compile plan owner atom = Except.ok proposal →
+    (Yulang.GeneralNominalVersionedPlans231.emittedSchema plan).unknown = false
+@Yulang.GeneralRebaseOutputDecoder260.successful : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat)
+  (atom : Fin plan.packet.context.state.base.slots → Option Nat) (proposal : Yulang.GeneralRebaseStep258.Proposal),
+  Yulang.GeneralRebaseOutputDecoder260.compile plan owner atom = Except.ok proposal ↔
+    (Yulang.GeneralNominalVersionedPlans231.emittedSchema plan).unknown = false ∧
+      ∃ capture,
+        Yulang.GeneralRebaseFiniteReport259.compile owner atom (Yulang.GeneralNominalPacketSupport.report plan.packet) =
+            some capture ∧
+          proposal =
+            capture ++
+              Yulang.GeneralRebaseOutputKeys260.keys 2 (Yulang.GeneralNominalVersionedPlans231.emittedSchema plan)
+Yulang.GeneralOutputRebaseSource260.facts : List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralOutputRebaseSource260.atom : Fin Yulang.GeneralDictionaryOutputDepth252.snapshot.base.slots → Option Nat
+Yulang.GeneralOutputRebaseSource260.schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema
+Yulang.GeneralOutputRebaseSource260.schema_exact : Yulang.GeneralOutputRebaseSource260.schema =
+  {
+    equations :=
+      [{ target := 3, mode := Yulang.GeneralNominalMaterialization.Mode.actual,
+          expression := Yulang.GeneralDictionaryOutputDepth252.rhs }] }
+Yulang.GeneralOutputRebaseSource260.capture_exact : Yulang.GeneralRebaseFiniteReport259.compile 0
+    Yulang.GeneralOutputRebaseSource260.atom
+    (Yulang.GeneralNominalPacketSupport.report Yulang.GeneralDictionaryOutputDepth252.packet) =
+  some
+    [Yulang.GeneralRebaseStep258.Fact.installed 0, Yulang.GeneralRebaseStep258.Fact.lower 0 0,
+      Yulang.GeneralRebaseStep258.Fact.upper 0 0, Yulang.GeneralRebaseStep258.Fact.binder 0,
+      Yulang.GeneralRebaseStep258.Fact.binder 1]
+Yulang.GeneralOutputRebaseSource260.output_keys : Yulang.GeneralRebaseOutputKeys260.keys 2
+    Yulang.GeneralOutputRebaseSource260.schema =
+  [Yulang.GeneralRebaseStep258.Fact.binder 2]
+Yulang.GeneralOutputRebaseSource260.proposal : Except Yulang.GeneralRebaseOutputDecoder260.Failure
+  Yulang.GeneralRebaseStep258.Proposal
+Yulang.GeneralOutputRebaseSource260.proposal_exact : Yulang.GeneralOutputRebaseSource260.proposal =
+  Except.ok Yulang.GeneralOutputRebaseSource260.facts
+Yulang.GeneralOutputRebaseSource260.initialState : Yulang.GeneralRebaseStep258.State
+  Yulang.GeneralOutputRebaseSource260.facts
+Yulang.GeneralOutputRebaseSource260.finalState : Yulang.GeneralRebaseStep258.State
+  Yulang.GeneralOutputRebaseSource260.facts
+Yulang.GeneralOutputRebaseSource260.observe : Yulang.GeneralRebaseStep258.Observer
+  Yulang.GeneralOutputRebaseSource260.facts
+Yulang.GeneralOutputRebaseSource260.observe_exact : Yulang.GeneralOutputRebaseSource260.observe = fun x =>
+  [Yulang.GeneralOutputRebaseSource260.facts]
+Yulang.GeneralOutputRebaseSource260.closed : Yulang.GeneralRebaseClosedObserver259.Closed
+  Yulang.GeneralOutputRebaseSource260.observe
+Yulang.GeneralOutputRebaseSource260.write_initial : Yulang.GeneralRebaseStep258.write
+    Yulang.GeneralOutputRebaseSource260.initialState Yulang.GeneralOutputRebaseSource260.facts =
+  Yulang.GeneralOutputRebaseSource260.finalState
+Yulang.GeneralOutputRebaseSource260.first : Yulang.GeneralRebaseStep258.Step Yulang.GeneralOutputRebaseSource260.observe
+  Yulang.GeneralOutputRebaseSource260.initialState Yulang.GeneralOutputRebaseSource260.finalState
+Yulang.GeneralOutputRebaseSource260.stop : ∀
+  (after : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts),
+  ¬Yulang.GeneralRebaseStep258.Step Yulang.GeneralOutputRebaseSource260.observe
+      Yulang.GeneralOutputRebaseSource260.finalState after
+Yulang.GeneralOutputRebaseSource260.terminating : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts),
+  Acc (fun after before => Yulang.GeneralRebaseStep258.Step Yulang.GeneralOutputRebaseSource260.observe before after)
+    state
+Yulang.GeneralOutputRebaseModels260.factHolds : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralRebaseStep258.Fact → Prop
+Yulang.GeneralOutputRebaseModels260.Models : Yulang.GeneralRebaseStep258.State
+    Yulang.GeneralOutputRebaseSource260.facts →
+  Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralOutputRebaseModels260.output_meaning : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralOutputRebaseModels260.factHolds assignment (Yulang.GeneralRebaseStep258.Fact.binder 2) ↔
+    Yulang.GeneralNominalVersionedPlans231.Outputs Yulang.GeneralDictionaryOutputDepth252.plan assignment
+Yulang.GeneralOutputRebaseModels260.initial_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralOutputRebaseModels260.Models Yulang.GeneralOutputRebaseSource260.initialState assignment ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment
+Yulang.GeneralOutputRebaseModels260.final_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralOutputRebaseModels260.Models Yulang.GeneralOutputRebaseSource260.finalState assignment ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment ∧
+      Yulang.GeneralNominalVersionedPlans231.Outputs Yulang.GeneralDictionaryOutputDepth252.plan assignment
+Yulang.GeneralOutputRebaseModels260.final_packet : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralOutputRebaseModels260.Models Yulang.GeneralOutputRebaseSource260.finalState assignment ↔
+    Yulang.GeneralNominalVersionedPlans231.Holds Yulang.GeneralDictionaryOutputDepth252.plan assignment
+Yulang.GeneralOutputRebaseModels260.completed : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot assignment →
+    Yulang.GeneralOutputRebaseModels260.Models state (Yulang.GeneralDictionaryOutputFrame258.complete assignment)
+Yulang.GeneralOutputRebaseModels260.bad_initial_not_final : Yulang.GeneralOutputRebaseModels260.Models
+    Yulang.GeneralOutputRebaseSource260.initialState
+    (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom) ∧
+  ¬Yulang.GeneralOutputRebaseModels260.Models Yulang.GeneralOutputRebaseSource260.finalState
+      (Yulang.GeneralDictionaryPendingOutput258.replace Yulang.CommonNominalSyntax.Layer.bottom)
+Yulang.GeneralOutputRebaseInstalled260.installation : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedPlans231.Holds Yulang.GeneralDictionaryOutputDepth252.plan assignment →
+    Yulang.GeneralNominalVersionedInstall232.InstallationModels Yulang.GeneralDictionaryOutputDepth252.initial
+      Yulang.GeneralDictionaryOutputDepthInstall252.effect assignment
+Yulang.GeneralOutputRebaseInstalled260.installed_packet : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepthInstall252.installed assignment ↔
+    Yulang.GeneralNominalVersionedPlans231.Holds Yulang.GeneralDictionaryOutputDepth252.plan assignment
+Yulang.GeneralOutputRebaseInstalled260.same_assignment : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralOutputRebaseModels260.Models Yulang.GeneralOutputRebaseSource260.finalState assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepthInstall252.installed assignment
+Yulang.GeneralOutputRebaseInstalled260.evidence : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralOutputRebaseModels260.Models Yulang.GeneralOutputRebaseSource260.finalState assignment →
+    Yulang.GeneralNominalVersionedEvidence231.Evidence Yulang.GeneralDictionaryOutputDepth252.registry
+      Yulang.GeneralDictionaryOutputDepth252.initial.core assignment Yulang.GeneralDictionaryOutputDepth252.root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node 0 [])
+Yulang.GeneralOutputRebaseRun260.run : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts →
+  Except Yulang.GeneralOutputRebaseRun260.Failure
+    (Option (Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts))
+Yulang.GeneralOutputRebaseRun260.run_exact : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts),
+  Yulang.GeneralOutputRebaseRun260.run state =
+    Except.ok (Yulang.GeneralRebaseStep258.tryWrite state Yulang.GeneralOutputRebaseSource260.facts)
+Yulang.GeneralOutputRebaseRun260.run_step : ∀
+  (before after : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts),
+  Yulang.GeneralOutputRebaseRun260.run before = Except.ok (some after) ↔
+    Yulang.GeneralRebaseStep258.Step Yulang.GeneralOutputRebaseSource260.observe before after
+Yulang.GeneralOutputRebaseRun260.first : Yulang.GeneralOutputRebaseRun260.run
+    Yulang.GeneralOutputRebaseSource260.initialState =
+  Except.ok (some Yulang.GeneralOutputRebaseSource260.finalState)
+Yulang.GeneralOutputRebaseRun260.stop : Yulang.GeneralOutputRebaseRun260.run
+    Yulang.GeneralOutputRebaseSource260.finalState =
+  Except.ok none
+Yulang.GeneralOutputRebaseRun260.next_exact : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts),
+  Yulang.GeneralRebaseScheduler259.next Yulang.GeneralOutputRebaseSource260.observe state =
+    Except.ok (Yulang.GeneralRebaseStep258.tryWrite state Yulang.GeneralOutputRebaseSource260.facts)
+Yulang.GeneralOutputRebaseRun260.settle_initial : Yulang.GeneralRebaseSettle259.settle
+    Yulang.GeneralOutputRebaseSource260.observe Yulang.GeneralOutputRebaseSource260.initialState =
+  Except.ok Yulang.GeneralOutputRebaseSource260.finalState
+Yulang.GeneralOutputRebaseRun260.settle_final : Yulang.GeneralRebaseSettle259.settle
+    Yulang.GeneralOutputRebaseSource260.observe Yulang.GeneralOutputRebaseSource260.finalState =
+  Except.ok Yulang.GeneralOutputRebaseSource260.finalState
+Yulang.GeneralOutputRebaseRun260.one_step_bound : ∀ (steps : Nat)
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts),
+  Yulang.GeneralRebaseBudget258.Runs Yulang.GeneralOutputRebaseSource260.observe steps
+      Yulang.GeneralOutputRebaseSource260.initialState state →
+    steps ≤ 1
+Yulang.GeneralOutputRebasePublic260.public_models : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryOutputPublic258.Agree assignment boundary ∧
+        Yulang.GeneralOutputRebaseModels260.Models state assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot boundary
+Yulang.GeneralOutputRebasePublic260.installed_public : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryOutputPublic258.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryOutputDepthInstall252.installed
+          assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryOutputPublic258.Agree assignment boundary ∧
+        Yulang.GeneralOutputRebaseModels260.Models Yulang.GeneralOutputRebaseSource260.finalState assignment
+Yulang.GeneralOutputRebasePublic260.certificate : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot boundary →
+    Yulang.GeneralOutputRebasePublic260.Certificate boundary
+Yulang.GeneralOutputRebasePublic260.run_certificate : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot boundary →
+    Yulang.GeneralOutputRebaseRun260.run Yulang.GeneralOutputRebaseSource260.initialState =
+        Except.ok (some Yulang.GeneralOutputRebaseSource260.finalState) ∧
+      Yulang.GeneralOutputRebasePublic260.Certificate boundary
+Yulang.GeneralOutputRebasePublic260.requested_output_exact : ∀ (output : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralOutputRebaseModels260.Models Yulang.GeneralOutputRebaseSource260.finalState
+      (Yulang.GeneralDictionaryPendingOutput258.replace output) ↔
+    Yulang.CommonNominalFullCarrier.Equivalent output Yulang.GeneralDictionaryOutputDepth252.P
+Yulang.GeneralRebaseOwnedOutputKeys260.key : Nat → Nat → Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseOwnedOutputKeys260.keys : Nat →
+  Yulang.GeneralNominalCenteredHeadMatSchemas.Schema → List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseOwnedOutputKeys260.Holds : Nat →
+  Yulang.GeneralNominalCenteredHeadMatSchemas.Schema →
+    (Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty) →
+      Yulang.GeneralNominalCommonBridge.Assignment → Yulang.GeneralRebaseStep258.Fact → Prop
+@Yulang.GeneralRebaseOwnedOutputKeys260.key_identity : ∀ {firstOwner firstIndex lastOwner lastIndex : Nat},
+  Yulang.GeneralRebaseOwnedOutputKeys260.key firstOwner firstIndex =
+      Yulang.GeneralRebaseOwnedOutputKeys260.key lastOwner lastIndex →
+    firstOwner = lastOwner ∧ firstIndex = lastIndex
+Yulang.GeneralRebaseOwnedOutputKeys260.key_injective : ∀ (owner : Nat) {first last : Nat},
+  Yulang.GeneralRebaseOwnedOutputKeys260.key owner first = Yulang.GeneralRebaseOwnedOutputKeys260.key owner last →
+    first = last
+Yulang.GeneralRebaseOwnedOutputKeys260.member : ∀ (owner : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema) (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralRebaseOwnedOutputKeys260.keys owner schema ↔
+    ∃ index, fact = Yulang.GeneralRebaseOwnedOutputKeys260.key owner ↑index
+Yulang.GeneralRebaseOwnedOutputKeys260.at_index : ∀ (owner : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+  (variables : Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (index : Fin schema.equations.length),
+  Yulang.GeneralRebaseOwnedOutputKeys260.Holds owner schema variables assignment
+      (Yulang.GeneralRebaseOwnedOutputKeys260.key owner ↑index) ↔
+    Yulang.GeneralNominalCenteredHeadMatSchemas.Equation.Holds variables assignment schema.equations[↑index]
+Yulang.GeneralRebaseOwnedOutputKeys260.all_exact : ∀ (owner : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+  (variables : Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈ Yulang.GeneralRebaseOwnedOutputKeys260.keys owner schema →
+        Yulang.GeneralRebaseOwnedOutputKeys260.Holds owner schema variables assignment fact) ↔
+    schema.Holds variables assignment
+Yulang.GeneralRebaseOwnedOutputKeys260.capture_separate : ∀ (owner : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema) (index : Nat),
+  index < 2 → ¬Yulang.GeneralRebaseStep258.Fact.binder index ∈ Yulang.GeneralRebaseOwnedOutputKeys260.keys owner schema
+Yulang.GeneralRebaseOwnedOutputKeys260.owners_separate : ∀ (first last : Nat),
+  first ≠ last →
+    ∀ (firstSchema lastSchema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+      (fact : Yulang.GeneralRebaseStep258.Fact),
+      ¬(fact ∈ Yulang.GeneralRebaseOwnedOutputKeys260.keys first firstSchema ∧
+          fact ∈ Yulang.GeneralRebaseOwnedOutputKeys260.keys last lastSchema)
+Yulang.GeneralRebaseOwnedOutputKeys260.length : ∀ (owner : Nat)
+  (schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema),
+  (Yulang.GeneralRebaseOwnedOutputKeys260.keys owner schema).length = schema.equations.length
+Yulang.GeneralRebaseOutputFamily260.Layout : Type
+Yulang.GeneralRebaseOutputFamily260.basis : List Nat →
+  Yulang.GeneralRebaseOutputFamily260.Layout → List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralRebaseOutputFamily260.Holds : List Nat →
+  Yulang.GeneralRebaseOutputFamily260.Layout →
+    (Nat → Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty) →
+      Yulang.GeneralNominalCommonBridge.Assignment → Yulang.GeneralRebaseStep258.Fact → Prop
+Yulang.GeneralRebaseOutputFamily260.member : ∀ (owners : List Nat) (layout : Yulang.GeneralRebaseOutputFamily260.Layout)
+  (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralRebaseOutputFamily260.basis owners layout ↔
+    ∃ owner, owner ∈ owners ∧ fact ∈ Yulang.GeneralRebaseOwnedOutputKeys260.keys owner (layout owner)
+Yulang.GeneralRebaseOutputFamily260.owner_exact : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout)
+  (variables : Nat → Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (owner : Nat),
+  owner ∈ owners →
+    ∀ (index : Fin (layout owner).equations.length),
+      Yulang.GeneralRebaseOutputFamily260.Holds owners layout variables assignment
+          (Yulang.GeneralRebaseOwnedOutputKeys260.key owner ↑index) ↔
+        Yulang.GeneralNominalCenteredHeadMatSchemas.Equation.Holds (variables owner) assignment
+          (layout owner).equations[↑index]
+Yulang.GeneralRebaseOutputFamily260.all_exact : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout)
+  (variables : Nat → Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.Ty)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈ Yulang.GeneralRebaseOutputFamily260.basis owners layout →
+        Yulang.GeneralRebaseOutputFamily260.Holds owners layout variables assignment fact) ↔
+    ∀ (owner : Nat), owner ∈ owners → (layout owner).Holds (variables owner) assignment
+Yulang.GeneralRebaseOutputFamily260.proposal_closed : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout) (owner : Nat),
+  owner ∈ owners →
+    Yulang.GeneralRebaseOwnedOutputKeys260.keys owner (layout owner) ⊆
+      Yulang.GeneralRebaseOutputFamily260.basis owners layout
+Yulang.GeneralRebaseOutputFamily260.length : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout),
+  (Yulang.GeneralRebaseOutputFamily260.basis owners layout).length =
+    (List.map (fun owner => (layout owner).equations.length) owners).sum
+Yulang.GeneralRebaseOutputFamilyRun260.proposals : List Nat →
+  Yulang.GeneralRebaseOutputFamily260.Layout → List Yulang.GeneralRebaseStep258.Proposal
+Yulang.GeneralRebaseOutputFamilyRun260.observe : (owners : List Nat) →
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout) →
+    Yulang.GeneralRebaseStep258.Observer (Yulang.GeneralRebaseOutputFamily260.basis owners layout)
+Yulang.GeneralRebaseOutputFamilyRun260.closed : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout),
+  Yulang.GeneralRebaseClosedObserver259.Closed (Yulang.GeneralRebaseOutputFamilyRun260.observe owners layout)
+Yulang.GeneralRebaseOutputFamilyRun260.flattened : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout),
+  (Yulang.GeneralRebaseOutputFamilyRun260.proposals owners layout).flatten =
+    Yulang.GeneralRebaseOutputFamily260.basis owners layout
+Yulang.GeneralRebaseOutputFamilyRun260.batch_initial : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout),
+  Yulang.GeneralRebaseWriteAlgebra259.batch
+      (Yulang.GeneralRebaseStep258.initial (Yulang.GeneralRebaseOutputFamily260.basis owners layout))
+      (Yulang.GeneralRebaseOutputFamilyRun260.proposals owners layout) =
+    Yulang.GeneralRebaseStep258.done (Yulang.GeneralRebaseOutputFamily260.basis owners layout)
+Yulang.GeneralRebaseOutputFamilyRun260.settle_initial : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout),
+  Yulang.GeneralRebaseSettle259.settle (Yulang.GeneralRebaseOutputFamilyRun260.observe owners layout)
+      (Yulang.GeneralRebaseStep258.initial (Yulang.GeneralRebaseOutputFamily260.basis owners layout)) =
+    Except.ok (Yulang.GeneralRebaseStep258.done (Yulang.GeneralRebaseOutputFamily260.basis owners layout))
+Yulang.GeneralRebaseOutputFamilyRun260.untranslated : List Nat → Yulang.GeneralRebaseOutputFamily260.Layout → List Nat
+Yulang.GeneralRebaseOutputFamilyRun260.finish : (owners : List Nat) →
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout) →
+    Except (List Nat) (Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOutputFamily260.basis owners layout))
+Yulang.GeneralRebaseOutputFamilyRun260.translated_iff : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout),
+  Yulang.GeneralRebaseOutputFamilyRun260.untranslated owners layout = [] ↔
+    ∀ (owner : Nat), owner ∈ owners → (layout owner).unknown = false
+Yulang.GeneralRebaseOutputFamilyRun260.finish_exact : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout),
+  Yulang.GeneralRebaseOutputFamilyRun260.finish owners layout =
+      Except.ok (Yulang.GeneralRebaseStep258.done (Yulang.GeneralRebaseOutputFamily260.basis owners layout)) ↔
+    ∀ (owner : Nat), owner ∈ owners → (layout owner).unknown = false
+Yulang.GeneralRebaseOutputFamilyRun260.finish_settle : ∀ (owners : List Nat)
+  (layout : Yulang.GeneralRebaseOutputFamily260.Layout),
+  (∀ (owner : Nat), owner ∈ owners → (layout owner).unknown = false) →
+    ∃ final,
+      Yulang.GeneralRebaseOutputFamilyRun260.finish owners layout = Except.ok final ∧
+        Yulang.GeneralRebaseSettle259.settle (Yulang.GeneralRebaseOutputFamilyRun260.observe owners layout)
+            (Yulang.GeneralRebaseStep258.initial (Yulang.GeneralRebaseOutputFamily260.basis owners layout)) =
+          Except.ok final
+@Yulang.GeneralOwnedOutputDecoder260.compile : {roles : Yulang.Roles.RoleDecls} →
+  (plan : Yulang.GeneralNominalCenters.Plan roles) →
+    Nat →
+      (Fin plan.packet.context.state.base.slots → Option Nat) →
+        Except Yulang.GeneralOwnedOutputDecoder260.Failure Yulang.GeneralRebaseStep258.Proposal
+@Yulang.GeneralOwnedOutputDecoder260.translated : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat)
+  (atom : Fin plan.packet.context.state.base.slots → Option Nat) (proposal : Yulang.GeneralRebaseStep258.Proposal),
+  Yulang.GeneralOwnedOutputDecoder260.compile plan owner atom = Except.ok proposal →
+    (Yulang.GeneralNominalVersionedPlans231.emittedSchema plan).unknown = false
+@Yulang.GeneralOwnedOutputDecoder260.successful : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat)
+  (atom : Fin plan.packet.context.state.base.slots → Option Nat) (proposal : Yulang.GeneralRebaseStep258.Proposal),
+  Yulang.GeneralOwnedOutputDecoder260.compile plan owner atom = Except.ok proposal ↔
+    (Yulang.GeneralNominalVersionedPlans231.emittedSchema plan).unknown = false ∧
+      ∃ capture,
+        Yulang.GeneralRebaseFiniteReport259.compile owner atom (Yulang.GeneralNominalPacketSupport.report plan.packet) =
+            some capture ∧
+          proposal =
+            capture ++
+              Yulang.GeneralRebaseOwnedOutputKeys260.keys owner
+                (Yulang.GeneralNominalVersionedPlans231.emittedSchema plan)
+Yulang.GeneralOwnedOutputActual260.keys_exact : Yulang.GeneralRebaseOwnedOutputKeys260.keys 0
+    (Yulang.GeneralNominalVersionedPlans231.emittedSchema Yulang.GeneralDictionaryOutputDepth252.plan) =
+  [Yulang.GeneralRebaseStep258.Fact.binder 2]
+Yulang.GeneralOwnedOutputActual260.proposal : Except Yulang.GeneralOwnedOutputDecoder260.Failure
+  Yulang.GeneralRebaseStep258.Proposal
+Yulang.GeneralOwnedOutputActual260.proposal_exact : Yulang.GeneralOwnedOutputActual260.proposal =
+  Except.ok Yulang.GeneralOutputRebaseSource260.facts
+Yulang.GeneralOwnedOutputActual260.run : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts →
+  Except Yulang.GeneralOutputRebaseRun260.Failure
+    (Option (Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts))
+Yulang.GeneralOwnedOutputActual260.run_equal : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralOutputRebaseSource260.facts),
+  Yulang.GeneralOwnedOutputActual260.run state = Yulang.GeneralOutputRebaseRun260.run state
+Yulang.GeneralOwnedOutputActual260.run_certificate : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryOutputDepth252.snapshot boundary →
+    Yulang.GeneralOwnedOutputActual260.run Yulang.GeneralOutputRebaseSource260.initialState =
+        Except.ok (some Yulang.GeneralOutputRebaseSource260.finalState) ∧
+      Yulang.GeneralOutputRebasePublic260.Certificate boundary
+Yulang.GeneralDefaultRebaseBody260.body : Yulang.GeneralDictionaryAssociatedProvenance.Body
+Yulang.GeneralDefaultRebaseBody260.schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema
+Yulang.GeneralDefaultRebaseBody260.lookup_exact : Yulang.GeneralDictionaryAssociatedProvenance.lookup
+    Yulang.GeneralDictionaryDefaultGap206Source.roles Yulang.GeneralDictionaryDefaultGap206Source.declaration 0 =
+  some Yulang.GeneralDefaultRebaseBody260.body
+Yulang.GeneralDefaultRebaseBody260.schema_exact : Yulang.GeneralDefaultRebaseBody260.schema =
+  {
+    equations :=
+      [{ target := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual,
+          expression := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0 }] }
+Yulang.GeneralDefaultRebaseBody260.body_meaning : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedEffects231.BodyHolds Yulang.GeneralDictionaryDefaultGap206Source.plan 0 assignment
+      Yulang.GeneralDefaultRebaseBody260.body ↔
+    Yulang.CommonNominalFullCarrier.Equivalent (assignment 0).fst (assignment 1).fst
+Yulang.GeneralDefaultRebaseBody260.request_exact : ∀ (output : Yulang.GeneralSourceState.Output),
+  output ∈
+      Yulang.GeneralNominalCenteredHeadOutputs.requests Yulang.GeneralDictionaryVersionedGap206233.current.core
+        Yulang.GeneralDictionaryDefaultGap206Source.root →
+    output = { name := 0, target := 0 }
+Yulang.GeneralDefaultRebaseBody260.request_present : { name := 0, target := 0 } ∈
+  Yulang.GeneralNominalCenteredHeadOutputs.requests Yulang.GeneralDictionaryVersionedGap206233.current.core
+    Yulang.GeneralDictionaryDefaultGap206Source.root
+Yulang.GeneralDefaultRebaseBody260.classes_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedEffects231.ClassEffects Yulang.GeneralDictionaryVersionedGap206233.current.core
+      Yulang.GeneralDictionaryDefaultGap206Source.root Yulang.GeneralDictionaryDefaultGap206Source.plan assignment ↔
+    Yulang.CommonNominalFullCarrier.Equivalent (assignment 0).fst (assignment 1).fst
+Yulang.GeneralDefaultRebaseBody260.current_source : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedGap206233.current assignment ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot assignment
+Yulang.GeneralDefaultRebaseSource260.report : Yulang.GeneralNominalRecursiveInspection.Report
+  Yulang.GeneralDictionaryDefaultGap206Source.packet.context.state
+Yulang.GeneralDefaultRebaseSource260.report_clear : Yulang.GeneralDefaultRebaseSource260.report.blocked = [] ∧
+  Yulang.GeneralDefaultRebaseSource260.report.conflicts = [] ∧
+    Yulang.GeneralDefaultRebaseSource260.report.arity = [] ∧ Yulang.GeneralDefaultRebaseSource260.report.captures = []
+Yulang.GeneralDefaultRebaseSource260.facts : List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralDefaultRebaseSource260.output_keys : Yulang.GeneralRebaseOwnedOutputKeys260.keys 37
+    Yulang.GeneralDefaultRebaseBody260.schema =
+  [Yulang.GeneralRebaseStep258.Fact.binder 1408]
+Yulang.GeneralDefaultRebaseSource260.proposal : Except Yulang.GeneralRebaseOutputDecoder260.Failure
+  Yulang.GeneralRebaseStep258.Proposal
+Yulang.GeneralDefaultRebaseSource260.proposal_exact : Yulang.GeneralDefaultRebaseSource260.proposal =
+  Except.ok Yulang.GeneralDefaultRebaseSource260.facts
+Yulang.GeneralDefaultRebaseSource260.initialState : Yulang.GeneralRebaseStep258.State
+  Yulang.GeneralDefaultRebaseSource260.facts
+Yulang.GeneralDefaultRebaseSource260.finalState : Yulang.GeneralRebaseStep258.State
+  Yulang.GeneralDefaultRebaseSource260.facts
+Yulang.GeneralDefaultRebaseSource260.observe : Yulang.GeneralRebaseStep258.Observer
+  Yulang.GeneralDefaultRebaseSource260.facts
+Yulang.GeneralDefaultRebaseSource260.observe_exact : Yulang.GeneralDefaultRebaseSource260.observe = fun x =>
+  [Yulang.GeneralDefaultRebaseSource260.facts]
+Yulang.GeneralDefaultRebaseSource260.closed : Yulang.GeneralRebaseClosedObserver259.Closed
+  Yulang.GeneralDefaultRebaseSource260.observe
+Yulang.GeneralDefaultRebaseSource260.write_initial : Yulang.GeneralRebaseStep258.write
+    Yulang.GeneralDefaultRebaseSource260.initialState Yulang.GeneralDefaultRebaseSource260.facts =
+  Yulang.GeneralDefaultRebaseSource260.finalState
+Yulang.GeneralDefaultRebaseSource260.first : Yulang.GeneralRebaseStep258.Step
+  Yulang.GeneralDefaultRebaseSource260.observe Yulang.GeneralDefaultRebaseSource260.initialState
+  Yulang.GeneralDefaultRebaseSource260.finalState
+Yulang.GeneralDefaultRebaseSource260.stop : ∀
+  (after : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts),
+  ¬Yulang.GeneralRebaseStep258.Step Yulang.GeneralDefaultRebaseSource260.observe
+      Yulang.GeneralDefaultRebaseSource260.finalState after
+Yulang.GeneralDefaultRebaseSource260.terminating : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts),
+  Acc (fun after before => Yulang.GeneralRebaseStep258.Step Yulang.GeneralDefaultRebaseSource260.observe before after)
+    state
+Yulang.GeneralDefaultRebaseModels260.factHolds : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralRebaseStep258.Fact → Prop
+Yulang.GeneralDefaultRebaseModels260.Models : Yulang.GeneralRebaseStep258.State
+    Yulang.GeneralDefaultRebaseSource260.facts →
+  Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralDefaultRebaseModels260.output_meaning : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDefaultRebaseModels260.factHolds assignment (Yulang.GeneralRebaseStep258.Fact.binder 1408) ↔
+    Yulang.GeneralNominalVersionedEffects231.ClassEffects Yulang.GeneralDictionaryVersionedGap206233.current.core
+      Yulang.GeneralDictionaryDefaultGap206Source.root Yulang.GeneralDictionaryDefaultGap206Source.plan assignment
+Yulang.GeneralDefaultRebaseModels260.initial_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDefaultRebaseModels260.Models Yulang.GeneralDefaultRebaseSource260.initialState assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedGap206233.current assignment
+Yulang.GeneralDefaultRebaseModels260.final_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDefaultRebaseModels260.Models Yulang.GeneralDefaultRebaseSource260.finalState assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedGap206233.current assignment ∧
+      Yulang.GeneralNominalVersionedEffects231.ClassEffects Yulang.GeneralDictionaryVersionedGap206233.current.core
+        Yulang.GeneralDictionaryDefaultGap206Source.root Yulang.GeneralDictionaryDefaultGap206Source.plan assignment
+Yulang.GeneralDefaultRebaseInstalled260.installation : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedGap206233.current assignment →
+    Yulang.GeneralNominalVersionedEffects231.ClassEffects Yulang.GeneralDictionaryVersionedGap206233.current.core
+        Yulang.GeneralDictionaryDefaultGap206Source.root Yulang.GeneralDictionaryDefaultGap206Source.plan assignment →
+      Yulang.GeneralNominalVersionedInstall232.InstallationModels Yulang.GeneralDictionaryVersionedGap206233.current
+        Yulang.GeneralDictionaryVersionedGap206Install233.effect assignment
+Yulang.GeneralDefaultRebaseInstalled260.installed_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedGap206Install233.installed
+      assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedGap206233.current assignment ∧
+      Yulang.GeneralNominalVersionedEffects231.ClassEffects Yulang.GeneralDictionaryVersionedGap206233.current.core
+        Yulang.GeneralDictionaryDefaultGap206Source.root Yulang.GeneralDictionaryDefaultGap206Source.plan assignment
+Yulang.GeneralDefaultRebaseInstalled260.same_assignment : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDefaultRebaseModels260.Models Yulang.GeneralDefaultRebaseSource260.finalState assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedGap206Install233.installed
+      assignment
+Yulang.GeneralDefaultRebaseInstalled260.evidence : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDefaultRebaseModels260.Models Yulang.GeneralDefaultRebaseSource260.finalState assignment →
+    Yulang.GeneralNominalVersionedEvidence231.Evidence Yulang.GeneralDictionaryDefaultGap206Source.registry
+      Yulang.GeneralDictionaryVersionedGap206233.current.core assignment
+      Yulang.GeneralDictionaryDefaultGap206Source.root (Yulang.CommonRoleOutermostResolver.Dictionary.node 37 [])
+Yulang.GeneralDefaultRebaseInstalled260.counter_removed : Yulang.GeneralDefaultRebaseModels260.Models
+    Yulang.GeneralDefaultRebaseSource260.initialState Yulang.GeneralDictionaryDefaultGap206Source.counter ∧
+  ¬Yulang.GeneralDefaultRebaseModels260.Models Yulang.GeneralDefaultRebaseSource260.finalState
+      Yulang.GeneralDictionaryDefaultGap206Source.counter
+Yulang.GeneralDefaultRebaseRun260.run : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts →
+  Except Yulang.GeneralDefaultRebaseRun260.Failure
+    (Option (Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts))
+Yulang.GeneralDefaultRebaseRun260.run_exact : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts),
+  Yulang.GeneralDefaultRebaseRun260.run state =
+    Except.ok (Yulang.GeneralRebaseStep258.tryWrite state Yulang.GeneralDefaultRebaseSource260.facts)
+Yulang.GeneralDefaultRebaseRun260.run_step : ∀
+  (before after : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts),
+  Yulang.GeneralDefaultRebaseRun260.run before = Except.ok (some after) ↔
+    Yulang.GeneralRebaseStep258.Step Yulang.GeneralDefaultRebaseSource260.observe before after
+Yulang.GeneralDefaultRebaseRun260.first : Yulang.GeneralDefaultRebaseRun260.run
+    Yulang.GeneralDefaultRebaseSource260.initialState =
+  Except.ok (some Yulang.GeneralDefaultRebaseSource260.finalState)
+Yulang.GeneralDefaultRebaseRun260.stop : Yulang.GeneralDefaultRebaseRun260.run
+    Yulang.GeneralDefaultRebaseSource260.finalState =
+  Except.ok none
+Yulang.GeneralDefaultRebaseRun260.next_exact : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts),
+  Yulang.GeneralRebaseScheduler259.next Yulang.GeneralDefaultRebaseSource260.observe state =
+    Except.ok (Yulang.GeneralRebaseStep258.tryWrite state Yulang.GeneralDefaultRebaseSource260.facts)
+Yulang.GeneralDefaultRebaseRun260.settle_initial : Yulang.GeneralRebaseSettle259.settle
+    Yulang.GeneralDefaultRebaseSource260.observe Yulang.GeneralDefaultRebaseSource260.initialState =
+  Except.ok Yulang.GeneralDefaultRebaseSource260.finalState
+Yulang.GeneralDefaultRebaseRun260.settle_final : Yulang.GeneralRebaseSettle259.settle
+    Yulang.GeneralDefaultRebaseSource260.observe Yulang.GeneralDefaultRebaseSource260.finalState =
+  Except.ok Yulang.GeneralDefaultRebaseSource260.finalState
+Yulang.GeneralDefaultRebaseRun260.one_step_bound : ∀ (steps : Nat)
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts),
+  Yulang.GeneralRebaseBudget258.Runs Yulang.GeneralDefaultRebaseSource260.observe steps
+      Yulang.GeneralDefaultRebaseSource260.initialState state →
+    steps ≤ 1
+Yulang.GeneralDefaultRebaseCompletion260.identity : Nat → Yulang.Core.PresenceGeneration.CompTerm Nat
+Yulang.GeneralDefaultRebaseCompletion260.view : Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDefaultRebaseCompletion260.models_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDefaultRebaseCompletion260.view.Models assignment ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot assignment
+Yulang.GeneralDefaultRebaseCompletion260.unused_output : ¬0 ∈
+    Yulang.GeneralNominalActiveSupport258.support Yulang.GeneralDefaultRebaseCompletion260.view
+Yulang.GeneralDefaultRebaseCompletion260.source_iff : ∀ (first last : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (name : Nat), (first name).snd = (last name).snd) →
+    (∀ (name : Nat), name ≠ 0 → (first name).fst = (last name).fst) →
+      (Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot first ↔
+        Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot last)
+Yulang.GeneralDefaultRebaseCompletion260.complete : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalCommonBridge.Assignment
+Yulang.GeneralDefaultRebaseCompletion260.rows : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat), (Yulang.GeneralDefaultRebaseCompletion260.complete assignment name).snd = (assignment name).snd
+Yulang.GeneralDefaultRebaseCompletion260.outside : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (name : Nat), name ≠ 0 → Yulang.GeneralDefaultRebaseCompletion260.complete assignment name = assignment name
+Yulang.GeneralDefaultRebaseCompletion260.source_exact : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot
+      (Yulang.GeneralDefaultRebaseCompletion260.complete assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot assignment
+Yulang.GeneralDefaultRebaseCompletion260.classes : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedEffects231.ClassEffects Yulang.GeneralDictionaryVersionedGap206233.current.core
+    Yulang.GeneralDictionaryDefaultGap206Source.root Yulang.GeneralDictionaryDefaultGap206Source.plan
+    (Yulang.GeneralDefaultRebaseCompletion260.complete assignment)
+Yulang.GeneralDefaultRebaseCompletion260.final : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot assignment →
+    Yulang.GeneralDefaultRebaseModels260.Models Yulang.GeneralDefaultRebaseSource260.finalState
+      (Yulang.GeneralDefaultRebaseCompletion260.complete assignment)
+Yulang.GeneralDefaultRebasePublic260.Agree : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralDefaultRebasePublic260.completion_agrees : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDefaultRebasePublic260.Agree (Yulang.GeneralDefaultRebaseCompletion260.complete assignment) assignment
+Yulang.GeneralDefaultRebasePublic260.source_agree : ∀ (first last : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDefaultRebasePublic260.Agree first last →
+    (Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot first ↔
+      Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot last)
+Yulang.GeneralDefaultRebasePublic260.completed : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot boundary →
+    Yulang.GeneralDefaultRebaseModels260.Models state (Yulang.GeneralDefaultRebaseCompletion260.complete boundary)
+Yulang.GeneralDefaultRebasePublic260.public_models : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDefaultRebaseSource260.facts)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDefaultRebasePublic260.Agree assignment boundary ∧
+        Yulang.GeneralDefaultRebaseModels260.Models state assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot boundary
+Yulang.GeneralDefaultRebasePublic260.certificate : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot boundary →
+    Yulang.GeneralDefaultRebasePublic260.Certificate boundary
+Yulang.GeneralDefaultRebasePublic260.run_certificate : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryDefaultGap206Source.snapshot boundary →
+    Yulang.GeneralDefaultRebaseRun260.run Yulang.GeneralDefaultRebaseSource260.initialState =
+        Except.ok (some Yulang.GeneralDefaultRebaseSource260.finalState) ∧
+      Yulang.GeneralDefaultRebasePublic260.Certificate boundary
+@Yulang.GeneralRebaseBodyDecoder260.compile : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenters.Plan roles →
+    Nat →
+      Yulang.GeneralSourceState.Output →
+        Except Yulang.GeneralRebaseBodyDecoder260.Failure Yulang.GeneralRebaseStep258.Proposal
+@Yulang.GeneralRebaseBodyDecoder260.successful : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (output : Yulang.GeneralSourceState.Output)
+  (proposal : Yulang.GeneralRebaseStep258.Proposal),
+  Yulang.GeneralRebaseBodyDecoder260.compile plan owner output = Except.ok proposal ↔
+    ∃ body,
+      Yulang.GeneralDictionaryAssociatedProvenance.lookup roles plan.packet.declaration output.name = some body ∧
+        (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body).unknown = false ∧
+          proposal =
+            Yulang.GeneralRebaseStep258.Fact.installed owner ::
+              Yulang.GeneralRebaseOwnedOutputKeys260.keys owner
+                (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body)
+@Yulang.GeneralRebaseBodyDecoder260.equation_meaning : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (output : Yulang.GeneralSourceState.Output)
+  (body : Yulang.GeneralDictionaryAssociatedProvenance.Body)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈
+          Yulang.GeneralRebaseOwnedOutputKeys260.keys owner
+            (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body) →
+        Yulang.GeneralRebaseOwnedOutputKeys260.Holds owner
+          (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body)
+          (Yulang.GeneralNominalVersionedEffects231.bodyVariables plan assignment body) assignment fact) ↔
+    Yulang.GeneralNominalVersionedEffects231.BodyHolds plan output.target assignment body
+Yulang.GeneralReflexiveDefaultSource260.body : Yulang.GeneralDictionaryAssociatedProvenance.Body
+Yulang.GeneralReflexiveDefaultSource260.schema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema
+Yulang.GeneralReflexiveDefaultSource260.facts : List Yulang.GeneralRebaseStep258.Fact
+Yulang.GeneralReflexiveDefaultSource260.initialState : Yulang.GeneralRebaseStep258.State
+  Yulang.GeneralReflexiveDefaultSource260.facts
+Yulang.GeneralReflexiveDefaultSource260.finalState : Yulang.GeneralRebaseStep258.State
+  Yulang.GeneralReflexiveDefaultSource260.facts
+Yulang.GeneralReflexiveDefaultSource260.report : Yulang.GeneralNominalRecursiveInspection.Report
+  Yulang.GeneralDictionaryAllocDefaultSource202.packet.context.state
+Yulang.GeneralReflexiveDefaultSource260.schema_exact : Yulang.GeneralReflexiveDefaultSource260.schema =
+  {
+    equations :=
+      [{ target := 1, mode := Yulang.GeneralNominalMaterialization.Mode.actual,
+          expression := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0 }] }
+Yulang.GeneralReflexiveDefaultSource260.output_keys : Yulang.GeneralRebaseOwnedOutputKeys260.keys 37
+    Yulang.GeneralReflexiveDefaultSource260.schema =
+  [Yulang.GeneralRebaseStep258.Fact.binder 1408]
+Yulang.GeneralReflexiveDefaultSource260.body_meaning : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedEffects231.BodyHolds Yulang.GeneralDictionaryAllocDefaultSource202.plan 1 assignment
+      Yulang.GeneralReflexiveDefaultSource260.body ↔
+    Yulang.CommonNominalFullCarrier.Equivalent (assignment 1).fst (assignment 1).fst
+Yulang.GeneralReflexiveDefaultSource260.report_clear : Yulang.GeneralReflexiveDefaultSource260.report.blocked = [] ∧
+  Yulang.GeneralReflexiveDefaultSource260.report.conflicts = [] ∧
+    Yulang.GeneralReflexiveDefaultSource260.report.arity = [] ∧
+      Yulang.GeneralReflexiveDefaultSource260.report.captures = []
+Yulang.GeneralReflexiveDefaultSource260.proposal : Except Yulang.GeneralReflexiveDefaultSource260.Failure
+  Yulang.GeneralRebaseStep258.Proposal
+Yulang.GeneralReflexiveDefaultSource260.proposal_exact : Yulang.GeneralReflexiveDefaultSource260.proposal =
+  Except.ok Yulang.GeneralReflexiveDefaultSource260.facts
+Yulang.GeneralReflexiveDefaultSource260.observe : Yulang.GeneralRebaseStep258.Observer
+  Yulang.GeneralReflexiveDefaultSource260.facts
+Yulang.GeneralReflexiveDefaultSource260.observe_equal : Yulang.GeneralReflexiveDefaultSource260.observe =
+  Yulang.GeneralDefaultRebaseSource260.observe
+Yulang.GeneralReflexiveDefaultModels260.factHolds : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralRebaseStep258.Fact → Prop
+Yulang.GeneralReflexiveDefaultModels260.Models : Yulang.GeneralRebaseStep258.State
+    Yulang.GeneralReflexiveDefaultSource260.facts →
+  Yulang.GeneralNominalCommonBridge.Assignment → Prop
+Yulang.GeneralReflexiveDefaultModels260.output_meaning : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralReflexiveDefaultModels260.factHolds assignment (Yulang.GeneralRebaseStep258.Fact.binder 1408)
+Yulang.GeneralReflexiveDefaultModels260.all_facts : ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralReflexiveDefaultSource260.facts →
+    Yulang.GeneralReflexiveDefaultModels260.factHolds assignment fact
+Yulang.GeneralReflexiveDefaultModels260.models_exact : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralReflexiveDefaultSource260.facts)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralReflexiveDefaultModels260.Models state assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedDefault202233.current assignment
+Yulang.GeneralReflexiveDefaultModels260.same_assignment : ∀
+  (first last : Yulang.GeneralRebaseStep258.State Yulang.GeneralReflexiveDefaultSource260.facts)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralReflexiveDefaultModels260.Models first assignment ↔
+    Yulang.GeneralReflexiveDefaultModels260.Models last assignment
+Yulang.GeneralReflexiveDefaultModels260.evidence : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralReflexiveDefaultSource260.facts)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralReflexiveDefaultModels260.Models state assignment →
+    Yulang.GeneralNominalVersionedEvidence231.Evidence Yulang.GeneralDictionaryAllocDefaultSource202.registry
+      Yulang.GeneralDictionaryVersionedDefault202233.current.core assignment
+      Yulang.GeneralDictionaryAllocDefaultSource202.root (Yulang.CommonRoleOutermostResolver.Dictionary.node 37 [])
+Yulang.GeneralReflexiveDefaultRun260.run : Yulang.GeneralRebaseStep258.State
+    Yulang.GeneralReflexiveDefaultSource260.facts →
+  Except Yulang.GeneralReflexiveDefaultRun260.Failure
+    (Option (Yulang.GeneralRebaseStep258.State Yulang.GeneralReflexiveDefaultSource260.facts))
+Yulang.GeneralReflexiveDefaultRun260.run_exact : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralReflexiveDefaultSource260.facts),
+  Yulang.GeneralReflexiveDefaultRun260.run state =
+    Except.ok (Yulang.GeneralRebaseStep258.tryWrite state Yulang.GeneralReflexiveDefaultSource260.facts)
+Yulang.GeneralReflexiveDefaultRun260.run_step : ∀
+  (before after : Yulang.GeneralRebaseStep258.State Yulang.GeneralReflexiveDefaultSource260.facts),
+  Yulang.GeneralReflexiveDefaultRun260.run before = Except.ok (some after) ↔
+    Yulang.GeneralRebaseStep258.Step Yulang.GeneralReflexiveDefaultSource260.observe before after
+Yulang.GeneralReflexiveDefaultRun260.first_step : Yulang.GeneralRebaseStep258.Step
+  Yulang.GeneralReflexiveDefaultSource260.observe Yulang.GeneralReflexiveDefaultSource260.initialState
+  Yulang.GeneralReflexiveDefaultSource260.finalState
+Yulang.GeneralReflexiveDefaultRun260.first : Yulang.GeneralReflexiveDefaultRun260.run
+    Yulang.GeneralReflexiveDefaultSource260.initialState =
+  Except.ok (some Yulang.GeneralReflexiveDefaultSource260.finalState)
+Yulang.GeneralReflexiveDefaultRun260.stop : Yulang.GeneralReflexiveDefaultRun260.run
+    Yulang.GeneralReflexiveDefaultSource260.finalState =
+  Except.ok none
+Yulang.GeneralReflexiveDefaultRun260.settle_initial : Yulang.GeneralRebaseSettle259.settle
+    Yulang.GeneralReflexiveDefaultSource260.observe Yulang.GeneralReflexiveDefaultSource260.initialState =
+  Except.ok Yulang.GeneralReflexiveDefaultSource260.finalState
+Yulang.GeneralReflexiveDefaultRun260.one_step_bound : ∀ (steps : Nat)
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralReflexiveDefaultSource260.facts),
+  Yulang.GeneralRebaseBudget258.Runs Yulang.GeneralReflexiveDefaultSource260.observe steps
+      Yulang.GeneralReflexiveDefaultSource260.initialState state →
+    steps ≤ 1
+Yulang.GeneralReflexiveDefaultRegression260.old_no_step : ∀
+  (after : Yulang.GeneralNominalVersionedJournal232.State Yulang.GeneralDictionaryAllocDefaultSource202.roles),
+  ¬Yulang.GeneralNominalVersionedKernel232.Step Yulang.GeneralDictionaryAllocDefaultSource202.registry
+      Yulang.GeneralDictionaryAllocDefaultSource202.root Yulang.GeneralDictionaryVersionedDefault202233.current after
+Yulang.GeneralReflexiveDefaultRegression260.fact_step_semantic_stutter : Yulang.GeneralRebaseStep258.Step
+    Yulang.GeneralReflexiveDefaultSource260.observe Yulang.GeneralReflexiveDefaultSource260.initialState
+    Yulang.GeneralReflexiveDefaultSource260.finalState ∧
+  (∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralReflexiveDefaultModels260.Models Yulang.GeneralReflexiveDefaultSource260.initialState assignment ↔
+        Yulang.GeneralReflexiveDefaultModels260.Models Yulang.GeneralReflexiveDefaultSource260.finalState assignment) ∧
+    ∀ (after : Yulang.GeneralNominalVersionedJournal232.State Yulang.GeneralDictionaryAllocDefaultSource202.roles),
+      ¬Yulang.GeneralNominalVersionedKernel232.Step Yulang.GeneralDictionaryAllocDefaultSource202.registry
+          Yulang.GeneralDictionaryAllocDefaultSource202.root Yulang.GeneralDictionaryVersionedDefault202233.current
+          after
+Yulang.GeneralReflexiveDefaultRegression260.no_strict_model_refinement : ¬∃ assignment,
+    Yulang.GeneralReflexiveDefaultModels260.Models Yulang.GeneralReflexiveDefaultSource260.initialState assignment ∧
+      ¬Yulang.GeneralReflexiveDefaultModels260.Models Yulang.GeneralReflexiveDefaultSource260.finalState assignment
+Yulang.GeneralReflexiveDefaultRegression260.run_certificate : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryVersionedDefault202233.current assignment →
+    Yulang.GeneralReflexiveDefaultRun260.run Yulang.GeneralReflexiveDefaultSource260.initialState =
+        Except.ok (some Yulang.GeneralReflexiveDefaultSource260.finalState) ∧
+      Yulang.GeneralReflexiveDefaultModels260.Models Yulang.GeneralReflexiveDefaultSource260.finalState assignment ∧
+        Yulang.GeneralNominalVersionedEvidence231.Evidence Yulang.GeneralDictionaryAllocDefaultSource202.registry
+          Yulang.GeneralDictionaryVersionedDefault202233.current.core assignment
+          Yulang.GeneralDictionaryAllocDefaultSource202.root (Yulang.CommonRoleOutermostResolver.Dictionary.node 37 [])
+Yulang.GeneralRebaseBodyActual260.explicitProposal : Option Yulang.GeneralRebaseStep258.Proposal
+Yulang.GeneralRebaseBodyActual260.explicit_exact : Yulang.GeneralRebaseBodyActual260.explicitProposal =
+  some Yulang.GeneralOutputRebaseSource260.facts
+Yulang.GeneralRebaseBodyActual260.distinct_default_target : Yulang.GeneralRebaseBodyDecoder260.compile
+    Yulang.GeneralDictionaryDefaultGap206Source.plan 37 { name := 0, target := 0 } =
+  Except.ok Yulang.GeneralDefaultRebaseSource260.facts
+Yulang.GeneralRebaseBodyActual260.reflexive_default_target : Yulang.GeneralRebaseBodyDecoder260.compile
+    Yulang.GeneralDictionaryAllocDefaultSource202.plan 37 { name := 0, target := 1 } =
+  Except.ok Yulang.GeneralReflexiveDefaultSource260.facts
+Yulang.GeneralRebaseBodyActual260.target_not_interchangeable : Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema
+    Yulang.GeneralDictionaryDefaultGap206Source.plan 0 Yulang.GeneralDefaultRebaseBody260.body ≠
+  Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema Yulang.GeneralDictionaryAllocDefaultSource202.plan 1
+    Yulang.GeneralReflexiveDefaultSource260.body
+Yulang.GeneralRebaseRequestBodyKeys260.space : Nat → Nat → Nat → Nat
+Yulang.GeneralRebaseRequestBodyKeys260.key : Nat → Nat → Nat → Nat → Yulang.GeneralRebaseStep258.Fact
+@Yulang.GeneralRebaseRequestBodyKeys260.space_identity : ∀ {owner kind request owner' kind' request' : Nat},
+  Yulang.GeneralRebaseRequestBodyKeys260.space owner kind request =
+      Yulang.GeneralRebaseRequestBodyKeys260.space owner' kind' request' →
+    owner = owner' ∧ kind = kind' ∧ request = request'
+@Yulang.GeneralRebaseRequestBodyKeys260.key_identity : ∀
+  {owner kind request equation owner' kind' request' equation' : Nat},
+  Yulang.GeneralRebaseRequestBodyKeys260.key owner kind request equation =
+      Yulang.GeneralRebaseRequestBodyKeys260.key owner' kind' request' equation' →
+    owner = owner' ∧ kind = kind' ∧ request = request' ∧ equation = equation'
+@Yulang.GeneralRebaseRequestBodyKeys260.compile : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenters.Plan roles →
+    Nat →
+      Nat →
+        Nat →
+          Yulang.GeneralSourceState.Output →
+            Except Yulang.GeneralRebaseBodyDecoder260.Failure Yulang.GeneralRebaseStep258.Proposal
+@Yulang.GeneralRebaseRequestBodyKeys260.successful : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner kind request : Nat)
+  (output : Yulang.GeneralSourceState.Output) (proposal : Yulang.GeneralRebaseStep258.Proposal),
+  Yulang.GeneralRebaseRequestBodyKeys260.compile plan owner kind request output = Except.ok proposal ↔
+    ∃ body,
+      Yulang.GeneralDictionaryAssociatedProvenance.lookup roles plan.packet.declaration output.name = some body ∧
+        (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body).unknown = false ∧
+          proposal =
+            Yulang.GeneralRebaseStep258.Fact.installed
+                (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind request) ::
+              Yulang.GeneralRebaseOwnedOutputKeys260.keys
+                (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind request)
+                (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body)
+@Yulang.GeneralRebaseRequestBodyKeys260.equation_meaning : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner kind request : Nat)
+  (output : Yulang.GeneralSourceState.Output) (body : Yulang.GeneralDictionaryAssociatedProvenance.Body)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈
+          Yulang.GeneralRebaseOwnedOutputKeys260.keys (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind request)
+            (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body) →
+        Yulang.GeneralRebaseOwnedOutputKeys260.Holds (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind request)
+          (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body)
+          (Yulang.GeneralNominalVersionedEffects231.bodyVariables plan assignment body) assignment fact) ↔
+    Yulang.GeneralNominalVersionedEffects231.BodyHolds plan output.target assignment body
+Yulang.GeneralRebaseRequestBodyKeys260.requests_separate : ∀ (owner kind first last : Nat),
+  first ≠ last →
+    ∀ (firstSchema lastSchema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+      (fact : Yulang.GeneralRebaseStep258.Fact),
+      ¬(fact ∈
+            Yulang.GeneralRebaseOwnedOutputKeys260.keys (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind first)
+              firstSchema ∧
+          fact ∈
+            Yulang.GeneralRebaseOwnedOutputKeys260.keys (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind last)
+              lastSchema)
+Yulang.GeneralRebaseRequestBodyKeys260.kinds_separate : ∀ (owner first last request : Nat),
+  first ≠ last →
+    ∀ (firstSchema lastSchema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+      (fact : Yulang.GeneralRebaseStep258.Fact),
+      ¬(fact ∈
+            Yulang.GeneralRebaseOwnedOutputKeys260.keys
+              (Yulang.GeneralRebaseRequestBodyKeys260.space owner first request) firstSchema ∧
+          fact ∈
+            Yulang.GeneralRebaseOwnedOutputKeys260.keys
+              (Yulang.GeneralRebaseRequestBodyKeys260.space owner last request) lastSchema)
+Yulang.GeneralRebaseRequestBodyKeys260.probe_repaired : Yulang.GeneralRebaseRequestBodyKeys260.compile
+    Yulang.GeneralDictionaryDefaultGap206Source.plan 37 2 0 { name := 0, target := 0 } ≠
+  Yulang.GeneralRebaseRequestBodyKeys260.compile Yulang.GeneralDictionaryDefaultGap206Source.plan 37 2 1
+    { name := 0, target := 1 }
+Yulang.GeneralRebaseNamedRequest260.code : Yulang.GeneralSourceState.Output → Nat
+@Yulang.GeneralRebaseNamedRequest260.code_injective : ∀ {first last : Yulang.GeneralSourceState.Output},
+  Yulang.GeneralRebaseNamedRequest260.code first = Yulang.GeneralRebaseNamedRequest260.code last → first = last
+@Yulang.GeneralRebaseNamedRequest260.compile : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenters.Plan roles →
+    Nat →
+      Nat →
+        Yulang.GeneralSourceState.Output →
+          Except Yulang.GeneralRebaseBodyDecoder260.Failure Yulang.GeneralRebaseStep258.Proposal
+Yulang.GeneralRebaseNamedRequest260.outputs_separate : ∀ (owner kind : Nat)
+  (first last : Yulang.GeneralSourceState.Output),
+  first ≠ last →
+    ∀ (firstSchema lastSchema : Yulang.GeneralNominalCenteredHeadMatSchemas.Schema)
+      (fact : Yulang.GeneralRebaseStep258.Fact),
+      ¬(fact ∈
+            Yulang.GeneralRebaseOwnedOutputKeys260.keys
+              (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind (Yulang.GeneralRebaseNamedRequest260.code first))
+              firstSchema ∧
+          fact ∈
+            Yulang.GeneralRebaseOwnedOutputKeys260.keys
+              (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind (Yulang.GeneralRebaseNamedRequest260.code last))
+              lastSchema)
+@Yulang.GeneralRebaseNamedRequest260.lookup_unique : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (output : Yulang.GeneralSourceState.Output)
+  (first last : Yulang.GeneralDictionaryAssociatedProvenance.Body),
+  Yulang.GeneralDictionaryAssociatedProvenance.lookup roles plan.packet.declaration output.name = some first →
+    Yulang.GeneralDictionaryAssociatedProvenance.lookup roles plan.packet.declaration output.name = some last →
+      first = last
+@Yulang.GeneralRebaseNamedRequest260.equation_meaning : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner kind : Nat) (output : Yulang.GeneralSourceState.Output)
+  (body : Yulang.GeneralDictionaryAssociatedProvenance.Body)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈
+          Yulang.GeneralRebaseOwnedOutputKeys260.keys
+            (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind (Yulang.GeneralRebaseNamedRequest260.code output))
+            (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body) →
+        Yulang.GeneralRebaseOwnedOutputKeys260.Holds
+          (Yulang.GeneralRebaseRequestBodyKeys260.space owner kind (Yulang.GeneralRebaseNamedRequest260.code output))
+          (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body)
+          (Yulang.GeneralNominalVersionedEffects231.bodyVariables plan assignment body) assignment fact) ↔
+    Yulang.GeneralNominalVersionedEffects231.BodyHolds plan output.target assignment body
+Yulang.GeneralRebaseNamedRequest260.probe_repaired : Yulang.GeneralRebaseNamedRequest260.compile
+    Yulang.GeneralDictionaryDefaultGap206Source.plan 37 2 { name := 0, target := 0 } ≠
+  Yulang.GeneralRebaseNamedRequest260.compile Yulang.GeneralDictionaryDefaultGap206Source.plan 37 2
+    { name := 0, target := 1 }
