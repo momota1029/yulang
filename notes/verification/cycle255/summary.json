@@ -1,0 +1,22 @@
+{
+  "cycle": 255,
+  "started_utc": "2026-11-18T11:32:22Z",
+  "integration": "33cf8d490b2e8f09c1f061e3bba7535baa6cdf49",
+  "mathematical_checkpoint": "944d1f576283143ffa570e9f5b6d30b38db1a425",
+  "modules": 19,
+  "explicit_declarations": 168,
+  "all_declarations": 245,
+  "usage_examples": 20,
+  "additional_polarity_examples": 4,
+  "source_closure_files": 1549,
+  "previous_254_hashes": 1429,
+  "previous_253_hashes": 1653,
+  "selected_root_reachable": 142,
+  "selected_roots": 12,
+  "focused_build_exit": 0,
+  "full_repository_build": false,
+  "independent_rebuild": false,
+  "last_two_modules_independent_read_review": false,
+  "termination_proved": false,
+  "whole_trace_support_proved": false
+}

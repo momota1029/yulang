@@ -3,7 +3,10 @@ import re,json,hashlib,subprocess
 v=Path('notes/verification/cycle255')
 prior=json.loads(Path('notes/verification/cycle254/dependency-source-sha256.json').read_text())
 assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest()==h for p,h in prior.items())
-print(f'PASS previous dependency source hashes unchanged: {len(prior)}')
+print(f'PASS previous cycle254 dependency source hashes unchanged: {len(prior)}')
+older=json.loads(Path('notes/verification/cycle253/dependency-source-sha256.json').read_text())
+assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest()==h for p,h in older.items())
+print(f'PASS previous cycle253 dependency source hashes unchanged: {len(older)}')
 mods=v.joinpath('modules.txt').read_text().splitlines();seen=set()
 def visit(m):
  p=Path('lean')/Path(*m.split('.')).with_suffix('.lean')
@@ -12,8 +15,16 @@ def visit(m):
  for dep in re.findall(r'^import\s+(\S+)',p.read_text(),re.M):visit(dep)
 for m in mods:visit('Yulang.'+m)
 visit('Audit.Cycle255Usage')
+visit('Audit.Cycle255Reach')
 v.joinpath('dependency-source-sha256.json').write_text(json.dumps({p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sorted(seen)},indent=2)+'\n')
 print(f'PASS import closure hashed: {len(seen)}')
+imports=0
+for p in seen:
+ for line in Path(p).read_text().splitlines():
+  if re.match(r'^\s*(?:public\s+|meta\s+)?import\s+',line):
+   imports+=1
+   assert line.startswith('import ') and len(line.split('--',1)[0].split())==2, (p,line)
+print(f'PASS dependency import syntax matches collector: {imports} lines')
 for p in [Path('lean/Yulang/'+m+'.lean') for m in mods]+[Path('lean/Audit/Cycle255Usage.lean')]:
  assert not re.search(r'\b(sorry|admit|native_decide|axiom)\b',p.read_text())
 print('PASS forbidden tokens absent in new modules and usage')

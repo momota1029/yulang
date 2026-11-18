@@ -1,0 +1,78 @@
+{
+  "GeneralDictionarySourceAtom255": {
+    "source_sha256": "17a0865196f3aa3a3197c6b23b37f03d09a5732a0c90ac1c56baf7f9af6cf85f",
+    "focused_olean_sha256": "65cdd894c8537699381cc8351060d9195d5985a201a1adfa16e2c29d5b3f31d8"
+  },
+  "GeneralNominalViewTypeTerms255": {
+    "source_sha256": "fa5804603edfdd9202238e92bad805a68ecd1e645a456ba5eabcdc7365335c67",
+    "focused_olean_sha256": "a3cda4c3e4cdec3e8a29ac8a9dea43d991734720c0438fa8e08e8953ad469afb"
+  },
+  "GeneralNominalViewTypeMap255": {
+    "source_sha256": "02bb0a7e7e93e706209860c4bc1a2370f8f48c90970609afae10324a491cf95f",
+    "focused_olean_sha256": "6dc0ef5dc5b536ab6c6a47c7b922806504b1f0fd34c3a0509753bebb7d680f01"
+  },
+  "GeneralNominalViewNormal255": {
+    "source_sha256": "ef354c05fba642be282c4f9a7f443bd99f7394cc845c59137b99904275e120f1",
+    "focused_olean_sha256": "5a121efd4bbf77fa3994cf9d9635adb7258018e1b64d0823213230f690e82d07"
+  },
+  "GeneralDictionaryViewNormal255": {
+    "source_sha256": "772565a973cdd9ebfd127c32a0c396beb3f1544f56f9f71e2fa2be59c09a5c93",
+    "focused_olean_sha256": "1e1eb417b1de9814d34440ce265fa9d702fcce1fa322e39678a98ee2d001feb6"
+  },
+  "GeneralPresenceSourceSupport255": {
+    "source_sha256": "56e6a174711fda734c8244ea5006a608e412f8f37cbfb1cbb673c94eaa701b22",
+    "focused_olean_sha256": "3b8ac85e2b5c754cd245d1082890bdad4a6de0d6a2bfcd41fd447882f74396d6"
+  },
+  "GeneralNominalSourceViewSupport255": {
+    "source_sha256": "210dffa6a01b1927dda60efce065f281bede7456a065724917434b0c038e0d92",
+    "focused_olean_sha256": "51cecc1866c2bca0ea8a76b39fe88e6e4c42d480896e620c2aff1f321e862f66"
+  },
+  "GeneralNominalSourceBasis255": {
+    "source_sha256": "43915ead6cea5b23dfc52d1cc3040c5125c54ebacb389b5011c7cb71882fc7a0",
+    "focused_olean_sha256": "7bc9dafde964b305785b7da76716858ffe5833a29431fe182b2df997515e3dea"
+  },
+  "GeneralNominalViewTypeImage255": {
+    "source_sha256": "3b38c3cbddef94ee3a4935099f496715b785a5fc0ad4fb120fed88f78029353f",
+    "focused_olean_sha256": "11416d67551395343a41099dd162a29ad89db7825d075689fa83c2277c527d3b"
+  },
+  "GeneralNominalViewFixed255": {
+    "source_sha256": "f95aa33b3564db898b26f5171ade834b9581e679b2c5beccd628326df45cfd90",
+    "focused_olean_sha256": "b71899018b59de3aa88e767a431fbfbc73f6b9eeff91f51014af95b94498b3e7"
+  },
+  "GeneralNominalTemplateChoices255": {
+    "source_sha256": "4176dd92a76c700256ef17d7ac0a6d0433a55947553513e1fe3f37d805568c90",
+    "focused_olean_sha256": "0cd37e9c6ea22a5c6b72504027134ec7543e452bda0cfe3d772c01ccafc352d5"
+  },
+  "GeneralNominalTemplateCongruence255": {
+    "source_sha256": "2c0aab17ffb6c3a964327b6db685f5e6ca2aaef8edfd87a6aa34d121b10cf05f",
+    "focused_olean_sha256": "fd2092f6a231f8622b1007c5da52812b609beb07930687d9557c9c11d87bd41e"
+  },
+  "GeneralNominalTemplateNormal255": {
+    "source_sha256": "ce196d9c2bf7af3c13babb3e467244f4d69b4d958f99e81776b7fa1514c783ce",
+    "focused_olean_sha256": "d36913d273749901f93905a320ea5ce3fa4ced8733663ef89f86f4efe6601904"
+  },
+  "GeneralNominalSourceTemplateMenu255": {
+    "source_sha256": "416214efccfd8d1d239c4b51c522c3ca9e64c3b9c9726fd3391a333a256aefa8",
+    "focused_olean_sha256": "603f8c0ba11c18c575617421a8168d3bc56bdbfbf42cab8436c88fafc9af34ee"
+  },
+  "GeneralNominalTemplateSupport255": {
+    "source_sha256": "ecdf06a28f652294d7c272e82c3473c3d72b1033f474d3bef05865dbcd7419f3",
+    "focused_olean_sha256": "26d47618ce3f9e6e5ff85ac380387888f154fd322af4013ee90466f55537b36d"
+  },
+  "GeneralNominalCanonicalBasis255": {
+    "source_sha256": "debe4a66d434f445048e95ba0ff912a294818b419e45fe483a40e98805150ed3",
+    "focused_olean_sha256": "6bdc3a896a7ef2918710fb4e24bb9a12f5f2717941a485f2e5d0ff8fbaf629da"
+  },
+  "GeneralNominalNormalizedDepth255": {
+    "source_sha256": "c7225c833b84e3270d8bb09ea4a422de758fdea04fc9daaefa994fb1921eb4ad",
+    "focused_olean_sha256": "6e1e2f47eabe8e4e79e6e57b6cdc93fc41f6512ee9fed6d5f37e83fffe146451"
+  },
+  "GeneralDictionaryTemplateMenu255": {
+    "source_sha256": "2f49c9f08503f10c8cbd50ee0577b37ba99339e49d28703c7d37210059bec620",
+    "focused_olean_sha256": "89f61656bc9a6c5723e10bce94ebda2d801c3ad06bfbd109bc2ef3694826d4d4"
+  },
+  "GeneralNominalSourcePublicBasis255": {
+    "source_sha256": "e428514df816d67d66f7263377ba67b9b9541fcb6d5390ba1d19486d8b7a7718",
+    "focused_olean_sha256": "b05486d3b5689672da3aaf3ed7db800d525759ca37273480dcf9f2e8f32d3cd1"
+  }
+}

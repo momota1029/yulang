@@ -39,3 +39,18 @@ Slots, observed sites, plan/effect lists: finite field vocabulary does not bound
 
 Old Lean files are frozen. No new semantic restriction, external publication branch, scheduler Step,
 Evidence assumption, or model-existence premise was added to the boundary.
+
+## Representation check versus language rejection
+`prepare = none` is an internal support/preparation failure, not Yulang's language-visible
+Rejected classification. Turning it into a new admissibility guard would narrow inputs and
+is not justified by these theorems. The source preservation obligation is to establish
+successful preparation from the actual source rules for all required consumers, not to
+assume failure means there is no dictionary. The int test specifically probes a stronger
+uniform whole-View strategy; fixed source formulas can instead remain outside aggregate normalization.
+
+## Publication and dependency integrity
+Source hashes cover the19 modules and their repository import closure, including Usage/Reach.
+All2628 import lines in that closure match the one-module-per-line parser, so no second import
+on a line or public/meta import is silently omitted. Earlier cycle254/253 hash inventories
+remain unchanged. All new modules were rebuilt into a distinct focused cache with old
+imports reused; this is not an independent rebuild of the old1549-file source closure.

@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 255
-- status: running
+- status: completed
 - started: 2026-11-18T11:32:22Z
-- updated: 2026-11-18T12:11:40Z
-- elapsed_min: 39
-- activity: Nineteen modules fresh-rebuilt, 20 usage examples, 168 explicit/245 full audited. Actual source fixed basis and enabled public ports connected; real252 template regression checked. Reviewing final closure obligations, no full trace/Acc claim.
+- updated: 2026-11-18T12:23:00Z
+- elapsed_min: 50.65
+- activity: 19 modules,20 Usage plus4 probes,168 explicit/245 full audit PASS. Fixed initial source basis and checked finite raw template menu. Whole-trace support and Acc remain open.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: 0dfa9ef18
-- resume_hint: Continue cycle255 design before new Lean. Do not use Evidence-conditional depth as a termination invariant; preserve old modules and source semantics.
+- last_local_commit: 7478731db
+- resume_hint: Read latest integration/inbox; preserve source semantics and frozen modules. Derive actual side-sensitive old/current consumer support before claiming any Step termination.
+- report: notes/handoff/dots-cycle-255.md

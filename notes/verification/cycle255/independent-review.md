@@ -17,3 +17,6 @@ finite menu/private-free/depth facts alone do not provide it. Menu is an overapp
 Canonical means duplicate-free selected-side atom lists, not a unique representative of
 all semantically equivalent syntax. Depth is stored syntax, not ground readback.
 No independent rebuild. DictionaryTemplateMenu255 and SourcePublicBasis255 were added later.
+The final two modules at 944d1f576283143ffa570e9f5b6d30b38db1a425 could not receive
+another independent read-only review because the thread limit prevented launch.
+They were strictly rebuilt in the fresh cycle255-focused module cache and self-reviewed.
