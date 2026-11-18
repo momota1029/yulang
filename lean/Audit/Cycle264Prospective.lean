@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseProspectiveFixture264
+open Yulang
+example : GeneralDictionaryCompoundFrame238.before.plans = [] :=
+ GeneralRebaseProspectiveFixture264.nonempty_install.1
+example : GeneralDictionaryCompoundPacket238.plan ∈ GeneralDictionaryCompoundFrame238.installed.plans :=
+ GeneralRebaseProspectiveFixture264.nonempty_install.2.2.2
+example : GeneralRebaseClassCheck261.check GeneralDictionaryCompoundPacket238.plan
+ (GeneralRebaseExecutableRequests262.requests GeneralDictionaryCompoundFrame238.before.core
+ GeneralDictionaryJournalRefinement228Source.root) = .ok () :=
+ GeneralRebaseProspectiveFixture264.check_success
+#print axioms GeneralRebaseProspectiveCurrent264.source_check
+#print axioms GeneralRebaseProspectiveCurrent264.source_checked_effect
+#print axioms GeneralRebaseProspectiveCurrent264.role_unique_current
+#print axioms GeneralRebaseProspectiveStep264.role_unique_step
+#print axioms GeneralRebaseProspectiveStep264.source_finite_steps
+#print axioms GeneralRebaseProspectiveFixture264.selected
+#print axioms GeneralRebaseProspectiveFixture264.current
+#print axioms GeneralRebaseProspectiveFixture264.nonempty_install

@@ -1,0 +1,10 @@
+import Yulang.GeneralRebaseMergeRegression264
+#print axioms Yulang.GeneralRebaseMergeRegression264.merge_step
+#print axioms Yulang.GeneralRebaseMergeRegression264.last_absent
+#print axioms Yulang.GeneralRebaseMergeRegression264.last_present
+#print axioms Yulang.GeneralRebaseMergeRegression264.gained_before_absent
+#print axioms Yulang.GeneralRebaseMergeRegression264.gained_after
+#print axioms Yulang.GeneralRebaseMergeRegression264.gained_basis
+#print axioms Yulang.GeneralRebaseMergeRegression264.projection_changed
+#print axioms Yulang.GeneralRebaseMergeRegression264.actual_strict_merge
+#check Yulang.GeneralRebaseMergeRegression264.actual_strict_merge

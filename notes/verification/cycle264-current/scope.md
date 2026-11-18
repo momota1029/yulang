@@ -1,0 +1,15 @@
+# Prospective current source connection
+
+New264 modules connect ProspectiveEffect263 to actual checked current source frames and real mixed-source installation. The result is not a new executable source solver.
+
+- `source_check` derives successful actual request checking from Checked, source Reachable and a current Frame. No supplied Ready/checker success remains on this domain.
+- `source_checked_effect` derives an actual Effect with exact source registry/snapshot/root/key/children plus successful check, complete emitted materialization, positions and all-alternative safety. These are derived from existing actual-source guard theorems, not newly assumed Current fields.
+- `role_unique_current` specializes to an explicitly restricted registry with one declaration key per role. Historical choice follows from actual source choice-history provenance, not a ChoiceCompatible premise. A **single** joint Residual model remains explicit. Residual includes current full Models, HeadModels, head schema, Outputs, child schemas, and current live ClassEffects. Its existence is not asserted for arbitrary selected programs and separate witnesses are not combined.
+- `role_unique_step` adds Generated and actual novelty to obtain the real mixed-source Step, an inhabited installed state, and actual Plan membership in the resulting versioned journal.
+- `source_finite_steps` chooses prospective owner keys once from source Initial before future state/path/effect/model, then proves owner membership and the same real transition conclusions. This is not a bound on the number of source Steps or an executable Plan enumerator.
+
+Concrete Compound238 regression: use actual empty source initialization, current selected frontier proved from the existing concrete joint assignment, singleton source registry, actual prospective Frame and checker. The new Current/Step chain produces a guarded installation and nonempty journal. The earlier actual guarded Step is not used as the new Step's proof; its concrete model, safety and novelty lemmas are reused. This is not a newly solved source example or a general common-model construction.
+
+Relevant preexisting reductions rediscovered: MixedReady235 derives Ready/materialization; MixedGuardReduction235 derives positions/alternatives; MixedSelectedEffect235 reduces installability to choice and common model; MixedCommon235 and MixedMaterialization237 expose exact remaining common obligations; MixedChoice236.choice_of_role_unique gives the positive registry subclass. The new contribution is their connection to actual263 checker/prospective Effect, finite prospective owner coverage and an actual nonempty regression, not a claim that those reductions were first proved this cycle.
+
+Read current design264, spec06 roles/actual centers, and recorded oracle evidence notes/audit/x-oracle.md; no new semantics chosen. Only new264 modules/audit and verification files changed. Focused strict compilation plus 8 axiom audits and 3 usage examples PASS. Missing old transitive dependencies were rebuilt in a separate cache, no whole-repository build.

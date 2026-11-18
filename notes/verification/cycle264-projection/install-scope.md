@@ -1,0 +1,9 @@
+# Sharp actual source installation square
+
+For checked source-reachable snapshots and an actual encoded-registry Installable effect, existing source request conservation applies at every historical registered Plan root. SourceRequests264 supplies Present from actual historical input retention. It also applies to the new prospective Plan root via its actual installation Frame.raw_recorded, without assuming that Plan is already registered.
+
+Consequently the post-install live facts are exactly, in membership, the union of old live facts and the new Plan proposal. The new proposal can be evaluated before or after installation. `project_install_current` proves an exact single write square with the pre-install proposal. This strengthens a generic batch rescan only under these full actual-source premises. It does NOT assume desired projection equality or arbitrary request invariance, nor claim it for arbitrary installations/roots.
+
+The theorem holds for any finite owners/pool, as an equality of projections. Complete coverage of all live facts must still be obtained from the separately proved source-derived basis if using it as a faithful abstraction. Novelty is not needed for this data equation; an actual operational installation Step additionally requires its original generated/novel conditions. The finite write can stutter, so no strict finite Step, source termination or inverse simulation is asserted. Merge is not covered by this fresh-plan-only formula and may require rescanning historical proposals.
+
+The standalone audit includes CompoundStep238's actual source installation, with checked registry, actual source initialization and actual Installable proof, and verifies the projected equation. All focused builds and seven axiom probes pass; standard axioms only. The imported coordinator LiveProjection264 is exported verbatim from commit37f231273 for validation and is not modified or included as a worker change.

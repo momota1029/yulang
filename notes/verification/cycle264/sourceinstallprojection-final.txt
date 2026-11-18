@@ -1,0 +1,19 @@
+'Yulang.GeneralRebaseSourceInstallProjection264.historical_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceInstallProjection264.liveFacts_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceInstallProjection264.project_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceInstallProjection264.current_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceInstallProjection264.current_proposal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceInstallProjection264.project_install_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.Cycle264SourceInstallProjection.compound_square' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,92 @@
+import Yulang.GeneralRebaseAffectedMerge264
+import Yulang.GeneralRebaseLiveMeaning264
+import Yulang.GeneralRebaseLiveProjection264
+import Yulang.GeneralRebaseMergeRequests264
+import Yulang.GeneralRebaseProjectedBudget264
+import Yulang.GeneralRebaseProspectiveCurrent264
+import Yulang.GeneralRebaseProspectiveFixture264
+import Yulang.GeneralRebaseProspectiveStep264
+import Yulang.GeneralRebaseSourceInstallProjection264
+import Yulang.GeneralRebaseSourceProjection264
+import Yulang.GeneralRebaseSourceRequests264
+
+#print axioms Yulang.GeneralRebaseAffectedMerge264.affected
+#print axioms Yulang.GeneralRebaseAffectedMerge264.plans
+#print axioms Yulang.GeneralRebaseAffectedMerge264.affected_exact
+#print axioms Yulang.GeneralRebaseAffectedMerge264.unaffected_proposal
+#print axioms Yulang.GeneralRebaseAffectedMerge264.liveFacts_split
+#print axioms Yulang.GeneralRebaseAffectedMerge264.project_merge
+#print axioms Yulang.GeneralRebaseAffectedMerge264.plan_bound
+#print axioms Yulang.GeneralRebaseLiveMeaning264.Live
+#print axioms Yulang.GeneralRebaseLiveMeaning264.Remainder
+#print axioms Yulang.GeneralRebaseLiveMeaning264.journal_exact
+#print axioms Yulang.GeneralRebaseLiveMeaning264.live_facts_exact
+#print axioms Yulang.GeneralRebaseLiveMeaning264.project_models
+#print axioms Yulang.GeneralRebaseLiveMeaning264.project_journal
+#print axioms Yulang.GeneralRebaseLiveProjection264.SourceState
+#print axioms Yulang.GeneralRebaseLiveProjection264.facts
+#print axioms Yulang.GeneralRebaseLiveProjection264.liveFacts
+#print axioms Yulang.GeneralRebaseLiveProjection264.project
+#print axioms Yulang.GeneralRebaseLiveProjection264.member
+#print axioms Yulang.GeneralRebaseLiveProjection264.monotone
+#print axioms Yulang.GeneralRebaseLiveProjection264.same_members
+#print axioms Yulang.GeneralRebaseLiveProjection264.write_members
+#print axioms Yulang.GeneralRebaseLiveProjection264.absorb
+#print axioms Yulang.GeneralRebaseLiveProjection264.covered
+#print axioms Yulang.GeneralRebaseLiveProjection264.source_covered
+#print axioms Yulang.GeneralRebaseLiveProjection264.project_same
+#print axioms Yulang.GeneralRebaseLiveProjection264.rescan
+#print axioms Yulang.GeneralRebaseLiveProjection264.rescan_batch
+#print axioms Yulang.GeneralRebaseMergeRequests264.Joined
+#print axioms Yulang.GeneralRebaseMergeRequests264.joined_symm
+#print axioms Yulang.GeneralRebaseMergeRequests264.joined_trans
+#print axioms Yulang.GeneralRebaseMergeRequests264.alias_merge
+#print axioms Yulang.GeneralRebaseMergeRequests264.requests_merge
+#print axioms Yulang.GeneralRebaseMergeRequests264.requests_unaffected
+#print axioms Yulang.GeneralRebaseProjectedBudget264.from_steps
+#print axioms Yulang.GeneralRebaseProjectedBudget264.to_steps
+#print axioms Yulang.GeneralRebaseProjectedBudget264.budget_remaining
+#print axioms Yulang.GeneralRebaseProjectedBudget264.budget
+#print axioms Yulang.GeneralRebaseProjectedBudget264.source_tracks
+#print axioms Yulang.GeneralRebaseProspectiveCurrent264.source_check
+#print axioms Yulang.GeneralRebaseProspectiveCurrent264.source_checked_effect
+#print axioms Yulang.GeneralRebaseProspectiveCurrent264.role_unique_current
+#print axioms Yulang.GeneralRebaseProspectiveFixture264.selected
+#print axioms Yulang.GeneralRebaseProspectiveFixture264.role_unique
+#print axioms Yulang.GeneralRebaseProspectiveFixture264.residual
+#print axioms Yulang.GeneralRebaseProspectiveFixture264.current
+#print axioms Yulang.GeneralRebaseProspectiveFixture264.check_success
+#print axioms Yulang.GeneralRebaseProspectiveFixture264.nonempty_install
+#print axioms Yulang.GeneralRebaseProspectiveStep264.role_unique_step
+#print axioms Yulang.GeneralRebaseProspectiveStep264.source_finite_steps
+#print axioms Yulang.GeneralRebaseSourceInstallProjection264.historical_facts
+#print axioms Yulang.GeneralRebaseSourceInstallProjection264.liveFacts_exact
+#print axioms Yulang.GeneralRebaseSourceInstallProjection264.project_install
+#print axioms Yulang.GeneralRebaseSourceInstallProjection264.current_requests
+#print axioms Yulang.GeneralRebaseSourceInstallProjection264.current_proposal
+#print axioms Yulang.GeneralRebaseSourceInstallProjection264.project_install_current
+#print axioms Yulang.GeneralRebaseSourceProjection264.growth_facts
+#print axioms Yulang.GeneralRebaseSourceProjection264.same_facts
+#print axioms Yulang.GeneralRebaseSourceProjection264.same_projection
+#print axioms Yulang.GeneralRebaseSourceProjection264.step_square
+#print axioms Yulang.GeneralRebaseSourceProjection264.steps_square
+#print axioms Yulang.GeneralRebaseSourceProjection264.step_rescan_batch
+#print axioms Yulang.GeneralRebaseSourceProjection264.refresh_stutters
+#print axioms Yulang.GeneralRebaseSourceProjection264.reobserve_stutters
+#print axioms Yulang.GeneralRebaseSourceProjection264.equate_stutters
+#print axioms Yulang.GeneralRebaseSourceProjection264.merge_rescan
+#print axioms Yulang.GeneralRebaseSourceProjection264.strict_decrease
+#print axioms Yulang.GeneralRebaseSourceRequests264.Same
+#print axioms Yulang.GeneralRebaseSourceRequests264.at_growth
+#print axioms Yulang.GeneralRebaseSourceRequests264.step_growth
+#print axioms Yulang.GeneralRebaseSourceRequests264.steps_growth
+#print axioms Yulang.GeneralRebaseSourceRequests264.refresh_same
+#print axioms Yulang.GeneralRebaseSourceRequests264.reobserve_same
+#print axioms Yulang.GeneralRebaseSourceRequests264.equate_same
+#print axioms Yulang.GeneralRebaseSourceRequests264.merge_growth
+#print axioms Yulang.GeneralRebaseSourceRequests264.install_growth
+#print axioms Yulang.GeneralRebaseSourceRequests264.install_selected
+#print axioms Yulang.GeneralRebaseSourceRequests264.merge_selected
+#print axioms Yulang.GeneralRebaseSourceRequests264.registered_present
+#print axioms Yulang.GeneralRebaseSourceRequests264.source_registered_present
+#print axioms Yulang.GeneralRebaseSourceRequests264.source_install_old_requests

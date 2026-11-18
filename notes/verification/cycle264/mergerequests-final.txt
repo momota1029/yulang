@@ -1,0 +1,16 @@
+'Yulang.GeneralRebaseMergeRequests264.joined_symm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeRequests264.joined_trans' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeRequests264.alias_merge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRequests264.requests_merge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRequests264.requests_unaffected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralRebaseMergeRequests264.requests_merge {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (first last : Yulang.GeneralNominalCenters.Site roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (output : Yulang.GeneralSourceState.Output) :
+  output ∈
+      Yulang.GeneralNominalCenteredHeadOutputs.requests
+        (Yulang.GeneralNominalVersionedAdministrative232.merge state first last).core root ↔
+    output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core root ∨
+      Yulang.GeneralNominalSaturationState.Alias state.core.erased.current root.identity first.occurrence.identity ∧
+          output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core last.occurrence ∨
+        Yulang.GeneralNominalSaturationState.Alias state.core.erased.current root.identity last.occurrence.identity ∧
+          output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core first.occurrence

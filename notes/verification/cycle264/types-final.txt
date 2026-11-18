@@ -1,0 +1,713 @@
+@Yulang.GeneralRebaseAffectedMerge264.affected : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralRebaseLiveProjection264.SourceState roles →
+    Yulang.GeneralNominalCenters.Site roles →
+      Yulang.GeneralNominalCenters.Site roles → Yulang.GeneralNominalCenters.Plan roles → Bool
+@Yulang.GeneralRebaseAffectedMerge264.plans : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralRebaseLiveProjection264.SourceState roles →
+    Yulang.GeneralNominalCenters.Site roles →
+      Yulang.GeneralNominalCenters.Site roles → List (Yulang.GeneralNominalCenters.Plan roles)
+@Yulang.GeneralRebaseAffectedMerge264.affected_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (first last : Yulang.GeneralNominalCenters.Site roles) (plan : Yulang.GeneralNominalCenters.Plan roles),
+  Yulang.GeneralRebaseAffectedMerge264.affected source first last plan = true ↔
+    Yulang.GeneralNominalSaturationState.Alias
+        (Yulang.GeneralNominalVersionedJournal232.State.core source).erased.current plan.packet.site.occurrence.identity
+        first.occurrence.identity ∨
+      Yulang.GeneralNominalSaturationState.Alias
+        (Yulang.GeneralNominalVersionedJournal232.State.core source).erased.current plan.packet.site.occurrence.identity
+        last.occurrence.identity
+@Yulang.GeneralRebaseAffectedMerge264.unaffected_proposal : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (first last : Yulang.GeneralNominalCenters.Site roles) (plan : Yulang.GeneralNominalCenters.Plan roles),
+  Yulang.GeneralRebaseAffectedMerge264.affected source first last plan = false →
+    ∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈
+          Yulang.GeneralRebaseMultiSelection263.proposal
+            (Yulang.GeneralNominalVersionedAdministrative232.merge source first last).core
+            (Yulang.GeneralRebaseMultiSelection263.ofPlan plan) ↔
+        fact ∈
+          Yulang.GeneralRebaseMultiSelection263.proposal (Yulang.GeneralNominalVersionedJournal232.State.core source)
+            (Yulang.GeneralRebaseMultiSelection263.ofPlan plan)
+@Yulang.GeneralRebaseAffectedMerge264.liveFacts_split : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (first last : Yulang.GeneralNominalCenters.Site roles) (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈
+      Yulang.GeneralRebaseLiveProjection264.liveFacts
+        (Yulang.GeneralNominalVersionedAdministrative232.merge source first last) ↔
+    fact ∈ Yulang.GeneralRebaseLiveProjection264.liveFacts source ∨
+      fact ∈
+        Yulang.GeneralRebaseLiveProjection264.facts
+          (Yulang.GeneralNominalVersionedAdministrative232.merge source first last).core
+          (Yulang.GeneralRebaseAffectedMerge264.plans source first last)
+@Yulang.GeneralRebaseAffectedMerge264.project_merge : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (first last : Yulang.GeneralNominalCenters.Site roles),
+  Yulang.GeneralRebaseLiveProjection264.project owners pool
+      (Yulang.GeneralNominalVersionedAdministrative232.merge source first last) =
+    Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseLiveProjection264.project owners pool source)
+      (Yulang.GeneralRebaseLiveProjection264.facts
+        (Yulang.GeneralNominalVersionedAdministrative232.merge source first last).core
+        (Yulang.GeneralRebaseAffectedMerge264.plans source first last))
+@Yulang.GeneralRebaseAffectedMerge264.plan_bound : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (first last : Yulang.GeneralNominalCenters.Site roles),
+  (Yulang.GeneralRebaseAffectedMerge264.plans source first last).length ≤ source.plans.length
+@Yulang.GeneralRebaseLiveMeaning264.Live : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralRebaseLiveProjection264.SourceState roles → Yulang.GeneralNominalCommonBridge.Assignment → Prop
+@Yulang.GeneralRebaseLiveMeaning264.Remainder : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralRebaseLiveProjection264.SourceState roles → Yulang.GeneralNominalCommonBridge.Assignment → Prop
+@Yulang.GeneralRebaseLiveMeaning264.journal_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  Yulang.GeneralNominalVersionedMixedPlanLedger235.Synced source →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalVersionedJournal232.Models source assignment ↔
+        Yulang.GeneralRebaseLiveMeaning264.Remainder source assignment ∧
+          Yulang.GeneralRebaseLiveMeaning264.Live source assignment
+@Yulang.GeneralRebaseLiveMeaning264.live_facts_exact : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles)
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  (∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ source.plans → (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner ∈ owners) →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      (∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+          plan ∈ source.plans →
+            Yulang.GeneralRebaseNormalizedBody263.Compatible
+              (representative (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner) plan assignment) →
+        ((∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+            fact ∈ Yulang.GeneralRebaseLiveProjection264.liveFacts source →
+              Yulang.GeneralRebaseOwnerTable263.Holds owners representative assignment fact) ↔
+          Yulang.GeneralRebaseLiveMeaning264.Live source assignment)
+@Yulang.GeneralRebaseLiveMeaning264.project_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  (∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ source.plans → (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner ∈ owners) →
+    Yulang.GeneralRebaseChildRequestPool262.Covered (Yulang.GeneralNominalVersionedJournal232.State.core source) pool →
+      (∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+          base assignment →
+            ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+              plan ∈ source.plans →
+                Yulang.GeneralRebaseNormalizedBody263.Compatible
+                  (representative (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner) plan assignment) →
+        ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralRebaseUniversalMeaning263.Models base owners representative
+              (Yulang.GeneralRebaseLiveProjection264.project owners pool source) assignment ↔
+            base assignment ∧ Yulang.GeneralRebaseLiveMeaning264.Live source assignment
+@Yulang.GeneralRebaseLiveMeaning264.project_journal : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  Yulang.GeneralNominalVersionedMixedPlanLedger235.Synced source →
+    (∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+        plan ∈ source.plans → (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner ∈ owners) →
+      Yulang.GeneralRebaseChildRequestPool262.Covered (Yulang.GeneralNominalVersionedJournal232.State.core source)
+          pool →
+        (∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralRebaseLiveMeaning264.Remainder source assignment →
+              ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+                plan ∈ source.plans →
+                  Yulang.GeneralRebaseNormalizedBody263.Compatible
+                    (representative (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner) plan assignment) →
+          ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralRebaseUniversalMeaning263.Models (Yulang.GeneralRebaseLiveMeaning264.Remainder source) owners
+                representative (Yulang.GeneralRebaseLiveProjection264.project owners pool source) assignment ↔
+              Yulang.GeneralNominalVersionedJournal232.Models source assignment
+Yulang.GeneralRebaseLiveProjection264.SourceState : Yulang.Roles.RoleDecls → Type
+@Yulang.GeneralRebaseLiveProjection264.facts : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenteredSteps.State roles →
+    List (Yulang.GeneralNominalCenters.Plan roles) → List Yulang.GeneralRebaseStep258.Fact
+@Yulang.GeneralRebaseLiveProjection264.liveFacts : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralRebaseLiveProjection264.SourceState roles → List Yulang.GeneralRebaseStep258.Fact
+@Yulang.GeneralRebaseLiveProjection264.project : {roles : Yulang.Roles.RoleDecls} →
+  (owners : List Nat) →
+    (pool : List Yulang.GeneralSourceState.Output) →
+      Yulang.GeneralRebaseLiveProjection264.SourceState roles →
+        Yulang.GeneralRebaseUniversalObserver263.Current owners pool
+@Yulang.GeneralRebaseLiveProjection264.member : ∀ {roles : Yulang.Roles.RoleDecls}
+  (source : Yulang.GeneralNominalCenteredSteps.State roles) (plans : List (Yulang.GeneralNominalCenters.Plan roles))
+  (fact : Yulang.GeneralRebaseStep258.Fact),
+  fact ∈ Yulang.GeneralRebaseLiveProjection264.facts source plans ↔
+    ∃ plan,
+      plan ∈ plans ∧
+        fact ∈ Yulang.GeneralRebaseMultiSelection263.proposal source (Yulang.GeneralRebaseMultiSelection263.ofPlan plan)
+@Yulang.GeneralRebaseLiveProjection264.monotone : ∀ {roles : Yulang.Roles.RoleDecls}
+  (before after : Yulang.GeneralNominalCenteredSteps.State roles)
+  (first last : List (Yulang.GeneralNominalCenters.Plan roles)),
+  first ⊆ last →
+    (∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+        plan ∈ first →
+          ∀ (output : Yulang.GeneralSourceState.Output),
+            output ∈
+                Yulang.GeneralRebaseMultiSelection263.requests before
+                  (Yulang.GeneralRebaseMultiSelection263.ofPlan plan) →
+              output ∈
+                Yulang.GeneralRebaseMultiSelection263.requests after
+                  (Yulang.GeneralRebaseMultiSelection263.ofPlan plan)) →
+      Yulang.GeneralRebaseLiveProjection264.facts before first ⊆ Yulang.GeneralRebaseLiveProjection264.facts after last
+@Yulang.GeneralRebaseLiveProjection264.same_members : ∀ {roles : Yulang.Roles.RoleDecls}
+  (before after : Yulang.GeneralNominalCenteredSteps.State roles)
+  (first last : List (Yulang.GeneralNominalCenters.Plan roles)),
+  (∀ (plan : Yulang.GeneralNominalCenters.Plan roles), plan ∈ first ↔ plan ∈ last) →
+    (∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+        plan ∈ first →
+          ∀ (output : Yulang.GeneralSourceState.Output),
+            output ∈
+                Yulang.GeneralRebaseMultiSelection263.requests before
+                  (Yulang.GeneralRebaseMultiSelection263.ofPlan plan) ↔
+              output ∈
+                Yulang.GeneralRebaseMultiSelection263.requests after
+                  (Yulang.GeneralRebaseMultiSelection263.ofPlan plan)) →
+      ∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+        fact ∈ Yulang.GeneralRebaseLiveProjection264.facts before first ↔
+          fact ∈ Yulang.GeneralRebaseLiveProjection264.facts after last
+@Yulang.GeneralRebaseLiveProjection264.write_members : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (state : Yulang.GeneralRebaseStep258.State basis) (first last : List Yulang.GeneralRebaseStep258.Fact),
+  (∀ (fact : Yulang.GeneralRebaseStep258.Fact), fact ∈ first ↔ fact ∈ last) →
+    Yulang.GeneralRebaseStep258.write state first = Yulang.GeneralRebaseStep258.write state last
+@Yulang.GeneralRebaseLiveProjection264.absorb : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (state : Yulang.GeneralRebaseStep258.State basis) (first last : List Yulang.GeneralRebaseStep258.Fact),
+  first ⊆ last →
+    Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseStep258.write state first) last =
+      Yulang.GeneralRebaseStep258.write state last
+@Yulang.GeneralRebaseLiveProjection264.covered : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  (∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ source.plans → (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner ∈ owners) →
+    Yulang.GeneralRebaseChildRequestPool262.Covered (Yulang.GeneralNominalVersionedJournal232.State.core source) pool →
+      Yulang.GeneralRebaseLiveProjection264.liveFacts source ⊆ Yulang.GeneralRebaseUniversalBasis263.basis owners pool
+@Yulang.GeneralRebaseLiveProjection264.source_covered : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+    ∃ owners pool,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root)
+            start state →
+          Yulang.GeneralRebaseLiveProjection264.liveFacts state ⊆
+            Yulang.GeneralRebaseUniversalBasis263.basis owners pool
+@Yulang.GeneralRebaseLiveProjection264.project_same : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output)
+  (before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  (∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈ Yulang.GeneralRebaseLiveProjection264.liveFacts before ↔
+        fact ∈ Yulang.GeneralRebaseLiveProjection264.liveFacts after) →
+    Yulang.GeneralRebaseLiveProjection264.project owners pool before =
+      Yulang.GeneralRebaseLiveProjection264.project owners pool after
+@Yulang.GeneralRebaseLiveProjection264.rescan : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output)
+  (before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  Yulang.GeneralRebaseLiveProjection264.liveFacts before ⊆ Yulang.GeneralRebaseLiveProjection264.liveFacts after →
+    Yulang.GeneralRebaseLiveProjection264.project owners pool after =
+      Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseLiveProjection264.project owners pool before)
+        (Yulang.GeneralRebaseLiveProjection264.liveFacts after)
+@Yulang.GeneralRebaseLiveProjection264.rescan_batch : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output)
+  (before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  Yulang.GeneralRebaseLiveProjection264.liveFacts before ⊆ Yulang.GeneralRebaseLiveProjection264.liveFacts after →
+    Yulang.GeneralRebaseLiveProjection264.project owners pool after =
+      Yulang.GeneralRebaseWriteAlgebra259.batch (Yulang.GeneralRebaseLiveProjection264.project owners pool before)
+        (List.map
+          (fun plan =>
+            Yulang.GeneralRebaseMultiSelection263.proposal (Yulang.GeneralNominalVersionedJournal232.State.core after)
+              (Yulang.GeneralRebaseMultiSelection263.ofPlan plan))
+          after.plans)
+@Yulang.GeneralRebaseMergeRequests264.Joined : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalSaturationState.State roles → Nat → Nat → Nat → Nat → Prop
+@Yulang.GeneralRebaseMergeRequests264.joined_symm : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {first last a b : Nat},
+  Yulang.GeneralRebaseMergeRequests264.Joined state first last a b →
+    Yulang.GeneralRebaseMergeRequests264.Joined state first last b a
+@Yulang.GeneralRebaseMergeRequests264.joined_trans : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalSaturationState.State roles} {first last a b c : Nat},
+  Yulang.GeneralRebaseMergeRequests264.Joined state first last a b →
+    Yulang.GeneralRebaseMergeRequests264.Joined state first last b c →
+      Yulang.GeneralRebaseMergeRequests264.Joined state first last a c
+@Yulang.GeneralRebaseMergeRequests264.alias_merge : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (first last : Yulang.GeneralNominalCenters.Site roles)
+  (a b : Nat),
+  Yulang.GeneralNominalSaturationState.Alias
+      (Yulang.GeneralNominalVersionedAdministrative232.merge state first last).core.erased.current a b ↔
+    Yulang.GeneralRebaseMergeRequests264.Joined state.core.erased.current first.occurrence.identity
+      last.occurrence.identity a b
+@Yulang.GeneralRebaseMergeRequests264.requests_merge : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (first last : Yulang.GeneralNominalCenters.Site roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (output : Yulang.GeneralSourceState.Output),
+  output ∈
+      Yulang.GeneralNominalCenteredHeadOutputs.requests
+        (Yulang.GeneralNominalVersionedAdministrative232.merge state first last).core root ↔
+    output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core root ∨
+      Yulang.GeneralNominalSaturationState.Alias state.core.erased.current root.identity first.occurrence.identity ∧
+          output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core last.occurrence ∨
+        Yulang.GeneralNominalSaturationState.Alias state.core.erased.current root.identity last.occurrence.identity ∧
+          output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core first.occurrence
+@Yulang.GeneralRebaseMergeRequests264.requests_unaffected : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (first last : Yulang.GeneralNominalCenters.Site roles)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+  ¬Yulang.GeneralNominalSaturationState.Alias state.core.erased.current root.identity first.occurrence.identity →
+    ¬Yulang.GeneralNominalSaturationState.Alias state.core.erased.current root.identity last.occurrence.identity →
+      ∀ (output : Yulang.GeneralSourceState.Output),
+        output ∈
+            Yulang.GeneralNominalCenteredHeadOutputs.requests
+              (Yulang.GeneralNominalVersionedAdministrative232.merge state first last).core root ↔
+          output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core root
+@Yulang.GeneralRebaseProjectedBudget264.from_steps : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {first last : Yulang.GeneralRebaseLiveProjection264.SourceState roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) first last →
+    ∃ count, Yulang.GeneralRebaseProjectedBudget264.Trace owners pool registry root count first last
+@Yulang.GeneralRebaseProjectedBudget264.to_steps : ∀ {roles : Yulang.Roles.RoleDecls} {owners : List Nat}
+  {pool : List Yulang.GeneralSourceState.Output} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {count : Nat}
+  {first last : Yulang.GeneralRebaseLiveProjection264.SourceState roles},
+  Yulang.GeneralRebaseProjectedBudget264.Trace owners pool registry root count first last →
+    Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) first last
+@Yulang.GeneralRebaseProjectedBudget264.budget_remaining : ∀ {roles : Yulang.Roles.RoleDecls} {owners : List Nat}
+  {pool : List Yulang.GeneralSourceState.Output} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {count : Nat}
+  {first last : Yulang.GeneralRebaseLiveProjection264.SourceState roles},
+  Yulang.GeneralRebaseProjectedBudget264.Trace owners pool registry root count first last →
+    count + (Yulang.GeneralRebaseLiveProjection264.project owners pool last).remaining.length ≤
+      (Yulang.GeneralRebaseLiveProjection264.project owners pool first).remaining.length
+@Yulang.GeneralRebaseProjectedBudget264.budget : ∀ {roles : Yulang.Roles.RoleDecls} {owners : List Nat}
+  {pool : List Yulang.GeneralSourceState.Output} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {count : Nat}
+  {first last : Yulang.GeneralRebaseLiveProjection264.SourceState roles},
+  Yulang.GeneralRebaseProjectedBudget264.Trace owners pool registry root count first last →
+    count ≤ owners.length * (pool.length + pool.length * pool.length)
+@Yulang.GeneralRebaseProjectedBudget264.source_tracks : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+    ∃ owners pool,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root)
+            start state →
+          Yulang.GeneralRebaseLiveProjection264.liveFacts state ⊆
+              Yulang.GeneralRebaseUniversalBasis263.basis owners pool ∧
+            ∃ count,
+              Yulang.GeneralRebaseProjectedBudget264.Trace owners pool
+                  (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) root count start state ∧
+                count ≤ owners.length * (pool.length + pool.length * pool.length)
+@Yulang.GeneralRebaseProspectiveCurrent264.source_check : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Registry}
+  {root : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand}
+  {state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State}
+  {demand : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+        state →
+      Yulang.GeneralNominalVersionedEvidence231.Frame (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry)
+          (Yulang.GeneralNominalVersionedJournal232.State.core state) demand key plan →
+        Yulang.GeneralRebaseClassCheck261.check plan
+            (Yulang.GeneralRebaseExecutableRequests262.requests
+              (Yulang.GeneralNominalVersionedJournal232.State.core state) demand) =
+          Except.ok ()
+@Yulang.GeneralRebaseProspectiveCurrent264.source_checked_effect : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Registry}
+  {root : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand}
+  {state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State}
+  {demand : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand} {key : Nat}
+  {children : List (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand},
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+        state →
+      Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry state demand
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected key children) →
+        ∃ effect,
+          effect.registry = Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry ∧
+            effect.snapshot = Yulang.GeneralNominalVersionedJournal232.State.core state ∧
+              effect.plan.packet.site.occurrence = demand ∧
+                effect.plan.packet.declaration.id = key ∧
+                  Yulang.GeneralNominalVersionedFrame231.children effect.plan.packet = children ∧
+                    Yulang.GeneralRebaseClassCheck261.check effect.plan
+                          (Yulang.GeneralRebaseExecutableRequests262.requests
+                            (Yulang.GeneralNominalVersionedJournal232.State.core state) demand) =
+                        Except.ok () ∧
+                      (Yulang.GeneralNominalVersionedPlans231.emittedSchema effect.plan).unknown = false ∧
+                        Yulang.GeneralNominalVersionedCycles232.Safe state effect.plan ∧
+                          Yulang.GeneralNominalVersionedMixedKernel234.AlternativesSafe
+                            (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state effect.plan.input
+@Yulang.GeneralRebaseProspectiveCurrent264.role_unique_current : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Registry}
+  {root : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand}
+  {state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State}
+  {children : List (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand},
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+        state →
+      ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+        effect.registry = Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry →
+          effect.snapshot = Yulang.GeneralNominalVersionedJournal232.State.core state →
+            Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry state effect.plan.packet.site.occurrence
+                (Yulang.CommonRoleOutermostResolver.Frontier.selected effect.plan.packet.declaration.id children) →
+              (∀ (a : Yulang.GeneralDeclarations.Declaration),
+                  a ∈ (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry).declarations →
+                    ∀ (b : Yulang.GeneralDeclarations.Declaration),
+                      b ∈ (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry).declarations →
+                        a.role = b.role → a.id = b.id) →
+                (∃ model, Yulang.GeneralNominalVersionedMixedMaterialization237.Residual state effect model) →
+                  Yulang.GeneralNominalVersionedMixedCurrentCandidate235.Current
+                    (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state
+                    effect.plan.packet.site.occurrence effect
+Yulang.GeneralRebaseProspectiveFixture264.selected : Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local
+  Yulang.GeneralDictionaryCompoundSource238.sourceRegistry Yulang.GeneralDictionaryCompoundFrame238.before
+  Yulang.GeneralDictionaryJournalRefinement228Source.root
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDictionaryCompoundSource238.declaration.id
+    (Yulang.GeneralNominalVersionedFrame231.children Yulang.GeneralDictionaryCompoundPacket238.plan.packet))
+Yulang.GeneralRebaseProspectiveFixture264.role_unique : ∀ (a : Yulang.GeneralDeclarations.Declaration),
+  a ∈
+      (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry
+          Yulang.GeneralDictionaryCompoundSource238.sourceRegistry).declarations →
+    ∀ (b : Yulang.GeneralDeclarations.Declaration),
+      b ∈
+          (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry
+              Yulang.GeneralDictionaryCompoundSource238.sourceRegistry).declarations →
+        a.role = b.role → a.id = b.id
+Yulang.GeneralRebaseProspectiveFixture264.residual : Yulang.GeneralNominalVersionedMixedMaterialization237.Residual
+  Yulang.GeneralDictionaryCompoundFrame238.before Yulang.GeneralDictionaryCompoundFrame238.effect
+  Yulang.GeneralDictionaryCompoundVersionedModel238.extended
+Yulang.GeneralRebaseProspectiveFixture264.current : Yulang.GeneralNominalVersionedMixedCurrentCandidate235.Current
+  Yulang.GeneralDictionaryCompoundSource238.registry Yulang.GeneralDictionaryCompoundFrame238.before
+  Yulang.GeneralDictionaryJournalRefinement228Source.root Yulang.GeneralDictionaryCompoundFrame238.effect
+Yulang.GeneralRebaseProspectiveFixture264.check_success : Yulang.GeneralRebaseClassCheck261.check
+    Yulang.GeneralDictionaryCompoundPacket238.plan
+    (Yulang.GeneralRebaseExecutableRequests262.requests Yulang.GeneralDictionaryCompoundFrame238.before.core
+      Yulang.GeneralDictionaryJournalRefinement228Source.root) =
+  Except.ok ()
+Yulang.GeneralRebaseProspectiveFixture264.nonempty_install : Yulang.GeneralDictionaryCompoundFrame238.before.plans =
+    [] ∧
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary
+          Yulang.GeneralDictionaryJournalRefinement228Source.roles).Step
+      Yulang.GeneralDictionaryCompoundSource238.sourceRegistry Yulang.GeneralDictionaryJournalRefinement228Source.root
+      Yulang.GeneralDictionaryCompoundFrame238.before Yulang.GeneralDictionaryCompoundFrame238.installed ∧
+    (∃ model,
+        Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralDictionaryCompoundFrame238.installed model) ∧
+      Yulang.GeneralDictionaryCompoundPacket238.plan ∈ Yulang.GeneralDictionaryCompoundFrame238.installed.plans
+@Yulang.GeneralRebaseProspectiveStep264.role_unique_step : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Registry}
+  {root : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand}
+  {state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State}
+  {children : List (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand},
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+        state →
+      ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+        effect.registry = Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry →
+          effect.snapshot = Yulang.GeneralNominalVersionedJournal232.State.core state →
+            Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry state effect.plan.packet.site.occurrence
+                (Yulang.CommonRoleOutermostResolver.Frontier.selected effect.plan.packet.declaration.id children) →
+              (∀ (a : Yulang.GeneralDeclarations.Declaration),
+                  a ∈ (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry).declarations →
+                    ∀ (b : Yulang.GeneralDeclarations.Declaration),
+                      b ∈ (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry).declarations →
+                        a.role = b.role → a.id = b.id) →
+                (∃ model, Yulang.GeneralNominalVersionedMixedMaterialization237.Residual state effect model) →
+                  Yulang.GeneralNominalSaturationState.Generated
+                      (Yulang.GeneralNominalVersionedJournal232.State.core state).erased.current root
+                      effect.plan.packet.site.occurrence →
+                    ¬Yulang.GeneralNominalVersionedInstallStep232.Committed state effect.plan →
+                      (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root state
+                          (Yulang.GeneralNominalVersionedInstall232.install state effect) ∧
+                        (∃ model,
+                            Yulang.GeneralNominalVersionedJournal232.Models
+                              (Yulang.GeneralNominalVersionedInstall232.install state effect) model) ∧
+                          effect.plan ∈ (Yulang.GeneralNominalVersionedInstall232.install state effect).plans
+@Yulang.GeneralRebaseProspectiveStep264.source_finite_steps : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start →
+      (∀ (a : Yulang.GeneralDeclarations.Declaration),
+          a ∈ (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry).declarations →
+            ∀ (b : Yulang.GeneralDeclarations.Declaration),
+              b ∈ (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry).declarations →
+                a.role = b.role → a.id = b.id) →
+        ∃ keys,
+          ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+            Yulang.B4Target.Steps
+                ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start state →
+              ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+                effect.registry = Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry →
+                  effect.snapshot = Yulang.GeneralNominalVersionedJournal232.State.core state →
+                    ∀ (children : List (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand),
+                      Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry state
+                          effect.plan.packet.site.occurrence
+                          (Yulang.CommonRoleOutermostResolver.Frontier.selected effect.plan.packet.declaration.id
+                            children) →
+                        (∃ model, Yulang.GeneralNominalVersionedMixedMaterialization237.Residual state effect model) →
+                          Yulang.GeneralNominalSaturationState.Generated
+                              (Yulang.GeneralNominalVersionedJournal232.State.core state).erased.current root
+                              effect.plan.packet.site.occurrence →
+                            ¬Yulang.GeneralNominalVersionedInstallStep232.Committed state effect.plan →
+                              (effect.plan.packet.site.occurrence.identity, effect.plan.packet.declaration.id) ∈ keys ∧
+                                (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root
+                                    state (Yulang.GeneralNominalVersionedInstall232.install state effect) ∧
+                                  (∃ model,
+                                      Yulang.GeneralNominalVersionedJournal232.Models
+                                        (Yulang.GeneralNominalVersionedInstall232.install state effect) model) ∧
+                                    effect.plan ∈ (Yulang.GeneralNominalVersionedInstall232.install state effect).plans
+@Yulang.GeneralRebaseSourceInstallProjection264.historical_facts : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+          state →
+        ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+          Yulang.GeneralNominalVersionedMixedKernel234.Installable
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state effect →
+            ∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+              fact ∈
+                  Yulang.GeneralRebaseLiveProjection264.facts
+                    (Yulang.GeneralNominalVersionedInstall232.install state effect).core state.plans ↔
+                fact ∈ Yulang.GeneralRebaseLiveProjection264.liveFacts state
+@Yulang.GeneralRebaseSourceInstallProjection264.liveFacts_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+          state →
+        ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+          Yulang.GeneralNominalVersionedMixedKernel234.Installable
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state effect →
+            ∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+              fact ∈
+                  Yulang.GeneralRebaseLiveProjection264.liveFacts
+                    (Yulang.GeneralNominalVersionedInstall232.install state effect) ↔
+                fact ∈
+                    Yulang.GeneralRebaseMultiSelection263.proposal
+                      (Yulang.GeneralNominalVersionedInstall232.install state effect).core
+                      (Yulang.GeneralRebaseMultiSelection263.ofPlan effect.plan) ∨
+                  fact ∈ Yulang.GeneralRebaseLiveProjection264.liveFacts state
+@Yulang.GeneralRebaseSourceInstallProjection264.project_install : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+          state →
+        ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+          Yulang.GeneralNominalVersionedMixedKernel234.Installable
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state effect →
+            ∀ (owners : List Nat) (pool : List Yulang.GeneralSourceState.Output),
+              Yulang.GeneralRebaseLiveProjection264.project owners pool
+                  (Yulang.GeneralNominalVersionedInstall232.install state effect) =
+                Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseLiveProjection264.project owners pool state)
+                  (Yulang.GeneralRebaseMultiSelection263.proposal
+                    (Yulang.GeneralNominalVersionedInstall232.install state effect).core
+                    (Yulang.GeneralRebaseMultiSelection263.ofPlan effect.plan))
+@Yulang.GeneralRebaseSourceInstallProjection264.current_requests : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+          state →
+        ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+          Yulang.GeneralNominalVersionedMixedKernel234.Installable
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state effect →
+            ∀ (output : Yulang.GeneralSourceState.Output),
+              output ∈
+                  Yulang.GeneralNominalCenteredHeadOutputs.requests
+                    (Yulang.GeneralNominalVersionedInstall232.install state effect).core
+                    effect.plan.packet.site.occurrence ↔
+                output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core effect.plan.packet.site.occurrence
+@Yulang.GeneralRebaseSourceInstallProjection264.current_proposal : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+          state →
+        ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+          Yulang.GeneralNominalVersionedMixedKernel234.Installable
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state effect →
+            ∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+              fact ∈
+                  Yulang.GeneralRebaseMultiSelection263.proposal
+                    (Yulang.GeneralNominalVersionedInstall232.install state effect).core
+                    (Yulang.GeneralRebaseMultiSelection263.ofPlan effect.plan) ↔
+                fact ∈
+                  Yulang.GeneralRebaseMultiSelection263.proposal state.core
+                    (Yulang.GeneralRebaseMultiSelection263.ofPlan effect.plan)
+@Yulang.GeneralRebaseSourceInstallProjection264.project_install_current : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+          state →
+        ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+          Yulang.GeneralNominalVersionedMixedKernel234.Installable
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state effect →
+            ∀ (owners : List Nat) (pool : List Yulang.GeneralSourceState.Output),
+              Yulang.GeneralRebaseLiveProjection264.project owners pool
+                  (Yulang.GeneralNominalVersionedInstall232.install state effect) =
+                Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseLiveProjection264.project owners pool state)
+                  (Yulang.GeneralRebaseMultiSelection263.proposal state.core
+                    (Yulang.GeneralRebaseMultiSelection263.ofPlan effect.plan))
+@Yulang.GeneralRebaseSourceProjection264.growth_facts : ∀ {roles : Yulang.Roles.RoleDecls}
+  (before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  Yulang.GeneralRebaseSourceRequests264.Growth before after →
+    Yulang.GeneralRebaseLiveProjection264.liveFacts before ⊆ Yulang.GeneralRebaseLiveProjection264.liveFacts after
+@Yulang.GeneralRebaseSourceProjection264.same_facts : ∀ {roles : Yulang.Roles.RoleDecls}
+  (before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  Yulang.GeneralRebaseSourceRequests264.Same before after →
+    ∀ (fact : Yulang.GeneralRebaseStep258.Fact),
+      fact ∈ Yulang.GeneralRebaseLiveProjection264.liveFacts before ↔
+        fact ∈ Yulang.GeneralRebaseLiveProjection264.liveFacts after
+@Yulang.GeneralRebaseSourceProjection264.same_projection : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output)
+  (before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles),
+  Yulang.GeneralRebaseSourceRequests264.Same before after →
+    Yulang.GeneralRebaseLiveProjection264.project owners pool before =
+      Yulang.GeneralRebaseLiveProjection264.project owners pool after
+@Yulang.GeneralRebaseSourceProjection264.step_square : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles},
+  Yulang.GeneralNominalVersionedMixedKernel234.Step registry root before after →
+    Yulang.GeneralRebaseLiveProjection264.project owners pool after =
+      Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseLiveProjection264.project owners pool before)
+        (Yulang.GeneralRebaseLiveProjection264.liveFacts after)
+@Yulang.GeneralRebaseSourceProjection264.steps_square : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) before after →
+    Yulang.GeneralRebaseLiveProjection264.project owners pool after =
+      Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseLiveProjection264.project owners pool before)
+        (Yulang.GeneralRebaseLiveProjection264.liveFacts after)
+@Yulang.GeneralRebaseSourceProjection264.step_rescan_batch : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles},
+  Yulang.GeneralNominalVersionedMixedKernel234.Step registry root before after →
+    Yulang.GeneralRebaseLiveProjection264.project owners pool after =
+      Yulang.GeneralRebaseWriteAlgebra259.batch (Yulang.GeneralRebaseLiveProjection264.project owners pool before)
+        (List.map
+          (fun plan =>
+            Yulang.GeneralRebaseMultiSelection263.proposal (Yulang.GeneralNominalVersionedJournal232.State.core after)
+              (Yulang.GeneralRebaseMultiSelection263.ofPlan plan))
+          after.plans)
+@Yulang.GeneralRebaseSourceProjection264.refresh_stutters : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) (state : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralRebaseLiveProjection264.project owners pool state =
+    Yulang.GeneralRebaseLiveProjection264.project owners pool
+      (Yulang.GeneralNominalVersionedRefresh232.refresh state context)
+@Yulang.GeneralRebaseSourceProjection264.reobserve_stutters : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) (state : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (revision :
+    Yulang.GeneralNominalReobservationSteps.Revision
+      (Yulang.GeneralNominalVersionedJournal232.State.core state).erased.current),
+  Yulang.GeneralRebaseLiveProjection264.project owners pool state =
+    Yulang.GeneralRebaseLiveProjection264.project owners pool
+      (Yulang.GeneralNominalVersionedRefresh232.reobserve state revision)
+@Yulang.GeneralRebaseSourceProjection264.equate_stutters : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) (state : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (first last : Nat),
+  Yulang.GeneralRebaseLiveProjection264.project owners pool state =
+    Yulang.GeneralRebaseLiveProjection264.project owners pool
+      (Yulang.GeneralNominalVersionedAdministrative232.equate state first last)
+@Yulang.GeneralRebaseSourceProjection264.merge_rescan : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) (state : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (first last : Yulang.GeneralNominalCenters.Site roles),
+  Yulang.GeneralRebaseLiveProjection264.project owners pool
+      (Yulang.GeneralNominalVersionedAdministrative232.merge state first last) =
+    Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseLiveProjection264.project owners pool state)
+      (Yulang.GeneralRebaseLiveProjection264.liveFacts
+        (Yulang.GeneralNominalVersionedAdministrative232.merge state first last))
+@Yulang.GeneralRebaseSourceProjection264.strict_decrease : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles},
+  Yulang.GeneralNominalVersionedMixedKernel234.Step registry root before after →
+    Yulang.GeneralRebaseLiveProjection264.project owners pool after ≠
+        Yulang.GeneralRebaseLiveProjection264.project owners pool before →
+      (Yulang.GeneralRebaseLiveProjection264.project owners pool after).remaining.length <
+        (Yulang.GeneralRebaseLiveProjection264.project owners pool before).remaining.length
+@Yulang.GeneralRebaseSourceRequests264.Same : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalVersionedJournal232.State roles → Yulang.GeneralNominalVersionedJournal232.State roles → Prop
+@Yulang.GeneralRebaseSourceRequests264.at_growth : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {before : Yulang.GeneralNominalVersionedJournal232.State roles}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {after : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralNominalVersionedMixedKernel234.At registry before focus after →
+    Yulang.GeneralRebaseSourceRequests264.Growth before after
+@Yulang.GeneralRebaseSourceRequests264.step_growth : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralNominalVersionedMixedKernel234.Step registry root before after →
+    Yulang.GeneralRebaseSourceRequests264.Growth before after
+@Yulang.GeneralRebaseSourceRequests264.steps_growth : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) before after →
+    Yulang.GeneralRebaseSourceRequests264.Growth before after
+@Yulang.GeneralRebaseSourceRequests264.refresh_same : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralRebaseSourceRequests264.Same state (Yulang.GeneralNominalVersionedRefresh232.refresh state context)
+@Yulang.GeneralRebaseSourceRequests264.reobserve_same : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (revision : Yulang.GeneralNominalReobservationSteps.Revision state.core.erased.current),
+  Yulang.GeneralRebaseSourceRequests264.Same state (Yulang.GeneralNominalVersionedRefresh232.reobserve state revision)
+@Yulang.GeneralRebaseSourceRequests264.equate_same : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (first last : Nat),
+  Yulang.GeneralRebaseSourceRequests264.Same state
+    (Yulang.GeneralNominalVersionedAdministrative232.equate state first last)
+@Yulang.GeneralRebaseSourceRequests264.merge_growth : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (first last : Yulang.GeneralNominalCenters.Site roles),
+  Yulang.GeneralRebaseSourceRequests264.Growth state
+    (Yulang.GeneralNominalVersionedAdministrative232.merge state first last)
+@Yulang.GeneralRebaseSourceRequests264.install_growth : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+  Yulang.GeneralRebaseSourceRequests264.Growth state (Yulang.GeneralNominalVersionedInstall232.install state effect)
+@Yulang.GeneralRebaseSourceRequests264.install_selected : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+  Yulang.GeneralRebaseMultiSource263.selected (Yulang.GeneralNominalVersionedInstall232.install state effect) =
+    Yulang.GeneralRebaseMultiSelection263.ofPlan effect.plan :: Yulang.GeneralRebaseMultiSource263.selected state
+@Yulang.GeneralRebaseSourceRequests264.merge_selected : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (first last : Yulang.GeneralNominalCenters.Site roles),
+  Yulang.GeneralRebaseMultiSource263.selected (Yulang.GeneralNominalVersionedAdministrative232.merge state first last) =
+    Yulang.GeneralRebaseMultiSource263.selected state
+@Yulang.GeneralRebaseSourceRequests264.registered_present : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+      (Yulang.GeneralNominalVersionedJournal232.initial context root) state →
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ state.plans →
+        Yulang.GeneralNominalCenteredHeadMatCompletionRequests.Present state.core plan.packet.site.occurrence.identity
+@Yulang.GeneralRebaseSourceRequests264.source_registered_present : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+      state →
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ state.plans →
+        Yulang.GeneralNominalCenteredHeadMatCompletionRequests.Present state.core plan.packet.site.occurrence.identity
+@Yulang.GeneralRebaseSourceRequests264.source_install_old_requests : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+      (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+      Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+          state →
+        ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+          Yulang.GeneralNominalVersionedMixedKernel234.Installable
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state effect →
+            ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+              plan ∈ state.plans →
+                ∀ (output : Yulang.GeneralSourceState.Output),
+                  output ∈
+                      Yulang.GeneralNominalCenteredHeadOutputs.requests
+                        (Yulang.GeneralNominalVersionedInstall232.install state effect).core
+                        plan.packet.site.occurrence ↔
+                    output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state.core plan.packet.site.occurrence
