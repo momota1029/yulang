@@ -20,6 +20,9 @@ import Yulang.GeneralDictionaryOutputCompletion258
 import Yulang.GeneralDictionaryOutputEvidence258
 import Yulang.GeneralDictionaryOutputPublic258
 import Yulang.GeneralDictionaryCompletedReadback258
+import Yulang.GeneralRebaseStep258
+import Yulang.GeneralDictionaryRebaseStep258
+import Yulang.GeneralDictionaryRebasePublic258
 
 #print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_lower
 #print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_upper
@@ -179,3 +182,40 @@ import Yulang.GeneralDictionaryCompletedReadback258
 #print axioms Yulang.GeneralDictionaryCompletedReadback258.depth
 #print axioms Yulang.GeneralDictionaryCompletedReadback258.uniform
 #print axioms Yulang.GeneralDictionaryCompletedReadback258.not_before_completion
+#print axioms Yulang.GeneralRebaseStep258.state_ext
+#print axioms Yulang.GeneralRebaseStep258.initial
+#print axioms Yulang.GeneralRebaseStep258.done
+#print axioms Yulang.GeneralRebaseStep258.Proposal
+#print axioms Yulang.GeneralRebaseStep258.write
+#print axioms Yulang.GeneralRebaseStep258.Observer
+#print axioms Yulang.GeneralRebaseStep258.tryWrite
+#print axioms Yulang.GeneralRebaseStep258.Step
+#print axioms Yulang.GeneralRebaseStep258.tryWrite_exact
+#print axioms Yulang.GeneralRebaseStep258.filter_strict
+#print axioms Yulang.GeneralRebaseStep258.decreases
+#print axioms Yulang.GeneralRebaseStep258.accessible
+#print axioms Yulang.GeneralRebaseStep258.no_self_step
+#print axioms Yulang.GeneralRebaseStep258.present
+#print axioms Yulang.GeneralRebaseStep258.lowerAtoms
+#print axioms Yulang.GeneralRebaseStep258.upperAtoms
+#print axioms Yulang.GeneralRebaseStep258.binderFacts
+#print axioms Yulang.GeneralDictionaryRebaseStep258.facts
+#print axioms Yulang.GeneralDictionaryRebaseStep258.initialState
+#print axioms Yulang.GeneralDictionaryRebaseStep258.finalState
+#print axioms Yulang.GeneralDictionaryRebaseStep258.observe
+#print axioms Yulang.GeneralDictionaryRebaseStep258.project
+#print axioms Yulang.GeneralDictionaryRebaseStep258.writes_once
+#print axioms Yulang.GeneralDictionaryRebaseStep258.first_step
+#print axioms Yulang.GeneralDictionaryRebaseStep258.final_stops
+#print axioms Yulang.GeneralDictionaryRebaseStep258.first_unique
+#print axioms Yulang.GeneralDictionaryRebaseStep258.no_two_steps
+#print axioms Yulang.GeneralDictionaryRebaseStep258.terminating
+#print axioms Yulang.GeneralDictionaryRebaseStep258.fixed_aggregates
+#print axioms Yulang.GeneralDictionaryRebaseStep258.old_positive_project
+#print axioms Yulang.GeneralDictionaryRebaseStep258.old_repetition_blocked
+#print axioms Yulang.GeneralDictionaryRebasePublic258.Models
+#print axioms Yulang.GeneralDictionaryRebasePublic258.initial_exact
+#print axioms Yulang.GeneralDictionaryRebasePublic258.final_exact
+#print axioms Yulang.GeneralDictionaryRebasePublic258.final_public
+#print axioms Yulang.GeneralDictionaryRebasePublic258.projected_public
+#print axioms Yulang.GeneralDictionaryRebasePublic258.old_new

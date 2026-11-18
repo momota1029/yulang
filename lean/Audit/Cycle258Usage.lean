@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryRebasePublic258
 import Yulang.GeneralDictionaryCompletedReadback258
 namespace Yulang
 open GeneralNominalCommonBridge (Assignment)
@@ -70,3 +71,6 @@ example (boundary : Assignment) :
 example : GeneralPatternAdditiveDepth253.depth GeneralDictionaryOutputDepth252.expanded = 4 :=
  GeneralDictionaryCompletedReadback258.depth
 end Yulang
+
+example : Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe Yulang.GeneralDictionaryRebaseStep258.initialState Yulang.GeneralDictionaryRebaseStep258.finalState := Yulang.GeneralDictionaryRebaseStep258.first_step
+example : ¬ Yulang.GeneralRebaseStep258.Step Yulang.GeneralDictionaryRebaseStep258.observe Yulang.GeneralDictionaryRebaseStep258.finalState Yulang.GeneralDictionaryRebaseStep258.finalState := Yulang.GeneralDictionaryRebaseStep258.final_stops _

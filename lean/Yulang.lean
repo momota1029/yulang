@@ -4731,3 +4731,6 @@ import Yulang.GeneralDictionaryOutputCompletion258
 import Yulang.GeneralDictionaryOutputEvidence258
 import Yulang.GeneralDictionaryOutputPublic258
 import Yulang.GeneralDictionaryCompletedReadback258
+import Yulang.GeneralRebaseStep258
+import Yulang.GeneralDictionaryRebaseStep258
+import Yulang.GeneralDictionaryRebasePublic258
