@@ -2,9 +2,10 @@
 - cycle: 251
 - status: running
 - started: 2026-11-18T00:31:00Z
-- updated: 2026-11-18T01:12:00Z
-- elapsed_min: 41.0
-- activity: 27 new modules / 236 explicit declarations verified. Added actual role-aware default/class/effect compilers and completeness, with explicit snapshot/last-install correspondence still open. Local root duplicate-union repair is not a general idempotent normalizer. Preparing final source initialization bridge and complete audit.
+- updated: 2026-11-18T01:16:00Z
+- elapsed_min: 45.0
+- activity: I48 read at01:12; further Lean additions stopped. Termination measure unresolved. 28 modules and237 explicit declarations strict-rebuilt/audited; preserving verified source and termination-gate design/report.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: e19108772
-- resume_hint: Continue cycle251 mixed-time packet compiler from250 actual bounds; preserve old reads separately from new aggregates. Research until01:16, verify/publish/report by01:26UTC. No source Acc claim.
+- last_local_commit: 15a2a8c5c
+- resume_hint: Read latest integration/inbox and cycle251 I48 termination-gate note. Do not continue packet components; finite source basis, constructor-depth and future public escape remain unproved.
+- report: notes/handoff/dots-cycle-251.md

@@ -9,6 +9,6 @@ A proof of source Acc therefore still needs a source-driven finite measure or
 canonical/shared expression representation; target count alone cannot serve.
 
 The regression below concerns arbitrary raw finite updates, not source reachability
-or violation of I45. It does not change language semantics. A local idempotent
-union constructor is proposed and verified for this narrow duplication family;
+or violation of I45. It does not change language semantics. A local duplicate-union
+constructor is proposed and verified for this narrow duplication family;
 it is not a complete normal form or an arbitrary-cycle canonicalizer.

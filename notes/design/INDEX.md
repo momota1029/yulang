@@ -736,3 +736,14 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [2026-11-18-cycle250-source-compiler-boundary](2026-11-18-cycle250-source-compiler-boundary.md)
 - [2026-11-18-cycle250-stable-capture](2026-11-18-cycle250-stable-capture.md)
 - [2026-11-18-cycle250-review](2026-11-18-cycle250-review.md)
+
+## Cycle251
+- [2026-11-18-cycle251-i48-termination-gate](2026-11-18-cycle251-i48-termination-gate.md)
+- [2026-11-18-cycle251-mixed-packet](2026-11-18-cycle251-mixed-packet.md)
+- [2026-11-18-cycle251-plan-producer](2026-11-18-cycle251-plan-producer.md)
+- [2026-11-18-cycle251-registered-plan-trace](2026-11-18-cycle251-registered-plan-trace.md)
+- [2026-11-18-cycle251-review](2026-11-18-cycle251-review.md)
+- [2026-11-18-cycle251-role-effects](2026-11-18-cycle251-role-effects.md)
+- [2026-11-18-cycle251-role-environment](2026-11-18-cycle251-role-environment.md)
+- [2026-11-18-cycle251-role-requests](2026-11-18-cycle251-role-requests.md)
+- [2026-11-18-cycle251-term-growth](2026-11-18-cycle251-term-growth.md)
