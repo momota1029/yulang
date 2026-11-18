@@ -13,7 +13,7 @@
 [型一覧](../verification/cycle257/alltypes-final.txt)。一覧の全171件と順序を照合済み。
 
 1. 実到達I45 familyの全段階nについてlower/upper定義blockを実ordinaryから取り出し、全過去展開を計算した。16n個の累積ordinaryを、重複縮約後は初期空・正段階4種類の事実に正確に縮約した。一般の分配的正規形ではない。
-2. 当前rawの型観測を5slot・最大8ordinaryのViewへ縮約し、Known/PointAtと当該packet Reportの運搬を証明した。元stateはn+5slotで、投影は非単射。有限Viewだけでは旧反復を止められない。
+2. 現在rawの型観測を5slot・最大8ordinaryのViewへ縮約し、Known/PointAtと当該packet Reportの運搬を証明した。元stateはn+5slotで、投影は非単射。有限Viewだけでは旧反復を止められない。
 3. raw Modelsからjournal Modelsへの誤った強化に、実到達state上の明示assignment反例を構成した。固定binderの条件2atomを残すと、このterminal familyでは正段階n+1で同一assignmentの `journal Models ↔ raw Models ∧ binder Holds` を証明できた。したがって5slot・最大10ordinaryの有限Viewでjournalの意味を表せる。ただし無条件同値の右辺は `solve(history(n+1)) assignment`。公開射影は初期0〜4・実binderの全Compと全rowを固定する存在モデル同値である。
 
 **重要な制限:** history再構成は依然増大する。実state/証明書のサイズ有限化、新Step、一般sourceのpool閉包、I50出力依存深さ、非流出、Accは未証明。空child/outputを用いた特定familyの証明を一般packetに拡張していない。固定binder条件は内部証明書であり、public aggregate basisにprivate名を加える許可ではない。
