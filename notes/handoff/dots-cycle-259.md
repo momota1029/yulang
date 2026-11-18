@@ -63,7 +63,8 @@
   前257の1615ファイル不変。旧数学Lean凍結・barrel追記を検査。
   [source検査](../verification/cycle259/source-checks.txt)。
 - 全28数学moduleは6回の独立読取レビューで範囲混同なし。独立再buildは未実施。
-  fresh buildはこの作業者によるもの。probeの追加レビューは別記する。
+  fresh buildはこの作業者によるもの。両probeも追加の独立読取レビューで範囲混同なし。
+  [追加レビュー](../verification/cycle259/review-probes.md)。
 - whole lake build、verify-lean.sh、Yulang2 runtimeは実行していない。
   Lean #evalはruntime煙試験であり証明oracleではない。2probe合計6補題はkernel検証。
 
@@ -81,3 +82,7 @@ I50のoutput pool閉包・循環outputの拒否は未証明。
 同じinstallの対応を作り、現在の具体的なoutput certificate欠落を埋める。
 [設計](../design/2026-11-18-cycle259-observed-rebase.md)末尾に選択肢と依存義務を記載。
 言語の意味の変更を必要とする新事例は確認していない。
+
+## 最終公開記録
+
+最終報告準備2026-11-18T16:20:12.666399+00:00、開始から50.28分。全数学成果・監査・probeは39b65d61までに保全済み。最終文書と完了心拍を同branchへ公開しtree照合する。

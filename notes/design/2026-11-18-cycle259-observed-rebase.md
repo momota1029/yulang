@@ -109,3 +109,7 @@ stateによって別proposalを出す場合の合流性はこれだけでは言�
 `OutputCoverageProbe.lean` は上記の「出力対応が必要」を具体的に検証した。252の実packet reportを、slot2をatom0へ写す現在の一般構文decoderに渡すと5factsを返し、同basisのchecked commitも成功する。一方、既存の `replace bottom` はこの実sourceの初期journal Modelsとprepared Frameを満たすが、packet Holds（出力方程式）を満たさない。3本の補題を `--trust=0 -DwarningAsError=true` で検証した。
 
 これは239/I45のcertificateの反例ではない。252用の有限fact意味表や公開モデル対応をまだ定義していないところに、既存の構文受理だけを当てはめても出力証明書にならない、という厳密な範囲確認である。checked writeが成功することは内部basis閉包の証拠であって、source Modelsを真に拡張することの証拠ではない。言語の拒否・新Stepの非停止・I50上界違反は示しておらず、明示的な全体STOP条件の新たな成立とは扱わない。
+
+### 次の実装の入力データ
+
+`GeneralNominalVersionedPlans231` を読み直したところ、実Holdsはsource Models、Inputs、Outputsの組であり、Outputsは `emittedSchema plan`（`emittedRequests` からgeneratedしたschema）をversioned `variables` で解釈する。capture reportだけを受け取る現在のcompileは、このemitted方程式を読んでいない。次の252接続はreport decoderの成功を強化するのではなく、同じPlanのemitted/schemaと公開output requestを有限obligation表へ取り込み、258のcompleted_outputs/installationと対応させる。これなら実packetのどのfieldを省いたかが明示される。child/presenceについても同様のconsumer別義務が必要で、今回の新しい有限driverだけでは消えない。

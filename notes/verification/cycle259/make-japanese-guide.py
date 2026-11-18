@@ -37,4 +37,4 @@ for i,(m,scope) in enumerate(zip(mods,scopes),1):
  names=re.findall(r'^\s*(?:noncomputable\s+)?(?:theorem|def|abbrev)\s+(\w+)',Path('lean/Yulang/'+m+'.lean').read_text(),re.M);count+=len(names)
  s+=f'\n## {i}. {m}\n\n{scope}\n\n'+', '.join('`'+n+'`' for n in names)+'\n'
 assert len(mods)==len(scopes)==28 and count==185
-v.joinpath('declaration-guide.md').write_text(s)
+v.joinpath('declaration-guide.md').write_text(s+v.joinpath('probe-guide.md').read_text())
