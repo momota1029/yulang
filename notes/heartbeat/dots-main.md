@@ -2,9 +2,9 @@
 - cycle: 253
 - status: running
 - started: 2026-11-18T09:28:30Z
-- updated: 2026-11-18T09:48:00Z
-- elapsed_min: 19.5
-- activity: Raw finite-template enumeration and actual reachable narrow-pool omission checked; wider finite public-port candidate excludes private aggregate slots and locally repairs omission. I50 unchanged at09:47. No replacement-boundary trace, general source closure or Acc claim.
+- updated: 2026-11-18T09:57:00Z
+- elapsed_min: 28.5
+- activity: Declaration producer-call Acc and input independence verified from existing checked rules, not journal Step Acc. Associated depth now explicitly includes child-output bounds. Wider candidate basis excludes both fixed and versioned private origins; exact normalization still requires source closure. Read-only independent review confirms claim boundaries.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: f7386c8b5
-- resume_hint: Continue independent depth/basis analysis; do not use named-binder-only endpoint closure. Verify and publish final by10:23UTC.
+- last_local_commit: 80fa0a834
+- resume_hint: Full audit, usage checks and report. All source closure/private-escape/nonstuttering operational gaps stay explicit; target final10:23UTC.

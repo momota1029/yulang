@@ -73,3 +73,33 @@ actual center7/8/9の扱い、構造項を原子にすべき場合、bottom/top�
 複数出力やoutput-only binderの依存も数える。正の深さ増分を持つcycleは矛盾、
 aliasだけの0増分cycleはこの議論では拒否できない。実sourceが順序または適切な
 拒否分類を供給する定理はまだない。
+
+## 09:51 新しい整理: producer呼出しと制約graphを分離する
+
+`Declaration.OutputOnly` は output-only変数をheadとwhere入力から除外し、
+`Declaration.Scoped` はwhere入力をhead入力名だけに制限している。
+`Produced` は各output binderに具体的なwhere出力のproducerを指定する。
+従って、入力captureを固定した**宣言のproducer呼出し**はoutput binderの値を
+変えても同じchild入力を持ち、各child入力の正規化質量はPatersonで真に小さい。
+このsyntax呼出し関係そのもののAccはsource規則から示せる。これを次に検証する。
+
+ただしこれはoperational StepのAccではない。異なる候補、履歴のsnapshot、
+制約の等式alias、output制約の整合性確認までこの順序で実行されるというproducer
+実装が必要である。実journalのすべての依存辺を宣言call辺と同一視しない。
+I50の依存graphを設計するときは、(i) 値を計算するproducer call graph と
+(ii) 値の整合性を検査する等式graph を分けると、0増分alias cycleを誤ってK2と
+報告しなくて済む。言語規則の追加ではなく、現行Produced/OutputOnly/Scopedの利用。
+
+## 09:58 私的slotとの分離
+
+拡張候補basisはsource名＋purpose2〜5のpublic port名のvar。
+source形成のbelow_seedとoriginのpurpose区別から、purpose0/1の全private名は
+position0（固定rebase）でも正のposition（versioned）でもbasisに現れない。
+このbasis上のunion/intersection正規形は全typeSources（row含む）でprivate-free。
+ただしnormalizeは非対応atomを削るので、意味保存はSupported前提を付けた別定理に
+まとめた。private-freeだけをsource閉包の証明とはしない。
+
+`associated_from_children` は実checked宣言のscopeとProducedを使い、入力bound Iと
+子associated値bound CからRHS深さ≤template深さ＋max(I,C)を得る。子のboundを
+無条件にIへ落とさない。`calls_wellFounded` は宣言的呼出しのみなので、source
+compilerがこの呼出し順と整合することが次の主要なproducer義務である。

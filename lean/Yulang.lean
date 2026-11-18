@@ -4632,3 +4632,6 @@ import Yulang.GeneralDictionaryCompoundPool253
 import Yulang.GeneralDictionaryCompoundPoolRepair253
 import Yulang.GeneralPatternDependencyDepth253
 import Yulang.GeneralDictionaryOutputDepthRepair253
+import Yulang.GeneralDeclarationProducerRank253
+import Yulang.GeneralDeclarationOutputDepth253
+import Yulang.GeneralNominalPublicBasis253
