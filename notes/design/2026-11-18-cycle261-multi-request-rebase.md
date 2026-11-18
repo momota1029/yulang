@@ -87,3 +87,21 @@ Closedとsettle完了が得られる。成功Stepのモデル変化は現在の�
 AllocMergeの任意atoms段階で実requestsは同じ二候補内にあるため、このfixtureでは
 任意state→atoms選択からClosedを実証する。ただしrequest取得は既存のnoncomputable
 alias関数であり、有限stateから一般sourceを復元する実行compilerではない。
+
+## 動的観測の実Planへの橋
+
+レビューが区別した固定Plan解釈について、AllocMergeでは全atoms-stageの実bodyがIntで
+同じため、固定tableのEffects iff実観測stageのcandidateのClassEffectsを別に証明した。
+Good・Supported・現在raw Modelsを追加すれば、実packet Holdsとleaf Evidenceへ接続する。
+実requestsを用いたproposalのwriteも固定6facts書込みと同じで、観測runは固定表の
+実行可能runと関数等号、初回一歩・以後停止・成功Step数≤1となる。
+これは任意の変化するPlan、一般source observerへは拡張していない。
+
+固定候補layoutを先に検査するfinishも追加する。missing/unknownは内部layout error、
+basis外は別errorとして保持し、成功なら全選択履歴Readyと正確なモデル連言を保証する。
+ただし候補に未使用unknownがあれば失敗し得るため、その失敗を言語の拒否とは呼ばない。
+成功してもモデル存在は保証せず、履歴保持の実AllocMerge終点不充足と両立する。
+
+内部CandidateBoundaryProbeでは、実requestsに属さない未定義name1を候補表に追加すると、
+空の選択observerは即完了するのにlayout検査はmissing errorを返すことをkernel検証した。
+これは全candidate検査の保守的な内部エラーで、実sourceの拒否反例ではない。

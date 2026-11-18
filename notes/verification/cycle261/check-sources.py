@@ -16,6 +16,10 @@ def visit(m):
 for m in mods:visit('Yulang.'+m)
 visit('Audit.Cycle261Usage')
 visit('Audit.Cycle261Reach')
+probe=v/'CandidateBoundaryProbe.lean'
+seen.add(str(probe))
+for dep in re.findall(r'^import\s+(\S+)',probe.read_text(),re.M):visit(dep)
+assert not re.search(r'\b(sorry|admit|native_decide|axiom)\b',probe.read_text())
 v.joinpath('dependency-source-sha256.json').write_text(json.dumps({p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sorted(seen)},indent=2)+'\n')
 print(f'PASS import closure hashed: {len(seen)}')
 imports=0

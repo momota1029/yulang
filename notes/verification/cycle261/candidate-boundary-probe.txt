@@ -1,0 +1,4 @@
+'Yulang.CandidateBoundaryProbe261.unused_missing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CandidateBoundaryProbe261.empty_selection_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CandidateBoundaryProbe261.empty_settles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.CandidateBoundaryProbe261.unused_layout_error' depends on axioms: [propext, Classical.choice, Quot.sound]

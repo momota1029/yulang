@@ -1,4 +1,4 @@
-import Yulang.GeneralRebaseStableMerge261
+import Yulang.GeneralRebaseStableMergeFinish261
 namespace Cycle261Usage
 open Yulang
 example (atoms) (output : GeneralSourceState.Output) : output ∈ GeneralNominalCenteredHeadOutputs.requests (GeneralNominalCenteredHeadAllocMergeState.stage atoms).core GeneralNominalCenteredHeadAllocMergeConflict.focus ↔ output ∈ GeneralRebaseMergeRequests261.outputs := GeneralRebaseMergeRequests261.requests_exact ..
@@ -8,4 +8,5 @@ example (atoms) : ¬ ∃ assignment, GeneralRebaseMergeRun261.Models atoms (Gene
 example (atoms) (assignment : GeneralNominalCommonBridge.Assignment) : GeneralNominalCenteredHeadAllocMergedConflict.HistoryModels (GeneralNominalCenteredHeadAllocMergeState.stage atoms) assignment ↔ GeneralRebaseMergeHistory261.Base assignment := GeneralRebaseMergeHistory261.history_exact ..
 example (owner : Nat) (first last : GeneralSourceState.Output) (assignment : GeneralNominalCommonBridge.Assignment) : GeneralRebasePairKeys261.Holds owner assignment (GeneralRebasePairKeys261.key owner first last) ↔ CommonNominalFullCarrier.Equivalent (assignment first.target).1 (assignment last.target).1 := GeneralRebasePairKeys261.at_key ..
 example (atoms) : ¬ ∃ assignment, GeneralRebaseStableMerge261.Models atoms (GeneralRebaseStableMerge261.finalState atoms) assignment := GeneralRebaseStableMerge261.final_uninhabited atoms
+example (fixed) (inspect) : GeneralRebaseStableMergeFinish261.finish fixed inspect (GeneralRebaseStableMerge261.initialState fixed) = .ok (GeneralRebaseStableMerge261.finalState fixed) ∧ ¬ ∃ assignment, GeneralRebaseStableMerge261.Models fixed (GeneralRebaseStableMerge261.finalState fixed) assignment := GeneralRebaseStableMergeFinish261.success_not_satisfiability fixed inspect
 end Cycle261Usage

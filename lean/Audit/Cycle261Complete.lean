@@ -14,6 +14,10 @@ import Yulang.GeneralRebaseStableClass261
 import Yulang.GeneralRebaseCandidateDriver261
 import Yulang.GeneralRebaseCandidateTrace261
 import Yulang.GeneralRebaseStableMerge261
+import Yulang.GeneralRebaseMergeObservation261
+import Yulang.GeneralRebaseStableMergeDriver261
+import Yulang.GeneralRebaseCandidateValidation261
+import Yulang.GeneralRebaseStableMergeFinish261
 
 #print axioms Yulang.GeneralRebaseBodyTable261.schema
 #print axioms Yulang.GeneralRebaseBodyTable261.variables
@@ -172,3 +176,34 @@ import Yulang.GeneralRebaseStableMerge261
 #print axioms Yulang.GeneralRebaseStableMerge261.select
 #print axioms Yulang.GeneralRebaseStableMerge261.covered
 #print axioms Yulang.GeneralRebaseStableMerge261.completion
+#print axioms Yulang.GeneralRebaseMergeObservation261.effects_reordered
+#print axioms Yulang.GeneralRebaseMergeObservation261.changing_plan
+#print axioms Yulang.GeneralRebaseMergeObservation261.actual_write
+#print axioms Yulang.GeneralRebaseMergeObservation261.packet_evidence
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.proposal
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.membership
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.write_full
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.write_actual
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.try_actual
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.run
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.executable
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.run_exact
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.function_exact
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.first
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.stops
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.observe
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.step_final
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.no_step_final
+#print axioms Yulang.GeneralRebaseStableMergeDriver261.budget
+#print axioms Yulang.GeneralRebaseCandidateValidation261.finish
+#print axioms Yulang.GeneralRebaseCandidateValidation261.ready_selected
+#print axioms Yulang.GeneralRebaseCandidateValidation261.success_exact
+#print axioms Yulang.GeneralRebaseCandidateValidation261.layout_error
+#print axioms Yulang.GeneralRebaseCandidateValidation261.completion
+#print axioms Yulang.GeneralRebaseCandidateValidation261.trace_ready
+#print axioms Yulang.GeneralRebaseCandidateValidation261.successful_trace
+#print axioms Yulang.GeneralRebaseStableMergeFinish261.terminal_final
+#print axioms Yulang.GeneralRebaseStableMergeFinish261.settle_exact
+#print axioms Yulang.GeneralRebaseStableMergeFinish261.finish
+#print axioms Yulang.GeneralRebaseStableMergeFinish261.finish_exact
+#print axioms Yulang.GeneralRebaseStableMergeFinish261.success_not_satisfiability
