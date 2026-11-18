@@ -1,0 +1,13 @@
+# cycle259 self-review
+
+- 28 modules are new; existing mathematical Lean is byte-frozen against942008599. Yulang barrel append-only. Latest integration926bcdece merge retained already-more-complete257 audits, no competing mathematical edits.
+- Decoder is an actual computation on transported real reports for two specific families. General Report soundness is NOT claimed. capture name0 / fixed binder indices remain a real limitation.
+- Public projection fixes I45 initial0..4 or239 initial0..3 full components and all rows. Private actual binder type may change. Both simultaneous model theorems construct one complete assignment for every stage, not one stage-dependent witness.
+- All-subset Models iff is existential public projection, not reachability or a claim each subset is an actual old packet state.
+- Checked commit validates all proposed facts are in basis before writing. This internal error is not a language rejection, nor whole-settle rollback. Verified malformed observer probe explicitly distinguishes them.
+- Settle terminates by strictly decreasing remaining.length. Success yields Runs and quiescence. Closed is a strong explicit all-state/all-proposal premise, proven for both fixed real-report fixtures but not derived from arbitrary source.
+- Fixed batch order independence requires fixed outer proposal membership and closure for checked settle. No dynamic observer confluence, error-order independence, principal typing, or general language runtime bound.
+- Output/child/presence-general decoding, source owner/basis compiler, corresponding old microsteps, output pool closure, cyclic-output rejection and full EvidenceNode remain open. No previous false max-depth statement is reused.
+- Every new module has independent read review; reviewer did not rebuild. Fresh focused build is performed here, distinct from independent review. No whole repository build or Yulang2 runtime execution.
+- Initial DriverProbe attempts failed during proof elaboration; final source/log were replaced only after strict exit0 and no sorryAx. Final probe has three explicit kernel proofs plus #eval smoke checks, not native_decide.
+- Actual252 output-coverage probe: current generic syntactic decoder accepts the actual prepared report and checked commit accepts its finite facts; nevertheless the existing bottom-output assignment has initial Models/Frame but not Holds. This is a verified missing output-certificate bridge, not a refutation of239/I45 certificates or a source-program rejection/nontermination claim. Three additional kernel proofs, standard axioms only; no new mathematical module counted.
