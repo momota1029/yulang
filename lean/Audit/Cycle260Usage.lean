@@ -1,4 +1,4 @@
-import Yulang.GeneralOutputRebasePublic260
+import Yulang.GeneralDefaultRebasePublic260
 namespace Cycle260Usage
 open Yulang
 example (offset : Nat) (schema : GeneralNominalCenteredHeadMatSchemas.Schema) (variables)
@@ -29,4 +29,13 @@ example (output : CommonNominalFullCarrier.Ty) :
  GeneralOutputRebaseModels260.Models GeneralOutputRebaseSource260.finalState (GeneralDictionaryPendingOutput258.replace output) ↔
  CommonNominalFullCarrier.Equivalent output GeneralDictionaryOutputDepth252.P :=
  GeneralOutputRebasePublic260.requested_output_exact output
+example (assignment : GeneralNominalCommonBridge.Assignment) :
+ GeneralDefaultRebaseModels260.Models GeneralDefaultRebaseSource260.finalState assignment ↔
+ GeneralNominalVersionedJournal232.Models GeneralDictionaryVersionedGap206Install233.installed assignment :=
+ GeneralDefaultRebaseInstalled260.same_assignment assignment
+example : GeneralDefaultRebaseRun260.run GeneralDefaultRebaseSource260.initialState =
+ .ok (some GeneralDefaultRebaseSource260.finalState) := GeneralDefaultRebaseRun260.first
+example (boundary : GeneralNominalCommonBridge.Assignment)
+ (source : GeneralNominalState.Models GeneralDictionaryDefaultGap206Source.snapshot boundary) :
+ GeneralDefaultRebasePublic260.Certificate boundary := GeneralDefaultRebasePublic260.certificate boundary source
 end Cycle260Usage

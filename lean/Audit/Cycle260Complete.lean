@@ -10,6 +10,13 @@ import Yulang.GeneralRebaseOutputFamily260
 import Yulang.GeneralRebaseOutputFamilyRun260
 import Yulang.GeneralOwnedOutputDecoder260
 import Yulang.GeneralOwnedOutputActual260
+import Yulang.GeneralDefaultRebaseBody260
+import Yulang.GeneralDefaultRebaseSource260
+import Yulang.GeneralDefaultRebaseModels260
+import Yulang.GeneralDefaultRebaseInstalled260
+import Yulang.GeneralDefaultRebaseRun260
+import Yulang.GeneralDefaultRebaseCompletion260
+import Yulang.GeneralDefaultRebasePublic260
 
 #print axioms Yulang.GeneralRebaseOutputKeys260.key
 #print axioms Yulang.GeneralRebaseOutputKeys260.keys
@@ -105,3 +112,64 @@ import Yulang.GeneralOwnedOutputActual260
 #print axioms Yulang.GeneralOwnedOutputActual260.run
 #print axioms Yulang.GeneralOwnedOutputActual260.run_equal
 #print axioms Yulang.GeneralOwnedOutputActual260.run_certificate
+#print axioms Yulang.GeneralDefaultRebaseBody260.body
+#print axioms Yulang.GeneralDefaultRebaseBody260.schema
+#print axioms Yulang.GeneralDefaultRebaseBody260.lookup_exact
+#print axioms Yulang.GeneralDefaultRebaseBody260.schema_exact
+#print axioms Yulang.GeneralDefaultRebaseBody260.body_meaning
+#print axioms Yulang.GeneralDefaultRebaseBody260.request_exact
+#print axioms Yulang.GeneralDefaultRebaseBody260.request_present
+#print axioms Yulang.GeneralDefaultRebaseBody260.classes_exact
+#print axioms Yulang.GeneralDefaultRebaseBody260.current_source
+#print axioms Yulang.GeneralDefaultRebaseSource260.report
+#print axioms Yulang.GeneralDefaultRebaseSource260.report_clear
+#print axioms Yulang.GeneralDefaultRebaseSource260.facts
+#print axioms Yulang.GeneralDefaultRebaseSource260.output_keys
+#print axioms Yulang.GeneralDefaultRebaseSource260.proposal
+#print axioms Yulang.GeneralDefaultRebaseSource260.proposal_exact
+#print axioms Yulang.GeneralDefaultRebaseSource260.initialState
+#print axioms Yulang.GeneralDefaultRebaseSource260.finalState
+#print axioms Yulang.GeneralDefaultRebaseSource260.observe
+#print axioms Yulang.GeneralDefaultRebaseSource260.observe_exact
+#print axioms Yulang.GeneralDefaultRebaseSource260.closed
+#print axioms Yulang.GeneralDefaultRebaseSource260.write_initial
+#print axioms Yulang.GeneralDefaultRebaseSource260.first
+#print axioms Yulang.GeneralDefaultRebaseSource260.stop
+#print axioms Yulang.GeneralDefaultRebaseSource260.terminating
+#print axioms Yulang.GeneralDefaultRebaseModels260.factHolds
+#print axioms Yulang.GeneralDefaultRebaseModels260.Models
+#print axioms Yulang.GeneralDefaultRebaseModels260.output_meaning
+#print axioms Yulang.GeneralDefaultRebaseModels260.initial_exact
+#print axioms Yulang.GeneralDefaultRebaseModels260.final_exact
+#print axioms Yulang.GeneralDefaultRebaseInstalled260.installation
+#print axioms Yulang.GeneralDefaultRebaseInstalled260.installed_exact
+#print axioms Yulang.GeneralDefaultRebaseInstalled260.same_assignment
+#print axioms Yulang.GeneralDefaultRebaseInstalled260.evidence
+#print axioms Yulang.GeneralDefaultRebaseInstalled260.counter_removed
+#print axioms Yulang.GeneralDefaultRebaseRun260.run
+#print axioms Yulang.GeneralDefaultRebaseRun260.run_exact
+#print axioms Yulang.GeneralDefaultRebaseRun260.run_step
+#print axioms Yulang.GeneralDefaultRebaseRun260.first
+#print axioms Yulang.GeneralDefaultRebaseRun260.stop
+#print axioms Yulang.GeneralDefaultRebaseRun260.next_exact
+#print axioms Yulang.GeneralDefaultRebaseRun260.settle_initial
+#print axioms Yulang.GeneralDefaultRebaseRun260.settle_final
+#print axioms Yulang.GeneralDefaultRebaseRun260.one_step_bound
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.identity
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.view
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.models_exact
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.unused_output
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.source_iff
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.complete
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.rows
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.outside
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.source_exact
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.classes
+#print axioms Yulang.GeneralDefaultRebaseCompletion260.final
+#print axioms Yulang.GeneralDefaultRebasePublic260.Agree
+#print axioms Yulang.GeneralDefaultRebasePublic260.completion_agrees
+#print axioms Yulang.GeneralDefaultRebasePublic260.source_agree
+#print axioms Yulang.GeneralDefaultRebasePublic260.completed
+#print axioms Yulang.GeneralDefaultRebasePublic260.public_models
+#print axioms Yulang.GeneralDefaultRebasePublic260.certificate
+#print axioms Yulang.GeneralDefaultRebasePublic260.run_certificate

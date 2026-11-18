@@ -4775,3 +4775,10 @@ import Yulang.GeneralRebaseOutputFamily260
 import Yulang.GeneralRebaseOutputFamilyRun260
 import Yulang.GeneralOwnedOutputDecoder260
 import Yulang.GeneralOwnedOutputActual260
+import Yulang.GeneralDefaultRebaseBody260
+import Yulang.GeneralDefaultRebaseSource260
+import Yulang.GeneralDefaultRebaseModels260
+import Yulang.GeneralDefaultRebaseInstalled260
+import Yulang.GeneralDefaultRebaseRun260
+import Yulang.GeneralDefaultRebaseCompletion260
+import Yulang.GeneralDefaultRebasePublic260

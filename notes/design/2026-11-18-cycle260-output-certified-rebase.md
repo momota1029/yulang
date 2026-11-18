@@ -72,3 +72,16 @@ output0と入力center1の型同値を要求する。packet Holdsだけで済ま
 既存の全初期モデル→packet Holdsと実default lookupから省略がないことを示す。
 新しい型推論規則やdefaultの意味は選ばない。公開投影を証明するなら、初期sourceが
 読まないoutput0型だけを補完し、ほかの全成分・全rowを保存することが必要。
+
+## 206 default接続の結果と202の対照回帰
+
+206の実lookup・bodySchemaからowner37の既定式を取り込み、終点Models iff旧installed
+Modelsを同一assignmentで示した。packet HoldsだけではなくClassEffectsを終点に要求し、
+既存bottom counterを除く。output0型だけを入力center1の型へ補完し、他の全成分と全rowを
+保つ公開射影も構成した。初期モデルをすべてそのまま終点モデルにする主張ではない。
+
+次は202の「初期sourceが既にdefaultを満たす」対照を同じ入口で確かめる。
+有限factsの初回書込みがあっても、初期Modelsと終点Modelsの集合が等しい場合がある。
+従ってfact増加の停止測度と、モデル集合の真の細分化は区別する必要がある。
+旧202は既にCommitted/Stableなので、もし新関係が一歩進めばそれは意味的stutterとして
+対応させるべきで、旧install一歩と一致したとは報告しない。
