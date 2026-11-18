@@ -4747,3 +4747,8 @@ import Yulang.GeneralVersionRowsPacket259
 import Yulang.GeneralVersionRowsStages259
 import Yulang.GeneralVersionBoundaryCompletion259
 import Yulang.GeneralVersionPublicProjection259
+import Yulang.GeneralRebaseFiniteReport259
+import Yulang.GeneralVersionReportProjection259
+import Yulang.GeneralVersionRebaseStep259
+import Yulang.GeneralVersionRebaseModels259
+import Yulang.GeneralVersionRebaseCertificate259

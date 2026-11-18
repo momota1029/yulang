@@ -74,3 +74,48 @@
 'Yulang.GeneralVersionPublicProjection259.simultaneous_models' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
+'Yulang.GeneralRebaseFiniteReport259.capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteReport259.captures' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteReport259.compile' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteReport259.empty_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionReportProjection259.projection' depends on axioms: [propext]
+'Yulang.GeneralVersionReportProjection259.original_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionReportProjection259.anchor_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionReportProjection259.bounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionReportProjection259.transport' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionReportProjection259.actual_report' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.facts' does not depend on any axioms
+'Yulang.GeneralVersionRebaseStep259.atom' does not depend on any axioms
+'Yulang.GeneralVersionRebaseStep259.initialState' does not depend on any axioms
+'Yulang.GeneralVersionRebaseStep259.finalState' does not depend on any axioms
+'Yulang.GeneralVersionRebaseStep259.proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.proposal_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.observeAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.observe_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.write_initial' depends on axioms: [propext]
+'Yulang.GeneralVersionRebaseStep259.run_first' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.first_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.stop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.run_stop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.terminating' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.first_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseStep259.no_two' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseModels259.factHolds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionRebaseModels259.Models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionRebaseModels259.initial_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionRebaseModels259.final_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionRebaseModels259.completed_binder' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseModels259.completed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseModels259.public_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseCertificate259.project' does not depend on any axioms
+'Yulang.GeneralVersionRebaseCertificate259.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseCertificate259.old_new' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseCertificate259.run_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionRebaseCertificate259.completed_round_simulation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionRebaseCertificate259.old_novel_new_noop' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

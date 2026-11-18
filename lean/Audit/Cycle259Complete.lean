@@ -10,6 +10,11 @@ import Yulang.GeneralVersionRowsPacket259
 import Yulang.GeneralVersionRowsStages259
 import Yulang.GeneralVersionBoundaryCompletion259
 import Yulang.GeneralVersionPublicProjection259
+import Yulang.GeneralRebaseFiniteReport259
+import Yulang.GeneralVersionReportProjection259
+import Yulang.GeneralVersionRebaseStep259
+import Yulang.GeneralVersionRebaseModels259
+import Yulang.GeneralVersionRebaseCertificate259
 
 #print axioms Yulang.GeneralRebaseReportDecoder259.atom
 #print axioms Yulang.GeneralRebaseReportDecoder259.capture
@@ -79,3 +84,44 @@ import Yulang.GeneralVersionPublicProjection259
 #print axioms Yulang.GeneralVersionPublicProjection259.model_source
 #print axioms Yulang.GeneralVersionPublicProjection259.stage_models
 #print axioms Yulang.GeneralVersionPublicProjection259.simultaneous_models
+#print axioms Yulang.GeneralRebaseFiniteReport259.capture
+#print axioms Yulang.GeneralRebaseFiniteReport259.captures
+#print axioms Yulang.GeneralRebaseFiniteReport259.compile
+#print axioms Yulang.GeneralRebaseFiniteReport259.empty_rejected
+#print axioms Yulang.GeneralVersionReportProjection259.projection
+#print axioms Yulang.GeneralVersionReportProjection259.original_projection
+#print axioms Yulang.GeneralVersionReportProjection259.anchor_projection
+#print axioms Yulang.GeneralVersionReportProjection259.bounds
+#print axioms Yulang.GeneralVersionReportProjection259.transport
+#print axioms Yulang.GeneralVersionReportProjection259.actual_report
+#print axioms Yulang.GeneralVersionRebaseStep259.facts
+#print axioms Yulang.GeneralVersionRebaseStep259.atom
+#print axioms Yulang.GeneralVersionRebaseStep259.initialState
+#print axioms Yulang.GeneralVersionRebaseStep259.finalState
+#print axioms Yulang.GeneralVersionRebaseStep259.proposal
+#print axioms Yulang.GeneralVersionRebaseStep259.proposal_exact
+#print axioms Yulang.GeneralVersionRebaseStep259.observeAt
+#print axioms Yulang.GeneralVersionRebaseStep259.run
+#print axioms Yulang.GeneralVersionRebaseStep259.observe_exact
+#print axioms Yulang.GeneralVersionRebaseStep259.run_exact
+#print axioms Yulang.GeneralVersionRebaseStep259.write_initial
+#print axioms Yulang.GeneralVersionRebaseStep259.run_first
+#print axioms Yulang.GeneralVersionRebaseStep259.first_step
+#print axioms Yulang.GeneralVersionRebaseStep259.stop
+#print axioms Yulang.GeneralVersionRebaseStep259.run_stop
+#print axioms Yulang.GeneralVersionRebaseStep259.terminating
+#print axioms Yulang.GeneralVersionRebaseStep259.first_unique
+#print axioms Yulang.GeneralVersionRebaseStep259.no_two
+#print axioms Yulang.GeneralVersionRebaseModels259.factHolds
+#print axioms Yulang.GeneralVersionRebaseModels259.Models
+#print axioms Yulang.GeneralVersionRebaseModels259.initial_exact
+#print axioms Yulang.GeneralVersionRebaseModels259.final_exact
+#print axioms Yulang.GeneralVersionRebaseModels259.completed_binder
+#print axioms Yulang.GeneralVersionRebaseModels259.completed
+#print axioms Yulang.GeneralVersionRebaseModels259.public_models
+#print axioms Yulang.GeneralVersionRebaseCertificate259.project
+#print axioms Yulang.GeneralVersionRebaseCertificate259.certificate
+#print axioms Yulang.GeneralVersionRebaseCertificate259.old_new
+#print axioms Yulang.GeneralVersionRebaseCertificate259.run_certificate
+#print axioms Yulang.GeneralVersionRebaseCertificate259.completed_round_simulation
+#print axioms Yulang.GeneralVersionRebaseCertificate259.old_novel_new_noop

@@ -1,0 +1,1 @@
+Independent review0eeead45:8 modules correct scope. Arbitrary-row239 model satisfies actual history/packet by induction, completion literal-preserves0..3/allrows and uses Equivalent for types to construct same assignment all stages. Existential projection fixed239 only. I45 run0 equals allstage runs using actual reports; no general compiler. No independent rebuild.

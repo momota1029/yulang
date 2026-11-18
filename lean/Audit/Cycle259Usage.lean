@@ -1,3 +1,4 @@
+import Yulang.GeneralVersionRebaseCertificate259
 import Yulang.GeneralVersionPublicProjection259
 import Yulang.GeneralDictionaryRebaseRun259
 import Yulang.GeneralDictionaryRebaseCertificate259
@@ -28,3 +29,8 @@ example (boundary : GeneralNominalCommonBridge.Assignment)
  (GeneralVersionPublicProjection259.simultaneous_models boundary).mpr valid
 example : GeneralDictionaryRebaseCurrent259.run GeneralDictionaryRebaseStep258.finalState = none :=
  GeneralDictionaryRebaseCurrent259.stops
+
+example : GeneralVersionRebaseStep259.run GeneralVersionRebaseStep259.initialState = some GeneralVersionRebaseStep259.finalState := GeneralVersionRebaseStep259.run_first
+example : GeneralVersionRebaseStep259.run GeneralVersionRebaseStep259.finalState = none := GeneralVersionRebaseStep259.run_stop
+example (n : Nat) : ¬ GeneralNominalVersionedKernel232.Committed (GeneralDictionaryVersionLoopIteration239.state n) (GeneralDictionaryVersionLoopBook239.plan n) ∧ GeneralVersionRebaseStep259.run GeneralVersionRebaseStep259.finalState = none := GeneralVersionRebaseCertificate259.old_novel_new_noop n
+example (state : GeneralRebaseStep258.State GeneralVersionRebaseStep259.facts) (boundary : GeneralNominalCommonBridge.Assignment) (source : GeneralNominalState.Models GeneralDictionaryVersionLoopSource237.snapshot boundary) : GeneralVersionRebaseModels259.Models state (GeneralVersionBoundaryCompletion259.complete boundary) := GeneralVersionRebaseModels259.completed state boundary source
