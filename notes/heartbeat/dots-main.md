@@ -2,9 +2,9 @@
 - cycle: 257
 - status: running
 - started: 2026-11-18T13:27:08Z
-- updated: 2026-11-18T13:47:34Z
-- elapsed_min: 20.44
-- activity: 14 modules published/reviewed;182-module critical-layer rebuild passed13:46:57. Additional actual Known/PointAt/report slot-transport lemmas passed focused builds; auditing next.
+- updated: 2026-11-18T13:56:12Z
+- elapsed_min: 29.07
+- activity: 18 modules published/reviewed; current raw versus journal binder gap closed. Proving fixed binder-fact repair for past captures/Inputs; focused work only, not a successor Step.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: eabf05ce5
-- resume_hint: 15725be3 all14 modules verified. New Known/Point/ReportProjection257 files are built but not yet audited/published. Cache/history certificate transport remains open.
+- last_local_commit: 5befc2252
+- resume_hint: cc5a57ff checkpoint verified; HistoricalValues/BinderFact/PastRaw built; PastObservations under build. Keep proof of journal gap and distinguish current source classification transport from general simulation.
