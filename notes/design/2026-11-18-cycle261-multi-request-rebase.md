@@ -63,3 +63,27 @@ leaf Evidenceが存在することも確認した。これはHistoryModelsを満
 独立読取レビュー（前半5本）では射程不整合なし。独立buildは未実施。
 EqualOutputsの住所は固定schema内indexに依存し、可変・並べ替えtableで同一keyの
 意味が不変とはまだ主張していない。body側の位置非依存住所と混同しない。
+
+## 位置非依存EqualOutputs住所への更新
+
+新kind3で同name要求の順序付きpairを(name,target)二組から注入符号化した。
+旧kind2のindex表とは混ぜない。同じpairは列位置・列の追加・並べ替えに依存せず
+同じ意味を持つ。body側も固定Planに対する全requestの局所意味として定義し、
+実観測のsubsetに意味が依存しないようにした。住所衝突なしから全fact成立 iff
+そのsubsetのClassEffectsを示す。任意Plan間の意味同一性までは主張しない。
+
+固定有限candidate列に全selected requestが入るという明示前提の下で、動的observerの
+Closedとsettle完了が得られる。成功Stepのモデル変化は現在のモデルと選択された
+実ClassEffectsとの連言に厳密一致する。候補producerや全source traceのcoverageは
+この前提に隠さず未完とする。翻訳検査、制約生成、モデル存在判定は引き続き別物。
+
+レビュー補足: AllocMerge例では二つのbody自体も両方Intを要求するので、履歴との
+不整合をEqualOutputs「だけ」の効果とは説明しない。EqualOutputsと履歴との矛盾を
+示す補題はあるが、body制約も独立に同じ不整合を生む。
+
+成功traceについて、各Stepで実際に選択されたrequest列の記録を構成し、その同じ記録で
+全assignmentについて「終点Models iff開始Models＋全履歴ClassEffects」を証明した。
+記録は監査用の存在証人であり、runtime storageに追加されるjournalではない。
+AllocMergeの任意atoms段階で実requestsは同じ二候補内にあるため、このfixtureでは
+任意state→atoms選択からClosedを実証する。ただしrequest取得は既存のnoncomputable
+alias関数であり、有限stateから一般sourceを復元する実行compilerではない。

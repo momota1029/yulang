@@ -4801,3 +4801,9 @@ import Yulang.GeneralRebaseMergeRun261
 import Yulang.GeneralRebaseMergeFrame261
 import Yulang.GeneralRebaseMergePacket261
 import Yulang.GeneralRebaseMergeHistory261
+import Yulang.GeneralRebasePairKeys261
+import Yulang.GeneralRebaseStableBody261
+import Yulang.GeneralRebaseStableClass261
+import Yulang.GeneralRebaseCandidateDriver261
+import Yulang.GeneralRebaseCandidateTrace261
+import Yulang.GeneralRebaseStableMerge261

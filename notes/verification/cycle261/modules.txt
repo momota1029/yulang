@@ -8,3 +8,9 @@ GeneralRebaseMergeRun261
 GeneralRebaseMergeFrame261
 GeneralRebaseMergePacket261
 GeneralRebaseMergeHistory261
+GeneralRebasePairKeys261
+GeneralRebaseStableBody261
+GeneralRebaseStableClass261
+GeneralRebaseCandidateDriver261
+GeneralRebaseCandidateTrace261
+GeneralRebaseStableMerge261
