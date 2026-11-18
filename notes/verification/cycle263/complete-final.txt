@@ -183,3 +183,83 @@
  Quot.sound]
 'Yulang.GeneralRebaseTwoOwnerRegression263.event_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralRebaseTwoOwnerRegression263.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalMeaning263.Models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalMeaning263.actual_proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalMeaning263.write_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalMeaning263.actual_write' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalMeaning263.initial_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.Event' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.BaseCompatible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.to_runs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.from_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.pool' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.Current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.inspect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.select' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.observe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.start' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.middle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.finish' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.supported_p' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.supported_q' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.first_progress' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.last_progress' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.first_advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.last_advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.checked_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.run_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.exactly_two_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.reserved_present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.reserved_outside_p' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.reserved_outside_q' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.reserved_retained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.terminal_not_done' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.unused_unknown' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.Path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.RegisteredAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.representatives' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.representatives_registered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.exists_representatives' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.SourceHeads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.layout' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.representative_layout' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.representative_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRepresentativesExample263.actual_registered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRepresentativesExample263.actual_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRepresentativesExample263.actual_representative_registered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceMeaning263.Context' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceMeaning263.Certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceMeaning263.empty_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceMeaning263.source_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]

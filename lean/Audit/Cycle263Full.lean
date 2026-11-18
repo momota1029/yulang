@@ -19,11 +19,17 @@ import Yulang.GeneralRebaseUniversalBasis263
 import Yulang.GeneralRebaseUniversalObserver263
 import Yulang.GeneralRebaseUniversalSource263
 import Yulang.GeneralRebaseTwoOwnerRegression263
+import Yulang.GeneralRebaseUniversalMeaning263
+import Yulang.GeneralRebaseUniversalTrace263
+import Yulang.GeneralRebaseUniversalRegression263
+import Yulang.GeneralRebaseSourceRepresentatives263
+import Yulang.GeneralRebaseRepresentativesExample263
+import Yulang.GeneralRebaseSourceMeaning263
 open Lean Elab Command in
 run_cmd do
  let environment ← getEnv
  let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
- let prefixes := #["Yulang.GeneralRebaseNormalizedBody263.", "Yulang.GeneralRebaseNormalizedFacts263.", "Yulang.GeneralRebaseHeadSupport263.", "Yulang.GeneralRebaseOwnerTags263.", "Yulang.GeneralRebaseOwnerTable263.", "Yulang.GeneralRebaseMultiSelection263.", "Yulang.GeneralRebaseMultiObserver263.", "Yulang.GeneralRebaseValidatedDriver263.", "Yulang.GeneralRebaseValidatedOutcome263.", "Yulang.GeneralRebaseMultiRun263.", "Yulang.GeneralRebaseRegisteredOwners263.", "Yulang.GeneralRebaseMultiTrace263.", "Yulang.GeneralRebaseMultiSource263.", "Yulang.GeneralRebaseNormalizedExamples263.", "Yulang.GeneralRebaseRegisteredPlan263.", "Yulang.GeneralRebaseRegisteredSites263.", "Yulang.GeneralRebaseSourceCenters263.", "Yulang.GeneralRebaseUniversalBasis263.", "Yulang.GeneralRebaseUniversalObserver263.", "Yulang.GeneralRebaseUniversalSource263.", "Yulang.GeneralRebaseTwoOwnerRegression263."]
+ let prefixes := #["Yulang.GeneralRebaseNormalizedBody263.", "Yulang.GeneralRebaseNormalizedFacts263.", "Yulang.GeneralRebaseHeadSupport263.", "Yulang.GeneralRebaseOwnerTags263.", "Yulang.GeneralRebaseOwnerTable263.", "Yulang.GeneralRebaseMultiSelection263.", "Yulang.GeneralRebaseMultiObserver263.", "Yulang.GeneralRebaseValidatedDriver263.", "Yulang.GeneralRebaseValidatedOutcome263.", "Yulang.GeneralRebaseMultiRun263.", "Yulang.GeneralRebaseRegisteredOwners263.", "Yulang.GeneralRebaseMultiTrace263.", "Yulang.GeneralRebaseMultiSource263.", "Yulang.GeneralRebaseNormalizedExamples263.", "Yulang.GeneralRebaseRegisteredPlan263.", "Yulang.GeneralRebaseRegisteredSites263.", "Yulang.GeneralRebaseSourceCenters263.", "Yulang.GeneralRebaseUniversalBasis263.", "Yulang.GeneralRebaseUniversalObserver263.", "Yulang.GeneralRebaseUniversalSource263.", "Yulang.GeneralRebaseTwoOwnerRegression263.", "Yulang.GeneralRebaseUniversalMeaning263.", "Yulang.GeneralRebaseUniversalTrace263.", "Yulang.GeneralRebaseUniversalRegression263.", "Yulang.GeneralRebaseSourceRepresentatives263.", "Yulang.GeneralRebaseRepresentativesExample263.", "Yulang.GeneralRebaseSourceMeaning263."]
  let mut count : Nat := 0
  for (name, _) in environment.constants.toList do
   if prefixes.any (fun pfx => name.toString.startsWith pfx || name.toString.startsWith ("_private." ++ pfx)) then

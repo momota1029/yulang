@@ -1,0 +1,49 @@
+'Yulang.GeneralRebaseUniversalBasis263.body_key_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalBasis263.table_covered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalBasis263.proposal_covered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalBasis263.owner_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalBasis263.basis_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalBasis263.run_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUniversalObserver263.closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalObserver263.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalObserver263.outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalSource263.source_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalSource263.source_outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralRebaseUniversalSource263.source_outcome {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (source : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start) :
+  ∃ owners pool,
+    ∀
+      (inspect :
+        Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+          Yulang.GeneralNominalVersionedJournal232.State roles),
+      (∀ (state : Yulang.GeneralRebaseUniversalObserver263.Current owners pool),
+          Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start
+            (inspect state)) →
+        ∀ (before : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseUniversalBasis263.basis owners pool)),
+          (∃ after history,
+              Yulang.GeneralRebaseUniversalObserver263.run owners pool (fun state => (inspect state).core)
+                    (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) before =
+                  Except.ok after ∧
+                Yulang.GeneralRebaseValidatedDriver263.Trace
+                    (Yulang.GeneralRebaseUniversalObserver263.observe owners pool (fun state => (inspect state).core)
+                      fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                    (Yulang.GeneralRebaseUniversalObserver263.validate owners pool (fun state => (inspect state).core)
+                      fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                    history before after ∧
+                  history.length ≤ owners.length * (pool.length + pool.length * pool.length)) ∨
+            ∃ reason current steps,
+              Yulang.GeneralRebaseUniversalObserver263.run owners pool (fun state => (inspect state).core)
+                    (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) before =
+                  Except.error (Yulang.GeneralRebaseValidatedDriver263.Failure.validation reason) ∧
+                Yulang.GeneralRebaseBudget258.Runs
+                    (Yulang.GeneralRebaseUniversalObserver263.observe owners pool (fun state => (inspect state).core)
+                      fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                    steps before current ∧
+                  steps ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                    reason.selected ∈ Yulang.GeneralRebaseMultiSource263.selected (inspect current) ∧
+                      Yulang.GeneralRebaseClassCheck261.check reason.selected.plan
+                          (Yulang.GeneralRebaseMultiSelection263.requests (inspect current).core reason.selected) =
+                        Except.error reason.reason

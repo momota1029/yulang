@@ -1,0 +1,12 @@
+'Yulang.GeneralRebaseUniversalRegression263.run_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.exactly_two_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.checked_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.reserved_retained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.terminal_not_done' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniversalRegression263.unused_unknown' depends on axioms: [propext, Classical.choice, Quot.sound]

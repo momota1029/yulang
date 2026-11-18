@@ -1,0 +1,96 @@
+'Yulang.GeneralRebaseMultiObserver263.closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiObserver263.completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiObserver263.write_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiObserver263.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiRun263.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiRun263.outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiTrace263.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiTrace263.from_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiTrace263.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiSource263.source_bounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiSource263.source_completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiSource263.source_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseValidatedDriver263.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseValidatedOutcome263.error_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseValidatedOutcome263.outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralRebaseMultiSource263.source_certificate {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (source : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start) :
+  ∃ owners pool,
+    ∀ (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop)
+      (representative : Nat → Yulang.GeneralNominalCenters.Plan roles)
+      (inspect :
+        Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+          Yulang.GeneralNominalVersionedJournal232.State roles),
+      (∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+          Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step registry root) start
+            (inspect state)) →
+        (Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool fun state =>
+            Yulang.GeneralRebaseMultiSource263.selected (inspect state)) →
+          (Yulang.GeneralRebaseMultiObserver263.BaseCompatible base owners representative pool fun state =>
+              Yulang.GeneralRebaseMultiSource263.selected (inspect state)) →
+            ∀
+              (before after :
+                Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+              Yulang.GeneralRebaseMultiRun263.run owners representative pool (fun state => (inspect state).core)
+                    (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) before =
+                  Except.ok after →
+                ∃ events,
+                  Yulang.GeneralRebaseMultiTrace263.Trace owners representative pool (fun state => (inspect state).core)
+                      (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) events before after ∧
+                    events.length ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+                      (∀ (event : Yulang.GeneralRebaseMultiTrace263.Event roles),
+                          event ∈ events →
+                            Yulang.GeneralNominalCenteredHeadMatEffects.Ready event.source event.selected.root
+                              event.selected.plan) ∧
+                        Yulang.GeneralRebaseMultiSelection263.Ready (inspect after).core
+                            (Yulang.GeneralRebaseMultiSource263.selected (inspect after)) ∧
+                          (∀
+                              (next :
+                                Yulang.GeneralRebaseStep258.State
+                                  (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)),
+                              ¬Yulang.GeneralRebaseStep258.Step
+                                  (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool
+                                    (fun state => (inspect state).core) fun state =>
+                                    Yulang.GeneralRebaseMultiSource263.selected (inspect state))
+                                  after next) ∧
+                            ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                              Yulang.GeneralRebaseOwnerTable263.Models base owners representative after assignment ↔
+                                Yulang.GeneralRebaseOwnerTable263.Models base owners representative before assignment ∧
+                                  ∀ (event : Yulang.GeneralRebaseMultiTrace263.Event roles),
+                                    event ∈ events →
+                                      Yulang.GeneralNominalVersionedEffects231.ClassEffects event.source
+                                        event.selected.root event.selected.plan assignment
+Yulang.GeneralRebaseMultiRun263.outcome {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      Yulang.GeneralNominalCenteredSteps.State roles)
+  (select :
+    Yulang.GeneralRebaseMultiObserver263.Current owners representative pool →
+      List (Yulang.GeneralRebaseMultiSelection263.Selection roles))
+  (listed : Yulang.GeneralRebaseMultiObserver263.Listed owners representative pool select)
+  (layout : Yulang.GeneralRebaseMultiObserver263.LayoutCompatible owners representative pool select)
+  (coverage :
+    ∀ (state : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool),
+      Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool)
+  (before : Yulang.GeneralRebaseMultiObserver263.Current owners representative pool) :
+  (∃ after history,
+      Yulang.GeneralRebaseMultiRun263.run owners representative pool inspect select before = Except.ok after ∧
+        Yulang.GeneralRebaseValidatedDriver263.Trace
+            (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select)
+            (Yulang.GeneralRebaseMultiRun263.validate owners representative pool inspect select) history before after ∧
+          history.length ≤ owners.length * (pool.length + pool.length * pool.length)) ∨
+    ∃ reason current steps,
+      Yulang.GeneralRebaseMultiRun263.run owners representative pool inspect select before =
+          Except.error (Yulang.GeneralRebaseValidatedDriver263.Failure.validation reason) ∧
+        Yulang.GeneralRebaseBudget258.Runs
+            (Yulang.GeneralRebaseMultiObserver263.observe owners representative pool inspect select) steps before
+            current ∧
+          steps ≤ owners.length * (pool.length + pool.length * pool.length) ∧
+            reason.selected ∈ select current ∧
+              Yulang.GeneralRebaseClassCheck261.check reason.selected.plan
+                  (Yulang.GeneralRebaseMultiSelection263.requests (inspect current) reason.selected) =
+                Except.error reason.reason

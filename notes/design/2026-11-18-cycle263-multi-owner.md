@@ -62,3 +62,31 @@ body diagnostic. This is a stronger operational theorem, still not a source Step
 simulation or SAT/language-acceptance proof. Meanings for the universal addresses need
 separate source/binder coherence; the earlier representative-based semantic theorem
 remains the validated bridge and is not silently transferred to this larger basis.
+
+## 19:54 semantic follow-through
+
+Universal basis can carry OwnerTable.Holds for a fixed representative family without
+requiring basis equality with that family's compiled tables. For an actual proposal,
+owner provenance isolates the local interpretation; normalized Compatible under base
+transports it to the observed Plan, and all_exact gives actual ClassEffects. Only
+actual written proposal keys matter; unused reserved unknown-body addresses remain
+uninterpreted in present state. No global Layout condition is needed operationally.
+
+A source-derived mathematical representative family may be chosen classically among
+actual reachable registered Plans, when that family is nonempty. This is proof-level
+choice, not an executable compiler. SourceHeads (head schema satisfaction for every
+reachable registered snapshot) is an explicit strong context under which source
+coherence supplies normalized compatibility, without assuming output ClassEffects.
+Never silently identify source reachability with model inclusion or head satisfaction.
+
+## Source-level interpretation scope
+
+The next outer meaning certificate chooses a single fact interpretation once per
+checked source, not an interpretation depending on the query assignment or event.
+For a nonempty family of actually registered Plans, use source-selected mathematical
+representatives; for an empty family, all actual selectors are empty and a trivial
+interpretation suffices. SourceHeads is explicitly conjoined with the chosen base.
+This removes an external representative/Layout/center-equivalence hypothesis, but
+DOES NOT prove SourceHeads from Initial or from language typing. It is head-only,
+not a hidden conjunction of desired output ClassEffects. The inspector is still an
+external source-reachable snapshot function; oldStep simulation is still open.

@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseMultiSource263
+#print axioms Yulang.GeneralRebaseMultiObserver263.closed
+#print axioms Yulang.GeneralRebaseMultiObserver263.completion
+#print axioms Yulang.GeneralRebaseMultiObserver263.write_actual
+#print axioms Yulang.GeneralRebaseMultiObserver263.step_actual
+#print axioms Yulang.GeneralRebaseMultiRun263.certificate
+#print axioms Yulang.GeneralRebaseMultiRun263.outcome
+#print axioms Yulang.GeneralRebaseMultiTrace263.models_exact
+#print axioms Yulang.GeneralRebaseMultiTrace263.from_checked
+#print axioms Yulang.GeneralRebaseMultiTrace263.certificate
+#print axioms Yulang.GeneralRebaseMultiSource263.source_bounds
+#print axioms Yulang.GeneralRebaseMultiSource263.source_completion
+#print axioms Yulang.GeneralRebaseMultiSource263.source_certificate
+#print axioms Yulang.GeneralRebaseValidatedDriver263.certificate
+#print axioms Yulang.GeneralRebaseValidatedOutcome263.error_path
+#print axioms Yulang.GeneralRebaseValidatedOutcome263.outcome
+#check Yulang.GeneralRebaseMultiSource263.source_certificate
+#check Yulang.GeneralRebaseMultiRun263.outcome

@@ -1,0 +1,20 @@
+BUILD Yulang.GeneralRebaseHeadSupport263
+PASS Yulang.GeneralRebaseHeadSupport263
+BUILD Yulang.GeneralNominalVersionedCurrentProjection237
+PASS Yulang.GeneralNominalVersionedCurrentProjection237
+BUILD Yulang.GeneralRebaseRegisteredPlan263
+PASS Yulang.GeneralRebaseRegisteredPlan263
+BUILD Yulang.GeneralRebaseRegisteredSites263
+PASS Yulang.GeneralRebaseRegisteredSites263
+BUILD Yulang.GeneralRebaseSourceCenters263
+PASS Yulang.GeneralRebaseSourceCenters263
+'Yulang.GeneralRebaseRegisteredPlan263.metadata' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredPlan263.source_layout' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredSites263.inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredSites263.origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegisteredSites263.emitted_above_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.centers_from_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceCenters263.source_compatible_from_heads' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseHeadSupport263.from_heads' depends on axioms: [propext, Quot.sound]
