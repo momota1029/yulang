@@ -124,6 +124,12 @@ ownerと二つの(name,target)をkind3に注入符号化し位置非依存のEqu
 
 `terminal_final`, `settle_exact`, `finish`, `finish_exact`, `success_not_satisfiability`
 
+## 21. GeneralRebaseSourceSnapshot261
+
+任意固定source snapshotの全site outputsを実行可能な有限candidate列にする。任意rootの実alias requestsを仮定なしで包含し、その固定snapshot上の動的root選択でClosed/完了/実ClassEffects書込みを示す。sourceやPlanは固定、一般trace共通pool・Frame生成・言語停止性ではない。
+
+`candidates`, `covered`, `select`, `all_covered`, `completion`, `step_actual`, `initial_models`
+
 ## CandidateBoundaryProbe
 
 実fixture Planに実requestsに属さない未定義name1を内部candidateとして加える。空observerならschedulerは即完了するがlayout検査はmissing errorを返す。未使用candidate全体検査の保守性を示し、source到達反例や言語拒否とは主張しない。

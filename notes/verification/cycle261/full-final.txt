@@ -1,1 +1,1 @@
-CYCLE261-FULL-AUDIT-PASS: 304 declarations including generated and private declarations
+CYCLE261-FULL-AUDIT-PASS: 311 declarations including generated and private declarations

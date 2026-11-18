@@ -18,6 +18,7 @@ import Yulang.GeneralRebaseMergeObservation261
 import Yulang.GeneralRebaseStableMergeDriver261
 import Yulang.GeneralRebaseCandidateValidation261
 import Yulang.GeneralRebaseStableMergeFinish261
+import Yulang.GeneralRebaseSourceSnapshot261
 #check @Yulang.GeneralRebaseBodyTable261.all_exact
 #check @Yulang.GeneralRebaseBodyTable261.reordered
 #check @Yulang.GeneralRebaseClassTable261.all_exact
@@ -47,4 +48,12 @@ import Yulang.GeneralRebaseStableMergeFinish261
 #check @Yulang.GeneralRebaseStableMerge261.final_uninhabited
 #check @Yulang.GeneralRebaseStableMerge261.completion
 #check @Yulang.GeneralRebaseMergeObservation261.actual_write
+#check @Yulang.GeneralRebaseMergeObservation261.packet_evidence
+#check @Yulang.GeneralRebaseStableMergeDriver261.function_exact
+#check @Yulang.GeneralRebaseStableMergeDriver261.budget
 #check @Yulang.GeneralRebaseCandidateValidation261.completion
+#check @Yulang.GeneralRebaseCandidateValidation261.successful_trace
+#check @Yulang.GeneralRebaseStableMergeFinish261.finish_exact
+#check @Yulang.GeneralRebaseStableMergeFinish261.success_not_satisfiability
+#check @Yulang.GeneralRebaseSourceSnapshot261.completion
+#check @Yulang.GeneralRebaseSourceSnapshot261.step_actual

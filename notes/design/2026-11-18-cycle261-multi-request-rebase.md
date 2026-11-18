@@ -105,3 +105,18 @@ basis外は別errorとして保持し、成功なら全選択履歴Readyと正�
 内部CandidateBoundaryProbeでは、実requestsに属さない未定義name1を候補表に追加すると、
 空の選択observerは即完了するのにlayout検査はmissing errorを返すことをkernel検証した。
 これは全candidate検査の保守的な内部エラーで、実sourceの拒否反例ではない。
+
+## 一般sourceへの残りを具体化した確認
+
+`SourceOwnerCandidates252.mixed_finite_owners` と `PublicPorts253.mixed_finite_ports` を
+再読した。いずれも実source由来だが、Generated・Installable・未Committedという実installの
+条件が付く。これを全ての保持済みsiteのrequest targetにそのまま適用するのは不正確。
+`HeadOutputs.mem_requests_iff` は実alias classのrequestを保持siteのoutputsへ戻せる。
+
+そこで固定snapshotについては、全site.outputsをcandidate列に取り、任意rootの実requests
+が含まれることを前提なしで証明した。候補列自体はalias判定なしに計算できる。
+これで固定snapshot上の動的root選択のClosedとClassEffects書込みへ接続した。
+各snapshotで有限列を作り直すことは、全traceで一つの有限basisが使えることの証明ではない。
+次の本質的義務は、初期siteと新規installの両方について保持request targetの固定pool所属を
+帰納的に示し、同じownerのPlan・capture意味を更新しても過去factsを再解釈しない橋を作ること。
+実request取得のalias判定はなおnoncomputable。一般Evidence/Permittedと12性質の移植はその後。

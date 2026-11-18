@@ -21,3 +21,4 @@ lean/Yulang/GeneralRebaseMergeObservation261.lean
 lean/Yulang/GeneralRebaseStableMergeDriver261.lean
 lean/Yulang/GeneralRebaseCandidateValidation261.lean
 lean/Yulang/GeneralRebaseStableMergeFinish261.lean
+lean/Yulang/GeneralRebaseSourceSnapshot261.lean
