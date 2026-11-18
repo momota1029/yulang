@@ -6,6 +6,12 @@ import Yulang.GeneralDictionaryFullReduced257
 import Yulang.GeneralDictionaryOrdinaryFinite257
 import Yulang.GeneralDictionaryOrdinaryCanonical257
 import Yulang.GeneralDictionaryCompactView257
+import Yulang.GeneralDictionaryCompactFields257
+import Yulang.GeneralDictionaryFiveSlot257
+import Yulang.GeneralDictionaryInitialProjection257
+import Yulang.GeneralDictionaryFiniteView257
+import Yulang.GeneralDictionaryNoModelRefinement257
+import Yulang.GeneralDictionaryProjectionBoundary257
 
 #print axioms Yulang.GeneralDictionaryUpperHistory257.upperEntry
 #print axioms Yulang.GeneralDictionaryUpperHistory257.lowerEntry
@@ -72,3 +78,49 @@ import Yulang.GeneralDictionaryCompactView257
 #print axioms Yulang.GeneralDictionaryCompactView257.public_models
 #print axioms Yulang.GeneralDictionaryCompactView257.hidden_above
 #print axioms Yulang.GeneralDictionaryCompactView257.slot_count
+#print axioms Yulang.GeneralDictionaryCompactFields257.slot_type
+#print axioms Yulang.GeneralDictionaryCompactFields257.foo
+#print axioms Yulang.GeneralDictionaryCompactFields257.pair
+#print axioms Yulang.GeneralDictionaryCompactFields257.original_type
+#print axioms Yulang.GeneralDictionaryCompactFields257.anchor_type
+#print axioms Yulang.GeneralDictionaryCompactFields257.foo_descriptor
+#print axioms Yulang.GeneralDictionaryCompactFields257.pair_descriptor
+#print axioms Yulang.GeneralDictionaryCompactFields257.nominal
+#print axioms Yulang.GeneralDictionaryCompactFields257.no_heads
+#print axioms Yulang.GeneralDictionaryCompactFields257.no_intervals
+#print axioms Yulang.GeneralDictionaryCompactFields257.baseFacts
+#print axioms Yulang.GeneralDictionaryCompactFields257.base_fixed
+#print axioms Yulang.GeneralDictionaryCompactFields257.ordinary
+#print axioms Yulang.GeneralDictionaryFiveSlot257.descriptor
+#print axioms Yulang.GeneralDictionaryFiveSlot257.projection
+#print axioms Yulang.GeneralDictionaryFiveSlot257.view
+#print axioms Yulang.GeneralDictionaryFiveSlot257.original_projection
+#print axioms Yulang.GeneralDictionaryFiveSlot257.projected_descriptor
+#print axioms Yulang.GeneralDictionaryFiveSlot257.compact_nominal
+#print axioms Yulang.GeneralDictionaryFiveSlot257.compact_target
+#print axioms Yulang.GeneralDictionaryFiveSlot257.models_exact
+#print axioms Yulang.GeneralDictionaryFiveSlot257.stable
+#print axioms Yulang.GeneralDictionaryFiveSlot257.five_slots
+#print axioms Yulang.GeneralDictionaryFiveSlot257.ordinary_bound
+#print axioms Yulang.GeneralDictionaryInitialProjection257.Agree
+#print axioms Yulang.GeneralDictionaryInitialProjection257.solve_agrees
+#print axioms Yulang.GeneralDictionaryInitialProjection257.public_models
+#print axioms Yulang.GeneralDictionaryInitialProjection257.stable
+#print axioms Yulang.GeneralDictionaryFiniteView257.pool
+#print axioms Yulang.GeneralDictionaryFiniteView257.two_views
+#print axioms Yulang.GeneralDictionaryFiniteView257.terms_finite
+#print axioms Yulang.GeneralDictionaryFiniteView257.atoms_fixed
+#print axioms Yulang.GeneralDictionaryFiniteView257.no_private_type_reads
+#print axioms Yulang.GeneralDictionaryFiniteView257.row_metadata
+#print axioms Yulang.GeneralDictionaryFiniteView257.no_strict_view_rank
+#print axioms Yulang.GeneralDictionaryNoModelRefinement257.initial_cross
+#print axioms Yulang.GeneralDictionaryNoModelRefinement257.initial_facts
+#print axioms Yulang.GeneralDictionaryNoModelRefinement257.one_iff_zero
+#print axioms Yulang.GeneralDictionaryNoModelRefinement257.all_iff_zero
+#print axioms Yulang.GeneralDictionaryNoModelRefinement257.initial_public_models
+#print axioms Yulang.GeneralDictionaryProjectionBoundary257.anchor_distinct
+#print axioms Yulang.GeneralDictionaryProjectionBoundary257.anchor_collapsed
+#print axioms Yulang.GeneralDictionaryProjectionBoundary257.not_injective
+#print axioms Yulang.GeneralDictionaryProjectionBoundary257.state_slots
+#print axioms Yulang.GeneralDictionaryProjectionBoundary257.states_distinct
+#print axioms Yulang.GeneralDictionaryProjectionBoundary257.distinct_with_same_view

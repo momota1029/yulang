@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryProjectionBoundary257
 import Yulang.GeneralDictionaryCompactView257
 import Yulang.GeneralDictionaryLooseIterationNontermination240
 open Yulang
@@ -40,3 +41,27 @@ example (n : Nat) : GeneralPresenceCheckedNormal252.prepare .lower
 example (n : Nat) : (GeneralDictionaryCompactView257.compact n).slots = n+5 :=
  GeneralDictionaryCompactView257.slot_count n
 #check GeneralDictionaryLooseIterationNontermination240.initial_no_acc
+
+example (n : Nat) (a : Assignment) : (GeneralDictionaryCompactView257.compact n).Models a ↔
+ (GeneralDictionaryFiveSlot257.view n).Models a := GeneralDictionaryFiveSlot257.models_exact n a
+example (n : Nat) : (GeneralDictionaryFiveSlot257.view n).slots = 5 := GeneralDictionaryFiveSlot257.five_slots n
+example (n : Nat) : (GeneralDictionaryFiveSlot257.view n).ordinary.length ≤ 8 := GeneralDictionaryFiveSlot257.ordinary_bound n
+example (n : Nat) : GeneralNominalViewTypeTerms255.terms (GeneralDictionaryFiveSlot257.view n) ⊆
+ GeneralDictionaryFiniteView257.pool := GeneralDictionaryFiniteView257.terms_finite n
+example (n : Nat) (a : Assignment) : (GeneralDictionaryFiveSlot257.view n).Models a ↔
+ (GeneralDictionaryFiveSlot257.view 0).Models a := GeneralDictionaryNoModelRefinement257.all_iff_zero n a
+example (n : Nat) (boundary : Assignment) :
+ (∃ a, GeneralDictionaryInitialProjection257.Agree a boundary ∧
+ GeneralNominalState.Models (GeneralDictionaryLooseIterationBook240.context n).state a) ↔
+ (∃ a, GeneralDictionaryInitialProjection257.Agree a boundary ∧
+ GeneralNominalState.Models (GeneralDictionaryLooseIterationBook240.context 0).state a) :=
+ GeneralDictionaryNoModelRefinement257.initial_public_models n boundary
+example (n : Nat) : ¬ Function.Injective (@GeneralDictionaryFiveSlot257.projection (n+1)) :=
+ GeneralDictionaryProjectionBoundary257.not_injective n
+example (n : Nat) : GeneralDictionaryLooseIterationIteration240.state (n+1) ≠
+ GeneralDictionaryLooseIterationIteration240.state (n+2) ∧
+ GeneralDictionaryFiveSlot257.view (n+1) = GeneralDictionaryFiveSlot257.view (n+2) :=
+ GeneralDictionaryProjectionBoundary257.distinct_with_same_view n
+example (rank : GeneralNominalRebaseRawView243.View → Nat) :
+ ¬ ∀ n, rank (GeneralDictionaryFiveSlot257.view (n+2)) < rank (GeneralDictionaryFiveSlot257.view (n+1)) :=
+ GeneralDictionaryFiniteView257.no_strict_view_rank rank
