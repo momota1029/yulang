@@ -1,4 +1,4 @@
-import Yulang.GeneralDictionaryFastFill258
+import Yulang.GeneralDictionaryCompletedReadback258
 namespace Yulang
 open GeneralNominalCommonBridge (Assignment)
 open GeneralDictionaryUniformFill258 (fill)
@@ -48,4 +48,25 @@ example (a : Assignment) :
 example (index : Nat) : GeneralDictionarySearchCost258.probes
  (fun i => GeneralDictionaryLooseFamilyNames240.lower (i+1)) (GeneralDictionaryLooseFamilyNames240.lower (index+1))
  0 (GeneralDictionaryLooseFamilyNames240.lower (index+1)+1) ≤ index+1 := GeneralDictionarySearchCost258.lower_match index
+example (a : Assignment) :
+ GeneralNominalVersionedPlans231.Holds GeneralDictionaryOutputDepth252.plan
+ (GeneralDictionaryOutputFrame258.complete a) ↔
+ GeneralNominalState.Models GeneralDictionaryOutputDepth252.snapshot a := GeneralDictionaryOutputCompletion258.packet_exact a
+example (a : Assignment) (valid : GeneralNominalState.Models GeneralDictionaryOutputDepth252.snapshot a) :
+ GeneralNominalVersionedJournal232.Models GeneralDictionaryOutputDepthInstall252.installed
+ (GeneralDictionaryOutputFrame258.complete a) := GeneralDictionaryOutputCompletion258.installed_models a valid
+example (payload : GeneralDictionaryReadback.Payload) :
+ ¬ GeneralNominalVersionedEvidence231.Evidence GeneralDictionaryOutputDepth252.registry GeneralDictionaryOutputDepth252.initial.core
+ (GeneralDictionaryPendingOutput258.replace .bottom) GeneralDictionaryOutputDepth252.root payload :=
+ GeneralDictionaryOutputEvidence258.no_initial_evidence payload
+example (a : Assignment) (valid : GeneralNominalState.Models GeneralDictionaryOutputDepth252.snapshot a) :
+ GeneralNominalVersionedEvidence231.Evidence GeneralDictionaryOutputDepth252.registry GeneralDictionaryOutputDepth252.initial.core
+ (GeneralDictionaryOutputFrame258.complete a) GeneralDictionaryOutputDepth252.root (.node 0 []) :=
+ GeneralDictionaryOutputEvidence258.completed_evidence a valid
+example (boundary : Assignment) :
+ (∃ a, GeneralDictionaryOutputPublic258.Agree a boundary ∧
+ GeneralNominalVersionedJournal232.Models GeneralDictionaryOutputDepthInstall252.installed a) ↔
+ GeneralNominalState.Models GeneralDictionaryOutputDepth252.snapshot boundary := GeneralDictionaryOutputPublic258.public_models boundary
+example : GeneralPatternAdditiveDepth253.depth GeneralDictionaryOutputDepth252.expanded = 4 :=
+ GeneralDictionaryCompletedReadback258.depth
 end Yulang

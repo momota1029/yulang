@@ -110,3 +110,54 @@ A20second-capped Lean runtime probe completed14:43:07–14:43:09, exit0:
 public0/4 negative; first lower/upper names positive with one visit each;
 actual binder negative for both families with two visits each. This is a small
 operational sanity check, not a uniform performance guarantee or Yulang2 test.
+
+## I50 readback-premise diagnostic plan
+
+Return to the output-depth work: SourceOutputDepth254 requires actual Evidence.
+The initial source in OutputDepth252 deliberately has an unconstrained requested
+output slot3. Test the exact weaker-premise boundary by replacing slot3 with
+arbitrary Ty while preserving source Models and initial journal Models, and
+show that the actual packet's Outputs holds iff that value is equivalent to
+its supplied template value. A bottom assignment should fail Outputs.
+
+This is NOT a refutation of I50's bound on supplied/resolved output readbacks,
+not a new stopping witness, and not a program rejection. It only prevents
+using initial Models alone to erase the Evidence/produced-output hypotheses.
+Keep pending symbolic references and completed ground readbacks separate.
+
+## Active typed consumer support
+
+The old ViewSupport249 safely overapproximates by including every slot's type,
+even an unconstrained requested output slot with no head, descriptor or interval
+consumer. Introduce a separate, tighter support (do not alter249): a slot target
+is read only if a head/nominal descriptor is present or an interval mentions it.
+Retain ordinary atom reads, head RHS reads, descriptor parameter reads, and all
+row values. Prove generic View.Models congruence from this actual-consumer
+support. Apply it to the fixed OutputDepth252 initial snapshot to establish
+that changing only the unconsumed output target preserves initial Models;
+when Outputs is added, that target becomes constrained. This is an exact
+read-support refinement, not a general source-closure or Step invariant.
+
+## Fourth verified slice: output completion and the Evidence boundary
+
+For the exact checked OutputDepth252 source, any Ty can occupy requested slot3
+in the initial journal model. The bottom choice has a valid prepared Frame but
+no packet Outputs and, using the existing unique-frame theorem, no root
+Evidence for any payload. This does not refute I50 or a language rule: the
+requested output has not been supplied in that assignment.
+
+ActiveSupport258 proves a generic tighter View.Models support theorem that
+excludes target types of slots not read by a head, descriptor or interval.
+Ordinary/head RHS/descriptor parameter reads remain included; all rows remain
+fixed. For this initial output snapshot, active typed support is within0..2,
+so output3 can be completed without changing initial raw Models.
+
+Completion writes exactly Foo(Foo(assignment(2).ty)) to output3, keeping all
+other components and every row. It yields packet Holds iff the original initial
+raw Models. Reusing the actual previously-proved install Step/effect, it also
+yields installed journal Models. Existential installed models with all names
+except3 fixed are iff the initial raw model. The specific leaf Evidence is
+constructed, rather than assumed. One fixed closed representative of depth4
+then works for every initial model after completion; before completion the
+bottom model is a negative regression. This is a fixed-source completion,
+not a general Evidence producer, scheduler theorem or I50 full-source closure.

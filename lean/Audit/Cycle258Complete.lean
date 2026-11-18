@@ -11,6 +11,15 @@ import Yulang.GeneralDictionaryPrivateBoundary258
 import Yulang.GeneralDictionaryEarlySearch258
 import Yulang.GeneralDictionarySearchCost258
 import Yulang.GeneralDictionaryFastFill258
+import Yulang.GeneralDictionaryPendingOutput258
+import Yulang.GeneralDictionaryOutputPremise258
+import Yulang.GeneralDictionaryOutputInputs258
+import Yulang.GeneralNominalActiveSupport258
+import Yulang.GeneralDictionaryOutputFrame258
+import Yulang.GeneralDictionaryOutputCompletion258
+import Yulang.GeneralDictionaryOutputEvidence258
+import Yulang.GeneralDictionaryOutputPublic258
+import Yulang.GeneralDictionaryCompletedReadback258
 
 #print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_lower
 #print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_upper
@@ -108,3 +117,65 @@ import Yulang.GeneralDictionaryFastFill258
 #print axioms Yulang.GeneralDictionaryFastFill258.all_stages
 #print axioms Yulang.GeneralDictionaryFastFill258.public_agrees
 #print axioms Yulang.GeneralDictionaryFastFill258.idempotent
+#print axioms Yulang.GeneralDictionaryPendingOutput258.replace
+#print axioms Yulang.GeneralDictionaryPendingOutput258.other
+#print axioms Yulang.GeneralDictionaryPendingOutput258.target
+#print axioms Yulang.GeneralDictionaryPendingOutput258.base_models
+#print axioms Yulang.GeneralDictionaryPendingOutput258.source_models
+#print axioms Yulang.GeneralDictionaryPendingOutput258.initial_models
+#print axioms Yulang.GeneralDictionaryPendingOutput258.rhs_fixed
+#print axioms Yulang.GeneralDictionaryPendingOutput258.outputs_exact
+#print axioms Yulang.GeneralDictionaryOutputPremise258.bottom_not_expected
+#print axioms Yulang.GeneralDictionaryOutputPremise258.initial_not_outputs
+#print axioms Yulang.GeneralDictionaryOutputPremise258.initial_not_packet
+#print axioms Yulang.GeneralDictionaryOutputPremise258.frame_not_packet
+#print axioms Yulang.GeneralDictionaryOutputPremise258.expected_outputs
+#print axioms Yulang.GeneralDictionaryOutputInputs258.projection
+#print axioms Yulang.GeneralDictionaryOutputInputs258.ordinary
+#print axioms Yulang.GeneralDictionaryOutputInputs258.head_holds
+#print axioms Yulang.GeneralDictionaryOutputInputs258.inputs
+#print axioms Yulang.GeneralDictionaryOutputInputs258.packet_exact
+#print axioms Yulang.GeneralNominalActiveSupport258.used
+#print axioms Yulang.GeneralNominalActiveSupport258.targetReads
+#print axioms Yulang.GeneralNominalActiveSupport258.perSlot
+#print axioms Yulang.GeneralNominalActiveSupport258.support
+#print axioms Yulang.GeneralNominalActiveSupport258.slot_member
+#print axioms Yulang.GeneralNominalActiveSupport258.target_member
+#print axioms Yulang.GeneralNominalActiveSupport258.head_member
+#print axioms Yulang.GeneralNominalActiveSupport258.descriptor_member
+#print axioms Yulang.GeneralNominalActiveSupport258.head_used
+#print axioms Yulang.GeneralNominalActiveSupport258.nominal_used
+#print axioms Yulang.GeneralNominalActiveSupport258.interval_left
+#print axioms Yulang.GeneralNominalActiveSupport258.interval_right
+#print axioms Yulang.GeneralNominalActiveSupport258.models_iff
+#print axioms Yulang.GeneralDictionaryOutputFrame258.identity
+#print axioms Yulang.GeneralDictionaryOutputFrame258.view
+#print axioms Yulang.GeneralDictionaryOutputFrame258.models_exact
+#print axioms Yulang.GeneralDictionaryOutputFrame258.support_small
+#print axioms Yulang.GeneralDictionaryOutputFrame258.unused_output
+#print axioms Yulang.GeneralDictionaryOutputFrame258.source_iff
+#print axioms Yulang.GeneralDictionaryOutputFrame258.complete
+#print axioms Yulang.GeneralDictionaryOutputFrame258.rows
+#print axioms Yulang.GeneralDictionaryOutputFrame258.outside
+#print axioms Yulang.GeneralDictionaryOutputFrame258.source_exact
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.expected
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.rhs_exact
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.outputs_exact
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.completed_outputs
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.packet_exact
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.classes
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.installation
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.installed_models
+#print axioms Yulang.GeneralDictionaryOutputEvidence258.no_initial_evidence
+#print axioms Yulang.GeneralDictionaryOutputEvidence258.completed_evidence
+#print axioms Yulang.GeneralDictionaryOutputPublic258.Agree
+#print axioms Yulang.GeneralDictionaryOutputPublic258.completion_agrees
+#print axioms Yulang.GeneralDictionaryOutputPublic258.source_agree
+#print axioms Yulang.GeneralDictionaryOutputPublic258.installed_initial
+#print axioms Yulang.GeneralDictionaryOutputPublic258.installed_exact
+#print axioms Yulang.GeneralDictionaryOutputPublic258.public_models
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.closed
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.meaning
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.depth
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.uniform
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.not_before_completion

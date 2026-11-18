@@ -1,0 +1,14 @@
+lean/Yulang/GeneralNominalActiveSupport258.lean:58:6: error: unexpected token 'exists'; expected '(', ':=', '_', '|' or identifier
+lean/Yulang/GeneralNominalActiveSupport258.lean:58:6: error: Missing cases:
+lean/Yulang/GeneralNominalActiveSupport258.lean:57:139: error: unsolved goals
+view : View
+pair : Fin view.slots × Fin view.slots
+member : pair ∈ view.intervals
+⊢ used view pair.fst = true
+lean/Yulang/GeneralNominalActiveSupport258.lean:63:6: error: unexpected token 'exists'; expected '(', ':=', '_', '|' or identifier
+lean/Yulang/GeneralNominalActiveSupport258.lean:63:6: error: Missing cases:
+lean/Yulang/GeneralNominalActiveSupport258.lean:62:140: error: unsolved goals
+view : View
+pair : Fin view.slots × Fin view.slots
+member : pair ∈ view.intervals
+⊢ used view pair.snd = true

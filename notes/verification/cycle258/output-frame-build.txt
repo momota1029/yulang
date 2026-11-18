@@ -1,0 +1,1 @@
+lean/Yulang/GeneralDictionaryOutputFrame258.lean:1:0: error: object file 'lean/.lake/cycle258-focused/Yulang/GeneralNominalActiveSupport258.olean' of module Yulang.GeneralNominalActiveSupport258 does not exist
