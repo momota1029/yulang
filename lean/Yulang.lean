@@ -4655,3 +4655,9 @@ import Yulang.GeneralNominalViewTypeTerms255
 import Yulang.GeneralNominalViewTypeMap255
 import Yulang.GeneralNominalViewNormal255
 import Yulang.GeneralDictionaryViewNormal255
+import Yulang.GeneralPresenceSourceSupport255
+import Yulang.GeneralNominalSourceViewSupport255
+import Yulang.GeneralNominalSourceBasis255
+import Yulang.GeneralNominalViewTypeImage255
+import Yulang.GeneralNominalViewFixed255
+import Yulang.GeneralNominalTemplateChoices255

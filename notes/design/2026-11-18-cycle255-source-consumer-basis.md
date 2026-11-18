@@ -37,3 +37,24 @@ refsを使う候補はprepare成功し、全assignmentでView.Modelsと元source
 I49のlo/hi aggregate schedulerの置換ではない。row fieldsはliteralに保持するため、
 モデル保存定理はView全体を覆うがrowの有限正規形化を示したわけではない。
 全将来状態の固定pool・private非流出・strict進捗はまだ未証明。
+
+## 初期sourceにおける支持・有限化の接続
+追加の一般定理では、raw compileの全type consumer（slot、ordinary、head、nominal
+型引数）が GeneralNominalState.sources に含まれる名前だけを読むことを示した。
+TyTerm内のarrow row読みも追跡し、二つの既存source collectorの一致を証明した。
+したがってInitialSource.below_seedから、source atom poolは全fresh名を含まない。
+public refsを足してもpurposes0/1のprivate aggregateは入らない。このbasisにより
+初期View全体のprepare成功・全Models保存を得る。一般の未来Viewにこれを適用する
+には、そのViewのSupportedが依然必要であり、自動的に成立したとは扱わない。
+
+mapしたViewのconsumer listが元listのmapと厳密に等しいことも証明し、正規化後の
+全type fieldsが同一basisの有限候補列挙に入り、再prepareで固定点となることを得た。
+候補list長はsideごと2^basis.length（重複は許す）。これは型fieldの有限化であり、
+slot数、row項、nominal構造、ordinary本数、journal履歴の有限化ではない。
+
+raw output templateの各leafに有限候補を割り当てる有限Cartesian menuを追加。
+nominal引数だけactual modeへ切り替える既存compileをそのまま追跡し、使用する
+(mode,name)のみへの候補所属から、実compile結果のmenu所属を証明した。
+このmenuは同じbinderの複数出現を独立に選べるoverapproxであり、全menu項が
+単一のvariables関数で実現可能だとは主張しない。次に254の実source template列挙
+へ接続する。モデル・Evidenceを使わずに構文の有限候補を得る経路を保つ。
