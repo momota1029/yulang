@@ -4623,3 +4623,6 @@ import Yulang.GeneralNominalSourceOwnerCandidates252
 import Yulang.GeneralDictionaryOutputDepth252
 import Yulang.GeneralDictionaryOutputDepthCycles252
 import Yulang.GeneralDictionaryOutputDepthInstall252
+import Yulang.GeneralPatternAdditiveDepth253
+import Yulang.GeneralNominalExprDepth253
+import Yulang.GeneralNominalOutputNames253
