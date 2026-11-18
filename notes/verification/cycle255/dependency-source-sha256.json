@@ -1,5 +1,5 @@
 {
-  "lean/Audit/Cycle255Usage.lean": "c82da28ad4fcaacc27dd64e82d1b2a505eb28811a17d840f07d185e320b1145f",
+  "lean/Audit/Cycle255Usage.lean": "358a63a9977dce5475e6bbff5b71b96c99de6f8379e75316da83c184ac0f6c2b",
   "lean/Main.lean": "9bbc873933f65ec1117fdbb7e87814867718784523cb6d7fa913bb669f40b67c",
   "lean/Yulang/B4Skeleton.lean": "1173d6dda9ee7d8f25f9cab22ec1f79a01e17db2ca2a286cf07c792b4f293f5d",
   "lean/Yulang/B4SkeletonV3.lean": "512a26a9f4ce1ae77d1f86e64bbaed324839d6432d77bc4dc7350bcbb99e04ac",
@@ -675,6 +675,7 @@
   "lean/Yulang/GeneralDictionarySupportOrdinaryExecution.lean": "d1763682772a2c9fbaab9bdc387c352153fbe4b3f33e533f6f571b0ad39743d8",
   "lean/Yulang/GeneralDictionarySupportRecursiveExample.lean": "6b6186e0d0e8b73de6dabd984c980719470b86b31fd6c6334b300870ffcefd76",
   "lean/Yulang/GeneralDictionarySupportSourceInvariants.lean": "4d9320a4de5c2f6e466e503fb1a99bc2d416a8e97802cfd5275ecffc53f39abd",
+  "lean/Yulang/GeneralDictionaryTemplateMenu255.lean": "2f49c9f08503f10c8cbd50ee0577b37ba99339e49d28703c7d37210059bec620",
   "lean/Yulang/GeneralDictionaryTotalBoundary206.lean": "bc3666136a5a17ed6a0d2a0de85dd3c300d89b267692126f72f86a0b17514c39",
   "lean/Yulang/GeneralDictionaryTotalEvidence206.lean": "ca45b90001e309bf7ab01207bba0d331b104acc784b94d3ee32e6cd71c878a36",
   "lean/Yulang/GeneralDictionaryTransactions.lean": "aa11572cb8eb0a517cf78207aea290a834d9619012d7d5e290338612c3e522ba",
@@ -1294,6 +1295,7 @@
   "lean/Yulang/GeneralNominalSourcePatternParts.lean": "c8bf345c167f25f2cb7a259e1e81080aff020f5db59c3186fd5d07a3f7712da1",
   "lean/Yulang/GeneralNominalSourceProducerHandoff.lean": "00bc24caad18cae954cbdbb2d203d04d8a18914e850aea60f98422f6b83cb111",
   "lean/Yulang/GeneralNominalSourceProjection.lean": "b3e6aad6a65d362b943a47a2e02a6f5e8f726eeb16ecbc3438128d2c5ef109cb",
+  "lean/Yulang/GeneralNominalSourcePublicBasis255.lean": "e428514df816d67d66f7263377ba67b9b9541fcb6d5390ba1d19486d8b7a7718",
   "lean/Yulang/GeneralNominalSourceReadback.lean": "069bf9a7237e31f1ee0fdedcab347cbf242836a07afe6564e2099ba383e8f4b6",
   "lean/Yulang/GeneralNominalSourceReadback254.lean": "f38d6e5fae8bc62df763bde8372b4d19d452aa37feea986aa97ef4e28c90467a",
   "lean/Yulang/GeneralNominalSourceTemplateMenu255.lean": "416214efccfd8d1d239c4b51c522c3ca9e64c3b9c9726fd3391a333a256aefa8",

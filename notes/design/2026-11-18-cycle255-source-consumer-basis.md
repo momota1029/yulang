@@ -89,3 +89,25 @@ frameなら254の固定template budgetを使える。これはI50(b)の「参照
 raw templateから毎回有限leaf候補で再構築する表現の見通しは得たが、実Stepがこの表現を
 保存すること・新factの厳密増加・slot/row/journalの有限性は未証明。mixed-time compiler、
 Permitted、12則の移植、Accを済ませたとは言わない。source到達の新非停止反例は出していない。
+
+## 実source由来の一つの固定basis
+`SourcePublicBasis255.mixed_source_basis` は、実際のMixedSource境界のInitialだけから、
+contextと一つの重複なし有限basisを取り出す。GroundRootsやCoverageを新たな仮定に
+せず、既存Initialの中身から取得する。固定sourceのowner上界から候補owner listを作り、
+実行中に見たowner数を有限性の根拠にはしない。この同じbasisで初期Raw Viewのprepare
+が成功し、後のGenerated/Installable/未Committedな据付けのpublic ports（253で定義した
+purposes2〜5）のvar atomが入る。purposes0/1のprivate名はbasisの全読みから分離される。
+これはpurpose8などの全識別子の列挙や、全consumerの代入閉包ではない。
+
+`GeneralDictionaryTemplateMenu255` は252の実Initial・frame・明示bodyを使う回帰。
+実compileBodyのF(F(a))をsource binder2への参照で表す結果が固定有限menuに入り、
+canonical basis上の実prepareも成功する。全assignmentで旧versioned output valueと
+Equivalent。保存syntax深さは2のまま、モデルでの意味は既存のP（展開深さ4）である。
+新境界を作ったり、ground depthが2だと主張したりしない。
+
+## 否定結果の正確な位置
+intの否定結果は、全Raw Viewのtype consumerをvar-only poolで一律に正規化する、
+今回検討した強い案への診断。I50のlo/hiだけを正規化し固定source項をそのまま保持する
+表現まで反証したものではない。したがってI50のsourceStep非停止反例や意味論への
+反例として停止を要求しない。固定source项を不変に保持する案と、今回のsource atom
+拡張basis案のどちらを実Stepへ採るかは、残る全consumer閉包の証明と一緒に判断する。

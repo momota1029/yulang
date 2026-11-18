@@ -154,3 +154,25 @@
 'Yulang.GeneralNominalNormalizedDepth255.source_rewrite_depth' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.supplied' does not depend on any axioms
+'Yulang.GeneralDictionaryTemplateMenu255.compiled' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.reads_exact' does not depend on any axioms
+'Yulang.GeneralDictionaryTemplateMenu255.materialized' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.actual_finite_menu' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.normalized_reference' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.rewritten' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.prepared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.all_models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryTemplateMenu255.raw_depth_two' depends on axioms: [propext]
+'Yulang.GeneralDictionaryTemplateMenu255.source_regression' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSourcePublicBasis255.basis' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSourcePublicBasis255.initial_success' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSourcePublicBasis255.private_separated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSourcePublicBasis255.installed_port' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSourcePublicBasis255.installed_port_prepared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalSourcePublicBasis255.mixed_source_basis' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

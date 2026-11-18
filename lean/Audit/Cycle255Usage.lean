@@ -6,6 +6,8 @@ import Yulang.GeneralNominalCanonicalBasis255
 import Yulang.GeneralNominalSourceTemplateMenu255
 import Yulang.GeneralNominalTemplateSupport255
 import Yulang.GeneralNominalNormalizedDepth255
+import Yulang.GeneralDictionaryTemplateMenu255
+import Yulang.GeneralNominalSourcePublicBasis255
 open Yulang
 open Core.PresenceGeneration
 
@@ -92,3 +94,20 @@ example (policy : GeneralNominalMaterialization.Mode → GeneralPresenceCheckedN
  (separated : ∀ atom ∈ basis, privateName ∉ GeneralPresenceSubstitutionSupport244.typeSources atom) :
  privateName ∉ GeneralNominalTemplateSupport255.reads (GeneralNominalTemplateNormal255.rewrite policy basis variables mode template) :=
  GeneralNominalTemplateSupport255.rewritten_private_free policy basis variables mode template privateName separated
+
+example : GeneralNominalTemplateNormal255.prepare GeneralDictionaryTemplateMenu255.policy
+ GeneralDictionaryTemplateMenu255.basis GeneralDictionaryTemplateMenu255.variables .actual
+ GeneralDictionaryOutputDepth252.rhs = some GeneralDictionaryTemplateMenu255.result :=
+ GeneralDictionaryTemplateMenu255.prepared
+
+example : GeneralDictionaryTemplateMenu255.result ∈ GeneralNominalSourceTemplateMenu255.menu
+ GeneralDictionaryOutputDepth252.registry GeneralDictionaryOutputDepth252.context GeneralDictionaryOutputDepth252.root [.var 2] :=
+ GeneralDictionaryTemplateMenu255.actual_finite_menu
+
+example (registry : GeneralDeclarations.Registry) (context : GeneralNominalCandidates.Context)
+ (root : GeneralSourceDictionaries.Occurrence roles) (labels : List GeneralDeclarationPatterns.Pattern) (side : GeneralPresenceCheckedNormal252.Side) :
+ GeneralNominalViewNormal255.prepare side (GeneralNominalSourcePublicBasis255.basis registry context root labels)
+ (GeneralNominalRebaseRawView243.compile context.state CompTerm.var) =
+ some (GeneralNominalViewNormal255.rewrite side (GeneralNominalSourcePublicBasis255.basis registry context root labels)
+ (GeneralNominalRebaseRawView243.compile context.state CompTerm.var)) :=
+ GeneralNominalSourcePublicBasis255.initial_success registry context root labels side

@@ -15,6 +15,8 @@ import Yulang.GeneralNominalSourceTemplateMenu255
 import Yulang.GeneralNominalTemplateSupport255
 import Yulang.GeneralNominalCanonicalBasis255
 import Yulang.GeneralNominalNormalizedDepth255
+import Yulang.GeneralDictionaryTemplateMenu255
+import Yulang.GeneralNominalSourcePublicBasis255
 
 #print axioms Yulang.GeneralDictionarySourceAtom255.constant_not_basis
 #print axioms Yulang.GeneralDictionarySourceAtom255.prepare_constant_none
@@ -166,3 +168,21 @@ import Yulang.GeneralNominalNormalizedDepth255
 #print axioms Yulang.GeneralNominalNormalizedDepth255.normalized_depth
 #print axioms Yulang.GeneralNominalNormalizedDepth255.rewritten_depth
 #print axioms Yulang.GeneralNominalNormalizedDepth255.source_rewrite_depth
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.supplied
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.compiled
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.reads_exact
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.materialized
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.actual_finite_menu
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.normalized_reference
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.supported
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.rewritten
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.prepared
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.all_models_exact
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.raw_depth_two
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.source_regression
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.basis
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.initial_success
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.private_separated
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.installed_port
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.installed_port_prepared
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.mixed_source_basis

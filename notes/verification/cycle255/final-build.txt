@@ -1,0 +1,48 @@
+Focused cycle255 fresh-module verification started 2026-11-18T12:08:12Z
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralDictionarySourceAtom255.olean lean/Yulang/GeneralDictionarySourceAtom255.lean
+GeneralDictionarySourceAtom255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalViewTypeTerms255.olean lean/Yulang/GeneralNominalViewTypeTerms255.lean
+GeneralNominalViewTypeTerms255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalViewTypeMap255.olean lean/Yulang/GeneralNominalViewTypeMap255.lean
+GeneralNominalViewTypeMap255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalViewNormal255.olean lean/Yulang/GeneralNominalViewNormal255.lean
+GeneralNominalViewNormal255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralDictionaryViewNormal255.olean lean/Yulang/GeneralDictionaryViewNormal255.lean
+GeneralDictionaryViewNormal255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralPresenceSourceSupport255.olean lean/Yulang/GeneralPresenceSourceSupport255.lean
+GeneralPresenceSourceSupport255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalSourceViewSupport255.olean lean/Yulang/GeneralNominalSourceViewSupport255.lean
+GeneralNominalSourceViewSupport255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalSourceBasis255.olean lean/Yulang/GeneralNominalSourceBasis255.lean
+GeneralNominalSourceBasis255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalViewTypeImage255.olean lean/Yulang/GeneralNominalViewTypeImage255.lean
+GeneralNominalViewTypeImage255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalViewFixed255.olean lean/Yulang/GeneralNominalViewFixed255.lean
+GeneralNominalViewFixed255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalTemplateChoices255.olean lean/Yulang/GeneralNominalTemplateChoices255.lean
+GeneralNominalTemplateChoices255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalTemplateCongruence255.olean lean/Yulang/GeneralNominalTemplateCongruence255.lean
+GeneralNominalTemplateCongruence255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalTemplateNormal255.olean lean/Yulang/GeneralNominalTemplateNormal255.lean
+GeneralNominalTemplateNormal255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalSourceTemplateMenu255.olean lean/Yulang/GeneralNominalSourceTemplateMenu255.lean
+GeneralNominalSourceTemplateMenu255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalTemplateSupport255.olean lean/Yulang/GeneralNominalTemplateSupport255.lean
+GeneralNominalTemplateSupport255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalCanonicalBasis255.olean lean/Yulang/GeneralNominalCanonicalBasis255.lean
+GeneralNominalCanonicalBasis255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalNormalizedDepth255.olean lean/Yulang/GeneralNominalNormalizedDepth255.lean
+GeneralNominalNormalizedDepth255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralDictionaryTemplateMenu255.olean lean/Yulang/GeneralDictionaryTemplateMenu255.lean
+GeneralDictionaryTemplateMenu255 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle255-focused/Yulang/GeneralNominalSourcePublicBasis255.olean lean/Yulang/GeneralNominalSourcePublicBasis255.lean
+GeneralNominalSourcePublicBasis255 exit=0
+Usage 20 examples exit=0
+Complete explicit-declaration audit exit=0
+CYCLE255-FULL-AUDIT-PASS: 245 declarations including generated and private declarations
+PASS previous dependency source hashes unchanged: 1429
+PASS import closure hashed: 1548
+PASS forbidden tokens absent in new modules and usage
+PASS old Lean frozen; barrel append-only
+Whole repository build, verify-lean.sh and Yulang2 runtime not run
+Focused verification completed 2026-11-18T12:08:48Z

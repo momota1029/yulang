@@ -15,3 +15,5 @@ GeneralNominalSourceTemplateMenu255
 GeneralNominalTemplateSupport255
 GeneralNominalCanonicalBasis255
 GeneralNominalNormalizedDepth255
+GeneralDictionaryTemplateMenu255
+GeneralNominalSourcePublicBasis255
