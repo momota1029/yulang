@@ -28,6 +28,7 @@ import Yulang.GeneralRebaseSourceMeaning263
 import Yulang.GeneralRebaseSourceLocalHeads263
 import Yulang.GeneralRebaseSourceLocalMeaning263
 import Yulang.GeneralRebaseFiniteStates263
+import Yulang.GeneralRebaseProspectiveEffect263
 
 #check @Yulang.GeneralRebaseNormalizedBody263.explicit_value
 #check @Yulang.GeneralRebaseNormalizedBody263.explicit_body
@@ -276,3 +277,6 @@ import Yulang.GeneralRebaseFiniteStates263
 #check @Yulang.GeneralRebaseFiniteStates263.image_exact
 #check @Yulang.GeneralRebaseFiniteStates263.forall_image_iff
 #check @Yulang.GeneralRebaseFiniteStates263.heads_image_iff
+#check @Yulang.GeneralRebaseProspectiveEffect263.checked_effect
+#check @Yulang.GeneralRebaseProspectiveEffect263.source_frame_then_check
+#check @Yulang.GeneralRebaseProspectiveEffect263.source_outcome

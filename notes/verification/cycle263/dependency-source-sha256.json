@@ -1856,5 +1856,6 @@
   "lean/Yulang/GeneralRebaseSourceLocalHeads263.lean": "50113f56701d8eec8c938193d13427dd42186e99f5234b2b85f0faac480a9f56",
   "lean/Yulang/GeneralRebaseSourceLocalMeaning263.lean": "83e128fda4f1cf7b63ebad8e649bf8a538dd400dd487ebe12b5835882a04c06a",
   "lean/Yulang/GeneralRebaseFiniteStates263.lean": "6a8404b66db2c9316ad884871aef1bd470e2bab4bfa79a0acc3b9ab28d290df8",
+  "lean/Yulang/GeneralRebaseProspectiveEffect263.lean": "f78f0dcd406cee215b5732e58b7557096061431ce913b93dae136969eebd2cc6",
   "lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean": "83181bf049b2377e8baa21fc868edbb8616d4c0c81ccf49a5dc36e1c42bcb760"
 }

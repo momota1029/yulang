@@ -2035,3 +2035,72 @@ Yulang.GeneralRebaseFiniteStates263.length : ∀ (basis : List Yulang.GeneralReb
         Yulang.GeneralRebaseSourceCenters263.Heads snapshot assignment) ↔
     ∀ (state : Yulang.GeneralRebaseStep258.State basis),
       Yulang.GeneralRebaseSourceCenters263.Heads (inspect state) assignment
+@Yulang.GeneralRebaseProspectiveEffect263.checked_effect : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (demand : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+  (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry state demand
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key children) →
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      Yulang.GeneralNominalVersionedEvidence231.Frame (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry)
+          state.core demand key plan →
+        Yulang.GeneralRebaseClassCheck261.check plan
+              (Yulang.GeneralRebaseExecutableRequests262.requests state.core demand) =
+            Except.ok () →
+          ∃ effect,
+            effect.registry = Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry ∧
+              effect.snapshot = state.core ∧
+                effect.plan = plan ∧
+                  effect.plan.packet.site.occurrence = demand ∧
+                    effect.plan.packet.declaration.id = key ∧
+                      Yulang.GeneralNominalVersionedFrame231.children effect.plan.packet = children
+@Yulang.GeneralRebaseProspectiveEffect263.source_frame_then_check : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+      state →
+    ∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+      (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+      Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry state demand
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected key children) →
+        ∃ plan,
+          Yulang.GeneralNominalVersionedEvidence231.Frame
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state.core demand key plan ∧
+            Yulang.GeneralNominalVersionedFrame231.children plan.packet = children ∧
+              (Yulang.GeneralRebaseClassCheck261.check plan
+                    (Yulang.GeneralRebaseExecutableRequests262.requests state.core demand) =
+                  Except.ok () →
+                ∃ effect,
+                  effect.registry = Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry ∧
+                    effect.snapshot = state.core ∧
+                      effect.plan = plan ∧
+                        effect.plan.packet.site.occurrence = demand ∧
+                          effect.plan.packet.declaration.id = key ∧
+                            Yulang.GeneralNominalVersionedFrame231.children effect.plan.packet = children)
+@Yulang.GeneralRebaseProspectiveEffect263.source_outcome : ∀ {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.B4TargetV8.Reachable (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles) registry root
+      state →
+    ∀ (demand : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+      (children : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+      Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry state demand
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected key children) →
+        ∃ plan,
+          Yulang.GeneralNominalVersionedEvidence231.Frame
+              (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry) state.core demand key plan ∧
+            Yulang.GeneralNominalVersionedFrame231.children plan.packet = children ∧
+              ((∃ reason,
+                  Yulang.GeneralRebaseClassCheck261.check plan
+                      (Yulang.GeneralRebaseExecutableRequests262.requests state.core demand) =
+                    Except.error reason) ∨
+                Yulang.GeneralRebaseClassCheck261.check plan
+                      (Yulang.GeneralRebaseExecutableRequests262.requests state.core demand) =
+                    Except.ok () ∧
+                  ∃ effect,
+                    effect.registry = Yulang.GeneralNominalCenteredHeadAllocEncoding.registry registry ∧
+                      effect.snapshot = state.core ∧
+                        effect.plan = plan ∧
+                          effect.plan.packet.site.occurrence = demand ∧
+                            effect.plan.packet.declaration.id = key ∧
+                              Yulang.GeneralNominalVersionedFrame231.children effect.plan.packet = children)

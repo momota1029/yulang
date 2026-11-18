@@ -293,3 +293,8 @@
 'Yulang.GeneralRebaseFiniteStates263.image_exact' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralRebaseFiniteStates263.forall_image_iff' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralRebaseFiniteStates263.heads_image_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspectiveEffect263.checked_effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspectiveEffect263.source_frame_then_check' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseProspectiveEffect263.source_outcome' depends on axioms: [propext, Classical.choice, Quot.sound]

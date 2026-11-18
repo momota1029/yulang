@@ -43,3 +43,18 @@ completed readback/packet interfaces, keep current-time/old-time centers distinc
 and prove both projection directions. Only then migrate source regressions and
 the twelve properties. No language acceptance decision or new question was
 needed for the conditional bookkeeping and transport results in this cycle.
+
+## Concrete initialization/novelty checks (20:13 UTC)
+
+InitialBoundary now kernel-checks four precise facts: source Initial has empty
+selected list; an inspector equal to that Initial at its starting finite state
+returns immediately; every retained selected Plan is Committed; therefore the
+same retained Plan at that same snapshot fails fresh-install novelty. A different
+current Plan with the same owner is not excluded. The next interface work must
+separate prospective candidates from historical live-effect replay, as detailed
+in inspector-next-lemmas-independent.md. This is an implementation connection
+gap, not a reason to stop independent research or change language acceptance.
+
+## First prospective bridge completed (20:18 UTC)
+
+ProspectiveEffect263 now implements checked_effect/source_frame_then_check/source_outcome: a reachable current Local selected yields a real Frame and exact children, followed by an actual checker diagnostic or an exact Effect. It does not require historical Plan membership. Thus the first proposed lemma package has a small proof-level implementation. Current.materialized/choice/positions/alternatives/common, novelty/Generated and transition projection remain next; no executable prospective selector was added to UniversalObserver.

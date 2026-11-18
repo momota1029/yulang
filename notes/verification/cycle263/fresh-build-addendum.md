@@ -16,3 +16,5 @@ The direct primary audit succeeded. Relinking all verified artifacts and rerunni
 all standalone audits fixes that environment timing issue; see final audit-runs.txt.
 The initial missing-link output is preserved separately. Do not mistake this for
 a full-repository build or a kernel proof failure. No whole lake build was run.
+
+A final ProspectiveEffect263 module was built separately at20:18UTC, exit0 (prospective-effect-primary.txt), with all imported dependencies already in the verified closure. Final distinct fresh total is143=31new+112historical, final dependency manifest1859. Final standalone run includes19audits after this addition.

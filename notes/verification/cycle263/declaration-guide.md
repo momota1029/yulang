@@ -181,3 +181,9 @@ Plan非依存basisの各factを固定代表Planで解釈する。任意base下�
 任意有限basisについて全Stateをskip/keepで明示列挙し、全状態の包含とリスト長2^basis.lengthを証明する。重複basisでは列挙結果も重複し、distinct状態数の等号ではない。任意inspector像上の全Heads条件を有限list上の量化へ同値変形できる。指数的列挙は効率的実行や意味Heads判定可能性の主張ではない。補助。
 
 `skip`, `keep`, `states`, `mem_of_sublist`, `complete`, `length`, `image_exact`, `forall_image_iff`, `heads_image_iff`
+
+## 31. GeneralRebaseProspectiveEffect263
+
+任意source Reachableと実current Local selectedから、登録済Plan所属を仮定せず実Plan Frameと順序付きchildrenを得る。そのPlanの実requests checkerを場合分けし、内部診断または正確なregistry/snapshot/Plan/root/key/childrenを持つEffectを返す。成功を全候補に仮定しない。候補発見の実行可能性・novelty・Installable・共同InstallationModelsは未証明。source対応の補助。
+
+`checked_effect`, `source_frame_then_check`, `source_outcome`
