@@ -1,10 +1,13 @@
 # dots-main heartbeat
-- cycle: 253
+- cycle: 254
 - status: completed
-- started: 2026-11-18T09:28:30Z
-- updated: 2026-11-18T10:21:50Z
-- elapsed_min: 53.3
-- activity: Final report and 21 strict usage examples published at 19b01dd826c3531813c68ef7f4e4101387ff3fe3; fetched full tree matches local bytes. Receipt and this completion record are the only final publication changes.
-- last_local_commit: 81b434985598dc8097c8d7fc88dcd254660abc10
-- report: notes/handoff/dots-cycle-253.md
-- resume_hint: Continue output-input producer connection and candidate public basis source closure within I50; sourceStep Acc, private escape, strict progress remain unproved. Do not resume false narrow pool theorem. No active writer.
+- started: 2026-11-18T10:35:05Z
+- updated: 2026-11-18T11:26:53Z
+- elapsed_min: 51.8
+- activity: 14 modules,19 examples,84 explicit/154 full audit PASS; report published and all bytes verified. Source-uniform evidenced readbacks and evidence-free raw templates; operational closure/Acc remain open.
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
+- last_local_commit: 2a31d7fe1
+- resume_hint: Read latest integration/inbox and cycle254 report. Next: actual public-reference/consumer classification and CheckedNormal.prepare source closure, then private non-escape and strict progress. Do not use Evidence-conditional ground bound as an unconditional termination invariant.
+- report: notes/handoff/dots-cycle-254.md
+- publication: 1bb1f56aa074764ac67fb9daec25952f776f7a3b
+- receipt: notes/verification/cycle254/publication-receipt.md

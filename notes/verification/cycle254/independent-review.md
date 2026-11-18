@@ -1,0 +1,7 @@
+# 独立読取レビュー
+665ae242の QueryReadback / InputReadback / OutputReadback254 の3moduleと設計メモのみ。
+範囲混同なし。再build未実施。commitとの差分なし。
+注意: local massはplan.input labelsのmass。captureは固定modelごとのClassical.choose、
+inputNames外はvarなので全域groundではない。leaf_root_readbackはDeclarationCoveredも
+必須。結果は閉じた代入代表で再normalize後の深さ上界や正規形とは主張しない。
+後続SourceReadback254で元root massへの橋を追加したが、この追加は本レビュー対象外。

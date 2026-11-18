@@ -1,0 +1,20 @@
+import Yulang.GeneralNominalQueryReadback254
+import Yulang.GeneralNominalInputReadback254
+import Yulang.GeneralNominalOutputReadback254
+
+#print axioms Yulang.GeneralNominalQueryReadback254.Shaped
+#print axioms Yulang.GeneralNominalQueryReadback254.member_sum
+#print axioms Yulang.GeneralNominalQueryReadback254.projection
+#print axioms Yulang.GeneralNominalQueryReadback254.many_names
+#print axioms Yulang.GeneralNominalQueryReadback254.query_part
+#print axioms Yulang.GeneralNominalQueryReadback254.translated_arity
+#print axioms Yulang.GeneralNominalQueryReadback254.shaped_of_source
+#print axioms Yulang.GeneralNominalQueryReadback254.translated_shaped
+#print axioms Yulang.GeneralNominalInputReadback254.variable_member
+#print axioms Yulang.GeneralNominalInputReadback254.input_part
+#print axioms Yulang.GeneralNominalInputReadback254.readback
+#print axioms Yulang.GeneralNominalOutputReadback254.emitted_meaning
+#print axioms Yulang.GeneralNominalOutputReadback254.emitted_readback
+#print axioms Yulang.GeneralNominalOutputReadback254.leaf_no_output_names
+#print axioms Yulang.GeneralNominalOutputReadback254.leaf_associated_scope
+#print axioms Yulang.GeneralNominalOutputReadback254.leaf_root_readback

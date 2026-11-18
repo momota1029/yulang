@@ -1,0 +1,18 @@
+'Yulang.GeneralNominalQueryReadback254.Shaped' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalQueryReadback254.member_sum' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalQueryReadback254.projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalQueryReadback254.many_names' depends on axioms: [propext]
+'Yulang.GeneralNominalQueryReadback254.query_part' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalQueryReadback254.translated_arity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalQueryReadback254.shaped_of_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalQueryReadback254.translated_shaped' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalInputReadback254.variable_member' depends on axioms: [propext]
+'Yulang.GeneralNominalInputReadback254.input_part' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalInputReadback254.readback' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalOutputReadback254.emitted_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalOutputReadback254.emitted_readback' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalOutputReadback254.leaf_no_output_names' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalOutputReadback254.leaf_associated_scope' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalOutputReadback254.leaf_root_readback' depends on axioms: [propext, Classical.choice, Quot.sound]
