@@ -1,0 +1,5 @@
+'Cycle262OwnerProbe.body_tagged' depends on axioms: [propext, Quot.sound]
+'Cycle262OwnerProbe.tagged' depends on axioms: [propext, Quot.sound]
+'Cycle262OwnerProbe.owner_unique' depends on axioms: [propext, Quot.sound]
+'Cycle262OwnerProbe.tables_separate' depends on axioms: [propext, Quot.sound]
+'Cycle262OwnerProbe.foreign_holds' depends on axioms: [propext, Quot.sound]

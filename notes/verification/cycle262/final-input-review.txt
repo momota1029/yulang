@@ -1,0 +1,13 @@
+2026-11-18T19:16:50Z final integration refresh:
+integration/m1-final 34bfdf36cad9eeb1b9a08a3f1acb277efea85a17
+Prior inspected integration 926bcdece86546b484946c0ef01e76dbd362f7b9.
+No diff in notes/plan/dots-inbox.md or dots-standing-orders.md. ACTIVE, latest I52.
+No changed production Yulang module among focused dependency sources.
+Supervisor integrated through260 and split old Cycle257Complete/Full audit extensions
+into Extra files. Those frozen audit files and Yulang.lean were not rewritten here.
+The work branch retains261/262 additions; next cycle should reconcile supervisor
+integration before new work. No STOP, new semantic instruction or conflicting writer
+was observed. Branch publication uses expected_sha leases, never force.
+At19:15 heartbeat was initially written to historical notes/handoff/dots-heartbeat.md;
+immediately corrected to notes/heartbeat/dots-main.md and historical file restored
+byte-for-byte from c684db018434b76e067b855f6b4916a937245bae. No production source changed.
