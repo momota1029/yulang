@@ -1,12 +1,10 @@
 # dots-main heartbeat
-- cycle: 250
-- status: completed
-- started: 2026-11-17T23:34:17Z
-- updated: 2026-11-18T00:20:20Z
-- elapsed_min: 46.1
-- activity: 34 new modules and 259 explicit declarations strict rebuilt and audited; source/report68b9a08f3c07e19e76fdb36a4c35b679d76be63a fetched and fulltree matched. Stable snapshots, arbitrary metadata, finite same-witness executor, actual capture bounds and registered multi-owner coverage. No source Acc claim.
+- cycle: 251
+- status: running
+- started: 2026-11-18T00:31:00Z
+- updated: 2026-11-18T00:31:38Z
+- elapsed_min: 1
+- activity: Read latest integration9ec236c79 and standing orders/inbox; cycle250 completed and alltree verified; no other writer. Designing mixed-time packet compiler.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: 47c5ef523
-- resume_hint: Read latest integration/inbox. Implement mixed-time full packet and source Delta producer; derive Permitted and source-driven finite owner/term bounds. Current checked_success is structural only. No unpublished cycle250 source.
-- report: notes/handoff/dots-cycle-250.md
-- receipt: notes/verification/cycle250/publication-receipt.md
+- last_local_commit: e19108772
+- resume_hint: Continue cycle251 mixed-time packet compiler from250 actual bounds; preserve old reads separately from new aggregates. Research until01:16, verify/publish/report by01:26UTC. No source Acc claim.
