@@ -1,0 +1,41 @@
+Focused cycle256 fresh-module verification started 2026-11-18T12:57:34Z
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralNominalInputOccurrences256.olean lean/Yulang/GeneralNominalInputOccurrences256.lean
+GeneralNominalInputOccurrences256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralNominalAggregateAtoms256.olean lean/Yulang/GeneralNominalAggregateAtoms256.lean
+GeneralNominalAggregateAtoms256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralNominalSourceAggregate256.olean lean/Yulang/GeneralNominalSourceAggregate256.lean
+GeneralNominalSourceAggregate256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralNominalHistoricalAggregate256.olean lean/Yulang/GeneralNominalHistoricalAggregate256.lean
+GeneralNominalHistoricalAggregate256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralNominalFrameAggregate256.olean lean/Yulang/GeneralNominalFrameAggregate256.lean
+GeneralNominalFrameAggregate256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralNominalInitialAggregate256.olean lean/Yulang/GeneralNominalInitialAggregate256.lean
+GeneralNominalInitialAggregate256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralDictionaryReachableAggregate256.olean lean/Yulang/GeneralDictionaryReachableAggregate256.lean
+GeneralDictionaryReachableAggregate256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralPresenceOrderedAppend256.olean lean/Yulang/GeneralPresenceOrderedAppend256.lean
+GeneralPresenceOrderedAppend256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralDictionaryAggregateHistory256.olean lean/Yulang/GeneralDictionaryAggregateHistory256.lean
+GeneralDictionaryAggregateHistory256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralDictionaryAggregateBasis256.olean lean/Yulang/GeneralDictionaryAggregateBasis256.lean
+GeneralDictionaryAggregateBasis256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralDictionaryAggregateRows256.olean lean/Yulang/GeneralDictionaryAggregateRows256.lean
+GeneralDictionaryAggregateRows256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralDictionaryHistoricalFields256.olean lean/Yulang/GeneralDictionaryHistoricalFields256.lean
+GeneralDictionaryHistoricalFields256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralNominalSlotTypeMap256.olean lean/Yulang/GeneralNominalSlotTypeMap256.lean
+GeneralNominalSlotTypeMap256 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle256-focused/Yulang/GeneralDictionarySlotView256.olean lean/Yulang/GeneralDictionarySlotView256.lean
+GeneralDictionarySlotView256 exit=0
+Usage 19 examples exit=0
+Complete explicit-declaration audit exit=0
+CYCLE256-FULL-AUDIT-PASS: 148 declarations including generated and private declarations
+CYCLE256-REACH: 84/97 explicit declarations reached from 14 selected final roots
+PASS previous cycle255 dependency source hashes unchanged: 1549
+PASS previous cycle254 dependency source hashes unchanged: 1429
+PASS import closure hashed: 1590
+PASS dependency import syntax matches collector: 2710 lines
+PASS forbidden tokens absent in new modules and usage
+PASS old Lean frozen; barrel append-only
+Whole repository build, verify-lean.sh and Yulang2 runtime not run
+Focused verification completed 2026-11-18T12:58:03Z
