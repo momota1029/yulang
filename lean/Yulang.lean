@@ -4763,3 +4763,10 @@ import Yulang.GeneralRebaseDriverFixtures259
 import Yulang.GeneralRebaseWriteAlgebra259
 import Yulang.GeneralRebaseBatchTerminal259
 import Yulang.GeneralRebaseBatchOrder259
+import Yulang.GeneralRebaseOutputKeys260
+import Yulang.GeneralRebaseOutputDecoder260
+import Yulang.GeneralOutputRebaseSource260
+import Yulang.GeneralOutputRebaseModels260
+import Yulang.GeneralOutputRebaseInstalled260
+import Yulang.GeneralOutputRebaseRun260
+import Yulang.GeneralOutputRebasePublic260
