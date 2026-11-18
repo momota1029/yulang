@@ -57,3 +57,31 @@ indices. Without this guard, proof reduction of a concrete small name expanded
 irrelevant huge allocator numerals and hit Lean's numeral-size limit. The
 logical characterization is unchanged; the guard is proved from above_seed.
 The algorithm still lacks an acceptable general cost bound.
+
+## Next slice: initial public model extension
+
+The previous stronger boundary fixes the internal actual binder. An initial
+journal does not constrain that binder, so not every initial assignment can be
+extended while keeping it. For the actual source public boundary (names0..4
+and all rows), test the explicit repair: set actual.ty := assignment(2).ty,
+then apply uniform fill. Prove that this one repaired assignment models the
+entire trace iff the original assignment models the initial raw snapshot.
+Do not claim preservation of the original private binder or arbitrary program
+semantics; this is the fixed terminal family and an existential extension of
+its source public observations. Keep the prior stricter Agree results intact.
+
+## Second verified slice
+
+DirectView258 compiles the raw state through a stage-independent alias mapping.
+It has n+5 slots and4+16n ordinary entries, so it is NOT itself a finite storage
+solution. Its Models is exactly the old raw Models under fill and hence the
+fixed five-slot observation's Models.
+
+InitialFill258 and SourceExtension258 prove the source-boundary extension:
+set the private actual binder to the source slot2 type, then fill. This single
+assignment models every stage iff the input models the initial raw snapshot.
+The boundary fixes all initial0..4 complete values and all rows, but releases
+the internal binder. PrivateBoundary258 proves on the earlier seed that keeping
+that binder makes positive extension impossible; repairing it changes the
+assignment while preserving the source boundary. These two boundaries are not
+interchangeable, and no original assignment is claimed to model all stages.

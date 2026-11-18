@@ -4714,3 +4714,8 @@ import Yulang.GeneralDictionaryUniformFill258
 import Yulang.GeneralDictionaryUniformBlock258
 import Yulang.GeneralDictionaryUniformView258
 import Yulang.GeneralDictionaryUniformJournal258
+import Yulang.GeneralDictionaryUniformAlias258
+import Yulang.GeneralDictionaryDirectView258
+import Yulang.GeneralDictionaryInitialFill258
+import Yulang.GeneralDictionarySourceExtension258
+import Yulang.GeneralDictionaryPrivateBoundary258
