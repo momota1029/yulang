@@ -1,0 +1,11 @@
+{
+  "lean/Yulang/GeneralNominalStableRoleHead251.lean": "26e69dfe8119439575d84f08e3e3cc56099aa71685438164d0d533a61415a822",
+  "lean/Yulang/GeneralNominalRoleRequests251.lean": "31b43335e9edc77d54bdd9d291e50ca9931f7c6fef47738ef01996d66de51c45",
+  "lean/Yulang/GeneralNominalRoleChild251.lean": "ca4ad4b78131a61f5cfadfdb3a5d8bc2648334eb51fafebdc5434dae7473c0e4",
+  "lean/Yulang/GeneralNominalRoleEmission251.lean": "c3465801b097171f9e75dd5f506ffc33dc2cb53756e9750c5759390e4b103977",
+  "lean/Yulang/GeneralNominalRolePacket251.lean": "652132dd7432bb02071fde2be2ba58761c9db9ab83606652229e01c49c508dd8",
+  "lean/Yulang/GeneralNominalRolePacketCongruence251.lean": "e99a6ad6b02b5f3c16cb5a1a10692325bba9022f860704019030c9d37e9e6fae",
+  "lean/Yulang/GeneralNominalStableRolePacket251.lean": "bf43b9659feb25044f936b3d3f6eae1a1c1fb5f5f6c4245e94bf5e3a837e2c95",
+  "lean/Yulang/GeneralNominalRoleBinder251.lean": "fbeba988118f950b3b7d93af6aeb4080a3bf9a7f8299e63a158d48565a316cc9",
+  "lean/Yulang/GeneralNominalRoleReadRegression251.lean": "c0b66f3af861f150cc01e725de649939738e0738d079efa214e6b2e0a922bdb3"
+}

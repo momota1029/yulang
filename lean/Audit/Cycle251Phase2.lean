@@ -1,0 +1,93 @@
+import Yulang.GeneralNominalStableRoleHead251
+import Yulang.GeneralNominalRoleRequests251
+import Yulang.GeneralNominalRoleChild251
+import Yulang.GeneralNominalRoleEmission251
+import Yulang.GeneralNominalRolePacket251
+import Yulang.GeneralNominalRolePacketCongruence251
+import Yulang.GeneralNominalStableRolePacket251
+import Yulang.GeneralNominalRoleBinder251
+import Yulang.GeneralNominalRoleReadRegression251
+import Lean
+open Lean Elab Command in
+run_cmd do
+ let environment ← getEnv
+ let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
+ let names := #[``Yulang.GeneralNominalStableRoleHead251.reference,
+  ``Yulang.GeneralNominalStableRoleHead251.generated_related,
+  ``Yulang.GeneralNominalStableRoleHead251.head_exact,
+  ``Yulang.GeneralNominalStableRoleHead251.equations_exact,
+  ``Yulang.GeneralNominalRoleRequests251.Request,
+  ``Yulang.GeneralNominalRoleRequests251.Compiled,
+  ``Yulang.GeneralNominalRoleRequests251.materialize,
+  ``Yulang.GeneralNominalRoleRequests251.Holds,
+  ``Yulang.GeneralNominalRoleRequests251.materialize_exact,
+  ``Yulang.GeneralNominalRoleRequests251.compile,
+  ``Yulang.GeneralNominalRoleRequests251.compile_exact,
+  ``Yulang.GeneralNominalRoleRequests251.materialize_known,
+  ``Yulang.GeneralNominalRoleRequests251.known_iff,
+  ``Yulang.GeneralNominalRoleChild251.pattern,
+  ``Yulang.GeneralNominalRoleChild251.allocation,
+  ``Yulang.GeneralNominalRoleChild251.center,
+  ``Yulang.GeneralNominalRoleChild251.argument,
+  ``Yulang.GeneralNominalRoleChild251.ArgumentHolds,
+  ``Yulang.GeneralNominalRoleChild251.outputTarget,
+  ``Yulang.GeneralNominalRoleChild251.site,
+  ``Yulang.GeneralNominalRoleChild251.argument_exact,
+  ``Yulang.GeneralNominalRoleChild251.site_exact,
+  ``Yulang.GeneralNominalRoleChild251.requests,
+  ``Yulang.GeneralNominalRoleChild251.compile,
+  ``Yulang.GeneralNominalRoleChild251.Holds,
+  ``Yulang.GeneralNominalRoleChild251.compile_exact,
+  ``Yulang.GeneralNominalRoleChild251.request_count,
+  ``Yulang.GeneralNominalRoleChild251.identity_preserved,
+  ``Yulang.GeneralNominalRoleChild251.output_count,
+  ``Yulang.GeneralNominalRoleEmission251.inputRequests,
+  ``Yulang.GeneralNominalRoleEmission251.clauseRequests,
+  ``Yulang.GeneralNominalRoleEmission251.rootRequests,
+  ``Yulang.GeneralNominalRoleEmission251.requests,
+  ``Yulang.GeneralNominalRoleEmission251.root_count,
+  ``Yulang.GeneralNominalRoleEmission251.input_count,
+  ``Yulang.GeneralNominalRoleEmission251.clause_count,
+  ``Yulang.GeneralNominalRolePacket251.binder,
+  ``Yulang.GeneralNominalRolePacket251.BinderHolds,
+  ``Yulang.GeneralNominalRolePacket251.children,
+  ``Yulang.GeneralNominalRolePacket251.output,
+  ``Yulang.GeneralNominalRolePacket251.Holds,
+  ``Yulang.GeneralNominalRolePacket251.compile,
+  ``Yulang.GeneralNominalRolePacket251.binders_exact,
+  ``Yulang.GeneralNominalRolePacket251.children_exact,
+  ``Yulang.GeneralNominalRolePacket251.compile_exact,
+  ``Yulang.GeneralNominalRolePacket251.Ready,
+  ``Yulang.GeneralNominalRolePacket251.ready,
+  ``Yulang.GeneralNominalRolePacket251.ready_exact,
+  ``Yulang.GeneralNominalRolePacketCongruence251.request_related,
+  ``Yulang.GeneralNominalRolePacketCongruence251.binder_related,
+  ``Yulang.GeneralNominalRolePacketCongruence251.argument_related,
+  ``Yulang.GeneralNominalRolePacketCongruence251.child_related,
+  ``Yulang.GeneralNominalRolePacketCongruence251.packet_related,
+  ``Yulang.GeneralNominalStableRolePacket251.compile,
+  ``Yulang.GeneralNominalStableRolePacket251.generated_exact,
+  ``Yulang.GeneralNominalStableRolePacket251.delta,
+  ``Yulang.GeneralNominalStableRolePacket251.delta_exact,
+  ``Yulang.GeneralNominalStableRolePacket251.command,
+  ``Yulang.GeneralNominalStableRolePacket251.install_exact,
+  ``Yulang.GeneralNominalRoleBinder251.compile,
+  ``Yulang.GeneralNominalRoleBinder251.output,
+  ``Yulang.GeneralNominalRoleBinder251.singleton_point,
+  ``Yulang.GeneralNominalRoleBinder251.point_value,
+  ``Yulang.GeneralNominalRoleBinder251.nonpoint_singleton,
+  ``Yulang.GeneralNominalRoleBinder251.nonsingleton,
+  ``Yulang.GeneralNominalRoleReadRegression251.assignment,
+  ``Yulang.GeneralNominalRoleReadRegression251.env,
+  ``Yulang.GeneralNominalRoleReadRegression251.schema,
+  ``Yulang.GeneralNominalRoleReadRegression251.actual_use,
+  ``Yulang.GeneralNominalRoleReadRegression251.lower_use,
+  ``Yulang.GeneralNominalRoleReadRegression251.head_valid,
+  ``Yulang.GeneralNominalRoleReadRegression251.wrong,
+  ``Yulang.GeneralNominalRoleReadRegression251.wrong_head_invalid,
+  ``Yulang.GeneralNominalRoleReadRegression251.no_single_value]
+ for name in names do
+  unless environment.contains name do throwError "Missing declaration {name}"
+  for dependency in ← collectAxioms name do
+   unless allowed.contains dependency do throwError "Forbidden dependency {name}: {dependency}"
+ logInfo m!"CYCLE251-PHASE2-PASS: {names.size} explicit declarations in 9 modules"
