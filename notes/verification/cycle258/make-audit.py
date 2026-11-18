@@ -6,8 +6,7 @@ for m in mods:
 v.joinpath('declarations.txt').write_text('\n'.join(decls)+'\n')
 imports=''.join('import Yulang.'+m+'\n' for m in mods)
 Path('lean/Audit/Cycle258Complete.lean').write_text(imports+'\n'+''.join('#print axioms '+d+'\n' for d in decls))
-Path('lean/Audit/Cycle258Full.lean').write_text(imports+'''import Lean
-open Lean Elab Command in
+Path('lean/Audit/Cycle258Full.lean').write_text(imports+'''open Lean Elab Command in
 run_cmd do
  let environment ← getEnv
  let allowed := #[``propext, ``Classical.choice, ``Quot.sound]

@@ -1,0 +1,34 @@
+# I52 rebase successor Step — partial implementation plan
+
+Latest integration a44b8b310, read14:55 UTC. Stop adding old-family finite Views.
+This design supersedes the earlier research priority, not its verified results.
+
+Finite representation: fixed finite candidate fact universe, in canonical order.
+Facts identify an owner's lower basis atom, upper basis atom, fixed binder fact,
+or installed flag. Store a canonical sublist of facts not yet present; derive
+normal-form atom lists by selecting present facts from the fixed universe.
+Owner slots are fixed by the layout. No historical definitions or fresh private
+slots are appended. Writing an owner updates its selected atom sets in place.
+
+Partial executable step: an observation/compiler function returns a finite list
+of proposals, each a finite list of facts. A proposal removes those facts from
+remaining. A Step requires this removal to change remaining, so an unchanged
+observation has no transition. The generic observer is an EXPLICIT parameter:
+no all-source observer/compiler or its semantic correctness is claimed.
+
+Measure: remaining.length strictly decreases. Prove structural Acc for every
+observer, but distinguish it from Acc of a language-faithful complete kernel.
+The latter needs the missing observation/installation correspondence.
+
+Concrete I45 regression: one owner, fixed initial basis, fixed binder equations,
+one proposal corresponding to the canonically transported terminal packet.
+Commit once; all later identical proposals are no-ops. Relate the two reachable
+states' public model projections to the old initial/positive family using the
+already-proved uniform reconstruction. This supplies a genuine partial Step
+with a concrete stopping regression, not a relabeling of the nonterminating
+old Step. 239's complete observation bridge and general source completeness
+remain open unless proved explicitly.
+
+Representation choice: canonical remaining-fact sublists avoid function
+extensionality in executable change detection. An owner-indexed bit vector is
+an equivalent future alternative; no language semantics is selected here.

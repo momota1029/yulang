@@ -20,7 +20,6 @@ import Yulang.GeneralDictionaryOutputCompletion258
 import Yulang.GeneralDictionaryOutputEvidence258
 import Yulang.GeneralDictionaryOutputPublic258
 import Yulang.GeneralDictionaryCompletedReadback258
-import Lean
 open Lean Elab Command in
 run_cmd do
  let environment ← getEnv
