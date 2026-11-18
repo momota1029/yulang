@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 255
-- status: completed
-- started: 2026-11-18T11:32:22Z
-- updated: 2026-11-18T12:23:00Z
-- elapsed_min: 50.65
-- activity: 19 modules,20 Usage plus4 probes,168 explicit/245 full audit PASS. Fixed initial source basis and checked finite raw template menu. Whole-trace support and Acc remain open.
+- cycle: 256
+- status: running
+- started: 2026-11-18T12:28:39Z
+- updated: 2026-11-18T12:29:30Z
+- elapsed_min: 1
+- activity: Latest integration33cf8d490/I50 reread, previous255 cb650d8f full bytes matched, no active writer. Investigating actual side-sensitive aggregate support.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: 7478731db
-- resume_hint: Read latest integration/inbox; preserve source semantics and frozen modules. Derive actual side-sensitive old/current consumer support before claiming any Step termination.
-- report: notes/handoff/dots-cycle-255.md
+- last_local_commit: 230c3ccb8
+- resume_hint: Continue cycle256 source aggregate side-closure design; preserve frozen255 modules. No whole-trace support or Acc proved.
