@@ -5,6 +5,11 @@ import Yulang.GeneralOutputRebaseModels260
 import Yulang.GeneralOutputRebaseInstalled260
 import Yulang.GeneralOutputRebaseRun260
 import Yulang.GeneralOutputRebasePublic260
+import Yulang.GeneralRebaseOwnedOutputKeys260
+import Yulang.GeneralRebaseOutputFamily260
+import Yulang.GeneralRebaseOutputFamilyRun260
+import Yulang.GeneralOwnedOutputDecoder260
+import Yulang.GeneralOwnedOutputActual260
 
 #print axioms Yulang.GeneralRebaseOutputKeys260.key
 #print axioms Yulang.GeneralRebaseOutputKeys260.keys
@@ -61,3 +66,42 @@ import Yulang.GeneralOutputRebasePublic260
 #print axioms Yulang.GeneralOutputRebasePublic260.certificate
 #print axioms Yulang.GeneralOutputRebasePublic260.run_certificate
 #print axioms Yulang.GeneralOutputRebasePublic260.requested_output_exact
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.key
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.keys
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.Holds
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.key_identity
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.key_injective
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.member
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.at_index
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.all_exact
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.capture_separate
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.owners_separate
+#print axioms Yulang.GeneralRebaseOwnedOutputKeys260.length
+#print axioms Yulang.GeneralRebaseOutputFamily260.Layout
+#print axioms Yulang.GeneralRebaseOutputFamily260.basis
+#print axioms Yulang.GeneralRebaseOutputFamily260.Holds
+#print axioms Yulang.GeneralRebaseOutputFamily260.member
+#print axioms Yulang.GeneralRebaseOutputFamily260.owner_exact
+#print axioms Yulang.GeneralRebaseOutputFamily260.all_exact
+#print axioms Yulang.GeneralRebaseOutputFamily260.proposal_closed
+#print axioms Yulang.GeneralRebaseOutputFamily260.length
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.proposals
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.observe
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.closed
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.flattened
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.batch_initial
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.settle_initial
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.untranslated
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.finish
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.translated_iff
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.finish_exact
+#print axioms Yulang.GeneralRebaseOutputFamilyRun260.finish_settle
+#print axioms Yulang.GeneralOwnedOutputDecoder260.compile
+#print axioms Yulang.GeneralOwnedOutputDecoder260.translated
+#print axioms Yulang.GeneralOwnedOutputDecoder260.successful
+#print axioms Yulang.GeneralOwnedOutputActual260.keys_exact
+#print axioms Yulang.GeneralOwnedOutputActual260.proposal
+#print axioms Yulang.GeneralOwnedOutputActual260.proposal_exact
+#print axioms Yulang.GeneralOwnedOutputActual260.run
+#print axioms Yulang.GeneralOwnedOutputActual260.run_equal
+#print axioms Yulang.GeneralOwnedOutputActual260.run_certificate

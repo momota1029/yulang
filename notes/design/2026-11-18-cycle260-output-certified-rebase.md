@@ -57,3 +57,18 @@ source名を作るものではない。keyの数値の大きさを実行回数�
 まず式表の一般意味と単一252(owner0,index0)が元binder2と一致することを検証する。
 capture binder0/1は依然単一Planの意味であり、全consumerを含む複数ownercompilerは
 このoutput表だけから完成したとは言わない。
+
+## 次の実source：206のrole default
+
+252の明示associated式を閉じたので、独立した206回帰へ進む。既存
+`GeneralDictionaryVersionedGap206233` と `...Install233` を読んだ。
+このsourceのemittedSchemaは空だが、role default `(role0,name0,var0)` のClassEffectsは
+output0と入力center1の型同値を要求する。packet Holdsだけで済ませると既存bottom反例を
+再現する。実lookup/bodySchema/bodyVariablesを読む別の有限obligationとして表現し、
+同一assignmentでnew終点Models iff旧installed Modelsを狙う。
+
+このsourceのreportはcapture空なので、252用capture decoderの「空は未対応」を勝手に
+消さない。206専用入口で実reportのblocked/conflict/arityなし・capture不要を証明し、
+既存の全初期モデル→packet Holdsと実default lookupから省略がないことを示す。
+新しい型推論規則やdefaultの意味は選ばない。公開投影を証明するなら、初期sourceが
+読まないoutput0型だけを補完し、ほかの全成分・全rowを保存することが必要。
