@@ -1,0 +1,4 @@
+Verified publication checkpoints were fetched through git and compared with local HEAD trees.
+- ea4c4884034d317663da17b9d13a2c187fa6ad0b: 28 mathematical modules, integration926bcdece ancestry included.
+- 3801275b6dcd225a9b6061585e5154a396fffdce: forty-minute heartbeat and DriverProbe; local tree equal after fetch.
+- 39b65d61c02cf0ab8f31763c7b507de2e263a84c: complete63 fresh-build/audit artifacts, OutputCoverageProbe, report and explicit unresolved obligations. Final root verification follows this checkpoint.

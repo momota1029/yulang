@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 v=Path('notes/verification/cycle257');mods=v.joinpath('modules.txt').read_text().splitlines();decls=[]
 for m in mods:
- for n in re.findall(r'^\s*(?:theorem|def)\s+(\w+)',Path('lean/Yulang/'+m+'.lean').read_text(),re.M):decls.append('Yulang.'+m+'.'+n)
+ for n in re.findall(r'^\s*(?:noncomputable\s+)?(?:theorem|def|abbrev)\s+(\w+)',Path('lean/Yulang/'+m+'.lean').read_text(),re.M):decls.append('Yulang.'+m+'.'+n)
 v.joinpath('declarations.txt').write_text('\n'.join(decls)+'\n')
 imports=''.join('import Yulang.'+m+'\n' for m in mods)
 Path('lean/Audit/Cycle257Complete.lean').write_text(imports+'\n'+''.join('#print axioms '+d+'\n' for d in decls))

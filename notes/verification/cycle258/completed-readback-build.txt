@@ -1,0 +1,4 @@
+lean/Yulang/GeneralDictionaryCompletedReadback258.lean:28:84: error: unsolved goals
+assignment : Assignment
+source : GeneralNominalState.Models snapshot assignment
+⊢ 4 ≤ 4

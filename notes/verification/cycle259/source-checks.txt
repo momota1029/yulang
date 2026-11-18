@@ -1,0 +1,8 @@
+PASS previous cycle258 dependency source hashes unchanged: 1645
+PASS previous cycle257 dependency source hashes unchanged: 1615
+PASS import closure hashed: 1708
+PASS dependency import syntax matches collector: 2893 lines
+PASS forbidden tokens absent in new modules and usage
+PASS old mathematical Lean frozen; barrel append-only
+Whole repository build, verify-lean.sh and Yulang2 runtime not run
+PASS both kernel probes: import closure included; forbidden tokens absent

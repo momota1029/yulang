@@ -1,0 +1,227 @@
+import Yulang.GeneralDictionaryFamilyRecognition258
+import Yulang.GeneralDictionaryUniformFill258
+import Yulang.GeneralDictionaryUniformBlock258
+import Yulang.GeneralDictionaryUniformView258
+import Yulang.GeneralDictionaryUniformJournal258
+import Yulang.GeneralDictionaryUniformAlias258
+import Yulang.GeneralDictionaryDirectView258
+import Yulang.GeneralDictionaryInitialFill258
+import Yulang.GeneralDictionarySourceExtension258
+import Yulang.GeneralDictionaryPrivateBoundary258
+import Yulang.GeneralDictionaryEarlySearch258
+import Yulang.GeneralDictionarySearchCost258
+import Yulang.GeneralDictionaryFastFill258
+import Yulang.GeneralDictionaryPendingOutput258
+import Yulang.GeneralDictionaryOutputPremise258
+import Yulang.GeneralDictionaryOutputInputs258
+import Yulang.GeneralNominalActiveSupport258
+import Yulang.GeneralDictionaryOutputFrame258
+import Yulang.GeneralDictionaryOutputCompletion258
+import Yulang.GeneralDictionaryOutputEvidence258
+import Yulang.GeneralDictionaryOutputPublic258
+import Yulang.GeneralDictionaryCompletedReadback258
+import Yulang.GeneralRebaseStep258
+import Yulang.GeneralDictionaryRebaseStep258
+import Yulang.GeneralDictionaryRebasePublic258
+import Yulang.GeneralRebaseBudget258
+
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_lower
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_upper
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.isLower
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.isUpper
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.lower_iff
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.upper_iff
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.disjoint
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.small
+#print axioms Yulang.GeneralDictionaryUniformFill258.fill
+#print axioms Yulang.GeneralDictionaryUniformFill258.rows
+#print axioms Yulang.GeneralDictionaryUniformFill258.initial
+#print axioms Yulang.GeneralDictionaryUniformFill258.lower_value
+#print axioms Yulang.GeneralDictionaryUniformFill258.upper_value
+#print axioms Yulang.GeneralDictionaryUniformFill258.actual_tags
+#print axioms Yulang.GeneralDictionaryUniformFill258.actual_fixed
+#print axioms Yulang.GeneralDictionaryUniformFill258.outside
+#print axioms Yulang.GeneralDictionaryUniformFill258.idempotent
+#print axioms Yulang.GeneralDictionaryUniformFill258.agrees
+#print axioms Yulang.GeneralDictionaryUniformBlock258.lower_equation
+#print axioms Yulang.GeneralDictionaryUniformBlock258.upper_equation
+#print axioms Yulang.GeneralDictionaryUniformBlock258.all_blocks
+#print axioms Yulang.GeneralDictionaryUniformView258.support_small
+#print axioms Yulang.GeneralDictionaryUniformView258.view_exact
+#print axioms Yulang.GeneralDictionaryUniformView258.binder_exact
+#print axioms Yulang.GeneralDictionaryUniformView258.journal_view_exact
+#print axioms Yulang.GeneralDictionaryUniformView258.raw_exact
+#print axioms Yulang.GeneralDictionaryUniformView258.journal_exact
+#print axioms Yulang.GeneralDictionaryUniformJournal258.all_stages
+#print axioms Yulang.GeneralDictionaryUniformJournal258.agree_trans
+#print axioms Yulang.GeneralDictionaryUniformJournal258.simultaneous_models
+#print axioms Yulang.GeneralDictionaryUniformJournal258.positive_models
+#print axioms Yulang.GeneralDictionaryUniformJournal258.recovered
+#print axioms Yulang.GeneralDictionaryUniformJournal258.future
+#print axioms Yulang.GeneralDictionaryUniformAlias258.target
+#print axioms Yulang.GeneralDictionaryUniformAlias258.mapping
+#print axioms Yulang.GeneralDictionaryUniformAlias258.read_exact
+#print axioms Yulang.GeneralDictionaryUniformAlias258.initial
+#print axioms Yulang.GeneralDictionaryUniformAlias258.actual_fixed
+#print axioms Yulang.GeneralDictionaryUniformAlias258.idempotent
+#print axioms Yulang.GeneralDictionaryUniformAlias258.type_exact
+#print axioms Yulang.GeneralDictionaryUniformAlias258.row_exact
+#print axioms Yulang.GeneralDictionaryUniformAlias258.atom_exact
+#print axioms Yulang.GeneralDictionaryDirectView258.view
+#print axioms Yulang.GeneralDictionaryDirectView258.raw_exact
+#print axioms Yulang.GeneralDictionaryDirectView258.finite_exact
+#print axioms Yulang.GeneralDictionaryDirectView258.positive_exact
+#print axioms Yulang.GeneralDictionaryDirectView258.slots
+#print axioms Yulang.GeneralDictionaryDirectView258.ordinary_length
+#print axioms Yulang.GeneralDictionaryDirectView258.public_models
+#print axioms Yulang.GeneralDictionaryInitialFill258.bind
+#print axioms Yulang.GeneralDictionaryInitialFill258.complete
+#print axioms Yulang.GeneralDictionaryInitialFill258.rows
+#print axioms Yulang.GeneralDictionaryInitialFill258.initial
+#print axioms Yulang.GeneralDictionaryInitialFill258.binder
+#print axioms Yulang.GeneralDictionaryInitialFill258.view_exact
+#print axioms Yulang.GeneralDictionaryInitialFill258.raw_initial
+#print axioms Yulang.GeneralDictionaryInitialFill258.all_stages
+#print axioms Yulang.GeneralDictionaryInitialFill258.public_agrees
+#print axioms Yulang.GeneralDictionaryInitialFill258.complete_binder
+#print axioms Yulang.GeneralDictionarySourceExtension258.view_agree
+#print axioms Yulang.GeneralDictionarySourceExtension258.model_initial
+#print axioms Yulang.GeneralDictionarySourceExtension258.simultaneous_models
+#print axioms Yulang.GeneralDictionarySourceExtension258.stage_models
+#print axioms Yulang.GeneralDictionarySourceExtension258.exchange
+#print axioms Yulang.GeneralDictionaryPrivateBoundary258.seed_not_binder
+#print axioms Yulang.GeneralDictionaryPrivateBoundary258.complete_holds
+#print axioms Yulang.GeneralDictionaryPrivateBoundary258.changes_seed
+#print axioms Yulang.GeneralDictionaryPrivateBoundary258.seed_extended
+#print axioms Yulang.GeneralDictionaryPrivateBoundary258.retained_binder_impossible
+#print axioms Yulang.GeneralDictionaryEarlySearch258.search
+#print axioms Yulang.GeneralDictionaryEarlySearch258.lower_mono
+#print axioms Yulang.GeneralDictionaryEarlySearch258.exact
+#print axioms Yulang.GeneralDictionaryEarlySearch258.fastLower
+#print axioms Yulang.GeneralDictionaryEarlySearch258.fastUpper
+#print axioms Yulang.GeneralDictionaryEarlySearch258.lower_exact
+#print axioms Yulang.GeneralDictionaryEarlySearch258.upper_envelope
+#print axioms Yulang.GeneralDictionaryEarlySearch258.upper_exact
+#print axioms Yulang.GeneralDictionaryEarlySearch258.lower_refines
+#print axioms Yulang.GeneralDictionaryEarlySearch258.upper_refines
+#print axioms Yulang.GeneralDictionarySearchCost258.probes
+#print axioms Yulang.GeneralDictionarySearchCost258.fuel_bound
+#print axioms Yulang.GeneralDictionarySearchCost258.envelope_bound
+#print axioms Yulang.GeneralDictionarySearchCost258.match_bound
+#print axioms Yulang.GeneralDictionarySearchCost258.lower_match
+#print axioms Yulang.GeneralDictionarySearchCost258.upper_match
+#print axioms Yulang.GeneralDictionaryFastFill258.lower
+#print axioms Yulang.GeneralDictionaryFastFill258.upper
+#print axioms Yulang.GeneralDictionaryFastFill258.lower_exact
+#print axioms Yulang.GeneralDictionaryFastFill258.upper_exact
+#print axioms Yulang.GeneralDictionaryFastFill258.fill
+#print axioms Yulang.GeneralDictionaryFastFill258.fill_exact
+#print axioms Yulang.GeneralDictionaryFastFill258.complete
+#print axioms Yulang.GeneralDictionaryFastFill258.complete_exact
+#print axioms Yulang.GeneralDictionaryFastFill258.all_stages
+#print axioms Yulang.GeneralDictionaryFastFill258.public_agrees
+#print axioms Yulang.GeneralDictionaryFastFill258.idempotent
+#print axioms Yulang.GeneralDictionaryPendingOutput258.replace
+#print axioms Yulang.GeneralDictionaryPendingOutput258.other
+#print axioms Yulang.GeneralDictionaryPendingOutput258.target
+#print axioms Yulang.GeneralDictionaryPendingOutput258.base_models
+#print axioms Yulang.GeneralDictionaryPendingOutput258.source_models
+#print axioms Yulang.GeneralDictionaryPendingOutput258.initial_models
+#print axioms Yulang.GeneralDictionaryPendingOutput258.rhs_fixed
+#print axioms Yulang.GeneralDictionaryPendingOutput258.outputs_exact
+#print axioms Yulang.GeneralDictionaryOutputPremise258.bottom_not_expected
+#print axioms Yulang.GeneralDictionaryOutputPremise258.initial_not_outputs
+#print axioms Yulang.GeneralDictionaryOutputPremise258.initial_not_packet
+#print axioms Yulang.GeneralDictionaryOutputPremise258.frame_not_packet
+#print axioms Yulang.GeneralDictionaryOutputPremise258.expected_outputs
+#print axioms Yulang.GeneralDictionaryOutputInputs258.projection
+#print axioms Yulang.GeneralDictionaryOutputInputs258.ordinary
+#print axioms Yulang.GeneralDictionaryOutputInputs258.head_holds
+#print axioms Yulang.GeneralDictionaryOutputInputs258.inputs
+#print axioms Yulang.GeneralDictionaryOutputInputs258.packet_exact
+#print axioms Yulang.GeneralNominalActiveSupport258.used
+#print axioms Yulang.GeneralNominalActiveSupport258.targetReads
+#print axioms Yulang.GeneralNominalActiveSupport258.perSlot
+#print axioms Yulang.GeneralNominalActiveSupport258.support
+#print axioms Yulang.GeneralNominalActiveSupport258.slot_member
+#print axioms Yulang.GeneralNominalActiveSupport258.target_member
+#print axioms Yulang.GeneralNominalActiveSupport258.head_member
+#print axioms Yulang.GeneralNominalActiveSupport258.descriptor_member
+#print axioms Yulang.GeneralNominalActiveSupport258.head_used
+#print axioms Yulang.GeneralNominalActiveSupport258.nominal_used
+#print axioms Yulang.GeneralNominalActiveSupport258.interval_left
+#print axioms Yulang.GeneralNominalActiveSupport258.interval_right
+#print axioms Yulang.GeneralNominalActiveSupport258.models_iff
+#print axioms Yulang.GeneralDictionaryOutputFrame258.identity
+#print axioms Yulang.GeneralDictionaryOutputFrame258.view
+#print axioms Yulang.GeneralDictionaryOutputFrame258.models_exact
+#print axioms Yulang.GeneralDictionaryOutputFrame258.support_small
+#print axioms Yulang.GeneralDictionaryOutputFrame258.unused_output
+#print axioms Yulang.GeneralDictionaryOutputFrame258.source_iff
+#print axioms Yulang.GeneralDictionaryOutputFrame258.complete
+#print axioms Yulang.GeneralDictionaryOutputFrame258.rows
+#print axioms Yulang.GeneralDictionaryOutputFrame258.outside
+#print axioms Yulang.GeneralDictionaryOutputFrame258.source_exact
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.expected
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.rhs_exact
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.outputs_exact
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.completed_outputs
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.packet_exact
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.classes
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.installation
+#print axioms Yulang.GeneralDictionaryOutputCompletion258.installed_models
+#print axioms Yulang.GeneralDictionaryOutputEvidence258.no_initial_evidence
+#print axioms Yulang.GeneralDictionaryOutputEvidence258.completed_evidence
+#print axioms Yulang.GeneralDictionaryOutputPublic258.Agree
+#print axioms Yulang.GeneralDictionaryOutputPublic258.completion_agrees
+#print axioms Yulang.GeneralDictionaryOutputPublic258.source_agree
+#print axioms Yulang.GeneralDictionaryOutputPublic258.installed_initial
+#print axioms Yulang.GeneralDictionaryOutputPublic258.installed_exact
+#print axioms Yulang.GeneralDictionaryOutputPublic258.public_models
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.closed
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.meaning
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.depth
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.uniform
+#print axioms Yulang.GeneralDictionaryCompletedReadback258.not_before_completion
+#print axioms Yulang.GeneralRebaseStep258.state_ext
+#print axioms Yulang.GeneralRebaseStep258.initial
+#print axioms Yulang.GeneralRebaseStep258.done
+#print axioms Yulang.GeneralRebaseStep258.Proposal
+#print axioms Yulang.GeneralRebaseStep258.write
+#print axioms Yulang.GeneralRebaseStep258.Observer
+#print axioms Yulang.GeneralRebaseStep258.tryWrite
+#print axioms Yulang.GeneralRebaseStep258.Step
+#print axioms Yulang.GeneralRebaseStep258.tryWrite_exact
+#print axioms Yulang.GeneralRebaseStep258.filter_strict
+#print axioms Yulang.GeneralRebaseStep258.decreases
+#print axioms Yulang.GeneralRebaseStep258.accessible
+#print axioms Yulang.GeneralRebaseStep258.no_self_step
+#print axioms Yulang.GeneralRebaseStep258.present
+#print axioms Yulang.GeneralRebaseStep258.lowerAtoms
+#print axioms Yulang.GeneralRebaseStep258.upperAtoms
+#print axioms Yulang.GeneralRebaseStep258.binderFacts
+#print axioms Yulang.GeneralDictionaryRebaseStep258.facts
+#print axioms Yulang.GeneralDictionaryRebaseStep258.initialState
+#print axioms Yulang.GeneralDictionaryRebaseStep258.finalState
+#print axioms Yulang.GeneralDictionaryRebaseStep258.observe
+#print axioms Yulang.GeneralDictionaryRebaseStep258.project
+#print axioms Yulang.GeneralDictionaryRebaseStep258.writes_once
+#print axioms Yulang.GeneralDictionaryRebaseStep258.first_step
+#print axioms Yulang.GeneralDictionaryRebaseStep258.final_stops
+#print axioms Yulang.GeneralDictionaryRebaseStep258.first_unique
+#print axioms Yulang.GeneralDictionaryRebaseStep258.no_two_steps
+#print axioms Yulang.GeneralDictionaryRebaseStep258.terminating
+#print axioms Yulang.GeneralDictionaryRebaseStep258.fixed_aggregates
+#print axioms Yulang.GeneralDictionaryRebaseStep258.old_positive_project
+#print axioms Yulang.GeneralDictionaryRebaseStep258.old_repetition_blocked
+#print axioms Yulang.GeneralDictionaryRebasePublic258.Models
+#print axioms Yulang.GeneralDictionaryRebasePublic258.initial_exact
+#print axioms Yulang.GeneralDictionaryRebasePublic258.final_exact
+#print axioms Yulang.GeneralDictionaryRebasePublic258.final_public
+#print axioms Yulang.GeneralDictionaryRebasePublic258.projected_public
+#print axioms Yulang.GeneralDictionaryRebasePublic258.old_new
+#print axioms Yulang.GeneralRebaseBudget258.budget
+#print axioms Yulang.GeneralRebaseBudget258.source_budget
+#print axioms Yulang.GeneralRebaseBudget258.idempotent
+#print axioms Yulang.GeneralRebaseBudget258.duplicate_noop
+#print axioms Yulang.GeneralRebaseBudget258.fixture_budget

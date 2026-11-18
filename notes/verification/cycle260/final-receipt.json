@@ -1,0 +1,27 @@
+{
+  "cycle": 260,
+  "started": "2026-11-18T16:32:21Z",
+  "completed": "2026-11-18T17:22:23.601856+00:00",
+  "elapsed_minutes": 50.04,
+  "math_checkpoint": "a1925029f56466465b89912a92b52e5780129504",
+  "modules": 28,
+  "explicit_declarations": 220,
+  "full_audit_declarations": 492,
+  "fresh_dependency_layer": 58,
+  "source_closure": 1766,
+  "import_lines": 3004,
+  "usage_examples": 18,
+  "reach": [
+    164,
+    220,
+    34
+  ],
+  "interface_reach": [
+    200,
+    220,
+    50
+  ],
+  "independent_last_review": false,
+  "whole_build": false,
+  "yulang2_runtime": false
+}

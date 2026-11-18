@@ -1,0 +1,5 @@
+'Cycle259OutputCoverageProbe.actual_decoder_accepts' depends on axioms: [propext, Quot.sound]
+'Cycle259OutputCoverageProbe.checked_write_accepts' depends on axioms: [propext]
+'Cycle259OutputCoverageProbe.accepted_report_not_output_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

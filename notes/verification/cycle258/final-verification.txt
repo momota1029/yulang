@@ -1,0 +1,9 @@
+Fresh focused25 build: exit0, 2026-11-18T15:05:12Z through15:06:04Z.
+Budget26th module strict compile: exit0.
+Fresh critical222 build: exit0, first module15:06:19Z, last module15:11:04Z, CRITICAL-LAYER-PASS222.
+Budget26th module against fresh critical cache: exit0. Combined fresh critical223 modules.
+Lake standalone Complete Full Usage Reach Types AllTypes: each exit0, final completion15:12:11Z.
+All6 outputs byte-identical to corresponding focused final audit outputs.
+Full audit383, explicit def/theorem/abbrev200, Usage24, Reach117/200 from13roots.
+Dependency1645 source files,2793 import lines; prior2571615 and2561593 hashes unchanged.
+No whole-repository build, verify-lean.sh or Yulang2 runtime was run.

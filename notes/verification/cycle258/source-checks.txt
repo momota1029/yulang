@@ -1,0 +1,7 @@
+PASS previous cycle257 dependency source hashes unchanged: 1615
+PASS previous cycle256 dependency source hashes unchanged: 1593
+PASS import closure hashed: 1645
+PASS dependency import syntax matches collector: 2793 lines
+PASS forbidden tokens absent in new modules and usage
+PASS old mathematical Lean frozen; barrel append-only; Cycle254Full exactly matches supervisor integration import correction
+Whole repository build, verify-lean.sh and Yulang2 runtime not run

@@ -1,0 +1,152 @@
+Yulang.GeneralDictionaryObservedRebase259.terminating : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  Acc (fun after before => Yulang.GeneralDictionaryObservedRebase259.ObservedStep before after) state
+Yulang.GeneralDictionaryObservedRebase259.no_two : ∀
+  (middle last : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  ¬(Yulang.GeneralDictionaryObservedRebase259.ObservedStep Yulang.GeneralDictionaryRebaseStep258.initialState middle ∧
+      Yulang.GeneralDictionaryObservedRebase259.ObservedStep middle last)
+Yulang.GeneralDictionaryRebaseCertificate259.certificate : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot boundary →
+    Yulang.GeneralDictionaryRebaseCertificate259.Certificate n boundary
+Yulang.GeneralDictionaryRebaseCertificate259.old_new : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+          assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralDictionaryRebasePublic258.Models (Yulang.GeneralDictionaryRebaseStep258.project n) assignment
+Yulang.GeneralDictionaryRebaseRun259.run_step : ∀ (n : Nat)
+  (before after : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  Yulang.GeneralDictionaryRebaseRun259.run n before = some after ↔
+    Yulang.GeneralRebaseStep258.Step (Yulang.GeneralDictionaryObservedRebase259.observeAt n) before after
+Yulang.GeneralDictionaryRebaseRun259.run_certificate : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot boundary →
+    Yulang.GeneralDictionaryRebaseRun259.run n Yulang.GeneralDictionaryRebaseStep258.initialState =
+        some Yulang.GeneralDictionaryRebaseStep258.finalState ∧
+      Yulang.GeneralDictionaryRebaseCertificate259.Certificate n boundary
+Yulang.GeneralDictionaryRebaseCurrent259.all_stages : ∀ (n : Nat)
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts),
+  Yulang.GeneralDictionaryRebaseRun259.run n state = Yulang.GeneralDictionaryRebaseCurrent259.run state
+Yulang.GeneralDictionaryRebaseCurrent259.certificate : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot boundary →
+    Yulang.GeneralDictionaryRebaseCurrent259.run Yulang.GeneralDictionaryRebaseStep258.initialState =
+        some Yulang.GeneralDictionaryRebaseStep258.finalState ∧
+      Yulang.GeneralDictionaryRebaseCertificate259.Certificate n boundary
+Yulang.GeneralVersionRowsStages259.all_stages : ∀ (rows : Nat → Yulang.Common.Row) (n : Nat),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryVersionLoopIteration239.state n)
+    (Yulang.GeneralVersionRowsRaw259.withRows rows)
+Yulang.GeneralVersionBoundaryCompletion259.all_stages : ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryVersionLoopSource237.snapshot boundary →
+    ∀ (n : Nat),
+      Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryVersionLoopIteration239.state n)
+        (Yulang.GeneralVersionBoundaryCompletion259.complete boundary)
+Yulang.GeneralVersionPublicProjection259.simultaneous_models : ∀
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralVersionBoundaryCompletion259.Agree assignment boundary ∧
+        ∀ (n : Nat),
+          Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryVersionLoopIteration239.state n)
+            assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryVersionLoopSource237.snapshot boundary
+Yulang.GeneralVersionRebaseStep259.terminating : ∀ (n : Nat)
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralVersionRebaseStep259.facts),
+  Acc
+    (fun after before => Yulang.GeneralRebaseStep258.Step (Yulang.GeneralVersionRebaseStep259.observeAt n) before after)
+    state
+Yulang.GeneralVersionRebaseStep259.no_two : ∀ (first last : Nat)
+  (middle after : Yulang.GeneralRebaseStep258.State Yulang.GeneralVersionRebaseStep259.facts),
+  ¬(Yulang.GeneralRebaseStep258.Step (Yulang.GeneralVersionRebaseStep259.observeAt first)
+        Yulang.GeneralVersionRebaseStep259.initialState middle ∧
+      Yulang.GeneralRebaseStep258.Step (Yulang.GeneralVersionRebaseStep259.observeAt last) middle after)
+Yulang.GeneralVersionRebaseModels259.public_models : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralVersionRebaseStep259.facts)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralVersionBoundaryCompletion259.Agree assignment boundary ∧
+        Yulang.GeneralVersionRebaseModels259.Models state assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryVersionLoopSource237.snapshot boundary
+Yulang.GeneralVersionRebaseCertificate259.certificate : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryVersionLoopSource237.snapshot boundary →
+    Yulang.GeneralVersionRebaseCertificate259.Certificate n boundary
+Yulang.GeneralVersionRebaseCertificate259.old_new : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralVersionBoundaryCompletion259.Agree assignment boundary ∧
+        Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryVersionLoopIteration239.state n)
+          assignment) ↔
+    ∃ assignment,
+      Yulang.GeneralVersionBoundaryCompletion259.Agree assignment boundary ∧
+        Yulang.GeneralVersionRebaseModels259.Models (Yulang.GeneralVersionRebaseCertificate259.project n) assignment
+Yulang.GeneralVersionRebaseCertificate259.run_certificate : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryVersionLoopSource237.snapshot boundary →
+    Yulang.GeneralVersionRebaseStep259.run Yulang.GeneralVersionRebaseStep259.initialState =
+        some Yulang.GeneralVersionRebaseStep259.finalState ∧
+      Yulang.GeneralVersionRebaseCertificate259.Certificate n boundary
+Yulang.GeneralVersionRebaseCertificate259.completed_round_simulation : ∀ (n : Nat),
+  Yulang.GeneralVersionRebaseStep259.run (Yulang.GeneralVersionRebaseCertificate259.project n) =
+      some (Yulang.GeneralVersionRebaseCertificate259.project (n + 1)) ∨
+    Yulang.GeneralVersionRebaseStep259.run (Yulang.GeneralVersionRebaseCertificate259.project n) = none ∧
+      Yulang.GeneralVersionRebaseCertificate259.project (n + 1) = Yulang.GeneralVersionRebaseCertificate259.project n
+Yulang.GeneralDictionaryRebaseFacts259.public_models : ∀
+  (state : Yulang.GeneralRebaseStep258.State Yulang.GeneralDictionaryRebaseStep258.facts)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralDictionaryInitialProjection257.Agree assignment boundary ∧
+        Yulang.GeneralDictionaryRebaseFacts259.Models state assignment) ↔
+    Yulang.GeneralNominalState.Models Yulang.GeneralDictionaryLooseLoopSource240.snapshot boundary
+@Yulang.GeneralRebaseCheckedWrite259.unsupported : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (state : Yulang.GeneralRebaseStep258.State basis) (proposal : Yulang.GeneralRebaseStep258.Proposal)
+  (missing : List Yulang.GeneralRebaseStep258.Fact),
+  Yulang.GeneralRebaseCheckedWrite259.commit state proposal = Except.error missing →
+    missing ≠ [] ∧ ∀ (fact : Yulang.GeneralRebaseStep258.Fact), fact ∈ missing → fact ∈ proposal ∧ ¬fact ∈ basis
+@Yulang.GeneralRebaseCheckedWrite259.accepted_models : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact} {α : Sort u_1}
+  (base : α → Prop) (holds : α → Yulang.GeneralRebaseStep258.Fact → Prop)
+  (before after : Yulang.GeneralRebaseStep258.State basis) (proposal : Yulang.GeneralRebaseStep258.Proposal),
+  Yulang.GeneralRebaseCheckedWrite259.commit before proposal = Except.ok (some after) →
+    ∀ (assignment : α),
+      Yulang.GeneralRebaseFactSemantics259.Models base holds after assignment ↔
+        Yulang.GeneralRebaseFactSemantics259.Models base holds before assignment ∧
+          ∀ (fact : Yulang.GeneralRebaseStep258.Fact), fact ∈ proposal → holds assignment fact
+@Yulang.GeneralRebaseSettle259.successful_budget : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis) (state final : Yulang.GeneralRebaseStep258.State basis),
+  Yulang.GeneralRebaseSettle259.settle observe state = Except.ok final →
+    ∃ steps, Yulang.GeneralRebaseBudget258.Runs observe steps state final ∧ steps ≤ state.remaining.length
+@Yulang.GeneralRebaseSettle259.successful_quiescent : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis) (state final : Yulang.GeneralRebaseStep258.State basis),
+  Yulang.GeneralRebaseSettle259.settle observe state = Except.ok final →
+    ∀ (after : Yulang.GeneralRebaseStep258.State basis), ¬Yulang.GeneralRebaseStep258.Step observe final after
+@Yulang.GeneralRebaseClosedObserver259.completion : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (observe : Yulang.GeneralRebaseStep258.Observer basis),
+  Yulang.GeneralRebaseClosedObserver259.Closed observe →
+    ∀ (state : Yulang.GeneralRebaseStep258.State basis),
+      ∃ final steps,
+        Yulang.GeneralRebaseSettle259.settle observe state = Except.ok final ∧
+          Yulang.GeneralRebaseBudget258.Runs observe steps state final ∧
+            steps ≤ state.remaining.length ∧
+              ∀ (after : Yulang.GeneralRebaseStep258.State basis), ¬Yulang.GeneralRebaseStep258.Step observe final after
+Yulang.GeneralRebaseDriverFixtures259.loose_initial : ∀ (n : Nat),
+  Yulang.GeneralRebaseSettle259.settle (Yulang.GeneralDictionaryObservedRebase259.observeAt n)
+      Yulang.GeneralDictionaryRebaseStep258.initialState =
+    Except.ok Yulang.GeneralDictionaryRebaseStep258.finalState
+Yulang.GeneralRebaseDriverFixtures259.version_initial : ∀ (n : Nat),
+  Yulang.GeneralRebaseSettle259.settle (Yulang.GeneralVersionRebaseStep259.observeAt n)
+      Yulang.GeneralVersionRebaseStep259.initialState =
+    Except.ok Yulang.GeneralVersionRebaseStep259.finalState
+@Yulang.GeneralRebaseBatchTerminal259.settle_batch : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (state : Yulang.GeneralRebaseStep258.State basis) (proposals : List Yulang.GeneralRebaseStep258.Proposal),
+  (∀ (proposal : Yulang.GeneralRebaseStep258.Proposal), proposal ∈ proposals → proposal ⊆ basis) →
+    Yulang.GeneralRebaseSettle259.settle (fun x => proposals) state =
+      Except.ok (Yulang.GeneralRebaseWriteAlgebra259.batch state proposals)
+@Yulang.GeneralRebaseBatchOrder259.settle_membership : ∀ {basis : List Yulang.GeneralRebaseStep258.Fact}
+  (state : Yulang.GeneralRebaseStep258.State basis) (first last : List Yulang.GeneralRebaseStep258.Proposal),
+  (∀ (proposal : Yulang.GeneralRebaseStep258.Proposal), proposal ∈ first ↔ proposal ∈ last) →
+    (∀ (proposal : Yulang.GeneralRebaseStep258.Proposal), proposal ∈ first → proposal ⊆ basis) →
+      Yulang.GeneralRebaseSettle259.settle (fun x => first) state =
+        Yulang.GeneralRebaseSettle259.settle (fun x => last) state

@@ -94,3 +94,128 @@ source implementation. Source identities/Known/inspection/owner ancestry and
 historical/current replay certificates require faithful transport; duplicate
 skipping must retain whichever evidence a future packet consumes. No claim
 that the full source state is reconstructed by the five-slot View is made.
+
+## Independent classification check after the quotient
+
+Current Models equality alone does not justify inspection. As a separate narrow
+obligation, compare actual stage source slots with their five original-slot
+representatives for Known and PointAt. Both can be read from the concrete actual
+nominal descriptors: unresolved structural graphs, Foo at2/4/added, nonpoint Pair
+at3. Prove these on real States, not invented View analogues. If possible compare
+the actual finite report after transporting slot indices, keeping origin paths
+literal. Such family-specific facts still do not supply a general compiler or
+historical/current certificate transport.
+
+## Concrete certificate gap to test
+
+The actual binder for this terminal family is the fixed legacy purpose8 name,
+not one of the initial five source components. Current raw state/our five-slot
+View may leave that type coordinate unconstrained, while a recorded packet's
+Inputs requires it to lie between the historical aggregate endpoints and to
+agree with observed head variables. Test an assignment that changes only that
+binder to bottom, then solves the retained both-side equations. If it satisfies
+actual current raw Models but violates a recorded Inputs fact, it is a closed
+counterexample to promoting current-view model preservation into whole journal
+model preservation. It is not a counterexample to any theorem already claimed,
+and does not alter the old or successor Step.
+
+The certificate-gap test is now closed in BinderGap257: for every n+1 there is an
+explicit assignment (patch purpose8 actual binder to bottom, solve actual
+retained lower+upper history) satisfying the actual reachable state's current raw
+Models but not its journal Models, since the recorded plan0 Inputs fails. This
+supports the previously stated separation; it does not invalidate the compact
+View theorem, reject a Yulang program, or show a new successor nontermination.
+The fixed actual binder must be represented in a finite certificate layer. A
+candidate local repair is retaining its equality-to-source2 fact, then proving
+that actual packet Inputs can be reconstructed; do not silently drop those facts.
+
+Known and PointAt are separately preserved between actual stage slots and their
+initial representatives; the full current report transports literally, including
+unchanged origin paths. Historical/current certificates are still additional.
+
+## Local repair proved
+
+For every actual current raw model, all historical lower/upper endpoints have
+values equivalent to initial2/4. A fixed two-atom equality `actual binder ≃ var2`
+is exactly equivalent to all recorded capture-center Fits obligations. From the
+same raw model plus this equality, reconstruct the actual historical report
+semantics, head schema, and every past packet Holds (not merely capture Fits).
+Use the already certified arbitrary-assignment install/refresh/reobserve model
+transport to reconstruct the whole actual journal at each earlier stage.
+Consequently, at each n+1, full journal Models iff current raw Models AND this
+one binder equality. This is specific to the terminal no-output/no-child I45
+family. It does not replace a general certificate producer, and says nothing
+about running a new saturation algorithm.
+
+Next represent that equality as two retained internal certificate atoms beside
+the finite current View. Preserve the actual binder explicitly in the public
+projection being compared, or prove its separate elimination before hiding it.
+Do not silently widen the source/public aggregate pool to include private names.
+
+## Finite journal-model slice, with reconstruction explicitly retained
+
+For positive stages, a five-slot View with at most ten ordinary atoms (four base,
+four canonical accumulated, two fixed actual-binder atoms) has exact whole-journal
+interpretation under solve(history). Its literal View is constant after the first
+round. Existential public models agree when initial0..4, the fixed actual binder,
+and every row component are held fixed. This is stronger than the earlier raw
+projection, but it is not a same-assignment journal iff without retained-history
+validity. It also does not make the reconstruction history disappear: solve still
+uses the growing history n to reconstruct old private values. No bound on actual
+journal storage, certificates, allocated names, or operational step count follows.
+The positive-stage restriction matters: the initial journal need not satisfy the
+new binder equality. Initial raw model projection is stable; full journal public
+projection stabilizes only after the first installed binder certificate.
+
+## Next boundary after the finite journal result
+
+The repair removes a concrete false shortcut: raw-view equality alone cannot
+justify journal equality. For arbitrary sources the next admissible design
+must enumerate which historical observations survive quotienting, preserve
+shared centers and child/output obligations, and construct certificates
+without replaying an ever-growing private history. The I45 terminal example
+shows two fixed binder atoms suffice locally; it does not show a fixed basis
+for all historical observations or an implementation that discards history.
+
+Before a new Step/Acc theorem, establish separately (a) semantic observational
+coverage for all packet consumers, (b) closure of canonical public references
+under actual source-origin transitions, and (c) strict novelty/progress after
+quotienting. A bisimulation for the old Step cannot by itself yield termination:
+that Step has the already-proved infinite loop. A new progress-gated relation
+needs its own meaning-preservation and completeness argument, rather than a
+claim that semantically repeated ordinary facts constitute progress.
+
+I50's output dependency depth bound stays open here. A later design must keep
+stored syntax finiteness separate from expanded ground readback, prove the
+finite owner reference graph really covers all produced dependencies, and
+justify cyclic rejection using actual K2 evidence. None of these is assumed
+as a conclusion in cycle257's finite View or journal equivalences.
+
+### Concrete consumer inventory for the next certificate
+
+A read of VersionedJournal232.Models and VersionedPlans231 (including
+SchemaHolds, variables, emittedSchema and childSchema) gives a more precise
+checklist than treating every observation as a plain subtype atom:
+
+1. Legacy current raw constraints plus legacy recorded packet/effect semantics.
+2. Every versioned plan's historical raw state, ordinary compatibility/merge/
+   self-check constraints, ProjectionModels, and the plan.input.Holds site condition.
+3. Head-schema tests; actual-mode origin equality to the shared binder; in
+   lower/upper mode, existence of an observed value AND the universally
+   quantified VariableHolds condition on every observation.
+4. Shared capture Fits for needed inputs. This is the missing predicate caught
+   by BinderGap257, even when current raw slots and ordinary atoms are finite.
+5. Emitted equations interpreted by mode-sensitive variables. A name that is
+   an output reads its binder even in lower/upper mode, so flattening every
+   endpoint as if it were an input would be unsound.
+6. Child schemas/actual centers interpreted in each stored plan; separately,
+   effect.Live evaluated against the current core, not merely the effect's
+   stored historical snapshot.
+
+A proposed future certificate must assign a canonical representation to each
+of these consumers and prove both directions of Models for its projection.
+Merely retaining a finite list of inequalities does not establish items 3 or 6.
+The present I45 family closes those obligations using its concrete head,
+constant observations and empty child/output lists; that is why the all-n
+journal theorem is possible without solving the general certificate problem.
+These are inspected implementation obligations, not new proved theorems.

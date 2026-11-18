@@ -31,8 +31,11 @@ print('PASS forbidden tokens absent in new modules and usage')
 base='e4657fcb7f3f4640080d5606217ed45116ad802d'
 oldpaths=set(subprocess.check_output(['git','ls-tree','-r','--name-only',base,'lean'],text=True).splitlines())
 changed=subprocess.check_output(['git','diff','--name-only',base,'--','lean'],text=True).splitlines()
-assert not [p for p in changed if p in oldpaths and p!='lean/Yulang.lean']
+upstream='f894530e18ba3e50f5ed0c593a44493382ae0c40'
+upstream_fix='lean/Audit/Cycle254Full.lean'
+assert Path(upstream_fix).read_bytes()==subprocess.check_output(['git','show',upstream+':'+upstream_fix])
+assert not [p for p in changed if p in oldpaths and p not in ['lean/Yulang.lean',upstream_fix]]
 oldbarrel=subprocess.check_output(['git','show',base+':lean/Yulang.lean'],text=True)
 assert Path('lean/Yulang.lean').read_text().startswith(oldbarrel)
-print('PASS old Lean frozen; barrel append-only')
+print('PASS old mathematical Lean frozen; barrel append-only; Cycle254Full exactly matches supervisor integration import correction')
 print('Whole repository build, verify-lean.sh and Yulang2 runtime not run')

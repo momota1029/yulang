@@ -1,0 +1,4 @@
+lean/Yulang/GeneralDictionaryDirectView258.lean:30:1: error: 'change' tactic failed, pattern
+  (List.map ?m.18 (context n).state.ordinary).length = ?m.21
+is not definitionally equal to target
+  (view n).ordinary.length = 4 + 16 * n

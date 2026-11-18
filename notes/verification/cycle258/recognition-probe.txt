@@ -1,0 +1,8 @@
+START_2026-11-18T14:43:07Z
+("public", false, false)
+("first-lower", true, 1)
+("first-upper", true, 1)
+("actual-not-aggregate", false, false)
+("actual-lower-probes", 2)
+("actual-upper-probes", 2)
+EXIT 0 2026-11-18T14:43:09Z

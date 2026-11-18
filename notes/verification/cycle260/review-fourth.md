@@ -1,0 +1,1 @@
+独立読取レビュー（520cd102、新6本）：射程不整合なし。202は全assignment反射的default、任意subset Models iff current Models、旧StableからStep不可、新fact書込はsemantic stutter。BodyDecoderのsuccessfulは指定outputのlookup＋unknown=falseであり実requests所属や全要求coverageではない。252実capture/body結合は既存factsと一致。異source同一keyはschemaの意味同一を意味しない。同一owner複数bodyにはrequest別address等が必要。独立再build未実施。

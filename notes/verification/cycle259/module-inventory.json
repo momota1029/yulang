@@ -1,0 +1,355 @@
+[
+  {
+    "module": "GeneralRebaseReportDecoder259",
+    "source_sha256": "613c91a548581e7fb35ef93de596b7614b53c75128176f2ffd5f7aa63f295bb5",
+    "explicit_names": [
+      "atom",
+      "capture",
+      "captures",
+      "compile",
+      "source_atoms",
+      "no_private_atom",
+      "empty_rejected",
+      "actual"
+    ]
+  },
+  {
+    "module": "GeneralDictionaryObservedRebase259",
+    "source_sha256": "9d9b7566e78f7c0a5fb95efaaa7e40022b29b97b2e85a331252bc2ccbcf88c41",
+    "explicit_names": [
+      "observeAt",
+      "observed_exact",
+      "ObservedStep",
+      "step_exact",
+      "initial_install",
+      "stops",
+      "decreasing",
+      "terminating",
+      "no_two"
+    ]
+  },
+  {
+    "module": "GeneralDictionaryRebaseCertificate259",
+    "source_sha256": "93d7d84a1fb834131bf11d52ffb76058d58c0590d592cb3fed9b15fbcd9c6f38",
+    "explicit_names": [
+      "certificate",
+      "initial_install",
+      "old_new",
+      "certificate_source",
+      "certificate_exact"
+    ]
+  },
+  {
+    "module": "GeneralDictionaryRebaseRun259",
+    "source_sha256": "2b1636e53ca75f37818e50dcb95267e68feaa28de734c7b56341eb44dda2e9fc",
+    "explicit_names": [
+      "run",
+      "run_exact",
+      "run_step",
+      "initial_runs",
+      "final_noop",
+      "repeat_noop",
+      "run_certificate"
+    ]
+  },
+  {
+    "module": "GeneralNominalTypeObservation259",
+    "source_sha256": "46d9db6bb6c014805d83351c0acec7f6de5c7160d44c072711b60ccdd9f5ed9f",
+    "explicit_names": [
+      "observes",
+      "observes_iff"
+    ]
+  },
+  {
+    "module": "GeneralDictionaryRebaseCurrent259",
+    "source_sha256": "df3725c48c275b93a9dc711edb381437f203f683952174cfbace1279d08f9f43",
+    "explicit_names": [
+      "run",
+      "all_stages",
+      "first",
+      "stops",
+      "certificate"
+    ]
+  },
+  {
+    "module": "GeneralVersionRowsRaw259",
+    "source_sha256": "d15c0a237641686b66663d8c425674cca78f8a83fd2ec514b9dd3b6ba1b9b117",
+    "explicit_names": [
+      "withRows",
+      "base_models",
+      "raw_models"
+    ]
+  },
+  {
+    "module": "GeneralVersionRowsHead259",
+    "source_sha256": "1e4015459e4747782483016e327c62afc374c3e1480d93c9c3cf9ac3a2b5f9d8",
+    "explicit_names": [
+      "observed_value",
+      "seen0",
+      "seen1",
+      "model_lower",
+      "model_upper",
+      "fit_observed",
+      "raw_projection",
+      "merge_model",
+      "head_model"
+    ]
+  },
+  {
+    "module": "GeneralVersionRowsPacket259",
+    "source_sha256": "e12c8e3a4007d1d9bcd1d27dc0d6f33ded734cde511a8b22f6774fe6abec6f10",
+    "explicit_names": [
+      "actual_value",
+      "head_holds",
+      "packet_holds"
+    ]
+  },
+  {
+    "module": "GeneralVersionRowsStages259",
+    "source_sha256": "f47d5ce49c4041518235953a01cc47e04ac73fa90a37b97d477fc7aee5e20893",
+    "explicit_names": [
+      "atoms_valid",
+      "packet_holds",
+      "initial_raw",
+      "all_stages"
+    ]
+  },
+  {
+    "module": "GeneralVersionBoundaryCompletion259",
+    "source_sha256": "75b6d2cbf40e6d772bd2f016bdf80cf5c9b602d94dad6120cfbbc194f6cc4c90",
+    "explicit_names": [
+      "complete",
+      "Agree",
+      "agrees",
+      "second_scalar",
+      "initial_types",
+      "equivalent",
+      "all_stages",
+      "packet_holds"
+    ]
+  },
+  {
+    "module": "GeneralVersionPublicProjection259",
+    "source_sha256": "2ae20eda8c4304cbfa3f01bea09c67e0b410a93028dcc1a4c55092f40aac1f3d",
+    "explicit_names": [
+      "initial_exact",
+      "source_agree",
+      "model_source",
+      "stage_models",
+      "simultaneous_models"
+    ]
+  },
+  {
+    "module": "GeneralRebaseFiniteReport259",
+    "source_sha256": "c09a8eb756c0489b26500f8c3af52fb69225ec72b20d701f427086f5acfecef9",
+    "explicit_names": [
+      "capture",
+      "captures",
+      "compile",
+      "empty_rejected"
+    ]
+  },
+  {
+    "module": "GeneralVersionReportProjection259",
+    "source_sha256": "d338e14a6b3578eadc16594869b0b5de5c8f234edaa1318dca43e566cc83a0a3",
+    "explicit_names": [
+      "projection",
+      "original_projection",
+      "anchor_projection",
+      "bounds",
+      "transport",
+      "actual_report"
+    ]
+  },
+  {
+    "module": "GeneralVersionRebaseStep259",
+    "source_sha256": "b90ba65b022e7613e1cf605d17344de827bedcbb9dadef1bddf1ca264a416de4",
+    "explicit_names": [
+      "facts",
+      "atom",
+      "initialState",
+      "finalState",
+      "proposal",
+      "proposal_exact",
+      "observeAt",
+      "run",
+      "observe_exact",
+      "run_exact",
+      "write_initial",
+      "run_first",
+      "first_step",
+      "stop",
+      "run_stop",
+      "terminating",
+      "first_unique",
+      "no_two"
+    ]
+  },
+  {
+    "module": "GeneralVersionRebaseModels259",
+    "source_sha256": "4471559a9ab2fbcedd933f2c2b2159eea20a686bb21694b18aa3c9c2d63a1167",
+    "explicit_names": [
+      "factHolds",
+      "Models",
+      "initial_exact",
+      "final_exact",
+      "completed_binder",
+      "completed",
+      "public_models"
+    ]
+  },
+  {
+    "module": "GeneralVersionRebaseCertificate259",
+    "source_sha256": "7ff2a85f5d4c23c75c3ccffec50261e20e59de6bf738a768513b7590f2e5029d",
+    "explicit_names": [
+      "project",
+      "certificate",
+      "old_new",
+      "run_certificate",
+      "completed_round_simulation",
+      "old_novel_new_noop"
+    ]
+  },
+  {
+    "module": "GeneralRebaseFactSemantics259",
+    "source_sha256": "785fef60782078f84094af77d0e939f61e04f6217164520cc7da5cdb9b36f04c",
+    "explicit_names": [
+      "present_iff",
+      "present_write",
+      "Models",
+      "write_exact",
+      "initial_exact",
+      "done_exact"
+    ]
+  },
+  {
+    "module": "GeneralDictionaryRebaseFacts259",
+    "source_sha256": "36b41fd3e5358f6daf38d8316c40a6cd839934716957628456b8c31d049d6ebf",
+    "explicit_names": [
+      "value",
+      "factHolds",
+      "Models",
+      "initial_exact",
+      "final_exact",
+      "prior_final_exact",
+      "completed",
+      "public_models",
+      "write_exact"
+    ]
+  },
+  {
+    "module": "GeneralRebaseCheckedWrite259",
+    "source_sha256": "a5aaae1de2690b5e2dd9088018765b22526764736dbdd46c8c83c6d12276a546",
+    "explicit_names": [
+      "outside",
+      "commit",
+      "outside_member",
+      "closed_iff",
+      "accepted",
+      "supported",
+      "unsupported",
+      "accepted_models"
+    ]
+  },
+  {
+    "module": "GeneralRebaseCheckedFixtures259",
+    "source_sha256": "ef97c3232fa6a4f48c6412014054eb49bdcfb51dbd2c5b39aead242f763d032a",
+    "explicit_names": [
+      "looseRun",
+      "versionRun",
+      "loose_exact",
+      "version_exact",
+      "loose_first",
+      "loose_stop",
+      "version_first",
+      "version_stop",
+      "unsupported_mixed",
+      "version_unsupported"
+    ]
+  },
+  {
+    "module": "GeneralRebaseScheduler259",
+    "source_sha256": "6ac455507b98c7c9801daedc249ef442f593d84effcc05d352b2d8ee334c8c88",
+    "explicit_names": [
+      "scan",
+      "next",
+      "scan_installed",
+      "next_step",
+      "scan_none",
+      "terminal"
+    ]
+  },
+  {
+    "module": "GeneralRebaseSettle259",
+    "source_sha256": "7c1bb17317cd3547a8c965ac52f03af12ded3977c643d92d0e3bb5b231a6d433",
+    "explicit_names": [
+      "settle",
+      "successful_terminal",
+      "successful_path",
+      "successful_budget",
+      "successful_quiescent"
+    ]
+  },
+  {
+    "module": "GeneralRebaseClosedObserver259",
+    "source_sha256": "46dc58de08384ebdfb67a24eedd16973d776f0b7ae88286787a6a6c675d19131",
+    "explicit_names": [
+      "Closed",
+      "scan_error",
+      "next_no_error",
+      "settle_no_error",
+      "completion"
+    ]
+  },
+  {
+    "module": "GeneralRebaseDriverFixtures259",
+    "source_sha256": "428055bfa21a969f6319049d502c6960fed97856d04f9b666eb64385cd1f0e50",
+    "explicit_names": [
+      "loose_closed",
+      "version_closed",
+      "loose_next",
+      "version_next",
+      "loose_final",
+      "loose_initial",
+      "version_final",
+      "version_initial",
+      "skip_noop"
+    ]
+  },
+  {
+    "module": "GeneralRebaseWriteAlgebra259",
+    "source_sha256": "bb2bb047840b45a9efa7b473a4358d86daa62c395d0e52e267a98b3819b10854",
+    "explicit_names": [
+      "commute",
+      "append",
+      "empty",
+      "fixed_iff",
+      "batch",
+      "batch_exact"
+    ]
+  },
+  {
+    "module": "GeneralRebaseBatchTerminal259",
+    "source_sha256": "1cb97d0a2bafe6d997b570b074c466b6e88d4bc5258a5fe735ec72c754196fcd",
+    "explicit_names": [
+      "absorb",
+      "batch_absorb",
+      "no_write_iff",
+      "batch_fixed",
+      "terminal_batch",
+      "path_absorb",
+      "settle_batch"
+    ]
+  },
+  {
+    "module": "GeneralRebaseBatchOrder259",
+    "source_sha256": "7bd83721ff9f899b91d12452f669650833324139ae41309bfc537da89a9cbab7",
+    "explicit_names": [
+      "write_membership",
+      "batch_membership",
+      "settle_membership",
+      "swap",
+      "duplicate"
+    ]
+  }
+]
