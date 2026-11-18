@@ -29,7 +29,7 @@ of initial facts, duplicate writes are idempotent/no-op, and the I45 fixture
 allows at most one step. This bound does not count old administrative steps.
 
 ## Independent review
-The first25 modules received read-only reviews at their checkpoint commits. No
+All26 modules received read-only reviews at their checkpoint commits. No
 independent reviewer rebuild. Fifth review prompted only a wording correction:
 intermediate subsets formally get the else predicate, but its language
 correctness is not claimed. Reviews are retained separately.
