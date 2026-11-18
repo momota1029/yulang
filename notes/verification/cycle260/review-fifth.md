@@ -1,0 +1,1 @@
+独立読取レビュー（1230a691、新2本/design）：問題なし。4成分住所注入性、NamedRequestのname/target符号は列位置非依存。単一固定body意味保存で実lookup整合・実requests所属・全coverageを自動導出しない。probe_repairedはinstalled marker差、output key分離は別補題。旧owner-only表との混在非衝突は未主張。有限producer・EqualOutputs・一般Closed/Step未完。指定commitとの差分なし、独立再build未実施。
