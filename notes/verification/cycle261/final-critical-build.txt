@@ -1,0 +1,28 @@
+Fresh critical-layer modules: 26
+BUILD lean/Yulang/GeneralNominalCenteredHeadAllocMergeConflict.lean 2026-11-18T18:13:53.972960+00:00
+BUILD lean/Yulang/GeneralNominalCenteredHeadAllocV7Completion.lean 2026-11-18T18:13:55.879550+00:00
+BUILD lean/Yulang/GeneralNominalCenteredHeadAllocV7MergeRegression.lean 2026-11-18T18:13:57.371496+00:00
+BUILD lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean 2026-11-18T18:13:58.757244+00:00
+BUILD lean/Yulang/GeneralRebaseBodyTable261.lean 2026-11-18T18:14:00.257823+00:00
+BUILD lean/Yulang/GeneralRebaseClassTable261.lean 2026-11-18T18:14:01.882940+00:00
+BUILD lean/Yulang/GeneralRebaseClassCheck261.lean 2026-11-18T18:14:03.486398+00:00
+BUILD lean/Yulang/GeneralRebaseClassRun261.lean 2026-11-18T18:14:05.663743+00:00
+BUILD lean/Yulang/GeneralRebasePairKeys261.lean 2026-11-18T18:14:07.092569+00:00
+BUILD lean/Yulang/GeneralRebaseStableBody261.lean 2026-11-18T18:14:08.556196+00:00
+BUILD lean/Yulang/GeneralRebaseStableClass261.lean 2026-11-18T18:14:09.552588+00:00
+BUILD lean/Yulang/GeneralRebaseCandidateDriver261.lean 2026-11-18T18:14:11.186545+00:00
+BUILD lean/Yulang/GeneralRebaseCandidateTrace261.lean 2026-11-18T18:14:12.537612+00:00
+BUILD lean/Yulang/GeneralRebaseMergeRequests261.lean 2026-11-18T18:14:13.659274+00:00
+BUILD lean/Yulang/GeneralRebaseMergeMeaning261.lean 2026-11-18T18:14:15.043475+00:00
+BUILD lean/Yulang/GeneralRebaseMergeRun261.lean 2026-11-18T18:14:16.323766+00:00
+BUILD lean/Yulang/GeneralRebaseMergeFrame261.lean 2026-11-18T18:14:17.582039+00:00
+BUILD lean/Yulang/GeneralRebaseMergePacket261.lean 2026-11-18T18:14:18.989301+00:00
+BUILD lean/Yulang/GeneralRebaseMergeHistory261.lean 2026-11-18T18:14:20.158387+00:00
+BUILD lean/Yulang/GeneralRebaseStableMerge261.lean 2026-11-18T18:14:21.211322+00:00
+BUILD lean/Yulang/GeneralRebaseMergeObservation261.lean 2026-11-18T18:14:22.464244+00:00
+BUILD lean/Yulang/GeneralRebaseStableMergeDriver261.lean 2026-11-18T18:14:24.064765+00:00
+BUILD lean/Yulang/GeneralRebaseCandidateValidation261.lean 2026-11-18T18:14:25.668632+00:00
+BUILD lean/Yulang/GeneralRebaseStableMergeFinish261.lean 2026-11-18T18:14:26.727035+00:00
+BUILD lean/Yulang/GeneralRebaseSourceSnapshot261.lean 2026-11-18T18:14:28.224143+00:00
+BUILD lean/Yulang/GeneralRebaseSourcePool261.lean 2026-11-18T18:14:29.302513+00:00
+CRITICAL-LAYER-PASS 26
