@@ -47,3 +47,19 @@ leaf実lookup bodyはInt、二つのtargetは異なる。固定class表はReady�
 `aTarget = Int` と `bTarget = Variant Int` の履歴を失う。次はHistoryModelsを保持した
 新終点が不充足となることを、実EqualOutputsから示す。raw-only版のuniformモデルとの
 対照も取る。有限constraintsのrunが成功することとモデル存在・source受理を混同しない。
+
+## 実alias class・履歴保持の接続
+
+二つの実requestから6factsのtableを構成し、有限runは初回で終点へ進み以後停止する。
+一方、過去parentのHistoryModelsと終点ClassEffectsの連言は不充足。終点生成の成功は
+充足性判定ではない。旧V7の実到達終点と拒否判定にも接続し、誤ったraw-only版の
+uniformモデルと対照する。現在のversioned全source traceの再構成とは区別する。
+
+旧fixtureのGood・Supportedから現行versioned Frameを構成し、raw-only uniformでは
+leaf Evidenceが存在することも確認した。これはHistoryModelsを満たす証拠ではない。
+履歴は当該fixtureについて、初期snapshot Modelsと固定2出力制約へ同一assignmentで
+圧縮できる。任意履歴・将来journalの一律有限化とは主張しない。
+
+独立読取レビュー（前半5本）では射程不整合なし。独立buildは未実施。
+EqualOutputsの住所は固定schema内indexに依存し、可変・並べ替えtableで同一keyの
+意味が不変とはまだ主張していない。body側の位置非依存住所と混同しない。

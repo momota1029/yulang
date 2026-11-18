@@ -4796,3 +4796,8 @@ import Yulang.GeneralRebaseClassTable261
 import Yulang.GeneralRebaseClassCheck261
 import Yulang.GeneralRebaseClassRun261
 import Yulang.GeneralRebaseMergeRequests261
+import Yulang.GeneralRebaseMergeMeaning261
+import Yulang.GeneralRebaseMergeRun261
+import Yulang.GeneralRebaseMergeFrame261
+import Yulang.GeneralRebaseMergePacket261
+import Yulang.GeneralRebaseMergeHistory261

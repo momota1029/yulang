@@ -3,6 +3,11 @@ import Yulang.GeneralRebaseClassTable261
 import Yulang.GeneralRebaseClassCheck261
 import Yulang.GeneralRebaseClassRun261
 import Yulang.GeneralRebaseMergeRequests261
+import Yulang.GeneralRebaseMergeMeaning261
+import Yulang.GeneralRebaseMergeRun261
+import Yulang.GeneralRebaseMergeFrame261
+import Yulang.GeneralRebaseMergePacket261
+import Yulang.GeneralRebaseMergeHistory261
 
 #print axioms Yulang.GeneralRebaseBodyTable261.schema
 #print axioms Yulang.GeneralRebaseBodyTable261.variables
@@ -66,3 +71,49 @@ import Yulang.GeneralRebaseMergeRequests261
 #print axioms Yulang.GeneralRebaseMergeRequests261.schema_exact
 #print axioms Yulang.GeneralRebaseMergeRequests261.ready
 #print axioms Yulang.GeneralRebaseMergeRequests261.effects_exact
+#print axioms Yulang.GeneralRebaseMergeMeaning261.body_meaning
+#print axioms Yulang.GeneralRebaseMergeMeaning261.effects_exact
+#print axioms Yulang.GeneralRebaseMergeMeaning261.history_outputs
+#print axioms Yulang.GeneralRebaseMergeMeaning261.history_equal_impossible
+#print axioms Yulang.GeneralRebaseMergeMeaning261.history_effects_impossible
+#print axioms Yulang.GeneralRebaseMergeMeaning261.uniform_effects
+#print axioms Yulang.GeneralRebaseMergeRun261.facts
+#print axioms Yulang.GeneralRebaseMergeRun261.initialState
+#print axioms Yulang.GeneralRebaseMergeRun261.finalState
+#print axioms Yulang.GeneralRebaseMergeRun261.observe
+#print axioms Yulang.GeneralRebaseMergeRun261.run
+#print axioms Yulang.GeneralRebaseMergeRun261.History
+#print axioms Yulang.GeneralRebaseMergeRun261.Models
+#print axioms Yulang.GeneralRebaseMergeRun261.facts_count
+#print axioms Yulang.GeneralRebaseMergeRun261.nonempty
+#print axioms Yulang.GeneralRebaseMergeRun261.first
+#print axioms Yulang.GeneralRebaseMergeRun261.stop
+#print axioms Yulang.GeneralRebaseMergeRun261.first_step
+#print axioms Yulang.GeneralRebaseMergeRun261.settle_initial
+#print axioms Yulang.GeneralRebaseMergeRun261.initial_inhabited
+#print axioms Yulang.GeneralRebaseMergeRun261.final_exact
+#print axioms Yulang.GeneralRebaseMergeRun261.final_uninhabited
+#print axioms Yulang.GeneralRebaseMergeRun261.raw_only_inhabited
+#print axioms Yulang.GeneralRebaseMergeRun261.old_final_regression
+#print axioms Yulang.GeneralRebaseMergeFrame261.report_empty
+#print axioms Yulang.GeneralRebaseMergeFrame261.bindings_empty
+#print axioms Yulang.GeneralRebaseMergeFrame261.ordinary
+#print axioms Yulang.GeneralRebaseMergeFrame261.head_models
+#print axioms Yulang.GeneralRebaseMergeFrame261.fresh
+#print axioms Yulang.GeneralRebaseMergeFrame261.prepared
+#print axioms Yulang.GeneralRebaseMergeFrame261.frame
+#print axioms Yulang.GeneralRebaseMergePacket261.head_schema
+#print axioms Yulang.GeneralRebaseMergePacket261.emissions_empty
+#print axioms Yulang.GeneralRebaseMergePacket261.emitted_schema
+#print axioms Yulang.GeneralRebaseMergePacket261.children_empty
+#print axioms Yulang.GeneralRebaseMergePacket261.actual_ready
+#print axioms Yulang.GeneralRebaseMergePacket261.packet_holds
+#print axioms Yulang.GeneralRebaseMergePacket261.evidence
+#print axioms Yulang.GeneralRebaseMergePacket261.raw_only_evidence
+#print axioms Yulang.GeneralRebaseMergeHistory261.Base
+#print axioms Yulang.GeneralRebaseMergeHistory261.history_exact
+#print axioms Yulang.GeneralRebaseMergeHistory261.Models
+#print axioms Yulang.GeneralRebaseMergeHistory261.models_exact
+#print axioms Yulang.GeneralRebaseMergeHistory261.initial_inhabited
+#print axioms Yulang.GeneralRebaseMergeHistory261.final_uninhabited
+#print axioms Yulang.GeneralRebaseMergeHistory261.uniform_not_base

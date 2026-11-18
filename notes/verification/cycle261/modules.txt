@@ -3,3 +3,8 @@ GeneralRebaseClassTable261
 GeneralRebaseClassCheck261
 GeneralRebaseClassRun261
 GeneralRebaseMergeRequests261
+GeneralRebaseMergeMeaning261
+GeneralRebaseMergeRun261
+GeneralRebaseMergeFrame261
+GeneralRebaseMergePacket261
+GeneralRebaseMergeHistory261
