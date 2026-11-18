@@ -1,0 +1,199 @@
+{
+  "scope": "cycle260 new modules only; imports not proof dependency",
+  "modules": [
+    {
+      "module": "GeneralRebaseOutputKeys260",
+      "new_ancestors": 0,
+      "direct_new_imports": []
+    },
+    {
+      "module": "GeneralRebaseOutputDecoder260",
+      "new_ancestors": 1,
+      "direct_new_imports": [
+        "GeneralRebaseOutputKeys260"
+      ]
+    },
+    {
+      "module": "GeneralOutputRebaseSource260",
+      "new_ancestors": 2,
+      "direct_new_imports": [
+        "GeneralRebaseOutputDecoder260"
+      ]
+    },
+    {
+      "module": "GeneralOutputRebaseModels260",
+      "new_ancestors": 3,
+      "direct_new_imports": [
+        "GeneralOutputRebaseSource260"
+      ]
+    },
+    {
+      "module": "GeneralOutputRebaseInstalled260",
+      "new_ancestors": 4,
+      "direct_new_imports": [
+        "GeneralOutputRebaseModels260"
+      ]
+    },
+    {
+      "module": "GeneralOutputRebaseRun260",
+      "new_ancestors": 5,
+      "direct_new_imports": [
+        "GeneralOutputRebaseInstalled260"
+      ]
+    },
+    {
+      "module": "GeneralOutputRebasePublic260",
+      "new_ancestors": 6,
+      "direct_new_imports": [
+        "GeneralOutputRebaseRun260"
+      ]
+    },
+    {
+      "module": "GeneralRebaseOwnedOutputKeys260",
+      "new_ancestors": 7,
+      "direct_new_imports": [
+        "GeneralOutputRebasePublic260"
+      ]
+    },
+    {
+      "module": "GeneralRebaseOutputFamily260",
+      "new_ancestors": 8,
+      "direct_new_imports": [
+        "GeneralRebaseOwnedOutputKeys260"
+      ]
+    },
+    {
+      "module": "GeneralRebaseOutputFamilyRun260",
+      "new_ancestors": 9,
+      "direct_new_imports": [
+        "GeneralRebaseOutputFamily260"
+      ]
+    },
+    {
+      "module": "GeneralOwnedOutputDecoder260",
+      "new_ancestors": 10,
+      "direct_new_imports": [
+        "GeneralRebaseOutputFamilyRun260"
+      ]
+    },
+    {
+      "module": "GeneralOwnedOutputActual260",
+      "new_ancestors": 11,
+      "direct_new_imports": [
+        "GeneralOwnedOutputDecoder260"
+      ]
+    },
+    {
+      "module": "GeneralDefaultRebaseBody260",
+      "new_ancestors": 12,
+      "direct_new_imports": [
+        "GeneralOwnedOutputActual260"
+      ]
+    },
+    {
+      "module": "GeneralDefaultRebaseSource260",
+      "new_ancestors": 13,
+      "direct_new_imports": [
+        "GeneralDefaultRebaseBody260"
+      ]
+    },
+    {
+      "module": "GeneralDefaultRebaseModels260",
+      "new_ancestors": 14,
+      "direct_new_imports": [
+        "GeneralDefaultRebaseSource260"
+      ]
+    },
+    {
+      "module": "GeneralDefaultRebaseInstalled260",
+      "new_ancestors": 15,
+      "direct_new_imports": [
+        "GeneralDefaultRebaseModels260"
+      ]
+    },
+    {
+      "module": "GeneralDefaultRebaseRun260",
+      "new_ancestors": 16,
+      "direct_new_imports": [
+        "GeneralDefaultRebaseInstalled260"
+      ]
+    },
+    {
+      "module": "GeneralDefaultRebaseCompletion260",
+      "new_ancestors": 17,
+      "direct_new_imports": [
+        "GeneralDefaultRebaseRun260"
+      ]
+    },
+    {
+      "module": "GeneralDefaultRebasePublic260",
+      "new_ancestors": 18,
+      "direct_new_imports": [
+        "GeneralDefaultRebaseCompletion260"
+      ]
+    },
+    {
+      "module": "GeneralRebaseBodyDecoder260",
+      "new_ancestors": 19,
+      "direct_new_imports": [
+        "GeneralDefaultRebasePublic260"
+      ]
+    },
+    {
+      "module": "GeneralReflexiveDefaultSource260",
+      "new_ancestors": 20,
+      "direct_new_imports": [
+        "GeneralRebaseBodyDecoder260"
+      ]
+    },
+    {
+      "module": "GeneralReflexiveDefaultModels260",
+      "new_ancestors": 21,
+      "direct_new_imports": [
+        "GeneralReflexiveDefaultSource260"
+      ]
+    },
+    {
+      "module": "GeneralReflexiveDefaultRun260",
+      "new_ancestors": 22,
+      "direct_new_imports": [
+        "GeneralReflexiveDefaultModels260"
+      ]
+    },
+    {
+      "module": "GeneralReflexiveDefaultRegression260",
+      "new_ancestors": 23,
+      "direct_new_imports": [
+        "GeneralReflexiveDefaultRun260"
+      ]
+    },
+    {
+      "module": "GeneralRebaseBodyActual260",
+      "new_ancestors": 24,
+      "direct_new_imports": [
+        "GeneralReflexiveDefaultRegression260"
+      ]
+    },
+    {
+      "module": "GeneralRebaseRequestBodyKeys260",
+      "new_ancestors": 25,
+      "direct_new_imports": [
+        "GeneralRebaseBodyActual260"
+      ]
+    },
+    {
+      "module": "GeneralRebaseNamedRequest260",
+      "new_ancestors": 26,
+      "direct_new_imports": [
+        "GeneralRebaseRequestBodyKeys260"
+      ]
+    },
+    {
+      "module": "GeneralRebaseEqualOutputs260",
+      "new_ancestors": 27,
+      "direct_new_imports": [
+        "GeneralRebaseNamedRequest260"
+      ]
+    }
+  ]
+}
