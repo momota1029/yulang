@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryBinderGap257
 import Yulang.GeneralDictionaryProjectionBoundary257
 import Yulang.GeneralDictionaryCompactView257
 import Yulang.GeneralDictionaryLooseIterationNontermination240
@@ -65,3 +66,21 @@ example (n : Nat) : GeneralDictionaryLooseIterationIteration240.state (n+1) ≠
 example (rank : GeneralNominalRebaseRawView243.View → Nat) :
  ¬ ∀ n, rank (GeneralDictionaryFiveSlot257.view (n+2)) < rank (GeneralDictionaryFiveSlot257.view (n+1)) :=
  GeneralDictionaryFiniteView257.no_strict_view_rank rank
+
+example (n : Nat) (slot : Fin (n+5)) :
+ GeneralNominalState.Known (GeneralDictionaryLooseIterationBook240.context n).state (GeneralDictionaryLooseFamilyBase240.source n slot) ↔
+ GeneralNominalState.Known (GeneralDictionaryLooseIterationBook240.context 0).state (GeneralDictionaryFiveSlot257.projection slot).val :=
+ GeneralDictionaryKnownProjection257.preserved n slot
+example (n : Nat) (slot : Fin (n+5)) :
+ GeneralNominalReobservationSteps.PointAt (GeneralDictionaryLooseIterationBook240.context n).state slot ↔
+ GeneralNominalReobservationSteps.PointAt (GeneralDictionaryLooseIterationBook240.context 0).state (GeneralDictionaryFiveSlot257.projection slot) :=
+ GeneralDictionaryPointProjection257.preserved n slot
+example (n : Nat) : GeneralDictionaryReportProjection257.transport n
+ (GeneralNominalPacketSupport.report (GeneralDictionaryLooseIterationBook240.packet n)) =
+ GeneralNominalPacketSupport.report (GeneralDictionaryLooseIterationBook240.packet 0) :=
+ GeneralDictionaryReportProjection257.actual_report n
+example (n : Nat) : GeneralNominalState.Models
+ (GeneralDictionaryLooseIterationIteration240.state (n+1)).core.erased.current.context.state
+ (GeneralDictionaryBinderGap257.witness (n+1)) ∧
+ ¬ GeneralNominalVersionedJournal232.Models (GeneralDictionaryLooseIterationIteration240.state (n+1))
+ (GeneralDictionaryBinderGap257.witness (n+1)) := GeneralDictionaryBinderGap257.current_raw_not_journal n

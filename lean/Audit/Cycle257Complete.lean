@@ -12,6 +12,10 @@ import Yulang.GeneralDictionaryInitialProjection257
 import Yulang.GeneralDictionaryFiniteView257
 import Yulang.GeneralDictionaryNoModelRefinement257
 import Yulang.GeneralDictionaryProjectionBoundary257
+import Yulang.GeneralDictionaryKnownProjection257
+import Yulang.GeneralDictionaryPointProjection257
+import Yulang.GeneralDictionaryReportProjection257
+import Yulang.GeneralDictionaryBinderGap257
 
 #print axioms Yulang.GeneralDictionaryUpperHistory257.upperEntry
 #print axioms Yulang.GeneralDictionaryUpperHistory257.lowerEntry
@@ -124,3 +128,26 @@ import Yulang.GeneralDictionaryProjectionBoundary257
 #print axioms Yulang.GeneralDictionaryProjectionBoundary257.state_slots
 #print axioms Yulang.GeneralDictionaryProjectionBoundary257.states_distinct
 #print axioms Yulang.GeneralDictionaryProjectionBoundary257.distinct_with_same_view
+#print axioms Yulang.GeneralDictionaryKnownProjection257.known_slot
+#print axioms Yulang.GeneralDictionaryKnownProjection257.classified
+#print axioms Yulang.GeneralDictionaryKnownProjection257.projection_threshold
+#print axioms Yulang.GeneralDictionaryKnownProjection257.preserved
+#print axioms Yulang.GeneralDictionaryPointProjection257.foo_point
+#print axioms Yulang.GeneralDictionaryPointProjection257.pair_nonpoint
+#print axioms Yulang.GeneralDictionaryPointProjection257.classified
+#print axioms Yulang.GeneralDictionaryPointProjection257.projected_kind
+#print axioms Yulang.GeneralDictionaryPointProjection257.preserved
+#print axioms Yulang.GeneralDictionaryReportProjection257.transport
+#print axioms Yulang.GeneralDictionaryReportProjection257.anchor_projected
+#print axioms Yulang.GeneralDictionaryReportProjection257.actual_report
+#print axioms Yulang.GeneralDictionaryReportProjection257.origins_unchanged
+#print axioms Yulang.GeneralDictionaryBinderGap257.actual_above
+#print axioms Yulang.GeneralDictionaryBinderGap257.seed_initial
+#print axioms Yulang.GeneralDictionaryBinderGap257.seed_models
+#print axioms Yulang.GeneralDictionaryBinderGap257.raw_witness
+#print axioms Yulang.GeneralDictionaryBinderGap257.actual_outside
+#print axioms Yulang.GeneralDictionaryBinderGap257.actual_bottom
+#print axioms Yulang.GeneralDictionaryBinderGap257.lower_value
+#print axioms Yulang.GeneralDictionaryBinderGap257.not_inputs
+#print axioms Yulang.GeneralDictionaryBinderGap257.not_journal
+#print axioms Yulang.GeneralDictionaryBinderGap257.current_raw_not_journal

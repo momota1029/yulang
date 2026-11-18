@@ -119,3 +119,32 @@
 'Yulang.GeneralDictionaryProjectionBoundary257.distinct_with_same_view' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
+'Yulang.GeneralDictionaryKnownProjection257.known_slot' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryKnownProjection257.classified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryKnownProjection257.projection_threshold' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryKnownProjection257.preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPointProjection257.foo_point' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPointProjection257.pair_nonpoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPointProjection257.classified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryPointProjection257.projected_kind' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryPointProjection257.preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReportProjection257.transport' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReportProjection257.anchor_projected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryReportProjection257.actual_report' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReportProjection257.origins_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.actual_above' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.seed_initial' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.seed_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.raw_witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.actual_outside' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.actual_bottom' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.lower_value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.not_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.not_journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryBinderGap257.current_raw_not_journal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

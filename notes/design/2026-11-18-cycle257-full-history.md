@@ -94,3 +94,41 @@ source implementation. Source identities/Known/inspection/owner ancestry and
 historical/current replay certificates require faithful transport; duplicate
 skipping must retain whichever evidence a future packet consumes. No claim
 that the full source state is reconstructed by the five-slot View is made.
+
+## Independent classification check after the quotient
+
+Current Models equality alone does not justify inspection. As a separate narrow
+obligation, compare actual stage source slots with their five original-slot
+representatives for Known and PointAt. Both can be read from the concrete actual
+nominal descriptors: unresolved structural graphs, Foo at2/4/added, nonpoint Pair
+at3. Prove these on real States, not invented View analogues. If possible compare
+the actual finite report after transporting slot indices, keeping origin paths
+literal. Such family-specific facts still do not supply a general compiler or
+historical/current certificate transport.
+
+## Concrete certificate gap to test
+
+The actual binder for this terminal family is the fixed legacy purpose8 name,
+not one of the initial five source components. Current raw state/our five-slot
+View may leave that type coordinate unconstrained, while a recorded packet's
+Inputs requires it to lie between the historical aggregate endpoints and to
+agree with observed head variables. Test an assignment that changes only that
+binder to bottom, then solves the retained both-side equations. If it satisfies
+actual current raw Models but violates a recorded Inputs fact, it is a closed
+counterexample to promoting current-view model preservation into whole journal
+model preservation. It is not a counterexample to any theorem already claimed,
+and does not alter the old or successor Step.
+
+The certificate-gap test is now closed in BinderGap257: for every n+1 there is an
+explicit assignment (patch purpose8 actual binder to bottom, solve actual
+retained lower+upper history) satisfying the actual reachable state's current raw
+Models but not its journal Models, since the recorded plan0 Inputs fails. This
+supports the previously stated separation; it does not invalidate the compact
+View theorem, reject a Yulang program, or show a new successor nontermination.
+The fixed actual binder must be represented in a finite certificate layer. A
+candidate local repair is retaining its equality-to-source2 fact, then proving
+that actual packet Inputs can be reconstructed; do not silently drop those facts.
+
+Known and PointAt are separately preserved between actual stage slots and their
+initial representatives; the full current report transports literally, including
+unchanged origin paths. Historical/current certificates are still additional.
