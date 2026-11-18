@@ -46,3 +46,14 @@ Status: Draft implementation design. I51/I52継続。既存Lean/specは変更し
 使う一般decode関数を、複数ownerの共有表へそのまま合成してはいけない。次に必要な
 独立課題は、owner別の方程式アドレスを注入的にし、固定capture0/1と他ownerのkeysに
 衝突しないことを証明すること。単一252接続を全source対応と呼ばない。
+
+## owner別outputアドレスの設計
+
+複数ownerの式表を共有するときの別案として、output keyを
+`binder(2 + pair(owner,index))` とする。既存GeneralNominalIdentities.pairの注入性を使い、
+ownerまたはindexの異なる出力義務が衝突しないことを証明する。
+これは固定有限owner集合×各schemaの有限indexから列挙する式表で、無限に新しい
+source名を作るものではない。keyの数値の大きさを実行回数や時間の上界とはしない。
+まず式表の一般意味と単一252(owner0,index0)が元binder2と一致することを検証する。
+capture binder0/1は依然単一Planの意味であり、全consumerを含む複数ownercompilerは
+このoutput表だけから完成したとは言わない。
