@@ -4611,3 +4611,7 @@ import Yulang.GeneralNominalRoleClassCompleteness251
 import Yulang.GeneralNominalRoleJournalEffect251
 import Yulang.GeneralNominalRoleModeRegression251
 import Yulang.GeneralNominalSourcePlanProducer251
+import Yulang.GeneralPresenceUnionNormal252
+import Yulang.GeneralPresenceInterNormal252
+import Yulang.GeneralPresenceNormalFinite252
+import Yulang.GeneralPresenceSnapshotNormal252
