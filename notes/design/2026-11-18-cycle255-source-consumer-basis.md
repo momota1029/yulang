@@ -58,3 +58,34 @@ nominal引数だけactual modeへ切り替える既存compileをそのまま追�
 このmenuは同じbinderの複数出現を独立に選べるoverapproxであり、全menu項が
 単一のvariables関数で実現可能だとは主張しない。次に254の実source template列挙
 へ接続する。モデル・Evidenceを使わずに構文の有限候補を得る経路を保つ。
+
+## raw output側の有限menuと意味保存
+`TemplateChoices255`の有限menuを254の実source到達frameのcompileBodyに接続した。
+参照leafを固定basisで正規化すると、lower/upper候補listの和をleaf候補にした有限menu
+へ必ず入る。一方、それだけではunsupported atomを削ってしまう可能性があるので、
+使用する(mode,name)を列挙した実checkを作り、prepare成功の場合に限って、全assignment
+で元のmaterialized式とEquivalentであると証明した。nominalの内側はactual mode、
+record/union等は受け取ったmodeを使う既存compileと同じである。actualのみ支持された
+nominalが通り、同じvariablesのlower recordは拒否される回帰も付けた。
+
+source leaf中の全type/arrow-row読みを集め、有限menuがprivate-free basisから作られた
+場合はmaterialized式の読みもprivate-freeであることを示した。ここでもcheck成功なしの
+private-freeだけを意味保存の代わりに使わない。
+
+初期source＋public refsのraw poolは重複を含みうるため、そのままではliteralなatom列の
+重複なしを主張できない。`CanonicalBasis255`は一度eraseDupsし、支持・全Models保存・
+private分離を保ち、全正規化後type fieldsのatoms.Nodupを証明する候補を追加した。
+レビュー済みraw basisの定義は変更せず、重複除去後basisを別名にしている。
+
+raw正規化後のsource leafのsyntax深さは `1 + basis.length + 最大atom深さ` 以下。
+materialized templateの深さは、それにraw template深さを加えた上界を持つ。実source
+frameなら254の固定template budgetを使える。これはI50(b)の「参照を保持した構文」の
+上界であり、I50(a)のground readback・全producer依存鎖上界とは別物である。
+
+## 依然残る一番大きな穴
+この周で全trace共通のSupportedは証明していない。source初期化は閉じたが、旧blockの
+代入、reobserve、構造consumer追加、role別environmentの作り直しから同じ固定basisへ
+閉じることは次の本体である。finite ownerだけでこの結論を代用しない。
+raw templateから毎回有限leaf候補で再構築する表現の見通しは得たが、実Stepがこの表現を
+保存すること・新factの厳密増加・slot/row/journalの有限性は未証明。mixed-time compiler、
+Permitted、12則の移植、Accを済ませたとは言わない。source到達の新非停止反例は出していない。

@@ -9,6 +9,12 @@ import Yulang.GeneralNominalSourceBasis255
 import Yulang.GeneralNominalViewTypeImage255
 import Yulang.GeneralNominalViewFixed255
 import Yulang.GeneralNominalTemplateChoices255
+import Yulang.GeneralNominalTemplateCongruence255
+import Yulang.GeneralNominalTemplateNormal255
+import Yulang.GeneralNominalSourceTemplateMenu255
+import Yulang.GeneralNominalTemplateSupport255
+import Yulang.GeneralNominalCanonicalBasis255
+import Yulang.GeneralNominalNormalizedDepth255
 
 #print axioms Yulang.GeneralDictionarySourceAtom255.constant_not_basis
 #print axioms Yulang.GeneralDictionarySourceAtom255.prepare_constant_none
@@ -114,3 +120,49 @@ import Yulang.GeneralNominalTemplateChoices255
 #print axioms Yulang.GeneralNominalTemplateChoices255.readsMany
 #print axioms Yulang.GeneralNominalTemplateChoices255.compiled_mem
 #print axioms Yulang.GeneralNominalTemplateChoices255.compiledMany_mem
+#print axioms Yulang.GeneralNominalTemplateCongruence255.value_equivalent
+#print axioms Yulang.GeneralNominalTemplateCongruence255.values_equivalent
+#print axioms Yulang.GeneralNominalTemplateCongruence255.compiled_equivalent
+#print axioms Yulang.GeneralNominalTemplateNormal255.leafCandidates
+#print axioms Yulang.GeneralNominalTemplateNormal255.normalized
+#print axioms Yulang.GeneralNominalTemplateNormal255.Supported
+#print axioms Yulang.GeneralNominalTemplateNormal255.check
+#print axioms Yulang.GeneralNominalTemplateNormal255.rewrite
+#print axioms Yulang.GeneralNominalTemplateNormal255.prepare
+#print axioms Yulang.GeneralNominalTemplateNormal255.check_exact
+#print axioms Yulang.GeneralNominalTemplateNormal255.prepare_exact
+#print axioms Yulang.GeneralNominalTemplateNormal255.normalized_candidate
+#print axioms Yulang.GeneralNominalTemplateNormal255.rewrite_finite
+#print axioms Yulang.GeneralNominalTemplateNormal255.rewrite_equivalent
+#print axioms Yulang.GeneralNominalTemplateNormal255.prepare_safe
+#print axioms Yulang.GeneralNominalSourceTemplateMenu255.menu
+#print axioms Yulang.GeneralNominalSourceTemplateMenu255.source_compiled
+#print axioms Yulang.GeneralNominalSourceTemplateMenu255.source_normalized
+#print axioms Yulang.GeneralNominalSourceTemplateMenu255.source_prepared
+#print axioms Yulang.GeneralNominalTemplateSupport255.sourceTerms
+#print axioms Yulang.GeneralNominalTemplateSupport255.sourceTermsMany
+#print axioms Yulang.GeneralNominalTemplateSupport255.choices_sources
+#print axioms Yulang.GeneralNominalTemplateSupport255.choicesMany_sources
+#print axioms Yulang.GeneralNominalTemplateSupport255.reads
+#print axioms Yulang.GeneralNominalTemplateSupport255.choice_private_free
+#print axioms Yulang.GeneralNominalTemplateSupport255.selected_subset
+#print axioms Yulang.GeneralNominalTemplateSupport255.candidate_private_free
+#print axioms Yulang.GeneralNominalTemplateSupport255.rewritten_private_free
+#print axioms Yulang.GeneralNominalCanonicalBasis255.dedup_nodup
+#print axioms Yulang.GeneralNominalCanonicalBasis255.basis
+#print axioms Yulang.GeneralNominalCanonicalBasis255.basis_unique
+#print axioms Yulang.GeneralNominalCanonicalBasis255.basis_mem
+#print axioms Yulang.GeneralNominalCanonicalBasis255.source_supported
+#print axioms Yulang.GeneralNominalCanonicalBasis255.source_success
+#print axioms Yulang.GeneralNominalCanonicalBasis255.source_models
+#print axioms Yulang.GeneralNominalCanonicalBasis255.separated
+#print axioms Yulang.GeneralNominalCanonicalBasis255.normalized_atoms_unique
+#print axioms Yulang.GeneralNominalCanonicalBasis255.source_fields_unique
+#print axioms Yulang.GeneralNominalNormalizedDepth255.atomDepth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.leafBound
+#print axioms Yulang.GeneralNominalNormalizedDepth255.atom_bounded
+#print axioms Yulang.GeneralNominalNormalizedDepth255.union_fold_depth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.inter_fold_depth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.normalized_depth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.rewritten_depth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.source_rewrite_depth

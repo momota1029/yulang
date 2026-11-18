@@ -4661,3 +4661,9 @@ import Yulang.GeneralNominalSourceBasis255
 import Yulang.GeneralNominalViewTypeImage255
 import Yulang.GeneralNominalViewFixed255
 import Yulang.GeneralNominalTemplateChoices255
+import Yulang.GeneralNominalTemplateCongruence255
+import Yulang.GeneralNominalTemplateNormal255
+import Yulang.GeneralNominalSourceTemplateMenu255
+import Yulang.GeneralNominalTemplateSupport255
+import Yulang.GeneralNominalCanonicalBasis255
+import Yulang.GeneralNominalNormalizedDepth255
