@@ -27,3 +27,45 @@
 'Yulang.GeneralNominalFrameAggregate256.identity_fits' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralNominalInitialAggregate256.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralNominalInitialAggregate256.fits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.old_atoms' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.lower_equations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.lower_value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.current_atoms' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.source_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.representative' does not depend on any axioms
+'Yulang.GeneralDictionaryReachableAggregate256.pairs_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.fits_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryReachableAggregate256.reachable_all' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPresenceOrderedAppend256.row_comp' depends on axioms: [propext]
+'Yulang.GeneralPresenceOrderedAppend256.type_comp' depends on axioms: [propext]
+'Yulang.GeneralPresenceOrderedAppend256.row_identity' depends on axioms: [propext]
+'Yulang.GeneralPresenceOrderedAppend256.type_identity' depends on axioms: [propext]
+'Yulang.GeneralPresenceOrderedAppend256.mapping_row' does not depend on any axioms
+'Yulang.GeneralPresenceOrderedAppend256.mapping_append' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPresenceOrderedAppend256.mapping_snoc' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAggregateHistory256.tree' does not depend on any axioms
+'Yulang.GeneralDictionaryAggregateHistory256.entry' does not depend on any axioms
+'Yulang.GeneralDictionaryAggregateHistory256.history' does not depend on any axioms
+'Yulang.GeneralDictionaryAggregateHistory256.block_in_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAggregateHistory256.current_expansion' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAggregateHistory256.targets_above' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAggregateHistory256.upper_fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAggregateHistory256.tree_atoms' depends on axioms: [propext]
+'Yulang.GeneralDictionaryAggregateHistory256.pool' does not depend on any axioms
+'Yulang.GeneralDictionaryAggregateHistory256.tree_normal' depends on axioms: [propext]
+'Yulang.GeneralDictionaryAggregateHistory256.endpoint_supported' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryAggregateHistory256.rewritten' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAggregateHistory256.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAggregateBasis256.initial_basis' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAggregateBasis256.pool_unique' does not depend on any axioms
+'Yulang.GeneralDictionaryAggregateBasis256.pool_private_free' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAggregateBasis256.prepared_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAggregateBasis256.source_history' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAggregateBasis256.prepared_source_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

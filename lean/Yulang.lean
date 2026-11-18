@@ -4675,3 +4675,7 @@ import Yulang.GeneralNominalSourceAggregate256
 import Yulang.GeneralNominalHistoricalAggregate256
 import Yulang.GeneralNominalFrameAggregate256
 import Yulang.GeneralNominalInitialAggregate256
+import Yulang.GeneralDictionaryReachableAggregate256
+import Yulang.GeneralPresenceOrderedAppend256
+import Yulang.GeneralDictionaryAggregateHistory256
+import Yulang.GeneralDictionaryAggregateBasis256
