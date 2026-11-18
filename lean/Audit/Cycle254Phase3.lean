@@ -1,0 +1,92 @@
+import Yulang.GeneralNominalQueryReadback254
+import Yulang.GeneralNominalInputReadback254
+import Yulang.GeneralNominalOutputReadback254
+import Yulang.GeneralNominalBinderProducer254
+import Yulang.GeneralNominalDefaultReadback254
+import Yulang.GeneralNominalCapturedOutput254
+import Yulang.GeneralNominalEvidenceOutput254
+import Yulang.GeneralNominalSourceReadback254
+import Yulang.GeneralNominalProducerOrder254
+import Yulang.GeneralNominalOutputMenu254
+import Yulang.GeneralNominalProducerRank254
+import Yulang.GeneralNominalSourceOutputDepth254
+import Yulang.GeneralDictionaryOutputReadback254
+
+#print axioms Yulang.GeneralNominalQueryReadback254.Shaped
+#print axioms Yulang.GeneralNominalQueryReadback254.member_sum
+#print axioms Yulang.GeneralNominalQueryReadback254.projection
+#print axioms Yulang.GeneralNominalQueryReadback254.many_names
+#print axioms Yulang.GeneralNominalQueryReadback254.query_part
+#print axioms Yulang.GeneralNominalQueryReadback254.translated_arity
+#print axioms Yulang.GeneralNominalQueryReadback254.shaped_of_source
+#print axioms Yulang.GeneralNominalQueryReadback254.translated_shaped
+#print axioms Yulang.GeneralNominalInputReadback254.variable_member
+#print axioms Yulang.GeneralNominalInputReadback254.input_part
+#print axioms Yulang.GeneralNominalInputReadback254.readback
+#print axioms Yulang.GeneralNominalOutputReadback254.emitted_meaning
+#print axioms Yulang.GeneralNominalOutputReadback254.emitted_readback
+#print axioms Yulang.GeneralNominalOutputReadback254.leaf_no_output_names
+#print axioms Yulang.GeneralNominalOutputReadback254.leaf_associated_scope
+#print axioms Yulang.GeneralNominalOutputReadback254.leaf_root_readback
+#print axioms Yulang.GeneralNominalBinderProducer254.binder_child
+#print axioms Yulang.GeneralNominalBinderProducer254.binder_readback
+#print axioms Yulang.GeneralNominalDefaultReadback254.pattern
+#print axioms Yulang.GeneralNominalDefaultReadback254.patterns
+#print axioms Yulang.GeneralNominalDefaultReadback254.compiled
+#print axioms Yulang.GeneralNominalDefaultReadback254.compiled_many
+#print axioms Yulang.GeneralNominalDefaultReadback254.variable_bound
+#print axioms Yulang.GeneralNominalDefaultReadback254.variables_bound
+#print axioms Yulang.GeneralNominalDefaultReadback254.default_readback
+#print axioms Yulang.GeneralNominalCapturedOutput254.BinderBound
+#print axioms Yulang.GeneralNominalCapturedOutput254.combined
+#print axioms Yulang.GeneralNominalCapturedOutput254.bodyDepth
+#print axioms Yulang.GeneralNominalCapturedOutput254.explicit_readback
+#print axioms Yulang.GeneralNominalCapturedOutput254.witness_readback
+#print axioms Yulang.GeneralNominalEvidenceOutput254.FiniteValue
+#print axioms Yulang.GeneralNominalEvidenceOutput254.FiniteOutputs
+#print axioms Yulang.GeneralNominalEvidenceOutput254.clause_mem
+#print axioms Yulang.GeneralNominalEvidenceOutput254.binder_bound
+#print axioms Yulang.GeneralNominalEvidenceOutput254.local_outputs
+#print axioms Yulang.GeneralNominalEvidenceOutput254.evidence_outputs
+#print axioms Yulang.GeneralNominalEvidenceOutput254.payload_outputs
+#print axioms Yulang.GeneralNominalSourceReadback254.input_bound
+#print axioms Yulang.GeneralNominalSourceReadback254.evidence_outputs
+#print axioms Yulang.GeneralNominalSourceReadback254.mixed_source_outputs
+#print axioms Yulang.GeneralNominalSourceReadback254.point_source_outputs
+#print axioms Yulang.GeneralNominalProducerOrder254.Edge
+#print axioms Yulang.GeneralNominalProducerOrder254.child_successor
+#print axioms Yulang.GeneralNominalProducerOrder254.successor_above
+#print axioms Yulang.GeneralNominalProducerOrder254.edge_above
+#print axioms Yulang.GeneralNominalProducerOrder254.no_self_edge
+#print axioms Yulang.GeneralNominalProducerOrder254.ceiling
+#print axioms Yulang.GeneralNominalProducerOrder254.below_ceiling
+#print axioms Yulang.GeneralNominalProducerOrder254.source_edge_bounded
+#print axioms Yulang.GeneralNominalProducerOrder254.bounded_accessible
+#print axioms Yulang.GeneralNominalProducerOrder254.source_wellFounded
+#print axioms Yulang.GeneralNominalOutputMenu254.names
+#print axioms Yulang.GeneralNominalOutputMenu254.clause_name
+#print axioms Yulang.GeneralNominalOutputMenu254.child_name
+#print axioms Yulang.GeneralNominalOutputMenu254.source_names
+#print axioms Yulang.GeneralNominalOutputMenu254.bodies
+#print axioms Yulang.GeneralNominalOutputMenu254.supplied_mem
+#print axioms Yulang.GeneralNominalOutputMenu254.budget
+#print axioms Yulang.GeneralNominalOutputMenu254.body_bound
+#print axioms Yulang.GeneralNominalProducerRank254.rank
+#print axioms Yulang.GeneralNominalProducerRank254.monotone
+#print axioms Yulang.GeneralNominalProducerRank254.strict
+#print axioms Yulang.GeneralNominalProducerRank254.length_bound
+#print axioms Yulang.GeneralNominalProducerRank254.positive
+#print axioms Yulang.GeneralNominalProducerRank254.pool
+#print axioms Yulang.GeneralNominalProducerRank254.frame_member
+#print axioms Yulang.GeneralNominalProducerRank254.edge_rank
+#print axioms Yulang.GeneralNominalProducerRank254.pool_length
+#print axioms Yulang.GeneralNominalSourceOutputDepth254.bound
+#print axioms Yulang.GeneralNominalSourceOutputDepth254.evidence_depth
+#print axioms Yulang.GeneralNominalSourceOutputDepth254.payload_depth
+#print axioms Yulang.GeneralNominalSourceOutputDepth254.mixed_uniform
+#print axioms Yulang.GeneralNominalSourceOutputDepth254.point_uniform
+#print axioms Yulang.GeneralDictionaryOutputReadback254.evidence
+#print axioms Yulang.GeneralDictionaryOutputReadback254.computed_bound
+#print axioms Yulang.GeneralDictionaryOutputReadback254.all_later_readbacks
+#print axioms Yulang.GeneralDictionaryOutputReadback254.initial_readback
+#print axioms Yulang.GeneralDictionaryOutputReadback254.root_input_bounded

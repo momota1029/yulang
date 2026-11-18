@@ -39,3 +39,13 @@ source由来の有限frontierに含まれるため整礎。alias/equation graph�
 これが実traceで保たれれば、explicit/defaultのbodyの深さも固定有限menuから取れる。
 そのbudgetとproducer graphの有限rankを組み合わせ、Evidenceから構成する代表の
 上界をsource量で抑える。これは未解決・未証明状態全体のsnapshot閉包ではない。
+
+## Phase 3: source-uniform additive budget
+
+The source mass bridge is now proved in `GeneralNominalSourceReadback254.input_bound`. The local input-label bound reviewed independently in phase1 is therefore connected to the original source root mass by a new theorem (not independently reviewed).
+
+`GeneralNominalOutputMenu254` derives a finite menu of possible requested names from the initial root and registry where-clauses. Defaults are looked up only at these names, so no finiteness assumption on the defaults map is made. Explicit and default body depths have one budget T. `GeneralNominalProducerRank254` counts remaining source-frontier identities, retaining duplicates. An actual child-call edge strictly decreases this rank. The frontier contains N=(1+branching)^R entries, where R is initial normalized input mass. This is not a bound on scheduler refreshes.
+
+`GeneralNominalSourceOutputDepth254.mixed_uniform` and `point_uniform` establish one D=R+T*N before quantifying over future states and models. Every requested output WITH a current finite Evidence tree has a closed semantic representative of raw depth at most D. Representatives themselves may depend on the model. The proof does not generate Evidence, bound unevidenced intermediate equations, show second-normalization depth preservation, prove full state support closure, or prove operational Step Acc.
+
+A real nonvacuous cycle252 initial Evidence tree is constructed; all later models with Evidence for that root satisfy depth4, rather than the falsified maximum2. This is a real existing source regression, not an arbitrary favorable evidence assumption at the initial state.
