@@ -1,4 +1,4 @@
-import Yulang.GeneralDictionaryPrivateBoundary258
+import Yulang.GeneralDictionaryFastFill258
 namespace Yulang
 open GeneralNominalCommonBridge (Assignment)
 open GeneralDictionaryUniformFill258 (fill)
@@ -37,4 +37,15 @@ example : GeneralDictionaryInitialFill258.complete GeneralDictionaryBinderGap257
  GeneralDictionaryPrivateBoundary258.changes_seed
 example (n : Nat) : (GeneralDictionaryDirectView258.view n).ordinary.length = 4+16*n :=
  GeneralDictionaryDirectView258.ordinary_length n
+example (name : Nat) : GeneralDictionaryFastFill258.lower name = GeneralDictionaryFamilyRecognition258.isLower name :=
+ GeneralDictionaryFastFill258.lower_exact name
+example (a : Assignment) : GeneralDictionaryFastFill258.complete a = GeneralDictionaryInitialFill258.complete a :=
+ GeneralDictionaryFastFill258.complete_exact a
+example (a : Assignment) :
+ (∀ n, GeneralNominalVersionedJournal232.Models (GeneralDictionaryLooseIterationIteration240.state n)
+   (GeneralDictionaryFastFill258.complete a)) ↔
+ GeneralNominalState.Models GeneralDictionaryLooseLoopSource240.snapshot a := GeneralDictionaryFastFill258.all_stages a
+example (index : Nat) : GeneralDictionarySearchCost258.probes
+ (fun i => GeneralDictionaryLooseFamilyNames240.lower (i+1)) (GeneralDictionaryLooseFamilyNames240.lower (index+1))
+ 0 (GeneralDictionaryLooseFamilyNames240.lower (index+1)+1) ≤ index+1 := GeneralDictionarySearchCost258.lower_match index
 end Yulang

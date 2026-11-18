@@ -4719,3 +4719,6 @@ import Yulang.GeneralDictionaryDirectView258
 import Yulang.GeneralDictionaryInitialFill258
 import Yulang.GeneralDictionarySourceExtension258
 import Yulang.GeneralDictionaryPrivateBoundary258
+import Yulang.GeneralDictionaryEarlySearch258
+import Yulang.GeneralDictionarySearchCost258
+import Yulang.GeneralDictionaryFastFill258

@@ -73,3 +73,30 @@
 'Yulang.GeneralDictionaryPrivateBoundary258.retained_binder_impossible' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
+'Yulang.GeneralDictionaryEarlySearch258.search' does not depend on any axioms
+'Yulang.GeneralDictionaryEarlySearch258.lower_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryEarlySearch258.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryEarlySearch258.fastLower' does not depend on any axioms
+'Yulang.GeneralDictionaryEarlySearch258.fastUpper' does not depend on any axioms
+'Yulang.GeneralDictionaryEarlySearch258.lower_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryEarlySearch258.upper_envelope' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryEarlySearch258.upper_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryEarlySearch258.lower_refines' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryEarlySearch258.upper_refines' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySearchCost258.probes' does not depend on any axioms
+'Yulang.GeneralDictionarySearchCost258.fuel_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySearchCost258.envelope_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySearchCost258.match_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySearchCost258.lower_match' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySearchCost258.upper_match' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.lower' does not depend on any axioms
+'Yulang.GeneralDictionaryFastFill258.upper' does not depend on any axioms
+'Yulang.GeneralDictionaryFastFill258.lower_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.upper_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.fill' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.fill_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.complete_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.all_stages' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.public_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFastFill258.idempotent' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -85,3 +85,28 @@ the internal binder. PrivateBoundary258 proves on the earlier seed that keeping
 that binder makes positive extension impossible; repairing it changes the
 assignment while preserving the source boundary. These two boundaries are not
 interchangeable, and no original assignment is claimed to model all stages.
+
+## Bounded-search refinement plan
+
+The initial recognizer builds range(name+1); this is a poor executable design
+for rapidly growing numeric names. Refine it with a fuel-recursive search that
+stops when lower(index)>name. Both endpoint families are above lower(index),
+which is strictly increasing. Prove that this early stop removes no matching
+index and that the result equals the already-audited recognizers. Count tested
+indices, not bit arithmetic or time; do not claim constant-cost recognition.
+A refined fill must be extensionally equal to the existing fill, so none of
+its model conclusions rely on a new hypothesis or changed private boundary.
+
+## Third verified slice: executable search refinement
+
+EarlySearch258 proves the common-envelope early stop is equivalent to the
+range recognizers for every Nat name. SearchCost258 bounds loop visits by fuel,
+by a known envelope crossing distance+1, and for a matching generated index by
+index+1. These count visits, not big-integer arithmetic or wall time.
+FastFill258 preserves all earlier functions and theorems by extensional equality.
+Its small-name guard avoids computing any aggregate generator for public0..4.
+
+A20second-capped Lean runtime probe completed14:43:07–14:43:09, exit0:
+public0/4 negative; first lower/upper names positive with one visit each;
+actual binder negative for both families with two visits each. This is a small
+operational sanity check, not a uniform performance guarantee or Yulang2 test.

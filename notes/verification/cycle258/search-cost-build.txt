@@ -1,0 +1,16 @@
+lean/Yulang/GeneralDictionarySearchCost258.lean:30:18: error: Type mismatch: After simplification, term
+  Nat.le_refl 1
+ has type
+  1 ≤ 1
+but is expected to have type
+  (if name < lower start then 1 else if family start = name then 1 else 1 + probes family name (start + 1) fuel) ≤ 0 + 1
+lean/Yulang/GeneralDictionarySearchCost258.lean:67:0: error: (deterministic) timeout at `whnf`, maximum number of heartbeats (200000) has been reached
+
+Note: Use `set_option maxHeartbeats <num>` to set the limit.
+
+Hint: Additional diagnostic information may be available using the `set_option diagnostics true` command.
+lean/Yulang/GeneralDictionarySearchCost258.lean:71:0: error: (deterministic) timeout at `whnf`, maximum number of heartbeats (200000) has been reached
+
+Note: Use `set_option maxHeartbeats <num>` to set the limit.
+
+Hint: Additional diagnostic information may be available using the `set_option diagnostics true` command.

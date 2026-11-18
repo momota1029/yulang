@@ -8,6 +8,9 @@ import Yulang.GeneralDictionaryDirectView258
 import Yulang.GeneralDictionaryInitialFill258
 import Yulang.GeneralDictionarySourceExtension258
 import Yulang.GeneralDictionaryPrivateBoundary258
+import Yulang.GeneralDictionaryEarlySearch258
+import Yulang.GeneralDictionarySearchCost258
+import Yulang.GeneralDictionaryFastFill258
 
 #print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_lower
 #print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_upper
@@ -78,3 +81,30 @@ import Yulang.GeneralDictionaryPrivateBoundary258
 #print axioms Yulang.GeneralDictionaryPrivateBoundary258.changes_seed
 #print axioms Yulang.GeneralDictionaryPrivateBoundary258.seed_extended
 #print axioms Yulang.GeneralDictionaryPrivateBoundary258.retained_binder_impossible
+#print axioms Yulang.GeneralDictionaryEarlySearch258.search
+#print axioms Yulang.GeneralDictionaryEarlySearch258.lower_mono
+#print axioms Yulang.GeneralDictionaryEarlySearch258.exact
+#print axioms Yulang.GeneralDictionaryEarlySearch258.fastLower
+#print axioms Yulang.GeneralDictionaryEarlySearch258.fastUpper
+#print axioms Yulang.GeneralDictionaryEarlySearch258.lower_exact
+#print axioms Yulang.GeneralDictionaryEarlySearch258.upper_envelope
+#print axioms Yulang.GeneralDictionaryEarlySearch258.upper_exact
+#print axioms Yulang.GeneralDictionaryEarlySearch258.lower_refines
+#print axioms Yulang.GeneralDictionaryEarlySearch258.upper_refines
+#print axioms Yulang.GeneralDictionarySearchCost258.probes
+#print axioms Yulang.GeneralDictionarySearchCost258.fuel_bound
+#print axioms Yulang.GeneralDictionarySearchCost258.envelope_bound
+#print axioms Yulang.GeneralDictionarySearchCost258.match_bound
+#print axioms Yulang.GeneralDictionarySearchCost258.lower_match
+#print axioms Yulang.GeneralDictionarySearchCost258.upper_match
+#print axioms Yulang.GeneralDictionaryFastFill258.lower
+#print axioms Yulang.GeneralDictionaryFastFill258.upper
+#print axioms Yulang.GeneralDictionaryFastFill258.lower_exact
+#print axioms Yulang.GeneralDictionaryFastFill258.upper_exact
+#print axioms Yulang.GeneralDictionaryFastFill258.fill
+#print axioms Yulang.GeneralDictionaryFastFill258.fill_exact
+#print axioms Yulang.GeneralDictionaryFastFill258.complete
+#print axioms Yulang.GeneralDictionaryFastFill258.complete_exact
+#print axioms Yulang.GeneralDictionaryFastFill258.all_stages
+#print axioms Yulang.GeneralDictionaryFastFill258.public_agrees
+#print axioms Yulang.GeneralDictionaryFastFill258.idempotent

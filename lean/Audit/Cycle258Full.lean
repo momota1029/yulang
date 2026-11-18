@@ -8,12 +8,15 @@ import Yulang.GeneralDictionaryDirectView258
 import Yulang.GeneralDictionaryInitialFill258
 import Yulang.GeneralDictionarySourceExtension258
 import Yulang.GeneralDictionaryPrivateBoundary258
+import Yulang.GeneralDictionaryEarlySearch258
+import Yulang.GeneralDictionarySearchCost258
+import Yulang.GeneralDictionaryFastFill258
 import Lean
 open Lean Elab Command in
 run_cmd do
  let environment ← getEnv
  let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
- let prefixes := #["Yulang.GeneralDictionaryFamilyRecognition258.", "Yulang.GeneralDictionaryUniformFill258.", "Yulang.GeneralDictionaryUniformBlock258.", "Yulang.GeneralDictionaryUniformView258.", "Yulang.GeneralDictionaryUniformJournal258.", "Yulang.GeneralDictionaryUniformAlias258.", "Yulang.GeneralDictionaryDirectView258.", "Yulang.GeneralDictionaryInitialFill258.", "Yulang.GeneralDictionarySourceExtension258.", "Yulang.GeneralDictionaryPrivateBoundary258."]
+ let prefixes := #["Yulang.GeneralDictionaryFamilyRecognition258.", "Yulang.GeneralDictionaryUniformFill258.", "Yulang.GeneralDictionaryUniformBlock258.", "Yulang.GeneralDictionaryUniformView258.", "Yulang.GeneralDictionaryUniformJournal258.", "Yulang.GeneralDictionaryUniformAlias258.", "Yulang.GeneralDictionaryDirectView258.", "Yulang.GeneralDictionaryInitialFill258.", "Yulang.GeneralDictionarySourceExtension258.", "Yulang.GeneralDictionaryPrivateBoundary258.", "Yulang.GeneralDictionaryEarlySearch258.", "Yulang.GeneralDictionarySearchCost258.", "Yulang.GeneralDictionaryFastFill258."]
  let mut count : Nat := 0
  for (name, _) in environment.constants.toList do
   if prefixes.any (fun pfx => name.toString.startsWith pfx || name.toString.startsWith ("_private." ++ pfx)) then
