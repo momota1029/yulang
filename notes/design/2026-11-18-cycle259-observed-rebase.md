@@ -78,3 +78,10 @@ I45/239の実decoder proposalは既にfactsとの等号があるので検査を�
 走査がsome stateを返せば元のStepの一歩でremaining長が減ることを証明し、
 この減少でwell-foundedな反復関数を定義する。これも有限basis/observerを受け取る
 実行器であり、一般sourceから正しいobserverを作る仕事を済ませたとは呼ばない。
+
+## 固定proposal集合の順序について
+任意state、proposal p/qのwriteはfilterなので可換・冪等である。ただしobserverが
+stateによって別proposalを出す場合の合流性はこれだけでは言えない。
+固定した有限proposal列に限り、全writeの結果とchecked schedulerの終端を対応
+させる。noopを先頭に入れても次の新factを見落とさない。observer一般の順序独立、
+全言語主型性へ拡大しない。

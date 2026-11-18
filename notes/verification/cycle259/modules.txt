@@ -23,3 +23,6 @@ GeneralRebaseScheduler259
 GeneralRebaseSettle259
 GeneralRebaseClosedObserver259
 GeneralRebaseDriverFixtures259
+GeneralRebaseWriteAlgebra259
+GeneralRebaseBatchTerminal259
+GeneralRebaseBatchOrder259

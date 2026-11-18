@@ -1,1 +1,1 @@
-CYCLE259-FULL-AUDIT-PASS: 264 declarations including generated and private declarations
+CYCLE259-FULL-AUDIT-PASS: 291 declarations including generated and private declarations

@@ -23,6 +23,9 @@ import Yulang.GeneralRebaseScheduler259
 import Yulang.GeneralRebaseSettle259
 import Yulang.GeneralRebaseClosedObserver259
 import Yulang.GeneralRebaseDriverFixtures259
+import Yulang.GeneralRebaseWriteAlgebra259
+import Yulang.GeneralRebaseBatchTerminal259
+import Yulang.GeneralRebaseBatchOrder259
 
 #print axioms Yulang.GeneralRebaseReportDecoder259.atom
 #print axioms Yulang.GeneralRebaseReportDecoder259.capture
@@ -191,3 +194,21 @@ import Yulang.GeneralRebaseDriverFixtures259
 #print axioms Yulang.GeneralRebaseDriverFixtures259.version_final
 #print axioms Yulang.GeneralRebaseDriverFixtures259.version_initial
 #print axioms Yulang.GeneralRebaseDriverFixtures259.skip_noop
+#print axioms Yulang.GeneralRebaseWriteAlgebra259.commute
+#print axioms Yulang.GeneralRebaseWriteAlgebra259.append
+#print axioms Yulang.GeneralRebaseWriteAlgebra259.empty
+#print axioms Yulang.GeneralRebaseWriteAlgebra259.fixed_iff
+#print axioms Yulang.GeneralRebaseWriteAlgebra259.batch
+#print axioms Yulang.GeneralRebaseWriteAlgebra259.batch_exact
+#print axioms Yulang.GeneralRebaseBatchTerminal259.absorb
+#print axioms Yulang.GeneralRebaseBatchTerminal259.batch_absorb
+#print axioms Yulang.GeneralRebaseBatchTerminal259.no_write_iff
+#print axioms Yulang.GeneralRebaseBatchTerminal259.batch_fixed
+#print axioms Yulang.GeneralRebaseBatchTerminal259.terminal_batch
+#print axioms Yulang.GeneralRebaseBatchTerminal259.path_absorb
+#print axioms Yulang.GeneralRebaseBatchTerminal259.settle_batch
+#print axioms Yulang.GeneralRebaseBatchOrder259.write_membership
+#print axioms Yulang.GeneralRebaseBatchOrder259.batch_membership
+#print axioms Yulang.GeneralRebaseBatchOrder259.settle_membership
+#print axioms Yulang.GeneralRebaseBatchOrder259.swap
+#print axioms Yulang.GeneralRebaseBatchOrder259.duplicate

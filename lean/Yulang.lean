@@ -4760,3 +4760,6 @@ import Yulang.GeneralRebaseScheduler259
 import Yulang.GeneralRebaseSettle259
 import Yulang.GeneralRebaseClosedObserver259
 import Yulang.GeneralRebaseDriverFixtures259
+import Yulang.GeneralRebaseWriteAlgebra259
+import Yulang.GeneralRebaseBatchTerminal259
+import Yulang.GeneralRebaseBatchOrder259

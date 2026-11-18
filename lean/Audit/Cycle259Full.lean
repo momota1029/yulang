@@ -23,11 +23,14 @@ import Yulang.GeneralRebaseScheduler259
 import Yulang.GeneralRebaseSettle259
 import Yulang.GeneralRebaseClosedObserver259
 import Yulang.GeneralRebaseDriverFixtures259
+import Yulang.GeneralRebaseWriteAlgebra259
+import Yulang.GeneralRebaseBatchTerminal259
+import Yulang.GeneralRebaseBatchOrder259
 open Lean Elab Command in
 run_cmd do
  let environment ← getEnv
  let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
- let prefixes := #["Yulang.GeneralRebaseReportDecoder259.", "Yulang.GeneralDictionaryObservedRebase259.", "Yulang.GeneralDictionaryRebaseCertificate259.", "Yulang.GeneralDictionaryRebaseRun259.", "Yulang.GeneralNominalTypeObservation259.", "Yulang.GeneralDictionaryRebaseCurrent259.", "Yulang.GeneralVersionRowsRaw259.", "Yulang.GeneralVersionRowsHead259.", "Yulang.GeneralVersionRowsPacket259.", "Yulang.GeneralVersionRowsStages259.", "Yulang.GeneralVersionBoundaryCompletion259.", "Yulang.GeneralVersionPublicProjection259.", "Yulang.GeneralRebaseFiniteReport259.", "Yulang.GeneralVersionReportProjection259.", "Yulang.GeneralVersionRebaseStep259.", "Yulang.GeneralVersionRebaseModels259.", "Yulang.GeneralVersionRebaseCertificate259.", "Yulang.GeneralRebaseFactSemantics259.", "Yulang.GeneralDictionaryRebaseFacts259.", "Yulang.GeneralRebaseCheckedWrite259.", "Yulang.GeneralRebaseCheckedFixtures259.", "Yulang.GeneralRebaseScheduler259.", "Yulang.GeneralRebaseSettle259.", "Yulang.GeneralRebaseClosedObserver259.", "Yulang.GeneralRebaseDriverFixtures259."]
+ let prefixes := #["Yulang.GeneralRebaseReportDecoder259.", "Yulang.GeneralDictionaryObservedRebase259.", "Yulang.GeneralDictionaryRebaseCertificate259.", "Yulang.GeneralDictionaryRebaseRun259.", "Yulang.GeneralNominalTypeObservation259.", "Yulang.GeneralDictionaryRebaseCurrent259.", "Yulang.GeneralVersionRowsRaw259.", "Yulang.GeneralVersionRowsHead259.", "Yulang.GeneralVersionRowsPacket259.", "Yulang.GeneralVersionRowsStages259.", "Yulang.GeneralVersionBoundaryCompletion259.", "Yulang.GeneralVersionPublicProjection259.", "Yulang.GeneralRebaseFiniteReport259.", "Yulang.GeneralVersionReportProjection259.", "Yulang.GeneralVersionRebaseStep259.", "Yulang.GeneralVersionRebaseModels259.", "Yulang.GeneralVersionRebaseCertificate259.", "Yulang.GeneralRebaseFactSemantics259.", "Yulang.GeneralDictionaryRebaseFacts259.", "Yulang.GeneralRebaseCheckedWrite259.", "Yulang.GeneralRebaseCheckedFixtures259.", "Yulang.GeneralRebaseScheduler259.", "Yulang.GeneralRebaseSettle259.", "Yulang.GeneralRebaseClosedObserver259.", "Yulang.GeneralRebaseDriverFixtures259.", "Yulang.GeneralRebaseWriteAlgebra259.", "Yulang.GeneralRebaseBatchTerminal259.", "Yulang.GeneralRebaseBatchOrder259."]
  let mut count : Nat := 0
  for (name, _) in environment.constants.toList do
   if prefixes.any (fun pfx => name.toString.startsWith pfx || name.toString.startsWith ("_private." ++ pfx)) then

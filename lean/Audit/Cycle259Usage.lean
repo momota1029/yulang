@@ -1,3 +1,4 @@
+import Yulang.GeneralRebaseBatchOrder259
 import Yulang.GeneralRebaseDriverFixtures259
 import Yulang.GeneralRebaseCheckedFixtures259
 import Yulang.GeneralVersionRebaseCertificate259
@@ -45,3 +46,12 @@ example (state : GeneralRebaseStep258.State GeneralDictionaryRebaseStep258.facts
 example (n : Nat) : GeneralRebaseSettle259.settle (GeneralDictionaryObservedRebase259.observeAt n) GeneralDictionaryRebaseStep258.initialState = .ok GeneralDictionaryRebaseStep258.finalState := GeneralRebaseDriverFixtures259.loose_initial n
 example (n : Nat) : GeneralRebaseSettle259.settle (GeneralVersionRebaseStep259.observeAt n) GeneralVersionRebaseStep259.initialState = .ok GeneralVersionRebaseStep259.finalState := GeneralRebaseDriverFixtures259.version_initial n
 example : GeneralRebaseScheduler259.scan GeneralVersionRebaseStep259.initialState [[],GeneralVersionRebaseStep259.facts] = .ok (some GeneralVersionRebaseStep259.finalState) := GeneralRebaseDriverFixtures259.skip_noop
+
+example (state : GeneralRebaseStep258.State GeneralVersionRebaseStep259.facts) :
+ GeneralRebaseSettle259.settle (fun _ => [[],GeneralVersionRebaseStep259.facts]) state =
+ GeneralRebaseSettle259.settle (fun _ => [GeneralVersionRebaseStep259.facts,[]]) state :=
+ GeneralRebaseBatchOrder259.swap state _ _ (by simp) (fun _ member => member)
+example (state : GeneralRebaseStep258.State GeneralVersionRebaseStep259.facts) :
+ GeneralRebaseSettle259.settle (fun _ => [GeneralVersionRebaseStep259.facts,GeneralVersionRebaseStep259.facts]) state =
+ GeneralRebaseSettle259.settle (fun _ => [GeneralVersionRebaseStep259.facts]) state :=
+ GeneralRebaseBatchOrder259.duplicate state _ (fun _ member => member)
