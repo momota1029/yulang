@@ -1,0 +1,188 @@
+import Yulang.GeneralDictionarySourceAtom255
+import Yulang.GeneralNominalViewTypeTerms255
+import Yulang.GeneralNominalViewTypeMap255
+import Yulang.GeneralNominalViewNormal255
+import Yulang.GeneralDictionaryViewNormal255
+import Yulang.GeneralPresenceSourceSupport255
+import Yulang.GeneralNominalSourceViewSupport255
+import Yulang.GeneralNominalSourceBasis255
+import Yulang.GeneralNominalViewTypeImage255
+import Yulang.GeneralNominalViewFixed255
+import Yulang.GeneralNominalTemplateChoices255
+import Yulang.GeneralNominalTemplateCongruence255
+import Yulang.GeneralNominalTemplateNormal255
+import Yulang.GeneralNominalSourceTemplateMenu255
+import Yulang.GeneralNominalTemplateSupport255
+import Yulang.GeneralNominalCanonicalBasis255
+import Yulang.GeneralNominalNormalizedDepth255
+import Yulang.GeneralDictionaryTemplateMenu255
+import Yulang.GeneralNominalSourcePublicBasis255
+
+#print axioms Yulang.GeneralDictionarySourceAtom255.constant_not_basis
+#print axioms Yulang.GeneralDictionarySourceAtom255.prepare_constant_none
+#print axioms Yulang.GeneralDictionarySourceAtom255.ordinary_member
+#print axioms Yulang.GeneralDictionarySourceAtom255.actual_source_failure
+#print axioms Yulang.GeneralNominalViewTypeTerms255.parameter
+#print axioms Yulang.GeneralNominalViewTypeTerms255.descriptor
+#print axioms Yulang.GeneralNominalViewTypeTerms255.ordinary
+#print axioms Yulang.GeneralNominalViewTypeTerms255.slot
+#print axioms Yulang.GeneralNominalViewTypeTerms255.terms
+#print axioms Yulang.GeneralNominalViewTypeTerms255.pool
+#print axioms Yulang.GeneralNominalViewTypeTerms255.slot_mem
+#print axioms Yulang.GeneralNominalViewTypeTerms255.ordinary_mem
+#print axioms Yulang.GeneralNominalViewTypeTerms255.supported
+#print axioms Yulang.GeneralNominalViewTypeTerms255.prepare_success
+#print axioms Yulang.GeneralNominalViewTypeTerms255.normalize_equivalent
+#print axioms Yulang.GeneralNominalViewTypeMap255.parameter
+#print axioms Yulang.GeneralNominalViewTypeMap255.descriptor
+#print axioms Yulang.GeneralNominalViewTypeMap255.ordinary
+#print axioms Yulang.GeneralNominalViewTypeMap255.map
+#print axioms Yulang.GeneralNominalViewTypeMap255.ExactOn
+#print axioms Yulang.GeneralNominalViewTypeMap255.equivalent_iff
+#print axioms Yulang.GeneralNominalViewTypeMap255.parameter_exact
+#print axioms Yulang.GeneralNominalViewTypeMap255.fitsAll_exact
+#print axioms Yulang.GeneralNominalViewTypeMap255.descriptor_exact
+#print axioms Yulang.GeneralNominalViewTypeMap255.ordinary_exact
+#print axioms Yulang.GeneralNominalViewTypeMap255.models_exact
+#print axioms Yulang.GeneralNominalViewNormal255.Supported
+#print axioms Yulang.GeneralNominalViewNormal255.check
+#print axioms Yulang.GeneralNominalViewNormal255.rewrite
+#print axioms Yulang.GeneralNominalViewNormal255.prepare
+#print axioms Yulang.GeneralNominalViewNormal255.check_exact
+#print axioms Yulang.GeneralNominalViewNormal255.prepare_exact
+#print axioms Yulang.GeneralNominalViewNormal255.rewrite_models
+#print axioms Yulang.GeneralNominalViewNormal255.prepare_models
+#print axioms Yulang.GeneralNominalViewNormal255.source_pool_success
+#print axioms Yulang.GeneralNominalViewNormal255.source_pool_models
+#print axioms Yulang.GeneralNominalViewNormal255.compiled_source_models
+#print axioms Yulang.GeneralNominalViewNormal255.rows_unchanged
+#print axioms Yulang.GeneralNominalViewNormal255.slots_unchanged
+#print axioms Yulang.GeneralNominalViewNormal255.intervals_unchanged
+#print axioms Yulang.GeneralNominalViewNormal255.prepare_none
+#print axioms Yulang.GeneralNominalViewNormal255.supported_mono
+#print axioms Yulang.GeneralNominalViewNormal255.expanded_source_success
+#print axioms Yulang.GeneralDictionaryViewNormal255.constant_consumer
+#print axioms Yulang.GeneralDictionaryViewNormal255.var_basis_fails
+#print axioms Yulang.GeneralDictionaryViewNormal255.source_basis_repairs
+#print axioms Yulang.GeneralDictionaryViewNormal255.inhabited_repair
+#print axioms Yulang.GeneralPresenceSourceSupport255.row_subst
+#print axioms Yulang.GeneralPresenceSourceSupport255.type_subst
+#print axioms Yulang.GeneralPresenceSourceSupport255.row_identity
+#print axioms Yulang.GeneralPresenceSourceSupport255.type_identity
+#print axioms Yulang.GeneralPresenceSourceSupport255.row_collectors
+#print axioms Yulang.GeneralPresenceSourceSupport255.type_collectors
+#print axioms Yulang.GeneralPresenceSourceSupport255.union_atom_sources
+#print axioms Yulang.GeneralPresenceSourceSupport255.inter_atom_sources
+#print axioms Yulang.GeneralNominalSourceViewSupport255.slot_source
+#print axioms Yulang.GeneralNominalSourceViewSupport255.slot_row
+#print axioms Yulang.GeneralNominalSourceViewSupport255.slot_type
+#print axioms Yulang.GeneralNominalSourceViewSupport255.slot_rows
+#print axioms Yulang.GeneralNominalSourceViewSupport255.base_type
+#print axioms Yulang.GeneralNominalSourceViewSupport255.ordinary_type
+#print axioms Yulang.GeneralNominalSourceViewSupport255.parameter_type
+#print axioms Yulang.GeneralNominalSourceViewSupport255.descriptor_type
+#print axioms Yulang.GeneralNominalSourceViewSupport255.compiled_terms
+#print axioms Yulang.GeneralNominalSourceViewSupport255.compiled_pool
+#print axioms Yulang.GeneralNominalSourceBasis255.basis
+#print axioms Yulang.GeneralNominalSourceBasis255.source_separated
+#print axioms Yulang.GeneralNominalSourceBasis255.separated
+#print axioms Yulang.GeneralNominalSourceBasis255.source_supported
+#print axioms Yulang.GeneralNominalSourceBasis255.source_success
+#print axioms Yulang.GeneralNominalSourceBasis255.source_models
+#print axioms Yulang.GeneralNominalSourceBasis255.consumer_safe
+#print axioms Yulang.GeneralNominalViewTypeImage255.parameter_terms
+#print axioms Yulang.GeneralNominalViewTypeImage255.descriptor_terms
+#print axioms Yulang.GeneralNominalViewTypeImage255.ordinary_terms
+#print axioms Yulang.GeneralNominalViewTypeImage255.slot_terms
+#print axioms Yulang.GeneralNominalViewTypeImage255.view_terms
+#print axioms Yulang.GeneralNominalViewTypeImage255.term_origin
+#print axioms Yulang.GeneralNominalViewTypeImage255.parameter_congr
+#print axioms Yulang.GeneralNominalViewTypeImage255.descriptor_congr
+#print axioms Yulang.GeneralNominalViewTypeImage255.ordinary_congr
+#print axioms Yulang.GeneralNominalViewTypeImage255.map_congr
+#print axioms Yulang.GeneralNominalViewTypeImage255.parameter_comp
+#print axioms Yulang.GeneralNominalViewTypeImage255.descriptor_comp
+#print axioms Yulang.GeneralNominalViewTypeImage255.ordinary_comp
+#print axioms Yulang.GeneralNominalViewTypeImage255.map_comp
+#print axioms Yulang.GeneralNominalViewTypeImage255.parameter_id
+#print axioms Yulang.GeneralNominalViewTypeImage255.descriptor_id
+#print axioms Yulang.GeneralNominalViewTypeImage255.ordinary_id
+#print axioms Yulang.GeneralNominalViewTypeImage255.map_id
+#print axioms Yulang.GeneralNominalViewFixed255.candidates
+#print axioms Yulang.GeneralNominalViewFixed255.candidate_count
+#print axioms Yulang.GeneralNominalViewFixed255.normalized_candidate
+#print axioms Yulang.GeneralNominalViewFixed255.field_candidates
+#print axioms Yulang.GeneralNominalViewFixed255.rewritten_supported
+#print axioms Yulang.GeneralNominalViewFixed255.rewrite_idempotent
+#print axioms Yulang.GeneralNominalViewFixed255.prepare_idempotent
+#print axioms Yulang.GeneralNominalViewFixed255.field_private_free
+#print axioms Yulang.GeneralNominalTemplateChoices255.choices
+#print axioms Yulang.GeneralNominalTemplateChoices255.choicesMany
+#print axioms Yulang.GeneralNominalTemplateChoices255.reads
+#print axioms Yulang.GeneralNominalTemplateChoices255.readsMany
+#print axioms Yulang.GeneralNominalTemplateChoices255.compiled_mem
+#print axioms Yulang.GeneralNominalTemplateChoices255.compiledMany_mem
+#print axioms Yulang.GeneralNominalTemplateCongruence255.value_equivalent
+#print axioms Yulang.GeneralNominalTemplateCongruence255.values_equivalent
+#print axioms Yulang.GeneralNominalTemplateCongruence255.compiled_equivalent
+#print axioms Yulang.GeneralNominalTemplateNormal255.leafCandidates
+#print axioms Yulang.GeneralNominalTemplateNormal255.normalized
+#print axioms Yulang.GeneralNominalTemplateNormal255.Supported
+#print axioms Yulang.GeneralNominalTemplateNormal255.check
+#print axioms Yulang.GeneralNominalTemplateNormal255.rewrite
+#print axioms Yulang.GeneralNominalTemplateNormal255.prepare
+#print axioms Yulang.GeneralNominalTemplateNormal255.check_exact
+#print axioms Yulang.GeneralNominalTemplateNormal255.prepare_exact
+#print axioms Yulang.GeneralNominalTemplateNormal255.normalized_candidate
+#print axioms Yulang.GeneralNominalTemplateNormal255.rewrite_finite
+#print axioms Yulang.GeneralNominalTemplateNormal255.rewrite_equivalent
+#print axioms Yulang.GeneralNominalTemplateNormal255.prepare_safe
+#print axioms Yulang.GeneralNominalSourceTemplateMenu255.menu
+#print axioms Yulang.GeneralNominalSourceTemplateMenu255.source_compiled
+#print axioms Yulang.GeneralNominalSourceTemplateMenu255.source_normalized
+#print axioms Yulang.GeneralNominalSourceTemplateMenu255.source_prepared
+#print axioms Yulang.GeneralNominalTemplateSupport255.sourceTerms
+#print axioms Yulang.GeneralNominalTemplateSupport255.sourceTermsMany
+#print axioms Yulang.GeneralNominalTemplateSupport255.choices_sources
+#print axioms Yulang.GeneralNominalTemplateSupport255.choicesMany_sources
+#print axioms Yulang.GeneralNominalTemplateSupport255.reads
+#print axioms Yulang.GeneralNominalTemplateSupport255.choice_private_free
+#print axioms Yulang.GeneralNominalTemplateSupport255.selected_subset
+#print axioms Yulang.GeneralNominalTemplateSupport255.candidate_private_free
+#print axioms Yulang.GeneralNominalTemplateSupport255.rewritten_private_free
+#print axioms Yulang.GeneralNominalCanonicalBasis255.dedup_nodup
+#print axioms Yulang.GeneralNominalCanonicalBasis255.basis
+#print axioms Yulang.GeneralNominalCanonicalBasis255.basis_unique
+#print axioms Yulang.GeneralNominalCanonicalBasis255.basis_mem
+#print axioms Yulang.GeneralNominalCanonicalBasis255.source_supported
+#print axioms Yulang.GeneralNominalCanonicalBasis255.source_success
+#print axioms Yulang.GeneralNominalCanonicalBasis255.source_models
+#print axioms Yulang.GeneralNominalCanonicalBasis255.separated
+#print axioms Yulang.GeneralNominalCanonicalBasis255.normalized_atoms_unique
+#print axioms Yulang.GeneralNominalCanonicalBasis255.source_fields_unique
+#print axioms Yulang.GeneralNominalNormalizedDepth255.atomDepth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.leafBound
+#print axioms Yulang.GeneralNominalNormalizedDepth255.atom_bounded
+#print axioms Yulang.GeneralNominalNormalizedDepth255.union_fold_depth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.inter_fold_depth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.normalized_depth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.rewritten_depth
+#print axioms Yulang.GeneralNominalNormalizedDepth255.source_rewrite_depth
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.supplied
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.compiled
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.reads_exact
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.materialized
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.actual_finite_menu
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.normalized_reference
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.supported
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.rewritten
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.prepared
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.all_models_exact
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.raw_depth_two
+#print axioms Yulang.GeneralDictionaryTemplateMenu255.source_regression
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.basis
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.initial_success
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.private_separated
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.installed_port
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.installed_port_prepared
+#print axioms Yulang.GeneralNominalSourcePublicBasis255.mixed_source_basis

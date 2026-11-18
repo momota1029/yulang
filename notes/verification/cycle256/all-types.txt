@@ -1,0 +1,661 @@
+@Yulang.GeneralNominalInputOccurrences256.frame_finished : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry state root key plan →
+    Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration plan.packet.bounds)
+Yulang.GeneralNominalInputOccurrences256.report_nonempty : ∀ (context : Yulang.GeneralNominalCandidates.Context)
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+  Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds) →
+    ∀ (name : Nat),
+      name ∈ declaration.inputNames →
+        Yulang.GeneralNominalAllocation.occurrences
+            (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+              (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds))
+            name ≠
+          []
+@Yulang.GeneralNominalInputOccurrences256.frame_nonempty : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry state root key plan →
+    ∀ (name : Nat),
+      name ∈ plan.packet.declaration.inputNames →
+        Yulang.GeneralNominalAllocation.occurrences
+            (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+              (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration
+                plan.packet.bounds))
+            name ≠
+          []
+Yulang.GeneralNominalAggregateAtoms256.lower_atoms : ∀ (bounds : List Yulang.GeneralSourceState.Interval),
+  bounds ≠ [] →
+    ∀ (mapping : Nat → Yulang.Core.PresenceGeneration.CompTerm Nat),
+      Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.lower
+          (Yulang.Core.PresenceGeneration.TyTerm.subst mapping (Yulang.GeneralNominalAllocation.lower bounds)) =
+        List.flatMap
+          (fun pair =>
+            Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.lower
+              (mapping pair.fst).ty)
+          bounds
+Yulang.GeneralNominalAggregateAtoms256.upper_atoms : ∀ (bounds : List Yulang.GeneralSourceState.Interval),
+  bounds ≠ [] →
+    ∀ (mapping : Nat → Yulang.Core.PresenceGeneration.CompTerm Nat),
+      Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.upper
+          (Yulang.Core.PresenceGeneration.TyTerm.subst mapping (Yulang.GeneralNominalAllocation.upper bounds)) =
+        List.flatMap
+          (fun pair =>
+            Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.upper
+              (mapping pair.snd).ty)
+          bounds
+Yulang.GeneralNominalAggregateAtoms256.lower_supported_iff : ∀ (bounds : List Yulang.GeneralSourceState.Interval),
+  bounds ≠ [] →
+    ∀ (mapping : Nat → Yulang.Core.PresenceGeneration.CompTerm Nat)
+      (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat)),
+      Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.lower
+            (Yulang.Core.PresenceGeneration.TyTerm.subst mapping (Yulang.GeneralNominalAllocation.lower bounds)) ⊆
+          pool ↔
+        ∀ (pair : Yulang.GeneralSourceState.Interval),
+          pair ∈ bounds →
+            Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.lower
+                (mapping pair.fst).ty ⊆
+              pool
+Yulang.GeneralNominalAggregateAtoms256.upper_supported_iff : ∀ (bounds : List Yulang.GeneralSourceState.Interval),
+  bounds ≠ [] →
+    ∀ (mapping : Nat → Yulang.Core.PresenceGeneration.CompTerm Nat)
+      (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat)),
+      Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.upper
+            (Yulang.Core.PresenceGeneration.TyTerm.subst mapping (Yulang.GeneralNominalAllocation.upper bounds)) ⊆
+          pool ↔
+        ∀ (pair : Yulang.GeneralSourceState.Interval),
+          pair ∈ bounds →
+            Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.upper
+                (mapping pair.snd).ty ⊆
+              pool
+Yulang.GeneralNominalSourceAggregate256.source_variable : ∀ (registry : Yulang.GeneralDeclarations.Registry)
+  (context : Yulang.GeneralNominalCandidates.Context) (keys : List (Nat × Nat)) (name : Nat),
+  name ∈ Yulang.GeneralNominalState.sources context.state →
+    Yulang.Core.PresenceGeneration.TyTerm.var name ∈ Yulang.GeneralNominalCanonicalBasis255.basis registry context keys
+Yulang.GeneralNominalSourceAggregate256.report_lower : ∀ (registry : Yulang.GeneralDeclarations.Registry)
+  (context : Yulang.GeneralNominalCandidates.Context) (keys : List (Nat × Nat))
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+  Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds) →
+    ∀ (name : Nat),
+      name ∈ declaration.inputNames →
+        Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.lower
+            (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+              (Yulang.GeneralNominalAllocation.lower
+                (Yulang.GeneralNominalAllocation.occurrences
+                  (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                    (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds))
+                  name))) ⊆
+          Yulang.GeneralNominalCanonicalBasis255.basis registry context keys
+Yulang.GeneralNominalSourceAggregate256.report_upper : ∀ (registry : Yulang.GeneralDeclarations.Registry)
+  (context : Yulang.GeneralNominalCandidates.Context) (keys : List (Nat × Nat))
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+  Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds) →
+    ∀ (name : Nat),
+      name ∈ declaration.inputNames →
+        Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.upper
+            (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+              (Yulang.GeneralNominalAllocation.upper
+                (Yulang.GeneralNominalAllocation.occurrences
+                  (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+                    (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds))
+                  name))) ⊆
+          Yulang.GeneralNominalCanonicalBasis255.basis registry context keys
+Yulang.GeneralNominalSourceAggregate256.report_prepared : ∀ (registry : Yulang.GeneralDeclarations.Registry)
+  (context : Yulang.GeneralNominalCandidates.Context) (keys : List (Nat × Nat))
+  (declaration : Yulang.GeneralDeclarations.Declaration)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds context.state)),
+  Yulang.GeneralNominalRecursiveInspection.Finished
+      (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds) →
+    ∀ (name : Nat),
+      name ∈ declaration.inputNames →
+        have pairs :=
+          Yulang.GeneralNominalAllocation.occurrences
+            (Yulang.GeneralNominalRecursiveInspection.bindings context.state
+              (Yulang.GeneralNominalRecursiveCandidates.report context declaration bounds))
+            name;
+        have pool := Yulang.GeneralNominalCanonicalBasis255.basis registry context keys;
+        Yulang.GeneralPresenceCheckedNormal252.prepare Yulang.GeneralPresenceCheckedNormal252.Side.lower pool
+              (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+                (Yulang.GeneralNominalAllocation.lower pairs)) =
+            some
+              (Yulang.GeneralPresenceCheckedNormal252.normalize Yulang.GeneralPresenceCheckedNormal252.Side.lower pool
+                (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+                  (Yulang.GeneralNominalAllocation.lower pairs))) ∧
+          Yulang.GeneralPresenceCheckedNormal252.prepare Yulang.GeneralPresenceCheckedNormal252.Side.upper pool
+              (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+                (Yulang.GeneralNominalAllocation.upper pairs)) =
+            some
+              (Yulang.GeneralPresenceCheckedNormal252.normalize Yulang.GeneralPresenceCheckedNormal252.Side.upper pool
+                (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+                  (Yulang.GeneralNominalAllocation.upper pairs)))
+@Yulang.GeneralNominalSourceAggregate256.frame_prepared : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry state root key plan →
+    ∀ (keys : List (Nat × Nat)) (name : Nat),
+      name ∈ plan.packet.declaration.inputNames →
+        have pairs :=
+          Yulang.GeneralNominalAllocation.occurrences
+            (Yulang.GeneralNominalRecursiveInspection.bindings plan.packet.context.state
+              (Yulang.GeneralNominalRecursiveCandidates.report plan.packet.context plan.packet.declaration
+                plan.packet.bounds))
+            name;
+        have pool := Yulang.GeneralNominalCanonicalBasis255.basis registry plan.packet.context keys;
+        Yulang.GeneralPresenceCheckedNormal252.prepare Yulang.GeneralPresenceCheckedNormal252.Side.lower pool
+              (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+                (Yulang.GeneralNominalAllocation.lower pairs)) =
+            some
+              (Yulang.GeneralPresenceCheckedNormal252.normalize Yulang.GeneralPresenceCheckedNormal252.Side.lower pool
+                (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+                  (Yulang.GeneralNominalAllocation.lower pairs))) ∧
+          Yulang.GeneralPresenceCheckedNormal252.prepare Yulang.GeneralPresenceCheckedNormal252.Side.upper pool
+              (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+                (Yulang.GeneralNominalAllocation.upper pairs)) =
+            some
+              (Yulang.GeneralPresenceCheckedNormal252.normalize Yulang.GeneralPresenceCheckedNormal252.Side.upper pool
+                (Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var
+                  (Yulang.GeneralNominalAllocation.upper pairs)))
+Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported : List (Yulang.Core.PresenceGeneration.TyTerm Nat) →
+  List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat) → List Yulang.GeneralSourceState.Interval → Prop
+Yulang.GeneralNominalHistoricalAggregate256.rewrite : List (Yulang.Core.PresenceGeneration.TyTerm Nat) →
+  List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat) →
+    List Yulang.GeneralSourceState.Interval → Yulang.GeneralNominalRebaseProjectionView243.Bounds
+Yulang.GeneralNominalHistoricalAggregate256.check : List (Yulang.Core.PresenceGeneration.TyTerm Nat) →
+  List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat) → List Yulang.GeneralSourceState.Interval → Bool
+Yulang.GeneralNominalHistoricalAggregate256.prepare : List (Yulang.Core.PresenceGeneration.TyTerm Nat) →
+  List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat) →
+    List Yulang.GeneralSourceState.Interval → Option Yulang.GeneralNominalRebaseProjectionView243.Bounds
+Yulang.GeneralNominalHistoricalAggregate256.check_exact : ∀ (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat))
+  (old : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)) (pairs : List Yulang.GeneralSourceState.Interval),
+  Yulang.GeneralNominalHistoricalAggregate256.check pool old pairs = true ↔
+    Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported pool old pairs
+Yulang.GeneralNominalHistoricalAggregate256.supported_iff : ∀ (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat))
+  (old : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)) (pairs : List Yulang.GeneralSourceState.Interval),
+  pairs ≠ [] →
+    (Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported pool old pairs ↔
+      Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.lower
+            (Yulang.Core.PresenceGeneration.TyTerm.subst (Yulang.GeneralPresenceOrderedSubstitution247.mapping old)
+              (Yulang.GeneralNominalAllocation.lower pairs)) ⊆
+          pool ∧
+        Yulang.GeneralPresenceCheckedNormal252.atoms Yulang.GeneralPresenceCheckedNormal252.Side.upper
+            (Yulang.Core.PresenceGeneration.TyTerm.subst (Yulang.GeneralPresenceOrderedSubstitution247.mapping old)
+              (Yulang.GeneralNominalAllocation.upper pairs)) ⊆
+          pool)
+Yulang.GeneralNominalHistoricalAggregate256.prepare_exact : ∀ (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat))
+  (old : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)) (pairs : List Yulang.GeneralSourceState.Interval)
+  (result : Yulang.GeneralNominalRebaseProjectionView243.Bounds),
+  Yulang.GeneralNominalHistoricalAggregate256.prepare pool old pairs = some result ↔
+    pairs ≠ [] ∧
+      Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported pool old pairs ∧
+        result = Yulang.GeneralNominalHistoricalAggregate256.rewrite pool old pairs
+Yulang.GeneralNominalHistoricalAggregate256.values : ∀ (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat))
+  (old : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)) (pairs : List Yulang.GeneralSourceState.Interval),
+  pairs ≠ [] →
+    Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported pool old pairs →
+      ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.CommonNominalFullCarrier.Equivalent
+            (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment
+              (Yulang.GeneralNominalHistoricalAggregate256.rewrite pool old pairs).lower)
+            (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model
+              (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model old assignment)
+              (Yulang.GeneralNominalAllocation.lower pairs)) ∧
+          Yulang.CommonNominalFullCarrier.Equivalent
+            (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment
+              (Yulang.GeneralNominalHistoricalAggregate256.rewrite pool old pairs).upper)
+            (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model
+              (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model old assignment)
+              (Yulang.GeneralNominalAllocation.upper pairs))
+Yulang.GeneralNominalHistoricalAggregate256.fits_exact : ∀ (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat))
+  (old : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)) (pairs : List Yulang.GeneralSourceState.Interval)
+  (result : Yulang.GeneralNominalRebaseProjectionView243.Bounds),
+  Yulang.GeneralNominalHistoricalAggregate256.prepare pool old pairs = some result →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (actual : Yulang.CommonNominalFullCarrier.Ty),
+      result.Fits assignment actual ↔
+        ∀ (pair : Yulang.GeneralSourceState.Interval),
+          pair ∈ pairs →
+            Yulang.GeneralNominalCaptureMerges.Fits
+              (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model old assignment) pair
+              actual
+Yulang.GeneralNominalHistoricalAggregate256.finite : ∀ (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat))
+  (old : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)) (pairs : List Yulang.GeneralSourceState.Interval),
+  (Yulang.GeneralNominalHistoricalAggregate256.rewrite pool old pairs).lower ∈
+      Yulang.GeneralPresenceNormalFinite252.lowerCandidates pool ∧
+    (Yulang.GeneralNominalHistoricalAggregate256.rewrite pool old pairs).upper ∈
+      Yulang.GeneralPresenceNormalFinite252.upperCandidates pool
+@Yulang.GeneralNominalFrameAggregate256.nonempty : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry state root key plan →
+    ∀ (name : Nat),
+      name ∈ plan.packet.declaration.inputNames → Yulang.GeneralNominalFrameAggregate256.pairs plan name ≠ []
+@Yulang.GeneralNominalFrameAggregate256.prepare_iff : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry state root key plan →
+    ∀ (name : Nat),
+      name ∈ plan.packet.declaration.inputNames →
+        ∀ (pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat))
+          (old : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat))
+          (result : Yulang.GeneralNominalRebaseProjectionView243.Bounds),
+          Yulang.GeneralNominalHistoricalAggregate256.prepare pool old
+                (Yulang.GeneralNominalFrameAggregate256.pairs plan name) =
+              some result ↔
+            Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported pool old
+                (Yulang.GeneralNominalFrameAggregate256.pairs plan name) ∧
+              result =
+                Yulang.GeneralNominalHistoricalAggregate256.rewrite pool old
+                  (Yulang.GeneralNominalFrameAggregate256.pairs plan name)
+@Yulang.GeneralNominalFrameAggregate256.identity_supported : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry state root key plan →
+    ∀ (keys : List (Nat × Nat)) (name : Nat),
+      name ∈ plan.packet.declaration.inputNames →
+        Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported
+          (Yulang.GeneralNominalCanonicalBasis255.basis registry plan.packet.context keys) []
+          (Yulang.GeneralNominalFrameAggregate256.pairs plan name)
+@Yulang.GeneralNominalFrameAggregate256.identity_prepared : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry state root key plan →
+    ∀ (keys : List (Nat × Nat)) (name : Nat),
+      name ∈ plan.packet.declaration.inputNames →
+        Yulang.GeneralNominalHistoricalAggregate256.prepare
+            (Yulang.GeneralNominalCanonicalBasis255.basis registry plan.packet.context keys) []
+            (Yulang.GeneralNominalFrameAggregate256.pairs plan name) =
+          some
+            (Yulang.GeneralNominalHistoricalAggregate256.rewrite
+              (Yulang.GeneralNominalCanonicalBasis255.basis registry plan.packet.context keys) []
+              (Yulang.GeneralNominalFrameAggregate256.pairs plan name))
+@Yulang.GeneralNominalFrameAggregate256.identity_fits : ∀ {registry : Yulang.GeneralDeclarations.Registry}
+  {roles : Yulang.Roles.RoleDecls} {state : Yulang.GeneralNominalCenteredSteps.State roles}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles},
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry state root key plan →
+    ∀ (keys : List (Nat × Nat)) (name : Nat),
+      name ∈ plan.packet.declaration.inputNames →
+        ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (actual : Yulang.CommonNominalFullCarrier.Ty),
+          (Yulang.GeneralNominalHistoricalAggregate256.rewrite
+                  (Yulang.GeneralNominalCanonicalBasis255.basis registry plan.packet.context keys) []
+                  (Yulang.GeneralNominalFrameAggregate256.pairs plan name)).Fits
+              assignment actual ↔
+            ∀ (pair : Yulang.GeneralSourceState.Interval),
+              pair ∈ Yulang.GeneralNominalFrameAggregate256.pairs plan name →
+                Yulang.GeneralNominalCaptureMerges.Fits assignment pair actual
+@Yulang.GeneralNominalInitialAggregate256.prepared : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {key : Nat} {plan : Yulang.GeneralNominalCenters.Plan roles} (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (labels : List Yulang.GeneralDeclarationPatterns.Pattern),
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry
+      (Yulang.GeneralNominalVersionedJournal232.initial context root).core focus key plan →
+    ∀ (name : Nat),
+      name ∈ plan.packet.declaration.inputNames →
+        Yulang.GeneralNominalHistoricalAggregate256.prepare
+            (Yulang.GeneralNominalSourcePublicBasis255.basis registry context root labels) []
+            (Yulang.GeneralNominalFrameAggregate256.pairs plan name) =
+          some
+            (Yulang.GeneralNominalHistoricalAggregate256.rewrite
+              (Yulang.GeneralNominalSourcePublicBasis255.basis registry context root labels) []
+              (Yulang.GeneralNominalFrameAggregate256.pairs plan name))
+@Yulang.GeneralNominalInitialAggregate256.fits : ∀ {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {key : Nat} {plan : Yulang.GeneralNominalCenters.Plan roles} (context : Yulang.GeneralNominalCandidates.Context)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (labels : List Yulang.GeneralDeclarationPatterns.Pattern),
+  Yulang.GeneralNominalVersionedEvidence231.Frame registry
+      (Yulang.GeneralNominalVersionedJournal232.initial context root).core focus key plan →
+    ∀ (name : Nat),
+      name ∈ plan.packet.declaration.inputNames →
+        ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment) (actual : Yulang.CommonNominalFullCarrier.Ty),
+          (Yulang.GeneralNominalHistoricalAggregate256.rewrite
+                  (Yulang.GeneralNominalSourcePublicBasis255.basis registry context root labels) []
+                  (Yulang.GeneralNominalFrameAggregate256.pairs plan name)).Fits
+              assignment actual ↔
+            ∀ (pair : Yulang.GeneralSourceState.Interval),
+              pair ∈ Yulang.GeneralNominalFrameAggregate256.pairs plan name →
+                Yulang.GeneralNominalCaptureMerges.Fits assignment pair actual
+Yulang.GeneralDictionaryReachableAggregate256.old_atoms : ∀ (n : Nat),
+  Yulang.GeneralDictionaryLooseIterationBook240.atoms n ⊆ Yulang.GeneralDictionaryLooseIterationBook240.atoms (n + 1)
+Yulang.GeneralDictionaryReachableAggregate256.lower_equations : ∀ (n : Nat),
+  Yulang.GeneralNominalAllocation.equations (Yulang.GeneralDictionaryLooseFamilyNames240.lower (n + 1))
+      ((Yulang.Core.PresenceGeneration.TyTerm.var (Yulang.GeneralDictionaryLooseFamilyNames240.lower n)).union
+        (Yulang.Core.PresenceGeneration.TyTerm.var (Yulang.GeneralDictionaryLooseFamilyNames240.lower n))) ⊆
+    Yulang.GeneralDictionaryLooseIterationBook240.atoms (n + 1)
+Yulang.GeneralDictionaryReachableAggregate256.lower_value : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralDictionaryLooseIterationBook240.atoms n) →
+    Yulang.CommonNominalFullCarrier.Equivalent (assignment (Yulang.GeneralDictionaryLooseFamilyNames240.lower n)).fst
+      (assignment 2).fst
+Yulang.GeneralDictionaryReachableAggregate256.current_atoms : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      assignment →
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralDictionaryLooseIterationBook240.atoms n)
+Yulang.GeneralDictionaryReachableAggregate256.source_lower : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      assignment →
+    Yulang.CommonNominalFullCarrier.Equivalent (assignment (Yulang.GeneralDictionaryLooseFamilyNames240.lower n)).fst
+      (assignment 2).fst
+Yulang.GeneralDictionaryReachableAggregate256.representative : Yulang.GeneralNominalRebaseProjectionView243.Bounds
+Yulang.GeneralDictionaryReachableAggregate256.pairs_exact : ∀ (n : Nat),
+  Yulang.GeneralNominalFrameAggregate256.pairs (Yulang.GeneralDictionaryLooseIterationBook240.plan n) 0 =
+    [(Yulang.GeneralDictionaryLooseFamilyNames240.lower n, 4), (Yulang.GeneralDictionaryLooseFamilyNames240.lower n, 4)]
+Yulang.GeneralDictionaryReachableAggregate256.frame : ∀ (n : Nat),
+  Yulang.GeneralNominalVersionedEvidence231.Frame Yulang.GeneralDictionaryLooseLoopSource240.registry
+    (Yulang.GeneralDictionaryLooseIterationIteration240.state n).core Yulang.GeneralDictionaryLooseLoopSource240.root 0
+    (Yulang.GeneralDictionaryLooseIterationBook240.plan n)
+Yulang.GeneralDictionaryReachableAggregate256.fits_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      assignment →
+    ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+      Yulang.GeneralDictionaryReachableAggregate256.representative.Fits assignment actual ↔
+        ∀ (pair : Yulang.GeneralSourceState.Interval),
+          pair ∈ Yulang.GeneralNominalFrameAggregate256.pairs (Yulang.GeneralDictionaryLooseIterationBook240.plan n) 0 →
+            Yulang.GeneralNominalCaptureMerges.Fits assignment pair actual
+Yulang.GeneralDictionaryReachableAggregate256.reachable_all : ∀ (n : Nat),
+  Yulang.B4TargetV8.Reachable
+    (Yulang.GeneralNominalPointSourceBoundary240.boundary Yulang.GeneralDictionaryLooseLoopSource240.roles)
+    Yulang.GeneralDictionaryLooseLoopSource240.sourceRegistry Yulang.GeneralDictionaryLooseLoopSource240.root
+    (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+@Yulang.GeneralPresenceOrderedAppend256.row_comp : ∀ {Name : Type} (term : Yulang.Core.PresenceGeneration.RowTerm Name)
+  (first last : Name → Yulang.Core.PresenceGeneration.CompTerm Name),
+  Yulang.Core.PresenceGeneration.RowTerm.subst last (Yulang.Core.PresenceGeneration.RowTerm.subst first term) =
+    Yulang.Core.PresenceGeneration.RowTerm.subst
+      (fun name => Yulang.Core.PresenceGeneration.CompTerm.subst last (first name)) term
+@Yulang.GeneralPresenceOrderedAppend256.type_comp : ∀ {Name : Type} (term : Yulang.Core.PresenceGeneration.TyTerm Name)
+  (first last : Name → Yulang.Core.PresenceGeneration.CompTerm Name),
+  Yulang.Core.PresenceGeneration.TyTerm.subst last (Yulang.Core.PresenceGeneration.TyTerm.subst first term) =
+    Yulang.Core.PresenceGeneration.TyTerm.subst
+      (fun name => Yulang.Core.PresenceGeneration.CompTerm.subst last (first name)) term
+@Yulang.GeneralPresenceOrderedAppend256.row_identity : ∀ {Name : Type}
+  (term : Yulang.Core.PresenceGeneration.RowTerm Name),
+  Yulang.Core.PresenceGeneration.RowTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var term = term
+@Yulang.GeneralPresenceOrderedAppend256.type_identity : ∀ {Name : Type}
+  (term : Yulang.Core.PresenceGeneration.TyTerm Name),
+  Yulang.Core.PresenceGeneration.TyTerm.subst Yulang.Core.PresenceGeneration.CompTerm.var term = term
+@Yulang.GeneralPresenceOrderedAppend256.mapping_row : ∀ {Name : Type} [inst : DecidableEq Name]
+  (entries : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Name)) (name : Name),
+  (Yulang.GeneralPresenceOrderedSubstitution247.mapping entries name).row =
+    Yulang.Core.PresenceGeneration.RowTerm.var name
+@Yulang.GeneralPresenceOrderedAppend256.mapping_append : ∀ {Name : Type} [inst : DecidableEq Name]
+  (first last : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Name)) (name : Name),
+  (Yulang.GeneralPresenceOrderedSubstitution247.mapping (first ++ last) name).ty =
+    Yulang.Core.PresenceGeneration.TyTerm.subst (Yulang.GeneralPresenceOrderedSubstitution247.mapping first)
+      (Yulang.GeneralPresenceOrderedSubstitution247.mapping last name).ty
+@Yulang.GeneralPresenceOrderedAppend256.mapping_snoc : ∀ {Name : Type} [inst : DecidableEq Name]
+  (entries : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Name))
+  (entry : Yulang.GeneralPresenceDefinitionRewrite244.Entry Name),
+  (Yulang.GeneralPresenceOrderedSubstitution247.mapping (entries ++ [entry]) entry.fst).ty =
+    Yulang.Core.PresenceGeneration.TyTerm.subst (Yulang.GeneralPresenceOrderedSubstitution247.mapping entries) entry.snd
+Yulang.GeneralDictionaryAggregateHistory256.tree : Nat → Yulang.Core.PresenceGeneration.TyTerm Nat
+Yulang.GeneralDictionaryAggregateHistory256.entry : Nat → Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat
+Yulang.GeneralDictionaryAggregateHistory256.history : Nat → List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)
+Yulang.GeneralDictionaryAggregateHistory256.block_in_source : ∀ (n : Nat),
+  Yulang.GeneralPresenceDefinitionRewrite244.block (Yulang.GeneralDictionaryAggregateHistory256.history n) ⊆
+    Yulang.GeneralDictionaryLooseIterationBook240.atoms n
+Yulang.GeneralDictionaryAggregateHistory256.current_expansion : ∀ (n : Nat),
+  (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryAggregateHistory256.history n)
+        (Yulang.GeneralDictionaryLooseFamilyNames240.lower n)).ty =
+    Yulang.GeneralDictionaryAggregateHistory256.tree n
+Yulang.GeneralDictionaryAggregateHistory256.targets_above : ∀ (n : Nat)
+  (e : Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat),
+  e ∈ Yulang.GeneralDictionaryAggregateHistory256.history n → 4 < e.fst
+Yulang.GeneralDictionaryAggregateHistory256.upper_fixed : ∀ (n : Nat),
+  (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryAggregateHistory256.history n) 4).ty =
+    Yulang.Core.PresenceGeneration.TyTerm.var 4
+Yulang.GeneralDictionaryAggregateHistory256.tree_atoms : ∀ (n : Nat) (atom : Yulang.Core.PresenceGeneration.TyTerm Nat),
+  atom ∈ Yulang.GeneralPresenceUnionNormal252.atoms (Yulang.GeneralDictionaryAggregateHistory256.tree n) ↔
+    atom = Yulang.Core.PresenceGeneration.TyTerm.var 2
+Yulang.GeneralDictionaryAggregateHistory256.pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat)
+Yulang.GeneralDictionaryAggregateHistory256.tree_normal : ∀ (n : Nat),
+  Yulang.GeneralPresenceUnionNormal252.normalize Yulang.GeneralDictionaryAggregateHistory256.pool
+      (Yulang.GeneralDictionaryAggregateHistory256.tree n) =
+    Yulang.Core.PresenceGeneration.TyTerm.var 2
+Yulang.GeneralDictionaryAggregateHistory256.endpoint_supported : ∀ (n : Nat),
+  Yulang.GeneralNominalHistoricalAggregate256.EndpointSupported Yulang.GeneralDictionaryAggregateHistory256.pool
+    (Yulang.GeneralDictionaryAggregateHistory256.history n)
+    (Yulang.GeneralNominalFrameAggregate256.pairs (Yulang.GeneralDictionaryLooseIterationBook240.plan n) 0)
+Yulang.GeneralDictionaryAggregateHistory256.rewritten : ∀ (n : Nat),
+  Yulang.GeneralNominalHistoricalAggregate256.rewrite Yulang.GeneralDictionaryAggregateHistory256.pool
+      (Yulang.GeneralDictionaryAggregateHistory256.history n)
+      (Yulang.GeneralNominalFrameAggregate256.pairs (Yulang.GeneralDictionaryLooseIterationBook240.plan n) 0) =
+    Yulang.GeneralDictionaryReachableAggregate256.representative
+Yulang.GeneralDictionaryAggregateHistory256.prepared : ∀ (n : Nat),
+  Yulang.GeneralNominalHistoricalAggregate256.prepare Yulang.GeneralDictionaryAggregateHistory256.pool
+      (Yulang.GeneralDictionaryAggregateHistory256.history n)
+      (Yulang.GeneralNominalFrameAggregate256.pairs (Yulang.GeneralDictionaryLooseIterationBook240.plan n) 0) =
+    some Yulang.GeneralDictionaryReachableAggregate256.representative
+Yulang.GeneralDictionaryAggregateBasis256.initial_basis : ∀ (labels : List Yulang.GeneralDeclarationPatterns.Pattern),
+  Yulang.GeneralDictionaryAggregateHistory256.pool ⊆
+    Yulang.GeneralNominalSourcePublicBasis255.basis Yulang.GeneralDictionaryLooseLoopSource240.registry
+      Yulang.GeneralDictionaryLooseLoopSource240.context Yulang.GeneralDictionaryLooseLoopSource240.root labels
+Yulang.GeneralDictionaryAggregateBasis256.pool_unique : Yulang.GeneralDictionaryAggregateHistory256.pool.Nodup
+Yulang.GeneralDictionaryAggregateBasis256.pool_private_free : ∀ (invocation declaration purpose binder position : Nat)
+  (atom : Yulang.Core.PresenceGeneration.TyTerm Nat),
+  atom ∈ Yulang.GeneralDictionaryAggregateHistory256.pool →
+    ¬Yulang.GeneralNominalPublicBasis253.privateName 4 invocation declaration purpose binder position ∈
+        Yulang.GeneralPresenceSubstitutionSupport244.typeSources atom
+Yulang.GeneralDictionaryAggregateBasis256.prepared_finite : ∀ (n : Nat),
+  Yulang.GeneralDictionaryReachableAggregate256.representative.lower ∈
+      Yulang.GeneralPresenceNormalFinite252.lowerCandidates Yulang.GeneralDictionaryAggregateHistory256.pool ∧
+    Yulang.GeneralDictionaryReachableAggregate256.representative.upper ∈
+      Yulang.GeneralPresenceNormalFinite252.upperCandidates Yulang.GeneralDictionaryAggregateHistory256.pool
+Yulang.GeneralDictionaryAggregateBasis256.source_history : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      assignment →
+    Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralPresenceDefinitionRewrite244.block (Yulang.GeneralDictionaryAggregateHistory256.history n))
+Yulang.GeneralDictionaryAggregateBasis256.prepared_source_fits : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      assignment →
+    ∀ (actual : Yulang.CommonNominalFullCarrier.Ty),
+      ∃ result,
+        Yulang.GeneralNominalHistoricalAggregate256.prepare Yulang.GeneralDictionaryAggregateHistory256.pool
+              (Yulang.GeneralDictionaryAggregateHistory256.history n)
+              (Yulang.GeneralNominalFrameAggregate256.pairs (Yulang.GeneralDictionaryLooseIterationBook240.plan n) 0) =
+            some result ∧
+          (result.Fits assignment actual ↔
+            ∀ (pair : Yulang.GeneralSourceState.Interval),
+              pair ∈
+                  Yulang.GeneralNominalFrameAggregate256.pairs (Yulang.GeneralDictionaryLooseIterationBook240.plan n)
+                    0 →
+                Yulang.GeneralNominalCaptureMerges.Fits assignment pair actual)
+Yulang.GeneralDictionaryAggregateRows256.historical_row : ∀ (n : Nat),
+  ((Yulang.GeneralNominalRebaseRawView243.compile (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+            (Yulang.GeneralPresenceOrderedSubstitution247.mapping
+              (Yulang.GeneralDictionaryAggregateHistory256.history n))).slot
+        (Yulang.GeneralDictionaryLooseFamilyBase240.anchor n)).row =
+    Yulang.Core.PresenceGeneration.RowTerm.var (Yulang.GeneralDictionaryLooseFamilyNames240.lower n)
+Yulang.GeneralDictionaryAggregateRows256.row_read_retained : ∀ (n : Nat),
+  Yulang.GeneralDictionaryLooseFamilyNames240.lower (n + 1) ∈
+    Yulang.GeneralPresenceSubstitutionSupport244.rowSources
+      ((Yulang.GeneralNominalRebaseRawView243.compile
+              (Yulang.GeneralDictionaryLooseIterationBook240.context (n + 1)).state
+              (Yulang.GeneralPresenceOrderedSubstitution247.mapping
+                (Yulang.GeneralDictionaryAggregateHistory256.history (n + 1)))).slot
+          (Yulang.GeneralDictionaryLooseFamilyBase240.anchor (n + 1))).row
+Yulang.GeneralDictionaryAggregateRows256.row_name_private : ∀ (n : Nat),
+  Yulang.GeneralDictionaryLooseFamilyNames240.lower (n + 1) =
+    Yulang.GeneralNominalPublicBasis253.privateName 4 0 0 0 0
+      (Yulang.GeneralNominalAggregateVersion231.version
+        (Yulang.GeneralDictionaryLooseFamilyNames240.repeated (Yulang.GeneralDictionaryLooseFamilyNames240.lower n)) 0)
+Yulang.GeneralDictionaryAggregateRows256.outside_initial_names : ∀ (n : Nat),
+  ¬Yulang.GeneralDictionaryLooseFamilyNames240.lower (n + 1) ∈ [0, 1, 2, 3, 4]
+Yulang.GeneralDictionaryAggregateRows256.eraseSlotRows : Yulang.GeneralNominalRebaseRawView243.View →
+  Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionaryAggregateRows256.slot_rows_irrelevant : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionaryAggregateRows256.eraseSlotRows view).Models assignment ↔ view.Models assignment
+Yulang.GeneralDictionaryAggregateRows256.erased_row_sources : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (index : Fin view.slots),
+  Yulang.GeneralPresenceSubstitutionSupport244.rowSources
+      ((Yulang.GeneralDictionaryAggregateRows256.eraseSlotRows view).slot index).row =
+    []
+Yulang.GeneralDictionaryHistoricalFields256.past_expansion : ∀ (n index : Nat),
+  index ≤ n →
+    (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryAggregateHistory256.history n)
+          (Yulang.GeneralDictionaryLooseFamilyNames240.lower index)).ty =
+      Yulang.GeneralDictionaryAggregateHistory256.tree index
+Yulang.GeneralDictionaryHistoricalFields256.initial_name : ∀ (n name : Nat),
+  name ≤ 4 →
+    (Yulang.GeneralPresenceOrderedSubstitution247.mapping (Yulang.GeneralDictionaryAggregateHistory256.history n)
+          name).ty =
+      Yulang.Core.PresenceGeneration.TyTerm.var name
+Yulang.GeneralDictionaryHistoricalFields256.pool : List (Yulang.Core.PresenceGeneration.TyTerm Nat)
+Yulang.GeneralDictionaryHistoricalFields256.variable_fixed : ∀ (name : Nat),
+  name ≤ 4 →
+    Yulang.GeneralPresenceUnionNormal252.normalize Yulang.GeneralDictionaryHistoricalFields256.pool
+        (Yulang.Core.PresenceGeneration.TyTerm.var name) =
+      Yulang.Core.PresenceGeneration.TyTerm.var name
+Yulang.GeneralDictionaryHistoricalFields256.tree_fixed : ∀ (n : Nat),
+  Yulang.GeneralPresenceUnionNormal252.normalize Yulang.GeneralDictionaryHistoricalFields256.pool
+      (Yulang.GeneralDictionaryAggregateHistory256.tree n) =
+    Yulang.Core.PresenceGeneration.TyTerm.var 2
+@Yulang.GeneralDictionaryHistoricalFields256.representative : {n : Nat} → Fin (n + 5) → Nat
+@Yulang.GeneralDictionaryHistoricalFields256.representative_small : ∀ {n : Nat} (slot : Fin (n + 5)),
+  Yulang.GeneralDictionaryHistoricalFields256.representative slot ≤ 4
+Yulang.GeneralDictionaryHistoricalFields256.slot_fixed : ∀ (n : Nat) (slot : Fin (n + 5)),
+  Yulang.GeneralPresenceUnionNormal252.normalize Yulang.GeneralDictionaryHistoricalFields256.pool
+      ((Yulang.GeneralNominalRebaseRawView243.compile (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+              (Yulang.GeneralPresenceOrderedSubstitution247.mapping
+                (Yulang.GeneralDictionaryAggregateHistory256.history n))).slot
+          slot).ty =
+    Yulang.Core.PresenceGeneration.TyTerm.var (Yulang.GeneralDictionaryHistoricalFields256.representative slot)
+Yulang.GeneralDictionaryHistoricalFields256.slot_supported : ∀ (n : Nat) (slot : Fin (n + 5)),
+  Yulang.GeneralPresenceUnionNormal252.atoms
+      ((Yulang.GeneralNominalRebaseRawView243.compile (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+              (Yulang.GeneralPresenceOrderedSubstitution247.mapping
+                (Yulang.GeneralDictionaryAggregateHistory256.history n))).slot
+          slot).ty ⊆
+    Yulang.GeneralDictionaryHistoricalFields256.pool
+Yulang.GeneralDictionaryHistoricalFields256.slot_prepared : ∀ (n : Nat) (slot : Fin (n + 5)),
+  Yulang.GeneralPresenceCheckedNormal252.prepare Yulang.GeneralPresenceCheckedNormal252.Side.lower
+      Yulang.GeneralDictionaryHistoricalFields256.pool
+      ((Yulang.GeneralNominalRebaseRawView243.compile (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+              (Yulang.GeneralPresenceOrderedSubstitution247.mapping
+                (Yulang.GeneralDictionaryAggregateHistory256.history n))).slot
+          slot).ty =
+    some (Yulang.Core.PresenceGeneration.TyTerm.var (Yulang.GeneralDictionaryHistoricalFields256.representative slot))
+Yulang.GeneralNominalSlotTypeMap256.map : (view : Yulang.GeneralNominalRebaseRawView243.View) →
+  (Fin view.slots → Yulang.Core.PresenceGeneration.TyTerm Nat) → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralNominalSlotTypeMap256.models_exact : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (types : Fin view.slots → Yulang.Core.PresenceGeneration.TyTerm Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∀ (index : Fin view.slots),
+      Yulang.CommonNominalFullCarrier.Equivalent
+        (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment (types index))
+        (Yulang.Core.PresenceGeneration.TyTerm.eval Yulang.CommonNominalFullCarrier.model assignment
+          (view.slot index).ty)) →
+    ((Yulang.GeneralNominalSlotTypeMap256.map view types).Models assignment ↔ view.Models assignment)
+Yulang.GeneralNominalSlotTypeMap256.ordinary_unchanged : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (types : Fin view.slots → Yulang.Core.PresenceGeneration.TyTerm Nat),
+  (Yulang.GeneralNominalSlotTypeMap256.map view types).ordinary = view.ordinary
+Yulang.GeneralNominalSlotTypeMap256.nominals_unchanged : ∀ (view : Yulang.GeneralNominalRebaseRawView243.View)
+  (types : Fin view.slots → Yulang.Core.PresenceGeneration.TyTerm Nat),
+  (Yulang.GeneralNominalSlotTypeMap256.map view types).nominals = view.nominals
+Yulang.GeneralDictionarySlotView256.expanded : Nat → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionarySlotView256.compact : Nat → Yulang.GeneralNominalRebaseRawView243.View
+Yulang.GeneralDictionarySlotView256.compact_exact : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionarySlotView256.compact n).Models assignment ↔
+    (Yulang.GeneralDictionarySlotView256.expanded n).Models assignment
+Yulang.GeneralDictionarySlotView256.recovered : ∀ (n : Nat) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralPresenceDefinitionRewrite244.block (Yulang.GeneralDictionaryAggregateHistory256.history n)) →
+    ((Yulang.GeneralDictionarySlotView256.compact n).Models assignment ↔
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment)
+Yulang.GeneralDictionarySlotView256.source_models : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      assignment →
+    (Yulang.GeneralDictionarySlotView256.compact n).Models assignment
+Yulang.GeneralDictionarySlotView256.slot_values_finite : ∀ (n : Nat)
+  (slot : Fin (Yulang.GeneralDictionarySlotView256.compact n).slots),
+  ((Yulang.GeneralDictionarySlotView256.compact n).slot slot).ty ∈ Yulang.GeneralDictionaryHistoricalFields256.pool
+Yulang.GeneralDictionarySlotView256.slot_count : ∀ (n : Nat),
+  (Yulang.GeneralDictionarySlotView256.compact n).slots = n + 5
+Yulang.GeneralDictionarySlotView256.source_erased_rows : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralDictionaryLooseIterationIteration240.state n)
+      assignment →
+    (Yulang.GeneralDictionaryAggregateRows256.eraseSlotRows (Yulang.GeneralDictionarySlotView256.compact n)).Models
+      assignment
+Yulang.GeneralDictionarySlotView256.compact_solved : ∀ (n : Nat)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralDictionarySlotView256.compact n).Models assignment ↔
+    Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
+      (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model
+        (Yulang.GeneralDictionaryAggregateHistory256.history n) assignment)
+Yulang.GeneralDictionarySlotView256.solve_initial : ∀ (n name : Nat),
+  name ≤ 4 →
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model
+          (Yulang.GeneralDictionaryAggregateHistory256.history n) assignment name =
+        assignment name
+Yulang.GeneralDictionarySlotView256.public_models : ∀ (n : Nat)
+  (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+  (∃ assignment,
+      Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state assignment ∧
+        ∀ (name : Nat), name ≤ 4 → assignment name = boundary name) ↔
+    ∃ assignment,
+      (Yulang.GeneralDictionarySlotView256.compact n).Models assignment ∧
+        ∀ (name : Nat), name ≤ 4 → assignment name = boundary name
+Yulang.GeneralNominalOrderedRawPublic256.compiled_solved : ∀ (raw : Yulang.GeneralNominalState.State)
+  (entries : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat))
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralNominalRebaseRawView243.compile raw
+          (Yulang.GeneralPresenceOrderedSubstitution247.mapping entries)).Models
+      assignment ↔
+    Yulang.GeneralNominalState.Models raw
+      (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model entries assignment)
+Yulang.GeneralNominalOrderedRawPublic256.recovered : ∀ (raw : Yulang.GeneralNominalState.State)
+  (entries : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat))
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.PresenceNormalForm.All Yulang.CommonNominalFullCarrier.model assignment
+      (Yulang.GeneralPresenceDefinitionRewrite244.block entries) →
+    ((Yulang.GeneralNominalRebaseRawView243.compile raw
+            (Yulang.GeneralPresenceOrderedSubstitution247.mapping entries)).Models
+        assignment ↔
+      Yulang.GeneralNominalState.Models raw assignment)
+Yulang.GeneralNominalOrderedRawPublic256.solve_public : ∀
+  (entries : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)) (hidden : List Nat),
+  (∀ (entry : Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat), entry ∈ entries → entry.fst ∈ hidden) →
+    ∀ (assignment boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralNominalRebasePublicModel242.PublicAgree hidden assignment boundary →
+        Yulang.GeneralNominalRebasePublicModel242.PublicAgree hidden
+          (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model entries assignment)
+          boundary
+Yulang.GeneralNominalOrderedRawPublic256.public_models : ∀ (raw : Yulang.GeneralNominalState.State)
+  (entries : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)),
+  Yulang.GeneralPresenceDefinitionRewrite244.block entries ⊆ raw.ordinary →
+    ∀ (hidden : List Nat),
+      (∀ (entry : Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat), entry ∈ entries → entry.fst ∈ hidden) →
+        ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+          (∃ assignment,
+              Yulang.GeneralNominalRebasePublicModel242.PublicAgree hidden assignment boundary ∧
+                Yulang.GeneralNominalState.Models raw assignment) ↔
+            ∃ assignment,
+              Yulang.GeneralNominalRebasePublicModel242.PublicAgree hidden assignment boundary ∧
+                (Yulang.GeneralNominalRebaseRawView243.compile raw
+                      (Yulang.GeneralPresenceOrderedSubstitution247.mapping entries)).Models
+                  assignment

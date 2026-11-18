@@ -1,0 +1,113 @@
+# Cycle255: source consumerとbasis閉包の入口
+開始2026-11-18T11:32:22Z。integration33cf8d490は253を統合、I50変更なし。
+254 completed/tree一致。integration barrelが254 barrelの完全prefixであることを確認し、
+merge競合は統合prefixと254追加を保持、merge前後の全tracked bytes同一。
+
+## 停止性への経路と今回の焦点
+Evidence条件付きground代表上界を無条件invariantとして使わない。raw経路で、
+固定sourceからのconsumer原子とpublic referencesの支持を実際に列挙する。
+private slotsの置換後に全consumerが固定basisへ閉じることはまだ未証明。
+有限なowner数だけでは239/240/251型の繰返し更新を除けない。
+
+最初に、PublicBasis253の「varだけ」のpoolでsource raw Viewの全type consumerを
+normalizeできるかを確認する。実252 initial sourceにはordinaryでint定数がある。
+これはprivate名の話ではないので、source名の個数やowner列挙を増やしてもconstant
+atomはvar-only poolに入らない可能性がある。実compile Viewのordinary memberと
+CheckedNormal.prepareの実結果を閉じたfixtureで確かめる。これはscheduler非停止
+反例や、新境界Stepを実行したtraceと混同しない。
+
+修正候補はsourceの初期type consumerからatomを集める有限basis。source側の型項を
+含めるI49案に沿う候補だが、I50のvar-only読みを黙って置換せず、旧定義は凍結する。
+Viewのslot.ty、ordinary tyLe両側、heads、nominal type引数を列挙する。row fieldsは
+変更しないことを明示し、全stateのrow有限化を済ませたとは言わない。
+
+証明目標: 任意View vについてsourceTerms vの各type fieldの両向きatomsが
+sourcePool vに入る。sourcePool vを固定した型field正規化はprepare成功・意味保存。
+実source compile(initial, identity mapping)で追加closure仮定なしに適用する。
+単一Viewごとにpoolが有限なだけでは全trace共通のpoolにならない。その区別を維持。
+
+次段でpublic port/centerやraw body templateがこの固定poolの上にどう加わるかを
+分類し、private非流出・strict進捗・Accへ繋ぐ。意味論やoperational Stepを変更しない。
+
+## 最初の検証結果
+var-only basisでは実source ordinaryのint consumerがprepare noneとなることを確認。
+同じsourceの全raw View type fieldsに対して、sourceから収集したatom pool＋public
+refsを使う候補はprepare成功し、全assignmentでView.Modelsと元source.Modelsが同値。
+新規View normalizerはsideを明示して同一sideでtype fieldsを正規化する支援関数で、
+I49のlo/hi aggregate schedulerの置換ではない。row fieldsはliteralに保持するため、
+モデル保存定理はView全体を覆うがrowの有限正規形化を示したわけではない。
+全将来状態の固定pool・private非流出・strict進捗はまだ未証明。
+
+## 初期sourceにおける支持・有限化の接続
+追加の一般定理では、raw compileの全type consumer（slot、ordinary、head、nominal
+型引数）が GeneralNominalState.sources に含まれる名前だけを読むことを示した。
+TyTerm内のarrow row読みも追跡し、二つの既存source collectorの一致を証明した。
+したがってInitialSource.below_seedから、source atom poolは全fresh名を含まない。
+public refsを足してもpurposes0/1のprivate aggregateは入らない。このbasisにより
+初期View全体のprepare成功・全Models保存を得る。一般の未来Viewにこれを適用する
+には、そのViewのSupportedが依然必要であり、自動的に成立したとは扱わない。
+
+mapしたViewのconsumer listが元listのmapと厳密に等しいことも証明し、正規化後の
+全type fieldsが同一basisの有限候補列挙に入り、再prepareで固定点となることを得た。
+候補list長はsideごと2^basis.length（重複は許す）。これは型fieldの有限化であり、
+slot数、row項、nominal構造、ordinary本数、journal履歴の有限化ではない。
+
+raw output templateの各leafに有限候補を割り当てる有限Cartesian menuを追加。
+nominal引数だけactual modeへ切り替える既存compileをそのまま追跡し、使用する
+(mode,name)のみへの候補所属から、実compile結果のmenu所属を証明した。
+このmenuは同じbinderの複数出現を独立に選べるoverapproxであり、全menu項が
+単一のvariables関数で実現可能だとは主張しない。次に254の実source template列挙
+へ接続する。モデル・Evidenceを使わずに構文の有限候補を得る経路を保つ。
+
+## raw output側の有限menuと意味保存
+`TemplateChoices255`の有限menuを254の実source到達frameのcompileBodyに接続した。
+参照leafを固定basisで正規化すると、lower/upper候補listの和をleaf候補にした有限menu
+へ必ず入る。一方、それだけではunsupported atomを削ってしまう可能性があるので、
+使用する(mode,name)を列挙した実checkを作り、prepare成功の場合に限って、全assignment
+で元のmaterialized式とEquivalentであると証明した。nominalの内側はactual mode、
+record/union等は受け取ったmodeを使う既存compileと同じである。actualのみ支持された
+nominalが通り、同じvariablesのlower recordは拒否される回帰も付けた。
+
+source leaf中の全type/arrow-row読みを集め、有限menuがprivate-free basisから作られた
+場合はmaterialized式の読みもprivate-freeであることを示した。ここでもcheck成功なしの
+private-freeだけを意味保存の代わりに使わない。
+
+初期source＋public refsのraw poolは重複を含みうるため、そのままではliteralなatom列の
+重複なしを主張できない。`CanonicalBasis255`は一度eraseDupsし、支持・全Models保存・
+private分離を保ち、全正規化後type fieldsのatoms.Nodupを証明する候補を追加した。
+レビュー済みraw basisの定義は変更せず、重複除去後basisを別名にしている。
+
+raw正規化後のsource leafのsyntax深さは `1 + basis.length + 最大atom深さ` 以下。
+materialized templateの深さは、それにraw template深さを加えた上界を持つ。実source
+frameなら254の固定template budgetを使える。これはI50(b)の「参照を保持した構文」の
+上界であり、I50(a)のground readback・全producer依存鎖上界とは別物である。
+
+## 依然残る一番大きな穴
+この周で全trace共通のSupportedは証明していない。source初期化は閉じたが、旧blockの
+代入、reobserve、構造consumer追加、role別environmentの作り直しから同じ固定basisへ
+閉じることは次の本体である。finite ownerだけでこの結論を代用しない。
+raw templateから毎回有限leaf候補で再構築する表現の見通しは得たが、実Stepがこの表現を
+保存すること・新factの厳密増加・slot/row/journalの有限性は未証明。mixed-time compiler、
+Permitted、12則の移植、Accを済ませたとは言わない。source到達の新非停止反例は出していない。
+
+## 実source由来の一つの固定basis
+`SourcePublicBasis255.mixed_source_basis` は、実際のMixedSource境界のInitialだけから、
+contextと一つの重複なし有限basisを取り出す。GroundRootsやCoverageを新たな仮定に
+せず、既存Initialの中身から取得する。固定sourceのowner上界から候補owner listを作り、
+実行中に見たowner数を有限性の根拠にはしない。この同じbasisで初期Raw Viewのprepare
+が成功し、後のGenerated/Installable/未Committedな据付けのpublic ports（253で定義した
+purposes2〜5）のvar atomが入る。purposes0/1のprivate名はbasisの全読みから分離される。
+これはpurpose8などの全識別子の列挙や、全consumerの代入閉包ではない。
+
+`GeneralDictionaryTemplateMenu255` は252の実Initial・frame・明示bodyを使う回帰。
+実compileBodyのF(F(a))をsource binder2への参照で表す結果が固定有限menuに入り、
+canonical basis上の実prepareも成功する。全assignmentで旧versioned output valueと
+Equivalent。保存syntax深さは2のまま、モデルでの意味は既存のP（展開深さ4）である。
+新境界を作ったり、ground depthが2だと主張したりしない。
+
+## 否定結果の正確な位置
+intの否定結果は、全Raw Viewのtype consumerをvar-only poolで一律に正規化する、
+今回検討した強い案への診断。I50のlo/hiだけを正規化し固定source項をそのまま保持する
+表現まで反証したものではない。したがってI50のsourceStep非停止反例や意味論への
+反例として停止を要求しない。固定source项を不変に保持する案と、今回のsource atom
+拡張basis案のどちらを実Stepへ採るかは、残る全consumer閉包の証明と一緒に判断する。

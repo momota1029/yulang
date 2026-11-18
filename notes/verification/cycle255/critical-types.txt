@@ -1,0 +1,74 @@
+theorem Yulang.GeneralNominalSourcePublicBasis255.mixed_source_basis : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ context pool,
+      start = Yulang.GeneralNominalVersionedJournal232.initial context root ∧
+        pool.Nodup ∧
+          (∀ (side : Yulang.GeneralPresenceCheckedNormal252.Side),
+              Yulang.GeneralNominalViewNormal255.prepare side pool
+                  (Yulang.GeneralNominalRebaseRawView243.compile context.state
+                    Yulang.Core.PresenceGeneration.CompTerm.var) =
+                some
+                  (Yulang.GeneralNominalViewNormal255.rewrite side pool
+                    (Yulang.GeneralNominalRebaseRawView243.compile context.state
+                      Yulang.Core.PresenceGeneration.CompTerm.var))) ∧
+            (∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+                Yulang.B4Target.Steps
+                    ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root)
+                    start state →
+                  ∀ (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+                    Yulang.GeneralNominalSaturationState.Generated
+                        (Yulang.GeneralNominalVersionedJournal232.State.core state).erased.current root
+                        effect.plan.packet.site.occurrence →
+                      Yulang.GeneralNominalVersionedMixedKernel234.Installable
+                          (Yulang.GeneralNominalCenteredHeadAllocEncoding.registry sourceRegistry) state effect →
+                        ¬Yulang.GeneralNominalVersionedMixedKernel234.Committed state effect.plan →
+                          ∀ (name : Nat),
+                            name ∈
+                                Yulang.GeneralNominalPublicPorts253.ports effect.plan.packet.context.state.seed
+                                  effect.plan.packet.site.occurrence.identity effect.plan.packet.declaration →
+                              Yulang.Core.PresenceGeneration.TyTerm.var name ∈ pool) ∧
+              ∀ (invocation key purpose binder position : Nat),
+                purpose ≤ 1 →
+                  ∀ (term : Yulang.Core.PresenceGeneration.TyTerm Nat),
+                    term ∈ pool →
+                      ¬Yulang.GeneralNominalPublicBasis253.privateName context.state.seed invocation key purpose binder
+                            position ∈
+                          Yulang.GeneralPresenceSubstitutionSupport244.typeSources term
+
+theorem Yulang.GeneralNominalSourceTemplateMenu255.source_prepared : ∀ {roles : Yulang.Roles.RoleDecls}
+  {state : Yulang.GeneralNominalVersionedJournal232.State roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles} {context : Yulang.GeneralNominalCandidates.Context}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles} {key : Nat}
+  {plan : Yulang.GeneralNominalCenters.Plan roles} {output : Yulang.GeneralSourceState.Output}
+  {body : Yulang.GeneralDictionaryAssociatedProvenance.Body}
+  {expression : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root)
+      (Yulang.GeneralNominalVersionedJournal232.initial context root) state →
+    Yulang.GeneralNominalVersionedEvidence231.Frame registry state.core focus key plan →
+      output ∈ focus.demand.outputs →
+        Yulang.GeneralDictionaryAssociatedProvenance.Supplies roles plan.packet.declaration output.name body →
+          Yulang.GeneralNominalCenteredHeadMatEffects.compileBody plan body = some expression →
+            ∀ (policy : Yulang.GeneralNominalMaterialization.Mode → Yulang.GeneralPresenceCheckedNormal252.Side)
+              (basis : List (Yulang.Core.PresenceGeneration.TyTerm Nat))
+              (variables : Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.Core.PresenceGeneration.TyTerm Nat)
+              (mode : Yulang.GeneralNominalMaterialization.Mode)
+              (result : Yulang.GeneralNominalTemplateChoices255.Materialized),
+              Yulang.GeneralNominalTemplateNormal255.prepare policy basis variables mode expression = some result →
+                ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                  result ∈
+                      Yulang.GeneralNominalSourceTemplateMenu255.menu registry context root
+                        (Yulang.GeneralNominalTemplateNormal255.leafCandidates basis) ∧
+                    Yulang.CommonNominalFullCarrier.Equivalent
+                      (Yulang.GeneralNominalRebaseEffectView243.eval assignment result)
+                      (Yulang.GeneralNominalRebaseEffectView243.eval assignment
+                        (Yulang.GeneralNominalRebaseEffectView243.compile variables mode expression))
+
+theorem Yulang.GeneralDictionaryTemplateMenu255.all_models_exact : ∀
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.GeneralNominalRebaseEffectView243.eval assignment Yulang.GeneralDictionaryTemplateMenu255.result)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.value
+      (Yulang.GeneralNominalVersionedPlans231.variables Yulang.GeneralDictionaryOutputDepth252.plan assignment)
+      Yulang.GeneralNominalMaterialization.Mode.actual Yulang.GeneralDictionaryOutputDepth252.rhs)

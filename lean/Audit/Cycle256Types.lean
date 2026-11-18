@@ -1,0 +1,24 @@
+import Yulang.GeneralNominalInputOccurrences256
+import Yulang.GeneralNominalAggregateAtoms256
+import Yulang.GeneralNominalSourceAggregate256
+import Yulang.GeneralNominalHistoricalAggregate256
+import Yulang.GeneralNominalFrameAggregate256
+import Yulang.GeneralNominalInitialAggregate256
+import Yulang.GeneralDictionaryReachableAggregate256
+import Yulang.GeneralPresenceOrderedAppend256
+import Yulang.GeneralDictionaryAggregateHistory256
+import Yulang.GeneralDictionaryAggregateBasis256
+import Yulang.GeneralDictionaryAggregateRows256
+import Yulang.GeneralDictionaryHistoricalFields256
+import Yulang.GeneralNominalSlotTypeMap256
+import Yulang.GeneralDictionarySlotView256
+import Yulang.GeneralNominalOrderedRawPublic256
+
+#check @Yulang.GeneralNominalInputOccurrences256.frame_nonempty
+#check @Yulang.GeneralNominalInitialAggregate256.prepared
+#check @Yulang.GeneralNominalHistoricalAggregate256.fits_exact
+#check @Yulang.GeneralDictionaryAggregateHistory256.prepared
+#check @Yulang.GeneralDictionaryReachableAggregate256.fits_exact
+#check @Yulang.GeneralDictionarySlotView256.public_models
+#check @Yulang.GeneralDictionarySlotView256.compact_solved
+#check @Yulang.GeneralNominalOrderedRawPublic256.public_models

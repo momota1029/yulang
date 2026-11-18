@@ -1,13 +1,10 @@
 # dots-main heartbeat
-- cycle: 254
-- status: completed
-- started: 2026-11-18T10:35:05Z
-- updated: 2026-11-18T11:26:53Z
-- elapsed_min: 51.8
-- activity: 14 modules,19 examples,84 explicit/154 full audit PASS; report published and all bytes verified. Source-uniform evidenced readbacks and evidence-free raw templates; operational closure/Acc remain open.
+- cycle: 257
+- status: running
+- started: 2026-11-18T13:27:08Z
+- updated: 2026-11-18T13:37:18Z
+- elapsed_min: 10.18
+- activity: First8 modules published and reviewed: full both-side history,4 canonical accumulated facts with public model projection. Proving exact fields before a5-slot current View representation.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: 2a31d7fe1
-- resume_hint: Read latest integration/inbox and cycle254 report. Next: actual public-reference/consumer classification and CheckedNormal.prepare source closure, then private non-escape and strict progress. Do not use Evidence-conditional ground bound as an unconditional termination invariant.
-- report: notes/handoff/dots-cycle-254.md
-- publication: 1bb1f56aa074764ac67fb9daec25952f776f7a3b
-- receipt: notes/verification/cycle254/publication-receipt.md
+- last_local_commit: 72e4c9032
+- resume_hint: af591bec checkpoint verified. CompactFields257 is under focused build. No new source Step; old no-Acc remains.
