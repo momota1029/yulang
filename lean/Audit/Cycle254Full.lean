@@ -12,7 +12,6 @@ import Yulang.GeneralNominalProducerRank254
 import Yulang.GeneralNominalSourceOutputDepth254
 import Yulang.GeneralDictionaryOutputReadback254
 import Yulang.GeneralNominalRawOutputBudget254
-import Audit.Cycle254Usage
 import Lean
 open Lean Elab Command in
 run_cmd do
