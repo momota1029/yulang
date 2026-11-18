@@ -4583,3 +4583,9 @@ import Yulang.GeneralNominalTwoInstallRegression250
 import Yulang.GeneralNominalOwnerRegistry250
 import Yulang.GeneralNominalRegistryInvariant250
 import Yulang.GeneralNominalMultiOwnerCommands250
+import Yulang.GeneralNominalMixedSchema251
+import Yulang.GeneralNominalMixedPacket251
+import Yulang.GeneralNominalRoleEnvironment251
+import Yulang.GeneralNominalRoleSchema251
+import Yulang.GeneralNominalRoleEquations251
+import Yulang.GeneralNominalStableRoleEnvironment251
