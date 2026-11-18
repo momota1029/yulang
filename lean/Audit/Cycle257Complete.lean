@@ -1,0 +1,74 @@
+import Yulang.GeneralDictionaryUpperHistory257
+import Yulang.GeneralDictionaryFullExpansion257
+import Yulang.GeneralPresenceIdempotentTree257
+import Yulang.GeneralDictionaryOrdinaryShape257
+import Yulang.GeneralDictionaryFullReduced257
+import Yulang.GeneralDictionaryOrdinaryFinite257
+import Yulang.GeneralDictionaryOrdinaryCanonical257
+import Yulang.GeneralDictionaryCompactView257
+
+#print axioms Yulang.GeneralDictionaryUpperHistory257.upperEntry
+#print axioms Yulang.GeneralDictionaryUpperHistory257.lowerEntry
+#print axioms Yulang.GeneralDictionaryUpperHistory257.history
+#print axioms Yulang.GeneralDictionaryUpperHistory257.upper_equations
+#print axioms Yulang.GeneralDictionaryUpperHistory257.block_in_source
+#print axioms Yulang.GeneralDictionaryUpperHistory257.targets_above
+#print axioms Yulang.GeneralDictionaryUpperHistory257.initial_fixed
+#print axioms Yulang.GeneralDictionaryFullExpansion257.snoc_other
+#print axioms Yulang.GeneralDictionaryFullExpansion257.current_lower
+#print axioms Yulang.GeneralDictionaryFullExpansion257.past_lower
+#print axioms Yulang.GeneralDictionaryFullExpansion257.current_upper
+#print axioms Yulang.GeneralDictionaryFullExpansion257.past_upper
+#print axioms Yulang.GeneralPresenceIdempotentTree257.join
+#print axioms Yulang.GeneralPresenceIdempotentTree257.meet
+#print axioms Yulang.GeneralPresenceIdempotentTree257.reduce
+#print axioms Yulang.GeneralPresenceIdempotentTree257.meet_self
+#print axioms Yulang.GeneralPresenceIdempotentTree257.join_exact
+#print axioms Yulang.GeneralPresenceIdempotentTree257.meet_exact
+#print axioms Yulang.GeneralPresenceIdempotentTree257.equivalent
+#print axioms Yulang.GeneralPresenceIdempotentTree257.atom
+#print axioms Yulang.GeneralPresenceIdempotentTree257.atom_exact
+#print axioms Yulang.GeneralPresenceIdempotentTree257.all_exact
+#print axioms Yulang.GeneralDictionaryOrdinaryShape257.crossAtom
+#print axioms Yulang.GeneralDictionaryOrdinaryShape257.selfAtom
+#print axioms Yulang.GeneralDictionaryOrdinaryShape257.lowerAtoms
+#print axioms Yulang.GeneralDictionaryOrdinaryShape257.upperAtoms
+#print axioms Yulang.GeneralDictionaryOrdinaryShape257.added_exact
+#print axioms Yulang.GeneralDictionaryOrdinaryShape257.atom_cases
+#print axioms Yulang.GeneralDictionaryOrdinaryShape257.length_atoms
+#print axioms Yulang.GeneralDictionaryFullReduced257.reduce_tree
+#print axioms Yulang.GeneralDictionaryFullReduced257.lower_fixed
+#print axioms Yulang.GeneralDictionaryFullReduced257.upper_fixed
+#print axioms Yulang.GeneralDictionaryFullReduced257.initial_fixed
+#print axioms Yulang.GeneralDictionaryFullReduced257.lower_adapter_failure
+#print axioms Yulang.GeneralDictionaryFullReduced257.repaired_upper_prepare
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.rewriteAtom
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.le
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.candidates
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.cross_fixed
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.self_fixed
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.lower_fixed
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.upper_fixed
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.finite
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.rewritten
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.rewritten_finite
+#print axioms Yulang.GeneralDictionaryOrdinaryFinite257.length_rewritten
+#print axioms Yulang.GeneralDictionaryOrdinaryCanonical257.all_present
+#print axioms Yulang.GeneralDictionaryOrdinaryCanonical257.compact
+#print axioms Yulang.GeneralDictionaryOrdinaryCanonical257.membership
+#print axioms Yulang.GeneralDictionaryOrdinaryCanonical257.exact
+#print axioms Yulang.GeneralDictionaryOrdinaryCanonical257.length_bound
+#print axioms Yulang.GeneralDictionaryOrdinaryCanonical257.stable
+#print axioms Yulang.GeneralDictionaryCompactView257.expanded
+#print axioms Yulang.GeneralDictionaryCompactView257.normalized
+#print axioms Yulang.GeneralDictionaryCompactView257.baseAtoms
+#print axioms Yulang.GeneralDictionaryCompactView257.compact
+#print axioms Yulang.GeneralDictionaryCompactView257.normalized_exact
+#print axioms Yulang.GeneralDictionaryCompactView257.ordinary_split
+#print axioms Yulang.GeneralDictionaryCompactView257.compact_exact
+#print axioms Yulang.GeneralDictionaryCompactView257.compact_solved
+#print axioms Yulang.GeneralDictionaryCompactView257.recovered
+#print axioms Yulang.GeneralDictionaryCompactView257.hidden
+#print axioms Yulang.GeneralDictionaryCompactView257.public_models
+#print axioms Yulang.GeneralDictionaryCompactView257.hidden_above
+#print axioms Yulang.GeneralDictionaryCompactView257.slot_count

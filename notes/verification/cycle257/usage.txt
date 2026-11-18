@@ -1,0 +1,2 @@
+Yulang.GeneralDictionaryLooseIterationNontermination240.initial_no_acc :
+  ¬Acc GeneralDictionaryLooseIterationNontermination240.reverseStep GeneralDictionaryLooseLoopSource240.initial
