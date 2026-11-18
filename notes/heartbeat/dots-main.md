@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 252
-- status: completed
-- started: 2026-11-18T08:30:13Z
-- updated: 2026-11-18T08:55:19Z
-- elapsed_min: 25.1
-- activity: I49 stopping condition: actual I45 source output ground expansion exceeds max-depth bound.12 modules/229 public and389 full declarations verified; remote complete tree dcf18d83 checked. No new implementation pending.
+- cycle: 253
+- status: running
+- started: 2026-11-18T09:28:30Z
+- updated: 2026-11-18T09:29:00Z
+- elapsed_min: 0.5
+- activity: I50 received: additive output-dependency depth bounds, opaque public output-name pool closure, and cycle classification. Prior252 publication verified; design before Lean, no repetition of false max bound.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: 796e8d1eb
-- resume_hint: Read latest inbox and cycle252 expanded-depth obstruction. Await supervisor interpretation/repair of depth/basis; design research allowed byI49 but do not ignore counterexample and resume components.
-- report: notes/handoff/dots-cycle-252.md
+- last_local_commit: edc6a02f1
+- resume_hint: Read currentI50 and cycle253 design. Preserve raw-vs-ground distinction; source counterexamples stop implementation. Report/publish by10:23UTC.
