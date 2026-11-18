@@ -4791,3 +4791,8 @@ import Yulang.GeneralRebaseBodyActual260
 import Yulang.GeneralRebaseRequestBodyKeys260
 import Yulang.GeneralRebaseNamedRequest260
 import Yulang.GeneralRebaseEqualOutputs260
+import Yulang.GeneralRebaseBodyTable261
+import Yulang.GeneralRebaseClassTable261
+import Yulang.GeneralRebaseClassCheck261
+import Yulang.GeneralRebaseClassRun261
+import Yulang.GeneralRebaseMergeRequests261
