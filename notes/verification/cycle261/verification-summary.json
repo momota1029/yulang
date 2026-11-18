@@ -1,0 +1,16 @@
+{
+  "new_modules": 22,
+  "explicit_theorem_def_abbrev": 200,
+  "full_generated_private_declarations": 316,
+  "usage_examples": 10,
+  "fresh_critical_modules": 26,
+  "dependency_source_files": 1793,
+  "standalone_audits": 6,
+  "reach_explicit": 165,
+  "reach_roots": 41,
+  "kernel_probes": 1,
+  "independent_read_reviewed_modules": 21,
+  "independent_rebuild": false,
+  "whole_repository_build": false,
+  "yulang_runtime": false
+}
