@@ -4626,3 +4626,9 @@ import Yulang.GeneralDictionaryOutputDepthInstall252
 import Yulang.GeneralPatternAdditiveDepth253
 import Yulang.GeneralNominalExprDepth253
 import Yulang.GeneralNominalOutputNames253
+import Yulang.GeneralNominalRawFinite253
+import Yulang.GeneralNominalPublicPorts253
+import Yulang.GeneralDictionaryCompoundPool253
+import Yulang.GeneralDictionaryCompoundPoolRepair253
+import Yulang.GeneralPatternDependencyDepth253
+import Yulang.GeneralDictionaryOutputDepthRepair253

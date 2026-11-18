@@ -44,3 +44,32 @@ raw参照式の有限性とground depth上界のどちらも、依存graph/sourc
 結ぶまでAccではない。private escapeと新factの厳密増加は引き続き未完了。
 言語意味は変えず、I50の具体的な上界解釈がsource例で破れれば、閉じた診断を
 公開して監督役へ返す。packet/Permitted部品は増やさない。
+
+## 09:48 checkpoint: 狭いpoolの診断と修正候補
+
+`GeneralDictionaryCompoundPool253.source_reachable_pool_gap` は既存238の実sourceを
+I45のinstall一歩へ埋め込み、実到達childの入力端点が元source名とnamed-output
+binder名のpoolから外れることを閉じる。registryのoutputNamesは空であり、owner
+候補をどれだけ増やしても埋まらない。private slotだけを置換し、そのpublic
+端点を保存するmappingについては、同端点のvar atomは依然pool外となる。
+
+**範囲**: これは到達public端点の列挙漏れと条件付き置換閉包の診断であり、
+新rebase境界の実SnapshotNormal処理に到達して失敗するtraceではない。
+非停止反例でもなく、I50の「ownerの出力」をすべてのemitted portと読む場合
+まで否定しない。named binder限定の閉包証明だけを保留し、独立の研究は続ける。
+
+候補修正は `GeneralNominalPublicPorts253.ports`。purpose2のnamed出力に加え、
+whereのcompound入力用3/4とclause出力用5を列挙する。sourceから有限ownerを
+取ることにより、全将来installの該当public portは一つの有限listに入る。
+0/1のversioned private aggregateはどのbinding履歴についてもこのlist外。
+`GeneralDictionaryCompoundPoolRepair253` で今回の欠落だけは修復を検証した。
+これは候補basisの定義であり、実compiler/journalの表現変更を行っていない。
+actual center7/8/9の扱い、構造項を原子にすべき場合、bottom/top、中間の異なる
+演算をどう閉包するか、source trace全体でのprivate escapeはまだ別の義務。
+
+加算上界は `Build` でtopological readback順序が供給される場合に証明する。
+各nodeがsourceまたは前node出力を代入するなら、深さはsource最大深さと全node
+のtemplate深さの和以下。これをowner数だけに置き換えてはいけない。owner内
+複数出力やoutput-only binderの依存も数える。正の深さ増分を持つcycleは矛盾、
+aliasだけの0増分cycleはこの議論では拒否できない。実sourceが順序または適切な
+拒否分類を供給する定理はまだない。
