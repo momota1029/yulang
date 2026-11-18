@@ -199,3 +199,10 @@
 'Yulang.GeneralRebaseSourceSnapshot261.completion' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralRebaseSourceSnapshot261.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralRebaseSourceSnapshot261.initial_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourcePool261.same_sites' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourcePool261.merge_pool' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourcePool261.refresh_pool' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourcePool261.absorbed_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourcePool261.installed_requests_covered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 v=Path('notes/verification/cycle261');mods=v.joinpath('modules.txt').read_text().splitlines()
 scopes={
+'SourcePool':'実center mergeとrefreshはsnapshot candidate列をliteralに保存する。versioned installは既存Absorbed前提の下でcandidate membershipを保存し、全rootの新requestsが旧poolに入る。新childを無条件で吸収すると仮定せず、list長・意味・全trace閉包の保存とは区別する。',
 'SourceSnapshot':'任意固定source snapshotの全site outputsを実行可能な有限candidate列にする。任意rootの実alias requestsを仮定なしで包含し、その固定snapshot上の動的root選択でClosed/完了/実ClassEffects書込みを示す。sourceやPlanは固定、一般trace共通pool・Frame生成・言語停止性ではない。',
 'CandidateValidation':'固定有限candidate全体のmissing/unknown検査とcovered schedulerを接続。成功なら全traceのReadyと正確なModels連言。未使用candidateのunknownも内部errorになり得るため言語拒否ではない。',
 'StableMergeFinish':'具体fixtureでは任意観測・任意finiteStateから唯一終端doneへsettle/finishが成功する。ただし履歴保持doneは不充足。翻訳/制約生成成功と充足性/プログラム受理を区別する閉じた回帰。',

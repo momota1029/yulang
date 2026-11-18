@@ -1,4 +1,4 @@
-import Yulang.GeneralRebaseSourceSnapshot261
+import Yulang.GeneralRebaseSourcePool261
 namespace Cycle261Usage
 open Yulang
 example (atoms) (output : GeneralSourceState.Output) : output ∈ GeneralNominalCenteredHeadOutputs.requests (GeneralNominalCenteredHeadAllocMergeState.stage atoms).core GeneralNominalCenteredHeadAllocMergeConflict.focus ↔ output ∈ GeneralRebaseMergeRequests261.outputs := GeneralRebaseMergeRequests261.requests_exact ..
@@ -10,4 +10,5 @@ example (owner : Nat) (first last : GeneralSourceState.Output) (assignment : Gen
 example (atoms) : ¬ ∃ assignment, GeneralRebaseStableMerge261.Models atoms (GeneralRebaseStableMerge261.finalState atoms) assignment := GeneralRebaseStableMerge261.final_uninhabited atoms
 example (fixed) (inspect) : GeneralRebaseStableMergeFinish261.finish fixed inspect (GeneralRebaseStableMerge261.initialState fixed) = .ok (GeneralRebaseStableMerge261.finalState fixed) ∧ ¬ ∃ assignment, GeneralRebaseStableMerge261.Models fixed (GeneralRebaseStableMerge261.finalState fixed) assignment := GeneralRebaseStableMergeFinish261.success_not_satisfiability fixed inspect
 example (source : GeneralNominalCenteredSteps.State roles) (root : GeneralSourceDictionaries.Occurrence roles) : ∀ output ∈ GeneralNominalCenteredHeadOutputs.requests source root, output ∈ GeneralRebaseSourceSnapshot261.candidates source := GeneralRebaseSourceSnapshot261.covered source root
+example (state : GeneralNominalCenteredSteps.State roles) (first last : GeneralNominalCenters.Site roles) (support) : GeneralRebaseSourceSnapshot261.candidates (GeneralNominalCenteredSteps.merge state first last support) = GeneralRebaseSourceSnapshot261.candidates state := GeneralRebaseSourcePool261.merge_pool state first last support
 end Cycle261Usage

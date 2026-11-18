@@ -32,4 +32,5 @@ OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseStableMergeDriver261.first
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseStableMergeDriver261.stops
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseCandidateValidation261.layout_error
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseSourceSnapshot261.initial_models
-CYCLE261-REACH: 161/195 explicit declarations reached from 38 selected final roots
+OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseSourcePool261.same_sites
+CYCLE261-REACH: 165/200 explicit declarations reached from 41 selected final roots

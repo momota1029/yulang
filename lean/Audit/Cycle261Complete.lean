@@ -19,6 +19,7 @@ import Yulang.GeneralRebaseStableMergeDriver261
 import Yulang.GeneralRebaseCandidateValidation261
 import Yulang.GeneralRebaseStableMergeFinish261
 import Yulang.GeneralRebaseSourceSnapshot261
+import Yulang.GeneralRebaseSourcePool261
 
 #print axioms Yulang.GeneralRebaseBodyTable261.schema
 #print axioms Yulang.GeneralRebaseBodyTable261.variables
@@ -215,3 +216,8 @@ import Yulang.GeneralRebaseSourceSnapshot261
 #print axioms Yulang.GeneralRebaseSourceSnapshot261.completion
 #print axioms Yulang.GeneralRebaseSourceSnapshot261.step_actual
 #print axioms Yulang.GeneralRebaseSourceSnapshot261.initial_models
+#print axioms Yulang.GeneralRebaseSourcePool261.same_sites
+#print axioms Yulang.GeneralRebaseSourcePool261.merge_pool
+#print axioms Yulang.GeneralRebaseSourcePool261.refresh_pool
+#print axioms Yulang.GeneralRebaseSourcePool261.absorbed_install
+#print axioms Yulang.GeneralRebaseSourcePool261.installed_requests_covered

@@ -120,3 +120,44 @@ basis外は別errorとして保持し、成功なら全選択履歴Readyと正�
 次の本質的義務は、初期siteと新規installの両方について保持request targetの固定pool所属を
 帰納的に示し、同じownerのPlan・capture意味を更新しても過去factsを再解釈しない橋を作ること。
 実request取得のalias判定はなおnoncomputable。一般Evidence/Permittedと12性質の移植はその後。
+
+## 次の実行可能alias観測の具体設計（未形式化）
+
+実 `SaturationState.Alias` はaliases辺の反射・対称・推移閉包だった。
+K2の意味的型同値判定ではない。したがって固定snapshotのrequest抽出だけなら、
+有限無向グラフの到達可能性で置換できる見通しがある。既存 `JointEquality.alias_same`
+もalias辺列だけに依存することを確認している。
+
+- 頂点候補は root identity、全query/site identity、全alias辺の両端を含める。
+  site identityだけでは、中間辺頂点がsiteにない経路を落とすため不十分。
+- visited={root}から両方向の隣接辺を反復追加する。strictな追加時には未訪問頂点数が減る。
+- 停止時の両方向edge-closed性から、Alias導出の帰納法で完全性を示せる。
+  soundnessは各追加にedgeとtransを付ける。有限長最短経路補題を別に仮定しなくてよい。
+- 元のsites列を元の順序でfilterし、outputsをflatMapする。重複を勝手に消す必要はない。
+  述語一致を示した上で既存requestsとのlist等号を証明するのが次の目標。
+- この算法は固定snapshotの実行可能観測を解消する候補であり、source更新後も同じ
+  candidate basisが使える不変条件、Plan/capture意味の接続、言語受理判定とは別。
+
+`alias-closure-prototype.py` は4頂点の全64無向グラフ×5rootを独立union-findと比較し、
+site外の中間頂点、出力列の順序・重複保持も試した。これはPythonの算法実験のみで、
+LeanのAlias同値定理やYulang実機検証としては数えない。
+
+実center mergeとrefreshではraw sitesが変わらないため、snapshot candidate列はliteralに
+保存されることもLeanで確認した。実versioned installでは既存 `Absorbed` が成り立つとき、
+新raw childのoutputsは既存alias requestsに含まれ、candidate membershipを保存する。
+そこからinstall後の任意root requestsを旧poolへ戻せる。list重複・長さまで同じとは言わない。
+`Absorbed` は新child出力が既に表現済みという条件であり、任意sourceのinstallに自動的に
+成り立つとはしていない。これが新public targetを許す一般sourceへの残る帰納義務である。
+
+### 次の優先順位
+
+1. `GeneralRebaseAliasClosure262`（候補名）：上記有限alias算法をLeanで実装し、
+   `Alias` iff computed membership、続いて既存requestsとのlist等号を証明する。
+2. `GeneralRebaseRequestPool262`：初期source outputs＋owner由来public portsについて、
+   新規installが追加する全child request targetのpool所属を示す。Absorbedの場合だけの
+   今回の保存補題と、真に新しいpublic targetの場合を分ける。
+3. `GeneralRebaseSnapshotAdvance262`：Plan/captureが変わるときの既存fact意味の保存と
+   mixed-time packetの証明書を接続。任意変更Planの意味保存を仮定して終えない。
+
+質問を要する言語意味の選択は今回発生していない。上記は実装・証明義務であり、
+ユーザーに未解決数学を承認してもらう問題にはしない。

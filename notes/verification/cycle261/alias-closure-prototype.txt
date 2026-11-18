@@ -1,0 +1,2 @@
+PROTOTYPE-PASS: 320 exhaustive graph/root cases; maximum growth rounds 3; external-endpoint and duplicate/order regressions PASS
+Scope: Python algorithm experiment only; no Lean Alias equivalence or executable request compiler theorem yet.

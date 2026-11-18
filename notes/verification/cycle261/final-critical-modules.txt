@@ -1,6 +1,7 @@
 lean/Yulang/GeneralNominalCenteredHeadAllocMergeConflict.lean
 lean/Yulang/GeneralNominalCenteredHeadAllocV7Completion.lean
 lean/Yulang/GeneralNominalCenteredHeadAllocV7MergeRegression.lean
+lean/Yulang/GeneralNominalVersionedMixedInstallRequests235.lean
 lean/Yulang/GeneralRebaseBodyTable261.lean
 lean/Yulang/GeneralRebaseClassTable261.lean
 lean/Yulang/GeneralRebaseClassCheck261.lean
@@ -22,3 +23,4 @@ lean/Yulang/GeneralRebaseStableMergeDriver261.lean
 lean/Yulang/GeneralRebaseCandidateValidation261.lean
 lean/Yulang/GeneralRebaseStableMergeFinish261.lean
 lean/Yulang/GeneralRebaseSourceSnapshot261.lean
+lean/Yulang/GeneralRebaseSourcePool261.lean

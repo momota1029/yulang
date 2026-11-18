@@ -417,3 +417,20 @@ Yulang.GeneralRebaseStableMergeFinish261.success_not_satisfiability : ∀
           Yulang.GeneralRebaseStableClass261.Models base plan owner after assignment ↔
             Yulang.GeneralRebaseStableClass261.Models base plan owner before assignment ∧
               Yulang.GeneralNominalVersionedEffects231.ClassEffects source root plan assignment
+@Yulang.GeneralRebaseSourcePool261.merge_pool : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (first last : Yulang.GeneralNominalCenters.Site roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.GeneralRebaseSourceSnapshot261.candidates (Yulang.GeneralNominalCenteredSteps.merge state first last support) =
+    Yulang.GeneralRebaseSourceSnapshot261.candidates state
+@Yulang.GeneralRebaseSourcePool261.refresh_pool : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralRebaseSourceSnapshot261.candidates (Yulang.GeneralNominalCenteredSteps.refresh state context) =
+    Yulang.GeneralRebaseSourceSnapshot261.candidates state
+@Yulang.GeneralRebaseSourcePool261.installed_requests_covered : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (plan : Yulang.GeneralNominalCenters.Plan roles),
+  Yulang.GeneralNominalVersionedMixedInstallRequests235.Absorbed state plan →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (output : Yulang.GeneralSourceState.Output),
+      output ∈
+          Yulang.GeneralNominalCenteredHeadOutputs.requests
+            (Yulang.GeneralNominalVersionedInstall232.installCore state.core plan) root →
+        output ∈ Yulang.GeneralRebaseSourceSnapshot261.candidates state.core

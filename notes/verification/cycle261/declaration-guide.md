@@ -130,6 +130,12 @@ ownerと二つの(name,target)をkind3に注入符号化し位置非依存のEqu
 
 `candidates`, `covered`, `select`, `all_covered`, `completion`, `step_actual`, `initial_models`
 
+## 22. GeneralRebaseSourcePool261
+
+実center mergeとrefreshはsnapshot candidate列をliteralに保存する。versioned installは既存Absorbed前提の下でcandidate membershipを保存し、全rootの新requestsが旧poolに入る。新childを無条件で吸収すると仮定せず、list長・意味・全trace閉包の保存とは区別する。
+
+`same_sites`, `merge_pool`, `refresh_pool`, `absorbed_install`, `installed_requests_covered`
+
 ## CandidateBoundaryProbe
 
 実fixture Planに実requestsに属さない未定義name1を内部candidateとして加える。空observerならschedulerは即完了するがlayout検査はmissing errorを返す。未使用candidate全体検査の保守性を示し、source到達反例や言語拒否とは主張しない。

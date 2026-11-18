@@ -4812,3 +4812,4 @@ import Yulang.GeneralRebaseStableMergeDriver261
 import Yulang.GeneralRebaseCandidateValidation261
 import Yulang.GeneralRebaseStableMergeFinish261
 import Yulang.GeneralRebaseSourceSnapshot261
+import Yulang.GeneralRebaseSourcePool261

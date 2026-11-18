@@ -1247,3 +1247,32 @@ Yulang.GeneralRebaseStableMergeFinish261.success_not_satisfiability : ∀
         (Yulang.GeneralRebaseStableClass261.facts plan owner (Yulang.GeneralRebaseSourceSnapshot261.candidates source)))
       assignment ↔
     base assignment
+@Yulang.GeneralRebaseSourcePool261.same_sites : ∀ {roles : Yulang.Roles.RoleDecls}
+  (before after : Yulang.GeneralNominalCenteredSteps.State roles),
+  before.erased.current.sites = after.erased.current.sites →
+    Yulang.GeneralRebaseSourceSnapshot261.candidates before = Yulang.GeneralRebaseSourceSnapshot261.candidates after
+@Yulang.GeneralRebaseSourcePool261.merge_pool : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (first last : Yulang.GeneralNominalCenters.Site roles)
+  (support : List (Yulang.GeneralSourceDictionaries.Occurrence roles)),
+  Yulang.GeneralRebaseSourceSnapshot261.candidates (Yulang.GeneralNominalCenteredSteps.merge state first last support) =
+    Yulang.GeneralRebaseSourceSnapshot261.candidates state
+@Yulang.GeneralRebaseSourcePool261.refresh_pool : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (context : Yulang.GeneralNominalCandidates.Context),
+  Yulang.GeneralRebaseSourceSnapshot261.candidates (Yulang.GeneralNominalCenteredSteps.refresh state context) =
+    Yulang.GeneralRebaseSourceSnapshot261.candidates state
+@Yulang.GeneralRebaseSourcePool261.absorbed_install : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (plan : Yulang.GeneralNominalCenters.Plan roles),
+  Yulang.GeneralNominalVersionedMixedInstallRequests235.Absorbed state plan →
+    ∀ (output : Yulang.GeneralSourceState.Output),
+      output ∈
+          Yulang.GeneralRebaseSourceSnapshot261.candidates
+            (Yulang.GeneralNominalVersionedInstall232.installCore state.core plan) ↔
+        output ∈ Yulang.GeneralRebaseSourceSnapshot261.candidates state.core
+@Yulang.GeneralRebaseSourcePool261.installed_requests_covered : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles) (plan : Yulang.GeneralNominalCenters.Plan roles),
+  Yulang.GeneralNominalVersionedMixedInstallRequests235.Absorbed state plan →
+    ∀ (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (output : Yulang.GeneralSourceState.Output),
+      output ∈
+          Yulang.GeneralNominalCenteredHeadOutputs.requests
+            (Yulang.GeneralNominalVersionedInstall232.installCore state.core plan) root →
+        output ∈ Yulang.GeneralRebaseSourceSnapshot261.candidates state.core

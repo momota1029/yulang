@@ -19,3 +19,4 @@ GeneralRebaseStableMergeDriver261
 GeneralRebaseCandidateValidation261
 GeneralRebaseStableMergeFinish261
 GeneralRebaseSourceSnapshot261
+GeneralRebaseSourcePool261

@@ -19,6 +19,7 @@ import Yulang.GeneralRebaseStableMergeDriver261
 import Yulang.GeneralRebaseCandidateValidation261
 import Yulang.GeneralRebaseStableMergeFinish261
 import Yulang.GeneralRebaseSourceSnapshot261
+import Yulang.GeneralRebaseSourcePool261
 #check @Yulang.GeneralRebaseBodyTable261.schema
 #check @Yulang.GeneralRebaseBodyTable261.variables
 #check @Yulang.GeneralRebaseBodyTable261.address
@@ -214,3 +215,8 @@ import Yulang.GeneralRebaseSourceSnapshot261
 #check @Yulang.GeneralRebaseSourceSnapshot261.completion
 #check @Yulang.GeneralRebaseSourceSnapshot261.step_actual
 #check @Yulang.GeneralRebaseSourceSnapshot261.initial_models
+#check @Yulang.GeneralRebaseSourcePool261.same_sites
+#check @Yulang.GeneralRebaseSourcePool261.merge_pool
+#check @Yulang.GeneralRebaseSourcePool261.refresh_pool
+#check @Yulang.GeneralRebaseSourcePool261.absorbed_install
+#check @Yulang.GeneralRebaseSourcePool261.installed_requests_covered
