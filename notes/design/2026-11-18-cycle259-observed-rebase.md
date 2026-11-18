@@ -70,3 +70,11 @@ stateの公開射影iff初期sourceを示せるが、239という固定terminal 
 全factがbasis内なら既存tryWriteを使い、none（既処理）とsome（新install）を分ける。
 I45/239の実decoder proposalは既にfactsとの等号があるので検査を通る。
 この入口上でwrite後Models iff旧Models∧全proposal成立を証明する。
+
+## 複数proposalのdriver
+単一proposalがnoopでも、別のproposalに新情報があるかもしれない。一般observerの
+有限proposal列を左から走査し、noopを飛ばして最初のinstallを返す。unsupportedは
+内部エラーとして停止し、source拒否とはしない。全列noopのときだけquiescent。
+走査がsome stateを返せば元のStepの一歩でremaining長が減ることを証明し、
+この減少でwell-foundedな反復関数を定義する。これも有限basis/observerを受け取る
+実行器であり、一般sourceから正しいobserverを作る仕事を済ませたとは呼ばない。

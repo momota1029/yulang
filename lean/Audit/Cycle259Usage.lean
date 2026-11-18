@@ -1,3 +1,4 @@
+import Yulang.GeneralRebaseDriverFixtures259
 import Yulang.GeneralRebaseCheckedFixtures259
 import Yulang.GeneralVersionRebaseCertificate259
 import Yulang.GeneralVersionPublicProjection259
@@ -40,3 +41,7 @@ example : GeneralRebaseCheckedFixtures259.looseRun GeneralDictionaryRebaseStep25
 example : GeneralRebaseCheckedFixtures259.versionRun GeneralVersionRebaseStep259.finalState = .ok none := GeneralRebaseCheckedFixtures259.version_stop
 example : GeneralRebaseCheckedWrite259.commit GeneralVersionRebaseStep259.initialState [.lower 0 1] = .error [.lower 0 1] := GeneralRebaseCheckedFixtures259.version_unsupported
 example (state : GeneralRebaseStep258.State GeneralDictionaryRebaseStep258.facts) (boundary : GeneralNominalCommonBridge.Assignment) (source : GeneralNominalState.Models GeneralDictionaryLooseLoopSource240.snapshot boundary) : GeneralDictionaryRebaseFacts259.Models state (GeneralDictionaryInitialFill258.complete boundary) := GeneralDictionaryRebaseFacts259.completed state boundary source
+
+example (n : Nat) : GeneralRebaseSettle259.settle (GeneralDictionaryObservedRebase259.observeAt n) GeneralDictionaryRebaseStep258.initialState = .ok GeneralDictionaryRebaseStep258.finalState := GeneralRebaseDriverFixtures259.loose_initial n
+example (n : Nat) : GeneralRebaseSettle259.settle (GeneralVersionRebaseStep259.observeAt n) GeneralVersionRebaseStep259.initialState = .ok GeneralVersionRebaseStep259.finalState := GeneralRebaseDriverFixtures259.version_initial n
+example : GeneralRebaseScheduler259.scan GeneralVersionRebaseStep259.initialState [[],GeneralVersionRebaseStep259.facts] = .ok (some GeneralVersionRebaseStep259.finalState) := GeneralRebaseDriverFixtures259.skip_noop

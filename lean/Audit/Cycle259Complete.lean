@@ -19,6 +19,10 @@ import Yulang.GeneralRebaseFactSemantics259
 import Yulang.GeneralDictionaryRebaseFacts259
 import Yulang.GeneralRebaseCheckedWrite259
 import Yulang.GeneralRebaseCheckedFixtures259
+import Yulang.GeneralRebaseScheduler259
+import Yulang.GeneralRebaseSettle259
+import Yulang.GeneralRebaseClosedObserver259
+import Yulang.GeneralRebaseDriverFixtures259
 
 #print axioms Yulang.GeneralRebaseReportDecoder259.atom
 #print axioms Yulang.GeneralRebaseReportDecoder259.capture
@@ -162,3 +166,28 @@ import Yulang.GeneralRebaseCheckedFixtures259
 #print axioms Yulang.GeneralRebaseCheckedFixtures259.version_stop
 #print axioms Yulang.GeneralRebaseCheckedFixtures259.unsupported_mixed
 #print axioms Yulang.GeneralRebaseCheckedFixtures259.version_unsupported
+#print axioms Yulang.GeneralRebaseScheduler259.scan
+#print axioms Yulang.GeneralRebaseScheduler259.next
+#print axioms Yulang.GeneralRebaseScheduler259.scan_installed
+#print axioms Yulang.GeneralRebaseScheduler259.next_step
+#print axioms Yulang.GeneralRebaseScheduler259.scan_none
+#print axioms Yulang.GeneralRebaseScheduler259.terminal
+#print axioms Yulang.GeneralRebaseSettle259.settle
+#print axioms Yulang.GeneralRebaseSettle259.successful_terminal
+#print axioms Yulang.GeneralRebaseSettle259.successful_path
+#print axioms Yulang.GeneralRebaseSettle259.successful_budget
+#print axioms Yulang.GeneralRebaseSettle259.successful_quiescent
+#print axioms Yulang.GeneralRebaseClosedObserver259.Closed
+#print axioms Yulang.GeneralRebaseClosedObserver259.scan_error
+#print axioms Yulang.GeneralRebaseClosedObserver259.next_no_error
+#print axioms Yulang.GeneralRebaseClosedObserver259.settle_no_error
+#print axioms Yulang.GeneralRebaseClosedObserver259.completion
+#print axioms Yulang.GeneralRebaseDriverFixtures259.loose_closed
+#print axioms Yulang.GeneralRebaseDriverFixtures259.version_closed
+#print axioms Yulang.GeneralRebaseDriverFixtures259.loose_next
+#print axioms Yulang.GeneralRebaseDriverFixtures259.version_next
+#print axioms Yulang.GeneralRebaseDriverFixtures259.loose_final
+#print axioms Yulang.GeneralRebaseDriverFixtures259.loose_initial
+#print axioms Yulang.GeneralRebaseDriverFixtures259.version_final
+#print axioms Yulang.GeneralRebaseDriverFixtures259.version_initial
+#print axioms Yulang.GeneralRebaseDriverFixtures259.skip_noop

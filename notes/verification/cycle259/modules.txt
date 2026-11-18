@@ -19,3 +19,7 @@ GeneralRebaseFactSemantics259
 GeneralDictionaryRebaseFacts259
 GeneralRebaseCheckedWrite259
 GeneralRebaseCheckedFixtures259
+GeneralRebaseScheduler259
+GeneralRebaseSettle259
+GeneralRebaseClosedObserver259
+GeneralRebaseDriverFixtures259

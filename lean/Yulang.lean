@@ -4756,3 +4756,7 @@ import Yulang.GeneralRebaseFactSemantics259
 import Yulang.GeneralDictionaryRebaseFacts259
 import Yulang.GeneralRebaseCheckedWrite259
 import Yulang.GeneralRebaseCheckedFixtures259
+import Yulang.GeneralRebaseScheduler259
+import Yulang.GeneralRebaseSettle259
+import Yulang.GeneralRebaseClosedObserver259
+import Yulang.GeneralRebaseDriverFixtures259
