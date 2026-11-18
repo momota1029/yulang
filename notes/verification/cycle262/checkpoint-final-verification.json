@@ -1,0 +1,57 @@
+{
+  "checkpoint": "70e19c59288a8673871305951beda97713ecdc3f",
+  "baseVerifiedCheckpoint": "c684db018434b76e067b855f6b4916a937245bae",
+  "method": "GitHub commit-specific reads of all ten delta files; each exact content matches local committed file. Unchanged base retained by create_tree. Git mirror currently lags.",
+  "files": [
+    {
+      "path": "lean/Audit/Cycle262NormalizedProbe.lean",
+      "same": true,
+      "sha": "ec6984805761619cbaade031966ade2ab6c452cc"
+    },
+    {
+      "path": "lean/Audit/Cycle262OwnerProbe.lean",
+      "same": true,
+      "sha": "590abeefa0f8b80534c73a63befd26a7a93bd0b4"
+    },
+    {
+      "path": "notes/verification/cycle262/final-audit-run.txt",
+      "same": true,
+      "sha": "8c852bca6d76349d7f7dec7871d01c86d191ead8"
+    },
+    {
+      "path": "notes/verification/cycle262/final-input-review.txt",
+      "same": true,
+      "sha": "a56acc10d896da3dbf5c4f95e3c8b925cc11b92f"
+    },
+    {
+      "path": "notes/verification/cycle262/next-source-integration.md",
+      "same": true,
+      "sha": "312f96dbc94513930351babe55de5b041189cc78"
+    },
+    {
+      "path": "notes/verification/cycle262/normalizedprobe-final.txt",
+      "same": true,
+      "sha": "14c4dce09f3743ccceb088909fa5eed176e3b907"
+    },
+    {
+      "path": "notes/verification/cycle262/owner-probe.txt",
+      "same": true,
+      "sha": "b7709f7782af0ca08f6e3b105297876c508731ba"
+    },
+    {
+      "path": "notes/verification/cycle262/ownerprobe-final.txt",
+      "same": true,
+      "sha": "c3878f6873a6dab986969c658248e877fbeadc50"
+    },
+    {
+      "path": "notes/verification/cycle262/reproduction.md",
+      "same": true,
+      "sha": "45f7f4c96e8182bd80732ceec851764cae249093"
+    },
+    {
+      "path": "notes/verification/cycle262/source-check.txt",
+      "same": true,
+      "sha": "a55c895da129a9c512160e2d0b81669d1e9d4cee"
+    }
+  ]
+}

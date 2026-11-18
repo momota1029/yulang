@@ -7,6 +7,8 @@ Status: proof plan, not a completed compiler. 2026-11-18 UTC.
 `GeneralRebaseSemanticTrace262.source_certificate` は、source Initial から一つの有限request
 poolを構成する。その後の `inspect/roots/plans` は依然外から供給する関数である。
 
+- source Initialは既存mixed-source boundaryの実Initialであり、展開するとformed source、
+  point root、ground root labels、constructor coverage等を持つ。無条件の任意プログラム受理ではない。
 - `inspect s` は同じsource startから個別に到達可能。`inspect before` と `inspect after`
   が相互に旧Stepで接続される条件はない。
 - `roots s` の各rootを Generated として導出していない。
