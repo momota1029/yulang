@@ -1,0 +1,35 @@
+Final fresh focused build start 2026-11-18T14:02:07Z
+BUILD GeneralDictionaryUpperHistory257 2026-11-18T14:02:07Z
+BUILD GeneralDictionaryFullExpansion257 2026-11-18T14:02:13Z
+BUILD GeneralPresenceIdempotentTree257 2026-11-18T14:02:17Z
+BUILD GeneralDictionaryOrdinaryShape257 2026-11-18T14:02:18Z
+BUILD GeneralDictionaryFullReduced257 2026-11-18T14:02:20Z
+BUILD GeneralDictionaryOrdinaryFinite257 2026-11-18T14:02:21Z
+BUILD GeneralDictionaryOrdinaryCanonical257 2026-11-18T14:02:23Z
+BUILD GeneralDictionaryCompactView257 2026-11-18T14:02:24Z
+BUILD GeneralDictionaryCompactFields257 2026-11-18T14:02:26Z
+BUILD GeneralDictionaryFiveSlot257 2026-11-18T14:02:27Z
+BUILD GeneralDictionaryInitialProjection257 2026-11-18T14:02:28Z
+BUILD GeneralDictionaryFiniteView257 2026-11-18T14:02:30Z
+BUILD GeneralDictionaryNoModelRefinement257 2026-11-18T14:02:32Z
+BUILD GeneralDictionaryProjectionBoundary257 2026-11-18T14:02:33Z
+BUILD GeneralDictionaryKnownProjection257 2026-11-18T14:02:35Z
+BUILD GeneralDictionaryPointProjection257 2026-11-18T14:02:36Z
+BUILD GeneralDictionaryReportProjection257 2026-11-18T14:02:37Z
+BUILD GeneralDictionaryBinderGap257 2026-11-18T14:02:39Z
+BUILD GeneralDictionaryHistoricalValues257 2026-11-18T14:02:40Z
+BUILD GeneralDictionaryBinderFact257 2026-11-18T14:02:41Z
+BUILD GeneralDictionaryPastRaw257 2026-11-18T14:02:43Z
+BUILD GeneralDictionaryPastObservations257 2026-11-18T14:02:44Z
+BUILD GeneralDictionaryPastPacket257 2026-11-18T14:02:45Z
+BUILD GeneralDictionaryJournalRepair257 2026-11-18T14:02:47Z
+BUILD GeneralDictionaryFiniteJournal257 2026-11-18T14:02:48Z
+PASS previous cycle256 dependency source hashes unchanged: 1593
+PASS previous cycle255 dependency source hashes unchanged: 1549
+PASS import closure hashed: 1615
+PASS dependency import syntax matches collector: 2755 lines
+PASS forbidden tokens absent in new modules and usage
+PASS old Lean frozen; barrel append-only
+Whole repository build, verify-lean.sh and Yulang2 runtime not run
+FINAL-FOCUSED-PASS 2026-11-18T14:03:09Z
+EXIT 0 2026-11-18T14:03:09Z
