@@ -4735,3 +4735,7 @@ import Yulang.GeneralRebaseStep258
 import Yulang.GeneralDictionaryRebaseStep258
 import Yulang.GeneralDictionaryRebasePublic258
 import Yulang.GeneralRebaseBudget258
+import Yulang.GeneralRebaseReportDecoder259
+import Yulang.GeneralDictionaryObservedRebase259
+import Yulang.GeneralDictionaryRebaseCertificate259
+import Yulang.GeneralDictionaryRebaseRun259

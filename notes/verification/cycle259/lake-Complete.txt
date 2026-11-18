@@ -1,0 +1,35 @@
+'Yulang.GeneralRebaseReportDecoder259.atom' does not depend on any axioms
+'Yulang.GeneralRebaseReportDecoder259.capture' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReportDecoder259.captures' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReportDecoder259.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReportDecoder259.source_atoms' depends on axioms: [propext]
+'Yulang.GeneralRebaseReportDecoder259.no_private_atom' depends on axioms: [propext]
+'Yulang.GeneralRebaseReportDecoder259.empty_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReportDecoder259.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.observeAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.observed_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.ObservedStep' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.step_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.initial_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.stops' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.decreasing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.terminating' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryObservedRebase259.no_two' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseCertificate259.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseCertificate259.initial_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRebaseCertificate259.old_new' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseCertificate259.certificate_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRebaseCertificate259.certificate_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryRebaseRun259.run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseRun259.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseRun259.run_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseRun259.initial_runs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseRun259.final_noop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseRun259.repeat_noop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryRebaseRun259.run_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]

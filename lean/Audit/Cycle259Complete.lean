@@ -1,0 +1,34 @@
+import Yulang.GeneralRebaseReportDecoder259
+import Yulang.GeneralDictionaryObservedRebase259
+import Yulang.GeneralDictionaryRebaseCertificate259
+import Yulang.GeneralDictionaryRebaseRun259
+
+#print axioms Yulang.GeneralRebaseReportDecoder259.atom
+#print axioms Yulang.GeneralRebaseReportDecoder259.capture
+#print axioms Yulang.GeneralRebaseReportDecoder259.captures
+#print axioms Yulang.GeneralRebaseReportDecoder259.compile
+#print axioms Yulang.GeneralRebaseReportDecoder259.source_atoms
+#print axioms Yulang.GeneralRebaseReportDecoder259.no_private_atom
+#print axioms Yulang.GeneralRebaseReportDecoder259.empty_rejected
+#print axioms Yulang.GeneralRebaseReportDecoder259.actual
+#print axioms Yulang.GeneralDictionaryObservedRebase259.observeAt
+#print axioms Yulang.GeneralDictionaryObservedRebase259.observed_exact
+#print axioms Yulang.GeneralDictionaryObservedRebase259.ObservedStep
+#print axioms Yulang.GeneralDictionaryObservedRebase259.step_exact
+#print axioms Yulang.GeneralDictionaryObservedRebase259.initial_install
+#print axioms Yulang.GeneralDictionaryObservedRebase259.stops
+#print axioms Yulang.GeneralDictionaryObservedRebase259.decreasing
+#print axioms Yulang.GeneralDictionaryObservedRebase259.terminating
+#print axioms Yulang.GeneralDictionaryObservedRebase259.no_two
+#print axioms Yulang.GeneralDictionaryRebaseCertificate259.certificate
+#print axioms Yulang.GeneralDictionaryRebaseCertificate259.initial_install
+#print axioms Yulang.GeneralDictionaryRebaseCertificate259.old_new
+#print axioms Yulang.GeneralDictionaryRebaseCertificate259.certificate_source
+#print axioms Yulang.GeneralDictionaryRebaseCertificate259.certificate_exact
+#print axioms Yulang.GeneralDictionaryRebaseRun259.run
+#print axioms Yulang.GeneralDictionaryRebaseRun259.run_exact
+#print axioms Yulang.GeneralDictionaryRebaseRun259.run_step
+#print axioms Yulang.GeneralDictionaryRebaseRun259.initial_runs
+#print axioms Yulang.GeneralDictionaryRebaseRun259.final_noop
+#print axioms Yulang.GeneralDictionaryRebaseRun259.repeat_noop
+#print axioms Yulang.GeneralDictionaryRebaseRun259.run_certificate
