@@ -538,3 +538,9 @@ cycle 252〜257 で、有限性の部品はよくそろった。そろったの�
   2. 一般の Acc のための測度の候補を、後継の Step の上で書く（I-48 の 1）。
 - 古い Step の family について、有限 View の結果をこれ以上増やすのは、後継の Step を定義した後にすること。
 - 後継の Step を定義しようとして、表現の選択が必要になったら、選択肢を design ノートに書いて先に進めてよい（表現は監督役が後で決め直せる）。言語の意味（どのプログラムが通るか）を変えないと定義できない場合だけ、Yulang の例を付けて質問のノートに書くこと。
+
+## I-53（2026-11-19）新しいモジュールは必ず `lean/Yulang.lean` に import を足す
+
+cycle 262〜264 で、新しい 71 モジュールが `lean/Yulang.lean`（barrel）に入っていなかった。統合の `lake build` は barrel から辿れるモジュールしか作らないので、監査が `.olean` を見つけられずに落ちた（「only audit parts import it, so lake build skips it」）。監督役が barrel に 71 行を足して統合した（`fix/dots-264`）。
+- 新しい `lean/Yulang/*.lean` を足したら、同じ公開の中で `lean/Yulang.lean` の末尾に `import Yulang.<Name>` を足すこと（I-43 の「barrel 追記のみ」のとおり）。
+- focused build（個別の `lean` 実行）だけでは、この抜けに気づけない。公開の前に、自分の追加したモジュールが全部 barrel にあることを確かめること。例: `for f in <追加したファイル>; do grep -qx "import Yulang.$(basename $f .lean)" lean/Yulang.lean || echo MISSING $f; done`
