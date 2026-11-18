@@ -1,3 +1,4 @@
+import Yulang.GeneralRebaseBodyActual260
 import Yulang.GeneralDefaultRebasePublic260
 namespace Cycle260Usage
 open Yulang
@@ -38,4 +39,7 @@ example : GeneralDefaultRebaseRun260.run GeneralDefaultRebaseSource260.initialSt
 example (boundary : GeneralNominalCommonBridge.Assignment)
  (source : GeneralNominalState.Models GeneralDictionaryDefaultGap206Source.snapshot boundary) :
  GeneralDefaultRebasePublic260.Certificate boundary := GeneralDefaultRebasePublic260.certificate boundary source
+example : GeneralRebaseBodyActual260.explicitProposal = some GeneralOutputRebaseSource260.facts := GeneralRebaseBodyActual260.explicit_exact
+example : GeneralReflexiveDefaultRun260.run GeneralReflexiveDefaultSource260.initialState = .ok (some GeneralReflexiveDefaultSource260.finalState) := GeneralReflexiveDefaultRun260.first
+example (assignment : GeneralNominalCommonBridge.Assignment) : GeneralReflexiveDefaultModels260.Models GeneralReflexiveDefaultSource260.initialState assignment ↔ GeneralReflexiveDefaultModels260.Models GeneralReflexiveDefaultSource260.finalState assignment := GeneralReflexiveDefaultModels260.same_assignment ..
 end Cycle260Usage

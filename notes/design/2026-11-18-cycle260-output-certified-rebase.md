@@ -85,3 +85,8 @@ Modelsを同一assignmentで示した。packet HoldsだけではなくClassEffec
 従ってfact増加の停止測度と、モデル集合の真の細分化は区別する必要がある。
 旧202は既にCommitted/Stableなので、もし新関係が一歩進めばそれは意味的stutterとして
 対応させるべきで、旧install一歩と一致したとは報告しない。
+
+202を実ソースで再確認すると、要求outputはslot1で入力centerもslot1なので、defaultは
+すべてのassignmentで反射的に成立する。206は要求output0と入力center1が別である。
+両者のtable keyが同じでも、異なるsourceごとに固定したlayoutの意味は異なる。
+これを同じ共有layoutへ混ぜず、それぞれ実request.targetを保持してcompileする。

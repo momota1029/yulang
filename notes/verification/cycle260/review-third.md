@@ -1,0 +1,1 @@
+独立読取レビュー（206 の 7 modules、1f45b430）：範囲問題なし。実 body 表と ClassEffects 対応、packet 単独で不足する義務も保持。終点と旧 installed Models は同一 assignment iff。slot 0 型だけ変更し他全成分・全 row を保持。空 capture は実 206 専用。一歩上限は新有限 driver 限定。独立再 build は未実施。

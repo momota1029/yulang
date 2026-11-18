@@ -17,6 +17,12 @@ import Yulang.GeneralDefaultRebaseInstalled260
 import Yulang.GeneralDefaultRebaseRun260
 import Yulang.GeneralDefaultRebaseCompletion260
 import Yulang.GeneralDefaultRebasePublic260
+import Yulang.GeneralRebaseBodyDecoder260
+import Yulang.GeneralReflexiveDefaultSource260
+import Yulang.GeneralReflexiveDefaultModels260
+import Yulang.GeneralReflexiveDefaultRun260
+import Yulang.GeneralReflexiveDefaultRegression260
+import Yulang.GeneralRebaseBodyActual260
 
 #print axioms Yulang.GeneralRebaseOutputKeys260.key
 #print axioms Yulang.GeneralRebaseOutputKeys260.keys
@@ -173,3 +179,44 @@ import Yulang.GeneralDefaultRebasePublic260
 #print axioms Yulang.GeneralDefaultRebasePublic260.public_models
 #print axioms Yulang.GeneralDefaultRebasePublic260.certificate
 #print axioms Yulang.GeneralDefaultRebasePublic260.run_certificate
+#print axioms Yulang.GeneralRebaseBodyDecoder260.compile
+#print axioms Yulang.GeneralRebaseBodyDecoder260.successful
+#print axioms Yulang.GeneralRebaseBodyDecoder260.equation_meaning
+#print axioms Yulang.GeneralReflexiveDefaultSource260.body
+#print axioms Yulang.GeneralReflexiveDefaultSource260.schema
+#print axioms Yulang.GeneralReflexiveDefaultSource260.facts
+#print axioms Yulang.GeneralReflexiveDefaultSource260.initialState
+#print axioms Yulang.GeneralReflexiveDefaultSource260.finalState
+#print axioms Yulang.GeneralReflexiveDefaultSource260.report
+#print axioms Yulang.GeneralReflexiveDefaultSource260.schema_exact
+#print axioms Yulang.GeneralReflexiveDefaultSource260.output_keys
+#print axioms Yulang.GeneralReflexiveDefaultSource260.body_meaning
+#print axioms Yulang.GeneralReflexiveDefaultSource260.report_clear
+#print axioms Yulang.GeneralReflexiveDefaultSource260.proposal
+#print axioms Yulang.GeneralReflexiveDefaultSource260.proposal_exact
+#print axioms Yulang.GeneralReflexiveDefaultSource260.observe
+#print axioms Yulang.GeneralReflexiveDefaultSource260.observe_equal
+#print axioms Yulang.GeneralReflexiveDefaultModels260.factHolds
+#print axioms Yulang.GeneralReflexiveDefaultModels260.Models
+#print axioms Yulang.GeneralReflexiveDefaultModels260.output_meaning
+#print axioms Yulang.GeneralReflexiveDefaultModels260.all_facts
+#print axioms Yulang.GeneralReflexiveDefaultModels260.models_exact
+#print axioms Yulang.GeneralReflexiveDefaultModels260.same_assignment
+#print axioms Yulang.GeneralReflexiveDefaultModels260.evidence
+#print axioms Yulang.GeneralReflexiveDefaultRun260.run
+#print axioms Yulang.GeneralReflexiveDefaultRun260.run_exact
+#print axioms Yulang.GeneralReflexiveDefaultRun260.run_step
+#print axioms Yulang.GeneralReflexiveDefaultRun260.first_step
+#print axioms Yulang.GeneralReflexiveDefaultRun260.first
+#print axioms Yulang.GeneralReflexiveDefaultRun260.stop
+#print axioms Yulang.GeneralReflexiveDefaultRun260.settle_initial
+#print axioms Yulang.GeneralReflexiveDefaultRun260.one_step_bound
+#print axioms Yulang.GeneralReflexiveDefaultRegression260.old_no_step
+#print axioms Yulang.GeneralReflexiveDefaultRegression260.fact_step_semantic_stutter
+#print axioms Yulang.GeneralReflexiveDefaultRegression260.no_strict_model_refinement
+#print axioms Yulang.GeneralReflexiveDefaultRegression260.run_certificate
+#print axioms Yulang.GeneralRebaseBodyActual260.explicitProposal
+#print axioms Yulang.GeneralRebaseBodyActual260.explicit_exact
+#print axioms Yulang.GeneralRebaseBodyActual260.distinct_default_target
+#print axioms Yulang.GeneralRebaseBodyActual260.reflexive_default_target
+#print axioms Yulang.GeneralRebaseBodyActual260.target_not_interchangeable
