@@ -4739,3 +4739,11 @@ import Yulang.GeneralRebaseReportDecoder259
 import Yulang.GeneralDictionaryObservedRebase259
 import Yulang.GeneralDictionaryRebaseCertificate259
 import Yulang.GeneralDictionaryRebaseRun259
+import Yulang.GeneralNominalTypeObservation259
+import Yulang.GeneralDictionaryRebaseCurrent259
+import Yulang.GeneralVersionRowsRaw259
+import Yulang.GeneralVersionRowsHead259
+import Yulang.GeneralVersionRowsPacket259
+import Yulang.GeneralVersionRowsStages259
+import Yulang.GeneralVersionBoundaryCompletion259
+import Yulang.GeneralVersionPublicProjection259

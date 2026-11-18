@@ -2,6 +2,14 @@ import Yulang.GeneralRebaseReportDecoder259
 import Yulang.GeneralDictionaryObservedRebase259
 import Yulang.GeneralDictionaryRebaseCertificate259
 import Yulang.GeneralDictionaryRebaseRun259
+import Yulang.GeneralNominalTypeObservation259
+import Yulang.GeneralDictionaryRebaseCurrent259
+import Yulang.GeneralVersionRowsRaw259
+import Yulang.GeneralVersionRowsHead259
+import Yulang.GeneralVersionRowsPacket259
+import Yulang.GeneralVersionRowsStages259
+import Yulang.GeneralVersionBoundaryCompletion259
+import Yulang.GeneralVersionPublicProjection259
 
 #print axioms Yulang.GeneralRebaseReportDecoder259.atom
 #print axioms Yulang.GeneralRebaseReportDecoder259.capture
@@ -32,3 +40,42 @@ import Yulang.GeneralDictionaryRebaseRun259
 #print axioms Yulang.GeneralDictionaryRebaseRun259.final_noop
 #print axioms Yulang.GeneralDictionaryRebaseRun259.repeat_noop
 #print axioms Yulang.GeneralDictionaryRebaseRun259.run_certificate
+#print axioms Yulang.GeneralNominalTypeObservation259.observes
+#print axioms Yulang.GeneralNominalTypeObservation259.observes_iff
+#print axioms Yulang.GeneralDictionaryRebaseCurrent259.run
+#print axioms Yulang.GeneralDictionaryRebaseCurrent259.all_stages
+#print axioms Yulang.GeneralDictionaryRebaseCurrent259.first
+#print axioms Yulang.GeneralDictionaryRebaseCurrent259.stops
+#print axioms Yulang.GeneralDictionaryRebaseCurrent259.certificate
+#print axioms Yulang.GeneralVersionRowsRaw259.withRows
+#print axioms Yulang.GeneralVersionRowsRaw259.base_models
+#print axioms Yulang.GeneralVersionRowsRaw259.raw_models
+#print axioms Yulang.GeneralVersionRowsHead259.observed_value
+#print axioms Yulang.GeneralVersionRowsHead259.seen0
+#print axioms Yulang.GeneralVersionRowsHead259.seen1
+#print axioms Yulang.GeneralVersionRowsHead259.model_lower
+#print axioms Yulang.GeneralVersionRowsHead259.model_upper
+#print axioms Yulang.GeneralVersionRowsHead259.fit_observed
+#print axioms Yulang.GeneralVersionRowsHead259.raw_projection
+#print axioms Yulang.GeneralVersionRowsHead259.merge_model
+#print axioms Yulang.GeneralVersionRowsHead259.head_model
+#print axioms Yulang.GeneralVersionRowsPacket259.actual_value
+#print axioms Yulang.GeneralVersionRowsPacket259.head_holds
+#print axioms Yulang.GeneralVersionRowsPacket259.packet_holds
+#print axioms Yulang.GeneralVersionRowsStages259.atoms_valid
+#print axioms Yulang.GeneralVersionRowsStages259.packet_holds
+#print axioms Yulang.GeneralVersionRowsStages259.initial_raw
+#print axioms Yulang.GeneralVersionRowsStages259.all_stages
+#print axioms Yulang.GeneralVersionBoundaryCompletion259.complete
+#print axioms Yulang.GeneralVersionBoundaryCompletion259.Agree
+#print axioms Yulang.GeneralVersionBoundaryCompletion259.agrees
+#print axioms Yulang.GeneralVersionBoundaryCompletion259.second_scalar
+#print axioms Yulang.GeneralVersionBoundaryCompletion259.initial_types
+#print axioms Yulang.GeneralVersionBoundaryCompletion259.equivalent
+#print axioms Yulang.GeneralVersionBoundaryCompletion259.all_stages
+#print axioms Yulang.GeneralVersionBoundaryCompletion259.packet_holds
+#print axioms Yulang.GeneralVersionPublicProjection259.initial_exact
+#print axioms Yulang.GeneralVersionPublicProjection259.source_agree
+#print axioms Yulang.GeneralVersionPublicProjection259.model_source
+#print axioms Yulang.GeneralVersionPublicProjection259.stage_models
+#print axioms Yulang.GeneralVersionPublicProjection259.simultaneous_models

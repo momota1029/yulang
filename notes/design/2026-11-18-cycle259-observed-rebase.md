@@ -27,3 +27,13 @@ Modelの構成を仮定ではなく258の明示completeから得る。
 
 停止測度はremaining.length。decoderの有限Fact参照で新名前の再予約をしない。
 ただしこの測度が言語に忠実だという一般主張にはobserver健全性・完全性が必要。
+
+## 239 rowモデルの具体構成（15:36 UTC）
+`withRows rows name = (Source237.model name の型, rows name)` と置く。
+既存固定modelと型成分は同じ、rowは任意関数。Origin.Observesは型成分しか読まない
+ので一般の型成分一致によるiffを証明する。239 raw snapshotはtype parameterのみ、
+ordinaryはvar/union/interの型atom、head schemaはnominal source観測でchild/output空。
+その各consumerをwithRowsに移し、実book atomsと全plan Holdsを帰納的に構成する。
+さらに初期0〜3を境界assignmentへ戻すcompleteを考える。source初期モデルから
+その4型はS/F/PとEquivalentであり、全rowはwithRowsと同じなので既存238のSame
+による全journal移送が使える。row不依存を仮定にせず、具体consumerで埋める。
