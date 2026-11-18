@@ -1,0 +1,5 @@
+PASS: 34 focused rebuilds exit0; CompleteAudit 259 explicit declarations.
+PASS: no forbidden tokens in new Lean source.
+PASS: old Lean files frozen; Yulang.lean append-only.
+PASS: latest integration9ec236c7908e2f872be08556eb9693e294ae3741 standing orders/inbox unchanged.
+Whole repository build and Yulang2 runtime not run.

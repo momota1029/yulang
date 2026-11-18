@@ -725,3 +725,14 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [Actual historical old-block preparation](2026-11-17-cycle249-actual-history-preparation.md)
 - [Actual source initialization](2026-11-17-cycle249-source-owner-frame.md)
 - [Final adversarial scope review](2026-11-17-cycle249-final-sequence-review.md)
+
+## Cycle250
+- [2026-11-17-cycle250-arbitrary-metadata](2026-11-17-cycle250-arbitrary-metadata.md)
+- [2026-11-17-cycle250-post-install-metadata](2026-11-17-cycle250-post-install-metadata.md)
+- [2026-11-17-cycle250-reserved-owner-producer](2026-11-17-cycle250-reserved-owner-producer.md)
+- [2026-11-17-cycle250-snapshot-blocks](2026-11-17-cycle250-snapshot-blocks.md)
+- [2026-11-18-cycle250-multi-owner-commands](2026-11-18-cycle250-multi-owner-commands.md)
+- [2026-11-18-cycle250-owner-registry](2026-11-18-cycle250-owner-registry.md)
+- [2026-11-18-cycle250-source-compiler-boundary](2026-11-18-cycle250-source-compiler-boundary.md)
+- [2026-11-18-cycle250-stable-capture](2026-11-18-cycle250-stable-capture.md)
+- [2026-11-18-cycle250-review](2026-11-18-cycle250-review.md)
