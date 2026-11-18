@@ -1,0 +1,27 @@
+GeneralRebaseMultiSelection263 2579527527a0573bf2582757efd7dff42453c7cab8df56fed9bdd62d64a3709d
+EXIT 0
+GeneralRebaseValidatedDriver263 8a1167a2ed10cd0bbb5b1c34bbacfef1b547407495acf526007bea86db1fd92d
+EXIT 0
+GeneralRebaseValidatedOutcome263 0e1a4bac202420516a0c56ee4c42f6fed7cca69f9f06d9a38d23a811d9a2d5bd
+EXIT 0
+'Yulang.GeneralRebaseMultiSelection263.check_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMultiSelection263.error_selected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseValidatedDriver263.successful_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseValidatedDriver263.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseValidatedOutcome263.error_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseValidatedOutcome263.no_outside' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseValidatedOutcome263.outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+@GeneralRebaseValidatedOutcome263.outcome : ∀ {basis : List Fact} {ε : Type} (observe : Observer basis)
+  (validate : State basis → Except ε Unit),
+  GeneralRebaseClosedObserver259.Closed observe →
+    ∀ (before : State basis),
+      (∃ after history,
+          GeneralRebaseValidatedDriver263.run observe validate before = Except.ok after ∧
+            GeneralRebaseValidatedDriver263.Trace observe validate history before after ∧
+              history.length ≤ before.remaining.length) ∨
+        ∃ reason current steps,
+          GeneralRebaseValidatedDriver263.run observe validate before =
+              Except.error (GeneralRebaseValidatedDriver263.Failure.validation reason) ∧
+            GeneralRebaseBudget258.Runs observe steps before current ∧
+              steps ≤ before.remaining.length ∧ validate current = Except.error reason
+PROBE EXIT 0

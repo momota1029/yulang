@@ -1,0 +1,4 @@
+'Yulang.GeneralRebaseSemanticObserver262.observe_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSemanticObserver262.completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticObserver262.write_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticObserver262.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]

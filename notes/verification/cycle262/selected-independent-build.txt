@@ -1,0 +1,12 @@
+BUILD 2026-11-18T19:03:13.489086+00:00 ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-selected-review/Yulang/GeneralRebaseSelectedCheck262.olean lean/Yulang/GeneralRebaseSelectedCheck262.lean
+EXIT 0
+BUILD 2026-11-18T19:03:14.863366+00:00 ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-selected-review/Yulang/GeneralRebaseSelectedSettle262.olean lean/Yulang/GeneralRebaseSelectedSettle262.lean
+EXIT 0
+BUILD 2026-11-18T19:03:16.083740+00:00 ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-selected-review/Yulang/GeneralRebaseSelectedMeaning262.olean lean/Yulang/GeneralRebaseSelectedMeaning262.lean
+EXIT 0
+BUILD 2026-11-18T19:03:17.375255+00:00 ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-selected-review/Yulang/GeneralRebaseSelectedRegression262.olean lean/Yulang/GeneralRebaseSelectedRegression262.lean
+EXIT 0
+BUILD 2026-11-18T19:03:18.519605+00:00 ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-selected-review/Yulang/GeneralRebaseQuadraticBudget262.olean lean/Yulang/GeneralRebaseQuadraticBudget262.lean
+EXIT 0
+AUDIT EXIT 0 DECLARATIONS 43
+FRESH-FIVE-MODULE-AUDIT-PASS; SOURCE-HASHES-UNCHANGED

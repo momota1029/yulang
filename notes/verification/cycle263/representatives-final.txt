@@ -1,0 +1,39 @@
+'Yulang.GeneralRebaseSourceRepresentatives263.representatives_registered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.exists_representatives' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.layout' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.representative_layout' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceRepresentatives263.representative_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRepresentativesExample263.actual_registered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRepresentativesExample263.actual_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRepresentativesExample263.actual_representative_registered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralRebaseSourceRepresentatives263.representative_compatible {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (checked : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (source : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start)
+  (inhabited : ∃ owner plan, Yulang.GeneralRebaseSourceRepresentatives263.RegisteredAt registry root start owner plan)
+  (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (path : Yulang.GeneralRebaseSourceRepresentatives263.Path registry root start state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (member : plan ∈ state.plans)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (heads : Yulang.GeneralRebaseSourceRepresentatives263.SourceHeads registry root start assignment) :
+  Yulang.GeneralRebaseNormalizedBody263.Compatible
+    (Yulang.GeneralRebaseSourceRepresentatives263.representatives registry root start inhabited
+      (Yulang.GeneralRebaseRegisteredOwners263.code plan))
+    plan assignment

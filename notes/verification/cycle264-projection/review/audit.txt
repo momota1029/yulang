@@ -1,0 +1,40 @@
+'Yulang.GeneralRebaseLiveMeaning264.journal_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLiveMeaning264.live_facts_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLiveMeaning264.project_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLiveMeaning264.project_journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceProjection264.step_square' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceProjection264.steps_square' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceProjection264.step_rescan_batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceProjection264.refresh_stutters' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceProjection264.reobserve_stutters' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceProjection264.equate_stutters' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceProjection264.merge_rescan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceProjection264.strict_decrease' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralRebaseLiveMeaning264.project_journal {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (source : Yulang.GeneralRebaseLiveProjection264.SourceState roles)
+  (synced : Yulang.GeneralNominalVersionedMixedPlanLedger235.Synced source)
+  (listed :
+    ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+      plan ∈ source.plans → (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner ∈ owners)
+  (coverage :
+    Yulang.GeneralRebaseChildRequestPool262.Covered (Yulang.GeneralNominalVersionedJournal232.State.core source) pool)
+  (compatible :
+    ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralRebaseLiveMeaning264.Remainder source assignment →
+        ∀ (plan : Yulang.GeneralNominalCenters.Plan roles),
+          plan ∈ source.plans →
+            Yulang.GeneralRebaseNormalizedBody263.Compatible
+              (representative (Yulang.GeneralRebaseMultiSelection263.ofPlan plan).owner) plan assignment)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralRebaseUniversalMeaning263.Models (Yulang.GeneralRebaseLiveMeaning264.Remainder source) owners
+      representative (Yulang.GeneralRebaseLiveProjection264.project owners pool source) assignment ↔
+    Yulang.GeneralNominalVersionedJournal232.Models source assignment
+Yulang.GeneralRebaseSourceProjection264.step_square {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (pool : List Yulang.GeneralSourceState.Output) {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralRebaseLiveProjection264.SourceState roles}
+  (step : Yulang.GeneralNominalVersionedMixedKernel234.Step registry root before after) :
+  Yulang.GeneralRebaseLiveProjection264.project owners pool after =
+    Yulang.GeneralRebaseStep258.write (Yulang.GeneralRebaseLiveProjection264.project owners pool before)
+      (Yulang.GeneralRebaseLiveProjection264.liveFacts after)

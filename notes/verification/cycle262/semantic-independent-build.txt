@@ -1,0 +1,103 @@
+GeneralRebasePlanSemantic262 0494f907df79be0571b821afe4cbccb0f26ed464f3908b074178f0bd94a22709
+exit 0
+GeneralRebasePlanSemanticExamples262 6af0cf1984b75cd8213dcc9970c4acdd83d850d27acd89cbe0c335f6e389e8b8
+exit 0
+GeneralRebaseSemanticObserver262 d0e0c834d187720a5170f94c0380a161217e0e584146541028a1e0d22fc44940
+exit 0
+GeneralRebaseSemanticTrace262 8ab9cc5cc33fb8d38040f7c8b0f01cab9cd8bab23ea4bc0ec8edfa77fc9dfa0b
+exit 0
+GeneralRebaseSelectedSafety262 5751781539b41976b8034b2c2797f05eac22341e7f2feead502fb2e70ba4c601
+exit 0
+'Yulang.GeneralRebasePlanSemantic262.actual_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlanSemantic262.facts_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlanSemantic262.class_effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePlanSemanticExamples262.strict_weakening' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSemanticObserver262.write_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticObserver262.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticTrace262.source_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSafety262.no_outside' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSafety262.outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralRebaseSemanticTrace262.source_certificate : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ pool,
+      ∀ (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (fixed : Yulang.GeneralNominalCenters.Plan roles)
+        (owner : Nat)
+        (inspect :
+          Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool) →
+            Yulang.GeneralNominalVersionedJournal232.State roles)
+        (roots :
+          Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool) →
+            List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+        (plans :
+          Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool) →
+            Yulang.GeneralSourceDictionaries.Occurrence roles → Yulang.GeneralNominalCenters.Plan roles),
+        Yulang.GeneralRebaseSemanticObserver262.LayoutCompatible fixed owner pool roots plans →
+          Yulang.GeneralRebaseSemanticObserver262.BaseCompatible base fixed owner pool roots plans →
+            (∀ (state : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool)),
+                Yulang.B4Target.Steps
+                  ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+                  (inspect state)) →
+              ∀ (before after : Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool),
+                Yulang.GeneralRebaseSelectedSettle262.run fixed owner pool (fun state => (inspect state).core) roots
+                      plans before =
+                    Except.ok after →
+                  ∃ states events,
+                    Yulang.GeneralRebaseSelectedSettle262.Trace fixed owner pool (fun state => (inspect state).core)
+                        roots plans states before after ∧
+                      Yulang.GeneralRebasePlannedTrace262.Trace fixed owner pool (fun state => (inspect state).core)
+                          roots plans events before after ∧
+                        events.length = states.length ∧
+                          events.length ≤ before.remaining.length ∧
+                            (∀ (event : Yulang.GeneralRebasePlannedTrace262.Event roles),
+                                event ∈ events →
+                                  Yulang.GeneralNominalCenteredHeadMatEffects.Ready event.source event.root
+                                    event.plan) ∧
+                              Yulang.GeneralRebaseSelectedCheck262.ReadyRoots (inspect after).core (plans after)
+                                  (roots after) ∧
+                                (∀
+                                    (next :
+                                      Yulang.GeneralRebaseStep258.State
+                                        (Yulang.GeneralRebaseStableClass261.facts fixed owner pool)),
+                                    ¬Yulang.GeneralRebaseStep258.Step
+                                        (Yulang.GeneralRebaseObservedPlan262.observe fixed owner pool
+                                          (fun state => (inspect state).core) roots plans)
+                                        after next) ∧
+                                  ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                                    Yulang.GeneralRebaseStableClass261.Models base fixed owner after assignment ↔
+                                      Yulang.GeneralRebaseStableClass261.Models base fixed owner before assignment ∧
+                                        ∀ (event : Yulang.GeneralRebasePlannedTrace262.Event roles),
+                                          event ∈ events →
+                                            Yulang.GeneralNominalVersionedEffects231.ClassEffects event.source
+                                              event.root event.plan assignment
+@Yulang.GeneralRebaseSelectedSafety262.outcome : ∀ {roles : Yulang.Roles.RoleDecls}
+  (fixed : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool → Yulang.GeneralNominalCenteredSteps.State roles)
+  (roots :
+    Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool) →
+      List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (plans :
+    Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool) →
+      Yulang.GeneralSourceDictionaries.Occurrence roles → Yulang.GeneralNominalCenters.Plan roles),
+  Yulang.GeneralRebaseSemanticObserver262.LayoutCompatible fixed owner pool roots plans →
+    (∀ (state : Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool),
+        Yulang.GeneralRebaseChildRequestPool262.Covered (inspect state) pool) →
+      ∀ (before : Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool),
+        (∃ after history,
+            Yulang.GeneralRebaseSelectedSettle262.run fixed owner pool inspect roots plans before = Except.ok after ∧
+              Yulang.GeneralRebaseSelectedSettle262.Trace fixed owner pool inspect roots plans history before after ∧
+                history.length ≤ pool.length + pool.length * pool.length) ∨
+          ∃ reason current steps,
+            Yulang.GeneralRebaseSelectedSettle262.run fixed owner pool inspect roots plans before =
+                Except.error (Yulang.GeneralRebaseSelectedSettle262.Failure.selected reason) ∧
+              Yulang.GeneralRebaseBudget258.Runs
+                  (Yulang.GeneralRebaseObservedPlan262.observe fixed owner pool inspect roots plans) steps before
+                  current ∧
+                steps ≤ pool.length + pool.length * pool.length ∧
+                  reason.root ∈ roots current ∧
+                    Yulang.GeneralRebaseClassCheck261.check (plans current reason.root)
+                        (Yulang.GeneralRebaseExecutableRequests262.requests (inspect current) reason.root) =
+                      Except.error reason.reason
+PROBE EXIT 0

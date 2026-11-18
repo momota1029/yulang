@@ -1,0 +1,15 @@
+2026-11-18 18:55 UTC
+Fresh standalone kernel rebuild in lean/.lake/cycle262-planned-review.
+Dependencies symlinked from existing cycle262-core; only the two reviewed modules freshly compiled.
+
+LEAN_PATH=lean/.lake/cycle262-planned-review ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-planned-review/Yulang/GeneralRebaseObservedPlan262.olean lean/Yulang/GeneralRebaseObservedPlan262.lean
+exit 0
+
+LEAN_PATH=lean/.lake/cycle262-planned-review ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-planned-review/Yulang/GeneralRebasePlannedTrace262.olean lean/Yulang/GeneralRebasePlannedTrace262.lean
+exit 0
+
+LEAN_PATH=lean/.lake/cycle262-planned-review ../toolchain244/bin/lean --trust=0 -DwarningAsError=true notes/verification/cycle262/PlannedReviewProbe.lean
+exit 0
+11 principal declaration axiom outputs and exact source_certificate type recorded separately.
+Source SHA256 values unchanged at completion.
+No full repository rebuild.

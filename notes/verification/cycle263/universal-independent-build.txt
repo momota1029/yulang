@@ -1,0 +1,11 @@
+1f2aaaa0f0572e1b5f66c7b5e9cb6da41a64ff672add65c0cf1f0db914c9edf1  lean/Yulang/GeneralRebaseUniversalMeaning263.lean
+PASS
+b054027eeacd580648bd942b5d6c421c2aa02a3f6ffadd2defa7f607d8bca89c  lean/Yulang/GeneralRebaseUniversalTrace263.lean
+PASS
+'Yulang.GeneralRebaseUniversalMeaning263.actual_proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalMeaning263.write_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalMeaning263.actual_write' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalMeaning263.initial_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.from_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniversalTrace263.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]

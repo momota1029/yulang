@@ -1,0 +1,3 @@
+SOURCE-CHECK-PASS 39 Lean files; no forbidden tokens or non-Yulang Audit imports
+All 1728 dependency source SHA256 values match final fresh-build manifest.
+Final eleven-audit run: exit0. Probes have only propext/Quot.sound dependencies.

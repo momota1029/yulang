@@ -1,0 +1,4 @@
+'Yulang.Cycle263InitialBoundary.selected_is_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263InitialBoundary.selected_cannot_be_novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263InitialBoundary.initial_selected_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263InitialBoundary.initial_inspector_noop' depends on axioms: [propext, Classical.choice, Quot.sound]

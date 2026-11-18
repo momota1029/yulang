@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseSourceLocalHeads263
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot_spec
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.representative_compatible
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.all_registered_compatible
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.of_sourceHeads
+#check Yulang.GeneralRebaseSourceLocalHeads263.representative_compatible
+#check Yulang.GeneralRebaseSourceLocalHeads263.RepresentativeHeads

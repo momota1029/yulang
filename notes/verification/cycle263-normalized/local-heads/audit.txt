@@ -1,0 +1,34 @@
+'Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot_spec' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.representative_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.all_registered_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.of_sourceHeads' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralRebaseSourceLocalHeads263.representative_compatible {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (checked : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (source : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start)
+  (inhabited : ∃ owner plan, Yulang.GeneralRebaseSourceRepresentatives263.RegisteredAt registry root start owner plan)
+  (owners : List Nat) (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (path : Yulang.GeneralRebaseSourceRepresentatives263.Path registry root start state)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (member : plan ∈ state.plans)
+  (listed : Yulang.GeneralRebaseRegisteredOwners263.code plan ∈ owners)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment)
+  (representativeHeads :
+    Yulang.GeneralRebaseSourceLocalHeads263.RepresentativeHeads registry root start inhabited owners assignment)
+  (observedHeads : Yulang.GeneralRebaseSourceCenters263.Heads state assignment) :
+  Yulang.GeneralRebaseNormalizedBody263.Compatible
+    (Yulang.GeneralRebaseSourceRepresentatives263.representatives registry root start inhabited
+      (Yulang.GeneralRebaseRegisteredOwners263.code plan))
+    plan assignment
+Yulang.GeneralRebaseSourceLocalHeads263.RepresentativeHeads {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (inhabited : ∃ owner plan, Yulang.GeneralRebaseSourceRepresentatives263.RegisteredAt registry root start owner plan)
+  (owners : List Nat) (assignment : Yulang.GeneralNominalCommonBridge.Assignment) : Prop

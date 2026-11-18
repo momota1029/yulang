@@ -1,0 +1,16 @@
+'Yulang.GeneralRebaseMergeRegression264.merge_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRegression264.last_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRegression264.last_present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRegression264.gained_before_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRegression264.gained_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRegression264.gained_basis' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRegression264.projection_changed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeRegression264.actual_strict_merge' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralRebaseMergeRegression264.actual_strict_merge :
+  Yulang.GeneralNominalVersionedMixedKernel234.Step Yulang.GeneralNominalCenteredHeadAllocMergeSource.registry
+      Yulang.GeneralNominalCenteredHeadAllocMergeSource.root Yulang.GeneralRebaseMergeRegression264.sample
+      Yulang.GeneralRebaseMergeRegression264.merged ∧
+    Yulang.GeneralRebaseLiveProjection264.project Yulang.GeneralRebaseMergeRegression264.owners
+        Yulang.GeneralRebaseMergeRegression264.pool Yulang.GeneralRebaseMergeRegression264.merged ≠
+      Yulang.GeneralRebaseLiveProjection264.project Yulang.GeneralRebaseMergeRegression264.owners
+        Yulang.GeneralRebaseMergeRegression264.pool Yulang.GeneralRebaseMergeRegression264.sample

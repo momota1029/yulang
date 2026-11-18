@@ -1,0 +1,12 @@
+'Yulang.GeneralRebaseFiniteStates263.mem_of_sublist' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.length' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.image_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.forall_image_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.heads_image_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+Yulang.GeneralRebaseFiniteStates263.heads_image_iff {roles : Yulang.Roles.RoleDecls} (basis : List Fact)
+  (inspect : State basis → Yulang.GeneralNominalVersionedJournal232.State roles)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) :
+  (∀ (snapshot : Yulang.GeneralNominalVersionedJournal232.State roles),
+      snapshot ∈ List.map inspect (states basis) → Yulang.GeneralRebaseSourceCenters263.Heads snapshot assignment) ↔
+    ∀ (state : State basis), Yulang.GeneralRebaseSourceCenters263.Heads (inspect state) assignment

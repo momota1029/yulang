@@ -1,0 +1,50 @@
+'Yulang.GeneralRebaseOwnerTags263.Tagged' does not depend on any axioms
+'Yulang.GeneralRebaseOwnerTags263.body_tagged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTags263.tagged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTags263.owner_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTags263.tables_separate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTags263.foreign_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTags263.tables_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTags263.combined_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.basis' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.Holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.Models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.member_basis' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.basis_member' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.proposal_covered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.holds_owned' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.all_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.write_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.actual_write' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.initial_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.done_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.basis_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOwnerTable263.run_bound' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralRebaseOwnerTable263.actual_write : ∀ {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (owner : Nat),
+  owner ∈ owners →
+    ∀ (source : Yulang.GeneralNominalCenteredSteps.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      (∀ (output : Yulang.GeneralSourceState.Output),
+          output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests source root → output ∈ pool) →
+        ∀
+          (state :
+            Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))
+          (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralRebaseOwnerTable263.Models base owners representative
+              (Yulang.GeneralRebaseStep258.write state
+                (Yulang.GeneralRebaseStableClass261.facts (representative owner) owner
+                  (Yulang.GeneralNominalCenteredHeadOutputs.requests source root)))
+              assignment ↔
+            Yulang.GeneralRebaseOwnerTable263.Models base owners representative state assignment ∧
+              Yulang.GeneralNominalVersionedEffects231.ClassEffects source root (representative owner) assignment
+@Yulang.GeneralRebaseOwnerTable263.run_bound : ∀ {roles : Yulang.Roles.RoleDecls} (owners : List Nat)
+  (representative : Nat → Yulang.GeneralNominalCenters.Plan roles) (pool : List Yulang.GeneralSourceState.Output)
+  (observe : Yulang.GeneralRebaseStep258.Observer (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool))
+  {steps : Nat}
+  {before after :
+    Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseOwnerTable263.basis owners representative pool)},
+  Yulang.GeneralRebaseBudget258.Runs observe steps before after →
+    steps ≤ owners.length * (pool.length + pool.length * pool.length)

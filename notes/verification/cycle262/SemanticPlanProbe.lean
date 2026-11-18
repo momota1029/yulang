@@ -1,0 +1,10 @@
+import Yulang.GeneralRebasePlanSemantic262
+import Yulang.GeneralRebasePlanSemanticExamples262
+#print axioms Yulang.GeneralRebasePlanSemantic262.facts_eq
+#print axioms Yulang.GeneralRebasePlanSemantic262.actual_value
+#print axioms Yulang.GeneralRebasePlanSemantic262.stable_class_holds
+#print axioms Yulang.GeneralRebasePlanSemantic262.body_holds
+#print axioms Yulang.GeneralRebasePlanSemantic262.class_effects
+#print axioms Yulang.GeneralRebasePlanSemanticExamples262.strict_weakening
+#check @Yulang.GeneralRebasePlanSemantic262.Compatible
+#check @Yulang.GeneralRebasePlanSemantic262.class_effects

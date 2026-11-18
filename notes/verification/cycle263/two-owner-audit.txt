@@ -1,0 +1,13 @@
+Standalone strict compile: GeneralRebaseTwoOwnerRegression263
+PASS
+Standalone lake usage/axiom audit
+'Yulang.GeneralRebaseTwoOwnerRegression263.owners_distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTwoOwnerRegression263.first_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTwoOwnerRegression263.last_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTwoOwnerRegression263.checked_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTwoOwnerRegression263.run_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTwoOwnerRegression263.exactly_two_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTwoOwnerRegression263.event_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTwoOwnerRegression263.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,6 @@
+SourceHeadsContextProbe strict --trust=0 warningAsError
+'Yulang.Cycle263SourceHeadsProbe.formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263SourceHeadsProbe.all_future_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263SourceHeadsProbe.context_inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263SourceHeadsProbe.actual_base_context' depends on axioms: [propext, Classical.choice, Quot.sound]
+PASS

@@ -1,0 +1,12 @@
+import Yulang.GeneralRebaseSourceMeaning263
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.actual_proposal
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.write_exact
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.actual_write
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.initial_exact
+#print axioms Yulang.GeneralRebaseUniversalTrace263.models_exact
+#print axioms Yulang.GeneralRebaseUniversalTrace263.from_checked
+#print axioms Yulang.GeneralRebaseUniversalTrace263.certificate
+#print axioms Yulang.GeneralRebaseSourceMeaning263.empty_selected
+#print axioms Yulang.GeneralRebaseSourceMeaning263.source_certificate
+#check Yulang.GeneralRebaseSourceMeaning263.source_certificate
+#check Yulang.GeneralRebaseSourceMeaning263.Context

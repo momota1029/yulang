@@ -1,0 +1,2 @@
+'Cycle262SourceBoundary.finite_pool_with_old_loop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Cycle262DefaultSource.covered' depends on axioms: [propext, Classical.choice, Quot.sound]

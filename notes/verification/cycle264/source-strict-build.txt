@@ -1,0 +1,9 @@
+lean/Yulang/GeneralRebaseSourceStrictFixture264.lean:18:4: error(lean.dependsOnNoncomputable): failed to compile definition, consider marking it as 'noncomputable' because it depends on 'before', which is 'noncomputable'
+lean/Yulang/GeneralRebaseSourceStrictFixture264.lean:20:7: error(lean.dependsOnNoncomputable): failed to compile definition, consider marking it as 'noncomputable' because it depends on 'before', which is 'noncomputable'
+lean/Yulang/GeneralRebaseSourceStrictFixture264.lean:21:7: error(lean.dependsOnNoncomputable): failed to compile definition, consider marking it as 'noncomputable' because it depends on 'installed', which is 'noncomputable'
+lean/Yulang/GeneralRebaseSourceStrictFixture264.lean:45:2: error: Type mismatch: After simplification, term
+  excluded
+ has type
+  (!List.contains proposed witness) = true
+but is expected to have type
+  False

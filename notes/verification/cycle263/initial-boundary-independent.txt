@@ -1,0 +1,8 @@
+Read-only audit with coordinator final cache
+60fa9769a247c29cb8a611e0b3aecf4135b0927532f4bd96f9a3cf927657bb3b  /workspace/scratch/1d0b4aaa3394/yulang244-recovery/lean/Audit/Cycle263InitialBoundary.lean
+'Yulang.Cycle263InitialBoundary.selected_is_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263InitialBoundary.selected_cannot_be_novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263InitialBoundary.initial_selected_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle263InitialBoundary.initial_inspector_noop' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+Read review: all four theorem types match the next-cycle note. initial_selected_empty uses actual source Initial/lift, not an arbitrary empty selector assumption. initial_inspector_noop only assumes inspect at the current finite state equals that initial source; it correctly needs no restriction on other inspector results because execution stops before querying them. The finite state need not itself be initial, so the theorem is slightly stronger than the motivating initial-state case. selected_is_committed uses actual source Reachable and membership in the versioned selected list. selected_cannot_be_novel excludes precisely reinstalling that same retained Plan at that same snapshot; it does not exclude new current Plans with the same owner, future source transitions, or finite-table novelty. No language rejection/old termination claim is introduced. No defect found.

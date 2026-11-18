@@ -1,0 +1,22 @@
+'Yulang.GeneralRebasePlanSemantic262.facts_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlanSemantic262.actual_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlanSemantic262.stable_class_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlanSemantic262.body_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlanSemantic262.class_effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePlanSemanticExamples262.strict_weakening' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralRebasePlanSemantic262.Compatible : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenters.Plan roles →
+    Yulang.GeneralNominalCenters.Plan roles → Yulang.GeneralNominalCommonBridge.Assignment → Prop
+@Yulang.GeneralRebasePlanSemantic262.class_effects : ∀ {roles : Yulang.Roles.RoleDecls}
+  (first last : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralRebasePlanSemantic262.Compatible first last assignment →
+    ∀ (source : Yulang.GeneralNominalCenteredSteps.State roles)
+      (root : Yulang.GeneralSourceDictionaries.Occurrence roles),
+      Yulang.GeneralNominalVersionedEffects231.ClassEffects source root first assignment ↔
+        Yulang.GeneralNominalVersionedEffects231.ClassEffects source root last assignment
+'Yulang.GeneralRebaseSemanticObserver262.observe_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSemanticObserver262.completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticObserver262.write_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticObserver262.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticTrace262.source_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSafety262.outcome' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,36 @@
+'Yulang.GeneralRebaseSourceLocalMeaning263.source_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalMeaning263.global_implies_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Yulang.GeneralRebaseSourceLocalMeaning263.source_certificate {roles : Yulang.Roles.RoleDecls}
+  (registry : Yulang.GeneralDeclarations.Registry)
+  (checked : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (source : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial registry root start)
+  (inhabited : ∃ owner plan, Yulang.GeneralRebaseSourceRepresentatives263.RegisteredAt registry root start owner plan) :
+  ∃ owners pool holds,
+    ∀ (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop)
+      (inspect :
+        Yulang.GeneralRebaseUniversalObserver263.Current owners pool →
+          Yulang.GeneralNominalVersionedJournal232.State roles),
+      (∀ (state : Yulang.GeneralRebaseUniversalObserver263.Current owners pool),
+          Yulang.GeneralRebaseSourceRepresentatives263.Path registry root start (inspect state)) →
+        ∀ (before after : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseUniversalBasis263.basis owners pool)),
+          Yulang.GeneralRebaseUniversalObserver263.run owners pool (fun state => (inspect state).core)
+                (fun state => Yulang.GeneralRebaseMultiSource263.selected (inspect state)) before =
+              Except.ok after →
+            Yulang.GeneralRebaseSourceMeaning263.Certificate owners pool holds
+              (Yulang.GeneralRebaseSourceLocalMeaning263.Context base registry root start inhabited owners inspect)
+              inspect before after
+Yulang.GeneralRebaseSourceLocalMeaning263.Context {roles : Yulang.Roles.RoleDecls}
+  (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (registry : Yulang.GeneralDeclarations.Registry)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (inhabited : ∃ owner plan, Yulang.GeneralRebaseSourceRepresentatives263.RegisteredAt registry root start owner plan)
+  (owners : List Nat) {pool : List Yulang.GeneralSourceState.Output}
+  (inspect :
+    Yulang.GeneralRebaseUniversalObserver263.Current owners pool → Yulang.GeneralNominalVersionedJournal232.State roles)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment) : Prop

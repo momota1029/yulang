@@ -1,0 +1,2 @@
+Changed preexisting Lean: ['lean/Audit/Cycle257Complete.lean', 'lean/Audit/Cycle257Full.lean']
+No forbidden Lean tokens; all Cycle263 audits import only Yulang.*. Barrel/spec/plan/lakefile untouched.

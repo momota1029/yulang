@@ -1,0 +1,36 @@
+import Yulang.GeneralRebasePlanSemantic262
+import Yulang.GeneralRebasePlanSemanticExamples262
+import Yulang.GeneralRebaseSemanticObserver262
+import Yulang.GeneralRebaseSemanticTrace262
+import Yulang.GeneralRebaseSelectedSafety262
+#print axioms Yulang.GeneralRebasePlanSemantic262.facts_eq
+#print axioms Yulang.GeneralRebasePlanSemantic262.actual_value
+#print axioms Yulang.GeneralRebasePlanSemantic262.stable_class_holds
+#print axioms Yulang.GeneralRebasePlanSemantic262.body_holds
+#print axioms Yulang.GeneralRebasePlanSemantic262.class_effects
+#print axioms Yulang.GeneralRebasePlanSemanticExamples262.strict_weakening
+#check @Yulang.GeneralRebasePlanSemantic262.Compatible
+#check @Yulang.GeneralRebasePlanSemantic262.class_effects
+open Yulang
+open GeneralNominalCenters GeneralRebaseStep258
+open GeneralRebaseSemanticObserver262
+#print axioms observe_eq
+#print axioms completion
+#print axioms write_actual
+#print axioms step_actual
+
+example (fixed : Plan roles) (center) (owner : Nat) (pool : List GeneralSourceState.Output)
+ (roots : State (GeneralRebaseStableClass261.facts fixed owner pool) → List (GeneralSourceDictionaries.Occurrence roles))
+ (cell : Core.PresenceGeneration.Comp CommonNominalFullCarrier.model) :
+ LayoutCompatible fixed owner pool roots
+   (fun _ _ => GeneralRebasePlanSemanticExamples262.recenter fixed center) ∧
+ BaseCompatible (fun assignment => assignment = fun _ => cell) fixed owner pool roots
+   (fun _ _ => GeneralRebasePlanSemanticExamples262.recenter fixed center) := by
+ constructor
+ · intro state root selected
+   exact ⟨rfl,rfl,rfl⟩
+ · intro state root selected assignment equal
+   subst assignment
+   exact GeneralRebasePlanSemanticExamples262.recenter_compatible fixed center cell
+#print axioms Yulang.GeneralRebaseSemanticTrace262.source_certificate
+#print axioms Yulang.GeneralRebaseSelectedSafety262.outcome

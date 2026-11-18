@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseMergeRequests264
+#print axioms Yulang.GeneralRebaseMergeRequests264.joined_symm
+#print axioms Yulang.GeneralRebaseMergeRequests264.joined_trans
+#print axioms Yulang.GeneralRebaseMergeRequests264.alias_merge
+#print axioms Yulang.GeneralRebaseMergeRequests264.requests_merge
+#print axioms Yulang.GeneralRebaseMergeRequests264.requests_unaffected
+#check Yulang.GeneralRebaseMergeRequests264.requests_merge

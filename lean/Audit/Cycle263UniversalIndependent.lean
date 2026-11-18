@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseUniversalSource263
+#print axioms Yulang.GeneralRebaseUniversalBasis263.body_key_exact
+#print axioms Yulang.GeneralRebaseUniversalBasis263.table_covered
+#print axioms Yulang.GeneralRebaseUniversalBasis263.proposal_covered
+#print axioms Yulang.GeneralRebaseUniversalBasis263.owner_bound
+#print axioms Yulang.GeneralRebaseUniversalBasis263.basis_bound
+#print axioms Yulang.GeneralRebaseUniversalBasis263.run_bound
+#print axioms Yulang.GeneralRebaseUniversalObserver263.closed
+#print axioms Yulang.GeneralRebaseUniversalObserver263.certificate
+#print axioms Yulang.GeneralRebaseUniversalObserver263.outcome
+#print axioms Yulang.GeneralRebaseUniversalSource263.source_closed
+#print axioms Yulang.GeneralRebaseUniversalSource263.source_outcome
+#check Yulang.GeneralRebaseUniversalSource263.source_outcome

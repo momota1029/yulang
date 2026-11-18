@@ -1,0 +1,282 @@
+import Yulang.GeneralRebaseNormalizedBody263
+import Yulang.GeneralRebaseNormalizedFacts263
+import Yulang.GeneralRebaseHeadSupport263
+import Yulang.GeneralRebaseOwnerTags263
+import Yulang.GeneralRebaseOwnerTable263
+import Yulang.GeneralRebaseMultiSelection263
+import Yulang.GeneralRebaseMultiObserver263
+import Yulang.GeneralRebaseValidatedDriver263
+import Yulang.GeneralRebaseValidatedOutcome263
+import Yulang.GeneralRebaseMultiRun263
+import Yulang.GeneralRebaseRegisteredOwners263
+import Yulang.GeneralRebaseMultiTrace263
+import Yulang.GeneralRebaseMultiSource263
+import Yulang.GeneralRebaseNormalizedExamples263
+import Yulang.GeneralRebaseRegisteredPlan263
+import Yulang.GeneralRebaseRegisteredSites263
+import Yulang.GeneralRebaseSourceCenters263
+import Yulang.GeneralRebaseUniversalBasis263
+import Yulang.GeneralRebaseUniversalObserver263
+import Yulang.GeneralRebaseUniversalSource263
+import Yulang.GeneralRebaseTwoOwnerRegression263
+import Yulang.GeneralRebaseUniversalMeaning263
+import Yulang.GeneralRebaseUniversalTrace263
+import Yulang.GeneralRebaseUniversalRegression263
+import Yulang.GeneralRebaseSourceRepresentatives263
+import Yulang.GeneralRebaseRepresentativesExample263
+import Yulang.GeneralRebaseSourceMeaning263
+import Yulang.GeneralRebaseSourceLocalHeads263
+import Yulang.GeneralRebaseSourceLocalMeaning263
+import Yulang.GeneralRebaseFiniteStates263
+import Yulang.GeneralRebaseProspectiveEffect263
+
+#print axioms Yulang.GeneralRebaseNormalizedBody263.explicit_value
+#print axioms Yulang.GeneralRebaseNormalizedBody263.explicit_body
+#print axioms Yulang.GeneralRebaseNormalizedBody263.default_body
+#print axioms Yulang.GeneralRebaseNormalizedBody263.supplied_body
+#print axioms Yulang.GeneralRebaseNormalizedBody263.lookup_body
+#print axioms Yulang.GeneralRebaseNormalizedBody263.effects
+#print axioms Yulang.GeneralRebaseNormalizedBody263.class_effects
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.singleton_holds
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.local_meaning
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.local_holds
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.stable_body_holds
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.stable_class_holds
+#print axioms Yulang.GeneralRebaseNormalizedFacts263.of_global
+#print axioms Yulang.GeneralRebaseHeadSupport263.source_same
+#print axioms Yulang.GeneralRebaseHeadSupport263.head_iff
+#print axioms Yulang.GeneralRebaseHeadSupport263.input_binder
+#print axioms Yulang.GeneralRebaseHeadSupport263.output_binder
+#print axioms Yulang.GeneralRebaseHeadSupport263.from_heads
+#print axioms Yulang.GeneralRebaseHeadSupport263.from_inputs
+#print axioms Yulang.GeneralRebaseOwnerTags263.Tagged
+#print axioms Yulang.GeneralRebaseOwnerTags263.body_tagged
+#print axioms Yulang.GeneralRebaseOwnerTags263.tagged
+#print axioms Yulang.GeneralRebaseOwnerTags263.owner_unique
+#print axioms Yulang.GeneralRebaseOwnerTags263.tables_separate
+#print axioms Yulang.GeneralRebaseOwnerTags263.foreign_holds
+#print axioms Yulang.GeneralRebaseOwnerTags263.tables_bound
+#print axioms Yulang.GeneralRebaseOwnerTags263.combined_holds
+#print axioms Yulang.GeneralRebaseOwnerTable263.basis
+#print axioms Yulang.GeneralRebaseOwnerTable263.Holds
+#print axioms Yulang.GeneralRebaseOwnerTable263.Models
+#print axioms Yulang.GeneralRebaseOwnerTable263.member_basis
+#print axioms Yulang.GeneralRebaseOwnerTable263.basis_member
+#print axioms Yulang.GeneralRebaseOwnerTable263.proposal_covered
+#print axioms Yulang.GeneralRebaseOwnerTable263.holds_owned
+#print axioms Yulang.GeneralRebaseOwnerTable263.all_exact
+#print axioms Yulang.GeneralRebaseOwnerTable263.write_exact
+#print axioms Yulang.GeneralRebaseOwnerTable263.actual_write
+#print axioms Yulang.GeneralRebaseOwnerTable263.initial_exact
+#print axioms Yulang.GeneralRebaseOwnerTable263.done_exact
+#print axioms Yulang.GeneralRebaseOwnerTable263.basis_bound
+#print axioms Yulang.GeneralRebaseOwnerTable263.run_bound
+#print axioms Yulang.GeneralRebaseMultiSelection263.ofPlan
+#print axioms Yulang.GeneralRebaseMultiSelection263.registered
+#print axioms Yulang.GeneralRebaseMultiSelection263.requests
+#print axioms Yulang.GeneralRebaseMultiSelection263.proposal
+#print axioms Yulang.GeneralRebaseMultiSelection263.registered_exact
+#print axioms Yulang.GeneralRebaseMultiSelection263.check
+#print axioms Yulang.GeneralRebaseMultiSelection263.Ready
+#print axioms Yulang.GeneralRebaseMultiSelection263.check_exact
+#print axioms Yulang.GeneralRebaseMultiSelection263.error_selected
+#print axioms Yulang.GeneralRebaseMultiObserver263.Current
+#print axioms Yulang.GeneralRebaseMultiObserver263.observe
+#print axioms Yulang.GeneralRebaseMultiObserver263.Listed
+#print axioms Yulang.GeneralRebaseMultiObserver263.LayoutCompatible
+#print axioms Yulang.GeneralRebaseMultiObserver263.BaseCompatible
+#print axioms Yulang.GeneralRebaseMultiObserver263.closed
+#print axioms Yulang.GeneralRebaseMultiObserver263.completion
+#print axioms Yulang.GeneralRebaseMultiObserver263.write_actual
+#print axioms Yulang.GeneralRebaseMultiObserver263.step_actual
+#print axioms Yulang.GeneralRebaseValidatedDriver263.run
+#print axioms Yulang.GeneralRebaseValidatedDriver263.successful_trace
+#print axioms Yulang.GeneralRebaseValidatedDriver263.to_runs
+#print axioms Yulang.GeneralRebaseValidatedDriver263.states_valid
+#print axioms Yulang.GeneralRebaseValidatedDriver263.terminal
+#print axioms Yulang.GeneralRebaseValidatedDriver263.trace_success
+#print axioms Yulang.GeneralRebaseValidatedDriver263.ordinary_settle
+#print axioms Yulang.GeneralRebaseValidatedDriver263.certificate
+#print axioms Yulang.GeneralRebaseValidatedOutcome263.At
+#print axioms Yulang.GeneralRebaseValidatedOutcome263.error_path
+#print axioms Yulang.GeneralRebaseValidatedOutcome263.no_outside
+#print axioms Yulang.GeneralRebaseValidatedOutcome263.outcome
+#print axioms Yulang.GeneralRebaseMultiRun263.validate
+#print axioms Yulang.GeneralRebaseMultiRun263.run
+#print axioms Yulang.GeneralRebaseMultiRun263.certificate
+#print axioms Yulang.GeneralRebaseMultiRun263.outcome
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.key
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.code
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.code_eq_iff
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.registered_origin
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.source_initial_empty
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.source_finite_keys
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.selected
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.source_finite_codes
+#print axioms Yulang.GeneralRebaseRegisteredOwners263.source_selection_covered
+#print axioms Yulang.GeneralRebaseMultiTrace263.to_runs
+#print axioms Yulang.GeneralRebaseMultiTrace263.models_exact
+#print axioms Yulang.GeneralRebaseMultiTrace263.from_checked
+#print axioms Yulang.GeneralRebaseMultiTrace263.certificate
+#print axioms Yulang.GeneralRebaseMultiSource263.selected
+#print axioms Yulang.GeneralRebaseMultiSource263.source_bounds
+#print axioms Yulang.GeneralRebaseMultiSource263.source_completion
+#print axioms Yulang.GeneralRebaseMultiSource263.source_certificate
+#print axioms Yulang.GeneralRebaseNormalizedExamples263.shadow_body
+#print axioms Yulang.GeneralRebaseNormalizedExamples263.shadow_boundary
+#print axioms Yulang.GeneralRebaseNormalizedExamples263.actual_head_support
+#print axioms Yulang.GeneralRebaseNormalizedExamples263.normalized_variable_used
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.metadata
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.inputs
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.layout
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.compatible
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.source_compatible
+#print axioms Yulang.GeneralRebaseRegisteredPlan263.source_layout
+#print axioms Yulang.GeneralRebaseRegisteredSites263.inputs
+#print axioms Yulang.GeneralRebaseRegisteredSites263.origin
+#print axioms Yulang.GeneralRebaseRegisteredSites263.above_root
+#print axioms Yulang.GeneralRebaseRegisteredSites263.emitted_above_root
+#print axioms Yulang.GeneralRebaseSourceCenters263.Heads
+#print axioms Yulang.GeneralRebaseSourceCenters263.heads
+#print axioms Yulang.GeneralRebaseSourceCenters263.Centers
+#print axioms Yulang.GeneralRebaseSourceCenters263.self
+#print axioms Yulang.GeneralRebaseSourceCenters263.child_centers
+#print axioms Yulang.GeneralRebaseSourceCenters263.centers_from_heads
+#print axioms Yulang.GeneralRebaseSourceCenters263.compatible
+#print axioms Yulang.GeneralRebaseSourceCenters263.source_compatible
+#print axioms Yulang.GeneralRebaseSourceCenters263.compatible_from_heads
+#print axioms Yulang.GeneralRebaseSourceCenters263.source_compatible_from_heads
+#print axioms Yulang.GeneralRebaseSourceCenters263.centers
+#print axioms Yulang.GeneralRebaseUniversalBasis263.bodyKey
+#print axioms Yulang.GeneralRebaseUniversalBasis263.ownerFacts
+#print axioms Yulang.GeneralRebaseUniversalBasis263.basis
+#print axioms Yulang.GeneralRebaseUniversalBasis263.body_key_exact
+#print axioms Yulang.GeneralRebaseUniversalBasis263.table_covered
+#print axioms Yulang.GeneralRebaseUniversalBasis263.proposal_covered
+#print axioms Yulang.GeneralRebaseUniversalBasis263.owner_bound
+#print axioms Yulang.GeneralRebaseUniversalBasis263.basis_bound
+#print axioms Yulang.GeneralRebaseUniversalBasis263.run_bound
+#print axioms Yulang.GeneralRebaseUniversalObserver263.Current
+#print axioms Yulang.GeneralRebaseUniversalObserver263.observe
+#print axioms Yulang.GeneralRebaseUniversalObserver263.validate
+#print axioms Yulang.GeneralRebaseUniversalObserver263.run
+#print axioms Yulang.GeneralRebaseUniversalObserver263.closed
+#print axioms Yulang.GeneralRebaseUniversalObserver263.certificate
+#print axioms Yulang.GeneralRebaseUniversalObserver263.outcome
+#print axioms Yulang.GeneralRebaseUniversalSource263.source_closed
+#print axioms Yulang.GeneralRebaseUniversalSource263.source_outcome
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.firstPlan
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.lastPacket
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.lastPlan
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.first
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.last
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.owners_distinct
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.owners
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.representative
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.rep_first
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.rep_last
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.pool
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.Current
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.inspect
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.select
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.observe
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.p
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.q
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.first_requests
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.last_requests
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.observed
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.basis_exact
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.disjoint
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.p_nonempty
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.q_nonempty
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.checked
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.start
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.middle
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.finish
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.middle_remaining
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.finish_remaining
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.first_progress
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.last_progress
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.first_advance
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.last_advance
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.terminal
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.checked_trace
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.run_success
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.exactly_two_writes
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.event_trace
+#print axioms Yulang.GeneralRebaseTwoOwnerRegression263.models_exact
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.Models
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.actual_proposal
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.write_exact
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.actual_write
+#print axioms Yulang.GeneralRebaseUniversalMeaning263.initial_exact
+#print axioms Yulang.GeneralRebaseUniversalTrace263.Event
+#print axioms Yulang.GeneralRebaseUniversalTrace263.BaseCompatible
+#print axioms Yulang.GeneralRebaseUniversalTrace263.to_runs
+#print axioms Yulang.GeneralRebaseUniversalTrace263.models_exact
+#print axioms Yulang.GeneralRebaseUniversalTrace263.from_checked
+#print axioms Yulang.GeneralRebaseUniversalTrace263.certificate
+#print axioms Yulang.GeneralRebaseUniversalRegression263.pool
+#print axioms Yulang.GeneralRebaseUniversalRegression263.Current
+#print axioms Yulang.GeneralRebaseUniversalRegression263.inspect
+#print axioms Yulang.GeneralRebaseUniversalRegression263.select
+#print axioms Yulang.GeneralRebaseUniversalRegression263.observe
+#print axioms Yulang.GeneralRebaseUniversalRegression263.start
+#print axioms Yulang.GeneralRebaseUniversalRegression263.middle
+#print axioms Yulang.GeneralRebaseUniversalRegression263.finish
+#print axioms Yulang.GeneralRebaseUniversalRegression263.observed
+#print axioms Yulang.GeneralRebaseUniversalRegression263.supported_p
+#print axioms Yulang.GeneralRebaseUniversalRegression263.supported_q
+#print axioms Yulang.GeneralRebaseUniversalRegression263.checked
+#print axioms Yulang.GeneralRebaseUniversalRegression263.first_progress
+#print axioms Yulang.GeneralRebaseUniversalRegression263.last_progress
+#print axioms Yulang.GeneralRebaseUniversalRegression263.first_advance
+#print axioms Yulang.GeneralRebaseUniversalRegression263.last_advance
+#print axioms Yulang.GeneralRebaseUniversalRegression263.terminal
+#print axioms Yulang.GeneralRebaseUniversalRegression263.checked_trace
+#print axioms Yulang.GeneralRebaseUniversalRegression263.run_success
+#print axioms Yulang.GeneralRebaseUniversalRegression263.exactly_two_writes
+#print axioms Yulang.GeneralRebaseUniversalRegression263.reserved_present
+#print axioms Yulang.GeneralRebaseUniversalRegression263.reserved_outside_p
+#print axioms Yulang.GeneralRebaseUniversalRegression263.reserved_outside_q
+#print axioms Yulang.GeneralRebaseUniversalRegression263.reserved_retained
+#print axioms Yulang.GeneralRebaseUniversalRegression263.terminal_not_done
+#print axioms Yulang.GeneralRebaseUniversalRegression263.unused_unknown
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.Path
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.RegisteredAt
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.representatives
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.representatives_registered
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.exists_representatives
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.SourceHeads
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.layout
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.compatible
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.representative_layout
+#print axioms Yulang.GeneralRebaseSourceRepresentatives263.representative_compatible
+#print axioms Yulang.GeneralRebaseRepresentativesExample263.actual_registered
+#print axioms Yulang.GeneralRebaseRepresentativesExample263.actual_inhabited
+#print axioms Yulang.GeneralRebaseRepresentativesExample263.actual_representative_registered
+#print axioms Yulang.GeneralRebaseSourceMeaning263.Context
+#print axioms Yulang.GeneralRebaseSourceMeaning263.Certificate
+#print axioms Yulang.GeneralRebaseSourceMeaning263.empty_selected
+#print axioms Yulang.GeneralRebaseSourceMeaning263.source_certificate
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot_spec
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.RepresentativeHeads
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.representative_compatible
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.all_registered_compatible
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.of_sourceHeads
+#print axioms Yulang.GeneralRebaseSourceLocalMeaning263.Context
+#print axioms Yulang.GeneralRebaseSourceLocalMeaning263.source_certificate
+#print axioms Yulang.GeneralRebaseSourceLocalMeaning263.global_implies_context
+#print axioms Yulang.GeneralRebaseFiniteStates263.skip
+#print axioms Yulang.GeneralRebaseFiniteStates263.keep
+#print axioms Yulang.GeneralRebaseFiniteStates263.states
+#print axioms Yulang.GeneralRebaseFiniteStates263.mem_of_sublist
+#print axioms Yulang.GeneralRebaseFiniteStates263.complete
+#print axioms Yulang.GeneralRebaseFiniteStates263.length
+#print axioms Yulang.GeneralRebaseFiniteStates263.image_exact
+#print axioms Yulang.GeneralRebaseFiniteStates263.forall_image_iff
+#print axioms Yulang.GeneralRebaseFiniteStates263.heads_image_iff
+#print axioms Yulang.GeneralRebaseProspectiveEffect263.checked_effect
+#print axioms Yulang.GeneralRebaseProspectiveEffect263.source_frame_then_check
+#print axioms Yulang.GeneralRebaseProspectiveEffect263.source_outcome
