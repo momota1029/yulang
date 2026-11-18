@@ -85,3 +85,9 @@ stateによって別proposalを出す場合の合流性はこれだけでは言�
 固定した有限proposal列に限り、全writeの結果とchecked schedulerの終端を対応
 させる。noopを先頭に入れても次の新factを見落とさない。observer一般の順序独立、
 全言語主型性へ拡大しない。
+
+## 最終実行probeと失敗意味の境界
+
+`notes/verification/cycle259/DriverProbe.lean` はI45/239のsettleがremaining=0を返すことをLean評価で確認し、別の手作り内部observerについて初回書込みが成功した後にunsupported999を返すことを3本のkernel検証補題と評価で確認した。これはsourceから到達する言語反例ではない。各commitの部分書込み禁止は、複数回commitを内部で実行するsettle全体のrollbackを意味しない。pure関数settleはerrorのみを返し、中間Stateを返さない。#evalは証明oracleではなく、Yulang2実装を実行したものでもない。
+
+全28 moduleは独立読取レビュー済み。独立再ビルドではなく、この作業者によるfresh dependency buildを別に記録する。固定batchのliteral終点一意性は、一般sourceのprincipal typingや任意動的observerの合流性ではない。
