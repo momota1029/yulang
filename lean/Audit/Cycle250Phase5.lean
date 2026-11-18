@@ -1,0 +1,74 @@
+import Yulang.GeneralNominalPostInstallRegression250
+import Yulang.GeneralNominalInstallCoverage250
+import Yulang.GeneralNominalCheckedInstall250
+import Yulang.GeneralNominalOwnerOpening250
+import Yulang.GeneralNominalOwnerExecution250
+import Yulang.GeneralNominalSourceOwnerExecution250
+import Yulang.GeneralNominalCoverageRegression250
+import Lean
+open Lean Elab Command in
+run_cmd do
+ let environment ← getEnv
+ let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
+ let names := #[``Yulang.GeneralNominalPostInstallRegression250.emptyView,
+  ``Yulang.GeneralNominalPostInstallRegression250.emptyJournal,
+  ``Yulang.GeneralNominalPostInstallRegression250.frame,
+  ``Yulang.GeneralNominalPostInstallRegression250.raw,
+  ``Yulang.GeneralNominalPostInstallRegression250.extra,
+  ``Yulang.GeneralNominalPostInstallRegression250.boundary,
+  ``Yulang.GeneralNominalPostInstallRegression250.empty_view_models,
+  ``Yulang.GeneralNominalPostInstallRegression250.empty_journal_models,
+  ``Yulang.GeneralNominalPostInstallRegression250.old_safe,
+  ``Yulang.GeneralNominalPostInstallRegression250.ordinary_satisfied,
+  ``Yulang.GeneralNominalPostInstallRegression250.post_has_model,
+  ``Yulang.GeneralNominalPostInstallRegression250.pre_has_no_public_model,
+  ``Yulang.GeneralNominalInstallCoverage250.Covered,
+  ``Yulang.GeneralNominalInstallCoverage250.within_equal_targets,
+  ``Yulang.GeneralNominalInstallCoverage250.covered_from_initial,
+  ``Yulang.GeneralNominalInstallCoverage250.next_raw_satisfied,
+  ``Yulang.GeneralNominalInstallCoverage250.OwnerCommand,
+  ``Yulang.GeneralNominalInstallCoverage250.compile,
+  ``Yulang.GeneralNominalInstallCoverage250.commands,
+  ``Yulang.GeneralNominalInstallCoverage250.owner_trace_covered,
+  ``Yulang.GeneralNominalInstallCoverage250.coverageCheck,
+  ``Yulang.GeneralNominalInstallCoverage250.coverageCheck_exact,
+  ``Yulang.GeneralNominalInstallCoverage250.owner_check_success,
+  ``Yulang.GeneralNominalCheckedInstall250.coherenceCheck,
+  ``Yulang.GeneralNominalCheckedInstall250.coherenceCheck_exact,
+  ``Yulang.GeneralNominalCheckedInstall250.check,
+  ``Yulang.GeneralNominalCheckedInstall250.check_exact,
+  ``Yulang.GeneralNominalCheckedInstall250.step,
+  ``Yulang.GeneralNominalCheckedInstall250.step_success,
+  ``Yulang.GeneralNominalCheckedInstall250.run,
+  ``Yulang.GeneralNominalCheckedInstall250.run_success,
+  ``Yulang.GeneralNominalCheckedInstall250.run_sound,
+  ``Yulang.GeneralNominalOwnerOpening250.Handle,
+  ``Yulang.GeneralNominalOwnerOpening250.Handle.slots,
+  ``Yulang.GeneralNominalOwnerOpening250.choose,
+  ``Yulang.GeneralNominalOwnerOpening250.openFrame,
+  ``Yulang.GeneralNominalOwnerOpening250.fresh,
+  ``Yulang.GeneralNominalOwnerOpening250.private_names,
+  ``Yulang.GeneralNominalOwnerOpening250.open_safe,
+  ``Yulang.GeneralNominalOwnerOpening250.open_public_models_iff,
+  ``Yulang.GeneralNominalOwnerExecution250.program,
+  ``Yulang.GeneralNominalOwnerExecution250.result,
+  ``Yulang.GeneralNominalOwnerExecution250.seedAssignment,
+  ``Yulang.GeneralNominalOwnerExecution250.covered,
+  ``Yulang.GeneralNominalOwnerExecution250.checked_success,
+  ``Yulang.GeneralNominalOwnerExecution250.public_execution_iff,
+  ``Yulang.GeneralNominalSourceOwnerExecution250.source_public_execution_iff,
+  ``Yulang.GeneralNominalSourceOwnerExecution250.source_checked_success,
+  ``Yulang.GeneralNominalCoverageRegression250.emptyDelta,
+  ``Yulang.GeneralNominalCoverageRegression250.outside,
+  ``Yulang.GeneralNominalCoverageRegression250.conflicting,
+  ``Yulang.GeneralNominalCoverageRegression250.outside_check_false,
+  ``Yulang.GeneralNominalCoverageRegression250.outside_step_none,
+  ``Yulang.GeneralNominalCoverageRegression250.conflicting_covered,
+  ``Yulang.GeneralNominalCoverageRegression250.conflicting_incoherent,
+  ``Yulang.GeneralNominalCoverageRegression250.conflicting_check_false,
+  ``Yulang.GeneralNominalCoverageRegression250.conflicting_step_none]
+ for name in names do
+  unless environment.contains name do throwError "Missing declaration {name}"
+  for dependency in ← collectAxioms name do
+   unless allowed.contains dependency do throwError "Forbidden dependency {name}: {dependency}"
+ logInfo m!"CYCLE250-PHASE5-PASS: {names.size} explicit declarations in 7 modules"
