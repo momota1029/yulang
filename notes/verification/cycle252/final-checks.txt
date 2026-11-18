@@ -1,0 +1,6 @@
+PASS previous dependency source hashes unchanged: 1600
+PASS import closure hashed: 1514
+PASS no forbidden tokens in 12 new modules
+PASS old Lean sources frozen; barrel append-only
+Latest integration48627b59e, I49 unchanged at08:52 UTC
+Whole repository build, verify-lean.sh and Yulang2 runtime not run

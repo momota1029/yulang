@@ -1,0 +1,15 @@
+BUILD GeneralPresenceUnionNormal252
+BUILD GeneralPresenceInterNormal252
+BUILD GeneralPresenceNormalFinite252
+BUILD GeneralPresenceSnapshotNormal252
+BUILD GeneralPresenceCheckedNormal252
+BUILD GeneralPresenceNormalBlock252
+BUILD GeneralPresenceFiniteBlocks252
+BUILD GeneralNominalOwnerCandidates252
+BUILD GeneralNominalSourceOwnerCandidates252
+BUILD GeneralDictionaryOutputDepth252
+BUILD GeneralDictionaryOutputDepthCycles252
+BUILD GeneralDictionaryOutputDepthInstall252
+CYCLE252-COMPLETEAUDIT-PASS: 229 explicit declarations in 12 modules
+CYCLE252-FULL-AUDIT-PASS: 389 declarations including generated and private declarations
+EXIT 0

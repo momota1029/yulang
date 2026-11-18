@@ -28,7 +28,8 @@ Intを0と数える通常のconstructor-only conventionでも1/2→3で同じ不
   という上界は、この実際のreadbackに適用できない。
 - 生のjournalはvar参照を残せるので、保存template自身の深さは2。この証明を
   「保存したraw項が無限に成長する」と読み替えてはいけない。
-- 一回で止まるwhereなしの例であり、source Accの否定でも言語意味の矛盾でもない。
+- whereなしで、一回のinstallationだけで上界違反が現れる例。後続Stepの停止や
+  Stableまでは証明しておらず、source Accの否定でも言語意味の矛盾でもない。
 - 別の原子として全体を包んだりDを加算型へ修正する方法まで反駁しない。ただし
   その有限basis/上界は別途構成・保存を証明する必要がある。
 - 現mixed/point source境界の診断であり、未完成rebase後継Stepの実行と偽らない。
