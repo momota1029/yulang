@@ -25,6 +25,7 @@ import Yulang.GeneralReflexiveDefaultRegression260
 import Yulang.GeneralRebaseBodyActual260
 import Yulang.GeneralRebaseRequestBodyKeys260
 import Yulang.GeneralRebaseNamedRequest260
+import Yulang.GeneralRebaseEqualOutputs260
 #check @Yulang.GeneralRebaseOutputKeys260.key
 #check @Yulang.GeneralRebaseOutputKeys260.keys
 #check @Yulang.GeneralRebaseOutputKeys260.Holds
@@ -238,3 +239,10 @@ import Yulang.GeneralRebaseNamedRequest260
 #check @Yulang.GeneralRebaseNamedRequest260.lookup_unique
 #check @Yulang.GeneralRebaseNamedRequest260.equation_meaning
 #check @Yulang.GeneralRebaseNamedRequest260.probe_repaired
+#check @Yulang.GeneralRebaseEqualOutputs260.schema
+#check @Yulang.GeneralRebaseEqualOutputs260.variables
+#check @Yulang.GeneralRebaseEqualOutputs260.holds_exact
+#check @Yulang.GeneralRebaseEqualOutputs260.translated
+#check @Yulang.GeneralRebaseEqualOutputs260.actual
+#check @Yulang.GeneralRebaseEqualOutputs260.actual_exact
+#check @Yulang.GeneralRebaseEqualOutputs260.class_effects

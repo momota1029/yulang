@@ -164,8 +164,20 @@ requestの(name,target)を注入符号化した安定住所を供給する。可
 
 `code`, `code_injective`, `compile`, `outputs_separate`, `lookup_unique`, `equation_meaning`, `probe_repaired`
 
+## 28. GeneralRebaseEqualOutputs260
+
+任意固定request列の同name順序付きpairをtarget型同値のschemaにし、全方程式Holds iff EqualOutputsを示す。実stateのalias-class requestsへ適用してClassEffectsをbody義務と同schemaに分解する。実requestsはnoncomputableで、全trace固定basis生成や一般実行可能observerとは主張しない。
+
+`schema`, `variables`, `holds_exact`, `translated`, `actual`, `actual_exact`, `class_effects`
+
 ## 独立RequestAddressProbe
 
 206同一planに実要求output0と、実requestsに属さない内部引数output1を渡すと、単一body decoderは同じkey列を返す。一方、既存counterではoutput0のBodyHoldsが偽、output1が反射的に真。同一owner複数requestを共有layoutへ無造作に合成できないという内部decoder境界であり、source到達反例・言語拒否・非停止・I50深さ上界の反例ではない。
 
 `alternate_not_requested`, `same_address`, `alternate_holds`, `actual_fails`, `address_does_not_determine_payload`
+
+## DecoderScopeProbe
+
+206の実checked runが成功しても、既存counter assignmentは終点Modelsを満たさない。これは制約state生成とモデル検証の区別。未定義name999は内部引数としてmissingBody errorを保ち、到達source拒否とは言わない。新namespaceは内部注入的だが旧owner-only表と混在させると住所が重なる例がある。移行は表置換または追加tag分離を要する。
+
+`successful_run_is_not_assignment_validation`, `missing_body`, `named_missing_body`, `old_namespace_overlap`

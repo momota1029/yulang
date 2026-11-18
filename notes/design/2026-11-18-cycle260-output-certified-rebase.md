@@ -145,3 +145,17 @@ Nat全体を有限と扱わない。lookup bodyの一意性は同じPlan/declara
 `GeneralNominalVersionedMixedInstallRequests235.requests_iff` のAbsorbed条件は、
 子の新output要求が既に表現済みである場合に限る。出力無し子なら導出できるが、
 任意子を持つPlanの要求集合不変を仮定して一般化してはいけない。
+
+## EqualOutputs義務の有限表（固定stateの意味対応）
+
+残義務の一つを明示しておく。固定したrequest列の全順序付きpairのうちnameが同じものを
+列挙し、first.target ≃ last.target の方程式schemaを作る。変数はassignmentのsource名を
+そのまま読む。同schema.Holds iff列のEqualOutputsを証明し、実stateのrequestsへ適用する。
+実requestsはalias判定を含むnoncomputableな列なので、この定理を実行可能一般observerや
+全traceで固定したbasisのproducerとは呼ばない。これは固定stateにおける意味対応だけ。
+
+追加検査 `DecoderScopeProbe` は、206の実run成功にもかかわらず既存counterが終点モデル
+ではないことを明示する。runは制約表を書くだけでassignmentの充足性を判定しない。
+未定義name999はmissingBody errorを保持する内部テスト。新4成分namespaceが旧owner-only
+表と全域で非衝突という主張もしない（0の住所は実際に一致）。移行時は表を置き換えるか、
+新旧をさらにtag分離する必要がある。既存fixture runnerは旧表のままなので今回混在しない。

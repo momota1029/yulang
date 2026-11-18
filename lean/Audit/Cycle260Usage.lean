@@ -1,3 +1,4 @@
+import Yulang.GeneralRebaseEqualOutputs260
 import Yulang.GeneralRebaseNamedRequest260
 import Yulang.GeneralRebaseRequestBodyKeys260
 import Yulang.GeneralRebaseBodyActual260
@@ -46,4 +47,5 @@ example : GeneralReflexiveDefaultRun260.run GeneralReflexiveDefaultSource260.ini
 example (assignment : GeneralNominalCommonBridge.Assignment) : GeneralReflexiveDefaultModels260.Models GeneralReflexiveDefaultSource260.initialState assignment ↔ GeneralReflexiveDefaultModels260.Models GeneralReflexiveDefaultSource260.finalState assignment := GeneralReflexiveDefaultModels260.same_assignment ..
 example : GeneralRebaseRequestBodyKeys260.compile GeneralDictionaryDefaultGap206Source.plan 37 2 0 ⟨0,0⟩ ≠ GeneralRebaseRequestBodyKeys260.compile GeneralDictionaryDefaultGap206Source.plan 37 2 1 ⟨0,1⟩ := GeneralRebaseRequestBodyKeys260.probe_repaired
 example : GeneralRebaseNamedRequest260.compile GeneralDictionaryDefaultGap206Source.plan 37 2 ⟨0,0⟩ ≠ GeneralRebaseNamedRequest260.compile GeneralDictionaryDefaultGap206Source.plan 37 2 ⟨0,1⟩ := GeneralRebaseNamedRequest260.probe_repaired
+example (outputs : List GeneralSourceState.Output) (assignment : GeneralNominalCommonBridge.Assignment) : (GeneralRebaseEqualOutputs260.schema outputs).Holds (GeneralRebaseEqualOutputs260.variables assignment) assignment ↔ ∀ first ∈ outputs, ∀ last ∈ outputs, first.name = last.name → CommonNominalFullCarrier.Equivalent (assignment first.target).1 (assignment last.target).1 := GeneralRebaseEqualOutputs260.holds_exact ..
 end Cycle260Usage

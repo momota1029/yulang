@@ -835,3 +835,39 @@ Yulang.GeneralRebaseNamedRequest260.probe_repaired : Yulang.GeneralRebaseNamedRe
     Yulang.GeneralDictionaryDefaultGap206Source.plan 37 2 { name := 0, target := 0 } ≠
   Yulang.GeneralRebaseNamedRequest260.compile Yulang.GeneralDictionaryDefaultGap206Source.plan 37 2
     { name := 0, target := 1 }
+Yulang.GeneralRebaseEqualOutputs260.schema : List Yulang.GeneralSourceState.Output →
+  Yulang.GeneralNominalCenteredHeadMatSchemas.Schema
+Yulang.GeneralRebaseEqualOutputs260.variables : Yulang.GeneralNominalCommonBridge.Assignment →
+  Yulang.GeneralNominalMaterialization.Mode → Nat → Yulang.CommonNominalFullCarrier.model.Ty
+Yulang.GeneralRebaseEqualOutputs260.holds_exact : ∀ (outputs : List Yulang.GeneralSourceState.Output)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralRebaseEqualOutputs260.schema outputs).Holds (Yulang.GeneralRebaseEqualOutputs260.variables assignment)
+      assignment ↔
+    ∀ (first : Yulang.GeneralSourceState.Output),
+      first ∈ outputs →
+        ∀ (last : Yulang.GeneralSourceState.Output),
+          last ∈ outputs →
+            first.name = last.name →
+              Yulang.CommonNominalFullCarrier.Equivalent (assignment first.target).fst (assignment last.target).fst
+Yulang.GeneralRebaseEqualOutputs260.translated : ∀ (outputs : List Yulang.GeneralSourceState.Output),
+  (Yulang.GeneralRebaseEqualOutputs260.schema outputs).unknown = false
+@Yulang.GeneralRebaseEqualOutputs260.actual : {roles : Yulang.Roles.RoleDecls} →
+  Yulang.GeneralNominalCenteredSteps.State roles →
+    Yulang.GeneralSourceDictionaries.Occurrence roles → Yulang.GeneralNominalCenteredHeadMatSchemas.Schema
+@Yulang.GeneralRebaseEqualOutputs260.actual_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralRebaseEqualOutputs260.actual state root).Holds
+      (Yulang.GeneralRebaseEqualOutputs260.variables assignment) assignment ↔
+    Yulang.GeneralNominalCenteredHeadOutputs.EqualOutputs state root assignment
+@Yulang.GeneralRebaseEqualOutputs260.class_effects : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedEffects231.ClassEffects state root plan assignment ↔
+    (∀ (output : Yulang.GeneralSourceState.Output),
+        output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state root →
+          ∀ (body : Yulang.GeneralDictionaryAssociatedProvenance.Body),
+            Yulang.GeneralDictionaryAssociatedProvenance.lookup roles plan.packet.declaration output.name = some body →
+              Yulang.GeneralNominalVersionedEffects231.BodyHolds plan output.target assignment body) ∧
+      (Yulang.GeneralRebaseEqualOutputs260.actual state root).Holds
+        (Yulang.GeneralRebaseEqualOutputs260.variables assignment) assignment

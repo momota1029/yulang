@@ -16,7 +16,7 @@ def visit(m):
 for m in mods:visit('Yulang.'+m)
 visit('Audit.Cycle260Usage')
 visit('Audit.Cycle260Reach')
-for probe in ['RequestAddressProbe']:
+for probe in ['RequestAddressProbe','DecoderScopeProbe']:
  for dep in re.findall(r'^import\s+(\S+)',v.joinpath(probe+'.lean').read_text(),re.M):visit(dep)
 v.joinpath('dependency-source-sha256.json').write_text(json.dumps({p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sorted(seen)},indent=2)+'\n')
 print(f'PASS import closure hashed: {len(seen)}')
@@ -39,7 +39,7 @@ assert Path('lean/Yulang.lean').read_text().startswith(oldbarrel)
 print('PASS old mathematical Lean frozen; barrel append-only')
 print('Whole repository build, verify-lean.sh and Yulang2 runtime not run')
 
-for name in ['RequestAddressProbe']:
+for name in ['RequestAddressProbe','DecoderScopeProbe']:
  p=v/(name+'.lean')
  assert not re.search(r'\b(sorry|admit|native_decide|axiom)\b',p.read_text())
-print('PASS request address kernel probe: import closure included; forbidden tokens absent')
+print('PASS both kernel probes: import closure included; forbidden tokens absent')

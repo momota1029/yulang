@@ -1,0 +1,6 @@
+'Cycle260DecoderScopeProbe.successful_run_is_not_assignment_validation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Cycle260DecoderScopeProbe.missing_body' depends on axioms: [propext, Quot.sound]
+'Cycle260DecoderScopeProbe.named_missing_body' depends on axioms: [propext, Quot.sound]
+'Cycle260DecoderScopeProbe.old_namespace_overlap' does not depend on any axioms

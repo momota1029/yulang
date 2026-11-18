@@ -30,3 +30,11 @@
   attempts, old state size and old microsteps are not bounded by those results.
 - Independent reviews are read-only and explicitly NOT independent rebuilds.
   Build evidence is this worker's fresh focused dependency-layer verification.
+- EqualOutputs now has a fixed-state finite schema equivalence. Actual requests
+  still use noncomputable alias selection; this does not discharge the global
+  stable-candidate producer, executable observer, or all-trace closure.
+- DecoderScopeProbe explicitly distinguishes successful constraint-state
+  generation from validation of a supplied assignment. Missing-body errors
+  propagate through the named wrapper; the tested name999 is not claimed to
+  be a source-reachable request. New and old namespaces are not globally
+  disjoint if mixed without migration.

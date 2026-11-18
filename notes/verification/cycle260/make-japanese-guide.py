@@ -30,12 +30,14 @@ scopes=[
 ]
 scopes.append('任意owner/kind/request/equationの4成分を注入的に符号化し、要求別・種類別のkey分離と固定request bodyの意味を証明する。206内部probeの異なるrequest番号は異なるproposalになる。installed markerもnamespace化された表markerで、旧owner commitmentへの接続は未実装。実requests coverage・index割当・EqualOutputs・一般Step接続の証明ではない。')
 scopes.append('requestの(name,target)を注入符号化した安定住所を供給する。可変alias列の位置を使わず、異なるname/targetを分離。同じPlan固定でlookup body一意、単一body意味は保存する。sourceから有限request候補を得る証明・全class coverage・実行runner接続は別。')
-assert len(mods)==len(scopes)==27
+scopes.append('任意固定request列の同name順序付きpairをtarget型同値のschemaにし、全方程式Holds iff EqualOutputsを示す。実stateのalias-class requestsへ適用してClassEffectsをbody義務と同schemaに分解する。実requestsはnoncomputableで、全trace固定basis生成や一般実行可能observerとは主張しない。')
+assert len(mods)==len(scopes)==28
 s='# cycle260 宣言の日本語案内\n\n各節は量化範囲・前提・射程。全宣言の正確な引数と型は `alltypes-final.txt`、公理依存は `complete-final.txt`。\n';count=0
 for i,(m,scope) in enumerate(zip(mods,scopes),1):
  names=re.findall(r'^\s*(?:noncomputable\s+)?(?:theorem|def|abbrev)\s+(\w+)',Path('lean/Yulang/'+m+'.lean').read_text(),re.M);count+=len(names)
  s+=f'\n## {i}. {m}\n\n{scope}\n\n'+', '.join('`'+n+'`' for n in names)+'\n'
-assert count==213
+assert count==220
 s+='''\n## 独立RequestAddressProbe\n\n206同一planに実要求output0と、実requestsに属さない内部引数output1を渡すと、単一body decoderは同じkey列を返す。一方、既存counterではoutput0のBodyHoldsが偽、output1が反射的に真。同一owner複数requestを共有layoutへ無造作に合成できないという内部decoder境界であり、source到達反例・言語拒否・非停止・I50深さ上界の反例ではない。\n\n`alternate_not_requested`, `same_address`, `alternate_holds`, `actual_fails`, `address_does_not_determine_payload`\n'''
+s+='\n## DecoderScopeProbe\n\n206の実checked runが成功しても、既存counter assignmentは終点Modelsを満たさない。これは制約state生成とモデル検証の区別。未定義name999は内部引数としてmissingBody errorを保ち、到達source拒否とは言わない。新namespaceは内部注入的だが旧owner-only表と混在させると住所が重なる例がある。移行は表置換または追加tag分離を要する。\n\n`successful_run_is_not_assignment_validation`, `missing_body`, `named_missing_body`, `old_namespace_overlap`\n'
 v.joinpath('declaration-guide.md').write_text(s)
 print('GUIDE-PASS',len(mods),count)

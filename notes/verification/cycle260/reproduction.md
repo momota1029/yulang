@@ -2,7 +2,7 @@
 
 All commands run in the repository root unless `cd lean` is shown. Lean 4.35.0.
 
-1. Build the 27 modules in `modules.txt` dependency order with the compatible
+1. Build the 28 modules in `modules.txt` dependency order with the compatible
    focused cache, `lean --trust=0 -DwarningAsError=true -o <cache>/Yulang/<M>.olean lean/Yulang/<M>.lean`.
 2. `python3 notes/verification/cycle260/make-audit.py`
 3. `python3 notes/verification/cycle260/prepare-final.py`
@@ -14,7 +14,7 @@ All commands run in the repository root unless `cd lean` is shown. Lean 4.35.0.
    Exposes fresh focused artifacts and runs Complete, Full, Usage, Types,
    AllTypes, Reach separately with `cd lean && lake env lean --trust=0
    -DwarningAsError=true Audit/Cycle260<Name>.lean`. No Audit imports Audit.
-   Then strictly checks the standalone RequestAddressProbe.
+   Then strictly checks the standalone RequestAddressProbe and DecoderScopeProbe.
 7. `python3 notes/verification/cycle260/make-japanese-guide.py`
 
 These scripts refer to the existing local toolchain and compatible cache paths.

@@ -53,4 +53,5 @@ OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseNamedRequest260.compile
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseNamedRequest260.outputs_separate
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseNamedRequest260.lookup_unique
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseNamedRequest260.probe_repaired
-CYCLE260-REACH: 158/213 explicit declarations reached from 32 selected final roots
+OUTSIDE_SELECTED_ROOTS Yulang.GeneralRebaseEqualOutputs260.translated
+CYCLE260-REACH: 164/220 explicit declarations reached from 34 selected final roots

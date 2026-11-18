@@ -207,3 +207,20 @@ Yulang.GeneralRebaseBodyActual260.target_not_interchangeable : Yulang.GeneralNom
           (Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan output.target body)
           (Yulang.GeneralNominalVersionedEffects231.bodyVariables plan assignment body) assignment fact) ↔
     Yulang.GeneralNominalVersionedEffects231.BodyHolds plan output.target assignment body
+@Yulang.GeneralRebaseEqualOutputs260.actual_exact : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  (Yulang.GeneralRebaseEqualOutputs260.actual state root).Holds
+      (Yulang.GeneralRebaseEqualOutputs260.variables assignment) assignment ↔
+    Yulang.GeneralNominalCenteredHeadOutputs.EqualOutputs state root assignment
+@Yulang.GeneralRebaseEqualOutputs260.class_effects : ∀ {roles : Yulang.Roles.RoleDecls}
+  (state : Yulang.GeneralNominalCenteredSteps.State roles) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedEffects231.ClassEffects state root plan assignment ↔
+    (∀ (output : Yulang.GeneralSourceState.Output),
+        output ∈ Yulang.GeneralNominalCenteredHeadOutputs.requests state root →
+          ∀ (body : Yulang.GeneralDictionaryAssociatedProvenance.Body),
+            Yulang.GeneralDictionaryAssociatedProvenance.lookup roles plan.packet.declaration output.name = some body →
+              Yulang.GeneralNominalVersionedEffects231.BodyHolds plan output.target assignment body) ∧
+      (Yulang.GeneralRebaseEqualOutputs260.actual state root).Holds
+        (Yulang.GeneralRebaseEqualOutputs260.variables assignment) assignment

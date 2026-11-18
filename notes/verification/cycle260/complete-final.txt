@@ -215,3 +215,10 @@
 'Yulang.GeneralRebaseNamedRequest260.lookup_unique' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralRebaseNamedRequest260.equation_meaning' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralRebaseNamedRequest260.probe_repaired' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEqualOutputs260.schema' does not depend on any axioms
+'Yulang.GeneralRebaseEqualOutputs260.variables' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEqualOutputs260.holds_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEqualOutputs260.translated' does not depend on any axioms
+'Yulang.GeneralRebaseEqualOutputs260.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEqualOutputs260.actual_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEqualOutputs260.class_effects' depends on axioms: [propext, Classical.choice, Quot.sound]

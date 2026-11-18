@@ -55,3 +55,4 @@ lean/Yulang/GeneralReflexiveDefaultRegression260.lean
 lean/Yulang/GeneralRebaseBodyActual260.lean
 lean/Yulang/GeneralRebaseRequestBodyKeys260.lean
 lean/Yulang/GeneralRebaseNamedRequest260.lean
+lean/Yulang/GeneralRebaseEqualOutputs260.lean

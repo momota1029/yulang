@@ -25,6 +25,7 @@ import Yulang.GeneralReflexiveDefaultRegression260
 import Yulang.GeneralRebaseBodyActual260
 import Yulang.GeneralRebaseRequestBodyKeys260
 import Yulang.GeneralRebaseNamedRequest260
+import Yulang.GeneralRebaseEqualOutputs260
 
 #print axioms Yulang.GeneralRebaseOutputKeys260.key
 #print axioms Yulang.GeneralRebaseOutputKeys260.keys
@@ -239,3 +240,10 @@ import Yulang.GeneralRebaseNamedRequest260
 #print axioms Yulang.GeneralRebaseNamedRequest260.lookup_unique
 #print axioms Yulang.GeneralRebaseNamedRequest260.equation_meaning
 #print axioms Yulang.GeneralRebaseNamedRequest260.probe_repaired
+#print axioms Yulang.GeneralRebaseEqualOutputs260.schema
+#print axioms Yulang.GeneralRebaseEqualOutputs260.variables
+#print axioms Yulang.GeneralRebaseEqualOutputs260.holds_exact
+#print axioms Yulang.GeneralRebaseEqualOutputs260.translated
+#print axioms Yulang.GeneralRebaseEqualOutputs260.actual
+#print axioms Yulang.GeneralRebaseEqualOutputs260.actual_exact
+#print axioms Yulang.GeneralRebaseEqualOutputs260.class_effects

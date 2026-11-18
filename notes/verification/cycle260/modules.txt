@@ -25,3 +25,4 @@ GeneralReflexiveDefaultRegression260
 GeneralRebaseBodyActual260
 GeneralRebaseRequestBodyKeys260
 GeneralRebaseNamedRequest260
+GeneralRebaseEqualOutputs260
