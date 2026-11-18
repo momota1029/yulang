@@ -1,11 +1,13 @@
 # dots-main heartbeat
 - cycle: 254
-- status: running
+- status: completed
 - started: 2026-11-18T10:35:05Z
-- updated: 2026-11-18T11:25:53Z
-- elapsed_min: 50.8
-- activity: Final report; 14 focused modules, 84 explicit/154 full audited declarations, 19 examples PASS. Publishing then comparing remote bytes.
+- updated: 2026-11-18T11:26:53Z
+- elapsed_min: 51.8
+- activity: 14 modules,19 examples,84 explicit/154 full audit PASS; report published and all bytes verified. Source-uniform evidenced readbacks and evidence-free raw templates; operational closure/Acc remain open.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: e3ecb6366
-- resume_hint: Verify report publication and append completed receipt. Ground bound remains Evidence-conditional; raw menu is not whole-state closure or Step Acc.
+- last_local_commit: 2a31d7fe1
+- resume_hint: Read latest integration/inbox and cycle254 report. Next: actual public-reference/consumer classification and CheckedNormal.prepare source closure, then private non-escape and strict progress. Do not use Evidence-conditional ground bound as an unconditional termination invariant.
 - report: notes/handoff/dots-cycle-254.md
+- publication: 1bb1f56aa074764ac67fb9daec25952f776f7a3b
+- receipt: notes/verification/cycle254/publication-receipt.md
