@@ -4679,3 +4679,7 @@ import Yulang.GeneralDictionaryReachableAggregate256
 import Yulang.GeneralPresenceOrderedAppend256
 import Yulang.GeneralDictionaryAggregateHistory256
 import Yulang.GeneralDictionaryAggregateBasis256
+import Yulang.GeneralDictionaryAggregateRows256
+import Yulang.GeneralDictionaryHistoricalFields256
+import Yulang.GeneralNominalSlotTypeMap256
+import Yulang.GeneralDictionarySlotView256

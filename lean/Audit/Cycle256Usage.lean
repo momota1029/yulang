@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionarySlotView256
 import Yulang.GeneralNominalInitialAggregate256
 import Yulang.GeneralDictionaryAggregateBasis256
 import Yulang.GeneralDictionaryOutputDepth252
@@ -66,3 +67,34 @@ example : GeneralNominalHistoricalAggregate256.prepare [.var 2,.var 4] [] [(2,4)
 -- Roles stay separate: crossing the connective remains a failed support check.
 example : GeneralPresenceCheckedNormal252.prepare .lower [.var 2,.var 4] (.inter (.var 2) (.var 4)) = none := by decide
 example : GeneralPresenceCheckedNormal252.prepare .upper [.var 2,.var 4] (.union (.var 2) (.var 4)) = none := by decide
+
+-- All actual base slot types, not just the current capture, have a finite menu.
+example (n : Nat) (slot : Fin (n+5)) :
+ GeneralPresenceCheckedNormal252.prepare .lower GeneralDictionaryHistoricalFields256.pool
+   (((GeneralNominalRebaseRawView243.compile (GeneralDictionaryLooseIterationBook240.context n).state
+     (GeneralPresenceOrderedSubstitution247.mapping (GeneralDictionaryAggregateHistory256.history n))).slot slot).ty) =
+ some (.var (GeneralDictionaryHistoricalFields256.representative slot)) :=
+ GeneralDictionaryHistoricalFields256.slot_prepared n slot
+
+example (n : Nat) (assignment : Assignment) :
+ (GeneralDictionarySlotView256.compact n).Models assignment ↔
+ GeneralNominalState.Models (GeneralDictionaryLooseIterationBook240.context n).state
+   (GeneralPresenceOrderedBlock247.solve model (GeneralDictionaryAggregateHistory256.history n) assignment) :=
+ GeneralDictionarySlotView256.compact_solved n assignment
+
+example (n : Nat) (boundary : Assignment) :
+ (∃ assignment, GeneralNominalState.Models (GeneralDictionaryLooseIterationBook240.context n).state assignment ∧
+   ∀ name, name ≤ 4 → assignment name = boundary name) ↔
+ (∃ assignment, (GeneralDictionarySlotView256.compact n).Models assignment ∧
+   ∀ name, name ≤ 4 → assignment name = boundary name) := GeneralDictionarySlotView256.public_models n boundary
+
+example (view : GeneralNominalRebaseRawView243.View) (assignment : Assignment) :
+ (GeneralDictionaryAggregateRows256.eraseSlotRows view).Models assignment ↔ view.Models assignment :=
+ GeneralDictionaryAggregateRows256.slot_rows_irrelevant view assignment
+
+example (n : Nat) : GeneralDictionaryLooseFamilyNames240.lower (n+1) ∈
+ GeneralPresenceSubstitutionSupport244.rowSources
+   (((GeneralNominalRebaseRawView243.compile (GeneralDictionaryLooseIterationBook240.context (n+1)).state
+     (GeneralPresenceOrderedSubstitution247.mapping (GeneralDictionaryAggregateHistory256.history (n+1)))).slot
+       (GeneralDictionaryLooseFamilyBase240.anchor (n+1))).row) :=
+ GeneralDictionaryAggregateRows256.row_read_retained n

@@ -1,1 +1,1 @@
-CYCLE256-FULL-AUDIT-PASS: 94 declarations including generated and private declarations
+CYCLE256-FULL-AUDIT-PASS: 148 declarations including generated and private declarations

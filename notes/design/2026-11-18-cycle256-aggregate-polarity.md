@@ -67,3 +67,74 @@ change that Step. A no-change-revision guard and whole-consumer preservation are
 still required before a new Acc argument. Usage explicitly imports the old
 no-Acc theorem alongside the new constant-representative theorem to keep those
 claims separate. No new counterexample to a completed successor is asserted.
+
+## Remaining row distinction (12:49 UTC)
+
+The real I45 family sets `base.rowSource = base.source`; added slots therefore
+also have row labels named by old private lower targets. Ordered type expansion
+intentionally preserves row components. Thus even the proven aggregate repair
+cannot establish that every raw `slot.row` field is private-free. In this
+particular fixture those extra row components are not read by a row constraint
+or a row nominal argument; the fixture uses type arguments only. This is not a
+proved leak into public demand identity or a new source semantic counterexample.
+Future whole-view support needs to distinguish semantically used row fields
+from inactive paired bookkeeping, or supply a justified row representation.
+Do not claim the type-history result is an all-component private-free theorem.
+
+The precise distinction is now checked in Lean: current `RawView.Models` never
+reads paired `slot.row` directly. Erasing only that metadata to `.empty` leaves
+Models definitionally unchanged, while ordinary row atoms and descriptor row
+parameters remain literal. This observation does not authorize erasing active
+row consumers or claim future transition preservation. The actual private row
+pointer above is therefore not a new private-escape counterexample by itself.
+
+## Focused source-guard analysis and next counterexample search
+
+Read `PointRevision240.Preserves`, `MixedObservations233.Reobserve`, and the
+actual family revision/cache files. The I45 guard preserves already-point
+nominal descriptors literally. Its nonpoint case does not syntactically tag an
+endpoint with a lower/upper purpose. The cache/raw-back obligations are semantic,
+not a theorem that purpose-0 names only ever occur in lower positions. Therefore
+future EndpointSupported must not be justified merely from allocation purpose.
+The verified duplicate-union family collapses before a cross-role read, so it
+is not itself a counterexample to a staged, normalized replacement.
+
+A useful next finite-source test is a repeated capture with distinct lower
+endpoints (not two copies of the same atom), followed by a certified nonpoint
+revision whose upper endpoint refers to the lower merge. One must prove source
+Initial, real install, cache trust/raw-back, point preservation, and actual
+reobserve before calling it source reachable. None of those obligations is
+replaced by a hand-written mixed-polarity expression or a single witness model.
+No such closed source-reachable counterexample was established this cycle.
+
+Do not silently adopt distributive Boolean normalization as a repair. The
+inspected CommonNominalFullConstructors interface supplies join/meet and
+monotonicity; this pass found no proved distributive normalization interface.
+Any stronger normal form needs its own semantic preservation and fixed finite
+basis theorem. It is outside this cycle's verified closure claims.
+
+## Whole slot-type family extension
+
+Next extend the actual family regression from only the current capture to every
+base slot at every stage. The lower-history projection leaves initial names
+0..4 unchanged and expands each retained older lower target to its own duplicate
+union tree. Thus every compiled slot type should normalize to one of five
+initial variables, including slots added by past retargets. This is a finite
+slot-value result, not a bound on slot count. Upper-equation targets in ordinary
+atoms and active row consumers are not covered by this projection. No success
+of whole-View preparation is inferred from the slot-only theorem.
+
+The extension is verified for all n and every base slot: all compiled slot
+**types** normalize to five fixed initial source variables, while slot count
+remains n+5. Slot-only replacement is equivalent to the expanded View at every
+assignment. Recovering the original same-assignment raw model needs the
+retained-history equations; source Models supplies them. Without that premise,
+the exact general statement is evaluation under solve(history).
+
+There is also an unconditional existential-public-model equivalence for this
+family's current raw state: for every valuation of initial components 0..4,
+a raw-state model extending it exists iff a compact-View model extending it
+exists. Reverse construction uses solve(history), which preserves initial
+components because all projected targets are above seed 4. This is not an
+all-assignments same-private-values iff, not a complete journal/packet equivalence,
+and not yet finite syntax for every ordinary/nominal/row field.

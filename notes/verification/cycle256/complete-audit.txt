@@ -69,3 +69,35 @@
 'Yulang.GeneralDictionaryAggregateBasis256.prepared_source_fits' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
+'Yulang.GeneralDictionaryAggregateRows256.historical_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAggregateRows256.row_read_retained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryAggregateRows256.row_name_private' does not depend on any axioms
+'Yulang.GeneralDictionaryAggregateRows256.outside_initial_names' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAggregateRows256.eraseSlotRows' does not depend on any axioms
+'Yulang.GeneralDictionaryAggregateRows256.slot_rows_irrelevant' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryAggregateRows256.erased_row_sources' does not depend on any axioms
+'Yulang.GeneralDictionaryHistoricalFields256.past_expansion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryHistoricalFields256.initial_name' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHistoricalFields256.pool' does not depend on any axioms
+'Yulang.GeneralDictionaryHistoricalFields256.variable_fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHistoricalFields256.tree_fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHistoricalFields256.representative' does not depend on any axioms
+'Yulang.GeneralDictionaryHistoricalFields256.representative_small' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryHistoricalFields256.slot_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryHistoricalFields256.slot_supported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryHistoricalFields256.slot_prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalSlotTypeMap256.map' does not depend on any axioms
+'Yulang.GeneralNominalSlotTypeMap256.models_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSlotTypeMap256.ordinary_unchanged' does not depend on any axioms
+'Yulang.GeneralNominalSlotTypeMap256.nominals_unchanged' does not depend on any axioms
+'Yulang.GeneralDictionarySlotView256.expanded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.compact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.compact_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.recovered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.source_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.slot_values_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.slot_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.source_erased_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.compact_solved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.solve_initial' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySlotView256.public_models' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -8,6 +8,10 @@ import Yulang.GeneralDictionaryReachableAggregate256
 import Yulang.GeneralPresenceOrderedAppend256
 import Yulang.GeneralDictionaryAggregateHistory256
 import Yulang.GeneralDictionaryAggregateBasis256
+import Yulang.GeneralDictionaryAggregateRows256
+import Yulang.GeneralDictionaryHistoricalFields256
+import Yulang.GeneralNominalSlotTypeMap256
+import Yulang.GeneralDictionarySlotView256
 
 #print axioms Yulang.GeneralNominalInputOccurrences256.frame_finished
 #print axioms Yulang.GeneralNominalInputOccurrences256.report_nonempty
@@ -74,3 +78,35 @@ import Yulang.GeneralDictionaryAggregateBasis256
 #print axioms Yulang.GeneralDictionaryAggregateBasis256.prepared_finite
 #print axioms Yulang.GeneralDictionaryAggregateBasis256.source_history
 #print axioms Yulang.GeneralDictionaryAggregateBasis256.prepared_source_fits
+#print axioms Yulang.GeneralDictionaryAggregateRows256.historical_row
+#print axioms Yulang.GeneralDictionaryAggregateRows256.row_read_retained
+#print axioms Yulang.GeneralDictionaryAggregateRows256.row_name_private
+#print axioms Yulang.GeneralDictionaryAggregateRows256.outside_initial_names
+#print axioms Yulang.GeneralDictionaryAggregateRows256.eraseSlotRows
+#print axioms Yulang.GeneralDictionaryAggregateRows256.slot_rows_irrelevant
+#print axioms Yulang.GeneralDictionaryAggregateRows256.erased_row_sources
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.past_expansion
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.initial_name
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.pool
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.variable_fixed
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.tree_fixed
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.representative
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.representative_small
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.slot_fixed
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.slot_supported
+#print axioms Yulang.GeneralDictionaryHistoricalFields256.slot_prepared
+#print axioms Yulang.GeneralNominalSlotTypeMap256.map
+#print axioms Yulang.GeneralNominalSlotTypeMap256.models_exact
+#print axioms Yulang.GeneralNominalSlotTypeMap256.ordinary_unchanged
+#print axioms Yulang.GeneralNominalSlotTypeMap256.nominals_unchanged
+#print axioms Yulang.GeneralDictionarySlotView256.expanded
+#print axioms Yulang.GeneralDictionarySlotView256.compact
+#print axioms Yulang.GeneralDictionarySlotView256.compact_exact
+#print axioms Yulang.GeneralDictionarySlotView256.recovered
+#print axioms Yulang.GeneralDictionarySlotView256.source_models
+#print axioms Yulang.GeneralDictionarySlotView256.slot_values_finite
+#print axioms Yulang.GeneralDictionarySlotView256.slot_count
+#print axioms Yulang.GeneralDictionarySlotView256.source_erased_rows
+#print axioms Yulang.GeneralDictionarySlotView256.compact_solved
+#print axioms Yulang.GeneralDictionarySlotView256.solve_initial
+#print axioms Yulang.GeneralDictionarySlotView256.public_models
