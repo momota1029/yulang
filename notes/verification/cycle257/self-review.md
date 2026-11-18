@@ -50,3 +50,13 @@ values at names 2 and 4 using both fixed Foo descriptors. This stronger local
 semantic result does not identify the two names syntactically and is not a
 rule collapsing arbitrary public nonpoint intervals. The weaker initial_cross
 lemma uses only Pair descriptor Fits; its premise and proof remain distinct.
+
+## Initial-stage negative regression
+
+`InitialBoundary.lean` adds two focused `example`s (outside the 29 main Usage
+examples). Strictly checked against the fresh193 dependency layer, exit0 at
+14:16:08 UTC. It proves that the actual initial journal models the concrete
+seed assignment while `FiniteJournal.view 0` does not. Thus the positive-stage
+qualification is not merely an unproved convenience: dropping it would be
+false for this explicit assignment. No mathematical module or existing result
+was modified. These two anonymous checks were added after independent reviews.

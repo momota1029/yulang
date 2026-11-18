@@ -199,7 +199,7 @@ checklist than treating every observation as a plain subtype atom:
 
 1. Legacy current raw constraints plus legacy recorded packet/effect semantics.
 2. Every versioned plan's historical raw state, ordinary compatibility/merge/
-   self-check constraints, and ProjectionModels.
+   self-check constraints, ProjectionModels, and the plan.input.Holds site condition.
 3. Head-schema tests; actual-mode origin equality to the shared binder; in
    lower/upper mode, existence of an observed value AND the universally
    quantified VariableHolds condition on every observation.
@@ -208,8 +208,9 @@ checklist than treating every observation as a plain subtype atom:
 5. Emitted equations interpreted by mode-sensitive variables. A name that is
    an output reads its binder even in lower/upper mode, so flattening every
    endpoint as if it were an input would be unsound.
-6. Child schemas/actual centers and effect.Live evaluated against the current
-   core, not merely the stored historical snapshot.
+6. Child schemas/actual centers interpreted in each stored plan; separately,
+   effect.Live evaluated against the current core, not merely the effect's
+   stored historical snapshot.
 
 A proposed future certificate must assign a canonical representation to each
 of these consumers and prove both directions of Models for its projection.
