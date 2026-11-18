@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 250
+- cycle: 251
 - status: running
-- started: 2026-11-17T23:34:17Z
-- updated: 2026-11-17T23:44:17Z
-- elapsed_min: 10.0
-- activity: First10 modules/56 declarations audited and published b8fb1bcf. All arbitrary Journal metadata congruence removes provenance premise. New metadata append and persistent snapshot target coverage verified; source Step and Acc remain open.
+- started: 2026-11-18T00:31:00Z
+- updated: 2026-11-18T00:41:38Z
+- elapsed_min: 10.5
+- activity: Six modules / 55 declarations published9253bc73 with fulltree matched. Mixed-time total packet correctness and independent role expressions; integrating actual stable bounds into head/equation evaluation. No source acceptance claim.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: e792ea322
-- resume_hint: Continue250 source-delta and persistent reservation bridge; all code throughPhase2 strict build/audit. Final00:29UTC. Initial heartbeat timestamp23:37 was estimated; actual start23:34:17, current update uses clock.
+- last_local_commit: e19108772
+- resume_hint: Continue cycle251 mixed-time packet compiler from250 actual bounds; preserve old reads separately from new aggregates. Research until01:16, verify/publish/report by01:26UTC. No source Acc claim.
