@@ -1,0 +1,39 @@
+# Cycle255: source consumerとbasis閉包の入口
+開始2026-11-18T11:32:22Z。integration33cf8d490は253を統合、I50変更なし。
+254 completed/tree一致。integration barrelが254 barrelの完全prefixであることを確認し、
+merge競合は統合prefixと254追加を保持、merge前後の全tracked bytes同一。
+
+## 停止性への経路と今回の焦点
+Evidence条件付きground代表上界を無条件invariantとして使わない。raw経路で、
+固定sourceからのconsumer原子とpublic referencesの支持を実際に列挙する。
+private slotsの置換後に全consumerが固定basisへ閉じることはまだ未証明。
+有限なowner数だけでは239/240/251型の繰返し更新を除けない。
+
+最初に、PublicBasis253の「varだけ」のpoolでsource raw Viewの全type consumerを
+normalizeできるかを確認する。実252 initial sourceにはordinaryでint定数がある。
+これはprivate名の話ではないので、source名の個数やowner列挙を増やしてもconstant
+atomはvar-only poolに入らない可能性がある。実compile Viewのordinary memberと
+CheckedNormal.prepareの実結果を閉じたfixtureで確かめる。これはscheduler非停止
+反例や、新境界Stepを実行したtraceと混同しない。
+
+修正候補はsourceの初期type consumerからatomを集める有限basis。source側の型項を
+含めるI49案に沿う候補だが、I50のvar-only読みを黙って置換せず、旧定義は凍結する。
+Viewのslot.ty、ordinary tyLe両側、heads、nominal type引数を列挙する。row fieldsは
+変更しないことを明示し、全stateのrow有限化を済ませたとは言わない。
+
+証明目標: 任意View vについてsourceTerms vの各type fieldの両向きatomsが
+sourcePool vに入る。sourcePool vを固定した型field正規化はprepare成功・意味保存。
+実source compile(initial, identity mapping)で追加closure仮定なしに適用する。
+単一Viewごとにpoolが有限なだけでは全trace共通のpoolにならない。その区別を維持。
+
+次段でpublic port/centerやraw body templateがこの固定poolの上にどう加わるかを
+分類し、private非流出・strict進捗・Accへ繋ぐ。意味論やoperational Stepを変更しない。
+
+## 最初の検証結果
+var-only basisでは実source ordinaryのint consumerがprepare noneとなることを確認。
+同じsourceの全raw View type fieldsに対して、sourceから収集したatom pool＋public
+refsを使う候補はprepare成功し、全assignmentでView.Modelsと元source.Modelsが同値。
+新規View normalizerはsideを明示して同一sideでtype fieldsを正規化する支援関数で、
+I49のlo/hi aggregate schedulerの置換ではない。row fieldsはliteralに保持するため、
+モデル保存定理はView全体を覆うがrowの有限正規形化を示したわけではない。
+全将来状態の固定pool・private非流出・strict進捗はまだ未証明。

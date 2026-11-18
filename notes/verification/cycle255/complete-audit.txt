@@ -1,0 +1,47 @@
+'Yulang.GeneralDictionarySourceAtom255.constant_not_basis' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySourceAtom255.prepare_constant_none' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySourceAtom255.ordinary_member' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionarySourceAtom255.actual_source_failure' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalViewTypeTerms255.parameter' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeTerms255.descriptor' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeTerms255.ordinary' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeTerms255.slot' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeTerms255.terms' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeTerms255.pool' depends on axioms: [propext]
+'Yulang.GeneralNominalViewTypeTerms255.slot_mem' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeTerms255.ordinary_mem' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeTerms255.supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeTerms255.prepare_success' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeTerms255.normalize_equivalent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalViewTypeMap255.parameter' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeMap255.descriptor' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeMap255.ordinary' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeMap255.map' does not depend on any axioms
+'Yulang.GeneralNominalViewTypeMap255.ExactOn' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeMap255.equivalent_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeMap255.parameter_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeMap255.fitsAll_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeMap255.descriptor_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeMap255.ordinary_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewTypeMap255.models_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.Supported' depends on axioms: [propext]
+'Yulang.GeneralNominalViewNormal255.check' depends on axioms: [propext]
+'Yulang.GeneralNominalViewNormal255.rewrite' depends on axioms: [propext]
+'Yulang.GeneralNominalViewNormal255.prepare' depends on axioms: [propext]
+'Yulang.GeneralNominalViewNormal255.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.prepare_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.rewrite_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.prepare_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.source_pool_success' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.source_pool_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.compiled_source_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.rows_unchanged' depends on axioms: [propext]
+'Yulang.GeneralNominalViewNormal255.slots_unchanged' depends on axioms: [propext]
+'Yulang.GeneralNominalViewNormal255.intervals_unchanged' depends on axioms: [propext]
+'Yulang.GeneralNominalViewNormal255.prepare_none' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalViewNormal255.supported_mono' depends on axioms: [propext]
+'Yulang.GeneralNominalViewNormal255.expanded_source_success' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewNormal255.constant_consumer' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewNormal255.var_basis_fails' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryViewNormal255.source_basis_repairs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryViewNormal255.inhabited_repair' depends on axioms: [propext, Classical.choice, Quot.sound]
