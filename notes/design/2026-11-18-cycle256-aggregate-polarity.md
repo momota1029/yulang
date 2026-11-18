@@ -138,3 +138,18 @@ exists. Reverse construction uses solve(history), which preserves initial
 components because all projected targets are above seed 4. This is not an
 all-assignments same-private-values iff, not a complete journal/packet equivalence,
 and not yet finite syntax for every ordinary/nominal/row field.
+
+## Ordered raw-view elimination bridge
+
+Inspection of RebasePublicModel242 found a different interface: replacement of
+external/coherent parallel definitions, with retained-predicate congruence. The
+current result uses ordered elimination, not arbitrary replacement. Generalize
+only that justified interface: if an actual definition block is literally
+included in raw.ordinary and every target is in a specified private set, then
+compiling the entire raw View through its finite ordered mapping preserves
+existence of models for every fixed public assignment (all unhidden complete
+components and all rows). No SafeOrder/Coherent premise is needed for this
+elimination-only statement: forward recovery starts from already satisfied
+retained equations; reverse extraction is exactly compile under solve.
+This does not imply the generated View is finite/private-free or that a fresh
+replacement block is satisfiable. It cannot justify arbitrary cyclic updates.

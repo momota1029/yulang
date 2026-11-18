@@ -12,3 +12,4 @@ GeneralDictionaryAggregateRows256
 GeneralDictionaryHistoricalFields256
 GeneralNominalSlotTypeMap256
 GeneralDictionarySlotView256
+GeneralNominalOrderedRawPublic256

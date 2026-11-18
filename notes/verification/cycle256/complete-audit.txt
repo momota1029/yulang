@@ -101,3 +101,7 @@
 'Yulang.GeneralDictionarySlotView256.compact_solved' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralDictionarySlotView256.solve_initial' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralDictionarySlotView256.public_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalOrderedRawPublic256.compiled_solved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalOrderedRawPublic256.recovered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalOrderedRawPublic256.solve_public' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalOrderedRawPublic256.public_models' depends on axioms: [propext, Quot.sound]

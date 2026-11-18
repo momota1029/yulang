@@ -12,6 +12,7 @@ import Yulang.GeneralDictionaryAggregateRows256
 import Yulang.GeneralDictionaryHistoricalFields256
 import Yulang.GeneralNominalSlotTypeMap256
 import Yulang.GeneralDictionarySlotView256
+import Yulang.GeneralNominalOrderedRawPublic256
 
 #print axioms Yulang.GeneralNominalInputOccurrences256.frame_finished
 #print axioms Yulang.GeneralNominalInputOccurrences256.report_nonempty
@@ -110,3 +111,7 @@ import Yulang.GeneralDictionarySlotView256
 #print axioms Yulang.GeneralDictionarySlotView256.compact_solved
 #print axioms Yulang.GeneralDictionarySlotView256.solve_initial
 #print axioms Yulang.GeneralDictionarySlotView256.public_models
+#print axioms Yulang.GeneralNominalOrderedRawPublic256.compiled_solved
+#print axioms Yulang.GeneralNominalOrderedRawPublic256.recovered
+#print axioms Yulang.GeneralNominalOrderedRawPublic256.solve_public
+#print axioms Yulang.GeneralNominalOrderedRawPublic256.public_models

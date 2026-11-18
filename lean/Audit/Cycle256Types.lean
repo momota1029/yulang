@@ -12,6 +12,7 @@ import Yulang.GeneralDictionaryAggregateRows256
 import Yulang.GeneralDictionaryHistoricalFields256
 import Yulang.GeneralNominalSlotTypeMap256
 import Yulang.GeneralDictionarySlotView256
+import Yulang.GeneralNominalOrderedRawPublic256
 
 #check @Yulang.GeneralNominalInputOccurrences256.frame_nonempty
 #check @Yulang.GeneralNominalInitialAggregate256.prepared
@@ -20,3 +21,4 @@ import Yulang.GeneralDictionarySlotView256
 #check @Yulang.GeneralDictionaryReachableAggregate256.fits_exact
 #check @Yulang.GeneralDictionarySlotView256.public_models
 #check @Yulang.GeneralDictionarySlotView256.compact_solved
+#check @Yulang.GeneralNominalOrderedRawPublic256.public_models

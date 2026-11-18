@@ -11,4 +11,4 @@ OUTSIDE_SELECTED_ROOTS Yulang.GeneralDictionaryAggregateRows256.erased_row_sourc
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralNominalSlotTypeMap256.ordinary_unchanged
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralNominalSlotTypeMap256.nominals_unchanged
 OUTSIDE_SELECTED_ROOTS Yulang.GeneralDictionarySlotView256.slot_count
-CYCLE256-REACH: 84/97 explicit declarations reached from 14 selected final roots
+CYCLE256-REACH: 88/101 explicit declarations reached from 15 selected final roots

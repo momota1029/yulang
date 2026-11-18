@@ -1,3 +1,4 @@
+import Yulang.GeneralNominalOrderedRawPublic256
 import Yulang.GeneralDictionarySlotView256
 import Yulang.GeneralNominalInitialAggregate256
 import Yulang.GeneralDictionaryAggregateBasis256
@@ -98,3 +99,17 @@ example (n : Nat) : GeneralDictionaryLooseFamilyNames240.lower (n+1) ∈
      (GeneralPresenceOrderedSubstitution247.mapping (GeneralDictionaryAggregateHistory256.history (n+1)))).slot
        (GeneralDictionaryLooseFamilyBase240.anchor (n+1))).row) :=
  GeneralDictionaryAggregateRows256.row_read_retained n
+
+-- Apply the general ordered-elimination bridge to an actually retained source block.
+example (n : Nat) (boundary : Assignment) :
+ (∃ assignment, GeneralNominalRebasePublicModel242.PublicAgree
+   ((GeneralDictionaryAggregateHistory256.history n).map Prod.fst) assignment boundary ∧
+   GeneralNominalState.Models (GeneralDictionaryLooseIterationBook240.context n).state assignment) ↔
+ (∃ assignment, GeneralNominalRebasePublicModel242.PublicAgree
+   ((GeneralDictionaryAggregateHistory256.history n).map Prod.fst) assignment boundary ∧
+   (GeneralNominalRebaseRawView243.compile (GeneralDictionaryLooseIterationBook240.context n).state
+     (GeneralPresenceOrderedSubstitution247.mapping (GeneralDictionaryAggregateHistory256.history n))).Models assignment) := by
+ apply GeneralNominalOrderedRawPublic256.public_models
+ · exact GeneralDictionaryAggregateHistory256.block_in_source n
+ · intro entry member
+   exact List.mem_map.mpr ⟨entry,member,rfl⟩

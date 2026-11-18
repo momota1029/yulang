@@ -65,3 +65,17 @@ Yulang.GeneralDictionarySlotView256.compact_solved : ∀ (n : Nat)
     Yulang.GeneralNominalState.Models (Yulang.GeneralDictionaryLooseIterationBook240.context n).state
       (Yulang.GeneralPresenceOrderedBlock247.solve Yulang.CommonNominalFullCarrier.model
         (Yulang.GeneralDictionaryAggregateHistory256.history n) assignment)
+Yulang.GeneralNominalOrderedRawPublic256.public_models : ∀ (raw : Yulang.GeneralNominalState.State)
+  (entries : List (Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat)),
+  Yulang.GeneralPresenceDefinitionRewrite244.block entries ⊆ raw.ordinary →
+    ∀ (hidden : List Nat),
+      (∀ (entry : Yulang.GeneralPresenceDefinitionRewrite244.Entry Nat), entry ∈ entries → entry.fst ∈ hidden) →
+        ∀ (boundary : Yulang.GeneralNominalCommonBridge.Assignment),
+          (∃ assignment,
+              Yulang.GeneralNominalRebasePublicModel242.PublicAgree hidden assignment boundary ∧
+                Yulang.GeneralNominalState.Models raw assignment) ↔
+            ∃ assignment,
+              Yulang.GeneralNominalRebasePublicModel242.PublicAgree hidden assignment boundary ∧
+                (Yulang.GeneralNominalRebaseRawView243.compile raw
+                      (Yulang.GeneralPresenceOrderedSubstitution247.mapping entries)).Models
+                  assignment
