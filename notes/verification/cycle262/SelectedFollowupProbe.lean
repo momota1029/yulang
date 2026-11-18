@@ -1,0 +1,17 @@
+import Yulang.GeneralRebaseSelectedFailure262
+import Yulang.GeneralRebaseSelectedUnused262
+#print axioms Yulang.GeneralRebaseSelectedFailure262.At
+#print axioms Yulang.GeneralRebaseSelectedFailure262.error_path
+#print axioms Yulang.GeneralRebaseSelectedFailure262.selected_provenance
+#print axioms Yulang.GeneralRebaseSelectedUnused262.proposal
+#print axioms Yulang.GeneralRebaseSelectedUnused262.observe
+#print axioms Yulang.GeneralRebaseSelectedUnused262.supported
+#print axioms Yulang.GeneralRebaseSelectedUnused262.next_exact
+#print axioms Yulang.GeneralRebaseSelectedUnused262.next_written
+#print axioms Yulang.GeneralRebaseSelectedUnused262.run_exact
+#print axioms Yulang.GeneralRebaseSelectedUnused262.unused_not_requested
+#print axioms Yulang.GeneralRebaseSelectedUnused262.unused_pair_outside
+#print axioms Yulang.GeneralRebaseSelectedUnused262.unused_pair_retained
+#print axioms Yulang.GeneralRebaseSelectedUnused262.nonempty_success
+#check @Yulang.GeneralRebaseSelectedFailure262.selected_provenance
+#check @Yulang.GeneralRebaseSelectedUnused262.run_exact

@@ -1,0 +1,111 @@
+'Yulang.GeneralRebaseSelectedCheck262.Failure' does not depend on any axioms
+'Yulang.GeneralRebaseSelectedCheck262.checkRoots' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedCheck262.ReadyRoots' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedCheck262.check_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedCheck262.error_selected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedCheck262.actual_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.Failure' does not depend on any axioms
+'Yulang.GeneralRebaseSelectedSettle262.Current' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.Trace' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.successful_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.to_runs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.states_ready' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.terminal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.trace_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.ordinary_settle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedSettle262.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedMeaning262.from_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedMeaning262.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedMeaning262.source_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.unused' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.candidates' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.unused_missing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.old_layout_failure' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.unused_not_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.wrong' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.selected_missing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.selected_failure' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.goodObserve' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.good_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.next_good' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.next_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.next_final' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.run_good' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedRegression262.success_not_satisfiability' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseQuadraticBudget262.flatMap_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseQuadraticBudget262.schema_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseQuadraticBudget262.keys_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseQuadraticBudget262.bodies_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseQuadraticBudget262.pairs_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseQuadraticBudget262.facts_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseQuadraticBudget262.run_bound' depends on axioms: [propext, Quot.sound]
+@Yulang.GeneralRebaseSelectedMeaning262.source_certificate : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ pool,
+      ∀ (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (fixed : Yulang.GeneralNominalCenters.Plan roles)
+        (owner : Nat)
+        (inspect :
+          Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool →
+            Yulang.GeneralNominalVersionedJournal232.State roles)
+        (roots :
+          Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool →
+            List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+        (plans :
+          Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool →
+            Yulang.GeneralSourceDictionaries.Occurrence roles → Yulang.GeneralNominalCenters.Plan roles),
+        Yulang.GeneralRebaseObservedPlan262.Compatible fixed owner pool roots plans →
+          (∀ (state : Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool),
+              Yulang.B4Target.Steps
+                ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+                (inspect state)) →
+            ∀ (before after : Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool),
+              Yulang.GeneralRebaseSelectedSettle262.run fixed owner pool (fun state => (inspect state).core) roots plans
+                    before =
+                  Except.ok after →
+                ∃ states events,
+                  Yulang.GeneralRebaseSelectedSettle262.Trace fixed owner pool (fun state => (inspect state).core) roots
+                      plans states before after ∧
+                    Yulang.GeneralRebasePlannedTrace262.Trace fixed owner pool (fun state => (inspect state).core) roots
+                        plans events before after ∧
+                      events.length = states.length ∧
+                        events.length ≤ before.remaining.length ∧
+                          (∀ (state : Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool),
+                              state ∈ states →
+                                Yulang.GeneralRebaseSelectedCheck262.ReadyRoots (inspect state).core (plans state)
+                                  (roots state)) ∧
+                            Yulang.GeneralRebaseSelectedCheck262.ReadyRoots (inspect after).core (plans after)
+                                (roots after) ∧
+                              (∀ (event : Yulang.GeneralRebasePlannedTrace262.Event roles),
+                                  event ∈ events →
+                                    Yulang.GeneralNominalCenteredHeadMatEffects.Ready event.source event.root
+                                      event.plan) ∧
+                                (∀
+                                    (next :
+                                      Yulang.GeneralRebaseStep258.State
+                                        (Yulang.GeneralRebaseStableClass261.facts fixed owner pool)),
+                                    ¬Yulang.GeneralRebaseStep258.Step
+                                        (Yulang.GeneralRebaseObservedPlan262.observe fixed owner pool
+                                          (fun state => (inspect state).core) roots plans)
+                                        after next) ∧
+                                  ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                                    Yulang.GeneralRebaseStableClass261.Models base fixed owner after assignment ↔
+                                      Yulang.GeneralRebaseStableClass261.Models base fixed owner before assignment ∧
+                                        ∀ (event : Yulang.GeneralRebasePlannedTrace262.Event roles),
+                                          event ∈ events →
+                                            Yulang.GeneralNominalVersionedEffects231.ClassEffects event.source
+                                              event.root event.plan assignment
+@Yulang.GeneralRebaseQuadraticBudget262.run_bound : ∀ {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (pool : List Yulang.GeneralSourceState.Output)
+  (observe : Yulang.GeneralRebaseStep258.Observer (Yulang.GeneralRebaseStableClass261.facts plan owner pool)) {n : Nat}
+  {before after : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts plan owner pool)},
+  Yulang.GeneralRebaseBudget258.Runs observe n before after → n ≤ pool.length + pool.length * pool.length

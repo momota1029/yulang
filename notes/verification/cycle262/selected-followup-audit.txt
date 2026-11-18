@@ -1,0 +1,45 @@
+'Yulang.GeneralRebaseSelectedFailure262.At' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedFailure262.error_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedFailure262.selected_provenance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.observe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.supported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.next_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.next_written' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.unused_not_requested' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.unused_pair_outside' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.unused_pair_retained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSelectedUnused262.nonempty_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralRebaseSelectedFailure262.selected_provenance : ∀ {roles : Yulang.Roles.RoleDecls}
+  (fixed : Yulang.GeneralNominalCenters.Plan roles) (owner : Nat) (pool : List Yulang.GeneralSourceState.Output)
+  (inspect :
+    Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool → Yulang.GeneralNominalCenteredSteps.State roles)
+  (roots :
+    Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool →
+      List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+  (plans :
+    Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool →
+      Yulang.GeneralSourceDictionaries.Occurrence roles → Yulang.GeneralNominalCenters.Plan roles)
+  (state : Yulang.GeneralRebaseSelectedSettle262.Current fixed owner pool)
+  (reason : Yulang.GeneralRebaseSelectedCheck262.Failure roles),
+  Yulang.GeneralRebaseSelectedSettle262.run fixed owner pool inspect roots plans state =
+      Except.error (Yulang.GeneralRebaseSelectedSettle262.Failure.selected reason) →
+    ∃ current steps,
+      Yulang.GeneralRebaseBudget258.Runs
+          (Yulang.GeneralRebaseObservedPlan262.observe fixed owner pool inspect roots plans) steps state current ∧
+        steps ≤ state.remaining.length ∧
+          reason.root ∈ roots current ∧
+            Yulang.GeneralRebaseClassCheck261.check (plans current reason.root)
+                (Yulang.GeneralRebaseExecutableRequests262.requests (inspect current) reason.root) =
+              Except.error reason.reason
+Yulang.GeneralRebaseSelectedUnused262.run_exact : ∀
+  (state :
+    Yulang.GeneralRebaseSelectedSettle262.Current Yulang.GeneralRebaseSelectedRegression262.fixed 38
+      Yulang.GeneralRebaseSelectedRegression262.candidates),
+  Yulang.GeneralRebaseSelectedSettle262.run Yulang.GeneralRebaseSelectedRegression262.fixed 38
+      Yulang.GeneralRebaseSelectedRegression262.candidates
+      (fun x => (Yulang.GeneralNominalCenteredHeadAllocMergeState.stage []).core)
+      (fun x => [Yulang.GeneralNominalCenteredHeadAllocMergeConflict.focus])
+      (fun x x_1 => Yulang.GeneralRebaseSelectedRegression262.fixed) state =
+    Except.ok (Yulang.GeneralRebaseStep258.write state Yulang.GeneralRebaseSelectedUnused262.proposal)

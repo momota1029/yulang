@@ -9,9 +9,10 @@ def visit(p):
   if m.startswith('Yulang.') or m in ['Yulang']:visit('lean/'+m.replace('.','/')+'.lean')
  ordered.append(p)
 for m in modules:visit('lean/Yulang/'+m+'.lean')
-hashes={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in ordered}
+for p in sorted(Path('lean/Audit').glob('Cycle262*.lean')):visit(str(p))
+hashes={p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in ordered if p.startswith('lean/Yulang/')}
 prior=json.loads(Path('notes/verification/cycle261/dependency-source-sha256.json').read_text())
-selected=[p for p in ordered if prior.get(p)!=hashes[p]]
+selected=[p for p in ordered if p in hashes and prior.get(p)!=hashes[p]]
 old_changed=[p for p in selected if p in prior]
 assert not old_changed,('frozen dependency changed',old_changed)
 v.joinpath('dependency-source-sha256.json').write_text(json.dumps(hashes,indent=2)+'\n')

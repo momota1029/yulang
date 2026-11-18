@@ -1,0 +1,42 @@
+'Yulang.GeneralRebaseChildRequestPool262.equation_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseChildRequestPool262.clause_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseChildRequestPool262.emitted_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseChildRequestPool262.raw_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseChildRequestPool262.raw_name' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseChildRequestPool262.product' does not depend on any axioms
+'Yulang.GeneralRebaseChildRequestPool262.mem_product' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseChildRequestPool262.Covered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseChildRequestPool262.requests_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseChildRequestPool262.snapshot_product' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourceRequestPool262.pool' does not depend on any axioms
+'Yulang.GeneralRebaseSourceRequestPool262.trace_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceRequestPool262.mixed_finite_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceRequestPool262.all_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralRebaseSourceRequestPool262.mixed_finite_requests : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ candidates,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+            state →
+          Yulang.GeneralRebaseChildRequestPool262.Covered (Yulang.GeneralNominalVersionedJournal232.State.core state)
+            candidates
+@Yulang.GeneralRebaseSourceRequestPool262.all_requests : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ candidates,
+      ∀ (state : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+        Yulang.B4Target.Steps
+            ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+            state →
+          ∀ (queriedRoot : Yulang.GeneralSourceDictionaries.Occurrence roles)
+            (output : Yulang.GeneralSourceState.Output),
+            output ∈
+                Yulang.GeneralNominalCenteredHeadOutputs.requests
+                  (Yulang.GeneralNominalVersionedJournal232.State.core state) queriedRoot →
+              output ∈ candidates

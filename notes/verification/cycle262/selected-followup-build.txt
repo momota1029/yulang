@@ -1,0 +1,6 @@
+BUILD 2026-11-18T19:05:54.439484+00:00 ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-selected-followup/Yulang/GeneralRebaseSelectedFailure262.olean lean/Yulang/GeneralRebaseSelectedFailure262.lean
+EXIT 0
+BUILD 2026-11-18T19:05:55.728124+00:00 ../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle262-selected-followup/Yulang/GeneralRebaseSelectedUnused262.olean lean/Yulang/GeneralRebaseSelectedUnused262.lean
+EXIT 0
+AUDIT EXIT 0 DECLARATIONS 13
+FRESH-TWO-FOLLOWUP-MODULE-AUDIT-PASS; SOURCE-HASHES-UNCHANGED

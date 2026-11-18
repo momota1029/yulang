@@ -1,0 +1,58 @@
+'Yulang.GeneralRebaseObservedPlan262.observe_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseObservedPlan262.write_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseObservedPlan262.step_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseObservedPlan262.completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObservedPlan262.step_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePlannedTrace262.Trace' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlannedTrace262.from_runs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlannedTrace262.to_runs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePlannedTrace262.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePlannedTrace262.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePlannedTrace262.source_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+@Yulang.GeneralRebasePlannedTrace262.source_certificate : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sourceRegistry : Yulang.GeneralDeclarations.Registry) (root : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (start : Yulang.GeneralNominalVersionedJournal232.State roles),
+  (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Initial sourceRegistry root start →
+    ∃ pool,
+      ∀ (base : Yulang.GeneralNominalCommonBridge.Assignment → Prop) (fixed : Yulang.GeneralNominalCenters.Plan roles)
+        (owner : Nat)
+        (inspect :
+          Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool) →
+            Yulang.GeneralNominalVersionedJournal232.State roles)
+        (roots :
+          Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool) →
+            List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+        (plans :
+          Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool) →
+            Yulang.GeneralSourceDictionaries.Occurrence roles → Yulang.GeneralNominalCenters.Plan roles),
+        Yulang.GeneralRebaseObservedPlan262.Compatible fixed owner pool roots plans →
+          (∀ (state : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool)),
+              Yulang.B4Target.Steps
+                ((Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Step sourceRegistry root) start
+                (inspect state)) →
+            ∀ (before : Yulang.GeneralRebaseStep258.State (Yulang.GeneralRebaseStableClass261.facts fixed owner pool)),
+              ∃ after history,
+                Yulang.GeneralRebaseSettle259.settle
+                      (Yulang.GeneralRebaseObservedPlan262.observe fixed owner pool (fun state => (inspect state).core)
+                        roots plans)
+                      before =
+                    Except.ok after ∧
+                  Yulang.GeneralRebasePlannedTrace262.Trace fixed owner pool (fun state => (inspect state).core) roots
+                      plans history before after ∧
+                    history.length ≤ before.remaining.length ∧
+                      (∀
+                          (next :
+                            Yulang.GeneralRebaseStep258.State
+                              (Yulang.GeneralRebaseStableClass261.facts fixed owner pool)),
+                          ¬Yulang.GeneralRebaseStep258.Step
+                              (Yulang.GeneralRebaseObservedPlan262.observe fixed owner pool
+                                (fun state => (inspect state).core) roots plans)
+                              after next) ∧
+                        ∀ (assignment : Yulang.GeneralNominalCommonBridge.Assignment),
+                          Yulang.GeneralRebaseStableClass261.Models base fixed owner after assignment ↔
+                            Yulang.GeneralRebaseStableClass261.Models base fixed owner before assignment ∧
+                              ∀ (event : Yulang.GeneralRebasePlannedTrace262.Event roles),
+                                event ∈ history →
+                                  Yulang.GeneralNominalVersionedEffects231.ClassEffects event.source event.root
+                                    event.plan assignment
+audit_exit:0

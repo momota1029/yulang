@@ -69,3 +69,54 @@ is explicit. Source Initial gives existence of a finite candidate pool; extracti
 it as a user-facing compiler artifact is separate. Ready, Frame, packet validity,
 model existence, arbitrary dynamic Plan/capture transport and full EvidenceNode remain
 unproved here. Quiescence is for the supplied new observer, not all old language actions.
+
+## 実際に選択した Plan への拡張
+
+PlanTransport.Same は、宣言・翻訳用constructor catalogue・interpretation・全actual binder名・
+default用center列の一致という構造条件。desired ClassEffects の同値を仮定していない。
+この条件から、各outputのschema/fact key、全assignmentに対する各factの意味、実ClassEffects
+の同値を導出した。既存MatPlanData.Sameからも条件を導ける。
+同一seed/owner/declarationで各input captureが「同じpoint」又は「両方nonpoint」なら、
+実allocatorの定義からbinderの一致が出る。nonpoint→pointはまだ覆わない。
+
+ObservedPlan.observe は供給された plans state root の実factsをproposalに使う。選ばれたroot
+に限ってSameがあれば、固定Plan observerと関数として一致する。PlannedTraceは各中間状態の
+source snapshot/root/そのPlanをeventに記録し、一つの履歴で全assignmentのモデル等式を示す。
+実source Initialから導出したpoolを使うsource_certificateにも、このstructural compatibility
+とinspectの各snapshot到達可能性を明示した。連続するsnapshot同士の旧Step接続、rootの
+Generated/Frame適格性、packet validityを黙って補わない。
+
+実candidate atomsのfamilyではordinary journalが異なっても空のbindingsからSameを導ける。
+これは非自明なPlan変化例だが、任意atomsが実sourceに到達することやGood/packet Evidence
+を主張していない。成功＝充足可能でもない。
+
+境界の使用例として、旧239 sourceには有限request poolがあるのに旧StepのAccがないことを
+一緒にkernel検証した。これは新しい言語反例でも停止命令でもなく、pool有限性と旧Step停止性
+を混同しないための既知反例の再利用である。新rebase Stepのstrict fact進捗とは対象が違う。
+
+## 選択限定検査・意味的 Plan 輸送
+
+固定pool全体のReadyを先に要求すると、実際には選ばれないunknown bodyまで内部errorにする。
+SelectedCheck/Settleは、各roundで実roots state全体のactual requestsを検査し、成功後に
+既存schedulerで一つのstrict writeを行う。remaining長で再帰が終了し、成功した実行から
+訪問round全部とfinalのReadyを得る。Readyを全stateに仮定していない。
+実行errorにも実finite rebase prefixと、診断stateのselected root/正確なcheck failureがある。
+Layoutとsource pool coverageがあればoutside-pool errorは除ける。残るselected translation
+errorは内部compiler診断であり、言語拒否の規則ではない。
+
+旧未使用unknown例は空root選択だけでなく、実際の非空[focus]選択でも新checkerで成功する。
+任意stateから0又は1writeで実6factsを処理し、unused pairはremainingに残る。保持した
+履歴制約が不充足でも成功する例を残し、translation検査とSATを混同しない。
+
+さらにPlanSemantic.Layoutは宣言/catalogue/interpretationだけでschema/factsの同一を保証。
+actual binder/center名が違っても、一つのassignmentでそれらの値がEquivalentならbodyと
+ClassEffectsを運べる。SemanticObserverは『baseを満たすassignmentならこの局所値同値が
+成立する』BaseCompatibleを前提に、Modelsのbase成分を使って全assignmentのstep iffと
+同じactual planned historyの意味へ接続する。Layoutは別に要求するのでbaseが空の場合も
+runtime tableの一致を仮定から失わない。実source modelからBaseCompatibleを導くことは未完。
+
+Nをcandidate Output list長とすると実body facts≤N、同名pair facts≤N²。従って新Stepの
+非自明write数≤N+N²を任意valid stateについて証明した。これは言語処理全体やobserver・
+alias searchの計算量評価ではない。新source compilerを構成する残る主要義務は、inspectを
+有限rebase stateから実際に生成すること、選ぶroot/PlanのFrame適格性、baseとの意味的輸送、
+新旧境界のsimulationとEvidenceNodeである。

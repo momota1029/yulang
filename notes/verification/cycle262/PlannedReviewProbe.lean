@@ -1,0 +1,14 @@
+import Yulang.GeneralRebaseObservedPlan262
+import Yulang.GeneralRebasePlannedTrace262
+#print axioms Yulang.GeneralRebaseObservedPlan262.observe_eq
+#print axioms Yulang.GeneralRebaseObservedPlan262.write_eq
+#print axioms Yulang.GeneralRebaseObservedPlan262.step_iff
+#print axioms Yulang.GeneralRebaseObservedPlan262.completion
+#print axioms Yulang.GeneralRebaseObservedPlan262.step_actual
+#print axioms Yulang.GeneralRebasePlannedTrace262.Trace
+#print axioms Yulang.GeneralRebasePlannedTrace262.from_runs
+#print axioms Yulang.GeneralRebasePlannedTrace262.to_runs
+#print axioms Yulang.GeneralRebasePlannedTrace262.models_exact
+#print axioms Yulang.GeneralRebasePlannedTrace262.certificate
+#print axioms Yulang.GeneralRebasePlannedTrace262.source_certificate
+#check @Yulang.GeneralRebasePlannedTrace262.source_certificate

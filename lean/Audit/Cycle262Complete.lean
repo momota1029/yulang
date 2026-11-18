@@ -4,11 +4,28 @@ import Yulang.GeneralRebaseExecutableRequests262
 import Yulang.GeneralRebaseExecutableSnapshot262
 import Yulang.GeneralRebaseRootTrace262
 import Yulang.GeneralRebaseAliasRegression262
+import Yulang.GeneralRebasePlanTransport262
+import Yulang.GeneralRebaseBinderShape262
 import Yulang.GeneralRebaseChildRequestPool262
 import Yulang.GeneralRebaseSourceRequestPool262
 import Yulang.GeneralRebaseDynamicSource262
 import Yulang.GeneralRebaseSourceObserver262
 import Yulang.GeneralRebaseDynamicTrace262
+import Yulang.GeneralRebaseObservedPlan262
+import Yulang.GeneralRebasePlanSemantic262
+import Yulang.GeneralRebasePlanSemanticExamples262
+import Yulang.GeneralRebasePlanTransportExamples262
+import Yulang.GeneralRebasePlannedTrace262
+import Yulang.GeneralRebaseQuadraticBudget262
+import Yulang.GeneralRebaseSelectedCheck262
+import Yulang.GeneralRebaseSelectedSettle262
+import Yulang.GeneralRebaseSelectedFailure262
+import Yulang.GeneralRebaseSelectedMeaning262
+import Yulang.GeneralRebaseSelectedRegression262
+import Yulang.GeneralRebaseSemanticObserver262
+import Yulang.GeneralRebaseSelectedSafety262
+import Yulang.GeneralRebaseSelectedUnused262
+import Yulang.GeneralRebaseSemanticTrace262
 
 #print axioms Yulang.GeneralFiniteAliasClosure262.cuts
 #print axioms Yulang.GeneralFiniteAliasClosure262.cuts_length
@@ -67,6 +84,25 @@ import Yulang.GeneralRebaseDynamicTrace262
 #print axioms Yulang.GeneralRebaseAliasRegression262.isolated_other
 #print axioms Yulang.GeneralRebaseAliasRegression262.outside_middle
 #print axioms Yulang.GeneralRebaseAliasRegression262.actual_requests
+#print axioms Yulang.GeneralRebasePlanTransport262.of_report_data
+#print axioms Yulang.GeneralRebasePlanTransport262.compile_eq
+#print axioms Yulang.GeneralRebasePlanTransport262.schema_eq
+#print axioms Yulang.GeneralRebasePlanTransport262.actual_body_variables
+#print axioms Yulang.GeneralRebasePlanTransport262.actual_variables
+#print axioms Yulang.GeneralRebasePlanTransport262.schema_actual
+#print axioms Yulang.GeneralRebasePlanTransport262.owned_transport
+#print axioms Yulang.GeneralRebasePlanTransport262.keys_eq
+#print axioms Yulang.GeneralRebasePlanTransport262.local_holds
+#print axioms Yulang.GeneralRebasePlanTransport262.stable_body_holds
+#print axioms Yulang.GeneralRebasePlanTransport262.stable_class_holds
+#print axioms Yulang.GeneralRebasePlanTransport262.facts_eq
+#print axioms Yulang.GeneralRebasePlanTransport262.body_holds
+#print axioms Yulang.GeneralRebasePlanTransport262.effects
+#print axioms Yulang.GeneralRebasePlanTransport262.class_effects
+#print axioms Yulang.GeneralRebaseBinderShape262.Compatible
+#print axioms Yulang.GeneralRebaseBinderShape262.outputs
+#print axioms Yulang.GeneralRebaseBinderShape262.binders
+#print axioms Yulang.GeneralRebaseBinderShape262.transport
 #print axioms Yulang.GeneralRebaseChildRequestPool262.equation_target
 #print axioms Yulang.GeneralRebaseChildRequestPool262.clause_target
 #print axioms Yulang.GeneralRebaseChildRequestPool262.emitted_target
@@ -94,3 +130,105 @@ import Yulang.GeneralRebaseDynamicTrace262
 #print axioms Yulang.GeneralRebaseDynamicTrace262.models_exact
 #print axioms Yulang.GeneralRebaseDynamicTrace262.certificate
 #print axioms Yulang.GeneralRebaseDynamicTrace262.source_certificate
+#print axioms Yulang.GeneralRebaseObservedPlan262.observe
+#print axioms Yulang.GeneralRebaseObservedPlan262.Compatible
+#print axioms Yulang.GeneralRebaseObservedPlan262.observe_eq
+#print axioms Yulang.GeneralRebaseObservedPlan262.write_eq
+#print axioms Yulang.GeneralRebaseObservedPlan262.step_iff
+#print axioms Yulang.GeneralRebaseObservedPlan262.completion
+#print axioms Yulang.GeneralRebaseObservedPlan262.step_actual
+#print axioms Yulang.GeneralRebasePlanSemantic262.of_structural
+#print axioms Yulang.GeneralRebasePlanSemantic262.compile_eq
+#print axioms Yulang.GeneralRebasePlanSemantic262.schema_eq
+#print axioms Yulang.GeneralRebasePlanSemantic262.keys_eq
+#print axioms Yulang.GeneralRebasePlanSemantic262.facts_eq
+#print axioms Yulang.GeneralRebasePlanSemantic262.actual_body_variables
+#print axioms Yulang.GeneralRebasePlanSemantic262.actual_variables
+#print axioms Yulang.GeneralRebasePlanSemantic262.actual_value
+#print axioms Yulang.GeneralRebasePlanSemantic262.owned_transport
+#print axioms Yulang.GeneralRebasePlanSemantic262.local_holds
+#print axioms Yulang.GeneralRebasePlanSemantic262.stable_body_holds
+#print axioms Yulang.GeneralRebasePlanSemantic262.stable_class_holds
+#print axioms Yulang.GeneralRebasePlanSemantic262.body_holds
+#print axioms Yulang.GeneralRebasePlanSemantic262.effects
+#print axioms Yulang.GeneralRebasePlanSemantic262.class_effects
+#print axioms Yulang.GeneralRebasePlanSemanticExamples262.recenter
+#print axioms Yulang.GeneralRebasePlanSemanticExamples262.recenter_compatible
+#print axioms Yulang.GeneralRebasePlanSemanticExamples262.body_transport
+#print axioms Yulang.GeneralRebasePlanSemanticExamples262.structural_excluded
+#print axioms Yulang.GeneralRebasePlanSemanticExamples262.strict_weakening
+#print axioms Yulang.GeneralRebasePlanTransportExamples262.changing_atoms
+#print axioms Yulang.GeneralRebasePlanTransportExamples262.table_unchanged
+#print axioms Yulang.GeneralRebasePlanTransportExamples262.meaning_unchanged
+#print axioms Yulang.GeneralRebasePlanTransportExamples262.class_effects_unchanged
+#print axioms Yulang.GeneralRebasePlannedTrace262.from_runs
+#print axioms Yulang.GeneralRebasePlannedTrace262.to_runs
+#print axioms Yulang.GeneralRebasePlannedTrace262.models_exact
+#print axioms Yulang.GeneralRebasePlannedTrace262.certificate
+#print axioms Yulang.GeneralRebasePlannedTrace262.source_certificate
+#print axioms Yulang.GeneralRebaseQuadraticBudget262.flatMap_bound
+#print axioms Yulang.GeneralRebaseQuadraticBudget262.schema_bound
+#print axioms Yulang.GeneralRebaseQuadraticBudget262.keys_bound
+#print axioms Yulang.GeneralRebaseQuadraticBudget262.bodies_bound
+#print axioms Yulang.GeneralRebaseQuadraticBudget262.pairs_bound
+#print axioms Yulang.GeneralRebaseQuadraticBudget262.facts_bound
+#print axioms Yulang.GeneralRebaseQuadraticBudget262.run_bound
+#print axioms Yulang.GeneralRebaseSelectedCheck262.checkRoots
+#print axioms Yulang.GeneralRebaseSelectedCheck262.ReadyRoots
+#print axioms Yulang.GeneralRebaseSelectedCheck262.check_exact
+#print axioms Yulang.GeneralRebaseSelectedCheck262.error_selected
+#print axioms Yulang.GeneralRebaseSelectedCheck262.actual_ready
+#print axioms Yulang.GeneralRebaseSelectedSettle262.Current
+#print axioms Yulang.GeneralRebaseSelectedSettle262.run
+#print axioms Yulang.GeneralRebaseSelectedSettle262.successful_trace
+#print axioms Yulang.GeneralRebaseSelectedSettle262.to_runs
+#print axioms Yulang.GeneralRebaseSelectedSettle262.states_ready
+#print axioms Yulang.GeneralRebaseSelectedSettle262.terminal
+#print axioms Yulang.GeneralRebaseSelectedSettle262.trace_success
+#print axioms Yulang.GeneralRebaseSelectedSettle262.ordinary_settle
+#print axioms Yulang.GeneralRebaseSelectedSettle262.certificate
+#print axioms Yulang.GeneralRebaseSelectedFailure262.At
+#print axioms Yulang.GeneralRebaseSelectedFailure262.error_path
+#print axioms Yulang.GeneralRebaseSelectedFailure262.selected_provenance
+#print axioms Yulang.GeneralRebaseSelectedMeaning262.from_checked
+#print axioms Yulang.GeneralRebaseSelectedMeaning262.certificate
+#print axioms Yulang.GeneralRebaseSelectedMeaning262.source_certificate
+#print axioms Yulang.GeneralRebaseSelectedRegression262.unused
+#print axioms Yulang.GeneralRebaseSelectedRegression262.candidates
+#print axioms Yulang.GeneralRebaseSelectedRegression262.fixed
+#print axioms Yulang.GeneralRebaseSelectedRegression262.unused_missing
+#print axioms Yulang.GeneralRebaseSelectedRegression262.old_layout_failure
+#print axioms Yulang.GeneralRebaseSelectedRegression262.unused_not_checked
+#print axioms Yulang.GeneralRebaseSelectedRegression262.wrong
+#print axioms Yulang.GeneralRebaseSelectedRegression262.selected_missing
+#print axioms Yulang.GeneralRebaseSelectedRegression262.selected_failure
+#print axioms Yulang.GeneralRebaseSelectedRegression262.goodObserve
+#print axioms Yulang.GeneralRebaseSelectedRegression262.good_ready
+#print axioms Yulang.GeneralRebaseSelectedRegression262.next_good
+#print axioms Yulang.GeneralRebaseSelectedRegression262.next_initial
+#print axioms Yulang.GeneralRebaseSelectedRegression262.next_final
+#print axioms Yulang.GeneralRebaseSelectedRegression262.run_good
+#print axioms Yulang.GeneralRebaseSelectedRegression262.success_not_satisfiability
+#print axioms Yulang.GeneralRebaseSemanticObserver262.LayoutCompatible
+#print axioms Yulang.GeneralRebaseSemanticObserver262.BaseCompatible
+#print axioms Yulang.GeneralRebaseSemanticObserver262.of_structural
+#print axioms Yulang.GeneralRebaseSemanticObserver262.observe_eq
+#print axioms Yulang.GeneralRebaseSemanticObserver262.write_eq
+#print axioms Yulang.GeneralRebaseSemanticObserver262.completion
+#print axioms Yulang.GeneralRebaseSemanticObserver262.write_actual
+#print axioms Yulang.GeneralRebaseSemanticObserver262.step_actual
+#print axioms Yulang.GeneralRebaseSelectedSafety262.no_outside
+#print axioms Yulang.GeneralRebaseSelectedSafety262.outcome
+#print axioms Yulang.GeneralRebaseSelectedUnused262.proposal
+#print axioms Yulang.GeneralRebaseSelectedUnused262.observe
+#print axioms Yulang.GeneralRebaseSelectedUnused262.supported
+#print axioms Yulang.GeneralRebaseSelectedUnused262.next_exact
+#print axioms Yulang.GeneralRebaseSelectedUnused262.next_written
+#print axioms Yulang.GeneralRebaseSelectedUnused262.run_exact
+#print axioms Yulang.GeneralRebaseSelectedUnused262.unused_not_requested
+#print axioms Yulang.GeneralRebaseSelectedUnused262.unused_pair_outside
+#print axioms Yulang.GeneralRebaseSelectedUnused262.unused_pair_retained
+#print axioms Yulang.GeneralRebaseSelectedUnused262.nonempty_success
+#print axioms Yulang.GeneralRebaseSemanticTrace262.models_exact
+#print axioms Yulang.GeneralRebaseSemanticTrace262.checked_certificate
+#print axioms Yulang.GeneralRebaseSemanticTrace262.source_certificate
