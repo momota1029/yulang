@@ -59,3 +59,20 @@ nonpointの同値な見直しを除外したとは言わない。239/240の回�
 現時点で全1〜5の見通し完成ではない。今回のLean対象は2の表現不変条件と、
 実sourceの反例候補を確認するための最小診断に限る。source到達反例が得られれば
 閉じた証明・報告を保全して止める。packet/Permitted/EvidenceNode部品は増やさない。
+
+## 08:43 調査更新: 1の実source橋は既存237を再利用できる
+
+`GeneralNominalVersionedMixedAncestry237.sites_bounded/installed_depth_bound` は
+actual mixed traceとsource formation/ground root/coverageから、最終状態のモデルを
+遡って各siteのlabelsを作り、`depth + mass(labels) ≤ mass(rootLabels)` を証明済み。
+Installable.commonがそのモデルを供給する。InvocationAncestry.frontierはregistryの
+有限分岐をdepth回閉包した有限listなので、実install parent identityを列挙できる。
+今回OwnerCandidates252はこれをdecl.idとの有限積へ接続する。これは追加の
+finite-basis仮定を置いた定理ではなく、既存source側の具体的義務からの帰結。
+新rebase Stepがこのsource trace/labelsを保存することは別の未完了義務である。
+
+2のnormalizerはpool内所属を検査するOption版を設ける。pool外のatomを黙って
+削った結果で意味受理しない。union内のinterなど異演算の混合は原子として扱い、
+poolになければNone。poolがNodupなら選択listもNodup。すべての型・行readを
+含めたprivate非流出を証明し、actual persistent snapshotとframe blockのModels
+保存へ接続する。これもsourceが固定pool内に入ること自体の証明ではない。

@@ -1,0 +1,3 @@
+lean/Audit/Cycle252Full.lean:32:22: error: unexpected token 'prefix'; expected '[', '{', '|', '⦃' or term
+lean/Audit/Cycle252Full.lean:32:29: error: unexpected token '=>'; expected ':'
+lean/Audit/Cycle252Full.lean:32:64: error: unexpected token ')'; expected ':'

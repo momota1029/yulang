@@ -150,4 +150,19 @@ theorem no_private_all_reads (pool : List (TyTerm Nat)) (term : TyTerm Nat) (pri
  intro member
  obtain ⟨atom,present,read⟩ := fold_all_reads _ _ member
  exact separated atom ((canonical_mem ..).mp present).1 read
+
+theorem atom_reads (term atom : TyTerm Nat) (present : atom ∈ atoms term) :
+ typedReads atom ⊆ typedReads term := by
+ induction term <;> simp_all [atoms,typedReads]
+ case union first last ihFirst ihLast =>
+   intro name member
+   rcases present with one | two
+   · exact List.mem_append_left _ (ihFirst one member)
+   · exact List.mem_append_right _ (ihLast two member)
+
+theorem normalized_reads (pool : List (TyTerm Nat)) (term : TyTerm Nat) :
+ typedReads (normalize pool term) ⊆ typedReads term := by
+ intro name member
+ obtain ⟨atom,present,read⟩ := fold_reads _ _ member
+ exact atom_reads term atom ((canonical_mem ..).mp present).2 read
 end Yulang.GeneralPresenceUnionNormal252
