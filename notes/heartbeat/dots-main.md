@@ -1,13 +1,10 @@
 # dots-main heartbeat
-- cycle: 254
-- status: completed
-- started: 2026-11-18T10:35:05Z
-- updated: 2026-11-18T11:26:53Z
-- elapsed_min: 51.8
-- activity: 14 modules,19 examples,84 explicit/154 full audit PASS; report published and all bytes verified. Source-uniform evidenced readbacks and evidence-free raw templates; operational closure/Acc remain open.
+- cycle: 255
+- status: running
+- started: 2026-11-18T11:32:22Z
+- updated: 2026-11-18T11:32:52Z
+- elapsed_min: 1
+- activity: Latest integration33cf8d490 merged; I50 unchanged, previous254 bytes verified, no active compiler/writer. Designing actual consumer/public-reference closure.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: 2a31d7fe1
-- resume_hint: Read latest integration/inbox and cycle254 report. Next: actual public-reference/consumer classification and CheckedNormal.prepare source closure, then private non-escape and strict progress. Do not use Evidence-conditional ground bound as an unconditional termination invariant.
-- report: notes/handoff/dots-cycle-254.md
-- publication: 1bb1f56aa074764ac67fb9daec25952f776f7a3b
-- receipt: notes/verification/cycle254/publication-receipt.md
+- last_local_commit: d626e717c
+- resume_hint: Continue cycle255 design before new Lean. Do not use Evidence-conditional depth as a termination invariant; preserve old modules and source semantics.
