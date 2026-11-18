@@ -1,10 +1,12 @@
 # dots-main heartbeat
 - cycle: 250
-- status: running
+- status: completed
 - started: 2026-11-17T23:34:17Z
-- updated: 2026-11-18T00:15:40Z
-- elapsed_min: 41.4
-- activity: 34 modules / 259 explicit declarations strict verified. Stable owner registry preserves chosen slots; multi-owner compiler constructs coverage/coherence for interleaved registered owner commands. Two-install regression verifies historical metadata is rewritten before slot reuse.
+- updated: 2026-11-18T00:20:20Z
+- elapsed_min: 46.1
+- activity: 34 new modules and 259 explicit declarations strict rebuilt and audited; source/report68b9a08f3c07e19e76fdb36a4c35b679d76be63a fetched and fulltree matched. Stable snapshots, arbitrary metadata, finite same-witness executor, actual capture bounds and registered multi-owner coverage. No source Acc claim.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: 536822b4f
-- resume_hint: Phase7 audit passed; publish then finish research by00:19 and final audit/report by00:29UTC. Full source packet generation, semantic permission and Acc remain open.
+- last_local_commit: 47c5ef523
+- resume_hint: Read latest integration/inbox. Implement mixed-time full packet and source Delta producer; derive Permitted and source-driven finite owner/term bounds. Current checked_success is structural only. No unpublished cycle250 source.
+- report: notes/handoff/dots-cycle-250.md
+- receipt: notes/verification/cycle250/publication-receipt.md
