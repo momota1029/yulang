@@ -90,3 +90,9 @@ Modelsを同一assignmentで示した。packet HoldsだけではなくClassEffec
 すべてのassignmentで反射的に成立する。206は要求output0と入力center1が別である。
 両者のtable keyが同じでも、異なるsourceごとに固定したlayoutの意味は異なる。
 これを同じ共有layoutへ混ぜず、それぞれ実request.targetを保持してcompileする。
+
+## 同一ownerの複数要求をまだ混ぜない
+
+読取レビューと追加検査で、単一body decoderのkeyはowner/indexだけなので、同じownerに異なるrequestを渡すとindex0が衝突することを確認した。206の実planでoutput0（実要求）とoutput1（非要求の内部引数）を渡すとproposalは同じだが、既存counter上で前者のBodyHoldsは偽、後者は反射的に真になる。RequestAddressProbeで確認する。output1は実requestsに属さないことも証明し、到達sourceの拒否・I50反例・既存fixtureの失敗とは区別する。
+
+次の表現案は(owner, obligation kind, request index, equation index)を有限table住所に符号化するか、各ownerの全request schemaを一つに連結しoffsetを保持すること。前者を設計候補の先頭に置く。いずれも固定有限request列の取得と実requests coverage、EqualOutputsの別義務が必要で、このcycleの単一要求decoderを一般compilerとして繋ぐことはしない。言語の受理規則は変えない。
