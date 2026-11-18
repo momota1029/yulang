@@ -752,3 +752,5 @@ The type-inference core calculus will be written in Lean and a companion documen
 - [2026-11-18-cycle252-expanded-depth-obstruction](2026-11-18-cycle252-expanded-depth-obstruction.md)
 - [2026-11-18-cycle252-i49-invariant-plan](2026-11-18-cycle252-i49-invariant-plan.md)
 - [2026-11-18-cycle252-final-review](2026-11-18-cycle252-final-review.md)
+
+- [Cycle262 executable exact alias requests](2026-11-18-cycle262-executable-alias.md) (Draft, representation/proof scope).

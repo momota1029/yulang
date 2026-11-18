@@ -1,0 +1,25 @@
+BUILD lean/Yulang/GeneralFiniteAliasClosure262.lean 2026-11-18T18:48:25.676912+00:00
+BUILD lean/Yulang/GeneralFiniteAliasSearch262.lean 2026-11-18T18:48:26.962290+00:00
+BUILD lean/Yulang/GeneralRebaseExecutableRequests262.lean 2026-11-18T18:48:28.041760+00:00
+BUILD lean/Yulang/GeneralRebaseExecutableSnapshot262.lean 2026-11-18T18:48:29.196831+00:00
+BUILD lean/Yulang/GeneralRebaseRootTrace262.lean 2026-11-18T18:48:30.262179+00:00
+BUILD lean/Yulang/GeneralRebaseAliasRegression262.lean 2026-11-18T18:48:31.287993+00:00
+BUILD lean/Yulang/GeneralNominalAllHeadReadback253.lean 2026-11-18T18:48:32.624187+00:00
+BUILD lean/Yulang/GeneralNominalQueryReadback254.lean 2026-11-18T18:48:34.422051+00:00
+BUILD lean/Yulang/GeneralNominalInputReadback254.lean 2026-11-18T18:48:37.224017+00:00
+BUILD lean/Yulang/GeneralDeclarationProducerRank253.lean 2026-11-18T18:48:38.474274+00:00
+BUILD lean/Yulang/GeneralDeclarationOutputDepth253.lean 2026-11-18T18:48:39.298759+00:00
+BUILD lean/Yulang/GeneralNominalOutputReadback254.lean 2026-11-18T18:48:40.401393+00:00
+BUILD lean/Yulang/GeneralNominalBinderProducer254.lean 2026-11-18T18:48:41.464098+00:00
+BUILD lean/Yulang/GeneralNominalDefaultReadback254.lean 2026-11-18T18:48:42.817294+00:00
+BUILD lean/Yulang/GeneralNominalCapturedOutput254.lean 2026-11-18T18:48:43.868506+00:00
+BUILD lean/Yulang/GeneralNominalEvidenceOutput254.lean 2026-11-18T18:48:44.916208+00:00
+BUILD lean/Yulang/GeneralNominalSourceReadback254.lean 2026-11-18T18:48:46.248515+00:00
+BUILD lean/Yulang/GeneralNominalProducerOrder254.lean 2026-11-18T18:48:47.333684+00:00
+BUILD lean/Yulang/GeneralNominalOutputMenu254.lean 2026-11-18T18:48:48.690567+00:00
+BUILD lean/Yulang/GeneralRebaseChildRequestPool262.lean 2026-11-18T18:48:49.854879+00:00
+BUILD lean/Yulang/GeneralRebaseSourceRequestPool262.lean 2026-11-18T18:48:51.130622+00:00
+BUILD lean/Yulang/GeneralRebaseDynamicSource262.lean 2026-11-18T18:48:52.279534+00:00
+BUILD lean/Yulang/GeneralRebaseSourceObserver262.lean 2026-11-18T18:48:53.561807+00:00
+BUILD lean/Yulang/GeneralRebaseDynamicTrace262.lean 2026-11-18T18:48:54.786113+00:00
+FRESH-PASS 24 DEPENDENCY-SOURCES 1707
