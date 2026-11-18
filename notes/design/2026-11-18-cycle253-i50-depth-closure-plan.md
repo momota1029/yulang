@@ -103,3 +103,32 @@ position0（固定rebase）でも正のposition（versioned）でもbasisに現�
 子associated値bound CからRHS深さ≤template深さ＋max(I,C)を得る。子のboundを
 無条件にIへ落とさない。`calls_wellFounded` は宣言的呼出しのみなので、source
 compilerがこの呼出し順と整合することが次の主要なproducer義務である。
+
+## 10:00 normalized producer順序の接続
+
+rawにcaptureしてから正規化する形と、normalizeArgsを先にcaptureする形は一般に
+同一視できない（既存HiddenJoinの注意）。今回のAssociatedは後者を読む。
+既存 `GeneralPatternConservativeSubstitution.checked_normalized_descent` は
+CountsCoveredとConservativeSmallerから後者そのものの厳密減少を証明している。
+これを使い `NormalizedChild` とそのAcc、およびactual Associated引数への
+`normalized_binder_producer` を追加した。normalize/substの無条件交換は使わない。
+残るのはこの宣言的計算順序と現在のsource journal・選択候補・readbackの接続。
+
+## 10:03 associated入力readbackの不足を分解
+
+既存 `VersionedHeadReadback237.readback` はwhere入力でNeededな変数だけの有限
+readbackを返し、whereが非空という前提もある。associated RHSだけが読むhead入力
+まで得られたとは言えない。まず非空where宣言について、同じhead_weight議論を
+inputNamesの全名へ広げる。新たな有限性前提は置かず、Frame/Holds/ground Inputsと
+非空whereから、全head入力のPart・各labelサイズ上界・head質量上界を作る。
+whereのないleafには適用しない。その一般化は別義務として残す。
+
+## 10:06 leafの範囲を少し拡張する
+
+head_weight237が非空whereを要求する用途は、checked.countsCoveredから正規化headの
+coveredArgs=trueを取り出す箇所だけだった。そこでこの構文検査結果を直接入力する
+head_weight_covered / readback_covered を同じsource意味論から導出する。
+finite性や深さ上界そのものは仮定しない。非空whereは従来のcheckedからこの条件を
+供給し、leafでもcoveredHeadが計算で通るもの（252の単変数headなど）に適用できる。
+variant payload内のplainNames joinなど、Complete queryでもcoveredHeadが偽になりうる
+headは未対応なので、全leafを覆ったとは報告しない。

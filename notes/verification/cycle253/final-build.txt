@@ -1,0 +1,40 @@
+BUILD GeneralPatternAdditiveDepth253
+EXIT 0 GeneralPatternAdditiveDepth253
+BUILD GeneralNominalExprDepth253
+EXIT 0 GeneralNominalExprDepth253
+BUILD GeneralNominalOutputNames253
+EXIT 0 GeneralNominalOutputNames253
+BUILD GeneralNominalRawFinite253
+EXIT 0 GeneralNominalRawFinite253
+BUILD GeneralNominalPublicPorts253
+EXIT 0 GeneralNominalPublicPorts253
+BUILD GeneralDictionaryCompoundPool253
+EXIT 0 GeneralDictionaryCompoundPool253
+BUILD GeneralDictionaryCompoundPoolRepair253
+EXIT 0 GeneralDictionaryCompoundPoolRepair253
+BUILD GeneralPatternDependencyDepth253
+EXIT 0 GeneralPatternDependencyDepth253
+BUILD GeneralDictionaryOutputDepthRepair253
+EXIT 0 GeneralDictionaryOutputDepthRepair253
+BUILD GeneralDeclarationProducerRank253
+EXIT 0 GeneralDeclarationProducerRank253
+BUILD GeneralDeclarationOutputDepth253
+EXIT 0 GeneralDeclarationOutputDepth253
+BUILD GeneralNominalPublicBasis253
+EXIT 0 GeneralNominalPublicBasis253
+BUILD GeneralNominalAllHeadReadback253
+EXIT 0 GeneralNominalAllHeadReadback253
+AUDIT Cycle253CompleteAudit
+CYCLE253-COMPLETEAUDIT-PASS: 115 explicit declarations in 13 modules
+EXIT 0 Cycle253CompleteAudit
+AUDIT Cycle253Full
+CYCLE253-FULL-AUDIT-PASS: 276 declarations including generated and private declarations
+EXIT 0 Cycle253Full
+AUDIT Cycle253Usage
+EXIT 0 Cycle253Usage
+PASS previous dependency source hashes unchanged: 1514
+PASS import closure hashed: 1653
+PASS no forbidden tokens in 13 new modules
+PASS old Lean sources frozen; barrel append-only
+Latest integration42e33c1a9, I50 unchanged at09:47 UTC
+Whole repository build, verify-lean.sh and Yulang2 runtime not run

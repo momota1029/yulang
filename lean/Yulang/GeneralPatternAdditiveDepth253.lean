@@ -97,4 +97,36 @@ theorem additive_bound_sharp (n : Nat) (term : Pattern) :
  depth ((tower n (.var 0)).subst (fun _ => term)) = depth (tower n (.var 0)) + depth term := by
  rw [tower_subst,tower_depth,tower_depth]
  rfl
+
+mutual
+ theorem depth_le_size (term : Pattern) : depth term ≤ term.encode.size := by
+ cases term with
+ | var => simp [depth,Pattern.encode,Roles.Term.size]
+ | app name args =>
+   have bound := depths_le_size args
+   simp only [depth,Pattern.encode,Roles.Term.size]
+   omega
+ | record label first last =>
+   have one := depth_le_size first
+   have two := depth_le_size last
+   simp only [depth,Pattern.encode,Roles.Term.size,Roles.argsSize]
+   omega
+ | variant tag term =>
+   have bound := depth_le_size term
+   simp only [depth,Pattern.encode,Roles.Term.size,Roles.argsSize]
+   omega
+ | join first last =>
+   have one := depth_le_size first
+   have two := depth_le_size last
+   simp only [depth,Pattern.encode,Roles.Term.size,Roles.argsSize]
+   omega
+ theorem depths_le_size (terms : List Pattern) : depths terms ≤ Roles.argsSize (encodeArgs terms) := by
+ cases terms with
+ | nil => exact Nat.le_refl _
+ | cons first rest =>
+   have one := depth_le_size first
+   have two := depths_le_size rest
+   simp only [depths,encodeArgs,Roles.argsSize]
+   omega
+end
 end Yulang.GeneralPatternAdditiveDepth253
