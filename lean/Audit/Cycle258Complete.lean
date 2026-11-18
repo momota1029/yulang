@@ -1,0 +1,39 @@
+import Yulang.GeneralDictionaryFamilyRecognition258
+import Yulang.GeneralDictionaryUniformFill258
+import Yulang.GeneralDictionaryUniformBlock258
+import Yulang.GeneralDictionaryUniformView258
+import Yulang.GeneralDictionaryUniformJournal258
+
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_lower
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.index_upper
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.isLower
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.isUpper
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.lower_iff
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.upper_iff
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.disjoint
+#print axioms Yulang.GeneralDictionaryFamilyRecognition258.small
+#print axioms Yulang.GeneralDictionaryUniformFill258.fill
+#print axioms Yulang.GeneralDictionaryUniformFill258.rows
+#print axioms Yulang.GeneralDictionaryUniformFill258.initial
+#print axioms Yulang.GeneralDictionaryUniformFill258.lower_value
+#print axioms Yulang.GeneralDictionaryUniformFill258.upper_value
+#print axioms Yulang.GeneralDictionaryUniformFill258.actual_tags
+#print axioms Yulang.GeneralDictionaryUniformFill258.actual_fixed
+#print axioms Yulang.GeneralDictionaryUniformFill258.outside
+#print axioms Yulang.GeneralDictionaryUniformFill258.idempotent
+#print axioms Yulang.GeneralDictionaryUniformFill258.agrees
+#print axioms Yulang.GeneralDictionaryUniformBlock258.lower_equation
+#print axioms Yulang.GeneralDictionaryUniformBlock258.upper_equation
+#print axioms Yulang.GeneralDictionaryUniformBlock258.all_blocks
+#print axioms Yulang.GeneralDictionaryUniformView258.support_small
+#print axioms Yulang.GeneralDictionaryUniformView258.view_exact
+#print axioms Yulang.GeneralDictionaryUniformView258.binder_exact
+#print axioms Yulang.GeneralDictionaryUniformView258.journal_view_exact
+#print axioms Yulang.GeneralDictionaryUniformView258.raw_exact
+#print axioms Yulang.GeneralDictionaryUniformView258.journal_exact
+#print axioms Yulang.GeneralDictionaryUniformJournal258.all_stages
+#print axioms Yulang.GeneralDictionaryUniformJournal258.agree_trans
+#print axioms Yulang.GeneralDictionaryUniformJournal258.simultaneous_models
+#print axioms Yulang.GeneralDictionaryUniformJournal258.positive_models
+#print axioms Yulang.GeneralDictionaryUniformJournal258.recovered
+#print axioms Yulang.GeneralDictionaryUniformJournal258.future

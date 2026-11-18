@@ -4709,3 +4709,8 @@ import Yulang.GeneralDictionaryPastObservations257
 import Yulang.GeneralDictionaryPastPacket257
 import Yulang.GeneralDictionaryJournalRepair257
 import Yulang.GeneralDictionaryFiniteJournal257
+import Yulang.GeneralDictionaryFamilyRecognition258
+import Yulang.GeneralDictionaryUniformFill258
+import Yulang.GeneralDictionaryUniformBlock258
+import Yulang.GeneralDictionaryUniformView258
+import Yulang.GeneralDictionaryUniformJournal258

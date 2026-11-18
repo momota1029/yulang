@@ -1,0 +1,7 @@
+lean/Yulang/GeneralDictionaryUniformBlock258.lean:17:1: error: Type mismatch
+  GeneralPresenceSnapshotGrowth251.union_self ?m.39
+has type
+  Equivalent (CommonNominalSyntax.Layer.union ?m.39 ?m.39) ?m.39
+but is expected to have type
+  Equivalent (assignment 2).fst (CommonNominalSyntax.Layer.union (assignment 2).fst (assignment 2).fst)
+lean/Yulang/GeneralDictionaryUniformBlock258.lean:19:8: error: (kernel) the kernel refused a `Nat` numeral because its size exceeds the maximum; increase the LEAN_NAT_MAX_SIZE environment variable to allow it
