@@ -3,8 +3,8 @@ namespace Yulang.GeneralDictionaryRebasePublic258
 open GeneralNominalCommonBridge (Assignment)
 open GeneralDictionaryInitialProjection257 (Agree)
 open GeneralDictionaryRebaseStep258
-/-- Only the initial/done states are reachable from this fixture. Intermediate
-subsets are not assigned an alleged general-language semantics. -/
+/-- Only the initial/done states are reachable from this fixture. The else branch also formally assigns a predicate to intermediate subsets,
+but no language correctness is claimed for those unreachable subsets. -/
 def Models (state : GeneralRebaseStep258.State facts) (assignment : Assignment) : Prop :=
  if state.remaining = facts then (GeneralDictionaryFiveSlot257.view 0).Models assignment
  else (GeneralDictionaryFiniteJournal257.view 1).Models assignment

@@ -44,8 +44,9 @@ all initial components 0..4 and all rows, allowing the private binder to change.
 
 This is a partial successor, NOT a faithful general source kernel yet. The
 observer is an explicit fixture table, not a proven compiler from general
-inspection. Models is specified only for the two reachable fixture states;
-arbitrary intermediate subsets have no claimed language interpretation.
+inspection. Models formally assigns its else predicate to every noninitial subset; only
+the two reachable fixture states have a proved correspondence, and arbitrary
+intermediate subsets have no claimed language interpretation.
 No simulation of all old administrative microsteps, complete constructor or
 presence handling, 239 concrete correspondence, general source fixed basis,
 or general semantics-preserving termination theorem is established. The proved
