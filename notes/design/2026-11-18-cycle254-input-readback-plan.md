@@ -24,3 +24,18 @@ Complete query、正規化済みtemplateからcanonical shapeを導く。
 狭いnamed-output poolの閉包は253で診断済みなので再実装しない。
 規則の変更も意味論の選択もしない。I49のsource反例停止条件に該当する
 新しい反例が出た場合は、該当依存を止めて分析を記録する。
+
+## 第2段の接続と未完境界（10:54 UTC）
+実child要求のtargetは、Producedで指定されたparent output binderと一致した。
+defaultは役割の位置引数を読むため、impl binderと分けてRoles.TermをPatternへ写し、
+RoleDecl.defaultsScopedから有限入力の代入を証明した。
+既存Evidence treeとsource traceが与えられれば全要求outputに有限な閉じた代表が
+あることを証明。Evidenceの存在・生成、実schedulerの停止は仮定から消していない。
+さらに実source traceのsites_boundedを使い、各入力名のsizeを元rootLabels massへ
+接続した。静的child producer graphは、子identityが親identityより大きく、
+source由来の有限frontierに含まれるため整礎。alias/equation graphとは別物。
+
+次は、要求名をroot要求＋registryのwhere出力名の有限集合へ列挙する。
+これが実traceで保たれれば、explicit/defaultのbodyの深さも固定有限menuから取れる。
+そのbudgetとproducer graphの有限rankを組み合わせ、Evidenceから構成する代表の
+上界をsource量で抑える。これは未解決・未証明状態全体のsnapshot閉包ではない。

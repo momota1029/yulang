@@ -4639,3 +4639,9 @@ import Yulang.GeneralNominalAllHeadReadback253
 import Yulang.GeneralNominalQueryReadback254
 import Yulang.GeneralNominalInputReadback254
 import Yulang.GeneralNominalOutputReadback254
+import Yulang.GeneralNominalBinderProducer254
+import Yulang.GeneralNominalDefaultReadback254
+import Yulang.GeneralNominalCapturedOutput254
+import Yulang.GeneralNominalEvidenceOutput254
+import Yulang.GeneralNominalSourceReadback254
+import Yulang.GeneralNominalProducerOrder254
