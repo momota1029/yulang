@@ -1,0 +1,53 @@
+import Yulang.GeneralNominalTwoInstallRegression250
+import Yulang.GeneralNominalOwnerRegistry250
+import Yulang.GeneralNominalRegistryInvariant250
+import Yulang.GeneralNominalMultiOwnerCommands250
+import Lean
+open Lean Elab Command in
+run_cmd do
+ let environment ← getEnv
+ let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
+ let names := #[``Yulang.GeneralNominalTwoInstallRegression250.firstDelta,
+  ``Yulang.GeneralNominalTwoInstallRegression250.lastDelta,
+  ``Yulang.GeneralNominalTwoInstallRegression250.first,
+  ``Yulang.GeneralNominalTwoInstallRegression250.last,
+  ``Yulang.GeneralNominalTwoInstallRegression250.finalFrame,
+  ``Yulang.GeneralNominalTwoInstallRegression250.assignment,
+  ``Yulang.GeneralNominalTwoInstallRegression250.checked_success,
+  ``Yulang.GeneralNominalTwoInstallRegression250.fixed_domain,
+  ``Yulang.GeneralNominalTwoInstallRegression250.accumulated_consumers,
+  ``Yulang.GeneralNominalTwoInstallRegression250.last_definition,
+  ``Yulang.GeneralNominalTwoInstallRegression250.all_obligations_satisfied,
+  ``Yulang.GeneralNominalTwoInstallRegression250.stale_consumer_impossible,
+  ``Yulang.GeneralNominalOwnerRegistry250.lookup,
+  ``Yulang.GeneralNominalOwnerRegistry250.register,
+  ``Yulang.GeneralNominalOwnerRegistry250.Registered,
+  ``Yulang.GeneralNominalOwnerRegistry250.lookup_head,
+  ``Yulang.GeneralNominalOwnerRegistry250.existing,
+  ``Yulang.GeneralNominalOwnerRegistry250.new_owner,
+  ``Yulang.GeneralNominalOwnerRegistry250.no_reseed,
+  ``Yulang.GeneralNominalOwnerRegistry250.new_registered,
+  ``Yulang.GeneralNominalOwnerRegistry250.register_registered,
+  ``Yulang.GeneralNominalOwnerRegistry250.equal_targets_registered,
+  ``Yulang.GeneralNominalOwnerRegistry250.trace_registered,
+  ``Yulang.GeneralNominalOwnerRegistry250.handle_coverage,
+  ``Yulang.GeneralNominalRegistryInvariant250.key,
+  ``Yulang.GeneralNominalRegistryInvariant250.Unique,
+  ``Yulang.GeneralNominalRegistryInvariant250.lookup_fields,
+  ``Yulang.GeneralNominalRegistryInvariant250.absent_key,
+  ``Yulang.GeneralNominalRegistryInvariant250.register_unique,
+  ``Yulang.GeneralNominalRegistryInvariant250.register_safe,
+  ``Yulang.GeneralNominalRegistryInvariant250.register_public_models_iff,
+  ``Yulang.GeneralNominalRegistryInvariant250.reuse_after_trace,
+  ``Yulang.GeneralNominalMultiOwnerCommands250.Request,
+  ``Yulang.GeneralNominalMultiOwnerCommands250.compile,
+  ``Yulang.GeneralNominalMultiOwnerCommands250.compileMany,
+  ``Yulang.GeneralNominalMultiOwnerCommands250.compile_sound,
+  ``Yulang.GeneralNominalMultiOwnerCommands250.compileMany_members,
+  ``Yulang.GeneralNominalMultiOwnerCommands250.compileMany_covered,
+  ``Yulang.GeneralNominalMultiOwnerCommands250.checked_success]
+ for name in names do
+  unless environment.contains name do throwError "Missing declaration {name}"
+  for dependency in ← collectAxioms name do
+   unless allowed.contains dependency do throwError "Forbidden dependency {name}: {dependency}"
+ logInfo m!"CYCLE250-PHASE7-PASS: {names.size} explicit declarations in 4 modules"

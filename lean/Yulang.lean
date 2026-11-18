@@ -4579,3 +4579,7 @@ import Yulang.GeneralNominalSourceOwnerExecution250
 import Yulang.GeneralNominalCoverageRegression250
 import Yulang.GeneralNominalStableCapture250
 import Yulang.GeneralNominalStableCaptureStep250
+import Yulang.GeneralNominalTwoInstallRegression250
+import Yulang.GeneralNominalOwnerRegistry250
+import Yulang.GeneralNominalRegistryInvariant250
+import Yulang.GeneralNominalMultiOwnerCommands250
