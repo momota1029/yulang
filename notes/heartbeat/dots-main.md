@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 257
-- status: completed
-- started: 2026-11-18T13:27:08Z
-- updated: 2026-11-18T14:18:41Z
-- elapsed_min: 51.57
-- activity: 25 modules;171 explicit/296 full declarations;193-module fresh dependency rebuild;29Usage plus2 boundary regressions. Final report published and fetched byte-identical at14:18:18. Publishing receipt/completion heartbeat.
+- cycle: 258
+- status: running
+- started: 2026-11-18T14:25:58Z
+- updated: 2026-11-18T14:26:41Z
+- elapsed_min: 0.72
+- activity: Latest integration and I50 reread; cycle257 complete and byte-matched; no prior writer. Designing finite reconstruction for concrete I45 journal before any general Step claim.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang244-recovery
-- last_local_commit: 65c3b1612
-- resume_hint: Read latest integration/inbox. I50 general source pool/depth/Acc remain open. I45 positive-stage finite journal needs binder certificate and growing history solve. Do not promote raw Models to journal Models; view0 fails on seed. No writer remains after final receipt.
-- report: notes/handoff/dots-cycle-257.md
+- last_local_commit: 099231384
+- resume_hint: Do not promote raw Models to journal Models. Preserve positive stage and fixed binder certificate. Deadline15:20:58UTC; report after15:15:58. Only new258 Lean and barrel append.
