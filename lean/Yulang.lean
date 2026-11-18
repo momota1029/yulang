@@ -4636,3 +4636,6 @@ import Yulang.GeneralDeclarationProducerRank253
 import Yulang.GeneralDeclarationOutputDepth253
 import Yulang.GeneralNominalPublicBasis253
 import Yulang.GeneralNominalAllHeadReadback253
+import Yulang.GeneralNominalQueryReadback254
+import Yulang.GeneralNominalInputReadback254
+import Yulang.GeneralNominalOutputReadback254
