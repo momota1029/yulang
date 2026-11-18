@@ -7,7 +7,7 @@ open GeneralNominalInvocationAncestry (successors frontier AtDepth)
 open GeneralNominalPatersonLineage (mass)
 variable {roles : Roles.RoleDecls} {state : State roles}
 
-/-- Static selected-candidate child-call edges at one source snapshot. This
+/-- Static candidate-frame child-call edges at one source snapshot. This
 is not the scheduler Step, alias relation or arbitrary equation dependency. -/
 def Edge (registry : Registry) (state : GeneralNominalCenteredSteps.State roles)
  (child parent : Nat) : Prop :=

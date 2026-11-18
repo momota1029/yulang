@@ -49,3 +49,51 @@ The source mass bridge is now proved in `GeneralNominalSourceReadback254.input_b
 `GeneralNominalSourceOutputDepth254.mixed_uniform` and `point_uniform` establish one D=R+T*N before quantifying over future states and models. Every requested output WITH a current finite Evidence tree has a closed semantic representative of raw depth at most D. Representatives themselves may depend on the model. The proof does not generate Evidence, bound unevidenced intermediate equations, show second-normalization depth preservation, prove full state support closure, or prove operational Step Acc.
 
 A real nonvacuous cycle252 initial Evidence tree is constructed; all later models with Evidence for that root satisfy depth4, rather than the falsified maximum2. This is a real existing source regression, not an arbitrary favorable evidence assumption at the initial state.
+
+## Phase 4: separate raw template result (before implementation)
+
+Add `GeneralNominalRawOutputBudget254`: a finite list of expression templates is
+obtained by compiling the source/registry finite body menu under the immutable
+source interpretation. For every actual reachable Frame, requested output,
+Supplies provenance, and successful compileBody, the resulting raw Expr belongs
+to this list. This needs neither Models nor Evidence. A maximum rawDepth bounds
+all such expressions, and arbitrary replacement of variables by source-name
+references preserves this raw depth by cycle253's reference_depth theorem.
+The source names in those references are NOT proved finite here; this is only
+the template half of raw journal finiteness. Other atom kinds and whole-state
+closure remain open. Raw explicit templates are compiled without a normalizing
+pass, exactly as compileBody does, unlike normalized semantic bodyDepth.
+
+## 実際に残る停止性の穴（後半自己点検）
+
+- ground代表の上界では `∃D, ∀state, ∀model, ∀Evidence, ∃representative` の順序。
+  `∃representative, ∀model` ではない。Evidenceがない未解決の出力に、この結果を
+  当てて有限poolを作ることはできない。
+- static EdgeのFrameはSelectedの仮定を持たない。candidate-frame child-callの
+  順序として正しいが、型等式のalias graphやsource constructor containmentの
+  graphと同一ではない。I50の循環時K2拒否の条件を閉じたとは言わない。
+- RawOutputBudget254では現実のcompileBodyが生成する有限Expr templateを得た。
+  Models/Evidenceは不要。しかし実referenceの名の有限列挙を別に要する。
+  出力body以外のhead schema、center7/8/9、refreshされたatom種別も残る。
+- `GeneralPresenceSnapshotNormal252.lower_exact/upper_exact` のconsumerが要求する
+  のは、全旧atomのmapping後atoms⊆poolという構文上の閉包。意味同値な浅い代表の
+  存在では置き換えられない。PublicBasis253はvarだけのpoolなので、非var atom
+  の扱い（public参照に置換する手続きとその意味保存）を先に仕様化する必要がある。
+- 追加回帰では4つの異なるvariant tagをbalanced joinした閉じたPatternが、
+  normalizeでright-associated rowになって深さ4→5となることもstrict証明した。
+  これは構文のみの境界検査でsource到達の新反例ではない。再normalize後の深さへ
+  無条件に読み替えない、という既存の制限が実際に必要なことを示す。
+- したがって次の大きな補題は `PublicBasisSourceClosure` の具体的置換と全atom分類。
+  その後、private非流出を全source traceへ持ち上げ、同内容reobserveを除いた
+  strict新factまたは細分化測度を構成する。有限poolの存在だけではAccは出ない。
+
+### 次のpool拡張で分類すべきcenterの正確な場合
+
+`GeneralNominalCenters.rootSite` はpoint入力なら既存端点、非pointならpurpose7。
+今回のsource boundaryはpointなので初期purpose7を無条件に追加する必要はない。
+`Plan.binder` はoutputNamesならpurpose2、input captureの両端が同名ならその端点、
+それ以外はpurpose8(name,0)。`Plan.emittedCenter` はnormalized clause引数がvarなら
+binderを継承し、compoundならpurpose9(clause.id,index)。versioned側にもこれらとの
+一致補題がある。このためpurpose8/9の有限列挙だけでは不十分で、binderが継承する
+実端点名がpublic pool内であることをtrace全体で証明する必要がある。旧private
+aggregateを単にpublicとみなす拡張はしない。次回はこの分類をclosure設計へ使う。

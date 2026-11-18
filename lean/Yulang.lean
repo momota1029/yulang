@@ -4649,3 +4649,4 @@ import Yulang.GeneralNominalOutputMenu254
 import Yulang.GeneralNominalProducerRank254
 import Yulang.GeneralNominalSourceOutputDepth254
 import Yulang.GeneralDictionaryOutputReadback254
+import Yulang.GeneralNominalRawOutputBudget254

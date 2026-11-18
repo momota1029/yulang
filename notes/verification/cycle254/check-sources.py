@@ -11,6 +11,7 @@ def visit(m):
  seen.add(str(p))
  for dep in re.findall(r'^import\s+(\S+)',p.read_text(),re.M):visit(dep)
 for m in mods:visit('Yulang.'+m)
+visit('Audit.Cycle254Usage')
 v.joinpath('dependency-source-sha256.json').write_text(json.dumps({p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in sorted(seen)},indent=2)+'\n')
 print(f'PASS import closure hashed: {len(seen)}')
 for p in [Path('lean/Yulang/'+m+'.lean') for m in mods]+[Path('lean/Audit/Cycle254Usage.lean')]:

@@ -1,0 +1,38 @@
+Focused cycle254 verification started 2026-11-18T11:14:38Z
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalQueryReadback254.olean lean/Yulang/GeneralNominalQueryReadback254.lean
+GeneralNominalQueryReadback254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalInputReadback254.olean lean/Yulang/GeneralNominalInputReadback254.lean
+GeneralNominalInputReadback254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalOutputReadback254.olean lean/Yulang/GeneralNominalOutputReadback254.lean
+GeneralNominalOutputReadback254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalBinderProducer254.olean lean/Yulang/GeneralNominalBinderProducer254.lean
+GeneralNominalBinderProducer254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalDefaultReadback254.olean lean/Yulang/GeneralNominalDefaultReadback254.lean
+GeneralNominalDefaultReadback254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalCapturedOutput254.olean lean/Yulang/GeneralNominalCapturedOutput254.lean
+GeneralNominalCapturedOutput254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalEvidenceOutput254.olean lean/Yulang/GeneralNominalEvidenceOutput254.lean
+GeneralNominalEvidenceOutput254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalSourceReadback254.olean lean/Yulang/GeneralNominalSourceReadback254.lean
+GeneralNominalSourceReadback254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalProducerOrder254.olean lean/Yulang/GeneralNominalProducerOrder254.lean
+GeneralNominalProducerOrder254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalOutputMenu254.olean lean/Yulang/GeneralNominalOutputMenu254.lean
+GeneralNominalOutputMenu254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalProducerRank254.olean lean/Yulang/GeneralNominalProducerRank254.lean
+GeneralNominalProducerRank254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalSourceOutputDepth254.olean lean/Yulang/GeneralNominalSourceOutputDepth254.lean
+GeneralNominalSourceOutputDepth254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralDictionaryOutputReadback254.olean lean/Yulang/GeneralDictionaryOutputReadback254.lean
+GeneralDictionaryOutputReadback254 exit=0
+../toolchain244/bin/lean --trust=0 -DwarningAsError=true -o lean/.lake/cycle247-clean/Yulang/GeneralNominalRawOutputBudget254.olean lean/Yulang/GeneralNominalRawOutputBudget254.lean
+GeneralNominalRawOutputBudget254 exit=0
+Usage 17 examples exit=0
+Complete audit 84 explicit declarations exit=0
+CYCLE254-FULL-AUDIT-PASS: 154 declarations including generated and private declarations
+PASS previous dependency source hashes unchanged: 1653
+PASS import closure hashed: 1429
+PASS forbidden tokens absent in new modules and usage
+PASS old Lean frozen; barrel append-only
+Whole repository build, verify-lean.sh and Yulang2 runtime not run
+Focused verification completed 2026-11-18T11:15:06Z
