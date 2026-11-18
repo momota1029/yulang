@@ -132,3 +132,37 @@ that actual packet Inputs can be reconstructed; do not silently drop those facts
 Known and PointAt are separately preserved between actual stage slots and their
 initial representatives; the full current report transports literally, including
 unchanged origin paths. Historical/current certificates are still additional.
+
+## Local repair proved
+
+For every actual current raw model, all historical lower/upper endpoints have
+values equivalent to initial2/4. A fixed two-atom equality `actual binder ≃ var2`
+is exactly equivalent to all recorded capture-center Fits obligations. From the
+same raw model plus this equality, reconstruct the actual historical report
+semantics, head schema, and every past packet Holds (not merely capture Fits).
+Use the already certified arbitrary-assignment install/refresh/reobserve model
+transport to reconstruct the whole actual journal at each earlier stage.
+Consequently, at each n+1, full journal Models iff current raw Models AND this
+one binder equality. This is specific to the terminal no-output/no-child I45
+family. It does not replace a general certificate producer, and says nothing
+about running a new saturation algorithm.
+
+Next represent that equality as two retained internal certificate atoms beside
+the finite current View. Preserve the actual binder explicitly in the public
+projection being compared, or prove its separate elimination before hiding it.
+Do not silently widen the source/public aggregate pool to include private names.
+
+## Finite journal-model slice, with reconstruction explicitly retained
+
+For positive stages, a five-slot View with at most ten ordinary atoms (four base,
+four canonical accumulated, two fixed actual-binder atoms) has exact whole-journal
+interpretation under solve(history). Its literal View is constant after the first
+round. Existential public models agree when initial0..4, the fixed actual binder,
+and every row component are held fixed. This is stronger than the earlier raw
+projection, but it is not a same-assignment journal iff without retained-history
+validity. It also does not make the reconstruction history disappear: solve still
+uses the growing history n to reconstruct old private values. No bound on actual
+journal storage, certificates, allocated names, or operational step count follows.
+The positive-stage restriction matters: the initial journal need not satisfy the
+new binder equality. Initial raw model projection is stable; full journal public
+projection stabilizes only after the first installed binder certificate.

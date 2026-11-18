@@ -1,3 +1,4 @@
+import Yulang.GeneralDictionaryFiniteJournal257
 import Yulang.GeneralDictionaryBinderGap257
 import Yulang.GeneralDictionaryProjectionBoundary257
 import Yulang.GeneralDictionaryCompactView257
@@ -84,3 +85,21 @@ example (n : Nat) : GeneralNominalState.Models
  (GeneralDictionaryBinderGap257.witness (n+1)) ∧
  ¬ GeneralNominalVersionedJournal232.Models (GeneralDictionaryLooseIterationIteration240.state (n+1))
  (GeneralDictionaryBinderGap257.witness (n+1)) := GeneralDictionaryBinderGap257.current_raw_not_journal n
+
+example (n : Nat) (a : Assignment) : GeneralNominalVersionedJournal232.Models
+ (GeneralDictionaryLooseIterationIteration240.state (n+1)) a ↔
+ GeneralNominalState.Models (GeneralDictionaryLooseIterationBook240.context (n+1)).state a ∧
+ GeneralDictionaryBinderFact257.Holds a := GeneralDictionaryJournalRepair257.exact n a
+example (n : Nat) (a : Assignment) : (GeneralDictionaryFiniteJournal257.view (n+1)).Models a ↔
+ GeneralNominalVersionedJournal232.Models (GeneralDictionaryLooseIterationIteration240.state (n+1))
+ (GeneralPresenceOrderedBlock247.solve model (GeneralDictionaryUpperHistory257.history (n+1)) a) :=
+ GeneralDictionaryFiniteJournal257.solved_exact n a
+example (n : Nat) (boundary : Assignment) :
+ (∃ a, GeneralDictionaryFiniteJournal257.Agree a boundary ∧
+ GeneralNominalVersionedJournal232.Models (GeneralDictionaryLooseIterationIteration240.state (n+1)) a) ↔
+ (∃ a, GeneralDictionaryFiniteJournal257.Agree a boundary ∧ (GeneralDictionaryFiniteJournal257.view (n+1)).Models a) :=
+ GeneralDictionaryFiniteJournal257.public_models n boundary
+example (n : Nat) : (GeneralDictionaryFiniteJournal257.view n).ordinary.length ≤ 10 := GeneralDictionaryFiniteJournal257.ordinary_bound n
+example (n : Nat) : GeneralDictionaryFiniteJournal257.view (n+1) = GeneralDictionaryFiniteJournal257.view 1 := GeneralDictionaryFiniteJournal257.stable n
+example : GeneralNominalVersionedJournal232.Models GeneralDictionaryLooseLoopSource240.initial GeneralDictionaryBinderGap257.seed :=
+ GeneralDictionaryBinderGap257.seed_models
