@@ -1852,5 +1852,9 @@
   "lean/Yulang/GeneralDictionaryCompoundFrame238.lean": "652c2f1c32688b4ba983269290000397d6a487173e945b5778b4955a5321f3ea",
   "lean/Yulang/GeneralDictionaryCompoundStep238.lean": "8d37cb1f72efab9d8c1f4c96a77e23b0bc3923c8709f6b087615d7f013b7bf0f",
   "lean/Yulang/GeneralRebaseRepresentativesExample263.lean": "bce1b196fb9f226b4a6a5f0202c7ca2348699de66843c40c9d77f8cd8703624f",
-  "lean/Yulang/GeneralRebaseSourceMeaning263.lean": "1b5d519a8716ebbc83477382e10adc229f69df51f174a77891a099168f8f1955"
+  "lean/Yulang/GeneralRebaseSourceMeaning263.lean": "1b5d519a8716ebbc83477382e10adc229f69df51f174a77891a099168f8f1955",
+  "lean/Yulang/GeneralRebaseSourceLocalHeads263.lean": "50113f56701d8eec8c938193d13427dd42186e99f5234b2b85f0faac480a9f56",
+  "lean/Yulang/GeneralRebaseSourceLocalMeaning263.lean": "83e128fda4f1cf7b63ebad8e649bf8a538dd400dd487ebe12b5835882a04c06a",
+  "lean/Yulang/GeneralRebaseFiniteStates263.lean": "6a8404b66db2c9316ad884871aef1bd470e2bab4bfa79a0acc3b9ab28d290df8",
+  "lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean": "83181bf049b2377e8baa21fc868edbb8616d4c0c81ccf49a5dc36e1c42bcb760"
 }

@@ -1,0 +1,121 @@
+'Yulang.GeneralDictionaryUpperHistory257.upperEntry' does not depend on any axioms
+'Yulang.GeneralDictionaryUpperHistory257.lowerEntry' does not depend on any axioms
+'Yulang.GeneralDictionaryUpperHistory257.history' does not depend on any axioms
+'Yulang.GeneralDictionaryUpperHistory257.upper_equations' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryUpperHistory257.block_in_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryUpperHistory257.targets_above' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryUpperHistory257.initial_fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFullExpansion257.snoc_other' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFullExpansion257.current_lower' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFullExpansion257.past_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFullExpansion257.current_upper' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFullExpansion257.past_upper' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPresenceIdempotentTree257.join' does not depend on any axioms
+'Yulang.GeneralPresenceIdempotentTree257.meet' does not depend on any axioms
+'Yulang.GeneralPresenceIdempotentTree257.reduce' depends on axioms: [propext]
+'Yulang.GeneralPresenceIdempotentTree257.meet_self' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPresenceIdempotentTree257.join_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPresenceIdempotentTree257.meet_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPresenceIdempotentTree257.equivalent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPresenceIdempotentTree257.atom' depends on axioms: [propext]
+'Yulang.GeneralPresenceIdempotentTree257.atom_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPresenceIdempotentTree257.all_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryShape257.crossAtom' does not depend on any axioms
+'Yulang.GeneralDictionaryOrdinaryShape257.selfAtom' does not depend on any axioms
+'Yulang.GeneralDictionaryOrdinaryShape257.lowerAtoms' does not depend on any axioms
+'Yulang.GeneralDictionaryOrdinaryShape257.upperAtoms' does not depend on any axioms
+'Yulang.GeneralDictionaryOrdinaryShape257.added_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryShape257.atom_cases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryShape257.length_atoms' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFullReduced257.reduce_tree' depends on axioms: [propext]
+'Yulang.GeneralDictionaryFullReduced257.lower_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFullReduced257.upper_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFullReduced257.initial_fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFullReduced257.lower_adapter_failure' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryFullReduced257.repaired_upper_prepare' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryFinite257.rewriteAtom' depends on axioms: [propext]
+'Yulang.GeneralDictionaryOrdinaryFinite257.le' does not depend on any axioms
+'Yulang.GeneralDictionaryOrdinaryFinite257.candidates' does not depend on any axioms
+'Yulang.GeneralDictionaryOrdinaryFinite257.cross_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryFinite257.self_fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryFinite257.lower_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryFinite257.upper_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryFinite257.finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryFinite257.rewritten' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryFinite257.rewritten_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryFinite257.length_rewritten' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryCanonical257.all_present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryCanonical257.compact' does not depend on any axioms
+'Yulang.GeneralDictionaryOrdinaryCanonical257.membership' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryCanonical257.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryOrdinaryCanonical257.length_bound' does not depend on any axioms
+'Yulang.GeneralDictionaryOrdinaryCanonical257.stable' depends on axioms: [propext]
+'Yulang.GeneralDictionaryCompactView257.expanded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.normalized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.baseAtoms' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.compact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.normalized_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.ordinary_split' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.compact_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.compact_solved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.recovered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.hidden' does not depend on any axioms
+'Yulang.GeneralDictionaryCompactView257.public_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.hidden_above' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCompactView257.slot_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.slot_type' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.foo' does not depend on any axioms
+'Yulang.GeneralDictionaryCompactFields257.pair' does not depend on any axioms
+'Yulang.GeneralDictionaryCompactFields257.original_type' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.anchor_type' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.foo_descriptor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.pair_descriptor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.nominal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.no_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.no_intervals' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.baseFacts' does not depend on any axioms
+'Yulang.GeneralDictionaryCompactFields257.base_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryCompactFields257.ordinary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFiveSlot257.descriptor' does not depend on any axioms
+'Yulang.GeneralDictionaryFiveSlot257.projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFiveSlot257.view' does not depend on any axioms
+'Yulang.GeneralDictionaryFiveSlot257.original_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFiveSlot257.projected_descriptor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFiveSlot257.compact_nominal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFiveSlot257.compact_target' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFiveSlot257.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFiveSlot257.stable' depends on axioms: [propext]
+'Yulang.GeneralDictionaryFiveSlot257.five_slots' does not depend on any axioms
+'Yulang.GeneralDictionaryFiveSlot257.ordinary_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryInitialProjection257.Agree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryInitialProjection257.solve_agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryInitialProjection257.public_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryInitialProjection257.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryFiniteView257.pool' does not depend on any axioms
+'Yulang.GeneralDictionaryFiniteView257.two_views' depends on axioms: [propext]
+'Yulang.GeneralDictionaryFiniteView257.terms_finite' depends on axioms: [propext]
+'Yulang.GeneralDictionaryFiniteView257.atoms_fixed' depends on axioms: [propext]
+'Yulang.GeneralDictionaryFiniteView257.no_private_type_reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryFiniteView257.row_metadata' does not depend on any axioms
+'Yulang.GeneralDictionaryFiniteView257.no_strict_view_rank' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNoModelRefinement257.initial_cross' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNoModelRefinement257.initial_facts' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNoModelRefinement257.one_iff_zero' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNoModelRefinement257.all_iff_zero' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryNoModelRefinement257.initial_public_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryProjectionBoundary257.anchor_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryProjectionBoundary257.anchor_collapsed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryProjectionBoundary257.not_injective' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDictionaryProjectionBoundary257.state_slots' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDictionaryProjectionBoundary257.states_distinct' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDictionaryProjectionBoundary257.distinct_with_same_view' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

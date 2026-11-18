@@ -263,3 +263,33 @@
 'Yulang.GeneralRebaseSourceMeaning263.Certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralRebaseSourceMeaning263.empty_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Yulang.GeneralRebaseSourceMeaning263.source_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot_spec' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.RepresentativeHeads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.representative_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.all_registered_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalHeads263.of_sourceHeads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceLocalMeaning263.Context' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceLocalMeaning263.source_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceLocalMeaning263.global_implies_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.skip' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteStates263.keep' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteStates263.states' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteStates263.mem_of_sublist' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.length' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.image_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.forall_image_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteStates263.heads_image_iff' depends on axioms: [propext, Classical.choice, Quot.sound]

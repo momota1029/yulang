@@ -163,3 +163,21 @@ Plan非依存basisの各factを固定代表Planで解釈する。任意base下�
 任意Checked source/Initialについてowners,pool,holdsをbaseとinspectorより先に選ぶ。個別source到達inspectorの任意成功runには、base∧全到達head充足をContextとして、全assignmentに共通の履歴・Ready・終端・予算・実ClassEffectsとの同値がある。未来全体に登録Planがない場合も空選択で処理する。Contextの存在・SAT・自動成立は未証明。限定健全性・完全性。
 
 `Context`, `Certificate`, `empty_selected`, `source_certificate`
+
+## 28. GeneralRebaseSourceLocalHeads263
+
+任意非空のsource登録族で、選んだ代表Planそのものを含む実snapshotをownerごとに選ぶ。有限ownersのうち出現するownerの代表snapshot全登録headと、実observed snapshot全登録headだけで互換性を導く。全alternate source futuresのhead充足は不要。どちらのsnapshotでもproducer全体のheadsは明示前提。補助。
+
+`representativeSnapshot`, `representativeSnapshot_spec`, `RepresentativeHeads`, `representative_compatible`, `all_registered_compatible`, `of_sourceHeads`
+
+## 29. GeneralRebaseSourceLocalMeaning263
+
+任意Checked/Initialと非空のsource登録族に対し、finite owners/pool/holdsをbase・inspectorより先に固定する。各snapshotがsource到達するinspectorの成功runで、base∧有限代表snapshotのheads∧inspector像のheadsをContextにすれば、Ready・終端・予算と実ClassEffects同値が得られる。Contextはinspectorに依存するがrunの帰結を前提に含まない。全futureHeadsより弱い。空登録族は既存SourceMeaningで別処理。限定健全性・完全性。
+
+`Context`, `source_certificate`, `global_implies_context`
+
+## 30. GeneralRebaseFiniteStates263
+
+任意有限basisについて全Stateをskip/keepで明示列挙し、全状態の包含とリスト長2^basis.lengthを証明する。重複basisでは列挙結果も重複し、distinct状態数の等号ではない。任意inspector像上の全Heads条件を有限list上の量化へ同値変形できる。指数的列挙は効率的実行や意味Heads判定可能性の主張ではない。補助。
+
+`skip`, `keep`, `states`, `mem_of_sublist`, `complete`, `length`, `image_exact`, `forall_image_iff`, `heads_image_iff`

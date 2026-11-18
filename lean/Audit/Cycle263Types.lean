@@ -25,6 +25,9 @@ import Yulang.GeneralRebaseUniversalRegression263
 import Yulang.GeneralRebaseSourceRepresentatives263
 import Yulang.GeneralRebaseRepresentativesExample263
 import Yulang.GeneralRebaseSourceMeaning263
+import Yulang.GeneralRebaseSourceLocalHeads263
+import Yulang.GeneralRebaseSourceLocalMeaning263
+import Yulang.GeneralRebaseFiniteStates263
 
 #check @Yulang.GeneralRebaseNormalizedBody263.explicit_value
 #check @Yulang.GeneralRebaseNormalizedBody263.explicit_body
@@ -255,3 +258,21 @@ import Yulang.GeneralRebaseSourceMeaning263
 #check @Yulang.GeneralRebaseSourceMeaning263.Certificate
 #check @Yulang.GeneralRebaseSourceMeaning263.empty_selected
 #check @Yulang.GeneralRebaseSourceMeaning263.source_certificate
+#check @Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot
+#check @Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot_spec
+#check @Yulang.GeneralRebaseSourceLocalHeads263.RepresentativeHeads
+#check @Yulang.GeneralRebaseSourceLocalHeads263.representative_compatible
+#check @Yulang.GeneralRebaseSourceLocalHeads263.all_registered_compatible
+#check @Yulang.GeneralRebaseSourceLocalHeads263.of_sourceHeads
+#check @Yulang.GeneralRebaseSourceLocalMeaning263.Context
+#check @Yulang.GeneralRebaseSourceLocalMeaning263.source_certificate
+#check @Yulang.GeneralRebaseSourceLocalMeaning263.global_implies_context
+#check @Yulang.GeneralRebaseFiniteStates263.skip
+#check @Yulang.GeneralRebaseFiniteStates263.keep
+#check @Yulang.GeneralRebaseFiniteStates263.states
+#check @Yulang.GeneralRebaseFiniteStates263.mem_of_sublist
+#check @Yulang.GeneralRebaseFiniteStates263.complete
+#check @Yulang.GeneralRebaseFiniteStates263.length
+#check @Yulang.GeneralRebaseFiniteStates263.image_exact
+#check @Yulang.GeneralRebaseFiniteStates263.forall_image_iff
+#check @Yulang.GeneralRebaseFiniteStates263.heads_image_iff

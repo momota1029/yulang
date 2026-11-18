@@ -25,6 +25,9 @@ import Yulang.GeneralRebaseUniversalRegression263
 import Yulang.GeneralRebaseSourceRepresentatives263
 import Yulang.GeneralRebaseRepresentativesExample263
 import Yulang.GeneralRebaseSourceMeaning263
+import Yulang.GeneralRebaseSourceLocalHeads263
+import Yulang.GeneralRebaseSourceLocalMeaning263
+import Yulang.GeneralRebaseFiniteStates263
 
 #print axioms Yulang.GeneralRebaseNormalizedBody263.explicit_value
 #print axioms Yulang.GeneralRebaseNormalizedBody263.explicit_body
@@ -255,3 +258,21 @@ import Yulang.GeneralRebaseSourceMeaning263
 #print axioms Yulang.GeneralRebaseSourceMeaning263.Certificate
 #print axioms Yulang.GeneralRebaseSourceMeaning263.empty_selected
 #print axioms Yulang.GeneralRebaseSourceMeaning263.source_certificate
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.representativeSnapshot_spec
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.RepresentativeHeads
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.representative_compatible
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.all_registered_compatible
+#print axioms Yulang.GeneralRebaseSourceLocalHeads263.of_sourceHeads
+#print axioms Yulang.GeneralRebaseSourceLocalMeaning263.Context
+#print axioms Yulang.GeneralRebaseSourceLocalMeaning263.source_certificate
+#print axioms Yulang.GeneralRebaseSourceLocalMeaning263.global_implies_context
+#print axioms Yulang.GeneralRebaseFiniteStates263.skip
+#print axioms Yulang.GeneralRebaseFiniteStates263.keep
+#print axioms Yulang.GeneralRebaseFiniteStates263.states
+#print axioms Yulang.GeneralRebaseFiniteStates263.mem_of_sublist
+#print axioms Yulang.GeneralRebaseFiniteStates263.complete
+#print axioms Yulang.GeneralRebaseFiniteStates263.length
+#print axioms Yulang.GeneralRebaseFiniteStates263.image_exact
+#print axioms Yulang.GeneralRebaseFiniteStates263.forall_image_iff
+#print axioms Yulang.GeneralRebaseFiniteStates263.heads_image_iff

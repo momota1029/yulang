@@ -136,3 +136,7 @@ lean/Yulang/GeneralDictionaryCompoundFrame238.lean
 lean/Yulang/GeneralDictionaryCompoundStep238.lean
 lean/Yulang/GeneralRebaseRepresentativesExample263.lean
 lean/Yulang/GeneralRebaseSourceMeaning263.lean
+lean/Yulang/GeneralRebaseSourceLocalHeads263.lean
+lean/Yulang/GeneralRebaseSourceLocalMeaning263.lean
+lean/Yulang/GeneralRebaseFiniteStates263.lean
+lean/Yulang/GeneralNominalVersionedMixedPlanLedger235.lean

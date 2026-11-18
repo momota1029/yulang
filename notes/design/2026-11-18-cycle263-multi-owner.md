@@ -90,3 +90,15 @@ This removes an external representative/Layout/center-equivalence hypothesis, bu
 DOES NOT prove SourceHeads from Initial or from language typing. It is head-only,
 not a hidden conjunction of desired output ClassEffects. The inspector is still an
 external source-reachable snapshot function; oldStep simulation is still open.
+
+## Localized head-context refinement (20:06 UTC)
+
+Global SourceHeads across every alternate source future is stronger than transport
+needs and may be inconsistent for an otherwise useful branch. Keep that theorem,
+but add a localized variant: choose a witnessing source snapshot for each occurring
+finite owner representative; require head support only for those snapshots and
+for the actual inspector image. The fact interpretation is still chosen before
+base/inspector/assignment; the contextual base may depend on the inspector.
+No output body/effect satisfaction is put into the context. The inspector image
+is not automatically a source execution, nor are heads automatically satisfiable.
+This is a conditional semantics refinement, not a claim of language completeness.

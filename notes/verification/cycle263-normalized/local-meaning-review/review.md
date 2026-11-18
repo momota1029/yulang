@@ -1,0 +1,14 @@
+# Independent review: inspector-local source meaning
+
+Exact reviewed revision: `ce8255291`, GeneralRebaseSourceLocalMeaning263. No production edits.
+
+**Verdict:** no defect found in quantifier order, empty-family treatment, or the inspector-dependent context. Independent strict fresh compilation and theorem probes pass.
+
+1. The nonempty witness is an explicit theorem parameter: an actual source-reachable registered Plan must exist somewhere. This theorem does not silently cover empty families. The earlier SourceMeaning263 theorem handles that case separately. SourceLocalMeaning neither constructs a fictional Plan nor weakens the nonempty obligation.
+2. Owners, pool and holds are existentially fixed before base and inspect. The representative choice depends on source data and the nonempty witness, not the inspector or assignment. Inspect cannot retroactively change the interpretation of finite fact addresses.
+3. Context is explicitly base AND the finitely listed chosen-representative snapshot Heads AND Heads for every snapshot in the inspector's image. This is weaker in coverage than every possible source future (global_implies_context proves the implication). It is still stronger than heads only along the one successful execution: the definition quantifies over ALL finite states supplied to inspect, not just states in the returned history. This scope must not be described as only visited snapshots.
+4. There is no hidden proof cycle. Inspect is an already supplied function of finite state. Context then constrains assignments by the head schemas of its outputs; the executable run never consults that semantic Context. The proof uses this fixed Context to justify each actual selected Plan's local normalized transport, and only then derives ClassEffects. Context contains no ClassEffects or desired model-equivalence premise. It could be unsatisfiable for a chosen inspector/base; no satisfiability or automatic head derivation is claimed.
+5. The resulting Certificate retains this exact inspector-dependent Context on BOTH sides of the model equivalence. The event list is fixed before all assignments; exact per-event source/root/Plan effects are simultaneous. The theorem is therefore conditional semantic soundness for the executable finite run, not semantics under the unstrengthened base alone.
+6. Reachability remains an explicit condition for every inspect output. No adjacency between consecutive source observations is asserted, and the theorem is not old-Step simulation, source compiler completeness, or M1. The bound counts effective finite writes only.
+
+Verification: build.sh exports the exact reviewed source into a separate temporary source tree and compiles a fresh olean into the review cache using --trust=0 -DwarningAsError=true. Probe.lean imports only Yulang production modules and audits both theorems; only propext/Classical.choice/Quot.sound appear. Source hash, build log and audit output are adjacent.

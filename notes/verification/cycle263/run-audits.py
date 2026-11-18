@@ -12,3 +12,4 @@ for part in [p.stem.removeprefix('Cycle263') for p in sorted(Path('lean/Audit').
   r=subprocess.run(['lake','env','lean','--trust=0','-DwarningAsError=true','Audit/Cycle263'+part+'.lean'],cwd='lean',env=env,stdout=log,stderr=subprocess.STDOUT)
  if r.returncode:raise SystemExit(r.returncode)
 print('STANDALONE-AUDITS-PASS',flush=True)
+print('Completed at',datetime.datetime.now(datetime.timezone.utc).isoformat(),flush=True)
