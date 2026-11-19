@@ -1,0 +1,17 @@
+'Yulang.GeneralRebaseArchiveUnbounded283.key_member' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseArchiveUnbounded283.key_count' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseArchiveUnbounded283.nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseArchiveUnbounded283.length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseArchiveUnbounded283.version_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseArchiveUnbounded283.loose_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseArchiveUnbounded283.version_no_uniform_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseArchiveUnbounded283.loose_no_uniform_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseFrontierPairs283.exact_pairs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFrontierPairs283.product_count' depends on axioms: [propext]
+'Yulang.GeneralRebaseFrontierPairs283.fast_count' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFrontierPairs283.actual_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+exit=0

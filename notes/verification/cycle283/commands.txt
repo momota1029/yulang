@@ -1,0 +1,11 @@
+Lean 4.35.0, script equivalents:
+for m in <module-list>; do (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . -o ".lake/build/lib/lean/Yulang/$m.olean" "Yulang/$m.lean"); done
+for a in lean/Audit/Cycle283*.lean; do (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . "${a#lean/}"); done
+(cd lean && lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle283/typed-use.lean)
+(cd lean && lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle283/executable.lean)
+git diff --check against prior cycle and integrated base
+bash tools/verify-lean.sh . e62f33b584c1bba2f9214701d3b3b80591cb386b --no-build
+bash tools/verify-lean.sh . 4597a4afd79a315170786e1cf8ceb1a612949fed --no-build
+Independent audit stdout in history.txt, sorted.txt, gate-slice.txt, bounded-loops.txt, locality.txt and archive.txt.
+Only standard Lean axioms (propext, Quot.sound, Classical.choice).
+Compiled numeric outputs are not extracted runtime or Yulang2 timings.

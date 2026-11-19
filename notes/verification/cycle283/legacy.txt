@@ -1,0 +1,16 @@
+Cycle206DefaultGap exit=0 stdout_sha256=b919918f5444586133e9e6e42ada33383bb776198251e32fdc502ac585b58497
+Cycle235Fifth exit=0 stdout_sha256=8ac1b3809ef6fff0b172ec3b1696b73d84c6feaeaa507e8cec71eeeb76e72cd7
+Cycle230Completion exit=0 stdout_sha256=0c9c1eaa4b8bd6b459cdb9e42975ebc6d3b2a44ef418520b724ae45dae4a0cd8
+Cycle233Final exit=0 stdout_sha256=f43e20a113c817db9faa50b6be43fa24c59d6deecd53e1515b497d1347614c23
+Cycle239Second exit=1 stdout_sha256=02c0632b15c0b4a2e79340fb2f10fdd2c120567d4948e5c031e25719ab66a74a
+Audit/Cycle239Second.lean:1:0: error: object file '/workspace/scratch/1d0b4aaa3394/yulang/lean/.lake/build/lib/lean/Yulang/GeneralDictionaryCompoundVacuity239.olean' of module Yulang.GeneralDictionaryCompoundVacuity239 does not exist
+Cycle240Independent exit=0 stdout_sha256=4f431f6d108201940e138c556e5b6bd3f00783aee777a2ea72e56beed0bfb1f6
+Cycle281Phases exit=0 stdout_sha256=b6971bb1d43fce0acb8e0e3406f6819b2c3cad172b9bc75f553ba516a8c6eea3
+Cycle282CompiledDriver exit=0 stdout_sha256=fdb5f2106565da358f0aff6e278e65b6dc558b654229eac479e23981703ae75e
+Cycle239Second retry: missing legacy dependency rebuilt with a 145 s ceiling and Lean -M 3200; existing GeneralDictionaryCompoundVacuity239 hit the kernel memory ceiling. Legacy source is byte-identical to integration/m1-final. No claim of pass.
+Yulang/GeneralDictionaryCompoundVacuity239.lean:10:9: error: (kernel) excessive memory consumption detected
+Yulang/GeneralDictionaryCompoundVacuity239.lean:27:8: error: (kernel) excessive memory consumption detected
+Yulang/GeneralDictionaryCompoundVacuity239.lean:37:8: error: (kernel) excessive memory consumption detected
+Yulang/GeneralDictionaryCompoundVacuity239.lean:53:8: error: (kernel) excessive memory consumption detected
+Cycle239First exit=0 stdout_sha256=c3bd508d26b016228814ab32b49025e509e73966a28222289e85810132627218
+CYCLE239-FIRST-PASS: 248 constants in 14 modules

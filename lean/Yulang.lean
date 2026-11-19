@@ -5462,3 +5462,5 @@ import Yulang.GeneralRebaseClassLocality283
 import Yulang.GeneralRebaseCacheCounterexamples283
 import Yulang.GeneralRebaseFreshOnlyCache283
 import Yulang.GeneralRebaseFreshOnlyFixtures283
+import Yulang.GeneralRebaseArchiveUnbounded283
+import Yulang.GeneralRebaseFrontierPairs283

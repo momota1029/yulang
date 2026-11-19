@@ -1,0 +1,14 @@
+import Yulang.GeneralRebaseFrontierPairs283
+
+#print axioms Yulang.GeneralRebaseArchiveUnbounded283.key_member
+#print axioms Yulang.GeneralRebaseArchiveUnbounded283.key_count
+#print axioms Yulang.GeneralRebaseArchiveUnbounded283.nodup
+#print axioms Yulang.GeneralRebaseArchiveUnbounded283.length
+#print axioms Yulang.GeneralRebaseArchiveUnbounded283.version_exact
+#print axioms Yulang.GeneralRebaseArchiveUnbounded283.loose_exact
+#print axioms Yulang.GeneralRebaseArchiveUnbounded283.version_no_uniform_bound
+#print axioms Yulang.GeneralRebaseArchiveUnbounded283.loose_no_uniform_bound
+#print axioms Yulang.GeneralRebaseFrontierPairs283.exact_pairs
+#print axioms Yulang.GeneralRebaseFrontierPairs283.product_count
+#print axioms Yulang.GeneralRebaseFrontierPairs283.fast_count
+#print axioms Yulang.GeneralRebaseFrontierPairs283.actual_iff

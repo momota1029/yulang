@@ -1,4 +1,4 @@
-import Yulang.GeneralRebaseCacheCounterexamples283
+import Yulang.GeneralRebaseFrontierPairs283
 
 open Yulang
 open GeneralRebaseCacheCounterexamples283 (earlier full)
@@ -31,3 +31,5 @@ def first : Output := ⟨5,12⟩
 def second : Output := ⟨5,14⟩
 #eval (fresh [first] [first,second]).map Output.target
 #eval (pairs [first] [first,second]).map (fun (a,b) => (a.target,b.target))
+#eval (GeneralRebaseFrontierPairs283.fast [first] [first,second]).map (fun (a,b) => (a.target,b.target))
+#eval (GeneralRebaseFrontierPairs283.fast [first,second] [first,second]).length
