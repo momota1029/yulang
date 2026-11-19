@@ -1,0 +1,8 @@
+'Yulang.GeneralRebasePacketFootprint281.footprint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketFootprint281.footprint_in_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketFootprint281.project_through' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketFootprint281.all_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketFootprint281.projected_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketFootprint281.view' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketFootprint281.cut_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePacketFootprint281.footprint_cut' depends on axioms: [propext, Classical.choice, Quot.sound]

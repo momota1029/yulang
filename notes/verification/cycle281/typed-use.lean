@@ -1,6 +1,7 @@
 import Yulang.GeneralRebasePhaseCache281
 import Yulang.GeneralRebaseLoopReplay281
 import Yulang.GeneralRebaseTermReplay281
+import Yulang.GeneralRebasePacketFootprint281
 
 open Yulang
 open GeneralRebaseLoopReplay281
@@ -48,5 +49,13 @@ theorem arbitrary_packet (q : GeneralNominalCenters.Plan roles) (m : Assignment)
         GeneralRebaseTermCopy281.Respects (GeneralRebaseTermCopy281.kept (sourceView q.packet)
           (GeneralRebaseTermAggregate281.writes q.packet false)) m :=
   GeneralRebaseTermReplay281.actual_project q m
+
+theorem reduced_chart (q : GeneralNominalCenters.Plan roles) (m : Assignment) :
+    Project (GeneralRebasePacketFootprint281.footprint q.packet)
+      (Models (replayPlan q).packet.context.state) m ↔
+    Project (GeneralRebasePacketFootprint281.footprint q.packet) (Models q.packet.context.state) m ∧
+      PresenceNormalForm.All CommonNominalFullCarrier.model m (GeneralRebasePacketChart281.pool q.packet) :=
+  GeneralRebasePacketFootprint281.projected_exact q
+    (GeneralRebasePacketFootprint281.footprint_in_source q.packet) (fun _ h => h) m
 
 end Cycle281TypedUse

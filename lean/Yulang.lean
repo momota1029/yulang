@@ -5391,3 +5391,5 @@ import Yulang.GeneralRebaseLoopReplay281
 import Yulang.GeneralRebaseTermCopy281
 import Yulang.GeneralRebaseTermAggregate281
 import Yulang.GeneralRebaseTermReplay281
+import Yulang.GeneralRebasePacketChart281
+import Yulang.GeneralRebasePacketFootprint281
