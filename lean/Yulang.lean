@@ -5276,3 +5276,6 @@ import Yulang.GeneralRebaseMixedLength277
 import Yulang.GeneralRebaseBoundedInstallAcc277
 import Yulang.GeneralRebaseFiniteCodeAcc277
 import Yulang.GeneralRebaseFiniteCodeBoundary277
+import Yulang.GeneralRebaseRoundMicro278
+import Yulang.GeneralRebaseVersionMicro278
+import Yulang.GeneralRebaseLooseMicro278
