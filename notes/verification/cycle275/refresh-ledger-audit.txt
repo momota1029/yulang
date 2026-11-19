@@ -1,0 +1,5 @@
+'Yulang.GeneralRebaseRefreshLedger275.Retained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshLedger275.refl' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshLedger275.trans' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshLedger275.hop_retains' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshLedger275.all_retained' depends on axioms: [propext, Classical.choice, Quot.sound]
