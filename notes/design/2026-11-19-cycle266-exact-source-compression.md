@@ -52,3 +52,34 @@ contained). Derive count comparison and endpoint uniqueness for a
 deterministic relation whose reference run ends terminal. Then cut the spine
 constructively with respect to its projected edge test. This does not provide
 reverse lifting for the table formed from unrelated paths.
+
+## Rule settlement on a single spine
+
+The positive rule compilation may jump across states in general. For one
+composable spine it should nevertheless settle to exactly its projected final
+state. At every edge, every known target fact is also known at the final
+projection. Thus that projection is a saturating upper bound. The exact
+certified run gives the reverse inclusion. Use the shared list/sublist
+invariants and the write-to-final square to retain duplicate/order structure.
+This result is only about terminal facts, not step count or the full journal.
+
+## Branching certificate tables with a common target
+
+Given a nonempty finite list of actual certified paths with shared concrete
+first and last states, concatenate their table entries. Individual runs can
+choose strict edges from different paths when their projected vertices
+collide; do not claim representative-sensitive lift. Prove nonetheless that
+all maximal runs from the common projection reach the designated final
+projection: any certificate edge target on a path can follow its own suffix
+within the union table; common-final rank rules out any strict edge out of the
+target. Show the Horn table reaches the same final projection.
+
+## Exact journal interpretation of the computed terminal value
+
+Use one source-derived finite owner/output basis for any family of actual
+paths beginning at a declared initial source. Reachability will derive ledger
+synchrony and live fact coverage. Combine the certified/positive common
+terminal value with the journal decomposition, retaining the concrete final
+remainder and an explicit fixed-representative compatibility premise for each
+assignment in that remainder. No model iff is asserted for a projected state
+alone or with a discarded remainder.
