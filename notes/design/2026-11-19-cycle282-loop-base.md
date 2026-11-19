@@ -1,0 +1,2 @@
+# Cycle 282 — 239/240 の live RHS を元の source 名に戻す
+各 completed round の全旧定義は、lower の連鎖を旧 lower と同じ値へ写す。既に存在する packet の左右を実 versioned compiler から取り、全履歴の ordered solver がそれを満たすことから、任意の base 割当で lower_i と入力 source 2 が相互部分型になる。240 の upper は固定された source 4 を読む。最新 plan だけを実 state の plan 先頭から選ぶため、全 n>0 の live 表を、元の二つの source だけを読む定数サイズの表に置換できる。これは有限の completeness regression であり、旧 raw loop の停止も構造用 Known 全体の有限性も主張しない。

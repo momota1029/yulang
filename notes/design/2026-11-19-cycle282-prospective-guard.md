@@ -1,0 +1,2 @@
+# Cycle 282 — 共通モデルを仮定しない据え付け前の exact guard
+候補の Frame と snapshot 一致だけで、仮に install 後の構造体を作っても、seed 台帳と legacy-empty は保存される。Model の存在は仮定しない。この仮状態の全履歴読み出しをコンパイルし、compile 側のモデル存在 iff 旧 install の Common を示す。他の checked guard（SafeKnown、cache、materialized、choice、cycle、alternatives）、Generated、未据え付けは変更しない。両向きを確立した後、旧 Common から真の次状態到達を作って live fixed 表をも実現する。従って live 表も併用した新しい install guard を非循環的に導ける。子の最終 evidence を guard に要求しない。

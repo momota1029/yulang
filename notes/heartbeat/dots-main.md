@@ -2,9 +2,9 @@
 - cycle: 282
 - status: running
 - started: 2026-11-19T21:35:10Z
-- updated: 2026-11-19T21:55:10Z
-- elapsed_min: 20.00
-- activity: 20分: 実到達の全 journal と再帰的 Evidence が固定ポートを読まないこと、old 版付け履歴の展開と単一固定表を同じ射影で保持できることを検証。
+- updated: 2026-11-19T22:05:11Z
+- elapsed_min: 30.02
+- activity: 30分: 全 owner の最新固定表の同時 witness、source 由来のアドレス基底、全行を保つ射影、旧239/240と optional output の回帰まで監査済み。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: cc6c706fb
-- resume_hint: 全 owner の最新固定表を同時に実現し、source からアドレス上界を出す。
+- last_local_commit: 7f7b4426e
+- resume_hint: 共通モデルを未確認の据え付け候補で先に判定し、実 install guard との iff を作る。
