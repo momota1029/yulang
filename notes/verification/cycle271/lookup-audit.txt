@@ -1,0 +1,10 @@
+'Yulang.GeneralRebaseRecordLookup271.first' does not depend on any axioms
+'Yulang.GeneralRebaseRecordLookup271.field' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordLookup271.payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordLookup271.exists_first' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordOverwrite271.finite' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordOverwrite271.observed' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordOverwrite271.fieldStep' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordOverwrite271.optStep' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordOverwrite271.masked_equiv' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordOverwrite271.checked' depends on axioms: [propext, Quot.sound]

@@ -5073,3 +5073,5 @@ import Yulang.GeneralRebaseReplayFrontierFixture270
 import Yulang.GeneralRebaseSourceStepDriver270
 import Yulang.GeneralRebaseRecordTagBoundary270
 import Yulang.GeneralRebaseRecordWindowBoundary270
+import Yulang.GeneralRebaseRecordLookup271
+import Yulang.GeneralRebaseRecordOverwrite271
