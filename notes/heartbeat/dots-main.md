@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 283
-- status: completed
-- started: 2026-11-19T22:30:00Z
-- updated: 2026-11-19T23:20:06Z
-- elapsed_min: 50.10
-- activity: actual install の差分再評価、全 evidence の slice、2行の履歴更新と索引の非有界性。39モジュール、6独立監査133宣言 PASS。
+- cycle: 284
+- status: running
+- started: 2026-11-19T23:33:14Z
+- updated: 2026-11-19T23:33:37Z
+- elapsed_min: 0.38
+- activity: 前回完了と単独作業を確認。未来の型読みを閉じる条件を設計する。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: c350055ce
-- report: notes/handoff/dots-cycle-283.md
-- resume_hint: 固定 future read interface の閉包、Known と Local の exact transport を出してから版付き索引を消す。
+- last_local_commit: d8c6e0d01
+- resume_hint: 固定queryを保つ圧縮と実経路に渡せる保存を区別する。
