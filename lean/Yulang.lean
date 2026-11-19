@@ -5295,3 +5295,7 @@ import Yulang.GeneralNominalPairDecode278
 import Yulang.GeneralRebaseFamilyDecode278
 import Yulang.GeneralRebaseFamilyRank278
 import Yulang.GeneralRebaseFastLooseFill278
+import Yulang.GeneralRebaseInstallTimeline278
+import Yulang.GeneralRebaseVersionKnown278
+import Yulang.GeneralRebaseLooseKnown278
+import Yulang.GeneralRebaseMicroProbe278
