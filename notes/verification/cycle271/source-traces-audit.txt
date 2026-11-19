@@ -1,0 +1,8 @@
+'Yulang.GeneralRebaseOutputDepthTrace271.roles' does not depend on any axioms
+'Yulang.GeneralRebaseOutputDepthTrace271.observe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthTrace271.at_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthTrace271.after_weak_is_silent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOutputDepthTrace271.classify_all' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthTrace271.no_followup' depends on axioms: [propext, Classical.choice, Quot.sound]

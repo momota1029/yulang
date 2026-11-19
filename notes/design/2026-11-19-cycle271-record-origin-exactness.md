@@ -150,3 +150,8 @@ and raw candidate cycle reasons (via edge embedding). The explicit real
 installed model in 252 supplies this total function, including parameter
 and output names. No raw normalization of its associated output is
 imputed: the full output-to-input path remains absent in the raw graph.
+
+For actual 252 the two-address dichotomy additionally classifies
+every finite original trace: either it is a complete lull, or there
+is one genuine weak exit followed by an entirely silent suffix. This
+is a statement about all old finite traces, not about old termination.
