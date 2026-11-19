@@ -1,0 +1,35 @@
+import Yulang.GeneralRebaseSemanticChart281
+import Yulang.GeneralRebaseChartStep281
+import Yulang.GeneralRebaseChartBudget281
+
+#print axioms Yulang.GeneralRebaseSemanticChart281.Entails
+#print axioms Yulang.GeneralRebaseSemanticChart281.Complete
+#print axioms Yulang.GeneralRebaseSemanticChart281.Loss
+#print axioms Yulang.GeneralRebaseSemanticChart281.Gain
+#print axioms Yulang.GeneralRebaseSemanticChart281.Decreases
+#print axioms Yulang.GeneralRebaseSemanticChart281.entailment_mono
+#print axioms Yulang.GeneralRebaseSemanticChart281.gain_cuts
+#print axioms Yulang.GeneralRebaseSemanticChart281.cut_gains
+#print axioms Yulang.GeneralRebaseSemanticChart281.loss_iff_gain
+#print axioms Yulang.GeneralRebaseSemanticChart281.exact_of_requirements
+#print axioms Yulang.GeneralRebaseSemanticChart281.exact_with_base
+#print axioms Yulang.GeneralRebaseSemanticChart281.relative_loss_iff
+#print axioms Yulang.GeneralRebaseChartStep281.Chart
+#print axioms Yulang.GeneralRebaseChartStep281.Public
+#print axioms Yulang.GeneralRebaseChartStep281.Recorded
+#print axioms Yulang.GeneralRebaseChartStep281.Strict
+#print axioms Yulang.GeneralRebaseChartStep281.Step
+#print axioms Yulang.GeneralRebaseChartStep281.restrict
+#print axioms Yulang.GeneralRebaseChartStep281.monotone
+#print axioms Yulang.GeneralRebaseChartStep281.quiet_kept
+#print axioms Yulang.GeneralRebaseChartStep281.semantic_kept
+#print axioms Yulang.GeneralRebaseChartStep281.graph_kept
+#print axioms Yulang.GeneralRebaseChartStep281.strict_iff
+#print axioms Yulang.GeneralRebaseChartStep281.strict_relative
+#print axioms Yulang.GeneralRebaseChartStep281.uncount
+#print axioms Yulang.GeneralRebaseChartBudget281.Budget
+#print axioms Yulang.GeneralRebaseChartBudget281.budget_le
+#print axioms Yulang.GeneralRebaseChartBudget281.state_budget
+#print axioms Yulang.GeneralRebaseChartBudget281.source_pool
+#print axioms Yulang.GeneralRebaseChartBudget281.max_steps
+#print axioms Yulang.GeneralRebaseChartBudget281.accessible
