@@ -46,3 +46,17 @@ A checked two-slot fixture with distinct endpoint slots, equality from
 literal atoms, and a recursive nominal model computes a positive non-direct
 cycle even when all externally supplied bound answers are unknown. No
 surface-program reachability is asserted for that synthetic snapshot.
+
+### Current journal input equality
+
+Use the actual Versioned Models to justify finite edges from raw current
+and source inequalities, base interval pairs, and every registered center's
+lower/upper bounds. A finite universe need only cover graph-reachable names
+from the queried name, not all Nat; relative worklist termination is
+checked explicitly. Two proved inequality directions yield point
+equivalence, and a separately certified negative direction excludes it.
+Zip over centered argument names as in the actual SameInputs predicate.
+The strict merge scanner consumes positives; its negative completeness is
+conditional on known answers on the linked site pairs. A genuine initialized
+fixture compares two nonliteral equal centers, without asserting the second
+comparison site is registered or an actual merge occurs in that fixture.

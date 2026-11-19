@@ -1,0 +1,48 @@
+'Yulang.FiniteWorklistRelative269.Closed' does not depend on any axioms
+'Yulang.FiniteWorklistRelative269.scope_exhausted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteWorklistRelative269.explore_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteWorklistRelative269.reachable_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.Between' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.fromRaw' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.fromRaw_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.centerEdges' does not depend on any axioms
+'Yulang.GeneralRebaseJournalInequalities269.center_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.edges_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.adj' does not depend on any axioms
+'Yulang.GeneralRebaseJournalInequalities269.adj_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.scope' does not depend on any axioms
+'Yulang.GeneralRebaseJournalInequalities269.scope_closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.prove' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.prove_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.path_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseJournalInequalities269.prove_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.raw_source_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.le' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.le_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.eq_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.givenNames' does not depend on any axioms
+'Yulang.GeneralRebaseSameInputs269.related_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.zipped' depends on axioms: [propext]
+'Yulang.GeneralRebaseSameInputs269.zipped_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.probe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSameInputs269.probe_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeJournal269.candidates' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeJournal269.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeJournal269.known_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeJournal269.scan_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeJournal269.scan_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonliteralMergeFixture269.root' does not depend on any axioms
+'Yulang.GeneralRebaseNonliteralMergeFixture269.context' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNonliteralMergeFixture269.journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonliteralMergeFixture269.first' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNonliteralMergeFixture269.last' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNonliteralMergeFixture269.witnessed_journal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNonliteralMergeFixture269.not_literal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNonliteralMergeFixture269.calculated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonliteralMergeFixture269.same_nonliteral' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

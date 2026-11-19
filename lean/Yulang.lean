@@ -5015,3 +5015,8 @@ import Yulang.GeneralRebaseSlotInequalities269
 import Yulang.GeneralRebaseIntervalArgument269
 import Yulang.GeneralRebaseRawBoundedK2269
 import Yulang.GeneralRebaseNonpointK2Fixture269
+import Yulang.FiniteWorklistRelative269
+import Yulang.GeneralRebaseJournalInequalities269
+import Yulang.GeneralRebaseSameInputs269
+import Yulang.GeneralRebaseMergeJournal269
+import Yulang.GeneralRebaseNonliteralMergeFixture269
