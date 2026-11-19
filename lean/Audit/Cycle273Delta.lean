@@ -1,0 +1,24 @@
+import Yulang.GeneralRebaseCompoundOwnerDelta273
+import Yulang.GeneralRebaseCompoundPairedCompletion273
+
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.pointed
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.addresses
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.old_distinct
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.current_distinct
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.old_private
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.current_private
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.aggregate_addresses_change
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.children_addresses_stable
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.stable
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.known_delta
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.equal_public_values
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.same_hi
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.same_child_hi
+#print axioms Yulang.GeneralRebaseCompoundOwnerDelta273.same_center
+#print axioms Yulang.GeneralRebaseCompoundPairedCompletion273.oldTypes
+#print axioms Yulang.GeneralRebaseCompoundPairedCompletion273.old
+#print axioms Yulang.GeneralRebaseCompoundPairedCompletion273.old_agrees
+#print axioms Yulang.GeneralRebaseCompoundPairedCompletion273.old_model_before_rows
+#print axioms Yulang.GeneralRebaseCompoundPairedCompletion273.old_model
+#print axioms Yulang.GeneralRebaseCompoundPairedCompletion273.compiler_is_patch
+#print axioms Yulang.GeneralRebaseCompoundPairedCompletion273.paired
