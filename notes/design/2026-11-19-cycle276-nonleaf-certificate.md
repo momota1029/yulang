@@ -11,3 +11,52 @@ operational reachability, selection and stability. No assertion of general
 nonleaf coverage or arbitrary-state termination. If the fixture migration
 stops at one guard, publish the checked packet boundaries and investigate the
 independent generic transport of nonempty children from cycle 275.
+
+## Checked factorization
+
+- The 198 fixture is only source data. The repeated Display frame in the
+  versioned packet retains its unique child identity under the new allocator.
+  The child is the actual registered Int site (source 1), not a fresh stand-in.
+  The parent model equations and both explicit child bounds are checked.
+- The direct 234 boundary then admits exactly one mixed-kernel Step, namely the
+  parent install into the checked stable state. The child is already semantically
+  committed there. A separate no-next-step proof includes refresh as well as
+  install guards. The resulting two-phase executable reflects the actual raw
+  Step relation on the entire reachable set and has the very same full-model
+  predicate at both phases.
+- The positive V8 evidence checks the ordered singleton child list. The bounded
+  readback recognizes exactly the authentic Display and Int payloads for any
+  settled model, not just the witness used to establish nonemptiness. A
+  separately checked model separates any two distinct identifiers; agreement
+  of endpoints alone was not used to conclude equality of child identities.
+- The independent refresh theorem transports complete nonleaf dictionaries
+  only when every node supplies its own current frame, nominal/variable
+  observation report, checked committed semantics and exact Ready child list.
+  The scalar-report lemma is separate: it preserves an existing scalar
+  observation across the specified source-preserving refinement, not a new
+  scalar dictionary producer.
+
+## Remaining boundary
+
+The concrete source proof uses GeneralNominalVersionedMixedBoundary234.
+MixedSourceBoundary234 first changes the registry by HeadAlloc encoding; no
+result here equates its initial state with this direct-boundary fixture (the
+unrelated Wrap rule is not checked under the encoding). A next positive
+extension is to transport the relevant source frame across that encoding,
+including allocator identity, before transferring the one-Step source result.
+For arbitrary sources, neither a ReadyRule producer for every child nor
+general mixed-kernel termination follows from the concrete executor or the
+restricted nominal tower rank.
+
+### Encoding diagnostic
+
+The adapter keeps source formation on the original registry and uses the
+encoded registry for operational/diagnostic consumers. The closed verification
+probe checks that both Display declarations are individually unchanged and the
+encoded registry has exactly those two declarations at role 0. But Wrap's
+output-binder equation key changes from 21 to `pair 20 21 = 1701`, so the whole
+registry equality is false. Thus a direct substitution of the registry in the
+full Step theorem cannot work; the next candidate is a restricted
+proof-irrelevance or role-local preservation theorem for the relevant packets
+and surfaces, including the negative refresh/candidate guards. No such bridge
+is imported into the 276 proofs.
