@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseAllWidthFrame275
+
+#print axioms Yulang.GeneralRebaseAllWidthFrame275.raw_sites
+#print axioms Yulang.GeneralRebaseAllWidthFrame275.centers
+#print axioms Yulang.GeneralRebaseAllWidthFrame275.edges_empty
+#print axioms Yulang.GeneralRebaseAllWidthFrame275.prepared
+#print axioms Yulang.GeneralRebaseAllWidthFrame275.frame
+#print axioms Yulang.GeneralRebaseAllWidthFrame275.singleton_frame

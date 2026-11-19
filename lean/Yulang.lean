@@ -5201,3 +5201,5 @@ import Yulang.GeneralRebaseAllWidthCertificate275
 import Yulang.GeneralRebaseAllWidthRealized275
 import Yulang.GeneralRebaseAllWidthPlan275
 import Yulang.GeneralRebaseAllWidthPacket275
+import Yulang.GeneralRebaseAllWidthFrame275
+import Yulang.GeneralRebaseAllWidthStable275
