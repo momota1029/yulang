@@ -13,3 +13,17 @@ old microedge either lifts to the unique new write or has literally the same
 normalized state and no corresponding new write. Check this on both fixtures;
 the old raw infinite paths remain real. Arbitrary old branches, the complete
 source compiler, and arbitrary-state termination are outside this boundary.
+
+## Executable rebasing of encoded old names
+
+The existing 240 uniform reconstruction searches all indices up to the
+numeric name. Allocation codes are iterated pairings and are very large
+even at low ranks. Implement a checked inverse of the square-band pairing,
+then extract the encoded predecessor. Validate the entire expected slot by
+re-encoding it, and descend only to a strictly smaller predecessor. A
+left-inverse proof on authentic allocations and a right-inverse check on
+arbitrary names are both required. On the two loop families, a successful
+decode returns the exact old stage and polarity. On 240 the replacement
+lookup must agree pointwise with the old bounded-scan reconstruction.
+No general compiler, changed language meaning, or quantified bit-complexity
+bound is asserted by this isolated replacement.

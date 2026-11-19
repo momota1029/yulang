@@ -5288,3 +5288,6 @@ import Yulang.GeneralRebaseVersionRetained278
 import Yulang.GeneralRebaseLooseRetained278
 import Yulang.GeneralRebaseVersionRefreshLeaf278
 import Yulang.GeneralRebaseLooseRefreshLeaf278
+import Yulang.GeneralRebaseTerminalAbsorb278
+import Yulang.GeneralRebaseVersionAbsorb278
+import Yulang.GeneralRebaseLooseAbsorb278
