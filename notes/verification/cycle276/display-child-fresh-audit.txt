@@ -1,0 +1,5 @@
+'Yulang.GeneralRebaseDisplayChildFresh276.keys_root' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDisplayChildFresh276.parentReserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDisplayChildFresh276.old_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayChildFresh276.invocation_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDisplayChildFresh276.child_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
