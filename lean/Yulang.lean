@@ -5257,3 +5257,7 @@ import Yulang.GeneralRebaseCompiledPayload277
 import Yulang.GeneralRebaseCompiledEvidenceAt277
 import Yulang.GeneralRebaseCompiledPublic277
 import Yulang.GeneralRebaseCompiledExecutor277
+import Yulang.GeneralRebaseRegistrySurface277
+import Yulang.GeneralRebaseRegistryEvidence277
+import Yulang.GeneralRebaseFreshSupport277
+import Yulang.GeneralRebaseCompiledObservables277
