@@ -51,3 +51,24 @@ root with two variant children read back as Int and Bool, respectively.
 Its unrelated interval endpoint remains unsupported. Root K2 can be
 computed and checked directly on the original installed journal; this
 does not judge the separate shared-input child guard.
+
+## Fixed-point enclosure for a fixed retained plan list
+
+Witness propagation never replaces a previously established shape and
+adds only targets from the actual emitted equation lists. Use the
+number of target occurrences still unknown as a natural rank; duplicates
+are allowed. If an entire pass changes the shape table, at least one
+previously unknown target is filled, so the rank strictly decreases.
+A pass can be iterated a bounded, source-dependent number of times
+(no guessed search fuel necessary), and the computed output is a
+fixed point of this compiler on that fixed set of plans. This is
+verification of witness propagation, not stopping of the old Step,
+not completeness of the admitted grammar, and not dynamic install
+observer completeness.
+
+One pass on the actual retained plan list of installed 252 derives output
+3 from a seed witness for input 2 only, using the emitted expression and
+the existing full model proof. The three nominal selections on the
+derived output compute Int. A separate synthetic schema covers nominal
+branching, pair, finite ordered record, variant and exact-empty. The
+existing optional output in 238 still abstains on the join.

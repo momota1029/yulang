@@ -5119,3 +5119,8 @@ import Yulang.GeneralRebaseTreeConstructors272
 import Yulang.GeneralRebaseTreeCoverage272
 import Yulang.GeneralRebaseTreeActual218272
 import Yulang.GeneralRebaseTreeRecordFixture272
+import Yulang.GeneralRebaseTreeRecordBuild272
+import Yulang.GeneralRebaseTreeExprCompile272
+import Yulang.GeneralRebaseTreeSchema272
+import Yulang.GeneralRebaseTreeSchemaActual252272
+import Yulang.GeneralRebaseTreeSchemaBranchFixture272

@@ -1,0 +1,61 @@
+import Yulang.GeneralRebaseTreeRecordBuild272
+import Yulang.GeneralRebaseTreeExprCompile272
+import Yulang.GeneralRebaseTreeSchema272
+import Yulang.GeneralRebaseTreeSchemaActual252272
+import Yulang.GeneralRebaseTreeSchemaBranchFixture272
+
+#print axioms Yulang.GeneralRebaseTreeRecordBuild272.appendField
+#print axioms Yulang.GeneralRebaseTreeRecordBuild272.prepend_meaning
+#print axioms Yulang.GeneralRebaseTreeRecordBuild272.appendField_exact
+#print axioms Yulang.GeneralRebaseTreeExprCompile272.Env
+#print axioms Yulang.GeneralRebaseTreeExprCompile272.Variables
+#print axioms Yulang.GeneralRebaseTreeExprCompile272.Interprets
+#print axioms Yulang.GeneralRebaseTreeExprCompile272.primitive
+#print axioms Yulang.GeneralRebaseTreeExprCompile272.aligned_canonical
+#print axioms Yulang.GeneralRebaseTreeExprCompile272.aligned_value
+#print axioms Yulang.GeneralRebaseTreeExprCompile272.primitive_sound
+#print axioms Yulang.GeneralRebaseTreeSchema272.identity
+#print axioms Yulang.GeneralRebaseTreeSchema272.identity_exact
+#print axioms Yulang.GeneralRebaseTreeSchema272.environment
+#print axioms Yulang.GeneralRebaseTreeSchema272.environment_sound
+#print axioms Yulang.GeneralRebaseTreeSchema272.entry
+#print axioms Yulang.GeneralRebaseTreeSchema272.compute
+#print axioms Yulang.GeneralRebaseTreeSchema272.compute_sound
+#print axioms Yulang.GeneralRebaseTreeSchema272.enrich
+#print axioms Yulang.GeneralRebaseTreeSchema272.enrich_sound
+#print axioms Yulang.GeneralRebaseTreeSchema272.enrich_preserves_source
+#print axioms Yulang.GeneralRebaseTreeSchema272.runPlans
+#print axioms Yulang.GeneralRebaseTreeSchema272.runPlans_sound
+#print axioms Yulang.GeneralRebaseTreeSchema272.rounds
+#print axioms Yulang.GeneralRebaseTreeSchema272.rounds_sound
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.input
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.input_checked
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.seed
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.seed_certified
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.output
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.derived
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.output_not_seeded
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.output_from_actual_schema
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.witness_checked
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.at_output
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.three_selects
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.computed_last
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.actual_no_recursion
+#print axioms Yulang.GeneralRebaseTreeSchemaActual252272.optional_abstains
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.expression
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.first
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.second
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.expected
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.env
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.vars
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.schema
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.witness
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.expression_checked
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.schema_checked
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.holds
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.table
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.seek_pair
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.seek_record
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.actual_pair_branch
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.actual_variant_under_record
+#print axioms Yulang.GeneralRebaseTreeSchemaBranchFixture272.other_identity_not_enriched
