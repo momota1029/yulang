@@ -5402,3 +5402,10 @@ import Yulang.GeneralRebasePrivatePacket282
 import Yulang.GeneralRebasePrivateClass282
 import Yulang.GeneralRebasePrivateTrace282
 import Yulang.GeneralRebasePrivateObserved282
+import Yulang.GeneralRebasePrivateJournal282
+import Yulang.GeneralRebasePrivateEvidence282
+import Yulang.GeneralRebasePrivateStore282
+import Yulang.GeneralRebaseHistoryOrder282
+import Yulang.GeneralRebaseHistorySupport282
+import Yulang.GeneralRebaseWholeJournal282
+import Yulang.GeneralRebaseWholeStore282

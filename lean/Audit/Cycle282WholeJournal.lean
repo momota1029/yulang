@@ -1,0 +1,62 @@
+import Yulang.GeneralRebasePrivateJournal282
+import Yulang.GeneralRebasePrivateEvidence282
+import Yulang.GeneralRebasePrivateStore282
+import Yulang.GeneralRebaseHistoryOrder282
+import Yulang.GeneralRebaseHistorySupport282
+import Yulang.GeneralRebaseWholeJournal282
+import Yulang.GeneralRebaseWholeStore282
+
+#print axioms Yulang.GeneralRebasePrivateJournal282.Hidden
+#print axioms Yulang.GeneralRebasePrivateJournal282.AgreeOutside
+#print axioms Yulang.GeneralRebasePrivateJournal282.request_safe
+#print axioms Yulang.GeneralRebasePrivateJournal282.effect_context
+#print axioms Yulang.GeneralRebasePrivateJournal282.plan_private
+#print axioms Yulang.GeneralRebasePrivateJournal282.effect_private
+#print axioms Yulang.GeneralRebasePrivateJournal282.legacy_private
+#print axioms Yulang.GeneralRebasePrivateJournal282.journal_private
+#print axioms Yulang.GeneralRebasePrivateJournal282.models_iff
+#print axioms Yulang.GeneralRebasePrivateEvidence282.packet_iff
+#print axioms Yulang.GeneralRebasePrivateEvidence282.output_iff
+#print axioms Yulang.GeneralRebasePrivateEvidence282.certificate_iff
+#print axioms Yulang.GeneralRebasePrivateEvidence282.evidence_iff
+#print axioms Yulang.GeneralRebasePrivateStore282.Public
+#print axioms Yulang.GeneralRebasePrivateStore282.Private
+#print axioms Yulang.GeneralRebasePrivateStore282.copy_outside
+#print axioms Yulang.GeneralRebasePrivateStore282.row_unchanged
+#print axioms Yulang.GeneralRebasePrivateStore282.copy_model
+#print axioms Yulang.GeneralRebasePrivateStore282.copy_law
+#print axioms Yulang.GeneralRebasePrivateStore282.Joint
+#print axioms Yulang.GeneralRebasePrivateStore282.joint_iff
+#print axioms Yulang.GeneralRebasePrivateStore282.projection
+#print axioms Yulang.GeneralRebasePrivateStore282.packet_targets
+#print axioms Yulang.GeneralRebasePrivateStore282.raw_public
+#print axioms Yulang.GeneralRebasePrivateStore282.packet_projection
+#print axioms Yulang.GeneralRebaseHistoryOrder282.history
+#print axioms Yulang.GeneralRebaseHistoryOrder282.ranked
+#print axioms Yulang.GeneralRebaseHistoryOrder282.ordered
+#print axioms Yulang.GeneralRebaseHistoryOrder282.member_exact
+#print axioms Yulang.GeneralRebaseHistoryOrder282.models_history
+#print axioms Yulang.GeneralRebaseHistoryOrder282.decode
+#print axioms Yulang.GeneralRebaseHistoryOrder282.compatible
+#print axioms Yulang.GeneralRebaseHistoryOrder282.preserves_joint
+#print axioms Yulang.GeneralRebaseHistorySupport282.packet_context
+#print axioms Yulang.GeneralRebaseHistorySupport282.packet_reads
+#print axioms Yulang.GeneralRebaseHistorySupport282.entry_reads
+#print axioms Yulang.GeneralRebaseHistorySupport282.entry_target
+#print axioms Yulang.GeneralRebaseHistorySupport282.solve_agrees
+#print axioms Yulang.GeneralRebaseHistorySupport282.decode_agrees
+#print axioms Yulang.GeneralRebaseWholeJournal282.View
+#print axioms Yulang.GeneralRebaseWholeJournal282.exact_view
+#print axioms Yulang.GeneralRebaseWholeJournal282.Observable
+#print axioms Yulang.GeneralRebaseWholeJournal282.preserves_reads
+#print axioms Yulang.GeneralRebaseWholeJournal282.source_visibility
+#print axioms Yulang.GeneralRebaseWholeJournal282.preserved_projection
+#print axioms Yulang.GeneralRebaseWholeJournal282.compiled_history_closed
+#print axioms Yulang.GeneralRebaseWholeStore282.store
+#print axioms Yulang.GeneralRebaseWholeStore282.store_private
+#print axioms Yulang.GeneralRebaseWholeStore282.store_unique
+#print axioms Yulang.GeneralRebaseWholeStore282.expression_exact
+#print axioms Yulang.GeneralRebaseWholeStore282.store_rhs_closed
+#print axioms Yulang.GeneralRebaseWholeStore282.view_agrees
+#print axioms Yulang.GeneralRebaseWholeStore282.copy_exact
+#print axioms Yulang.GeneralRebaseWholeStore282.projection
