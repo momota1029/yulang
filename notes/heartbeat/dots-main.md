@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 266
-- status: completed
-- started: 2026-11-19T05:30:24Z
-- updated: 2026-11-19T06:20:29Z
-- elapsed_min: 50.08
-- activity: Verified certified source-path compression, exact replay, common terminal settlement and old239/240 projection regressions.
+- cycle: 267
+- status: running
+- started: 2026-11-19T06:34:24Z
+- updated: 2026-11-19T06:34:42Z
+- elapsed_min: 0.31
+- activity: Derive executable source candidate enumeration before semantic guard certification.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 6bf8f1ad5
-- report: notes/handoff/dots-cycle-266.md
-- resume_hint: Begin with latest integration instructions; next open item is proof-carrying current candidate discovery from the actual source.
+- last_local_commit: 3e80515d3
+- resume_hint: Previous cycle is complete; consult current design and verified source discovery checkpoints for cycle 267.
