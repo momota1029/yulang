@@ -5082,3 +5082,6 @@ import Yulang.GeneralRebaseStructuralCompare271
 import Yulang.GeneralRebaseFullStructuralWindow271
 import Yulang.GeneralRebaseStructuralRepresentative271
 import Yulang.GeneralRebaseClosedRecordDriver271
+import Yulang.GeneralRebaseRecordAcyclicFixture271
+import Yulang.GeneralRebaseRecordRecursiveFixture271
+import Yulang.GeneralRebaseRecordAlignment271

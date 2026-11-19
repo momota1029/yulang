@@ -38,3 +38,21 @@ nested projections, and deferred observations is not guessed.
 The new full-structural window keeps closure and totality distinct:
 positive or negative finite graph answers require checked semantic
 conditions; missing information is still unknown.
+
+## Recover visible positions in a differently ordered literal query
+
+A record query should not be forced to use exactly the normalized
+shape. If the supplied label list has exactly the known visible label
+set, construct an observation by filling its entries from the original
+first-visible table. Retain arbitrary order and multiplicity; only the
+first occurrence of the requested key is observed as a semantic
+representative. Forward and reverse equality use, respectively,
+the actual existence witness and the all-observations readback lemma.
+Wrong label sets and hidden positions must never be returned as positive.
+
+The two new finite-window fixtures are independent initial journals:
+an acyclic record with outgoing record and exact-empty children, and
+a guarded one-field self-reference inside a two-field record (the other
+child is exact-empty). All edge entries are total and both root outcomes
+are proved against full models. The guarded example also demonstrates
+distinct projected results at the earlier and later child.
