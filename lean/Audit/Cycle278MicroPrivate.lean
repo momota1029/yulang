@@ -1,0 +1,17 @@
+import Yulang.GeneralRebaseVersionPrivate278
+import Yulang.GeneralRebaseLoosePrivate278
+
+#print axioms Yulang.GeneralRebaseVersionPrivate278.installed_exact
+#print axioms Yulang.GeneralRebaseVersionPrivate278.refreshed_exact
+#print axioms Yulang.GeneralRebaseVersionPrivate278.reobserved_exact
+#print axioms Yulang.GeneralRebaseVersionPrivate278.bad_not_packet
+#print axioms Yulang.GeneralRebaseVersionPrivate278.bad_agrees
+#print axioms Yulang.GeneralRebaseVersionPrivate278.raw_strict
+#print axioms Yulang.GeneralRebaseVersionPrivate278.later_bad
+#print axioms Yulang.GeneralRebaseLoosePrivate278.installed_exact
+#print axioms Yulang.GeneralRebaseLoosePrivate278.refreshed_exact
+#print axioms Yulang.GeneralRebaseLoosePrivate278.reobserved_exact
+#print axioms Yulang.GeneralRebaseLoosePrivate278.bad_not_packet
+#print axioms Yulang.GeneralRebaseLoosePrivate278.bad_agrees
+#print axioms Yulang.GeneralRebaseLoosePrivate278.raw_strict
+#print axioms Yulang.GeneralRebaseLoosePrivate278.later_bad
