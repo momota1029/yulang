@@ -1,0 +1,37 @@
+'Yulang.GeneralRebaseEdgeRules266.rules' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeRules266.member' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeRules266.follows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeRules266.run_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeRules266.sound_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeSingleton266.exact_singleton' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeSingleton266.actual_compound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTransientClosed266.closedA' depends on axioms: [propext]
+'Yulang.GeneralRebaseTransientClosed266.closedB' depends on axioms: [propext]
+'Yulang.GeneralRebaseTransientClosed266.same_steps' depends on axioms: [propext]
+'Yulang.GeneralRebaseTransientClosed266.counterexample' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPath266.Path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPath266.edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPath266.rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPath266.edge_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPath266.rank_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPath266.rank_bounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPath266.projected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPath266.terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathSettle266.no_later_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathSettle266.edge_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathSettle266.deterministic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathSettle266.terminal_runs_unique' depends on axioms: [propext]
+'Yulang.GeneralRebaseCertifiedPathSettle266.settles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathCount266.strict_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathCount266.exact_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathCount266.strict_count_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathCount266.exact_terminal_budget' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathCount266.compoundPath' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathCount266.compound_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPathCount266.compound_settlement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

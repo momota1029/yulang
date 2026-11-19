@@ -4906,3 +4906,9 @@ import Yulang.GeneralRebasePositiveRules266
 import Yulang.GeneralRebasePositiveMeaning266
 import Yulang.GeneralRebasePositiveRegression266
 import Yulang.GeneralRebaseTransientRegression266
+import Yulang.GeneralRebaseEdgeRules266
+import Yulang.GeneralRebaseEdgeSingleton266
+import Yulang.GeneralRebaseTransientClosed266
+import Yulang.GeneralRebaseCertifiedPath266
+import Yulang.GeneralRebaseCertifiedPathSettle266
+import Yulang.GeneralRebaseCertifiedPathCount266
