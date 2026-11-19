@@ -1,0 +1,53 @@
+'Yulang.GeneralRebaseStructuralCompare271.contradicts' depends on axioms: [propext]
+'Yulang.GeneralRebaseStructuralCompare271.canonical' depends on axioms: [propext]
+'Yulang.GeneralRebaseStructuralCompare271.test_canonical' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStructuralCompare271.shape_contradiction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseStructuralCompare271.contradicts_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStructuralCompare271.distinguish' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStructuralCompare271.distinguish_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullStructuralWindow271.edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullStructuralWindow271.edge_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullStructuralWindow271.covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullStructuralWindow271.check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullStructuralWindow271.forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullStructuralWindow271.window' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullStructuralWindow271.certified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStructuralRepresentative271.structural' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStructuralRepresentative271.structural_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseStructuralRepresentative271.representative' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseStructuralRepresentative271.representative_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseStructuralRepresentative271.compareSlots' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseStructuralRepresentative271.compareSlots_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseStructuralRepresentative271.compare' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStructuralRepresentative271.compare_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.window' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.query' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.query_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.inspect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.inspect_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.inspectRoot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.inspectRoot_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.rootK2' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.rootK2_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.totalEdges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.edges_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.matchSource' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.inspect_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.inspect_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.candidate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedRecordDriver271.candidate_sound' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,64 @@
+'Yulang.GeneralRebaseRecordAcyclicFixture271.shapes' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.children' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.introduce' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.equations' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.finite_slots' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.base' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.view' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.last' does not depend on any axioms
+'Yulang.GeneralRebaseRecordAcyclicFixture271.middle' does not depend on any axioms
+'Yulang.GeneralRebaseRecordAcyclicFixture271.first' does not depend on any axioms
+'Yulang.GeneralRebaseRecordAcyclicFixture271.model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.raw_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.context' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.root' does not depend on any axioms
+'Yulang.GeneralRebaseRecordAcyclicFixture271.journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.full_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.points' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.checked_window' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.checked_matrix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.computed_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.no_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordAcyclicFixture271.after_projection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.shapes' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.children' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.introduce' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.equations' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.finite_slots' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.base' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.view' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.body' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.value' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.record_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.exact_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.raw_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.context' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.root' does not depend on any axioms
+'Yulang.GeneralRebaseRecordRecursiveFixture271.journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.full_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.points' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.checked_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.checked_matrix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.computed_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.actual_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.visible_self' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.distinct_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRecursiveFixture271.unknown_noncanonical' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordAlignment271.visibleSet' does not depend on any axioms
+'Yulang.GeneralRebaseRecordAlignment271.visibleSet_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAlignment271.map_first' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAlignment271.align' does not depend on any axioms
+'Yulang.GeneralRebaseRecordAlignment271.aligned' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordAlignment271.mapped_nth' depends on axioms: [propext]
+'Yulang.GeneralRebaseRecordAlignment271.same_at' depends on axioms: [propext, Quot.sound]

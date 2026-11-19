@@ -1,0 +1,32 @@
+import Yulang.GeneralRebaseNestedQueryCongruence271
+import Yulang.GeneralRebaseNestedRecordQuery271
+import Yulang.GeneralRebaseNestedQueryFixture271
+
+#print axioms Yulang.GeneralRebaseNestedQueryCongruence271.Operation
+#print axioms Yulang.GeneralRebaseNestedQueryCongruence271.applyOp
+#print axioms Yulang.GeneralRebaseNestedQueryCongruence271.transport_observation
+#print axioms Yulang.GeneralRebaseNestedQueryCongruence271.transport_equal
+#print axioms Yulang.GeneralRebaseNestedQueryCongruence271.transport_dead
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.fromOption
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.next
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.next_sound
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.follow
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.resolve
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.follow_sound
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.resolve_sound
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.inspect
+#print axioms Yulang.GeneralRebaseNestedRecordQuery271.inspect_sound
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Record.read
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Record.chain
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Record.one_more
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Record.every_depth_rep
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Record.every_depth_computed
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Record.every_depth_actual
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Record.hiddenParent
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Record.conservative
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Mixed.mixed
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Mixed.variant_move
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Mixed.nominal_move
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Mixed.every_depth_rep
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Mixed.every_depth_computed
+#print axioms Yulang.GeneralRebaseNestedQueryFixture271.Mixed.every_depth_actual

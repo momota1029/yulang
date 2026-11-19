@@ -1,0 +1,38 @@
+import Yulang.GeneralRebaseRecordQueryShape271
+import Yulang.GeneralRebaseRecordQuery271
+import Yulang.GeneralRebaseRecordRouting271
+import Yulang.GeneralRebaseRecordQueryCases271
+
+#print axioms Yulang.GeneralRebaseRecordQueryShape271.layout
+#print axioms Yulang.GeneralRebaseRecordQueryShape271.held
+#print axioms Yulang.GeneralRebaseRecordQueryShape271.query_over
+#print axioms Yulang.GeneralRebaseRecordQueryShape271.Dead
+#print axioms Yulang.GeneralRebaseRecordQueryShape271.out_of_range
+#print axioms Yulang.GeneralRebaseRecordQueryShape271.hidden
+#print axioms Yulang.GeneralRebaseRecordQueryShape271.different_set
+#print axioms Yulang.GeneralRebaseRecordQuery271.Result
+#print axioms Yulang.GeneralRebaseRecordQuery271.raw
+#print axioms Yulang.GeneralRebaseRecordQuery271.Valid
+#print axioms Yulang.GeneralRebaseRecordQuery271.raw_sound
+#print axioms Yulang.GeneralRebaseRecordQuery271.locate
+#print axioms Yulang.GeneralRebaseRecordQuery271.locate_sound
+#print axioms Yulang.GeneralRebaseRecordQuery271.dead_no_cycle
+#print axioms Yulang.GeneralRebaseRecordRouting271.cyclic_congr
+#print axioms Yulang.GeneralRebaseRecordRouting271.inspect
+#print axioms Yulang.GeneralRebaseRecordRouting271.inspect_sound
+#print axioms Yulang.GeneralRebaseRecordRouting271.inspectRoot
+#print axioms Yulang.GeneralRebaseRecordRouting271.inspectRoot_sound
+#print axioms Yulang.GeneralRebaseRecordRouting271.candidates
+#print axioms Yulang.GeneralRebaseRecordRouting271.candidates_sound
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.total_on_record
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.reorderedRoot
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.reorderedLeaf
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.hiddenRepeat
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.wrongSet
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.outOfRange
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.same_root
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.same_leaf
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.later_duplicate
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.cannot_change_keys
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.cannot_escape_index
+#print axioms Yulang.GeneralRebaseRecordQueryCases271.Recursive.not_by_literal_test

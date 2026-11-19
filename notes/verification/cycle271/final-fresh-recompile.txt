@@ -1,0 +1,46 @@
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+GeneralRebaseRecordLookup271 PASS
+GeneralRebaseRecordOverwrite271 PASS
+GeneralRebaseRecordIndices271 PASS
+GeneralRebaseRecordReadback271 PASS
+GeneralRebaseRecordEdge271 PASS
+GeneralRebaseStructuralCompare271 PASS
+GeneralRebaseFullStructuralWindow271 PASS
+GeneralRebaseStructuralRepresentative271 PASS
+GeneralRebaseClosedRecordDriver271 PASS
+GeneralRebaseRecordAcyclicFixture271 PASS
+GeneralRebaseRecordRecursiveFixture271 PASS
+GeneralRebaseRecordAlignment271 PASS
+GeneralRebaseRecordQueryShape271 PASS
+GeneralRebaseRecordQuery271 PASS
+GeneralRebaseRecordRouting271 PASS
+GeneralRebaseRecordQueryCases271 PASS
+GeneralRebaseNestedQueryCongruence271 PASS
+GeneralRebaseNestedRecordQuery271 PASS
+GeneralRebaseNestedQueryFixture271 PASS
+GeneralRebaseLocalOriginPocket271 PASS
+GeneralRebaseLocalPocketProof271 PASS
+GeneralRebaseScalarAtoms271 PASS
+GeneralRebaseScalarSnapshot271 PASS
+GeneralRebaseJournalMeaning271 PASS
+GeneralRebaseOutputDepthPocket271 PASS
+GeneralRebaseOutputDepthSuccessor271 PASS
+GeneralRebaseRawIntoFull271 PASS
+GeneralRebaseK2ModelBoundary271 PASS
+GeneralRebaseInstalledReadback271 PASS
+GeneralRebaseUnaryRank271 PASS
+GeneralRebaseUnaryReadback271 PASS
+GeneralRebaseInstalledOutputCycles271 PASS
+GeneralRebaseUnaryCandidateCoverage271 PASS
+GeneralRebaseOutputDepthTrace271 PASS
+staged Audit/Cycle271ActualBoundary.lean PASS
+staged Audit/Cycle271InstalledReadback.lean PASS
+staged Audit/Cycle271LocalPocket.lean PASS
+staged Audit/Cycle271NestedQuery.lean PASS
+staged Audit/Cycle271RecordDriver.lean PASS
+staged Audit/Cycle271RecordEdges.lean PASS
+staged Audit/Cycle271RecordFixtures.lean PASS
+staged Audit/Cycle271RecordLookup.lean PASS
+staged Audit/Cycle271RecordQuery.lean PASS
+staged Audit/Cycle271SourceTraces.lean PASS
+Ten staged audit outputs byte-identical to standalone outputs on original module cache.

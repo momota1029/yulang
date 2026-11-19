@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseRecordLookup271
+import Yulang.GeneralRebaseRecordOverwrite271
+
+#print axioms Yulang.GeneralRebaseRecordLookup271.first
+#print axioms Yulang.GeneralRebaseRecordLookup271.field
+#print axioms Yulang.GeneralRebaseRecordLookup271.payload
+#print axioms Yulang.GeneralRebaseRecordLookup271.exists_first
+#print axioms Yulang.GeneralRebaseRecordOverwrite271.finite
+#print axioms Yulang.GeneralRebaseRecordOverwrite271.observed
+#print axioms Yulang.GeneralRebaseRecordOverwrite271.fieldStep
+#print axioms Yulang.GeneralRebaseRecordOverwrite271.optStep
+#print axioms Yulang.GeneralRebaseRecordOverwrite271.masked_equiv
+#print axioms Yulang.GeneralRebaseRecordOverwrite271.checked

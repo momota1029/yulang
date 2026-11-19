@@ -1,0 +1,48 @@
+'Yulang.GeneralRebaseNestedQueryCongruence271.Operation' does not depend on any axioms
+'Yulang.GeneralRebaseNestedQueryCongruence271.applyOp' does not depend on any axioms
+'Yulang.GeneralRebaseNestedQueryCongruence271.transport_observation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNestedQueryCongruence271.transport_equal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryCongruence271.transport_dead' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedRecordQuery271.fromOption' does not depend on any axioms
+'Yulang.GeneralRebaseNestedRecordQuery271.next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedRecordQuery271.next_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedRecordQuery271.follow' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedRecordQuery271.resolve' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedRecordQuery271.follow_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedRecordQuery271.resolve_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedRecordQuery271.inspect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedRecordQuery271.inspect_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Record.read' does not depend on any axioms
+'Yulang.GeneralRebaseNestedQueryFixture271.Record.chain' does not depend on any axioms
+'Yulang.GeneralRebaseNestedQueryFixture271.Record.one_more' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Record.every_depth_rep' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Record.every_depth_computed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Record.every_depth_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Record.hiddenParent' does not depend on any axioms
+'Yulang.GeneralRebaseNestedQueryFixture271.Record.conservative' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Mixed.mixed' does not depend on any axioms
+'Yulang.GeneralRebaseNestedQueryFixture271.Mixed.variant_move' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Mixed.nominal_move' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Mixed.every_depth_rep' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Mixed.every_depth_computed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNestedQueryFixture271.Mixed.every_depth_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

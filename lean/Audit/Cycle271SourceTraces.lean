@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseOutputDepthTrace271
+
+#print axioms Yulang.GeneralRebaseOutputDepthTrace271.roles
+#print axioms Yulang.GeneralRebaseOutputDepthTrace271.observe
+#print axioms Yulang.GeneralRebaseOutputDepthTrace271.at_zero
+#print axioms Yulang.GeneralRebaseOutputDepthTrace271.after_weak_is_silent
+#print axioms Yulang.GeneralRebaseOutputDepthTrace271.classify_all
+#print axioms Yulang.GeneralRebaseOutputDepthTrace271.no_followup

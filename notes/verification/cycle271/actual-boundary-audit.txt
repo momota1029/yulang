@@ -1,0 +1,39 @@
+'Yulang.GeneralRebaseOutputDepthSuccessor271.owner' depends on axioms: [propext]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.output' does not depend on any axioms
+'Yulang.GeneralRebaseOutputDepthSuccessor271.support' depends on axioms: [propext]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.exact_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.dichotomy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.initial_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.projected_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.source_weak' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.every_weak' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.initialCode' depends on axioms: [propext]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.exact_code' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.computed' depends on axioms: [propext]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.driveStep' depends on axioms: [propext]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.one_step' depends on axioms: [propext]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.matches_genuine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.bidirectional' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputDepthSuccessor271.no_second_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.raw_edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.raw_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.recurs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.root_from_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.root_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.execute' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.execute_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.Actual252.computed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawIntoFull271.Actual252.actual_k2_clear' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseK2ModelBoundary271.contradict' does not depend on any axioms
+'Yulang.GeneralRebaseK2ModelBoundary271.inconsistentContext' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseK2ModelBoundary271.original' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseK2ModelBoundary271.emptyRegistry' does not depend on any axioms
+'Yulang.GeneralRebaseK2ModelBoundary271.no_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseK2ModelBoundary271.no_semantic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseK2ModelBoundary271.structural_self' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseK2ModelBoundary271.raw_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseK2ModelBoundary271.necessary_scope' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,20 @@
+import Yulang.GeneralRebaseRecordIndices271
+import Yulang.GeneralRebaseRecordReadback271
+import Yulang.GeneralRebaseRecordEdge271
+
+#print axioms Yulang.GeneralRebaseRecordIndices271.Shadowed
+#print axioms Yulang.GeneralRebaseRecordIndices271.first_at
+#print axioms Yulang.GeneralRebaseRecordIndices271.set_other
+#print axioms Yulang.GeneralRebaseRecordIndices271.set_hidden
+#print axioms Yulang.GeneralRebaseRecordIndices271.index_visible
+#print axioms Yulang.GeneralRebaseRecordReadback271.same_fields
+#print axioms Yulang.GeneralRebaseRecordReadback271.visible_payload
+#print axioms Yulang.GeneralRebaseRecordReadback271.overwrite_value
+#print axioms Yulang.GeneralRebaseRecordReadback271.hidden_observes
+#print axioms Yulang.GeneralRebaseRecordReadback271.hidden_not_same
+#print axioms Yulang.GeneralRebaseRecordReadback271.visible_matches_canonical
+#print axioms Yulang.GeneralRebaseRecordEdge271.slot_payload
+#print axioms Yulang.GeneralRebaseRecordEdge271.matches_child
+#print axioms Yulang.GeneralRebaseRecordEdge271.record_edge_iff
+#print axioms Yulang.GeneralRebaseRecordEdge271.exactEmpty_no_edge
+#print axioms Yulang.GeneralRebaseRecordEdge271.structural_edge_iff

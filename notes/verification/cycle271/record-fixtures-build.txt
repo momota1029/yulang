@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseRecordAcyclicFixture271
+PASS Yulang.GeneralRebaseRecordRecursiveFixture271
+PASS Yulang.GeneralRebaseRecordAlignment271

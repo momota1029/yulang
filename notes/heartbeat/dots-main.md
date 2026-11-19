@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 270
+- cycle: 271
 - status: completed
-- started: 2026-11-19T09:30:00Z
-- updated: 2026-11-19T10:20:06Z
+- started: 2026-11-19T10:30:00Z
+- updated: 2026-11-19T11:20:06Z
 - elapsed_min: 50.10
-- activity: Checked executable finite rebase Steps on real source fragments, bounded replay certificates and positive and negative outcomes of closed semantic root queries.
+- activity: Checked record and nested origin classification; actual 252 local root checks, finite rebase and complete finite trace classification.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: d598a96ad
-- report: notes/handoff/dots-cycle-270.md
-- resume_hint: Read latest integration orders. Open: general source observer with exact terminal support, complete visible record positions and full V8 EvidenceNode. Do not claim old-kernel termination.
+- last_local_commit: 54adce667
+- report: notes/handoff/dots-cycle-271.md
+- resume_hint: Read latest integration orders. Open: general source observer, finite full-model witnesses beyond unary outputs and full V8 EvidenceNode. Do not claim old-kernel termination.

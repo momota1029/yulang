@@ -1,0 +1,4 @@
+PASS Yulang.GeneralRebaseStructuralCompare271
+PASS Yulang.GeneralRebaseFullStructuralWindow271
+PASS Yulang.GeneralRebaseStructuralRepresentative271
+PASS Yulang.GeneralRebaseClosedRecordDriver271

@@ -1,0 +1,61 @@
+import Yulang.GeneralRebaseInstalledReadback271
+import Yulang.GeneralRebaseUnaryRank271
+import Yulang.GeneralRebaseUnaryReadback271
+import Yulang.GeneralRebaseInstalledOutputCycles271
+import Yulang.GeneralRebaseUnaryCandidateCoverage271
+
+#print axioms Yulang.GeneralRebaseInstalledReadback271.source_at
+#print axioms Yulang.GeneralRebaseInstalledReadback271.at_equal
+#print axioms Yulang.GeneralRebaseInstalledReadback271.next
+#print axioms Yulang.GeneralRebaseInstalledReadback271.child_at
+#print axioms Yulang.GeneralRebaseInstalledReadback271.nominal_head
+#print axioms Yulang.GeneralRebaseInstalledReadback271.certified_step
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.output_head
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.intermediate
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.original_input
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.full_path
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.outputSlot
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.inputSlot
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.raw_stops
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.raw_path_absent
+#print axioms Yulang.GeneralRebaseInstalledReadback271.Actual252.converse_fails
+#print axioms Yulang.GeneralRebaseUnaryRank271.Unary
+#print axioms Yulang.GeneralRebaseUnaryRank271.value
+#print axioms Yulang.GeneralRebaseUnaryRank271.depth
+#print axioms Yulang.GeneralRebaseUnaryRank271.rootTag
+#print axioms Yulang.GeneralRebaseUnaryRank271.has_tag
+#print axioms Yulang.GeneralRebaseUnaryRank271.depth_invariant
+#print axioms Yulang.GeneralRebaseUnaryRank271.same_origin
+#print axioms Yulang.GeneralRebaseUnaryRank271.decreases
+#print axioms Yulang.GeneralRebaseUnaryRank271.path_depth
+#print axioms Yulang.GeneralRebaseUnaryRank271.acyclic
+#print axioms Yulang.GeneralRebaseUnaryReadback271.Result
+#print axioms Yulang.GeneralRebaseUnaryReadback271.Meaning
+#print axioms Yulang.GeneralRebaseUnaryReadback271.stepNom
+#print axioms Yulang.GeneralRebaseUnaryReadback271.stepStruct
+#print axioms Yulang.GeneralRebaseUnaryReadback271.no_structural
+#print axioms Yulang.GeneralRebaseUnaryReadback271.no_nominal_scalar
+#print axioms Yulang.GeneralRebaseUnaryReadback271.no_wrong_index
+#print axioms Yulang.GeneralRebaseUnaryReadback271.nominal_sound
+#print axioms Yulang.GeneralRebaseUnaryReadback271.structure_sound
+#print axioms Yulang.GeneralRebaseUnaryReadback271.run
+#print axioms Yulang.GeneralRebaseUnaryReadback271.run_sound
+#print axioms Yulang.GeneralRebaseUnaryReadback271.cycle
+#print axioms Yulang.GeneralRebaseUnaryReadback271.cycle_sound
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.term
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.known
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.source
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.total
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.computed
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.no_cycle
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.deep_readback
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.malformed_readback
+#print axioms Yulang.GeneralRebaseInstalledOutputCycles271.combined_root_clear
+#print axioms Yulang.GeneralRebaseUnaryCandidateCoverage271.run_total
+#print axioms Yulang.GeneralRebaseUnaryCandidateCoverage271.universal_noncycle
+#print axioms Yulang.GeneralRebaseUnaryCandidateCoverage271.no_raw_candidate
+#print axioms Yulang.GeneralRebaseUnaryCandidateCoverage271.no_semantic_candidate
+#print axioms Yulang.GeneralRebaseUnaryCandidateCoverage271.no_candidate
+#print axioms Yulang.GeneralRebaseUnaryCandidateCoverage271.declaredTotal
+#print axioms Yulang.GeneralRebaseUnaryCandidateCoverage271.declaredTotal_sound
+#print axioms Yulang.GeneralRebaseUnaryCandidateCoverage271.Installed252.checked_candidates
