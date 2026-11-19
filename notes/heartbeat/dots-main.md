@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 274
-- status: completed
-- started: 2026-11-19T13:31:40Z
-- updated: 2026-11-19T14:23:02Z
-- elapsed_min: 51.37
-- activity: Verified real 230 finite owner replay, full public decode, and terminal leaf evidence.
+- cycle: 275
+- status: running
+- started: 2026-11-19T14:30:10Z
+- updated: 2026-11-19T14:30:10Z
+- elapsed_min: 0
+- activity: Checking genuine mixed-cache registration at the actual 230 successor.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 2317957ea
-- report: notes/handoff/dots-cycle-274.md
-- resume_hint: Read latest integration orders. Open: mixed-cache width refresh frontier, general fixed owner compilation and genuinely recursive child evidence.
+- last_local_commit: 6d6475be0
+- resume_hint: Continue from verified cycle274, preserve all frozen integration files.
