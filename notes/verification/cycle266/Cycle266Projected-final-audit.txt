@@ -1,0 +1,29 @@
+'Yulang.GeneralRebaseProjectedFamily266.Route' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.table' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.included' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.provenance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.CommonTarget' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.run_end' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.can_finish' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.every_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamily266.settles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyMeaning266.final_saturated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyMeaning266.rules_settle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyMeaning266.of_live_agreement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyMeaning266.source_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyRegression266.VersionRoute' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyRegression266.stopped' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyRegression266.continued' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyRegression266.routes_distinct' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseProjectedFamilyRegression266.actual_collision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

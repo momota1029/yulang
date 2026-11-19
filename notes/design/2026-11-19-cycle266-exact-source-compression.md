@@ -83,3 +83,44 @@ terminal value with the journal decomposition, retaining the concrete final
 remainder and an explicit fixed-representative compatibility premise for each
 assignment in that remainder. No model iff is asserted for a projected state
 alone or with a discarded remainder.
+
+## Different concrete histories with a common projected target
+
+In practice branch orders can give different journal histories even when the
+finite target is the same. Accept dependent routes from a shared concrete
+start whose concrete ends are allowed to differ. Assume only that each end
+projects to the designated target. Then all maximal strict table runs and
+the positive-rule scheduler settle to that target. This does not identify
+the concrete final remainders or claim full model agreement across histories.
+
+## Follow-up split: discover proposals without assuming the conclusion
+
+Do not make a future completeness premise “all relevant real source steps
+are already listed”: that just restates what the compiler must prove. Use two
+separate checks, with a branch-local diagnostic witness for failure:
+
+1. **Enumerate structural inputs** before testing semantic guards. Enumerate
+   generated foci as actual source routes/keys, and declaration/normalized
+   plan targets below a finite owner and output bound. Show by inversion of
+   the independent mixed-kernel install rule that the corresponding tuple
+   for every enabled strict install is on the list. A finite key set by itself
+   is insufficient: prove that two variants sharing one key cannot differ in
+   the projected effect, or retain a distinct normalized tuple for each.
+2. **Certify a listed tuple** against current checked state: establish
+   generated focus, snapshot, Frame, child exposure, CacheSound, positions
+   and alternatives, then distinguish incompatible versus residual-model
+   unknown from actual no-progress. The existing prospectivity adapter takes
+   Local selection, role uniqueness, a joint Residual model and novelty.
+   Its proof can discharge downstream writes after those premises, not the
+   enumeration or the joint model search itself. If only a one-side guard
+   checker is possible, expose that explicitly and do not claim universal
+   terminal/absence of move.
+
+Acceptance test: show both (a) each emitted strict proposal has a single
+actual source witness from the same current representative, and (b) each
+reachable strict install appears by inversion plus tuple coverage, then turn
+the genuine compound-where fixture into a call that supplies source/state
+only rather than its stored proof. Re-check merge separately: a declared
+candidate list does not cover alias-class joins. Test a 239/240 tail to
+ensure repeated snapshots do not generate novel finite facts, not to infer
+an old-kernel or full successor accessibility theorem.

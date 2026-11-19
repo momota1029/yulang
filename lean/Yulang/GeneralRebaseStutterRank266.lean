@@ -26,7 +26,7 @@ theorem source_wf (owners : List Nat) (pool : List Output)
  · exact Or.inr ⟨congrArg (fun t => t.remaining.length) same,stutter _ _ step same⟩
  · exact Or.inl (GeneralRebaseSourceProjection264.strict_decrease owners pool step same)
 
-/-- The old 239 kernel cannot admit such a uniform secondary rank for any
+/-- The old 239 kernel lacks any such uniform secondary rank for any
 fixed basis. This says nothing negative about a redesigned, novelty-gated Step. -/
 theorem no_old239_rank (owners : List Nat) (pool : List Output) :
  ¬ ∃ secondary, Descends owners pool GeneralDictionaryVersionLoopSource237.registry
