@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 272
-- status: completed
-- started: 2026-11-19T11:30:00Z
-- updated: 2026-11-19T12:20:05Z
-- elapsed_min: 50.08
-- activity: Verified finite branching readback and least emitted-witness closure; proved actual 218 root check and automatic installed 252 uniform equality.
+- cycle: 273
+- status: running
+- started: 2026-11-19T12:34:44Z
+- updated: 2026-11-19T12:35:32Z
+- elapsed_min: 0.82
+- activity: Re-read orders; investigate certified emitted-equation bridges to source transitions.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 21f69383f
-- report: notes/handoff/dots-cycle-272.md
-- resume_hint: Read latest integration orders. Open: general source model certificates and publication-preserving rebase semantics, V8 EvidenceNode and unsupported join/row pieces.
+- last_local_commit: 154409c7f
+- resume_hint: Continue from verified cycle 272 with real publication-preserving source transition.
