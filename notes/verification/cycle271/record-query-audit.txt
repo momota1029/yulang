@@ -1,0 +1,41 @@
+'Yulang.GeneralRebaseRecordQueryShape271.layout' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryShape271.held' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryShape271.query_over' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryShape271.Dead' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryShape271.out_of_range' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryShape271.hidden' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryShape271.different_set' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQuery271.Result' does not depend on any axioms
+'Yulang.GeneralRebaseRecordQuery271.raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQuery271.Valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQuery271.raw_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQuery271.locate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQuery271.locate_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQuery271.dead_no_cycle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRouting271.cyclic_congr' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRouting271.inspect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRouting271.inspect_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRouting271.inspectRoot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRouting271.inspectRoot_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRouting271.candidates' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordRouting271.candidates_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryCases271.total_on_record' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.reorderedRoot' does not depend on any axioms
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.reorderedLeaf' does not depend on any axioms
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.hiddenRepeat' does not depend on any axioms
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.wrongSet' does not depend on any axioms
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.outOfRange' does not depend on any axioms
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.same_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.same_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.later_duplicate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.cannot_change_keys' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.cannot_escape_index' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordQueryCases271.Recursive.not_by_literal_test' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -56,3 +56,14 @@ a guarded one-field self-reference inside a two-field record (the other
 child is exact-empty). All edge entries are total and both root outcomes
 are proved against full models. The guarded example also demonstrates
 distinct projected results at the earlier and later child.
+
+## Compose checked representations along finite query paths
+
+Readback projection observations transport along an all-model Equal
+parent, both directions. Resolve nested query syntax inductively, using
+the established source-slot, nominal tight-interval, and structural
+one-step resolvers on each already-resolved parent. Do not propagate the
+dead classification of an unresolved parent into children: a dead parent
+may have several possible observations rather than no observations,
+and a nested test might filter them. This distinction is semantic,
+not merely an implementation restriction.

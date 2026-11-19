@@ -5085,3 +5085,7 @@ import Yulang.GeneralRebaseClosedRecordDriver271
 import Yulang.GeneralRebaseRecordAcyclicFixture271
 import Yulang.GeneralRebaseRecordRecursiveFixture271
 import Yulang.GeneralRebaseRecordAlignment271
+import Yulang.GeneralRebaseRecordQueryShape271
+import Yulang.GeneralRebaseRecordQuery271
+import Yulang.GeneralRebaseRecordRouting271
+import Yulang.GeneralRebaseRecordQueryCases271
