@@ -71,3 +71,27 @@ For each certified pair prove an actual mixed-kernel merge and connect
 it to the checked affected-only projection write. Confirm strict projection
 on existing 264 merge stress journal, explicitly not a proof that its extra
 supplied plan was source reachable.
+
+## Invert all strict projected source steps before composing observers
+
+On source-reachable states, enqueue cannot occur at a generated occurrence
+because raw registration is already proved. Refresh/equate/reobserve are
+projection stutters by the working 264 squares. Thus every strict projected
+mixed-kernel Step is an actual install or merge. Extract those exact guarded
+witnesses by induction on the independent operational rule, then use the
+respective candidate enumeration theorems to retain the responsible plan or
+site pair. This is about strict changes only; do not declare the old kernel
+quiescent after the compiled finite scheduler stops.
+
+## Compose a source-relative observer
+
+Compute a global list of install proposals over all discovered foci and a
+separate list of affected-only merge proposals over the same journal. Equal
+finite projection states are not assumed to have equal source observers:
+the list is indexed by this particular current source state. Under positive
+certification contracts for selected diagnostics/head/joint/novelty and
+merge truth, every emitted strict finite write has an actual Step from that
+same state. Under inverse coverage contracts each actual strict Step can be
+observed in this list by the install/merge inversion. Source-wide finite
+basis closure comes from reachability and the old invariant. A scheduler
+running from a frozen source observer is not yet a source-changing driver.

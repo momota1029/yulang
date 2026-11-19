@@ -4952,3 +4952,11 @@ import Yulang.GeneralRebaseInstallCandidates267
 import Yulang.GeneralRebaseCompleteHeadProbe267
 import Yulang.GeneralRebaseInstallCoverage267
 import Yulang.GeneralRebaseSemanticNoveltyFixture267
+import Yulang.GeneralRebaseMergeCenters267
+import Yulang.GeneralRebaseMergeScan267
+import Yulang.GeneralRebaseMergeScanFixture267
+import Yulang.GeneralRebaseStrictSourceCases267
+import Yulang.GeneralRebaseSourceObserver267
+import Yulang.GeneralRebaseObserverCoverage267
+import Yulang.GeneralRebaseObserverSound267
+import Yulang.GeneralRebaseObserverExact267

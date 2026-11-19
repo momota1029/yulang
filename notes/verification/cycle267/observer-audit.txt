@@ -1,0 +1,38 @@
+'Yulang.GeneralRebaseMergeCenters267.centers' does not depend on any axioms
+'Yulang.GeneralRebaseMergeCenters267.same' does not depend on any axioms
+'Yulang.GeneralRebaseMergeCenters267.same_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeCenters267.related_self' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeCenters267.observed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeCenters267.source_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeScan267.linkedPairs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeScan267.linkedPairs_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeScan267.scan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeScan267.scan_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeScan267.source_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeScan267.actual_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeScan267.checked_source_merge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeScanFixture267.noProbe' does not depend on any axioms
+'Yulang.GeneralRebaseMergeScanFixture267.listed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeScanFixture267.recovered_strict' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStrictSourceCases267.InstallCase' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStrictSourceCases267.MergeCase' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStrictSourceCases267.operational' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseStrictSourceCases267.strict_inversion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceObserver267.Probes' does not depend on any axioms
+'Yulang.GeneralRebaseSourceObserver267.installAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceObserver267.installs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceObserver267.installs_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceObserver267.proposals' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceObserver267.proposals_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverCoverage267.Covers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverCoverage267.emits_strict' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverSound267.Sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverSound267.install_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverSound267.witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverExact267.observe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverExact267.observe_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverExact267.step_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverExact267.source_basis' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObserverExact267.source_relative_terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
