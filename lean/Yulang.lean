@@ -5138,3 +5138,6 @@ import Yulang.GeneralRebaseTreeAuto272
 import Yulang.GeneralRebaseTreeSeedExact272
 import Yulang.GeneralRebaseTreeHybrid272
 import Yulang.GeneralRebaseOneModelBoundary272
+import Yulang.GeneralRebaseCompoundExpr273
+import Yulang.GeneralRebaseCompoundSchema273
+import Yulang.GeneralRebaseCompoundActual238273
