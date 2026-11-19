@@ -1,0 +1,12 @@
+'Yulang.GeneralRebaseOperationalKey278.Key' does not depend on any axioms
+'Yulang.GeneralRebaseOperationalKey278.encode' does not depend on any axioms
+'Yulang.GeneralRebaseOperationalKey278.decode' does not depend on any axioms
+'Yulang.GeneralRebaseOperationalKey278.decode_encode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOperationalKey278.encode_injective' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOperationalKey278.decode_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOperationalKey278.version_flag' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOperationalKey278.loose_flag' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOperationalKey278.advance' does not depend on any axioms
+'Yulang.GeneralRebaseOperationalKey278.advance_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOperationalKey278.advance_only' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOperationalKey278.actual_families' depends on axioms: [propext, Classical.choice, Quot.sound]

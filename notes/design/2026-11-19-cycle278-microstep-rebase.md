@@ -42,3 +42,12 @@ a refreshed tick to the next enter tick with the same pair. This is **not**
 a transition key: those equal-key ticks admit different next operations and
 do not have the same install availability. Public assignment preservation,
 V8 leaf readback and one-write normalization are proved separately.
+
+The exact full old predicate can also be unfolded into the initial predicate
+and the finite prefix of actual Holds obligations. It never eventually
+stabilizes on either path. The semantic counters with **one additional bit**
+for raw install availability recover the displayed tick injectively. The
+checked decoder rejects inconsistent keys; every executable key advance is
+an actual edge in both displayed fixtures (a mixed 239 edge and a point
+240 edge). This is an executable representation of those paths, not an
+enumeration of every branch in the general raw operational semantics.

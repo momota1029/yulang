@@ -1,3 +1,4 @@
+import Yulang.GeneralRebaseOperationalKey278
 import Yulang.GeneralRebaseHistoryOrder278
 import Yulang.GeneralRebaseMicroProbe278
 import Yulang.GeneralRebaseFastLooseFill278
@@ -18,3 +19,7 @@ open GeneralRebaseRoundMicro278 (Tick)
 #eval GeneralRebaseHistoryOrder278.observationKey ⟨1, .enter⟩
 #eval GeneralRebaseHistoryOrder278.observedRefines ⟨0, .installed⟩ ⟨0, .refreshed⟩
 #eval GeneralRebaseHistoryOrder278.observedRefines ⟨0, .refreshed⟩ ⟨0, .installed⟩
+#eval GeneralRebaseOperationalKey278.decode ⟨0, 0, false⟩
+#eval GeneralRebaseOperationalKey278.advance ⟨1, 0, false⟩
+#eval GeneralRebaseOperationalKey278.advance ⟨1, 1, false⟩
+#eval GeneralRebaseOperationalKey278.advance ⟨1, 1, true⟩

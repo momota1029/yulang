@@ -11,4 +11,8 @@ some (Yulang.GeneralRebaseMicroProbe278.Answer.upperPatch 1 false)
 (1, 1)
 true
 false
+none
+some { installed := 1, observed := 1, canInstall := false }
+some { installed := 1, observed := 1, canInstall := true }
+some { installed := 2, observed := 1, canInstall := false }
 exit=0
