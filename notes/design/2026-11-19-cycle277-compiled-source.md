@@ -85,3 +85,12 @@ for the unchanged kernel. For the prospective rebased state, keep the original
 source binder/head in the code and verify that repeated owner-key effects use
 the same honest upper/lower meaning in every full model, after retaining the
 actual ordered child edges. No choice of semantic meaning is made here.
+
+A further closed check composes the separate published projection-stability
+theorem with the same-owner obstruction at every stage. For any fixed finite
+projection inventory, the 239 round projections eventually agree, yet the
+very next actual install repeatedly encounters the same owner key and remains
+not committed. A future rebased Step must supply an honest semantic
+correspondence or stronger certificate. Merely counting unchanged projected
+facts as progress, or forcing the next selected result, does not repair this
+known sequence.
