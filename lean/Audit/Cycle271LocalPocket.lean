@@ -1,0 +1,60 @@
+import Yulang.GeneralRebaseLocalOriginPocket271
+import Yulang.GeneralRebaseLocalPocketProof271
+import Yulang.GeneralRebaseScalarAtoms271
+import Yulang.GeneralRebaseScalarSnapshot271
+import Yulang.GeneralRebaseJournalMeaning271
+import Yulang.GeneralRebaseOutputDepthPocket271
+
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.nominalTargets
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.adjacent
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.nodes
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.points
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.checked
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.atSlot
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.atSlot_sound
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.inspect
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.inspect_sound
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.rootOrigin
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.rootOrigin_sound
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.rootK2
+#print axioms Yulang.GeneralRebaseLocalOriginPocket271.rootK2_sound
+#print axioms Yulang.GeneralRebaseLocalPocketProof271.reach
+#print axioms Yulang.GeneralRebaseLocalPocketProof271.rooted
+#print axioms Yulang.GeneralRebaseLocalPocketProof271.includes_neighbor
+#print axioms Yulang.GeneralRebaseLocalPocketProof271.enumerate
+#print axioms Yulang.GeneralRebaseLocalPocketProof271.ready
+#print axioms Yulang.GeneralRebaseLocalPocketProof271.pocket_closed
+#print axioms Yulang.GeneralRebaseScalarAtoms271.left
+#print axioms Yulang.GeneralRebaseScalarAtoms271.right
+#print axioms Yulang.GeneralRebaseScalarAtoms271.one
+#print axioms Yulang.GeneralRebaseScalarAtoms271.other
+#print axioms Yulang.GeneralRebaseScalarAtoms271.candidate
+#print axioms Yulang.GeneralRebaseScalarAtoms271.checks
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.promote
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.view
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.keeps_opaque
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.enrich
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.exact_models
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.context
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.journal
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.initial_models
+#print axioms Yulang.GeneralRebaseScalarSnapshot271.initial_sites
+#print axioms Yulang.GeneralRebaseJournalMeaning271.SameModels
+#print axioms Yulang.GeneralRebaseJournalMeaning271.equality
+#print axioms Yulang.GeneralRebaseJournalMeaning271.test
+#print axioms Yulang.GeneralRebaseJournalMeaning271.edge
+#print axioms Yulang.GeneralRebaseJournalMeaning271.path
+#print axioms Yulang.GeneralRebaseJournalMeaning271.cyclic
+#print axioms Yulang.GeneralRebaseJournalMeaning271.root
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.inspected
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.unchanged
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.preserves_semantics
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.actual_model
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.points
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.old_abstains
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.global_still_open
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.local_closed
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.used_slots
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.deferred_outside
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.diagnostic
+#print axioms Yulang.GeneralRebaseOutputDepthPocket271.actual_no_root_cycle

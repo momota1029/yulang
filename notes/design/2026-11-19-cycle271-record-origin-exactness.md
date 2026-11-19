@@ -67,3 +67,37 @@ dead classification of an unresolved parent into children: a dead parent
 may have several possible observations rather than no observations,
 and a nested test might filter them. This distinction is semantic,
 not merely an implementation restriction.
+
+## Query-local closure rather than requiring a globally normalized journal
+
+Construct a finite candidate pocket from the resolved source using only
+stored structural children and one proved tight representative per nominal
+type slot. A deferred slot supplies no proposed neighbors but is not a
+trusted leaf. Reuse the independent forward closure verifier on the computed
+pocket: any reachable deferred or unrepresented demanded position still
+forces abstention. An unrelated deferred slot outside the resulting pocket
+does not prevent a checked negative (or positive) recurrence answer.
+The worklist supplies candidate indices, not semantic proofs.
+
+## Check a real source case with deferred observations
+
+An initial journal can be inspected on a conservative view whose
+deferred unresolved scalar slots are promoted only after finding both
+literal ordinary inequalities to the same scalar. Preserve the source
+atoms, nominal descriptors, and initial site descriptors, so the full
+model predicate (and semantic cycle judgment) is unchanged. This does
+not assert unchanged raw-candidate readiness or permission to refine
+the original execution state. Try the actual source/projection in 252:
+its two scalar ordinary slots and nominal source are present, with an
+unrelated deferred output slot. Compare actual global versus local
+closure and prove the result back on the original journal.
+
+The actual 252 output-depth regression now supplies a source-level check
+on the *original initial journal*: the stored snapshot and all-slot
+inspection abstain. A conservative view promoted from existing scalar
+equations still has an unresolved output slot 3. Its query-local pocket
+is exactly raw slots 2 and 0, has checked forward closure, and reports
+no semantic root recurrence. A pointwise equivalence of full model sets
+and literal equality of initial site lists transports that negative
+back to the original source. This is not a claim about the other K2
+predicate (raw potential cycles) or later installed journals.

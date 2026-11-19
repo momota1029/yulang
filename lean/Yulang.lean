@@ -5092,3 +5092,9 @@ import Yulang.GeneralRebaseRecordQueryCases271
 import Yulang.GeneralRebaseNestedQueryCongruence271
 import Yulang.GeneralRebaseNestedRecordQuery271
 import Yulang.GeneralRebaseNestedQueryFixture271
+import Yulang.GeneralRebaseLocalOriginPocket271
+import Yulang.GeneralRebaseLocalPocketProof271
+import Yulang.GeneralRebaseScalarAtoms271
+import Yulang.GeneralRebaseScalarSnapshot271
+import Yulang.GeneralRebaseJournalMeaning271
+import Yulang.GeneralRebaseOutputDepthPocket271
