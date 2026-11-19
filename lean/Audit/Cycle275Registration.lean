@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseWidthRegistration275
+
+#print axioms Yulang.GeneralRebaseWidthRegistration275.embed
+#print axioms Yulang.GeneralRebaseWidthRegistration275.widthSlot
+#print axioms Yulang.GeneralRebaseWidthRegistration275.source
+#print axioms Yulang.GeneralRebaseWidthRegistration275.rows
+#print axioms Yulang.GeneralRebaseWidthRegistration275.source_embed
+#print axioms Yulang.GeneralRebaseWidthRegistration275.row_embed
+#print axioms Yulang.GeneralRebaseWidthRegistration275.source_distinct
+#print axioms Yulang.GeneralRebaseWidthRegistration275.atoms
+#print axioms Yulang.GeneralRebaseWidthRegistration275.shapes
+#print axioms Yulang.GeneralRebaseWidthRegistration275.heads
+#print axioms Yulang.GeneralRebaseWidthRegistration275.head_at
+#print axioms Yulang.GeneralRebaseWidthRegistration275.base
+#print axioms Yulang.GeneralRebaseWidthRegistration275.viewShapes
+#print axioms Yulang.GeneralRebaseWidthRegistration275.viewHeads
+#print axioms Yulang.GeneralRebaseWidthRegistration275.view_at
+#print axioms Yulang.GeneralRebaseWidthRegistration275.view
