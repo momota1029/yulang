@@ -2,9 +2,9 @@
 - cycle: 283
 - status: running
 - started: 2026-11-19T22:30:00Z
-- updated: 2026-11-19T22:50:06Z
-- elapsed_min: 20.10
-- activity: 差分installの全有限経路と全証拠の有限支持sliceを検証。
+- updated: 2026-11-19T23:00:03Z
+- elapsed_min: 30.05
+- activity: 239/240の実全履歴はそれぞれ1、2種類のsource値へ正規化。各installの再評価2行、非葉・default・optional回帰を確認。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 0e57a5c06
-- resume_hint: 具体例と有限表現の限界を見分ける。
+- last_local_commit: 55cb75dd5
+- resume_hint: guarded経路の停止性と支持検査の具体差分を閉じる。

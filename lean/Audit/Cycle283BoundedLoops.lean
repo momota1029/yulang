@@ -1,0 +1,23 @@
+import Yulang.GeneralRebaseCachedFixtures283
+#print axioms Yulang.GeneralRebaseOneSource283.reflects
+#print axioms Yulang.GeneralRebaseOneSource283.meaning
+#print axioms Yulang.GeneralRebaseAliasMemo283.exists_cache
+#print axioms Yulang.GeneralRebaseAliasMemo283.application
+#print axioms Yulang.GeneralRebaseAliasMemo283.equation
+#print axioms Yulang.GeneralRebaseAliasFamily283.target_range
+#print axioms Yulang.GeneralRebaseVersionAliases283.history_shape
+#print axioms Yulang.GeneralRebaseVersionAliases283.canonical
+#print axioms Yulang.GeneralRebaseLooseAliases283.history_shape
+#print axioms Yulang.GeneralRebaseLooseAliases283.canonical
+#print axioms Yulang.GeneralRebaseAliasTransport283.preserves_source
+#print axioms Yulang.GeneralRebaseFreshDelta283.exact_changes
+#print axioms Yulang.GeneralRebaseTwoWrites283.two_count
+#print axioms Yulang.GeneralRebaseVersionDelta283.only_two
+#print axioms Yulang.GeneralRebaseVersionDelta283.raw_loop_still_runs
+#print axioms Yulang.GeneralRebaseLooseDelta283.only_two
+#print axioms Yulang.GeneralRebaseLooseDelta283.raw_loop_still_runs
+#print axioms Yulang.GeneralRebaseCachedFixtures283.Display.move
+#print axioms Yulang.GeneralRebaseCachedFixtures283.Display.nonleaf
+#print axioms Yulang.GeneralRebaseCachedFixtures283.Default.body_kept
+#print axioms Yulang.GeneralRebaseCachedFixtures283.Optional.candidate
+#print axioms Yulang.GeneralRebaseCachedFixtures283.Optional.root_payload
