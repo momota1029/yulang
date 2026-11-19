@@ -2,9 +2,9 @@
 - cycle: 279
 - status: running
 - started: 2026-11-19T18:30:04Z
-- updated: 2026-11-19T18:50:05.685Z
-- elapsed_min: 20.03
-- activity: Executable full occurrence receipts, exact V8 diagnostics and nonleaf readback are published; checking transport of every real transition guard, Stable and EvidenceAt.
+- updated: 2026-11-19T19:00:27.292Z
+- elapsed_min: 30.39
+- activity: Exact node-effect and edge novelty on checked reachable sources, with verified edge/model finite witness budget; looking at the exact finite-probe obstruction on both old loops.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: c6df15cc3
-- resume_hint: Checkpoint 6fa4814c is verified. Compact membership preservation is necessary for Generated/Committed; the current mixed trust and source EvidenceAt transport build locally.
+- last_local_commit: e0cc05acc
+- resume_hint: All 22 verified modules published through 78240555. Read design, five standalone audits, executable edge probe; distinguish arbitrary source model coverage and raw multi-step snapshot simulation from exact one-step availability.
