@@ -1,0 +1,18 @@
+'Yulang.GeneralRebaseMixedReplay275.Stage' does not depend on any axioms
+'Yulang.GeneralRebaseMixedReplay275.Event' does not depend on any axioms
+'Yulang.GeneralRebaseMixedReplay275.next' depends on axioms: [propext]
+'Yulang.GeneralRebaseMixedReplay275.replay' depends on axioms: [propext]
+'Yulang.GeneralRebaseMixedReplay275.Transition' depends on axioms: [propext]
+'Yulang.GeneralRebaseMixedReplay275.rank' does not depend on any axioms
+'Yulang.GeneralRebaseMixedReplay275.raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMixedReplay275.Public' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMixedReplay275.cases_of_next' depends on axioms: [propext]
+'Yulang.GeneralRebaseMixedReplay275.rank_drop' depends on axioms: [propext]
+'Yulang.GeneralRebaseMixedReplay275.accessible' depends on axioms: [propext]
+'Yulang.GeneralRebaseMixedReplay275.realized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMixedReplay275.trace_realized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMixedReplay275.public_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMixedReplay275.stable_payload' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMixedReplay275.canonical' depends on axioms: [propext]
+'Yulang.GeneralRebaseMixedReplay275.run' depends on axioms: [propext]
+'Yulang.GeneralRebaseMixedReplay275.actual_kernel_stops' depends on axioms: [propext, Classical.choice, Quot.sound]
