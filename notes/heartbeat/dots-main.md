@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 279
-- status: completed
-- started: 2026-11-19T18:30:04Z
-- updated: 2026-11-19T19:20:05Z
-- elapsed_min: 50.02
-- activity: Verified install novelty, exact edge compression including real guard availability, finite source edge bases and fixed-test obstructions; recovered prior report independently.
+- cycle: 280
+- status: running
+- started: 2026-11-19T19:30:00Z
+- updated: 2026-11-19T19:30:17Z
+- elapsed_min: 0.28
+- activity: Cycle 279 verified completed; reading checked source and fixed-port representation.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 5fa5e5c5a
-- report: notes/handoff/dots-cycle-279.md
-- resume_hint: Follow latest inbox. For bare-variable child arguments preserve actual readback through a fixed public port, then explain the semantic progress of edge-free successor installs. No general Acc or multi-step raw bisimulation is claimed.
+- last_local_commit: 917475ecb
+- resume_hint: Start from 058a8659 and compare fixed-port child descriptors against the original (type and graph semantics).
