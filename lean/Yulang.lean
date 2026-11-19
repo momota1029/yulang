@@ -5453,3 +5453,12 @@ import Yulang.GeneralRebaseLooseDelta283
 import Yulang.GeneralRebaseCachedFixtures283
 import Yulang.GeneralRebaseCanonicalCache283
 import Yulang.GeneralRebaseGuardedCache283
+import Yulang.GeneralRebaseOptionalDelta283
+import Yulang.GeneralRebaseCrossProbe283
+import Yulang.GeneralRebaseSparseGate283
+import Yulang.GeneralRebaseClassFrontier283
+import Yulang.GeneralRebaseClassMutation283
+import Yulang.GeneralRebaseClassLocality283
+import Yulang.GeneralRebaseCacheCounterexamples283
+import Yulang.GeneralRebaseFreshOnlyCache283
+import Yulang.GeneralRebaseFreshOnlyFixtures283
