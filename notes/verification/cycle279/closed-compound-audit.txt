@@ -1,0 +1,11 @@
+'Yulang.GeneralRebaseClosedEdgeCompound279.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeCompound279.closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeCompound279.emittedChild' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeCompound279.singleton' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeCompound279.canonical_ports' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeCompound279.new_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeCompound279.full_model_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeCompound279.nonempty_full_cover' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0
