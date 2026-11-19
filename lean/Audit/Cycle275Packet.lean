@@ -1,0 +1,16 @@
+import Yulang.GeneralRebaseAllWidthPacket275
+
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.mapBounds
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.mapCapture
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.mapReport
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.mapped_checks
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.mapped_projection
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.old_refines
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.report_transport
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.same_bindings
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.ordinary_exact
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.projection_exact
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.same_schema_models
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.inputs_exact
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.outputs_exact
+#print axioms Yulang.GeneralRebaseAllWidthPacket275.packet_holds
