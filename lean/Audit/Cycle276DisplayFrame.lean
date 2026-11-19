@@ -1,0 +1,21 @@
+import Yulang.GeneralRebaseDisplayFrame276
+
+#print axioms Yulang.GeneralRebaseDisplayFrame276.before
+#print axioms Yulang.GeneralRebaseDisplayFrame276.source_ids
+#print axioms Yulang.GeneralRebaseDisplayFrame276.fresh
+#print axioms Yulang.GeneralRebaseDisplayFrame276.prepared
+#print axioms Yulang.GeneralRebaseDisplayFrame276.frame
+#print axioms Yulang.GeneralRebaseDisplayFrame276.survivor
+#print axioms Yulang.GeneralRebaseDisplayFrame276.wrong_not_prepared
+#print axioms Yulang.GeneralRebaseDisplayFrame276.unique
+#print axioms Yulang.GeneralRebaseDisplayFrame276.requests_empty
+#print axioms Yulang.GeneralRebaseDisplayFrame276.ready
+#print axioms Yulang.GeneralRebaseDisplayFrame276.effect
+#print axioms Yulang.GeneralRebaseDisplayFrame276.after
+#print axioms Yulang.GeneralRebaseDisplayFrame276.emitted_site
+#print axioms Yulang.GeneralRebaseDisplayFrame276.actual_edges
+#print axioms Yulang.GeneralRebaseDisplayFrame276.generated
+#print axioms Yulang.GeneralRebaseDisplayFrame276.no_new_request
+#print axioms Yulang.GeneralRebaseDisplayFrame276.classes_empty
+#print axioms Yulang.GeneralRebaseDisplayFrame276.installation
+#print axioms Yulang.GeneralRebaseDisplayFrame276.after_models

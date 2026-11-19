@@ -1,0 +1,15 @@
+'Yulang.GeneralRebaseDisplayEndpoint276.known_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.known_one' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.any_parent_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.bad_parent_report' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.bad_child_report' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.bad_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.bad_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.wrong_parent_prepared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.wrong_child_prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.root_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.centers_for' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.raw_for' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEndpoint276.generates_only' depends on axioms: [propext, Classical.choice, Quot.sound]

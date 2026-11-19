@@ -1,0 +1,5 @@
+import Yulang.GeneralRebaseScopedFrame276
+
+#print axioms Yulang.GeneralRebaseScopedFrame276.frame_input_occurrence
+#print axioms Yulang.GeneralRebaseScopedFrame276.same_frame
+#print axioms Yulang.GeneralRebaseScopedFrame276.declaration_for_focus

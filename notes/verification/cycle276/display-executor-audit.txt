@@ -1,0 +1,21 @@
+'Yulang.GeneralRebaseDisplayExecutor276.Phase' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.Goal' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.rank' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.height' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.invocation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDisplayExecutor276.localTable' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.emit' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.step' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.run' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayExecutor276.phase_distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayExecutor276.exact_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayExecutor276.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayExecutor276.model_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayExecutor276.table_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayExecutor276.child_smaller' depends on axioms: [propext]
+'Yulang.GeneralRebaseDisplayExecutor276.canonical' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.underfuel' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.wrong_key' does not depend on any axioms
+'Yulang.GeneralRebaseDisplayExecutor276.run_exact' depends on axioms: [propext]
+'Yulang.GeneralRebaseDisplayExecutor276.readback' depends on axioms: [propext, Classical.choice, Quot.sound]

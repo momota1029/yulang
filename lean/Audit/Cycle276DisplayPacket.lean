@@ -1,0 +1,12 @@
+import Yulang.GeneralRebaseDisplayPacket276
+
+#print axioms Yulang.GeneralRebaseDisplayPacket276.children
+#print axioms Yulang.GeneralRebaseDisplayPacket276.center
+#print axioms Yulang.GeneralRebaseDisplayPacket276.capture
+#print axioms Yulang.GeneralRebaseDisplayPacket276.child_site
+#print axioms Yulang.GeneralRebaseDisplayPacket276.emitted
+#print axioms Yulang.GeneralRebaseDisplayPacket276.child_schema
+#print axioms Yulang.GeneralRebaseDisplayPacket276.real_variable
+#print axioms Yulang.GeneralRebaseDisplayPacket276.bound_values
+#print axioms Yulang.GeneralRebaseDisplayPacket276.ordinary_exact
+#print axioms Yulang.GeneralRebaseDisplayPacket276.holds

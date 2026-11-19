@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseDisplayChild276
+
+#print axioms Yulang.GeneralRebaseDisplayChild276.context
+#print axioms Yulang.GeneralRebaseDisplayChild276.packet
+#print axioms Yulang.GeneralRebaseDisplayChild276.plan
+#print axioms Yulang.GeneralRebaseDisplayChild276.query
+#print axioms Yulang.GeneralRebaseDisplayChild276.report_exact
+#print axioms Yulang.GeneralRebaseDisplayChild276.bindings_empty
+#print axioms Yulang.GeneralRebaseDisplayChild276.no_children
+#print axioms Yulang.GeneralRebaseDisplayChild276.emitted_empty
+#print axioms Yulang.GeneralRebaseDisplayChild276.ordinary
+#print axioms Yulang.GeneralRebaseDisplayChild276.head_schema
+#print axioms Yulang.GeneralRebaseDisplayChild276.holds

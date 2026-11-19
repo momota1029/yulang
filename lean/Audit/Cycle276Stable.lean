@@ -1,0 +1,12 @@
+import Yulang.GeneralRebaseDisplayStable276
+
+#print axioms Yulang.GeneralRebaseDisplayStable276.point_closed
+#print axioms Yulang.GeneralRebaseDisplayStable276.committed_parent
+#print axioms Yulang.GeneralRebaseDisplayStable276.committed_child
+#print axioms Yulang.GeneralRebaseDisplayStable276.framed_parent
+#print axioms Yulang.GeneralRebaseDisplayStable276.framed_child
+#print axioms Yulang.GeneralRebaseDisplayStable276.no_install
+#print axioms Yulang.GeneralRebaseDisplayStable276.recorded
+#print axioms Yulang.GeneralRebaseDisplayStable276.halted
+#print axioms Yulang.GeneralRebaseDisplayStable276.stable_parent
+#print axioms Yulang.GeneralRebaseDisplayStable276.stable_child

@@ -1,0 +1,5 @@
+Yulang.GeneralRebaseScalarRefresh276.nominal_none
+Yulang.GeneralRebaseScalarRefresh276.scalar_head
+Yulang.GeneralRebaseScalarRefresh276.scalar_inspect
+Yulang.GeneralRebaseScalarRefresh276.scalar_report_mapped
+Yulang.GeneralRebaseScalarRefresh276.no_scalar_in_nominal_contract

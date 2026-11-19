@@ -1,0 +1,25 @@
+Cycle 276 focused build and independent audit manifests
+display-acc: 1 modules, 7 audited declarations
+display-child-fresh: 1 modules, 5 audited declarations
+display-child: 1 modules, 11 audited declarations
+display-endpoint: 1 modules, 13 audited declarations
+display-evidence-at: 1 modules, 3 audited declarations
+display-evidence: 1 modules, 9 audited declarations
+display-executor: 1 modules, 21 audited declarations
+display-frame: 1 modules, 19 audited declarations
+display-packet: 1 modules, 10 audited declarations
+display-payload: 1 modules, 9 audited declarations
+display-safety: 1 modules, 13 audited declarations
+display-selection: 1 modules, 19 audited declarations
+display-separators: 1 modules, 11 audited declarations
+display-stable: 1 modules, 10 audited declarations
+display-step: 1 modules, 7 audited declarations
+nonleaf-committed: 1 modules, 6 audited declarations
+nonleaf-prepared: 1 modules, 4 audited declarations
+nonleaf-retarget: 1 modules, 12 audited declarations
+nonleaf-transport: 1 modules, 5 audited declarations
+scalar-refresh: 1 modules, 5 audited declarations
+scoped-frame: 1 modules, 3 audited declarations
+tower-acyclic: 1 modules, 2 audited declarations
+tower-semantics: 1 modules, 7 audited declarations
+23 new library modules; 211 distinct named declarations; 23 independent audits; standard axioms only.

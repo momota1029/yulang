@@ -1,0 +1,5 @@
+'Yulang.GeneralRebaseNonleafTransport276.ReadyRule' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonleafTransport276.leaf_or_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonleafTransport276.rule_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonleafTransport276.indexed_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonleafTransport276.erase_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]

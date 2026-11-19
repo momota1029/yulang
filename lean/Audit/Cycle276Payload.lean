@@ -1,0 +1,11 @@
+import Yulang.GeneralRebaseDisplayPayload276
+
+#print axioms Yulang.GeneralRebaseDisplayPayload276.accepts
+#print axioms Yulang.GeneralRebaseDisplayPayload276.child_shape
+#print axioms Yulang.GeneralRebaseDisplayPayload276.parent_shape
+#print axioms Yulang.GeneralRebaseDisplayPayload276.child_accepts
+#print axioms Yulang.GeneralRebaseDisplayPayload276.parent_accepts
+#print axioms Yulang.GeneralRebaseDisplayPayload276.exact
+#print axioms Yulang.GeneralRebaseDisplayPayload276.no_parent_leaf
+#print axioms Yulang.GeneralRebaseDisplayPayload276.no_dangling_child
+#print axioms Yulang.GeneralRebaseDisplayPayload276.no_redundant_child

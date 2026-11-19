@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseTowerSemantics276.no_structural' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTowerSemantics276.nominal_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTowerSemantics276.observed_depth' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTowerSemantics276.smaller' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTowerSemantics276.Realizes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTowerSemantics276.rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTowerSemantics276.rank_exact' depends on axioms: [propext, Classical.choice, Quot.sound]

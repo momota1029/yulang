@@ -1,0 +1,5 @@
+import Yulang.GeneralRebaseDisplayEvidenceAt276
+
+#print axioms Yulang.GeneralRebaseDisplayEvidenceAt276.evidenceAt
+#print axioms Yulang.GeneralRebaseDisplayEvidenceAt276.generatedChildren
+#print axioms Yulang.GeneralRebaseDisplayEvidenceAt276.regression

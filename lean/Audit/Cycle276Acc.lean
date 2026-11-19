@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseDisplayAcc276
+
+#print axioms Yulang.GeneralRebaseDisplayAcc276.initial_generated
+#print axioms Yulang.GeneralRebaseDisplayAcc276.initial_known
+#print axioms Yulang.GeneralRebaseDisplayAcc276.initial_effect_unique
+#print axioms Yulang.GeneralRebaseDisplayAcc276.only_step
+#print axioms Yulang.GeneralRebaseDisplayAcc276.step_exact
+#print axioms Yulang.GeneralRebaseDisplayAcc276.source_acc
+#print axioms Yulang.GeneralRebaseDisplayAcc276.exact_reached

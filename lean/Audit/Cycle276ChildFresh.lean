@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseDisplayChildFresh276
+
+#print axioms Yulang.GeneralRebaseDisplayChildFresh276.keys_root
+#print axioms Yulang.GeneralRebaseDisplayChildFresh276.parentReserved
+#print axioms Yulang.GeneralRebaseDisplayChildFresh276.old_support
+#print axioms Yulang.GeneralRebaseDisplayChildFresh276.invocation_distinct
+#print axioms Yulang.GeneralRebaseDisplayChildFresh276.child_fresh

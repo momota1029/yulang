@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 275
+- cycle: 276
 - status: completed
-- started: 2026-11-19T14:30:10Z
-- updated: 2026-11-19T15:20:15Z
-- elapsed_min: 50.08
-- activity: Verified full mixed-kernel accessibility from installed 230, a three-step upper bound, and history-independent positive V8 leaf evidence.
+- started: 2026-11-19T15:30:08Z
+- updated: 2026-11-19T16:20:09Z
+- elapsed_min: 50.02
+- activity: Verified a real Display/Int nonleaf V8 fixture with exactly one mixed-kernel Step from source, an exact executable, and an independent refresh transport.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 9dff77d7f
-- report: notes/handoff/dots-cycle-275.md
-- resume_hint: Refetch latest orders; do not redo 230 post-install. Next genuine nonleaf fixture GeneralNominalMixedNonleaf198 or pre-install reachability.
+- last_local_commit: a9265bdde
+- report: notes/handoff/dots-cycle-276.md
+- resume_hint: Refetch latest orders; keep the direct 198 fixture result. For the encoded adapter, construct the role-local compiled effect and compare core/model-equivalent distinct raw states, or pursue a second independently checked source.

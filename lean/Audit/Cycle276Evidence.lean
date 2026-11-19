@@ -1,0 +1,11 @@
+import Yulang.GeneralRebaseDisplayEvidence276
+
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.center_sites
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.raw_sites
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.prepared
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.child_frame
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.ready
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.child_evidence
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.parent_instance
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.real_nonleaf
+#print axioms Yulang.GeneralRebaseDisplayEvidence276.source_nonleaf

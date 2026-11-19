@@ -1,0 +1,21 @@
+import Yulang.GeneralRebaseDisplaySelection276
+
+#print axioms Yulang.GeneralRebaseDisplaySelection276.parent
+#print axioms Yulang.GeneralRebaseDisplaySelection276.child
+#print axioms Yulang.GeneralRebaseDisplaySelection276.parent_frame
+#print axioms Yulang.GeneralRebaseDisplaySelection276.child_frame
+#print axioms Yulang.GeneralRebaseDisplaySelection276.parent_children
+#print axioms Yulang.GeneralRebaseDisplaySelection276.known_parent
+#print axioms Yulang.GeneralRebaseDisplaySelection276.known_child
+#print axioms Yulang.GeneralRebaseDisplaySelection276.parent_survivor
+#print axioms Yulang.GeneralRebaseDisplaySelection276.child_survivor
+#print axioms Yulang.GeneralRebaseDisplaySelection276.unique_parent
+#print axioms Yulang.GeneralRebaseDisplaySelection276.unique_child
+#print axioms Yulang.GeneralRebaseDisplaySelection276.same_center_value
+#print axioms Yulang.GeneralRebaseDisplaySelection276.no_cross_merge
+#print axioms Yulang.GeneralRebaseDisplaySelection276.no_reverse_merge
+#print axioms Yulang.GeneralRebaseDisplaySelection276.administrative
+#print axioms Yulang.GeneralRebaseDisplaySelection276.safe
+#print axioms Yulang.GeneralRebaseDisplaySelection276.no_merge_conflict
+#print axioms Yulang.GeneralRebaseDisplaySelection276.picked_parent
+#print axioms Yulang.GeneralRebaseDisplaySelection276.picked_child

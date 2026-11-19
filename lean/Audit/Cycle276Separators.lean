@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseDisplaySeparators276
+
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.patch
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.public_value
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.private_value
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.base_patched
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.patched
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.headless
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.not_top
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.mark
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.isolate_high
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.equality_names
+#print axioms Yulang.GeneralRebaseDisplaySeparators276.equality_closed

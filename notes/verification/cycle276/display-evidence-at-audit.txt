@@ -1,0 +1,3 @@
+'Yulang.GeneralRebaseDisplayEvidenceAt276.evidenceAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEvidenceAt276.generatedChildren' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEvidenceAt276.regression' depends on axioms: [propext, Classical.choice, Quot.sound]

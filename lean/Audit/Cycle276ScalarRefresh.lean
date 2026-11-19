@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseScalarRefresh276
+
+#print axioms Yulang.GeneralRebaseScalarRefresh276.nominal_none
+#print axioms Yulang.GeneralRebaseScalarRefresh276.scalar_head
+#print axioms Yulang.GeneralRebaseScalarRefresh276.scalar_inspect
+#print axioms Yulang.GeneralRebaseScalarRefresh276.scalar_report_mapped
+#print axioms Yulang.GeneralRebaseScalarRefresh276.no_scalar_in_nominal_contract
