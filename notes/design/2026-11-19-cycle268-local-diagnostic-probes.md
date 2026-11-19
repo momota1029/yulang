@@ -102,3 +102,26 @@ and no proposal that changes the projection is equivalent to invariance of
 the projection along all finite old-kernel paths from this source.
 Neither an original-language key construction nor a generic table completeness
 result is furnished by this conditional reduction.
+
+The ordinary checked scheduler's `some` result lifts to an old weak
+transition. With sound/complete per-key offers, `none` is a weak terminal.
+Basis support rules out scheduler errors. If the region is also closed under
+weak advances, choosing a concrete witness and **recomputing there** produces
+a finite supported trace with the same strict budget. Its proof does not
+provide an executable choice of the concrete witness.
+
+The integrated diagnostic automatically discharges the computed inspection
+and structural no-merged-class branches when possible, falling back only
+on unknown. Head support is required only for the bounds actually found
+by the inspector; this does not produce a semantic head decision. In the
+actual compound fixture, inspection and merged conflict are computed negative
+with both corresponding fallback bits unknown and all pairwise SameInputs
+fallback bits unknown. Registry metadata and head compatibility still use
+separately proved positive inputs; the remaining fallback predicates likewise
+retain their independent certifications.
+
+The V8 consensus evaluator also resolves verdicts when the overlay flag is
+unknown but its ordinary and overlay branches both decide the same ambiguity
+or rejection. In particular it never needs either overlay answer to reject
+an already known unsafe (non-pending K2) focus. This preserves all previous
+decided results and has the same totality premises as the original evaluator.

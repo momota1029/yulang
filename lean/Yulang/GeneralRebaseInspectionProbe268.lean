@@ -6,6 +6,7 @@ open GeneralSourceDictionaries (Occurrence)
 open GeneralNominalCandidates (Context Metadata)
 open GeneralNominalVersionedJournal232 (State Models)
 open GeneralNominalCenters (Site SameInputs)
+open GeneralNominalRecursiveCandidates (arguments)
 open GeneralNominalVersionedCandidates231 (inputs InspectionPending Prepared Failed)
 open GeneralRebaseSourceSurvivor267 (Boundary Encoded)
 open GeneralRebaseInspectionChecks268 (BoundList Head check check_sound)
@@ -21,7 +22,7 @@ def awaiting (registry : Registry) (ctx : Context) (focus : Occurrence roles) (d
 
 theorem awaiting_sound (registry : Registry) (ctx : Context) (focus : Occurrence roles) (decl : Declaration)
  (metadata : Answer) (head : BoundList ctx → Answer) (metaSound : Reflect (Metadata registry ctx) metadata)
- (headSound : ∀ bounds, Reflect (Head registry ctx focus decl bounds) (head bounds)) :
+ (headSound : ∀ bounds, arguments ctx (inputs focus) = some bounds → Reflect (Head registry ctx focus decl bounds) (head bounds)) :
  Reflect (decl.role = focus.demand.role ∧ ¬ Failed registry ctx focus decl ∧ ¬ Prepared registry ctx focus decl)
   (awaiting registry ctx focus decl metadata head) := by
  have one := check_sound registry ctx focus decl metadata head metaSound headSound
@@ -37,7 +38,7 @@ def raw (registry : Registry) (ctx : Context) (focus : Occurrence roles)
 theorem raw_sound (registry : Registry) (ctx : Context) (focus : Occurrence roles)
  (metadata : Answer) (head : Declaration → BoundList ctx → Answer)
  (metaSound : Reflect (Metadata registry ctx) metadata)
- (headSound : ∀ decl ∈ registry.declarations, ∀ bounds, Reflect (Head registry ctx focus decl bounds) (head decl bounds)) :
+ (headSound : ∀ decl ∈ registry.declarations, ∀ bounds, arguments ctx (inputs focus) = some bounds → Reflect (Head registry ctx focus decl bounds) (head decl bounds)) :
  Reflect (InspectionPending registry ctx focus) (raw registry ctx focus metadata head) :=
  GeneralRebasePartialBool268.both_sound (bool_reflect _ _ (allKnown_exact ..))
   (any_sound _ _ _ (fun decl onList => awaiting_sound registry ctx focus decl metadata
@@ -54,6 +55,7 @@ theorem probe_sound (registry : Registry) (state : State roles) (focus : Occurre
  (compare : Site roles → Site roles → Answer)
  (metaSound : Reflect (Metadata (Encoded registry) state.core.erased.current.context) metadata)
  (headSound : ∀ decl ∈ (Encoded registry).declarations, ∀ bounds,
+   arguments state.core.erased.current.context (inputs focus) = some bounds →
    Reflect (Head (Encoded registry) state.core.erased.current.context focus decl bounds) (head decl bounds))
  (compareSound : ∀ first ∈ state.core.sites, ∀ last ∈ state.core.sites,
    Reflect (SameInputs (Models state) first last) (compare first last)) :

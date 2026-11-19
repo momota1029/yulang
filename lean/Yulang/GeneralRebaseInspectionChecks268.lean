@@ -88,7 +88,7 @@ def check (registry : Registry) (ctx : Context) (focus : Occurrence roles) (d : 
 theorem check_sound (registry : Registry) (ctx : Context) (focus : Occurrence roles) (d : Declaration)
  (metadata : Answer) (head : BoundList ctx → Answer)
  (metaSound : Reflect (Metadata registry ctx) metadata)
- (headSound : ∀ bounds, Reflect (Head registry ctx focus d bounds) (head bounds)) :
+ (headSound : ∀ bounds, arguments ctx (inputs focus) = some bounds → Reflect (Head registry ctx focus d bounds) (head bounds)) :
  Reflect (Prepared registry ctx focus d) (check registry ctx focus d metadata head).1 ∧
  Reflect (Failed registry ctx focus d) (check registry ctx focus d metadata head).2 := by
  unfold check
@@ -104,6 +104,6 @@ theorem check_sound (registry : Registry) (ctx : Context) (focus : Occurrence ro
      rw [missing] at found
      cases found
  · rename_i bounds located
-   exact computed_sound registry ctx focus d bounds located metadata (head bounds) metaSound (headSound bounds)
+   exact computed_sound registry ctx focus d bounds located metadata (head bounds) metaSound (headSound bounds located)
 
 end Yulang.GeneralRebaseInspectionChecks268

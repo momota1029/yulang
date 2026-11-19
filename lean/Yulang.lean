@@ -4993,3 +4993,7 @@ import Yulang.GeneralRebaseWeakTerminal268
 import Yulang.GeneralRebaseStutterInfinite268
 import Yulang.GeneralRebaseStutterKeys268
 import Yulang.GeneralRebaseKeyedWeakObserver268
+import Yulang.GeneralRebaseIntegratedDiagnostic268
+import Yulang.GeneralRebaseIntegratedFixture268
+import Yulang.GeneralRebaseConsensusDiagnostic268
+import Yulang.GeneralRebaseKeyedWeakScheduler268
