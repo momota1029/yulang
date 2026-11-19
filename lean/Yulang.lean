@@ -5284,3 +5284,7 @@ import Yulang.GeneralRebaseLoosePrivate278
 import Yulang.GeneralRebaseTerminalEvidence278
 import Yulang.GeneralRebaseVersionEvidence278
 import Yulang.GeneralRebaseLooseEvidence278
+import Yulang.GeneralRebaseVersionRetained278
+import Yulang.GeneralRebaseLooseRetained278
+import Yulang.GeneralRebaseVersionRefreshLeaf278
+import Yulang.GeneralRebaseLooseRefreshLeaf278
