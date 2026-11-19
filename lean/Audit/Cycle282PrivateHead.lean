@@ -1,0 +1,16 @@
+import Yulang.GeneralRebasePrivateKey282
+import Yulang.GeneralRebasePrivateHead282
+
+#print axioms Yulang.GeneralRebasePrivateKey282.port
+#print axioms Yulang.GeneralRebasePrivateKey282.Excludes
+#print axioms Yulang.GeneralRebasePrivateKey282.different_purpose
+#print axioms Yulang.GeneralRebasePrivateKey282.versioned_distinct
+#print axioms Yulang.GeneralRebasePrivateKey282.endpoint_support
+#print axioms Yulang.GeneralRebasePrivateKey282.capture_private
+#print axioms Yulang.GeneralRebasePrivateKey282.binder_private
+#print axioms Yulang.GeneralRebasePrivateHead282.replay_private
+#print axioms Yulang.GeneralRebasePrivateHead282.head_transport
+#print axioms Yulang.GeneralRebasePrivateHead282.protected_head
+#print axioms Yulang.GeneralRebasePrivateHead282.variable_private
+#print axioms Yulang.GeneralRebasePrivateHead282.output_private
+#print axioms Yulang.GeneralRebasePrivateHead282.schema_private
