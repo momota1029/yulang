@@ -97,3 +97,24 @@ input tree is forced across all models by its retained packet, and the
 derived output tree after two selections computes the same witness as
 input 2. The comparison becomes a genuine all-model Equal proof there.
 An isolated fixture model by itself can only disprove that judgment.
+
+## Derive seed trees from existing normalized source observations
+
+Extract a finite seed tree by following checked structural children and
+tight nominal type-argument representatives, with explicit depth fuel.
+A node is accepted only when all declared child positions are certified;
+row/unrepresented/deferred positions abstain. Soundness is uniform in
+the full journal model, using the existing promises behind normalized
+heads rather than obtaining an arbitrary solver model. Finite fuel
+can limit coverage but never turn a cyclic or unsupported state into a
+negative certificate.
+
+On actual installed 252 an entirely computed raw seed and emitted
+closure recover the previously explicit witness: fuel two learns the
+nominal input through its scalar ordinary atoms; the unrecorded output
+is discovered only by its retained emitted equation. The all-model
+comparison from two output selections back to the input still
+computes true. A bounded synthetic record fixture shows the difference
+between enough and insufficient seed fuel. A semantic cycle can never
+be certified negative by the finite tree method; combine it with
+the separately independently certified positive pocket checker.

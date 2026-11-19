@@ -5132,3 +5132,6 @@ import Yulang.GeneralRebaseTreeLeastClosure272
 import Yulang.GeneralRebaseFiniteTreeCode272
 import Yulang.GeneralRebaseFiniteTreeCompare272
 import Yulang.GeneralRebaseUniformTree272
+import Yulang.GeneralRebaseTreeSeedFrame272
+import Yulang.GeneralRebaseTreeSeedExtract272
+import Yulang.GeneralRebaseTreeAuto272
