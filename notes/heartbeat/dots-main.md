@@ -2,9 +2,9 @@
 - cycle: 266
 - status: running
 - started: 2026-11-19T05:30:24Z
-- updated: 2026-11-19T05:40:26Z
-- elapsed_min: 10.03
-- activity: Recovered source and official Lean. Focused transitive dependencies compiling; new proof drafts are not yet published.
+- updated: 2026-11-19T05:50:28Z
+- elapsed_min: 20.07
+- activity: Verified and published 12 modules; investigating pending-fact persistence and scheduler uniqueness.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 1b113cfd9
-- resume_hint: See notes/verification/cycle266/dependencies.txt and latest exact source compression modules; publish only after strict audit.
+- last_local_commit: e08c2e790
+- resume_hint: Check checkpoint 038f0b2d and notes/verification/cycle266; later source is draft until focused build and audit pass.
