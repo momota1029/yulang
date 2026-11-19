@@ -2,9 +2,9 @@
 - cycle: 271
 - status: running
 - started: 2026-11-19T10:30:00Z
-- updated: 2026-11-19T11:00:00Z
-- elapsed_min: 30.01
-- activity: Actual 252 query-local source certificate and raw/full recurrence comparison
+- updated: 2026-11-19T11:10:01Z
+- elapsed_min: 40.02
+- activity: Actual 252 finite successor and model-sensitive full/raw cycle boundary checked
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 15e672b19
-- resume_hint: Continue check of the witness precondition; then finish isolated focused verification.
+- last_local_commit: 11da5e716
+- resume_hint: Finish independent readback certificate and recompile every new module in an isolated cache.
