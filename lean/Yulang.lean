@@ -5101,3 +5101,8 @@ import Yulang.GeneralRebaseOutputDepthPocket271
 import Yulang.GeneralRebaseOutputDepthSuccessor271
 import Yulang.GeneralRebaseRawIntoFull271
 import Yulang.GeneralRebaseK2ModelBoundary271
+import Yulang.GeneralRebaseInstalledReadback271
+import Yulang.GeneralRebaseUnaryRank271
+import Yulang.GeneralRebaseUnaryReadback271
+import Yulang.GeneralRebaseInstalledOutputCycles271
+import Yulang.GeneralRebaseUnaryCandidateCoverage271

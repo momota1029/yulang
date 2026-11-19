@@ -129,3 +129,24 @@ its raw snapshot has no outgoing observation for the output slot.
 Check the short full-model path to the original input using the
 already-proved emitted equation; do not infer new snapshots or
 generally complete candidate coverage from this semantic path.
+
+A separate finite unary readback certificate can decide semantic
+non-recurrence even when a raw pocket is unknown. In one actual full
+model, readback made of a finite stack of unary nominal constructors
+ending at a scalar has invariant depth under carrier equivalence.
+Every semantic edge strictly decreases that depth, even through
+non-raw Origins, so the original installed output is acyclic
+despite neither the initial source promotion nor the raw pocket
+knowing its head. This does not enumerate arbitrary installed
+output certificates; for 252 the independent emitted equation
+provides one.
+
+The finite unary witness classifier walks arbitrary Origin syntax. It
+returns a checked shape, a genuine lack of observations in the witness
+model, or unknown; unlike merely dead equality, an absent observation
+does safely propagate through nesting. A total certified source-shape
+function excludes every semantic origin cycle, hence also both semantic
+and raw candidate cycle reasons (via edge embedding). The explicit real
+installed model in 252 supplies this total function, including parameter
+and output names. No raw normalization of its associated output is
+imputed: the full output-to-input path remains absent in the raw graph.

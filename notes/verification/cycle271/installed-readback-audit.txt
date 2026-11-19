@@ -1,0 +1,85 @@
+'Yulang.GeneralRebaseInstalledReadback271.source_at' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.at_equal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.next' does not depend on any axioms
+'Yulang.GeneralRebaseInstalledReadback271.child_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.nominal_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.certified_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.output_head' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.intermediate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.original_input' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.full_path' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.outputSlot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.inputSlot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.raw_stops' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.raw_path_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstalledReadback271.Actual252.converse_fails' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUnaryRank271.Unary' does not depend on any axioms
+'Yulang.GeneralRebaseUnaryRank271.value' does not depend on any axioms
+'Yulang.GeneralRebaseUnaryRank271.depth' does not depend on any axioms
+'Yulang.GeneralRebaseUnaryRank271.rootTag' does not depend on any axioms
+'Yulang.GeneralRebaseUnaryRank271.has_tag' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUnaryRank271.depth_invariant' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUnaryRank271.same_origin' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUnaryRank271.decreases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUnaryRank271.path_depth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUnaryRank271.acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUnaryReadback271.Result' does not depend on any axioms
+'Yulang.GeneralRebaseUnaryReadback271.Meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUnaryReadback271.stepNom' does not depend on any axioms
+'Yulang.GeneralRebaseUnaryReadback271.stepStruct' depends on axioms: [propext]
+'Yulang.GeneralRebaseUnaryReadback271.no_structural' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUnaryReadback271.no_nominal_scalar' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUnaryReadback271.no_wrong_index' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUnaryReadback271.nominal_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUnaryReadback271.structure_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseUnaryReadback271.run' depends on axioms: [propext]
+'Yulang.GeneralRebaseUnaryReadback271.run_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUnaryReadback271.cycle' depends on axioms: [propext]
+'Yulang.GeneralRebaseUnaryReadback271.cycle_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstalledOutputCycles271.term' does not depend on any axioms
+'Yulang.GeneralRebaseInstalledOutputCycles271.known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseInstalledOutputCycles271.source' does not depend on any axioms
+'Yulang.GeneralRebaseInstalledOutputCycles271.total' depends on axioms: [propext]
+'Yulang.GeneralRebaseInstalledOutputCycles271.computed' depends on axioms: [propext]
+'Yulang.GeneralRebaseInstalledOutputCycles271.no_cycle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstalledOutputCycles271.deep_readback' depends on axioms: [propext]
+'Yulang.GeneralRebaseInstalledOutputCycles271.malformed_readback' depends on axioms: [propext]
+'Yulang.GeneralRebaseInstalledOutputCycles271.combined_root_clear' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUnaryCandidateCoverage271.run_total' depends on axioms: [propext]
+'Yulang.GeneralRebaseUnaryCandidateCoverage271.universal_noncycle' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUnaryCandidateCoverage271.no_raw_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUnaryCandidateCoverage271.no_semantic_candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUnaryCandidateCoverage271.no_candidate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUnaryCandidateCoverage271.declaredTotal' does not depend on any axioms
+'Yulang.GeneralRebaseUnaryCandidateCoverage271.declaredTotal_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUnaryCandidateCoverage271.Installed252.checked_candidates' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
