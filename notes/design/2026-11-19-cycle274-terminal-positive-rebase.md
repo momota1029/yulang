@@ -77,3 +77,16 @@ the stable lower slot from source 4; at terminal it loads from source 2.
 The real versioned model remains valid at each stage (its historical slot
 is a different identity). Check that no single stable address can satisfy
 both blocks when the optional output and width are the actual source values.
+
+## Stronger trusted cache boundary
+
+The reachable 233 leaf is stable under its inherited source-only cache.
+The mixed 234 boundary admits stronger semantic refresh facts. Do not
+lift stability by embedding the three old steps. First classify possible
+newly-known names in the actual terminal state: public 0/1/2 already have
+heads; top at 3 and optional output at 4 and the historic lower have no
+exact head in the actual full model. The only remaining names are the
+three private width coordinates. If every non-refresh mixed alternative
+is excluded, equivalence to the existence of one such admissible refresh
+is sharper than an unproved claim of mixed stability. Constructing or
+excluding the refines/cache witness remains separate.
