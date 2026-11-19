@@ -1,0 +1,63 @@
+import Yulang.GeneralRebaseNominalOrigin269
+import Yulang.GeneralRebaseNominalWindow269
+import Yulang.GeneralRebaseTypedNominalWindow269
+import Yulang.GeneralRebaseNominalWindowFixture269
+import Yulang.GeneralRebaseRowOriginFixture269
+import Yulang.GeneralRebaseEnhancedPipeline269
+
+#print axioms Yulang.GeneralRebaseNominalOrigin269.Raw
+#print axioms Yulang.GeneralRebaseNominalOrigin269.origin
+#print axioms Yulang.GeneralRebaseNominalOrigin269.tag
+#print axioms Yulang.GeneralRebaseNominalOrigin269.head
+#print axioms Yulang.GeneralRebaseNominalOrigin269.exhaust
+#print axioms Yulang.GeneralRebaseNominalOrigin269.member_equal
+#print axioms Yulang.GeneralRebaseNominalOrigin269.observed_is_type
+#print axioms Yulang.GeneralRebaseNominalWindow269.tests
+#print axioms Yulang.GeneralRebaseNominalWindow269.target
+#print axioms Yulang.GeneralRebaseNominalWindow269.check
+#print axioms Yulang.GeneralRebaseNominalWindow269.target_sound
+#print axioms Yulang.GeneralRebaseNominalWindow269.test_sound
+#print axioms Yulang.GeneralRebaseNominalWindow269.check_sound
+#print axioms Yulang.GeneralRebaseNominalWindow269.window
+#print axioms Yulang.GeneralRebaseNominalWindow269.window_sound
+#print axioms Yulang.GeneralRebaseTypedNominalWindow269.edge_iff
+#print axioms Yulang.GeneralRebaseTypedNominalWindow269.edge
+#print axioms Yulang.GeneralRebaseTypedNominalWindow269.edge_sound
+#print axioms Yulang.GeneralRebaseTypedNominalWindow269.window
+#print axioms Yulang.GeneralRebaseTypedNominalWindow269.window_sound
+#print axioms Yulang.GeneralRebaseTypedNominalWindow269.typed_forward
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.indices
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.checked
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.current
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.tested
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.query
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.query_sound
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.exact_child
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.exact_root
+#print axioms Yulang.GeneralRebaseNominalWindowFixture269.root_cycle
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.d
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.raw
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.assignment
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.raw_model
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.context
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.journal
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.whole_model
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.points
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.coverage
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.window
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.matchOrigin
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.graph_empty
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.query
+#print axioms Yulang.GeneralRebaseRowOriginFixture269.no_cycle
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.extra
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.extra_cert
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.compiled
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.rootKnown
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.cycleClear
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.inspectionClear
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.overlaysClear
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.outputClear
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.verdict
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.selected
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.guard
+#print axioms Yulang.GeneralRebaseEnhancedPipeline269.actual_install

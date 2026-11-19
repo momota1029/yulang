@@ -121,3 +121,21 @@ source representative closes it semantically but not syntactically: there
 is an actual edge to a distinct projected origin. The head/test scan and
 semantic representative lookup detect its cycle without a preassigned
 whole-edge bit. This does not assert source program reachability.
+
+### Descriptor-driven Origin windows
+
+On a registered raw nominal slot with one actual model of the full journal,
+regularity and constructor-tag disjointness force every admissible
+positive-arity head test to be the descriptor's name and arity. An actual
+type projection cannot result from a row-kind position. The typed pair
+scanner therefore checks only finitely many descriptor type positions
+and leaves structural or missing descriptors unknown. A boolean closure
+check verifies that every such position has a covered target slot made
+equal by explicit graph-tight intervals. This supplies all-model closure
+for the nominal window, not just guessed bounded syntax. At the one-slot
+recursive nominal fixture the check succeeds and the actual Versioned root
+cycle is computed. In a separate row-only initialized fixture a model
+exists, the full graph edge is computed false with every equality fallback
+unknown, and semantic recurrence is excluded. The actual compound install
+also verifies through the enhanced V8 compiler while retaining its original
+independent head/joint model evidence.

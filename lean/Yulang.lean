@@ -5036,3 +5036,9 @@ import Yulang.GeneralRebaseRawActualProbe269
 import Yulang.GeneralRebaseOriginEdgeScan269
 import Yulang.GeneralRebaseOriginWindowFixture269
 import Yulang.GeneralRebaseCompilerInputs269
+import Yulang.GeneralRebaseNominalOrigin269
+import Yulang.GeneralRebaseNominalWindow269
+import Yulang.GeneralRebaseTypedNominalWindow269
+import Yulang.GeneralRebaseNominalWindowFixture269
+import Yulang.GeneralRebaseRowOriginFixture269
+import Yulang.GeneralRebaseEnhancedPipeline269
