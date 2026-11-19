@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 282
-- status: running
+- status: completed
 - started: 2026-11-19T21:35:10Z
-- updated: 2026-11-19T22:15:11Z
-- elapsed_min: 40.02
-- activity: 40分: 共通モデルを未仮定の候補判定、compiled driver と実一歩・path の iff、guarded Acc、選択済み EvidenceAt を対象別に検証。
+- updated: 2026-11-19T22:25:11Z
+- elapsed_min: 50.02
+- activity: 全 mixed journal・recursive evidence・最新 fixed 表の射影、compiled install guard と guarded path を確認。32モジュール、6独立監査259宣言 PASS。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 11dce5777
-- resume_hint: 固定幅は live アドレスのみと区別し、全新規原本・監査と全ログを最終照合する。
+- last_local_commit: e85769ee0
+- report: notes/handoff/dots-cycle-282.md
+- resume_hint: 新版定義が旧 compiled 支持に触れる場合と触れない場合を分け、prospective の差分 compiler を証明する。
