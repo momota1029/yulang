@@ -1,0 +1,13 @@
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_empty' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_nondoubled' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_diverging_endpoint' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_nonpublic_endpoint' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_wrong_owner_name' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_center_guess' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_point_without_install' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.drive' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.exact_script' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_reversed' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.reject_third' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerRegression273.meaning_reads_only_public_types' depends on axioms: [propext,
+ Quot.sound]
