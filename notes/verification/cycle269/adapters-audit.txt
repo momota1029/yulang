@@ -1,0 +1,61 @@
+'Yulang.GeneralRebaseRankOne269.terminal_code' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRankOne269.zero_code' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRankOne269.oneCode' does not depend on any axioms
+'Yulang.GeneralRebaseRankOne269.tryCode' does not depend on any axioms
+'Yulang.GeneralRebaseRankOne269.rankOne_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRankOne269.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorFixture269.exitCode' does not depend on any axioms
+'Yulang.GeneralRebaseBehaviorFixture269.exhausted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorFixture269.checked_exit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorFixture269.exact_exit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorFixture269.actual_advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorFixture269.listed_exit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorFixture269.actual_exit_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawActualProbe269.fullNominal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawActualProbe269.fullNominal_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawActualProbe269.edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawActualProbe269.edge_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawActualProbe269.orProbe' does not depend on any axioms
+'Yulang.GeneralRebaseRawActualProbe269.orProbe_sound' does not depend on any axioms
+'Yulang.GeneralRebaseRawActualProbe269.enhance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawActualProbe269.enhance_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginEdgeScan269.scan' depends on axioms: [propext]
+'Yulang.GeneralRebaseOriginEdgeScan269.scan_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginEdgeScan269.assemble' depends on axioms: [propext]
+'Yulang.GeneralRebaseOriginEdgeScan269.assemble_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.keyOrigin' does not depend on any axioms
+'Yulang.GeneralRebaseOriginWindowFixture269.childOrigin' does not depend on any axioms
+'Yulang.GeneralRebaseOriginWindowFixture269.only' does not depend on any axioms
+'Yulang.GeneralRebaseOriginWindowFixture269.journal_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.observed_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.root_self' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.known_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.head_exhaustive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.actual_self' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.window' does not depend on any axioms
+'Yulang.GeneralRebaseOriginWindowFixture269.window_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.test_cover' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.semantic_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.actual_projected_edge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.not_literal_forward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.matchOrigin' does not depend on any axioms
+'Yulang.GeneralRebaseOriginWindowFixture269.query_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.query_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.equality' depends on axioms: [propext]
+'Yulang.GeneralRebaseOriginWindowFixture269.equality_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.assembled' depends on axioms: [propext]
+'Yulang.GeneralRebaseOriginWindowFixture269.assembled_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.assembled_query' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginWindowFixture269.scanned_cycle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompilerInputs269.Inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompilerInputs269.Checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompilerInputs269.enhance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompilerInputs269.certify' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompilerInputs269.run_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompilerInputs269.forWindow' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompilerInputs269.window_certifies' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -5030,3 +5030,9 @@ import Yulang.GeneralRebaseBehavior269
 import Yulang.GeneralRebaseBehaviorStutters269
 import Yulang.GeneralRebaseChangedCode269
 import Yulang.GeneralRebaseBehaviorRegression269
+import Yulang.GeneralRebaseRankOne269
+import Yulang.GeneralRebaseBehaviorFixture269
+import Yulang.GeneralRebaseRawActualProbe269
+import Yulang.GeneralRebaseOriginEdgeScan269
+import Yulang.GeneralRebaseOriginWindowFixture269
+import Yulang.GeneralRebaseCompilerInputs269

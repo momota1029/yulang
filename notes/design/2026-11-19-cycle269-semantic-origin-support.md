@@ -100,3 +100,24 @@ image. Both actual nonterminating 239 and 240 rounds eventually leave the
 entire mixed-kernel behavior code unchanged; 240 uses the proved erasure to
 the mixed kernel, not an unproved converse. Unchanged code does not assert
 there are no strict exits via other paths.
+
+### Executable small rank and composed probes
+
+For an actual remaining list of length zero, the complete weak behavior code
+is the terminal leaf and needs no oracle. At length one, every possible
+weak successor has remaining list empty and therefore the same terminal
+code. One actual weak witness decides the positive branch; a negative
+requires proving no weak advance. The rank-one algorithm defers when the
+branch is unknown or the remaining rank is larger. The actual 238 install
+gives a listed quotient target whose terminal key is computed at rank zero;
+this does not enumerate all initial rank-two transitions.
+
+The actual compiler now accepts the enhanced raw edge, journal equality,
+and optional semantic Origin-window evidence, uses previous answers only
+when a new one is unknown, and keeps all independent installation guards.
+The nominal-origin regression uses the actual full Versioned semantic
+predicate in an initialized one-slot recursive nominal fixture. The one
+source representative closes it semantically but not syntactically: there
+is an actual edge to a distinct projected origin. The head/test scan and
+semantic representative lookup detect its cycle without a preassigned
+whole-edge bit. This does not assert source program reachability.
