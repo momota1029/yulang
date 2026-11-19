@@ -1,0 +1,10 @@
+Cycle272AutomaticSeed.lean PASS
+Cycle272EmittedTree.lean PASS
+Cycle272OneModelBoundary.lean PASS
+Cycle272SchemaClosure.lean PASS
+Cycle272SeedHybrid.lean PASS
+Cycle272TreeCompare.lean PASS
+Cycle272TreeCoverage.lean PASS
+Cycle272TreeInterpreter.lean PASS
+Cycle272TreeRank.lean PASS
+31 new library modules; 291 distinct named declarations; standard axioms only.

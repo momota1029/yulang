@@ -1,0 +1,42 @@
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+GeneralRebaseFiniteTree272 PASS
+GeneralRebaseTreeProjection272 PASS
+GeneralRebaseTreeAcyclic272 PASS
+GeneralRebaseTreeReadbackState272 PASS
+GeneralRebaseTreeNominal272 PASS
+GeneralRebaseTreeRecord272 PASS
+GeneralRebaseTreeStructural272 PASS
+GeneralRebaseTreeInterpreter272 PASS
+GeneralRebaseTreeConstructors272 PASS
+GeneralRebaseTreeCoverage272 PASS
+GeneralRebaseTreeActual218272 PASS
+GeneralRebaseTreeRecordFixture272 PASS
+GeneralRebaseTreeRecordBuild272 PASS
+GeneralRebaseTreeExprCompile272 PASS
+GeneralRebaseTreeSchema272 PASS
+GeneralRebaseTreeSchemaActual252272 PASS
+GeneralRebaseTreeSchemaBranchFixture272 PASS
+GeneralRebaseTreeSchemaProgress272 PASS
+GeneralRebaseTreeSchemaClosure272 PASS
+GeneralRebaseCanonicalUniqueness272 PASS
+GeneralRebaseTreeCompileMonotone272 PASS
+GeneralRebaseTreeLeastClosure272 PASS
+GeneralRebaseFiniteTreeCode272 PASS
+GeneralRebaseFiniteTreeCompare272 PASS
+GeneralRebaseUniformTree272 PASS
+GeneralRebaseTreeSeedFrame272 PASS
+GeneralRebaseTreeSeedExtract272 PASS
+GeneralRebaseTreeAuto272 PASS
+GeneralRebaseTreeSeedExact272 PASS
+GeneralRebaseTreeHybrid272 PASS
+GeneralRebaseOneModelBoundary272 PASS
+staged Audit/Cycle272AutomaticSeed.lean PASS
+staged Audit/Cycle272EmittedTree.lean PASS
+staged Audit/Cycle272OneModelBoundary.lean PASS
+staged Audit/Cycle272SchemaClosure.lean PASS
+staged Audit/Cycle272SeedHybrid.lean PASS
+staged Audit/Cycle272TreeCompare.lean PASS
+staged Audit/Cycle272TreeCoverage.lean PASS
+staged Audit/Cycle272TreeInterpreter.lean PASS
+staged Audit/Cycle272TreeRank.lean PASS
+Nine staged audit outputs byte-identical to standalone outputs on original module cache.

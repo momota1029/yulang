@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 272
-- status: running
+- status: completed
 - started: 2026-11-19T11:30:00Z
-- updated: 2026-11-19T12:20:00Z
-- elapsed_min: 50.01
-- activity: Isolated focused verification complete; final finite-tree readback and actual-fixture report
+- updated: 2026-11-19T12:20:05Z
+- elapsed_min: 50.08
+- activity: Verified finite branching readback and least emitted-witness closure; proved actual 218 root check and automatic installed 252 uniform equality.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 21f69383f
-- resume_hint: Read latest integration orders and leave next scheduled cycle untouched.
+- report: notes/handoff/dots-cycle-272.md
+- resume_hint: Read latest integration orders. Open: general source model certificates and publication-preserving rebase semantics, V8 EvidenceNode and unsupported join/row pieces.
