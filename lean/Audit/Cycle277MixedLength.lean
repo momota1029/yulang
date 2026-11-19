@@ -1,0 +1,11 @@
+import Yulang.GeneralRebaseMixedLength277
+import Yulang.GeneralRebaseBoundedInstallAcc277
+
+#print axioms Yulang.GeneralRebaseMixedLength277.Slice
+#print axioms Yulang.GeneralRebaseMixedLength277.summarize
+#print axioms Yulang.GeneralRebaseMixedLength277.mixed_length
+#print axioms Yulang.GeneralRebaseMixedLength277.actual_length
+#print axioms Yulang.GeneralRebaseBoundedInstallAcc277.accessible_of_bound
+#print axioms Yulang.GeneralRebaseBoundedInstallAcc277.cap_mono
+#print axioms Yulang.GeneralRebaseBoundedInstallAcc277.bounded_steps
+#print axioms Yulang.GeneralRebaseBoundedInstallAcc277.adapter_accessible
