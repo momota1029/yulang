@@ -5135,3 +5135,5 @@ import Yulang.GeneralRebaseUniformTree272
 import Yulang.GeneralRebaseTreeSeedFrame272
 import Yulang.GeneralRebaseTreeSeedExtract272
 import Yulang.GeneralRebaseTreeAuto272
+import Yulang.GeneralRebaseTreeSeedExact272
+import Yulang.GeneralRebaseTreeHybrid272

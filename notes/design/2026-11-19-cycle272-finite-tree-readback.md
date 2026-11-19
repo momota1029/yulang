@@ -118,3 +118,13 @@ computes true. A bounded synthetic record fixture shows the difference
 between enough and insufficient seed fuel. A semantic cycle can never
 be certified negative by the finite tree method; combine it with
 the separately independently certified positive pocket checker.
+
+The seed generator is exact against an independent inductive relation
+on the chosen raw frame tables: a computed tree is exactly one whose
+children form a finite derivation and whose height fits the fuel.
+This is not completeness relative to all denotable raw types. The
+hybrid inspector retains every positive that the prior certified
+pocket returns on a full model, since any genuinely recurrent origin
+forces the finite-tree inspector to abstain for every fuel. This
+holds on the guarded recursive record fixture; the reverse combination
+also adds the installed-252 negative omitted by the pocket.

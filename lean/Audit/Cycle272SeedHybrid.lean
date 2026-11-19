@@ -1,0 +1,22 @@
+import Yulang.GeneralRebaseTreeSeedExact272
+import Yulang.GeneralRebaseTreeHybrid272
+
+#print axioms Yulang.GeneralRebaseTreeSeedExact272.fill_complete
+#print axioms Yulang.GeneralRebaseTreeSeedExact272.extract_mono
+#print axioms Yulang.GeneralRebaseTreeSeedExact272.Derived
+#print axioms Yulang.GeneralRebaseTreeSeedExact272.derived_by_compute
+#print axioms Yulang.GeneralRebaseTreeSeedExact272.computed_at_height
+#print axioms Yulang.GeneralRebaseTreeSeedExact272.exact_support
+#print axioms Yulang.GeneralRebaseTreeHybrid272.fallback_sound
+#print axioms Yulang.GeneralRebaseTreeHybrid272.finite_never_positive
+#print axioms Yulang.GeneralRebaseTreeHybrid272.cycle_forces_abstain
+#print axioms Yulang.GeneralRebaseTreeHybrid272.inspect
+#print axioms Yulang.GeneralRebaseTreeHybrid272.inspect_sound
+#print axioms Yulang.GeneralRebaseTreeHybrid272.retains_positive
+#print axioms Yulang.GeneralRebaseTreeHybrid272.root
+#print axioms Yulang.GeneralRebaseTreeHybrid272.root_sound
+#print axioms Yulang.GeneralRebaseTreeHybrid272.GuardedRecord.actual_pocket
+#print axioms Yulang.GeneralRebaseTreeHybrid272.GuardedRecord.every_fuel
+#print axioms Yulang.GeneralRebaseTreeHybrid272.Installed252.actual_pocket_missing
+#print axioms Yulang.GeneralRebaseTreeHybrid272.Installed252.auto_works
+#print axioms Yulang.GeneralRebaseTreeHybrid272.Installed252.automated_negative
