@@ -1,0 +1,33 @@
+'Yulang.GeneralRebaseTreeSchemaProgress272.targets' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaProgress272.compute_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaProgress272.next_known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaProgress272.new_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaProgress272.missing' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaProgress272.missing_filters' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaProgress272.fixed_of_missing' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaProgress272.strict' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.Stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.rounds_stable_identity' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.rounds_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.close' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.close_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.close_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.close_twice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSchemaClosure272.preserved_by_close' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCanonicalUniqueness272.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCanonicalUniqueness272.source_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeCompileMonotone272.Extends' does not depend on any axioms
+'Yulang.GeneralRebaseTreeCompileMonotone272.EnvExtends' does not depend on any axioms
+'Yulang.GeneralRebaseTreeCompileMonotone272.extends_trans' does not depend on any axioms
+'Yulang.GeneralRebaseTreeCompileMonotone272.entry_mono' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeCompileMonotone272.compute_mono_support' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeCompileMonotone272.enrich_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeLeastClosure272.antisymm' depends on axioms: [Quot.sound]
+'Yulang.GeneralRebaseTreeLeastClosure272.pass_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeLeastClosure272.rounds_below_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeLeastClosure272.least' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeLeastClosure272.fixed_iff_each' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeLeastClosure272.order_independent' depends on axioms: [propext, Classical.choice, Quot.sound]

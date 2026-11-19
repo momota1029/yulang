@@ -72,3 +72,10 @@ the existing full model proof. The three nominal selections on the
 derived output compute Int. A separate synthetic schema covers nominal
 branching, pair, finite ordered record, variant and exact-empty. The
 existing optional output in 238 still abstains on the join.
+
+Canonical carrier equivalence determines the entire finite witness tree,
+not just its height. Therefore a newly enabled earlier equation cannot
+change the chosen tree in the same model. Adding more certified seeds
+preserves each compiler result; the bounded closure is least among
+certified fixed points extending the seed, and independent of permutation
+of a fixed retained plan list in the same model.

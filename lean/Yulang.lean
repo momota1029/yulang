@@ -5124,3 +5124,8 @@ import Yulang.GeneralRebaseTreeExprCompile272
 import Yulang.GeneralRebaseTreeSchema272
 import Yulang.GeneralRebaseTreeSchemaActual252272
 import Yulang.GeneralRebaseTreeSchemaBranchFixture272
+import Yulang.GeneralRebaseTreeSchemaProgress272
+import Yulang.GeneralRebaseTreeSchemaClosure272
+import Yulang.GeneralRebaseCanonicalUniqueness272
+import Yulang.GeneralRebaseTreeCompileMonotone272
+import Yulang.GeneralRebaseTreeLeastClosure272
