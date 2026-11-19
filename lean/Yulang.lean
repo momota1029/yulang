@@ -5325,3 +5325,6 @@ import Yulang.GeneralRebaseWitnessTrace279
 import Yulang.GeneralRebaseWitnessRegressions279
 import Yulang.GeneralRebaseInstallPublicObstruction279
 import Yulang.GeneralRebaseReachableNovelty279
+import Yulang.GeneralRebaseFiniteProbeObstruction279
+import Yulang.GeneralRebaseSourceEdgeBasis279
+import Yulang.GeneralRebaseProjectedEdgeCount279

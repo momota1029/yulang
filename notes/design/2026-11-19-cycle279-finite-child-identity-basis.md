@@ -1,0 +1,5 @@
+# Source-derived finite projected child-edge basis
+
+The finite installations theorem cannot be proved for raw 239, nor can a full edge be replaced by its ID pair on arbitrary states. However, a checked finite owner catalogue already follows from source Paterson ancestry. Every real install writes fresh *occurrence identities* only as the clause identity determined by seed, owner, declaration and clause. Derive one finite candidate list for the projection of every raw child edge across all actual prefixes, including the empty initial graph, without a finite trace-length assumption.
+
+The full edge still carries argument endpoints: versioned repeated-binder captures can use a fresh lower/upper name even when the child ID remains fixed. Therefore the finite projected basis does not by itself bound all structural raw installs. It bounds installations that really create a previously absent ID pair. A successor that resolves all emitted child ports into a fixed public syntax still needs checked equality of full child occurrences, or an appropriate stronger semantic simulation; do not assume injectivity of ID-only encoding.
