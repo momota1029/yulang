@@ -5098,3 +5098,6 @@ import Yulang.GeneralRebaseScalarAtoms271
 import Yulang.GeneralRebaseScalarSnapshot271
 import Yulang.GeneralRebaseJournalMeaning271
 import Yulang.GeneralRebaseOutputDepthPocket271
+import Yulang.GeneralRebaseOutputDepthSuccessor271
+import Yulang.GeneralRebaseRawIntoFull271
+import Yulang.GeneralRebaseK2ModelBoundary271

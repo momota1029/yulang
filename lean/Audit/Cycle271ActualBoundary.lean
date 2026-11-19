@@ -1,0 +1,39 @@
+import Yulang.GeneralRebaseOutputDepthSuccessor271
+import Yulang.GeneralRebaseRawIntoFull271
+import Yulang.GeneralRebaseK2ModelBoundary271
+
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.owner
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.output
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.support
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.exact_schema
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.dichotomy
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.initial_view
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.projected_install
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.source_weak
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.every_weak
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.initialCode
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.exact_code
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.computed
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.driveStep
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.one_step
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.matches_genuine
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.bidirectional
+#print axioms Yulang.GeneralRebaseOutputDepthSuccessor271.no_second_step
+#print axioms Yulang.GeneralRebaseRawIntoFull271.raw_edge
+#print axioms Yulang.GeneralRebaseRawIntoFull271.raw_path
+#print axioms Yulang.GeneralRebaseRawIntoFull271.recurs
+#print axioms Yulang.GeneralRebaseRawIntoFull271.root_from_raw
+#print axioms Yulang.GeneralRebaseRawIntoFull271.root_exact
+#print axioms Yulang.GeneralRebaseRawIntoFull271.execute
+#print axioms Yulang.GeneralRebaseRawIntoFull271.execute_sound
+#print axioms Yulang.GeneralRebaseRawIntoFull271.Actual252.computed
+#print axioms Yulang.GeneralRebaseRawIntoFull271.Actual252.actual_k2_clear
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.contradict
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.inconsistentContext
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.original
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.emptyRegistry
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.no_models
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.no_semantic
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.structural_self
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.raw_root
+#print axioms Yulang.GeneralRebaseK2ModelBoundary271.necessary_scope

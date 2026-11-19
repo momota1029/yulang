@@ -101,3 +101,31 @@ no semantic root recurrence. A pointwise equivalence of full model sets
 and literal equality of initial site lists transports that negative
 back to the original source. This is not a claim about the other K2
 predicate (raw potential cycles) or later installed journals.
+
+## Independent source successor extension: actual output-depth case 252
+
+The semantic pocket result does not produce an install guard by itself.
+Separately check whether the real 252 V8 install has the same rank-two
+successor structure as 238. Retained metadata should force a single
+compiled associated-output equation despite the deeper nominal readback.
+Use the one-output synchronization theorem on every reachable plan;
+then use the actual proven 252 install to witness the observed step,
+not a synthetic blocked/empty case.
+
+## Raw-to-full recurrence under a full model witness
+
+Independently transport every real raw mixed edge into the original
+full semantic graph. Structural children use checked normalized
+readback. An actual raw nominal argument reports a position in one full
+model, placing it within the declared type arity; the original all-raw
+correspondence then restricts to every full model. This embeds finite
+raw cycles into semantic source cycles and combines the two root K2
+branches when at least one full model is known. Inconsistent journals
+remain outside the equivalence (direct raw cycles need no model).
+
+The converse of raw-to-full path embedding is a distinct question:
+actual installed 252 has a forced nested nominal output, even though
+its raw snapshot has no outgoing observation for the output slot.
+Check the short full-model path to the original input using the
+already-proved emitted equation; do not infer new snapshots or
+generally complete candidate coverage from this semantic path.
