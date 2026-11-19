@@ -138,3 +138,22 @@ successors from the terminal projection. Do not infer the same
 correspondence at other, as yet unidentified, concrete full states.
 In the output-free fragment the empty observer corresponds to every
 reachable concrete representative on each arbitrary fixed basis.
+
+## Check the excluded record-head case, not a language change
+
+The legacy semantic `Head` quantifies all literal tests, not only
+canonical normalized records. Check whether a hidden duplicate label
+gives a second equivalent head and a nonfunctional projected position.
+If it does, it refutes literal record-test exhaustiveness, not the
+possibility of an exact algorithm using a canonical *equivalence* class
+or a paired explanation of which noncanonical projections can be live.
+
+The duplicate works as a second literal test: a two-field list `[l,l]`
+has the same full semantic record type as the one-field list `[l]`,
+because the outer label shadows the inner. The second index can observe
+any chosen payload, but cannot satisfy the existing all-observations
+`Same` relation to any target: choose the incompatible Int and String
+base types in one model. With a full-model witness this excludes that
+index from every semantic equality. A general extension should classify
+every observed label by its first, visible occurrence and rule out each
+shadowed occurrence; raw tag agreement is not exhaustive.
