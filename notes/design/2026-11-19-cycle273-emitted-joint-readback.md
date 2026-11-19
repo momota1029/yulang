@@ -62,3 +62,36 @@ Reobserve-plus-replacement, not arbitrary engine scheduling. It must
 retain the real optional body fact for output 4 in both installed states
 and use the fresh bounded projection proof above. A generated child's
 lower type, if retained as a public observation, cannot be preserved.
+
+## What the paired witnesses do and do not justify
+
+The restricted compiler is exact before/after on source identities 0..4
+and every row. It is not correct to replace the installed journal by an
+arbitrary raw model and five individually proved equations: use a single
+joint extension, supplied here by the fixed canonical completion. At the
+point phase we can choose old and replacement extensions differing in only
+the lower generated child's type. The current packet's fresh aggregate
+coordinates are already populated in that chosen old extension; a general
+existing full assignment need not already have those private values.
+
+For a future generalization, the owner compiler should explicitly separate:
+(a) types that public requests or possibly other owners read, (b) private
+type coordinates whose values can change, and (c) row coordinates, none of
+which may change here. A reuse certificate should prove that removing the
+superseded equation affects neither the live dependency support of other
+owners nor the public projection. The 238 lower child rules out a support
+test based only on the owner key or on unchanged generated identity:
+that lower cell has unchanged address but incompatible old/new types.
+Conversely the versioned upper aggregate changes its physical address but
+its logical value is preserved. The case is a regression test for both
+directions of any proposed escape certificate.
+
+A correctly registered child is a separate obligation. In 238 its two
+bound names are present in journal sources but absent from the actual base
+slot map. They still need distinct addresses even when the types become
+equivalent at point. Adding addresses alone would not make this fixture a
+positive recursive-evidence example: the required child has variant head,
+whereas the only declaration has the nominal head. A positive continuation
+for EvidenceNode will need another source fixture with a genuinely matching
+child and a checked registration/refinement; an old kernel EvidenceNode
+claim must not fill the gap from this parent's local certificate.

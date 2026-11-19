@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 273
-- status: running
+- status: completed
 - started: 2026-11-19T12:34:44Z
-- updated: 2026-11-19T13:24:44Z
-- elapsed_min: 50.00
-- activity: Focused tests, fresh staged build and standalone axioms audit completed; preparing final publication.
+- updated: 2026-11-19T13:24:45Z
+- elapsed_min: 50.02
+- activity: Verified source 238 public models and finite owner replacement with the actual optional output; local current certificate does not resolve the unlocated child.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 83499731b
-- resume_hint: Only actual source 238's bounded two-step replacement, not recursive V8 or general kernel Acc.
+- report: notes/handoff/dots-cycle-273.md
+- resume_hint: Read latest integration orders. Open: general owner compiler and isolation; current child location and recursive evidence; no original-kernel Acc claim.
