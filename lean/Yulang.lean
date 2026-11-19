@@ -4884,3 +4884,7 @@ import Yulang.GeneralRebaseUniversalSource263
 import Yulang.GeneralRebaseUniversalTrace263
 import Yulang.GeneralRebaseValidatedDriver263
 import Yulang.GeneralRebaseValidatedOutcome263
+import Yulang.GeneralRebaseEventualProjection265
+import Yulang.GeneralRebaseRoundProjection265
+import Yulang.GeneralRebaseSourceStrictFixture265
+import Yulang.GeneralRebaseStutterWitness265

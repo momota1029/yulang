@@ -1,0 +1,19 @@
+import Yulang.GeneralRebaseEventualProjection265
+import Yulang.GeneralRebaseRoundProjection265
+import Yulang.GeneralRebaseSourceStrictFixture265
+import Yulang.GeneralRebaseStutterWitness265
+
+#print axioms Yulang.GeneralRebaseEventualProjection265.stabilizes
+#print axioms Yulang.GeneralRebaseEventualProjection265.eventual_constant
+#print axioms Yulang.GeneralRebaseRoundProjection265.step_or_decrease
+#print axioms Yulang.GeneralRebaseRoundProjection265.round_or_decrease
+#print axioms Yulang.GeneralRebaseRoundProjection265.eventual_rounds
+#print axioms Yulang.GeneralRebaseRoundProjection265.version239
+#print axioms Yulang.GeneralRebaseSourceStrictFixture265.witness_in_basis
+#print axioms Yulang.GeneralRebaseSourceStrictFixture265.witness_proposed
+#print axioms Yulang.GeneralRebaseSourceStrictFixture265.initial_projection
+#print axioms Yulang.GeneralRebaseSourceStrictFixture265.square
+#print axioms Yulang.GeneralRebaseSourceStrictFixture265.strict
+#print axioms Yulang.GeneralRebaseSourceStrictFixture265.source_and_finite
+#print axioms Yulang.GeneralRebaseStutterWitness265.remaining_iff
+#print axioms Yulang.GeneralRebaseStutterWitness265.steps_change_iff
