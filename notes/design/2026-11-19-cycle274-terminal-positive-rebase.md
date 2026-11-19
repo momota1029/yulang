@@ -58,3 +58,22 @@ frame (splice literal support values before applying full congruence),
 and show that the chosen initial-output completion may overwrite output 4
 while every other public coordinate and all rows stay literal. This
 provides one modelwise construction through the entire known real trace.
+
+## Executable observation on the checked 230 context
+
+The old/new binding lists used by the finite machine should not be mere
+prewritten events. Read the actual argument slots, compute the source
+inspection report, and take its bindings only when it finishes. The
+reported actual center (source 2) still comes from the checked nominal
+head equality, not from a generic guess. This bounded observer supplies a
+certificate about what it read, not a general candidate/guard search.
+
+## Align the two executable layers
+
+The 242 scheduler begins after the initial install and represents observation
+and service separately. Match its three states to installed/observed/terminal
+in the source-facing machine. At installed/observed, a joint witness loads
+the stable lower slot from source 4; at terminal it loads from source 2.
+The real versioned model remains valid at each stage (its historical slot
+is a different identity). Check that no single stable address can satisfy
+both blocks when the optional output and width are the actual source values.
