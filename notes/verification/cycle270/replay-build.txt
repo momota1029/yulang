@@ -1,0 +1,7 @@
+PASS Yulang.GeneralRebaseLullSpine270
+PASS Yulang.GeneralRebaseWeakSpine270
+PASS Yulang.GeneralRebaseReplayCommand270
+PASS Yulang.GeneralRebaseReplayScript270
+PASS Yulang.GeneralRebaseNoOutputs270
+PASS Yulang.GeneralRebaseOutputFreeRegressions270
+PASS Yulang.GeneralRebaseReplayFixture270

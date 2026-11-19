@@ -5051,3 +5051,10 @@ import Yulang.GeneralRebaseOneOutputProjection270
 import Yulang.GeneralRebaseCompoundProjection270
 import Yulang.GeneralRebaseSingleExitCode270
 import Yulang.GeneralRebaseCompoundExecutable270
+import Yulang.GeneralRebaseLullSpine270
+import Yulang.GeneralRebaseWeakSpine270
+import Yulang.GeneralRebaseReplayCommand270
+import Yulang.GeneralRebaseReplayScript270
+import Yulang.GeneralRebaseNoOutputs270
+import Yulang.GeneralRebaseOutputFreeRegressions270
+import Yulang.GeneralRebaseReplayFixture270

@@ -1,0 +1,80 @@
+'Yulang.GeneralRebaseLullSpine270.Quiet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLullSpine270.raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLullSpine270.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLullSpine270.changed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLullSpine270.changed_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLullSpine270.still_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.Spine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.prepend' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.normalize' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.flatten' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.prepend_flat' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.exact_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.prepend_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.match_chosen' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.exact_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.old_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.chooseFirst' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakSpine270.no_advance_of_none' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayCommand270.Command' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayCommand270.run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayCommand270.run_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayCommand270.supported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayCommand270.edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayScript270.Script' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayScript270.path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayScript270.append' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayScript270.covers_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayScript270.bundle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayScript270.first' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayScript270.no_hit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.OutputFree' does not depend on any axioms
+'Yulang.GeneralRebaseNoOutputs270.QuietSites' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.emitted_quiet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.step_quiet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.initial_quiet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.trace_quiet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.no_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.no_liveFacts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.terminalCode' does not depend on any axioms
+'Yulang.GeneralRebaseNoOutputs270.exact_code' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoOutputs270.executable_stop' does not depend on any axioms
+'Yulang.GeneralRebaseOutputFreeRegressions270.Version239.registry_free' depends on axioms: [propext]
+'Yulang.GeneralRebaseOutputFreeRegressions270.Version239.finite_prefix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOutputFreeRegressions270.Version239.all_reachable_code' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOutputFreeRegressions270.Version239.visible_stop' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOutputFreeRegressions270.Version240.registry_free' depends on axioms: [propext]
+'Yulang.GeneralRebaseOutputFreeRegressions270.Version240.finite_prefix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOutputFreeRegressions270.Version240.all_reachable_code' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOutputFreeRegressions270.Version240.visible_stop' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Compound.installCmd' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Compound.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Compound.computed_count' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Compound.concrete_exit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Compound.end_matches_code' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Refresh.refreshCmd' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Refresh.reviseCmd' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Refresh.genuine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Refresh.owners' does not depend on any axioms
+'Yulang.GeneralRebaseReplayFixture270.Refresh.pool' does not depend on any axioms
+'Yulang.GeneralRebaseReplayFixture270.Refresh.computed_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Refresh.no_hit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFixture270.Refresh.genuine_lull' depends on axioms: [propext, Classical.choice, Quot.sound]
