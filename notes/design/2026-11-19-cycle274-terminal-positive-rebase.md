@@ -49,3 +49,12 @@ constructor certificate at normalized representatives, not as an additional
 source assumption. Then prove the execution can extend every old point
 model by replacing its new private coordinates only. Existing old
 allocations and optional output remain unchanged.
+
+The full first install can also be characterized by the source public
+predicate, optional body, and exactly three private type facts:
+old lower/source 4, old upper/source 2, and actual binder/source 2.
+No general packet generation is inferred. Use a semantic-on-support
+frame (splice literal support values before applying full congruence),
+and show that the chosen initial-output completion may overwrite output 4
+while every other public coordinate and all rows stay literal. This
+provides one modelwise construction through the entire known real trace.

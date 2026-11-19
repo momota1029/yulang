@@ -5178,3 +5178,7 @@ import Yulang.GeneralRebaseTerminalDecode274
 import Yulang.GeneralRebaseTerminalPointExact274
 import Yulang.GeneralRebaseTerminalFreshSupport274
 import Yulang.GeneralRebaseTerminalRepair274
+import Yulang.GeneralRebaseSemanticSupport274
+import Yulang.GeneralRebaseTerminalFirstSupport274
+import Yulang.GeneralRebaseTerminalFirstExact274
+import Yulang.GeneralRebaseTerminalActivation274

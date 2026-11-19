@@ -1,0 +1,45 @@
+import Yulang.GeneralRebaseSemanticSupport274
+import Yulang.GeneralRebaseTerminalFirstSupport274
+import Yulang.GeneralRebaseTerminalFirstExact274
+import Yulang.GeneralRebaseTerminalActivation274
+
+#print axioms Yulang.GeneralRebaseSemanticSupport274.Agreement
+#print axioms Yulang.GeneralRebaseSemanticSupport274.splice
+#print axioms Yulang.GeneralRebaseSemanticSupport274.splice_in
+#print axioms Yulang.GeneralRebaseSemanticSupport274.splice_out
+#print axioms Yulang.GeneralRebaseSemanticSupport274.splice_equivalent
+#print axioms Yulang.GeneralRebaseSemanticSupport274.exact
+#print axioms Yulang.GeneralRebaseSemanticSupport274.extend_support
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.pool
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.join
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.raw
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.source
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.legacy
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.plan_reads
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.classes
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.effect
+#print axioms Yulang.GeneralRebaseTerminalFirstSupport274.complete
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.OldFacts
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.old_aggregates
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.old_facts
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.decoded_actual
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.decoded_lo
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.decoded_hi
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.aliases
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.first_legacy_empty
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.first_exact
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.point_exact
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.all_terminal_fields
+#print axioms Yulang.GeneralRebaseTerminalFirstExact274.initial_to_first
+#print axioms Yulang.GeneralRebaseTerminalActivation274.activeWrites
+#print axioms Yulang.GeneralRebaseTerminalActivation274.activate
+#print axioms Yulang.GeneralRebaseTerminalActivation274.changes_only
+#print axioms Yulang.GeneralRebaseTerminalActivation274.fixed_prefix
+#print axioms Yulang.GeneralRebaseTerminalActivation274.output
+#print axioms Yulang.GeneralRebaseTerminalActivation274.old_facts
+#print axioms Yulang.GeneralRebaseTerminalActivation274.initial_persists
+#print axioms Yulang.GeneralRebaseTerminalActivation274.checked_first
+#print axioms Yulang.GeneralRebaseTerminalActivation274.checked_point
+#print axioms Yulang.GeneralRebaseTerminalActivation274.finish
+#print axioms Yulang.GeneralRebaseTerminalActivation274.finished
+#print axioms Yulang.GeneralRebaseTerminalActivation274.finish_public
