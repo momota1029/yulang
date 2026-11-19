@@ -2,9 +2,9 @@
 - cycle: 284
 - status: running
 - started: 2026-11-19T23:33:14Z
-- updated: 2026-11-19T23:33:37Z
-- elapsed_min: 0.38
-- activity: 前回完了と単独作業を確認。未来の型読みを閉じる条件を設計する。
+- updated: 2026-11-19T23:38:53Z
+- elapsed_min: 5.65
+- activity: 未来の再露出を禁じる条件下で実install・全経路の型読出しを保存。一時点sliceだけで忘れる反例も確認。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: d8c6e0d01
-- resume_hint: 固定queryを保つ圧縮と実経路に渡せる保存を区別する。
+- last_local_commit: 903cd6ed3
+- resume_hint: 実239/240で生の支持が非有界なことと、意味の圧縮を区別する。
