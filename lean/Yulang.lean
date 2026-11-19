@@ -4912,3 +4912,7 @@ import Yulang.GeneralRebaseTransientClosed266
 import Yulang.GeneralRebaseCertifiedPath266
 import Yulang.GeneralRebaseCertifiedPathSettle266
 import Yulang.GeneralRebaseCertifiedPathCount266
+import Yulang.GeneralRebasePathQuiescent266
+import Yulang.GeneralRebaseRecurrence266
+import Yulang.GeneralRebasePathCut266
+import Yulang.GeneralRebaseCertifiedReverse266

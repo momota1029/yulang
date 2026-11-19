@@ -23,3 +23,32 @@ For positive rules, identify terminal states with ordinary Horn-style closure of
 ## Certified-edge rule envelope
 
 Compile each supplied certified edge into positive implications: every fact presently known at the projected source is a prerequisite, and each fact known at its projected destination is a conclusion. The resulting rule closure contains every projected fact along any abstract run using listed edges. In general it is an envelope, not an equivalent execution graph: it can combine facts from distinct edges and is not evidence of a lift to any single source trace. Pointwise model preservation is equivalent to semantic validity of the corresponding per-edge implications. Seek exact settlement for the singleton genuine edge as the narrow regression.
+
+## Certified paths and versioned recurrence
+
+A certificate spine pairs each old source edge with a continuation from its
+actual target (unlike an arbitrary table). For every supplied spine and
+owner/output basis, remove exactly the projected stutters. The compiled
+observer has at most one strict successor at each state: a strict first edge
+drops remaining-length below any later return to its origin. Prove settlement
+equals the projected final source state, and exact successful Step count equals
+the number of non-stutters, bounded by initial remaining length.
+
+For any old path whose endpoint projections agree, rank monotonicity forces
+every edge to stutter, so its table emits no proposals even on arbitrary
+abstract inputs. Convert a nonempty source round proof into mere existence of
+a spine, use established point-kernel erasure for the old 240 round, and test
+both actual recurrences. This is about projection of certified rounds, never
+source accessibility or full current candidate discovery.
+
+## Reverse replay of one supplied spine
+
+Goal: for every abstract run from the projected first vertex of one supplied
+certified spine, exhibit an actual concrete vertex and a cut of that same
+spine into prefix/suffix. The prefix must have exactly the abstract count of
+strict transitions, its projection must be the abstract endpoint, and its
+concatenated edge list with the suffix must equal the input list (not just be
+contained). Derive count comparison and endpoint uniqueness for a
+deterministic relation whose reference run ends terminal. Then cut the spine
+constructively with respect to its projected edge test. This does not provide
+reverse lifting for the table formed from unrelated paths.
