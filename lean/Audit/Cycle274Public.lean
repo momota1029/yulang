@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseTerminalPublic274
+
+#print axioms Yulang.GeneralRebaseTerminalPublic274.first
+#print axioms Yulang.GeneralRebaseTerminalPublic274.first_to_source
+#print axioms Yulang.GeneralRebaseTerminalPublic274.first_output
+#print axioms Yulang.GeneralRebaseTerminalPublic274.first_fixed
+#print axioms Yulang.GeneralRebaseTerminalPublic274.point_fixed
+#print axioms Yulang.GeneralRebaseTerminalPublic274.final_fixed
+#print axioms Yulang.GeneralRebaseTerminalPublic274.final_to_first
+#print axioms Yulang.GeneralRebaseTerminalPublic274.final_legacy_empty
+#print axioms Yulang.GeneralRebaseTerminalPublic274.complete
+#print axioms Yulang.GeneralRebaseTerminalPublic274.complete_types
+#print axioms Yulang.GeneralRebaseTerminalPublic274.completion_congruent
+#print axioms Yulang.GeneralRebaseTerminalPublic274.complete_terminal
+#print axioms Yulang.GeneralRebaseTerminalPublic274.TypePublic
+#print axioms Yulang.GeneralRebaseTerminalPublic274.terminal_exact
+#print axioms Yulang.GeneralRebaseTerminalPublic274.point_exact
+#print axioms Yulang.GeneralRebaseTerminalPublic274.first_exact
