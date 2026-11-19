@@ -32,3 +32,15 @@ the actual per-Plan head model proposition as its separately declared contract.
 A failed search for an optional witness must be unresolved, not a source
 language rejection. For true guarded installs, registration, Prepared, and
 knownness must imply retention in the respective necessary filters.
+
+## Choice history and operational progress
+
+Replace the previous one-declaration-per-role sufficient condition by an
+executable *exact* check of ChoiceCompatible over the actual recorded
+packets and alias graph; resolve against those aliases, not role equality.
+Split Committed into an executable child-edge part and a separate semantic
+entailment part. A missing edge is sound novelty evidence, but all edges
+already being present does not rule out a semantic update. Keep a general
+joint residual model premise; neither a head model nor finite choice checking
+gives it. Add a conditional source install and finite checked write pipeline
+for a genuinely enumerated plan.

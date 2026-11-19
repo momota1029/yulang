@@ -1,0 +1,6 @@
+PASS Yulang.GeneralRebaseInstallChecks267
+PASS Yulang.GeneralRebasePickPlan267
+PASS Yulang.GeneralRebaseSourceSelect267
+PASS Yulang.GeneralRebaseSourceInstall267
+PASS Yulang.GeneralRebaseExecutableInstall267
+PASS Yulang.GeneralRebaseInstallFixture267

@@ -1,0 +1,40 @@
+import Yulang.GeneralRebaseInstallChecks267
+import Yulang.GeneralRebasePickPlan267
+import Yulang.GeneralRebaseSourceSelect267
+import Yulang.GeneralRebaseSourceInstall267
+import Yulang.GeneralRebaseExecutableInstall267
+import Yulang.GeneralRebaseInstallFixture267
+
+#print axioms Yulang.GeneralRebaseInstallChecks267.choice
+#print axioms Yulang.GeneralRebaseInstallChecks267.choice_exact
+#print axioms Yulang.GeneralRebaseInstallChecks267.edgesRecorded
+#print axioms Yulang.GeneralRebaseInstallChecks267.edgesRecorded_exact
+#print axioms Yulang.GeneralRebaseInstallChecks267.missing_edge_proves_novel
+#print axioms Yulang.GeneralRebaseInstallChecks267.semanticCommitted
+#print axioms Yulang.GeneralRebaseInstallChecks267.committed_exact
+#print axioms Yulang.GeneralRebaseInstallChecks267.novel_exact
+#print axioms Yulang.GeneralRebasePickPlan267.matching
+#print axioms Yulang.GeneralRebasePickPlan267.matches_exact
+#print axioms Yulang.GeneralRebasePickPlan267.pick
+#print axioms Yulang.GeneralRebasePickPlan267.pick_sound
+#print axioms Yulang.GeneralRebasePickPlan267.pick_complete
+#print axioms Yulang.GeneralRebasePickPlan267.picks_unique
+#print axioms Yulang.GeneralRebaseSourceSelect267.Guard
+#print axioms Yulang.GeneralRebaseSourceSelect267.selected_of_unique
+#print axioms Yulang.GeneralRebaseSourceSelect267.selected_from_verdict
+#print axioms Yulang.GeneralRebaseSourceSelect267.effectFromPlan
+#print axioms Yulang.GeneralRebaseSourceSelect267.effect_of_pick
+#print axioms Yulang.GeneralRebaseSourceInstall267.effect_ext
+#print axioms Yulang.GeneralRebaseSourceInstall267.installable_of_choice
+#print axioms Yulang.GeneralRebaseSourceInstall267.source_step
+#print axioms Yulang.GeneralRebaseSourceInstall267.checked_projection
+#print axioms Yulang.GeneralRebaseExecutableInstall267.select
+#print axioms Yulang.GeneralRebaseExecutableInstall267.selection_parts
+#print axioms Yulang.GeneralRebaseExecutableInstall267.select_with_witness
+#print axioms Yulang.GeneralRebaseExecutableInstall267.source_step
+#print axioms Yulang.GeneralRebaseInstallFixture267.picked
+#print axioms Yulang.GeneralRebaseInstallFixture267.history
+#print axioms Yulang.GeneralRebaseInstallFixture267.missing
+#print axioms Yulang.GeneralRebaseInstallFixture267.actual_select
+#print axioms Yulang.GeneralRebaseInstallFixture267.guard
+#print axioms Yulang.GeneralRebaseInstallFixture267.actual_generated_install

@@ -4939,3 +4939,9 @@ import Yulang.GeneralRebaseHeadProbe267
 import Yulang.GeneralRebasePartialClassification267
 import Yulang.GeneralRebaseSourceClassification267
 import Yulang.GeneralRebaseHeadProbeFixture267
+import Yulang.GeneralRebaseInstallChecks267
+import Yulang.GeneralRebasePickPlan267
+import Yulang.GeneralRebaseSourceSelect267
+import Yulang.GeneralRebaseSourceInstall267
+import Yulang.GeneralRebaseExecutableInstall267
+import Yulang.GeneralRebaseInstallFixture267
