@@ -32,3 +32,17 @@ slots. With no model the all-model argument condition is vacuously true at
 any index of a recorded descriptor (even arity zero). Keep that case
 separate; the semantic recurrence branch still requires a model and the
 independent direct recurrence is never dropped.
+
+The first raw argument certificate searches a finite graph of explicit bare
+variable inequalities, interval pairs and identical source identities. Every
+successful path holds against the actual full-carrier raw Models. At a type
+argument `[lo,hi]`, a target satisfying `target ≤ lo` and `hi ≤ target`
+in all models must equal the observed argument. A single model refuting
+`lo ≤ target` or `target ≤ hi` suffices to exclude that argument; merely
+failing the graph search is not negative evidence. The negative/positive
+rules are sound, not complete in general. The executable raw recurrence
+retains direct cycles and the independent model bit for semantic cycles.
+A checked two-slot fixture with distinct endpoint slots, equality from
+literal atoms, and a recursive nominal model computes a positive non-direct
+cycle even when all externally supplied bound answers are unknown. No
+surface-program reachability is asserted for that synthetic snapshot.
