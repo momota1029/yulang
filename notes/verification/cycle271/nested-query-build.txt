@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseNestedQueryCongruence271
+PASS Yulang.GeneralRebaseNestedRecordQuery271
+PASS Yulang.GeneralRebaseNestedQueryFixture271

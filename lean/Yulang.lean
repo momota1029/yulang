@@ -5089,3 +5089,6 @@ import Yulang.GeneralRebaseRecordQueryShape271
 import Yulang.GeneralRebaseRecordQuery271
 import Yulang.GeneralRebaseRecordRouting271
 import Yulang.GeneralRebaseRecordQueryCases271
+import Yulang.GeneralRebaseNestedQueryCongruence271
+import Yulang.GeneralRebaseNestedRecordQuery271
+import Yulang.GeneralRebaseNestedQueryFixture271
