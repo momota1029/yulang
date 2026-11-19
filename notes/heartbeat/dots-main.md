@@ -2,9 +2,9 @@
 - cycle: 278
 - status: running
 - started: 2026-11-19T17:33:21Z
-- updated: 2026-11-19T17:53:23Z
-- elapsed_min: 20.05
-- activity: Published semantic binder retention and exact V8 evidence throughout both loops, including under refresh; checking an inverse allocation decoder.
+- updated: 2026-11-19T18:03:21Z
+- elapsed_min: 30.01
+- activity: Certified inverse decoding of actual versioned names and replaced the 240 numeric scan. Checking exact historical observation and patch probes.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: dfeff0947
-- resume_hint: Raw loop still exists. Stable-write run unchanged; aim replace the reconstruction numeric scan by descending verified predecessor decode.
+- last_local_commit: 6bd8da319
+- resume_hint: The semantic microstep and evidence checkpoints are durable; next certify bounded observational probes and focused regression.
