@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 277
-- status: completed
-- started: 2026-11-19T16:30:14Z
-- updated: 2026-11-19T17:20:17Z
-- elapsed_min: 50.05
-- activity: Verified the real compiled Display one-step source and V8 evidence, source ownership and local registry transfer, and an exact quantitative mixed trace bound conditional on installations.
+- cycle: 278
+- status: running
+- started: 2026-11-19T17:33:21Z
+- updated: 2026-11-19T17:33:34Z
+- elapsed_min: 0.10
+- activity: Isolate a successor for the actual 239/240 finite-projection loop with stable installed semantics.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: ee8cb27d1
-- report: notes/handoff/dots-cycle-277.md
-- resume_hint: Refetch latest orders; do not redo the compiled Display fixture. The unchanged 239 kernel has unbounded installs even for the same owner; prove semantic absorption and retained child edges for a bounded rebased successor fragment, or a supported new fixture.
+- last_local_commit: 1c7ff599f
+- resume_hint: Retain the unchanged raw loop counterexample. Compare public models and check finite semantic absorption on the rebased fragment.
