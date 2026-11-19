@@ -1,0 +1,5 @@
+PASS Yulang.GeneralRebaseTreeReadbackState272
+PASS Yulang.GeneralRebaseTreeNominal272
+PASS Yulang.GeneralRebaseTreeRecord272
+PASS Yulang.GeneralRebaseTreeStructural272
+PASS Yulang.GeneralRebaseTreeInterpreter272

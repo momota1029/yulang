@@ -20,3 +20,13 @@ support, truly absent observations, and nonfunctional but possibly
 observable shadowed positions. Test branching successes and negatives,
 then seek a pre-existing real full model, ideally with a branching
 retained output and an independently readable emitted equation.
+
+The tree walker distinguishes four statuses. Unsupported source identity
+is unknown; an invalid label set/index or constructor is genuinely
+unobservable in the supplied model; a shadowed record position can
+observe every carrier type; otherwise the source is represented by
+a known canonical subtree. An arbitrary-observations parent differs
+from mere failure of all-model equality: whenever a further nominal
+(or a valid structural) projection is requested, an arbitrary payload
+can be realized by selecting a corresponding parent value. The checker
+carries this explicit proof rather than collapsing it to absent.
