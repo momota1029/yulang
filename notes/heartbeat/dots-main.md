@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 279
-- status: running
+- status: completed
 - started: 2026-11-19T18:30:04Z
-- updated: 2026-11-19T19:10:04.002Z
-- elapsed_min: 40.00
-- activity: Verified finite full child edges on the fixed-port fragment; only model witnesses for edge-free real installations remain for the conditional Acc.
+- updated: 2026-11-19T19:20:05Z
+- elapsed_min: 50.02
+- activity: Verified install novelty, exact edge compression including real guard availability, finite source edge bases and fixed-test obstructions; recovered prior report independently.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: e4109e7b5
-- resume_hint: All 30 modules checked through this checkpoint. Under non-variable normalized child arguments the ID projection is injective across actual traces, but old 239 still defeats any fixed finite assignment suite. Final closure/audit pending.
+- last_local_commit: 5fa5e5c5a
+- report: notes/handoff/dots-cycle-279.md
+- resume_hint: Follow latest inbox. For bare-variable child arguments preserve actual readback through a fixed public port, then explain the semantic progress of edge-free successor installs. No general Acc or multi-step raw bisimulation is claimed.
