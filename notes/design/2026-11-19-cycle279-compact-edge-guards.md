@@ -1,0 +1,5 @@
+# Carry exact transition eligibility through an equivalent edge ledger
+
+The prior stage preserved Models, Generated, V8 Local and Evidence. Step also reads legacy/versioned trusted slices, which must not be assumed invariant. Legacy and versioned Discharged definitions depend on recorded packet children and aliases (not the edge list itself); copy recursively, then replay the actual inductive Trusted certificates, retaining effects, packets, source context and readback obligations. This gives exact mixed CacheSound.
+
+For a prospective effect aligned to the old core, rebuild its Frame at the compacted core with the same plan and Ready class. Check unchanged SafeKnown, trusted cache, ChoiceCompatible, cycle guards, alternatives and compatible full assignments. Child coverage is the nondefinitional extra: preserve all old edge membership so the operational committed guard and generation are the same. Transport the actual enqueue, both refresh entry points, reobserve, equate, merge, and install gates. Compare existence of successors and Stable in both directions; these claims do not require equality of the resulting stored effect snapshot.

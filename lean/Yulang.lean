@@ -5314,3 +5314,9 @@ import Yulang.GeneralRebaseCompactDisplay279
 import Yulang.GeneralRebaseCompactDiagnostics279
 import Yulang.GeneralRebaseCompactMerged279
 import Yulang.GeneralRebaseCompactLocal279
+import Yulang.GeneralRebaseCompactTrust279
+import Yulang.GeneralRebaseCompactInstallGuard279
+import Yulang.GeneralRebaseCompactObservationGuard279
+import Yulang.GeneralRebaseCompactAvailability279
+import Yulang.GeneralRebaseCompactEvidenceAt279
+import Yulang.GeneralRebaseEdgeLedger279
