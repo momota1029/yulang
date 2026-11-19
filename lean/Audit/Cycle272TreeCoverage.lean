@@ -1,0 +1,62 @@
+import Yulang.GeneralRebaseTreeConstructors272
+import Yulang.GeneralRebaseTreeCoverage272
+import Yulang.GeneralRebaseTreeActual218272
+import Yulang.GeneralRebaseTreeRecordFixture272
+
+#print axioms Yulang.GeneralRebaseTreeConstructors272.nominalTree
+#print axioms Yulang.GeneralRebaseTreeConstructors272.nominal_tree_canonical
+#print axioms Yulang.GeneralRebaseTreeConstructors272.nominal_value
+#print axioms Yulang.GeneralRebaseTreeConstructors272.pairTree
+#print axioms Yulang.GeneralRebaseTreeConstructors272.pair_checked
+#print axioms Yulang.GeneralRebaseTreeConstructors272.pair_value
+#print axioms Yulang.GeneralRebaseTreeConstructors272.variantTree
+#print axioms Yulang.GeneralRebaseTreeConstructors272.variant_checked
+#print axioms Yulang.GeneralRebaseTreeConstructors272.variant_value
+#print axioms Yulang.GeneralRebaseTreeConstructors272.emptyTree
+#print axioms Yulang.GeneralRebaseTreeConstructors272.empty_canonical
+#print axioms Yulang.GeneralRebaseTreeConstructors272.recordTree
+#print axioms Yulang.GeneralRebaseTreeConstructors272.record_canonical
+#print axioms Yulang.GeneralRebaseTreeConstructors272.record_value
+#print axioms Yulang.GeneralRebaseTreeConstructors272.scalar_canonical
+#print axioms Yulang.GeneralRebaseTreeCoverage272.nominal_total
+#print axioms Yulang.GeneralRebaseTreeCoverage272.unequal_total
+#print axioms Yulang.GeneralRebaseTreeCoverage272.structural_total
+#print axioms Yulang.GeneralRebaseTreeCoverage272.nominal_unknown
+#print axioms Yulang.GeneralRebaseTreeCoverage272.structural_unknown
+#print axioms Yulang.GeneralRebaseTreeCoverage272.rootSource
+#print axioms Yulang.GeneralRebaseTreeCoverage272.unknown_exact
+#print axioms Yulang.GeneralRebaseTreeCoverage272.computable_coverage
+#print axioms Yulang.GeneralRebaseTreeCoverage272.returns_negative
+#print axioms Yulang.GeneralRebaseTreeActual218272.left
+#print axioms Yulang.GeneralRebaseTreeActual218272.right
+#print axioms Yulang.GeneralRebaseTreeActual218272.middle
+#print axioms Yulang.GeneralRebaseTreeActual218272.left_checked
+#print axioms Yulang.GeneralRebaseTreeActual218272.right_checked
+#print axioms Yulang.GeneralRebaseTreeActual218272.middle_checked
+#print axioms Yulang.GeneralRebaseTreeActual218272.source
+#print axioms Yulang.GeneralRebaseTreeActual218272.certified
+#print axioms Yulang.GeneralRebaseTreeActual218272.leftOrigin
+#print axioms Yulang.GeneralRebaseTreeActual218272.rightOrigin
+#print axioms Yulang.GeneralRebaseTreeActual218272.read_left
+#print axioms Yulang.GeneralRebaseTreeActual218272.read_right
+#print axioms Yulang.GeneralRebaseTreeActual218272.unsupported_interval
+#print axioms Yulang.GeneralRebaseTreeActual218272.covered_noncycle
+#print axioms Yulang.GeneralRebaseTreeActual218272.root_computed
+#print axioms Yulang.GeneralRebaseTreeActual218272.actual_root_negative
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.middle
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.first
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.middle_checked
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.first_checked
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.term
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.source
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.cert
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.hidden
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.visible
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.nested
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.read_visible
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.read_many
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.read_nested_many
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.over_bound
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.wrong_width
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.genuinely_ambiguous
+#print axioms Yulang.GeneralRebaseTreeRecordFixture272.actual_no_cycle

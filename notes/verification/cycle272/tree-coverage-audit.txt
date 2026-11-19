@@ -1,0 +1,59 @@
+'Yulang.GeneralRebaseTreeConstructors272.nominalTree' does not depend on any axioms
+'Yulang.GeneralRebaseTreeConstructors272.nominal_tree_canonical' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeConstructors272.nominal_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeConstructors272.pairTree' does not depend on any axioms
+'Yulang.GeneralRebaseTreeConstructors272.pair_checked' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeConstructors272.pair_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeConstructors272.variantTree' does not depend on any axioms
+'Yulang.GeneralRebaseTreeConstructors272.variant_checked' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeConstructors272.variant_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeConstructors272.emptyTree' does not depend on any axioms
+'Yulang.GeneralRebaseTreeConstructors272.empty_canonical' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeConstructors272.recordTree' does not depend on any axioms
+'Yulang.GeneralRebaseTreeConstructors272.record_canonical' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeConstructors272.record_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeConstructors272.scalar_canonical' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeCoverage272.nominal_total' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeCoverage272.unequal_total' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeCoverage272.structural_total' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeCoverage272.nominal_unknown' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeCoverage272.structural_unknown' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeCoverage272.rootSource' does not depend on any axioms
+'Yulang.GeneralRebaseTreeCoverage272.unknown_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeCoverage272.computable_coverage' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeCoverage272.returns_negative' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeActual218272.left' does not depend on any axioms
+'Yulang.GeneralRebaseTreeActual218272.right' does not depend on any axioms
+'Yulang.GeneralRebaseTreeActual218272.middle' does not depend on any axioms
+'Yulang.GeneralRebaseTreeActual218272.left_checked' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeActual218272.right_checked' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeActual218272.middle_checked' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeActual218272.source' does not depend on any axioms
+'Yulang.GeneralRebaseTreeActual218272.certified' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeActual218272.leftOrigin' does not depend on any axioms
+'Yulang.GeneralRebaseTreeActual218272.rightOrigin' does not depend on any axioms
+'Yulang.GeneralRebaseTreeActual218272.read_left' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeActual218272.read_right' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeActual218272.unsupported_interval' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeActual218272.covered_noncycle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeActual218272.root_computed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeActual218272.actual_root_negative' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.middle' does not depend on any axioms
+'Yulang.GeneralRebaseTreeRecordFixture272.first' does not depend on any axioms
+'Yulang.GeneralRebaseTreeRecordFixture272.middle_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.first_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.term' does not depend on any axioms
+'Yulang.GeneralRebaseTreeRecordFixture272.source' does not depend on any axioms
+'Yulang.GeneralRebaseTreeRecordFixture272.cert' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.hidden' does not depend on any axioms
+'Yulang.GeneralRebaseTreeRecordFixture272.visible' does not depend on any axioms
+'Yulang.GeneralRebaseTreeRecordFixture272.nested' does not depend on any axioms
+'Yulang.GeneralRebaseTreeRecordFixture272.read_visible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.read_many' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.read_nested_many' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.over_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.wrong_width' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.genuinely_ambiguous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTreeRecordFixture272.actual_no_cycle' depends on axioms: [propext, Classical.choice, Quot.sound]

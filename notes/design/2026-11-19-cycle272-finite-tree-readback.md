@@ -30,3 +30,24 @@ from mere failure of all-model equality: whenever a further nominal
 (or a valid structural) projection is requested, an arbitrary payload
 can be realized by selecting a corresponding parent value. The checker
 carries this explicit proof rather than collapsing it to absent.
+
+## Verify emitted-equation readback, without inventing variable shapes
+
+Compile the checked emitted expressions in the finite grammar using a
+partial table of variable witnesses indexed by observation mode. The
+existing carrier meaning dictates the mode (nominal children are
+always actual). Accept exact or width-empty leaves, scalar, pair,
+variant, nominal of any finite type arity, and records whose closed
+width tail and label order are certified. Abstain on joins and other
+unsupported forms. A matching equation is used only with its original
+schema evidence and the caller-supplied full model, not as an override
+of the original journal. Exercise it on real emitted 252 and verify
+that optional output (join) in 238 stays unsupported.
+
+The interpreter is total on every syntactic continuation of a supplied
+finite source witness; unknown is exactly missing initial source
+support. The real installed 218 model supplies a two-argument nominal
+root with two variant children read back as Int and Bool, respectively.
+Its unrelated interval endpoint remains unsupported. Root K2 can be
+computed and checked directly on the original installed journal; this
+does not judge the separate shared-input child guard.
