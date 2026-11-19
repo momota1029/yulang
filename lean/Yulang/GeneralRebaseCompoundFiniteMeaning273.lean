@@ -49,7 +49,7 @@ theorem finished_exact (m : Assignment) :
    rcases List.mem_cons.mp h with rfl | only
    · simpa only [factHolds,reduceCtorEq,ite_true] using body
    · cases List.mem_singleton.mp only
-     change (if pairFact = bodyFact then Body m else _) 
+     change (if pairFact = bodyFact then Body m else _)
      simp only [Ne.symm distinct,ite_false]
      exact ⟨True.intro,CommonNominalFullCarrier.subtype_refl _,CommonNominalFullCarrier.subtype_refl _⟩
 

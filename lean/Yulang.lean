@@ -5162,3 +5162,4 @@ import Yulang.GeneralRebaseCompoundOwnerMeaning273
 import Yulang.GeneralRebaseCompoundOwnerBoundary273
 import Yulang.GeneralRebaseCompoundOwnerDelta273
 import Yulang.GeneralRebaseCompoundPairedCompletion273
+import Yulang.GeneralRebaseCompoundChildEntry273
