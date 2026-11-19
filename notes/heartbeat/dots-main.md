@@ -2,9 +2,9 @@
 - cycle: 273
 - status: running
 - started: 2026-11-19T12:34:44Z
-- updated: 2026-11-19T12:35:32Z
-- elapsed_min: 0.82
-- activity: Re-read orders; investigate certified emitted-equation bridges to source transitions.
+- updated: 2026-11-19T12:44:52Z
+- elapsed_min: 10.15
+- activity: Verified the actual post-install type projection and connected it to the executable Step; proving row independence.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 154409c7f
-- resume_hint: Continue from verified cycle 272 with real publication-preserving source transition.
+- last_local_commit: de4baf58e
+- resume_hint: Checkpoint exact joint types and use a checked type-only frame for arbitrary public rows.
