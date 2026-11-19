@@ -5263,3 +5263,5 @@ import Yulang.GeneralRebaseFreshSupport277
 import Yulang.GeneralRebaseCompiledObservables277
 import Yulang.GeneralRebaseOwnedSupport277
 import Yulang.GeneralRebaseMixedOwnedTrace277
+import Yulang.GeneralRebaseRegistryDiagnostics277
+import Yulang.GeneralRebaseRegistryLocal277
