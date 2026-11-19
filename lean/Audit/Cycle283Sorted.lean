@@ -1,0 +1,14 @@
+import Yulang.GeneralRebaseJournalChecks283
+
+#print axioms Yulang.GeneralRebaseSortedCache283.push_exact
+#print axioms Yulang.GeneralRebaseSortedCache283.safe
+#print axioms Yulang.GeneralRebaseInstallCache283.initial_valid
+#print axioms Yulang.GeneralRebaseInstallCache283.transport
+#print axioms Yulang.GeneralRebaseInstallCache283.add_valid
+#print axioms Yulang.GeneralRebaseInstallCache283.lookup
+#print axioms Yulang.GeneralRebaseInstallCache283.candidate
+#print axioms Yulang.GeneralRebaseClassDelta283.factor
+#print axioms Yulang.GeneralRebaseClassDelta283.class_install
+#print axioms Yulang.GeneralRebaseJournalChecks283.recheck_exact
+#print axioms Yulang.GeneralRebaseJournalChecks283.reuse
+#print axioms Yulang.GeneralRebaseJournalChecks283.checks_exact

@@ -5429,3 +5429,7 @@ import Yulang.GeneralRebaseExactHistory283
 import Yulang.GeneralRebaseDirtyHistory283
 import Yulang.GeneralRebaseIncrementalHistory283
 import Yulang.GeneralRebaseProspectiveDelta283
+import Yulang.GeneralRebaseSortedCache283
+import Yulang.GeneralRebaseInstallCache283
+import Yulang.GeneralRebaseClassDelta283
+import Yulang.GeneralRebaseJournalChecks283
