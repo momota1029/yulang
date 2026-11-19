@@ -1,0 +1,10 @@
+import Yulang.GeneralRebaseRecordTagBoundary270
+
+#print axioms Yulang.GeneralRebaseRecordTagBoundary270.duplicate_hidden
+#print axioms Yulang.GeneralRebaseRecordTagBoundary270.duplicate_shape
+#print axioms Yulang.GeneralRebaseRecordTagBoundary270.duplicate_observes_arbitrary
+#print axioms Yulang.GeneralRebaseRecordTagBoundary270.duplicate_tests_not_same
+#print axioms Yulang.GeneralRebaseRecordTagBoundary270.duplicate_same_coarse_tag
+#print axioms Yulang.GeneralRebaseRecordTagBoundary270.duplicate_head
+#print axioms Yulang.GeneralRebaseRecordTagBoundary270.duplicate_slot_not_live
+#print axioms Yulang.GeneralRebaseRecordTagBoundary270.duplicate_not_live_full

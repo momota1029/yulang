@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseOriginNegativeTags270
+PASS Yulang.GeneralRebaseOriginRepresentative270
+PASS Yulang.GeneralRebaseAcyclicNominal270

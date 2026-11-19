@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseRecordWindowBoundary270
+
+#print axioms Yulang.GeneralRebaseRecordWindowBoundary270.alternate_checked
+#print axioms Yulang.GeneralRebaseRecordWindowBoundary270.alternate_head
+#print axioms Yulang.GeneralRebaseRecordWindowBoundary270.no_literal_exhaustion
+#print axioms Yulang.GeneralRebaseRecordWindowBoundary270.noncanonical_hidden_excluded
+#print axioms Yulang.GeneralRebaseRecordWindowBoundary270.canonical_positive

@@ -1,0 +1,44 @@
+'Yulang.GeneralRebaseReplaySearch270.Schedule' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.Replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.prepend' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.explore' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.Admitted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.enumerate_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.search' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.hit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.exhaustive_on_schedule' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.Within' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.Covers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.represent_within' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplaySearch270.none_rules_out_bounded_weak' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFrontier270.Frontier' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFrontier270.traces' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFrontier270.fromSchedule' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFrontier270.fromSchedule_traces' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFrontier270.search' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFrontier270.fromSchedule_search' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFrontier270.no_visible_advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFrontier270.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReplayFrontierFixture270.Compound.offered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFrontierFixture270.Compound.visible_exit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFrontierFixture270.Compound.depth_zero' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFrontierFixture270.Refresh.offered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFrontierFixture270.Refresh.computed_none' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFrontierFixture270.Refresh.supplied_path' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReplayFrontierFixture270.Refresh.all_supplied_are_lulls' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

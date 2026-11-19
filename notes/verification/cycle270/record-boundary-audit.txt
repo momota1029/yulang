@@ -1,0 +1,10 @@
+'Yulang.GeneralRebaseRecordTagBoundary270.duplicate_hidden' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordTagBoundary270.duplicate_shape' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordTagBoundary270.duplicate_observes_arbitrary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordTagBoundary270.duplicate_tests_not_same' does not depend on any axioms
+'Yulang.GeneralRebaseRecordTagBoundary270.duplicate_same_coarse_tag' does not depend on any axioms
+'Yulang.GeneralRebaseRecordTagBoundary270.duplicate_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordTagBoundary270.duplicate_slot_not_live' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRecordTagBoundary270.duplicate_not_live_full' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

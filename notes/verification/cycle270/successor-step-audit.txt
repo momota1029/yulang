@@ -1,0 +1,27 @@
+'Yulang.GeneralRebaseSourceStepDriver270.propose' does not depend on any axioms
+'Yulang.GeneralRebaseSourceStepDriver270.next' depends on axioms: [propext]
+'Yulang.GeneralRebaseSourceStepDriver270.next_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.drained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.terminal' depends on axioms: [propext]
+'Yulang.GeneralRebaseSourceStepDriver270.Compound.support' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.Compound.run' depends on axioms: [propext]
+'Yulang.GeneralRebaseSourceStepDriver270.Compound.computed_initial' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.Compound.computed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.Compound.computed_on_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.Compound.matches_concrete' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.Compound.exact_weak_targets' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.Compound.no_second' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.OutputFree.no_original_weak' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceStepDriver270.OutputFree.exact_empty_observer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

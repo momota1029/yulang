@@ -1,0 +1,35 @@
+import Yulang.GeneralRebaseClosedOriginDriver270
+import Yulang.GeneralRebaseClosedOriginFixture270
+import Yulang.GeneralRebaseOutputFreeCompiler270
+
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.covered
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.inspect
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.inspect_sound
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.inspectRoot
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.inspectRoot_sound
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.rootK2
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.rootK2_sound
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.totalEdges
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.edges_checked
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.matchSource
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.inspect_total
+#print axioms Yulang.GeneralRebaseClosedOriginDriver270.inspect_exact
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Positive.full_coverage
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Positive.full_matrix
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Positive.computed_root
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Positive.actual_root
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Positive.unstored_source_unknown
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Negative.full_coverage
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Negative.full_matrix
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Negative.computed_root
+#print axioms Yulang.GeneralRebaseClosedOriginFixture270.Negative.actual_root_absent
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.recognizes
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.recognizes_exact
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.compile
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.compiler_sound
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.compiler_complete_on_fragment
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.run
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.run_exact
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.version239_recognized
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.version240_recognized
+#print axioms Yulang.GeneralRebaseOutputFreeCompiler270.compound_not_claimed

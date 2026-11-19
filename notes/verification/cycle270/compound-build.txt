@@ -1,0 +1,6 @@
+PASS Yulang.GeneralRebaseRetainedMetadata270
+PASS Yulang.GeneralRebaseOneOutputFacts270
+PASS Yulang.GeneralRebaseOneOutputProjection270
+PASS Yulang.GeneralRebaseCompoundProjection270
+PASS Yulang.GeneralRebaseSingleExitCode270
+PASS Yulang.GeneralRebaseCompoundExecutable270

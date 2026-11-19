@@ -1,0 +1,72 @@
+import Yulang.GeneralRebaseLullSpine270
+import Yulang.GeneralRebaseWeakSpine270
+import Yulang.GeneralRebaseReplayCommand270
+import Yulang.GeneralRebaseReplayScript270
+import Yulang.GeneralRebaseNoOutputs270
+import Yulang.GeneralRebaseOutputFreeRegressions270
+import Yulang.GeneralRebaseReplayFixture270
+
+#print axioms Yulang.GeneralRebaseLullSpine270.Quiet
+#print axioms Yulang.GeneralRebaseLullSpine270.raw
+#print axioms Yulang.GeneralRebaseLullSpine270.sound
+#print axioms Yulang.GeneralRebaseLullSpine270.changed
+#print axioms Yulang.GeneralRebaseLullSpine270.changed_exact
+#print axioms Yulang.GeneralRebaseLullSpine270.still_exact
+#print axioms Yulang.GeneralRebaseWeakSpine270.Spine
+#print axioms Yulang.GeneralRebaseWeakSpine270.prepend
+#print axioms Yulang.GeneralRebaseWeakSpine270.normalize
+#print axioms Yulang.GeneralRebaseWeakSpine270.flatten
+#print axioms Yulang.GeneralRebaseWeakSpine270.prepend_flat
+#print axioms Yulang.GeneralRebaseWeakSpine270.exact_order
+#print axioms Yulang.GeneralRebaseWeakSpine270.count
+#print axioms Yulang.GeneralRebaseWeakSpine270.prepend_count
+#print axioms Yulang.GeneralRebaseWeakSpine270.match_chosen
+#print axioms Yulang.GeneralRebaseWeakSpine270.exact_count
+#print axioms Yulang.GeneralRebaseWeakSpine270.old_source
+#print axioms Yulang.GeneralRebaseWeakSpine270.chooseFirst
+#print axioms Yulang.GeneralRebaseWeakSpine270.no_advance_of_none
+#print axioms Yulang.GeneralRebaseReplayCommand270.Command
+#print axioms Yulang.GeneralRebaseReplayCommand270.run
+#print axioms Yulang.GeneralRebaseReplayCommand270.run_sound
+#print axioms Yulang.GeneralRebaseReplayCommand270.supported
+#print axioms Yulang.GeneralRebaseReplayCommand270.edge
+#print axioms Yulang.GeneralRebaseReplayScript270.Script
+#print axioms Yulang.GeneralRebaseReplayScript270.path
+#print axioms Yulang.GeneralRebaseReplayScript270.append
+#print axioms Yulang.GeneralRebaseReplayScript270.covers_old
+#print axioms Yulang.GeneralRebaseReplayScript270.bundle
+#print axioms Yulang.GeneralRebaseReplayScript270.first
+#print axioms Yulang.GeneralRebaseReplayScript270.no_hit
+#print axioms Yulang.GeneralRebaseNoOutputs270.OutputFree
+#print axioms Yulang.GeneralRebaseNoOutputs270.QuietSites
+#print axioms Yulang.GeneralRebaseNoOutputs270.emitted_quiet
+#print axioms Yulang.GeneralRebaseNoOutputs270.step_quiet
+#print axioms Yulang.GeneralRebaseNoOutputs270.initial_quiet
+#print axioms Yulang.GeneralRebaseNoOutputs270.trace_quiet
+#print axioms Yulang.GeneralRebaseNoOutputs270.no_requests
+#print axioms Yulang.GeneralRebaseNoOutputs270.no_liveFacts
+#print axioms Yulang.GeneralRebaseNoOutputs270.fixed
+#print axioms Yulang.GeneralRebaseNoOutputs270.terminalCode
+#print axioms Yulang.GeneralRebaseNoOutputs270.exact_code
+#print axioms Yulang.GeneralRebaseNoOutputs270.executable_stop
+#print axioms Yulang.GeneralRebaseOutputFreeRegressions270.Version239.registry_free
+#print axioms Yulang.GeneralRebaseOutputFreeRegressions270.Version239.finite_prefix
+#print axioms Yulang.GeneralRebaseOutputFreeRegressions270.Version239.all_reachable_code
+#print axioms Yulang.GeneralRebaseOutputFreeRegressions270.Version239.visible_stop
+#print axioms Yulang.GeneralRebaseOutputFreeRegressions270.Version240.registry_free
+#print axioms Yulang.GeneralRebaseOutputFreeRegressions270.Version240.finite_prefix
+#print axioms Yulang.GeneralRebaseOutputFreeRegressions270.Version240.all_reachable_code
+#print axioms Yulang.GeneralRebaseOutputFreeRegressions270.Version240.visible_stop
+#print axioms Yulang.GeneralRebaseReplayFixture270.Compound.installCmd
+#print axioms Yulang.GeneralRebaseReplayFixture270.Compound.actual
+#print axioms Yulang.GeneralRebaseReplayFixture270.Compound.computed_count
+#print axioms Yulang.GeneralRebaseReplayFixture270.Compound.concrete_exit
+#print axioms Yulang.GeneralRebaseReplayFixture270.Compound.end_matches_code
+#print axioms Yulang.GeneralRebaseReplayFixture270.Refresh.refreshCmd
+#print axioms Yulang.GeneralRebaseReplayFixture270.Refresh.reviseCmd
+#print axioms Yulang.GeneralRebaseReplayFixture270.Refresh.genuine
+#print axioms Yulang.GeneralRebaseReplayFixture270.Refresh.owners
+#print axioms Yulang.GeneralRebaseReplayFixture270.Refresh.pool
+#print axioms Yulang.GeneralRebaseReplayFixture270.Refresh.computed_zero
+#print axioms Yulang.GeneralRebaseReplayFixture270.Refresh.no_hit
+#print axioms Yulang.GeneralRebaseReplayFixture270.Refresh.genuine_lull
