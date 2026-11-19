@@ -1,0 +1,4 @@
+PASS Yulang.GeneralRebaseRowIrrelevance273
+PASS Yulang.GeneralRebaseTypeOnlyAtoms273
+PASS Yulang.GeneralRebaseCompoundRows273
+PASS Yulang.GeneralRebaseCompoundRowsMeaning273

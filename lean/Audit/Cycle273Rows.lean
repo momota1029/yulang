@@ -1,0 +1,49 @@
+import Yulang.GeneralRebaseRowIrrelevance273
+import Yulang.GeneralRebaseTypeOnlyAtoms273
+import Yulang.GeneralRebaseCompoundRows273
+import Yulang.GeneralRebaseCompoundRowsMeaning273
+
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.SameTypes
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.symm
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.observes
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.occurs
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.head
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.shared
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.capture
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.site
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.projection
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.environment
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.equation
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.schema
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.variable_iff
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.head_schema
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.body_environment
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.body_iff
+#print axioms Yulang.GeneralRebaseRowIrrelevance273.live
+#print axioms Yulang.GeneralRebaseTypeOnlyAtoms273.typeOnly
+#print axioms Yulang.GeneralRebaseTypeOnlyAtoms273.atomTypeOnly
+#print axioms Yulang.GeneralRebaseTypeOnlyAtoms273.term_eq
+#print axioms Yulang.GeneralRebaseTypeOnlyAtoms273.atom_iff
+#print axioms Yulang.GeneralRebaseTypeOnlyAtoms273.all_iff
+#print axioms Yulang.GeneralRebaseCompoundRows273.atoms
+#print axioms Yulang.GeneralRebaseCompoundRows273.checks
+#print axioms Yulang.GeneralRebaseCompoundRows273.merges_type_only
+#print axioms Yulang.GeneralRebaseCompoundRows273.checks_type_only
+#print axioms Yulang.GeneralRebaseCompoundRows273.compatible
+#print axioms Yulang.GeneralRebaseCompoundRows273.ordinary
+#print axioms Yulang.GeneralRebaseCompoundRows273.old
+#print axioms Yulang.GeneralRebaseCompoundRows273.source
+#print axioms Yulang.GeneralRebaseCompoundRows273.head
+#print axioms Yulang.GeneralRebaseCompoundRows273.residual
+#print axioms Yulang.GeneralRebaseCompoundRows273.installed_row_free
+#print axioms Yulang.GeneralRebaseCompoundRows273.Agrees
+#print axioms Yulang.GeneralRebaseCompoundRows273.completeRows
+#print axioms Yulang.GeneralRebaseCompoundRows273.complete_rows
+#print axioms Yulang.GeneralRebaseCompoundRows273.complete_valid
+#print axioms Yulang.GeneralRebaseCompoundRows273.public_exact
+#print axioms Yulang.GeneralRebaseCompoundRowsMeaning273.Public
+#print axioms Yulang.GeneralRebaseCompoundRowsMeaning273.before_public
+#print axioms Yulang.GeneralRebaseCompoundRowsMeaning273.installed_public
+#print axioms Yulang.GeneralRebaseCompoundRowsMeaning273.point_public
+#print axioms Yulang.GeneralRebaseCompoundRowsMeaning273.computed_public_step
+#print axioms Yulang.GeneralRebaseCompoundRowsMeaning273.full_completion_of_computed
