@@ -1,0 +1,24 @@
+import Yulang.GeneralRebaseTerminalEvidence278
+import Yulang.GeneralRebaseVersionEvidence278
+import Yulang.GeneralRebaseLooseEvidence278
+
+#print axioms Yulang.GeneralRebaseTerminalEvidence278.no_class_requests
+#print axioms Yulang.GeneralRebaseTerminalEvidence278.effect_leaf
+#print axioms Yulang.GeneralRebaseTerminalEvidence278.no_children
+#print axioms Yulang.GeneralRebaseTerminalEvidence278.leaf_shape
+#print axioms Yulang.GeneralRebaseVersionEvidence278.enter_leaf
+#print axioms Yulang.GeneralRebaseVersionEvidence278.evidence_holds
+#print axioms Yulang.GeneralRebaseVersionEvidence278.enter_exact
+#print axioms Yulang.GeneralRebaseVersionEvidence278.installed_leaf
+#print axioms Yulang.GeneralRebaseVersionEvidence278.installed_shape
+#print axioms Yulang.GeneralRebaseVersionEvidence278.actual_adapter_leaf
+#print axioms Yulang.GeneralRebaseVersionEvidence278.bad_before_no_payload
+#print axioms Yulang.GeneralRebaseVersionEvidence278.same_witness_leaves
+#print axioms Yulang.GeneralRebaseLooseEvidence278.enter_leaf
+#print axioms Yulang.GeneralRebaseLooseEvidence278.evidence_holds
+#print axioms Yulang.GeneralRebaseLooseEvidence278.enter_exact
+#print axioms Yulang.GeneralRebaseLooseEvidence278.installed_leaf
+#print axioms Yulang.GeneralRebaseLooseEvidence278.installed_shape
+#print axioms Yulang.GeneralRebaseLooseEvidence278.actual_adapter_leaf
+#print axioms Yulang.GeneralRebaseLooseEvidence278.bad_before_no_payload
+#print axioms Yulang.GeneralRebaseLooseEvidence278.same_witness_leaves
