@@ -1,0 +1,31 @@
+import Yulang.GeneralRebaseFixedGraph280
+import Yulang.GeneralRebaseRawGraph280
+import Yulang.GeneralRebaseProjectedReach280
+
+#print axioms Yulang.GeneralRebaseFixedGraph280.Recode
+#print axioms Yulang.GeneralRebaseFixedGraph280.root_recode
+#print axioms Yulang.GeneralRebaseFixedGraph280.child_recode
+#print axioms Yulang.GeneralRebaseFixedGraph280.child_exists
+#print axioms Yulang.GeneralRebaseFixedGraph280.same_id
+#print axioms Yulang.GeneralRebaseFixedGraph280.recode_trace
+#print axioms Yulang.GeneralRebaseFixedGraph280.source_recode
+#print axioms Yulang.GeneralRebaseFixedGraph280.RecodeEdge
+#print axioms Yulang.GeneralRebaseFixedGraph280.edge_projection
+#print axioms Yulang.GeneralRebaseFixedGraph280.source_edge
+#print axioms Yulang.GeneralRebaseFixedGraph280.CanonicalOnTrace
+#print axioms Yulang.GeneralRebaseFixedGraph280.project_unique
+#print axioms Yulang.GeneralRebaseFixedGraph280.finite_canonical_edges
+#print axioms Yulang.GeneralRebaseRawGraph280.Incoming
+#print axioms Yulang.GeneralRebaseRawGraph280.History
+#print axioms Yulang.GeneralRebaseRawGraph280.traces
+#print axioms Yulang.GeneralRebaseRawGraph280.source_history
+#print axioms Yulang.GeneralRebaseRawGraph280.registered_generated
+#print axioms Yulang.GeneralRebaseProjectedReach280.ids
+#print axioms Yulang.GeneralRebaseProjectedReach280.Reached
+#print axioms Yulang.GeneralRebaseProjectedReach280.edges_mem
+#print axioms Yulang.GeneralRebaseProjectedReach280.child_edge
+#print axioms Yulang.GeneralRebaseProjectedReach280.exists_raw
+#print axioms Yulang.GeneralRebaseProjectedReach280.Reached
+#print axioms Yulang.GeneralRebaseProjectedReach280.ids_growth
+#print axioms Yulang.GeneralRebaseProjectedReach280.traced
+#print axioms Yulang.GeneralRebaseProjectedReach280.source_reach_exact

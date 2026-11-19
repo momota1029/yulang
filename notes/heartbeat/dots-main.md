@@ -2,9 +2,9 @@
 - cycle: 280
 - status: running
 - started: 2026-11-19T19:30:00Z
-- updated: 2026-11-19T19:34:06Z
-- elapsed_min: 4.10
-- activity: Verified fixed child descriptor, exact per-model alias atoms/readback, and simultaneous writes.
+- updated: 2026-11-19T19:40:28Z
+- elapsed_min: 10.47
+- activity: Checked all-trace finite canonical child edges and exact existential ID reachability.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: df6bee480
-- resume_hint: Prove source trace canonical graph and apply the fixed ports to a real bare Display child.
+- last_local_commit: 4351a745f
+- resume_hint: Continue executable canonical catalog and concrete Display first-use semantics. General source model refinement remains open.

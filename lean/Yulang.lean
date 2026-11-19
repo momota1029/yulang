@@ -5337,3 +5337,6 @@ import Yulang.GeneralRebaseClosedEdgeCompound279
 import Yulang.GeneralRebaseChildPorts280
 import Yulang.GeneralRebasePortMeaning280
 import Yulang.GeneralRebasePortCopy280
+import Yulang.GeneralRebaseFixedGraph280
+import Yulang.GeneralRebaseRawGraph280
+import Yulang.GeneralRebaseProjectedReach280
