@@ -5320,3 +5320,7 @@ import Yulang.GeneralRebaseCompactObservationGuard279
 import Yulang.GeneralRebaseCompactAvailability279
 import Yulang.GeneralRebaseCompactEvidenceAt279
 import Yulang.GeneralRebaseEdgeLedger279
+import Yulang.GeneralRebaseWitnessBudget279
+import Yulang.GeneralRebaseWitnessTrace279
+import Yulang.GeneralRebaseWitnessRegressions279
+import Yulang.GeneralRebaseInstallPublicObstruction279

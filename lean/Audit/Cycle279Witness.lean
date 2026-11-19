@@ -1,0 +1,38 @@
+import Yulang.GeneralRebaseWitnessBudget279
+import Yulang.GeneralRebaseWitnessTrace279
+import Yulang.GeneralRebaseWitnessRegressions279
+import Yulang.GeneralRebaseInstallPublicObstruction279
+
+#print axioms Yulang.GeneralRebaseWitnessBudget279.Fact
+#print axioms Yulang.GeneralRebaseWitnessBudget279.Holds
+#print axioms Yulang.GeneralRebaseWitnessBudget279.WitnessBasis
+#print axioms Yulang.GeneralRebaseWitnessBudget279.growth
+#print axioms Yulang.GeneralRebaseWitnessBudget279.administrative_growth
+#print axioms Yulang.GeneralRebaseWitnessBudget279.installation_growth
+#print axioms Yulang.GeneralRebaseWitnessBudget279.descent
+#print axioms Yulang.GeneralRebaseWitnessBudget279.accessible
+#print axioms Yulang.GeneralRebaseWitnessBudget279.consumed_edge
+#print axioms Yulang.GeneralRebaseWitnessBudget279.consumed_model
+#print axioms Yulang.GeneralRebaseWitnessTrace279.Covers
+#print axioms Yulang.GeneralRebaseWitnessTrace279.trace_budget
+#print axioms Yulang.GeneralRebaseWitnessTrace279.total_length
+#print axioms Yulang.GeneralRebaseWitnessTrace279.accessible_from
+#print axioms Yulang.GeneralRebaseWitnessTrace279.global_covers
+#print axioms Yulang.GeneralRebaseWitnessRegressions279.uncount
+#print axioms Yulang.GeneralRebaseWitnessRegressions279.Display.fact
+#print axioms Yulang.GeneralRebaseWitnessRegressions279.Display.start_reachable
+#print axioms Yulang.GeneralRebaseWitnessRegressions279.Display.one_edge_covers
+#print axioms Yulang.GeneralRebaseWitnessRegressions279.Display.rank_one
+#print axioms Yulang.GeneralRebaseWitnessRegressions279.Display.at_most_one
+#print axioms Yulang.GeneralRebaseWitnessRegressions279.OldLoop.no_local_witness_basis
+#print axioms Yulang.GeneralRebaseWitnessRegressions279.OldLoop.no_global_witness_basis
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Version.e
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Version.edges_equal
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Version.public_iff
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Version.full_assignment_lost
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Version.actual_loss_and_same_public
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Loose.e
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Loose.edges_equal
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Loose.public_iff
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Loose.full_assignment_lost
+#print axioms Yulang.GeneralRebaseInstallPublicObstruction279.Loose.actual_loss_and_same_public

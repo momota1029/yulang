@@ -1,0 +1,60 @@
+'Yulang.GeneralRebaseWitnessBudget279.Fact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.Holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.WitnessBasis' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.growth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.administrative_growth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.installation_growth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.descent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.consumed_edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessBudget279.consumed_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessTrace279.Covers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessTrace279.trace_budget' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessTrace279.total_length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessTrace279.accessible_from' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessTrace279.global_covers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessRegressions279.uncount' does not depend on any axioms
+'Yulang.GeneralRebaseWitnessRegressions279.Display.fact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWitnessRegressions279.Display.start_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseWitnessRegressions279.Display.one_edge_covers' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseWitnessRegressions279.Display.rank_one' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessRegressions279.Display.at_most_one' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseWitnessRegressions279.OldLoop.no_local_witness_basis' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseWitnessRegressions279.OldLoop.no_global_witness_basis' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Version.e' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Version.edges_equal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Version.public_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Version.full_assignment_lost' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Version.actual_loss_and_same_public' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Loose.e' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Loose.edges_equal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Loose.public_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Loose.full_assignment_lost' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallPublicObstruction279.Loose.actual_loss_and_same_public' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0
