@@ -5042,3 +5042,6 @@ import Yulang.GeneralRebaseTypedNominalWindow269
 import Yulang.GeneralRebaseNominalWindowFixture269
 import Yulang.GeneralRebaseRowOriginFixture269
 import Yulang.GeneralRebaseEnhancedPipeline269
+import Yulang.FiniteBehaviorKeyGraph269
+import Yulang.FiniteBehaviorCheckedRun269
+import Yulang.GeneralRebaseKeyedBehavior269

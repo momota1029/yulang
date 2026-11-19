@@ -139,3 +139,13 @@ exists, the full graph edge is computed false with every equality fallback
 unknown, and semantic recurrence is excluded. The actual compound install
 also verifies through the enhanced V8 compiler while retaining its original
 independent head/joint model evidence.
+
+For an explicitly supplied finite key graph, the executable rank check
+ensures every abstract edge strictly lowers remaining-count. Compile the
+graph at precisely the rank fuel, then run the concrete-independent code.
+If the key map and graph separately meet the complete weak-step
+projection/lifting contract at **every** representative, the selected
+terminal observation lifts from the actual initial state and is stable
+along all finite original continuations. The rank check is not a proof
+of this source realization contract, and the construction does not
+automatically synthesize such keys.
