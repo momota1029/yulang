@@ -1,0 +1,8 @@
+'Yulang.GeneralRebaseRefreshEvidence275.Validated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshEvidence275.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshEvidence275.kept' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshEvidence275.moved_good' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshEvidence275.move_hop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshEvidence275.all_histories' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshEvidence275.leaves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshEvidence275.all_actual_leaves' depends on axioms: [propext, Classical.choice, Quot.sound]

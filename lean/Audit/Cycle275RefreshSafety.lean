@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseRefreshSafety275
+
+#print axioms Yulang.GeneralRebaseRefreshSafety275.model
+#print axioms Yulang.GeneralRebaseRefreshSafety275.slotForm
+#print axioms Yulang.GeneralRebaseRefreshSafety275.slotForm_exact
+#print axioms Yulang.GeneralRebaseRefreshSafety275.semantic_acyclic
+#print axioms Yulang.GeneralRebaseRefreshSafety275.structural_decreases
+#print axioms Yulang.GeneralRebaseRefreshSafety275.nominal_decreases
+#print axioms Yulang.GeneralRebaseRefreshSafety275.edge_decreases
+#print axioms Yulang.GeneralRebaseRefreshSafety275.no_raw_recurs
+#print axioms Yulang.GeneralRebaseRefreshSafety275.known
+#print axioms Yulang.GeneralRebaseRefreshSafety275.administrative_ready
+#print axioms Yulang.GeneralRebaseRefreshSafety275.safe
