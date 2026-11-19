@@ -1,0 +1,38 @@
+import Yulang.GeneralRebaseOriginCycles268
+import Yulang.GeneralRebaseVersionedK2Probe268
+import Yulang.GeneralRebaseRawCandidate268
+import Yulang.GeneralRebaseCandidateK2Source268
+
+#print axioms Yulang.GeneralRebaseOriginCycles268.Window
+#print axioms Yulang.GeneralRebaseOriginCycles268.NonemptyCycle
+#print axioms Yulang.GeneralRebaseOriginCycles268.Closure
+#print axioms Yulang.GeneralRebaseOriginCycles268.Forward
+#print axioms Yulang.GeneralRebaseOriginCycles268.Sound
+#print axioms Yulang.GeneralRebaseOriginCycles268.mapped_path
+#print axioms Yulang.GeneralRebaseOriginCycles268.mapped_cycle
+#print axioms Yulang.GeneralRebaseOriginCycles268.lift_path
+#print axioms Yulang.GeneralRebaseOriginCycles268.closure_of_forward
+#print axioms Yulang.GeneralRebaseOriginCycles268.graph
+#print axioms Yulang.GeneralRebaseOriginCycles268.graph_sound
+#print axioms Yulang.GeneralRebaseOriginCycles268.cyclic
+#print axioms Yulang.GeneralRebaseOriginCycles268.cyclic_sound
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.indexed
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.indexed_sound
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.rootOrigin
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.rootOrigin_sound
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.root
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.root_sound
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.framed
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.candidateOrigin
+#print axioms Yulang.GeneralRebaseVersionedK2Probe268.candidateOrigin_sound
+#print axioms Yulang.GeneralRebaseRawCandidate268.visited
+#print axioms Yulang.GeneralRebaseRawCandidate268.visited_sound
+#print axioms Yulang.GeneralRebaseRawCandidate268.check
+#print axioms Yulang.GeneralRebaseRawCandidate268.check_sound
+#print axioms Yulang.GeneralRebaseCandidateK2Source268.focusPlans
+#print axioms Yulang.GeneralRebaseCandidateK2Source268.focusPlans_exact
+#print axioms Yulang.GeneralRebaseCandidateK2Source268.includes
+#print axioms Yulang.GeneralRebaseCandidateK2Source268.preparedBit
+#print axioms Yulang.GeneralRebaseCandidateK2Source268.preparedBit_sound
+#print axioms Yulang.GeneralRebaseCandidateK2Source268.probe
+#print axioms Yulang.GeneralRebaseCandidateK2Source268.probe_sound

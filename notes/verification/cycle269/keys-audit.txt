@@ -1,0 +1,13 @@
+'Yulang.FiniteBehaviorKeyGraph269.Graph' does not depend on any axioms
+'Yulang.FiniteBehaviorKeyGraph269.rank' does not depend on any axioms
+'Yulang.FiniteBehaviorKeyGraph269.valid' does not depend on any axioms
+'Yulang.FiniteBehaviorKeyGraph269.valid_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteBehaviorKeyGraph269.compile' does not depend on any axioms
+'Yulang.FiniteBehaviorKeyGraph269.Realizes' does not depend on any axioms
+'Yulang.FiniteBehaviorKeyGraph269.tracks' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteBehaviorKeyGraph269.sound_child' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteBehaviorKeyGraph269.covers_from_source' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteBehaviorCheckedRun269.execute' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteBehaviorCheckedRun269.from_checked_graph' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseKeyedBehavior269.run' does not depend on any axioms
+'Yulang.GeneralRebaseKeyedBehavior269.run_sound' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,50 @@
+import Yulang.FiniteWorklistRelative269
+import Yulang.GeneralRebaseJournalInequalities269
+import Yulang.GeneralRebaseSameInputs269
+import Yulang.GeneralRebaseMergeJournal269
+import Yulang.GeneralRebaseNonliteralMergeFixture269
+
+#print axioms Yulang.FiniteWorklistRelative269.Closed
+#print axioms Yulang.FiniteWorklistRelative269.scope_exhausted
+#print axioms Yulang.FiniteWorklistRelative269.explore_exact
+#print axioms Yulang.FiniteWorklistRelative269.reachable_exact
+#print axioms Yulang.GeneralRebaseJournalInequalities269.Between
+#print axioms Yulang.GeneralRebaseJournalInequalities269.fromRaw
+#print axioms Yulang.GeneralRebaseJournalInequalities269.fromRaw_sound
+#print axioms Yulang.GeneralRebaseJournalInequalities269.centerEdges
+#print axioms Yulang.GeneralRebaseJournalInequalities269.center_sound
+#print axioms Yulang.GeneralRebaseJournalInequalities269.edges
+#print axioms Yulang.GeneralRebaseJournalInequalities269.edges_sound
+#print axioms Yulang.GeneralRebaseJournalInequalities269.adj
+#print axioms Yulang.GeneralRebaseJournalInequalities269.adj_exact
+#print axioms Yulang.GeneralRebaseJournalInequalities269.scope
+#print axioms Yulang.GeneralRebaseJournalInequalities269.scope_closed
+#print axioms Yulang.GeneralRebaseJournalInequalities269.prove
+#print axioms Yulang.GeneralRebaseJournalInequalities269.prove_exact
+#print axioms Yulang.GeneralRebaseJournalInequalities269.path_sound
+#print axioms Yulang.GeneralRebaseJournalInequalities269.prove_sound
+#print axioms Yulang.GeneralRebaseSameInputs269.raw_source_eq
+#print axioms Yulang.GeneralRebaseSameInputs269.le
+#print axioms Yulang.GeneralRebaseSameInputs269.le_sound
+#print axioms Yulang.GeneralRebaseSameInputs269.eq
+#print axioms Yulang.GeneralRebaseSameInputs269.eq_sound
+#print axioms Yulang.GeneralRebaseSameInputs269.givenNames
+#print axioms Yulang.GeneralRebaseSameInputs269.related_source
+#print axioms Yulang.GeneralRebaseSameInputs269.zipped
+#print axioms Yulang.GeneralRebaseSameInputs269.zipped_sound
+#print axioms Yulang.GeneralRebaseSameInputs269.probe
+#print axioms Yulang.GeneralRebaseSameInputs269.probe_sound
+#print axioms Yulang.GeneralRebaseMergeJournal269.candidates
+#print axioms Yulang.GeneralRebaseMergeJournal269.sound
+#print axioms Yulang.GeneralRebaseMergeJournal269.known_exact
+#print axioms Yulang.GeneralRebaseMergeJournal269.scan_sound
+#print axioms Yulang.GeneralRebaseMergeJournal269.scan_iff
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.root
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.context
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.journal
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.first
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.last
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.witnessed_journal
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.not_literal
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.calculated
+#print axioms Yulang.GeneralRebaseNonliteralMergeFixture269.same_nonliteral

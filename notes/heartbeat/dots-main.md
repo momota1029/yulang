@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 267
+- cycle: 269
 - status: completed
-- started: 2026-11-19T06:34:24Z
-- updated: 2026-11-19T07:24:26Z
-- elapsed_min: 50.03
-- activity: Verified actual source Plan/merge discovery, strict correspondence and recomputing driver relative to independent semantic probes.
+- started: 2026-11-19T08:30:00Z
+- updated: 2026-11-19T09:20:05Z
+- elapsed_min: 50.08
+- activity: Checked canonical finite weak behavior, guarded typed Origin recurrence windows, and the actual enhanced V8 compound install.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 39273f101
-- report: notes/handoff/dots-cycle-267.md
-- resume_hint: Next check latest integration directives. Open item: construct executable semantic and diagnostic probes; test stutter closure before strengthening old source termination.
+- last_local_commit: 95ef47d76
+- report: notes/handoff/dots-cycle-269.md
+- resume_hint: Read latest integration instructions. Open: executable behavior-key extraction and general full-carrier model/equivalence witnesses; do not claim full old-kernel termination.

@@ -1,0 +1,64 @@
+import Yulang.GeneralRebaseRankOne269
+import Yulang.GeneralRebaseBehaviorFixture269
+import Yulang.GeneralRebaseRawActualProbe269
+import Yulang.GeneralRebaseOriginEdgeScan269
+import Yulang.GeneralRebaseOriginWindowFixture269
+import Yulang.GeneralRebaseCompilerInputs269
+
+#print axioms Yulang.GeneralRebaseRankOne269.terminal_code
+#print axioms Yulang.GeneralRebaseRankOne269.zero_code
+#print axioms Yulang.GeneralRebaseRankOne269.oneCode
+#print axioms Yulang.GeneralRebaseRankOne269.tryCode
+#print axioms Yulang.GeneralRebaseRankOne269.rankOne_correct
+#print axioms Yulang.GeneralRebaseRankOne269.sound
+#print axioms Yulang.GeneralRebaseBehaviorFixture269.exitCode
+#print axioms Yulang.GeneralRebaseBehaviorFixture269.exhausted
+#print axioms Yulang.GeneralRebaseBehaviorFixture269.checked_exit
+#print axioms Yulang.GeneralRebaseBehaviorFixture269.exact_exit
+#print axioms Yulang.GeneralRebaseBehaviorFixture269.actual_advance
+#print axioms Yulang.GeneralRebaseBehaviorFixture269.listed_exit
+#print axioms Yulang.GeneralRebaseBehaviorFixture269.actual_exit_stable
+#print axioms Yulang.GeneralRebaseRawActualProbe269.fullNominal
+#print axioms Yulang.GeneralRebaseRawActualProbe269.fullNominal_sound
+#print axioms Yulang.GeneralRebaseRawActualProbe269.edge
+#print axioms Yulang.GeneralRebaseRawActualProbe269.edge_sound
+#print axioms Yulang.GeneralRebaseRawActualProbe269.orProbe
+#print axioms Yulang.GeneralRebaseRawActualProbe269.orProbe_sound
+#print axioms Yulang.GeneralRebaseRawActualProbe269.enhance
+#print axioms Yulang.GeneralRebaseRawActualProbe269.enhance_sound
+#print axioms Yulang.GeneralRebaseOriginEdgeScan269.scan
+#print axioms Yulang.GeneralRebaseOriginEdgeScan269.scan_sound
+#print axioms Yulang.GeneralRebaseOriginEdgeScan269.assemble
+#print axioms Yulang.GeneralRebaseOriginEdgeScan269.assemble_sound
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.journal
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.keyOrigin
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.childOrigin
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.only
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.journal_models
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.observed_child
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.root_self
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.known_head
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.head_exhaustive
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.actual_self
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.window
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.window_sound
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.test_cover
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.semantic_forward
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.actual_projected_edge
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.not_literal_forward
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.matchOrigin
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.query_result
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.query_sound
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.equality
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.equality_sound
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.assembled
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.assembled_sound
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.assembled_query
+#print axioms Yulang.GeneralRebaseOriginWindowFixture269.scanned_cycle
+#print axioms Yulang.GeneralRebaseCompilerInputs269.Inputs
+#print axioms Yulang.GeneralRebaseCompilerInputs269.Checked
+#print axioms Yulang.GeneralRebaseCompilerInputs269.enhance
+#print axioms Yulang.GeneralRebaseCompilerInputs269.certify
+#print axioms Yulang.GeneralRebaseCompilerInputs269.run_sound
+#print axioms Yulang.GeneralRebaseCompilerInputs269.forWindow
+#print axioms Yulang.GeneralRebaseCompilerInputs269.window_certifies

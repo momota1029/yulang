@@ -1,0 +1,52 @@
+'Yulang.GeneralRebasePartialBool268.Answer' does not depend on any axioms
+'Yulang.GeneralRebasePartialBool268.Reflect' does not depend on any axioms
+'Yulang.GeneralRebasePartialBool268.neg' does not depend on any axioms
+'Yulang.GeneralRebasePartialBool268.either' depends on axioms: [propext]
+'Yulang.GeneralRebasePartialBool268.both' depends on axioms: [propext]
+'Yulang.GeneralRebasePartialBool268.neg_sound' does not depend on any axioms
+'Yulang.GeneralRebasePartialBool268.either_sound' depends on axioms: [propext]
+'Yulang.GeneralRebasePartialBool268.both_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePartialBool268.total_neg' depends on axioms: [propext]
+'Yulang.GeneralRebasePartialBool268.total_either' depends on axioms: [propext]
+'Yulang.GeneralRebasePartialBool268.total_both' depends on axioms: [propext]
+'Yulang.GeneralRebasePartialBool268.true_iff' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticData268.Inputs' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticData268.SurvivorSound' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticData268.Valid' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticData268.Ambiguity' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticData268.multiple' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticData268.multiple_sound' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticData268.k2' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticData268.priority' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticData268.k2_sound' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticData268.priority_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticV6268.known' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticV6268.run' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV6268.known_sound' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV6268.sound' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV8268.conflicts' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV8268.run' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV8268.conflicts_sound' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV8268.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticV8268.Complete' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticV8268.total_priority' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV8268.total_v6' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV8268.total' depends on axioms: [propext]
+'Yulang.GeneralRebaseDiagnosticV8268.exact_of_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticSource268.Probes' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticSource268.Sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticSource268.prepare' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticSource268.pending_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticSource268.survivor_bridge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticSource268.valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticSource268.survivor_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticSource268.total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticFixture268.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticFixture268.probes' does not depend on any axioms
+'Yulang.GeneralRebaseDiagnosticFixture268.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticFixture268.input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticFixture268.pendingGate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticFixture268.actual_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDiagnosticFixture268.independently_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

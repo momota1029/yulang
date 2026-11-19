@@ -1,0 +1,28 @@
+import Yulang.GeneralRebaseDiagnosticCompiler268
+import Yulang.GeneralRebaseCompilerFixture268
+
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.Replies
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.Certified
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.firstPass
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.firstPass_sound
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.honest
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.compile
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.valid
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.sound
+#print axioms Yulang.GeneralRebaseDiagnosticCompiler268.exact_of_complete
+#print axioms Yulang.GeneralRebaseCompilerFixture268.raw
+#print axioms Yulang.GeneralRebaseCompilerFixture268.raw_sound
+#print axioms Yulang.GeneralRebaseCompilerFixture268.replies
+#print axioms Yulang.GeneralRebaseCompilerFixture268.only_plan
+#print axioms Yulang.GeneralRebaseCompilerFixture268.certified
+#print axioms Yulang.GeneralRebaseCompilerFixture268.input
+#print axioms Yulang.GeneralRebaseCompilerFixture268.rootClear
+#print axioms Yulang.GeneralRebaseCompilerFixture268.candidateClear
+#print axioms Yulang.GeneralRebaseCompilerFixture268.inspectionClear
+#print axioms Yulang.GeneralRebaseCompilerFixture268.mergedClear
+#print axioms Yulang.GeneralRebaseCompilerFixture268.shareClear
+#print axioms Yulang.GeneralRebaseCompilerFixture268.outputClear
+#print axioms Yulang.GeneralRebaseCompilerFixture268.actual_run
+#print axioms Yulang.GeneralRebaseCompilerFixture268.actual_selected
+#print axioms Yulang.GeneralRebaseCompilerFixture268.compiled_guard
+#print axioms Yulang.GeneralRebaseCompilerFixture268.actual_generated_install

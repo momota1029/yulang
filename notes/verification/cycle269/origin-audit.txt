@@ -1,0 +1,42 @@
+'Yulang.GeneralRebaseOriginCongruence269.equal_symm' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.equal_trans' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.self_left' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.self_right' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.head_transport' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.project_seen' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.transport_project_left' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.edge_of_equiv' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.edge_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.edge_left_live' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.edge_right_live' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginCongruence269.edge_normal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.Forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.Pos' does not depend on any axioms
+'Yulang.GeneralRebaseOriginQuotient269.to_walk' does not depend on any axioms
+'Yulang.GeneralRebaseOriginQuotient269.lift_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.short_closure' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.mapped_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.retarget_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.nonempty_cycle_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.complete_window' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.TestsCover' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginQuotient269.forward_of_tests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginExecutable269.lookup' does not depend on any axioms
+'Yulang.GeneralRebaseOriginExecutable269.located' depends on axioms: [propext]
+'Yulang.GeneralRebaseOriginExecutable269.lookup_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginExecutable269.located_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginExecutable269.graphQuery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginExecutable269.graphQuery_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginExecutable269.cyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginExecutable269.cyclic_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOriginExecutable269.with_semantic_closure' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseActualArguments269.Member' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualArguments269.TypeSlots' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualArguments269.fits_length' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualArguments269.bounded_of_observed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualArguments269.actual_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualArguments269.actual_of_empty_models' depends on axioms: [propext, Quot.sound]

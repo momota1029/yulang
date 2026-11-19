@@ -1,0 +1,4 @@
+PASS Yulang.GeneralRebaseOriginCongruence269
+PASS Yulang.GeneralRebaseOriginQuotient269
+PASS Yulang.GeneralRebaseOriginExecutable269
+PASS Yulang.GeneralRebaseActualArguments269

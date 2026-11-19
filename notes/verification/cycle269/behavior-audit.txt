@@ -1,0 +1,75 @@
+'Yulang.FiniteRankBehavior269.Code' does not depend on any axioms
+'Yulang.FiniteRankBehavior269.Code' does not depend on any axioms
+'Yulang.FiniteRankBehavior269.Code' does not depend on any axioms
+'Yulang.FiniteRankBehavior269.catalogue' does not depend on any axioms
+'Yulang.FiniteRankBehavior269.Tracks' does not depend on any axioms
+'Yulang.FiniteRankBehavior269.at_label' does not depend on any axioms
+'Yulang.FiniteRankBehavior269.universe_zero' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteRankBehavior269.universe_succ' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteRankBehavior269.represented' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorSimulation269.up' does not depend on any axioms
+'Yulang.FiniteBehaviorSimulation269.covers' does not depend on any axioms
+'Yulang.FiniteBehaviorSimulation269.backs' does not depend on any axioms
+'Yulang.FiniteBehaviorSimulation269.terminal' does not depend on any axioms
+'Yulang.FiniteBehaviorSimulation269.Related' does not depend on any axioms
+'Yulang.FiniteBehaviorSimulation269.symmetric' does not depend on any axioms
+'Yulang.FiniteBehaviorSimulation269.label_eq' does not depend on any axioms
+'Yulang.FiniteBehaviorSimulation269.bisim' does not depend on any axioms
+'Yulang.FiniteBehaviorCatalogue269.slice_mono' depends on axioms: [propext]
+'Yulang.FiniteBehaviorCatalogue269.flat_zip' does not depend on any axioms
+'Yulang.FiniteBehaviorCatalogue269.elementary_supported' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteBehaviorCatalogue269.ascending' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteBehaviorCatalogue269.mono' depends on axioms: [propext, Quot.sound]
+'Yulang.FiniteBehaviorClassifier269.Basis' does not depend on any axioms
+'Yulang.FiniteBehaviorClassifier269.classify' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorClassifier269.classifier_label' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorClassifier269.in_catalogue' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorClassifier269.child_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorClassifier269.finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorClassifier269.transfer_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorClassifier269.terminal_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorDriver269.Advances' does not depend on any axioms
+'Yulang.FiniteBehaviorDriver269.Trace' does not depend on any axioms
+'Yulang.FiniteBehaviorDriver269.reflect_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorDriver269.simulate_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorDriver269.drive' does not depend on any axioms
+'Yulang.FiniteBehaviorDriver269.drive_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorCanonical269.Bisimulation' does not depend on any axioms
+'Yulang.FiniteBehaviorCanonical269.equal_is_bisimulation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorCanonical269.maximal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.FiniteBehaviorCanonical269.characterizes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.sourceBasis' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.code' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.codebook' does not depend on any axioms
+'Yulang.GeneralRebaseBehavior269.code_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.code_label' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.advance_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.same_code_project' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.same_code_bisim' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.terminal_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.trace_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.snoc' does not depend on any axioms
+'Yulang.GeneralRebaseBehavior269.counted_to_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.abstract_trace_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.old_to_abstract' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehavior269.settle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorStutters269.weak_prepend' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorStutters269.filter_embeds' depends on axioms: [propext]
+'Yulang.GeneralRebaseBehaviorStutters269.children_decline' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorStutters269.code_ext' does not depend on any axioms
+'Yulang.GeneralRebaseBehaviorStutters269.strict_or_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorStutters269.eventual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorStutters269.exact_bisim' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseChangedCode269.rank' does not depend on any axioms
+'Yulang.GeneralRebaseChangedCode269.children_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseChangedCode269.old_or_drop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseChangedCode269.Changed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseChangedCode269.wellFounded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseChangedCode269.round_or_drop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseChangedCode269.eventual_rounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorRegression269.path_or_drop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorRegression269.constant_between' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorRegression269.version239' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBehaviorRegression269.version240_mixed_observation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

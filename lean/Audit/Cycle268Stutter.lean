@@ -1,0 +1,36 @@
+import Yulang.GeneralRebaseStutterPlanBoundary268
+import Yulang.GeneralRebaseWeakProgress268
+import Yulang.GeneralRebaseWeakTerminal268
+import Yulang.GeneralRebaseStutterInfinite268
+
+#print axioms Yulang.GeneralRebaseStutterPlanBoundary268.rootChecked
+#print axioms Yulang.GeneralRebaseStutterPlanBoundary268.retargeted_knows
+#print axioms Yulang.GeneralRebaseStutterPlanBoundary268.contexts_differ
+#print axioms Yulang.GeneralRebaseStutterPlanBoundary268.same_projection
+#print axioms Yulang.GeneralRebaseStutterPlanBoundary268.discovered_after
+#print axioms Yulang.GeneralRebaseStutterPlanBoundary268.not_before
+#print axioms Yulang.GeneralRebaseStutterPlanBoundary268.no_exact_factor
+#print axioms Yulang.GeneralRebaseWeakProgress268.Stutter
+#print axioms Yulang.GeneralRebaseWeakProgress268.Lull
+#print axioms Yulang.GeneralRebaseWeakProgress268.Weak
+#print axioms Yulang.GeneralRebaseWeakProgress268.lull_same
+#print axioms Yulang.GeneralRebaseWeakProgress268.lull_source
+#print axioms Yulang.GeneralRebaseWeakProgress268.weak_source
+#print axioms Yulang.GeneralRebaseWeakProgress268.decrease
+#print axioms Yulang.GeneralRebaseWeakProgress268.wellFounded
+#print axioms Yulang.GeneralRebaseWeakProgress268.Counted
+#print axioms Yulang.GeneralRebaseWeakProgress268.budget
+#print axioms Yulang.GeneralRebaseWeakProgress268.grouping
+#print axioms Yulang.GeneralRebaseWeakProgress268.decomposition
+#print axioms Yulang.GeneralRebaseWeakTerminal268.Terminal
+#print axioms Yulang.GeneralRebaseWeakTerminal268.counted_fixed
+#print axioms Yulang.GeneralRebaseWeakTerminal268.terminal_iff
+#print axioms Yulang.GeneralRebaseWeakTerminal268.append
+#print axioms Yulang.GeneralRebaseWeakTerminal268.terminal_after_stutters
+#print axioms Yulang.GeneralRebaseWeakTerminal268.counted_old
+#print axioms Yulang.GeneralRebaseWeakTerminal268.prepend
+#print axioms Yulang.GeneralRebaseWeakTerminal268.has_terminal
+#print axioms Yulang.GeneralRebaseStutterInfinite268.all_edges_lull
+#print axioms Yulang.GeneralRebaseStutterInfinite268.eventual_lull
+#print axioms Yulang.GeneralRebaseStutterInfinite268.nodup_map_of_injective
+#print axioms Yulang.GeneralRebaseStutterInfinite268.no_finite_support
