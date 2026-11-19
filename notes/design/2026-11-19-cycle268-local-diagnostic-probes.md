@@ -145,3 +145,21 @@ feasibility plus computed preflight; it is not a caller-supplied frame list.
 The resulting probes are sound for the actual Versioned B4 fields even when
 not total. Neither finite full Origin support nor semantic edge decision has
 been established in general.
+
+### Source compiler through full V8 routing and finite history slices
+
+Output and sharing now route from computed uniqueness, safe-known when
+required, and exact current Frame candidates. Model answers cover a *single*
+witness for each combined predicate (joint old Models + head/ready, joint
+head/ready + effects, or old Models + head sharing). Independent existential
+positives are not combined into a joint positive.
+
+For merged conflict, the original quantifier allows arbitrary lists of live
+ordinary atoms and registered occurrences. Both constraint sets depend only
+on membership. Thus every allowed pair of lists (even with new order or
+duplicate counts) can be replaced by membership-equivalent sublists of
+finite current journals. Exhaustive enumeration of sublists is exact with
+respect to those semantic predicates; it is exponential, short-circuited
+when no merged class exists, and still needs independent positive/negative
+context-model replies. The source compiler assembles all fields and proves
+any decided V8 result correct under explicit primitive reply contracts.

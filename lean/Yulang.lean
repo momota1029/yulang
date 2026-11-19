@@ -5001,3 +5001,8 @@ import Yulang.GeneralRebaseOriginCycles268
 import Yulang.GeneralRebaseVersionedK2Probe268
 import Yulang.GeneralRebaseRawCandidate268
 import Yulang.GeneralRebaseCandidateK2Source268
+import Yulang.GeneralRebaseConflictRouting268
+import Yulang.GeneralRebaseConflictModel268
+import Yulang.GeneralRebaseFiniteSlices268
+import Yulang.GeneralRebaseMergedSlices268
+import Yulang.GeneralRebaseDiagnosticCompiler268
