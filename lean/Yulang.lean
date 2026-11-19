@@ -5334,3 +5334,6 @@ import Yulang.GeneralRebaseFullEdgeBasis279
 import Yulang.GeneralRebaseFullEdgeProgress279
 import Yulang.GeneralRebaseClosedEdgeObstruction279
 import Yulang.GeneralRebaseClosedEdgeCompound279
+import Yulang.GeneralRebaseChildPorts280
+import Yulang.GeneralRebasePortMeaning280
+import Yulang.GeneralRebasePortCopy280

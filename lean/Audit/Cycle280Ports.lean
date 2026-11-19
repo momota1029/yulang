@@ -1,0 +1,51 @@
+import Yulang.GeneralRebaseChildPorts280
+import Yulang.GeneralRebasePortMeaning280
+import Yulang.GeneralRebasePortCopy280
+
+#print axioms Yulang.GeneralRebaseChildPorts280.ports
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed
+#print axioms Yulang.GeneralRebaseChildPorts280.fixedSite
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_id
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_role
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_outputs
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_arguments
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_center
+#print axioms Yulang.GeneralRebaseChildPorts280.nonvariable_unchanged
+#print axioms Yulang.GeneralRebaseChildPorts280.bare_capture
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_canonical
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_output_formula
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_formed
+#print axioms Yulang.GeneralRebaseChildPorts280.fixed_distinct
+#print axioms Yulang.GeneralRebasePortMeaning280.Matches
+#print axioms Yulang.GeneralRebasePortMeaning280.atoms
+#print axioms Yulang.GeneralRebasePortMeaning280.matches_refl
+#print axioms Yulang.GeneralRebasePortMeaning280.matches_symm
+#print axioms Yulang.GeneralRebasePortMeaning280.matches_trans
+#print axioms Yulang.GeneralRebasePortMeaning280.atoms_exact
+#print axioms Yulang.GeneralRebasePortMeaning280.interval_exact
+#print axioms Yulang.GeneralRebasePortMeaning280.SiteMatches
+#print axioms Yulang.GeneralRebasePortMeaning280.byArgAtoms
+#print axioms Yulang.GeneralRebasePortMeaning280.clauseAtoms
+#print axioms Yulang.GeneralRebasePortMeaning280.arg_atoms
+#print axioms Yulang.GeneralRebasePortMeaning280.clause_atoms
+#print axioms Yulang.GeneralRebasePortMeaning280.site_holds
+#print axioms Yulang.GeneralRebasePortMeaning280.actual_origins
+#print axioms Yulang.GeneralRebasePortMeaning280.observed_holds
+#print axioms Yulang.GeneralRebasePortMeaning280.nonvariable_no_atoms
+#print axioms Yulang.GeneralRebasePortCopy280.Write
+#print axioms Yulang.GeneralRebasePortCopy280.lookup
+#print axioms Yulang.GeneralRebasePortCopy280.Copy
+#print axioms Yulang.GeneralRebasePortCopy280.Unambiguous
+#print axioms Yulang.GeneralRebasePortCopy280.Apart
+#print axioms Yulang.GeneralRebasePortCopy280.Isolated
+#print axioms Yulang.GeneralRebasePortCopy280.lookup_source
+#print axioms Yulang.GeneralRebasePortCopy280.lookup_absent
+#print axioms Yulang.GeneralRebasePortCopy280.lookup_exact
+#print axioms Yulang.GeneralRebasePortCopy280.copy_agrees
+#print axioms Yulang.GeneralRebasePortCopy280.rows_preserved
+#print axioms Yulang.GeneralRebasePortCopy280.copy_value
+#print axioms Yulang.GeneralRebasePortCopy280.source_unchanged
+#print axioms Yulang.GeneralRebasePortCopy280.copy_equation
+#print axioms Yulang.GeneralRebasePortCopy280.PairWrites
+#print axioms Yulang.GeneralRebasePortCopy280.interval_copy
+#print axioms Yulang.GeneralRebasePortCopy280.copy_model
