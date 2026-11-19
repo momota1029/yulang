@@ -74,3 +74,31 @@ proof). Consequently no finite list of exact concrete states can cover
 the stutter closure of that reachable suffix start. This rules out a
 naive finite enumeration of exact journals, not a finite behavioral
 quotient or absence of strict exits by other transitions.
+
+## Candidate remedy: finite stutter keys with representative-sensitive lift
+
+Do not enumerate exact journals or reinterpret disagreement of concrete Plan
+lists as disagreement of live projections. An executable stutter closure can
+operate on a supplied finite key type. Require (1) every genuine stutter is
+mapped to an adjacency edge, and (2) each adjacency edge has a stutter lift
+from the exact current concrete state, not just some state at the same key.
+Independently require the strict-proposal list at a key to represent exactly
+the projected strictly changing choices of every source representative to
+which it is applied. Under these explicit contracts the reachable-key
+worklist produces an exact weak observer and a checked finite budget. No
+global finite key construction is claimed.
+
+### Finite administrative keys: conditional weak observer
+
+The exact concrete-state graph need not be finite. If a regional finite key
+admits both exact stutter-edge projection and a lift from **each** representative
+in a stutter-closed region, finite graph search enumerates exactly the keys
+visited by finite administrative traces from the actual source.
+A second condition is a finite proposal table sound and strictly complete at
+every representative of every relevant key, not merely existentially at
+one representative. Under these explicit hypotheses, the finite union from
+visited keys gives exact weak-step correspondence from the current source,
+and no proposal that changes the projection is equivalent to invariance of
+the projection along all finite old-kernel paths from this source.
+Neither an original-language key construction nor a generic table completeness
+result is furnished by this conditional reduction.
