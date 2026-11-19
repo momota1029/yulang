@@ -1,7 +1,7 @@
 # Cycle 268: certified local diagnostics and stutter coverage boundaries
 
 Draft, 2026-11-19. Continue I-52 after cycle 267's strict concrete driver.
-Compile the real B4 V6/V7/V8 Local precedence, not an alternative 
+Compile the real B4 V6/V7/V8 Local precedence, not an alternative
 classification. Primitive predicates may answer true, false or unknown with
 positive and negative proof contracts. Unknown is a computation result
 distinct from the language's pending frontier. Combine primitive answers
@@ -163,3 +163,18 @@ respect to those semantic predicates; it is exponential, short-circuited
 when no merged class exists, and still needs independent positive/negative
 context-model replies. The source compiler assembles all fields and proves
 any decided V8 result correct under explicit primitive reply contracts.
+
+### Actual integrated compound install
+
+The 238 fixture supplies per-edge negative evidence from a pre-existing rank
+decrease theorem, otherwise raw edges are unknown, as is raw-store
+inhabitation. The finite upper graph nevertheless certifies no relevant
+raw recurrence. Full Origin nonrecurrence is supplied by the pre-existing
+full-model rank argument, not inferred from the finite slot count.
+Metadata, head, chosen-effects and sharing are supplied by independently
+proved witnesses; model context slice replies, pairwise comparison and
+separate chosen-head replies are all unknown. All six aggregate diagnostic
+fields are computed negative, and the compiled V8 verdict selects the actual
+declaration and ordered children. The compiled verdict, structural selection
+and separate joint-model/novelty obligations certify the actual old-kernel
+install and a model of the resulting concrete journal.

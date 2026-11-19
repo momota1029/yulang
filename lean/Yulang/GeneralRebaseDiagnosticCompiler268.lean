@@ -136,4 +136,17 @@ theorem sound (registry : Registry) (state : State roles) (root focus : Occurren
  GeneralRebaseConsensusDiagnostic268.sound _ _ _ _ _
    (valid registry state root focus checked reachable generated metadata p cert) found
 
+theorem exact_of_complete (registry : Registry) (state : State roles) (root focus : Occurrence roles)
+ (checked : (Boundary roles).Checked registry)
+ (reachable : B4TargetV8.Reachable (Boundary roles) registry root state)
+ (generated : Generated state.core.erased.current root focus)
+ (metadata : Metadata (Encoded registry) state.core.erased.current.context)
+ (p : Replies state) (cert : Certified registry state root focus checked p)
+ (complete : GeneralRebaseDiagnosticV8268.Complete (compile registry state root focus checked p))
+ (result : CommonRoleOutermostResolver.Frontier (Occurrence roles)) :
+ GeneralRebaseConsensusDiagnostic268.run (compile registry state root focus checked p) = some result ↔
+ B4TargetV8.Local (Boundary roles) registry state focus result :=
+ GeneralRebaseConsensusDiagnostic268.exact_of_complete _ _ _ _ _
+   (valid registry state root focus checked reachable generated metadata p cert) complete result
+
 end Yulang.GeneralRebaseDiagnosticCompiler268

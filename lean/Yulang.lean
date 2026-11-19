@@ -5006,3 +5006,4 @@ import Yulang.GeneralRebaseConflictModel268
 import Yulang.GeneralRebaseFiniteSlices268
 import Yulang.GeneralRebaseMergedSlices268
 import Yulang.GeneralRebaseDiagnosticCompiler268
+import Yulang.GeneralRebaseCompilerFixture268
