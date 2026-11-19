@@ -5328,3 +5328,8 @@ import Yulang.GeneralRebaseReachableNovelty279
 import Yulang.GeneralRebaseFiniteProbeObstruction279
 import Yulang.GeneralRebaseSourceEdgeBasis279
 import Yulang.GeneralRebaseProjectedEdgeCount279
+import Yulang.GeneralRebaseClosedChildShape279
+import Yulang.GeneralRebaseClosedChildIdentity279
+import Yulang.GeneralRebaseFullEdgeBasis279
+import Yulang.GeneralRebaseFullEdgeProgress279
+import Yulang.GeneralRebaseClosedEdgeObstruction279

@@ -1,0 +1,31 @@
+'Yulang.GeneralRebaseClosedChildShape279.ClosedArguments' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedChildShape279.argList' does not depend on any axioms
+'Yulang.GeneralRebaseClosedChildShape279.Canonical' does not depend on any axioms
+'Yulang.GeneralRebaseClosedChildShape279.input_is_port' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedChildShape279.clause_arguments' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedChildShape279.emitted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedChildShape279.trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedChildIdentity279.same_shape' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedChildIdentity279.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedChildIdentity279.cross_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeBasis279.Registered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeBasis279.endpoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeBasis279.exact_project' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeBasis279.finite_lift' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeBasis279.OnTrace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeBasis279.finite_full_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeProgress279.projected_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeProgress279.graph_only_spends_projected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseFullEdgeProgress279.EdgeFreeModelCover' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeProgress279.joined_cover' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFullEdgeProgress279.accessible_if_tests_cover' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeObstruction279.closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeObstruction279.finite_full' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedEdgeObstruction279.no_semantic_test_cover' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0
