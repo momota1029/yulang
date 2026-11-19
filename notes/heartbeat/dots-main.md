@@ -1,11 +1,9 @@
 # dots-main heartbeat
-- cycle: 281
-- status: completed
-- started: 2026-11-19T20:30:00Z
-- updated: 2026-11-19T21:20:00Z
-- elapsed_min: 50.00
-- activity: 有限 chart/phase の停止性、任意集約式の raw 射影と固定ポート、239/240 の全段階回帰を対象別に検証。29モジュール・12独立監査（301宣言）PASS。
-- workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: d3a046add
-- report: notes/handoff/dots-cycle-281.md
-- resume_hint: 旧 consumer の固定ポート移植と、cross/self-check/保持版付き式を source/owner 共通有限支持へ正規化する。全 journal の完全性は未証明。
+- cycle: 282
+- status: running
+- started: 2026-11-19T21:35:10Z
+- updated: 2026-11-19T21:35:33Z
+- elapsed_min: 0.17
+- activity: cycle 281 完了と ACTIVE、凍結範囲を再確認。共通公開支持の上で journal の保存を検証する。
+- last_local_commit: 197660669
+- resume_hint: 支持を排除するのではなく式へ展開した witness を current と全履歴に運ぶ。
