@@ -1,0 +1,32 @@
+'Yulang.GeneralNominalPairDecode278.unpairCandidate' does not depend on any axioms
+'Yulang.GeneralNominalPairDecode278.sqrt_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalPairDecode278.splits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalPairDecode278.decodePair' does not depend on any axioms
+'Yulang.GeneralNominalPairDecode278.pair_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalPairDecode278.originCandidate' does not depend on any axioms
+'Yulang.GeneralNominalPairDecode278.origin_roundtrip' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalPairDecode278.decodeOrigin' does not depend on any axioms
+'Yulang.GeneralNominalPairDecode278.origin_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFamilyDecode278.Style' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.Style' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.Style' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.Style' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.Lane' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.Lane' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.allocated' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.pred_lt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFamilyDecode278.above' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFamilyDecode278.versionPredecessor' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.version_predecessor_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseFamilyDecode278.candidate' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.candidate_roundtrip' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFamilyDecode278.predecessor' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.predecessor_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFamilyDecode278.lowerName' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.upperName' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.version_lower' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.loose_lower' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.version_upper' does not depend on any axioms
+'Yulang.GeneralRebaseFamilyDecode278.loose_upper' does not depend on any axioms
