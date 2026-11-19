@@ -13,3 +13,13 @@ Use the cycle264 exact install and affected-only merge squares to avoid the full
 A terminal state of the specification observer rules out any future change in projection across an arbitrary real finite source suffix, from any concrete representative of that terminal state. This still allows unbounded source stutters. For reverse lifting, the weaker useful condition is one strict projected change plus any number of source stutters for each abstract step; use exact-count concatenation of cycle264 traces.
 
 Also separate an executable observer on a **caller-supplied finite list of certified edges** from the classical complete specification. A compiler from such a list can filter by decidable projected field equality and emit supported proposals. It does not discover the list, or certify that it covers all possible edges.
+
+## State-dependent observer stability
+
+The scheduler supports more than fixed proposal batches. A sufficient condition for one terminal state is *pending fact persistence*: whenever the remaining list shrinks by sublist, any previously proposed fact still remaining in the smaller list is still proposed somewhere. Use sublists, not merely fact-membership antisymmetry: duplicate basis entries are permitted. A terminal above the starting state is an upper bound in the refinement order for every possible run, so any two terminal runs agree. This premise is not automatically true for selected old-kernel source representatives. Test it on positive finite dependency rules (known premises trigger a still-pending conclusion), whose computation and examples are genuinely executable without classical source-edge discovery.
+
+For positive rules, identify terminal states with ordinary Horn-style closure of present facts and show successful settlement reaches the least such closure above the start. A separate pointwise interpretation that validates each supplied rule preserves exactly the model set, without turning the finite completion into a general solver capability. Verify an executable three-step dependent example and rule list reordering.
+
+## Certified-edge rule envelope
+
+Compile each supplied certified edge into positive implications: every fact presently known at the projected source is a prerequisite, and each fact known at its projected destination is a conclusion. The resulting rule closure contains every projected fact along any abstract run using listed edges. In general it is an envelope, not an equivalent execution graph: it can combine facts from distinct edges and is not evidence of a lift to any single source trace. Pointwise model preservation is equivalent to semantic validity of the corresponding per-edge implications. Seek exact settlement for the singleton genuine edge as the narrow regression.

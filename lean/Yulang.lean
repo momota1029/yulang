@@ -4900,3 +4900,9 @@ import Yulang.GeneralRebaseProjectionSettle266
 import Yulang.GeneralRebaseProspectiveChecked266
 import Yulang.GeneralRebaseStutterRank266
 import Yulang.GeneralRebaseWeakLift266
+import Yulang.GeneralRebasePersistentObserver266
+import Yulang.GeneralRebasePersistentJoin266
+import Yulang.GeneralRebasePositiveRules266
+import Yulang.GeneralRebasePositiveMeaning266
+import Yulang.GeneralRebasePositiveRegression266
+import Yulang.GeneralRebaseTransientRegression266
