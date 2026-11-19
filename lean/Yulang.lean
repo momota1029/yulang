@@ -5367,3 +5367,6 @@ import Yulang.GeneralRebasePortBatch280
 import Yulang.GeneralRebaseSemanticChart281
 import Yulang.GeneralRebaseChartStep281
 import Yulang.GeneralRebaseChartBudget281
+import Yulang.GeneralRebaseChartFixtures281
+import Yulang.GeneralRebaseChartSilent281
+import Yulang.GeneralRebaseChartPointService281
