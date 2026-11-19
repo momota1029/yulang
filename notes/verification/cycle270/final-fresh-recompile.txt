@@ -1,0 +1,39 @@
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+GeneralRebaseRetainedMetadata270 PASS
+GeneralRebaseOneOutputFacts270 PASS
+GeneralRebaseOneOutputProjection270 PASS
+GeneralRebaseCompoundProjection270 PASS
+GeneralRebaseSingleExitCode270 PASS
+GeneralRebaseCompoundExecutable270 PASS
+GeneralRebaseLullSpine270 PASS
+GeneralRebaseWeakSpine270 PASS
+GeneralRebaseReplayCommand270 PASS
+GeneralRebaseReplayScript270 PASS
+GeneralRebaseNoOutputs270 PASS
+GeneralRebaseOutputFreeRegressions270 PASS
+GeneralRebaseReplayFixture270 PASS
+GeneralRebaseStructuralOrigin270 PASS
+GeneralRebaseMixedOriginWindow270 PASS
+GeneralRebaseVariantNominalFixture270 PASS
+GeneralRebaseOriginNegativeTags270 PASS
+GeneralRebaseOriginRepresentative270 PASS
+GeneralRebaseAcyclicNominal270 PASS
+GeneralRebaseClosedOriginDriver270 PASS
+GeneralRebaseClosedOriginFixture270 PASS
+GeneralRebaseOutputFreeCompiler270 PASS
+GeneralRebaseReplaySearch270 PASS
+GeneralRebaseReplayFrontier270 PASS
+GeneralRebaseReplayFrontierFixture270 PASS
+GeneralRebaseSourceStepDriver270 PASS
+GeneralRebaseRecordTagBoundary270 PASS
+GeneralRebaseRecordWindowBoundary270 PASS
+staged Audit/Cycle270Compound.lean PASS
+staged Audit/Cycle270MixedOrigins.lean PASS
+staged Audit/Cycle270NegativeOrigins.lean PASS
+staged Audit/Cycle270RecordBoundary.lean PASS
+staged Audit/Cycle270RecordWindow.lean PASS
+staged Audit/Cycle270Replay.lean PASS
+staged Audit/Cycle270ReplaySearch.lean PASS
+staged Audit/Cycle270SourceDrivers.lean PASS
+staged Audit/Cycle270SourceStepDriver.lean PASS
+Nine staged audit outputs byte-identical to standalone outputs on original module cache.

@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 270
-- status: running
+- status: completed
 - started: 2026-11-19T09:30:00Z
-- updated: 2026-11-19T10:20:00Z
-- elapsed_min: 50.01
-- activity: Focused rebuild and standalone audit complete; freezing cycle270 report and reading back the publication
+- updated: 2026-11-19T10:20:06Z
+- elapsed_min: 50.10
+- activity: Checked executable finite rebase Steps on real source fragments, bounded replay certificates and positive and negative outcomes of closed semantic root queries.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: d598a96ad
-- resume_hint: Latest authority unchanged as checked; final source fragments and all audited logs will be read back.
+- report: notes/handoff/dots-cycle-270.md
+- resume_hint: Read latest integration orders. Open: general source observer with exact terminal support, complete visible record positions and full V8 EvidenceNode. Do not claim old-kernel termination.
