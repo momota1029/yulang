@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 271
-- status: running
+- status: completed
 - started: 2026-11-19T10:30:00Z
-- updated: 2026-11-19T11:20:00Z
-- elapsed_min: 50.01
-- activity: Isolated focused verification and source trace checks complete; publishing completed cycle271 report
+- updated: 2026-11-19T11:20:06Z
+- elapsed_min: 50.10
+- activity: Checked record and nested origin classification; actual 252 local root checks, finite rebase and complete finite trace classification.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 54adce667
-- resume_hint: Read latest integration instructions; leave next scheduled cycle untouched.
+- report: notes/handoff/dots-cycle-271.md
+- resume_hint: Read latest integration orders. Open: general source observer, finite full-model witnesses beyond unary outputs and full V8 EvidenceNode. Do not claim old-kernel termination.
