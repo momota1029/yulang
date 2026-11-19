@@ -5141,3 +5141,6 @@ import Yulang.GeneralRebaseOneModelBoundary272
 import Yulang.GeneralRebaseCompoundExpr273
 import Yulang.GeneralRebaseCompoundSchema273
 import Yulang.GeneralRebaseCompoundActual238273
+import Yulang.GeneralRebaseCompoundPublic273
+import Yulang.GeneralRebaseCompoundSourceTypes273
+import Yulang.GeneralRebaseCompoundFiniteMeaning273

@@ -1,0 +1,40 @@
+'Yulang.GeneralRebaseCompoundPublic273.view' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundPublic273.Fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.AgreesTypes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.installed_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.initial_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.complete_types' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.complete_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.public_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPublic273.all_public_equivalent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundSourceTypes273.Prefix' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundSourceTypes273.PublicSource' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundSourceTypes273.source_reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundSourceTypes273.source_write' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundSourceTypes273.before_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundSourceTypes273.Body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundSourceTypes273.restricted_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundSourceTypes273.source_depends_on_types' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.support' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.bodyFact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.pairFact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.named_basis' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.factHolds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.Meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.finished_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.original_before_public' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.original_installed_public' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.point_uses_same_meaning' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundFiniteMeaning273.executable_public_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

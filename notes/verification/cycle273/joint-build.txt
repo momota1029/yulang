@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseCompoundPublic273
+PASS Yulang.GeneralRebaseCompoundSourceTypes273
+PASS Yulang.GeneralRebaseCompoundFiniteMeaning273
