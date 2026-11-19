@@ -1,0 +1,48 @@
+import Yulang.GeneralRebaseCompiledEndpoint277
+import Yulang.GeneralRebaseCompiledSelection277
+import Yulang.GeneralRebaseCompiledStable277
+
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.known_zero
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.known_one
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.any_parent_fresh
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.bad_parent_report
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.bad_child_report
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.bad_parent
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.bad_child
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.wrong_parent_prepared
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.wrong_child_prepared
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.root_distinct
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.centers_for
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.raw_for
+#print axioms Yulang.GeneralRebaseCompiledEndpoint277.generates_only
+#print axioms Yulang.GeneralRebaseCompiledSelection277.parent
+#print axioms Yulang.GeneralRebaseCompiledSelection277.child
+#print axioms Yulang.GeneralRebaseCompiledSelection277.after_model
+#print axioms Yulang.GeneralRebaseCompiledSelection277.parent_frame
+#print axioms Yulang.GeneralRebaseCompiledSelection277.child_frame
+#print axioms Yulang.GeneralRebaseCompiledSelection277.parent_children
+#print axioms Yulang.GeneralRebaseCompiledSelection277.known_parent
+#print axioms Yulang.GeneralRebaseCompiledSelection277.known_child
+#print axioms Yulang.GeneralRebaseCompiledSelection277.parent_survivor
+#print axioms Yulang.GeneralRebaseCompiledSelection277.child_survivor
+#print axioms Yulang.GeneralRebaseCompiledSelection277.unique_parent
+#print axioms Yulang.GeneralRebaseCompiledSelection277.unique_child
+#print axioms Yulang.GeneralRebaseCompiledSelection277.no_cross_merge
+#print axioms Yulang.GeneralRebaseCompiledSelection277.no_reverse_merge
+#print axioms Yulang.GeneralRebaseCompiledSelection277.administrative
+#print axioms Yulang.GeneralRebaseCompiledSelection277.safe
+#print axioms Yulang.GeneralRebaseCompiledSelection277.no_merge_conflict
+#print axioms Yulang.GeneralRebaseCompiledSelection277.picked_parent
+#print axioms Yulang.GeneralRebaseCompiledSelection277.picked_child
+#print axioms Yulang.GeneralRebaseCompiledStable277.point_closed
+#print axioms Yulang.GeneralRebaseCompiledStable277.committed_parent
+#print axioms Yulang.GeneralRebaseCompiledStable277.committed_child
+#print axioms Yulang.GeneralRebaseCompiledStable277.framed_parent
+#print axioms Yulang.GeneralRebaseCompiledStable277.framed_child
+#print axioms Yulang.GeneralRebaseCompiledStable277.no_install
+#print axioms Yulang.GeneralRebaseCompiledStable277.recorded
+#print axioms Yulang.GeneralRebaseCompiledStable277.headless
+#print axioms Yulang.GeneralRebaseCompiledStable277.equality_closed
+#print axioms Yulang.GeneralRebaseCompiledStable277.halted
+#print axioms Yulang.GeneralRebaseCompiledStable277.stable_parent
+#print axioms Yulang.GeneralRebaseCompiledStable277.stable_child

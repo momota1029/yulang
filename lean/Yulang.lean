@@ -5249,3 +5249,6 @@ import Yulang.GeneralRebaseCompiledInstall277
 import Yulang.GeneralRebaseCompiledChild277
 import Yulang.GeneralRebaseCompiledChildFresh277
 import Yulang.GeneralRebaseCompiledEvidence277
+import Yulang.GeneralRebaseCompiledEndpoint277
+import Yulang.GeneralRebaseCompiledSelection277
+import Yulang.GeneralRebaseCompiledStable277
