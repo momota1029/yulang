@@ -1,0 +1,15 @@
+# Cycle 266: stutter-aware source compression
+
+Exact forward simulation should count one strict finite step for each genuine source edge with differing projections, and none for equal projections. A mathematical witness relation may use the real end state's liveFacts; that is not an executable observer and is intentionally distinct from a caller-supplied proposal list. The executable observer result will assume coverage of those proposals along a source trace. For reverse lifting the source representative matters, so pairwise witness edges must not be glued across different representatives unless an explicit lifting condition is verified.
+
+Candidate goal: for any source trace annotated by cycle264's strict-change count, reproduce that exact count and endpoint in finite Runs, provided the observer lists each strict edge's exact live-fact proposal. Instantiate the strict install regression as an actual checked finite step. No language changes; old kernel nontermination remains separate.
+
+The checked-write entry can discharge its basis-side error using the actual source-wide finite pool. Its exact return should distinguish none on a stutter from some on a strict step, not conflate either with source acceptance. An optional separate measure for source stutters would yield source accessibility by lexicographic descent; the existing 239 loop rules out such a measure for the unmodified old kernel.
+
+A separate finite *specification observer* can enumerate possible projected states and choose a candidate precisely when some real source edge witnesses both projected endpoints. The choice uses classical predicates and is not the missing executable inspector. It will give exact strict one-edge correspondence; concatenating projected witness edges can select different representatives and is not a general lift of executions. Prove representative-sensitive lifting as a separate sufficient condition rather than implicitly joining witnesses.
+
+Use the cycle264 exact install and affected-only merge squares to avoid the full-live rescan in the checked adapter. Each local proposal is a subset of after-state live facts. Starting from a formed source, one fixed finite basis obtained before choosing any future installation/merge therefore admits all these checked writes. This is still an adapter from a *selected actual source step*, not an implementation of selecting the source step.
+
+A terminal state of the specification observer rules out any future change in projection across an arbitrary real finite source suffix, from any concrete representative of that terminal state. This still allows unbounded source stutters. For reverse lifting, the weaker useful condition is one strict projected change plus any number of source stutters for each abstract step; use exact-count concatenation of cycle264 traces.
+
+Also separate an executable observer on a **caller-supplied finite list of certified edges** from the classical complete specification. A compiler from such a list can filter by decidable projected field equality and emit supported proposals. It does not discover the list, or certify that it covers all possible edges.
