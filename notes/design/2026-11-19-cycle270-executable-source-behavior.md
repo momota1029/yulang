@@ -123,3 +123,18 @@ schedule. Neither fuel nor a missing proposal proves general terminality.
 The actual compound fixture has no hit at depth zero and computes the
 real install at depth one; the actual refresh/reobserve fixture supplies
 a two-level old frontier which is entirely a lull.
+
+## Instantiate the finite successor Step
+
+At the original compound start, the two actual addresses can be used
+directly as one proposal for the finite owner-slot write relation
+(`GeneralRebaseStep258.Step`). The executable observer offers that
+proposal only at the full basis; at the empty projection it offers
+none. Prove both directions at this real initial state: every old weak
+exit corresponds to a finite successor, and every finite successor has
+an old weak representative. The installed journal must be specifically
+identified. An independent theorem should rule out *all* new finite
+successors from the terminal projection. Do not infer the same
+correspondence at other, as yet unidentified, concrete full states.
+In the output-free fragment the empty observer corresponds to every
+reachable concrete representative on each arbitrary fixed basis.

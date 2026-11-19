@@ -1,0 +1,17 @@
+import Yulang.GeneralRebaseSourceStepDriver270
+
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.propose
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.next
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.next_exact
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.drained
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.terminal
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.Compound.support
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.Compound.run
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.Compound.computed_initial
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.Compound.computed
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.Compound.computed_on_source
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.Compound.matches_concrete
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.Compound.exact_weak_targets
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.Compound.no_second
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.OutputFree.no_original_weak
+#print axioms Yulang.GeneralRebaseSourceStepDriver270.OutputFree.exact_empty_observer
