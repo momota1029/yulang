@@ -2,9 +2,9 @@
 - cycle: 273
 - status: running
 - started: 2026-11-19T12:34:44Z
-- updated: 2026-11-19T13:04:55Z
-- elapsed_min: 30.20
-- activity: Verified local root dictionary certificate, missing child evidence and finite bounded owner compiler; focused slot readback in progress.
+- updated: 2026-11-19T13:15:02Z
+- elapsed_min: 40.31
+- activity: Verified actual two-stage finite correspondence, single overwrite, and precise child slot obstruction; final focused checks underway.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: f457df6df
-- resume_hint: Published exact public projection and executable fixed-layout transitions; only claim checked readback proofs.
+- last_local_commit: 215dd9df2
+- resume_hint: Exact source-public and row preservation checked; no original recursive evidence or arbitrary generated-child preservation.
