@@ -1,0 +1,46 @@
+import Yulang.GeneralRebaseInstallRequestDelta279
+import Yulang.GeneralRebaseInstallDeltaModels279
+import Yulang.GeneralRebaseInstallNovelty279
+import Yulang.GeneralRebaseInstallDisplayDelta279
+
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.Core
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.Output
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.EmittedRequest
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.FreshRequest
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.append_requests
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.split_requests
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.fresh_exact
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.EffectDelta
+#print axioms Yulang.GeneralRebaseInstallRequestDelta279.class_iff
+#print axioms Yulang.GeneralRebaseInstallDeltaModels279.Delta
+#print axioms Yulang.GeneralRebaseInstallDeltaModels279.snapshot_effect
+#print axioms Yulang.GeneralRebaseInstallDeltaModels279.models_iff
+#print axioms Yulang.GeneralRebaseInstallDeltaModels279.NoFreshRequests
+#print axioms Yulang.GeneralRebaseInstallDeltaModels279.delta_of_no_requests
+#print axioms Yulang.GeneralRebaseInstallDeltaModels279.no_fresh_iff
+#print axioms Yulang.GeneralRebaseInstallNovelty279.Edge
+#print axioms Yulang.GeneralRebaseInstallNovelty279.Covered
+#print axioms Yulang.GeneralRebaseInstallNovelty279.FreshChild
+#print axioms Yulang.GeneralRebaseInstallNovelty279.FullSilent
+#print axioms Yulang.GeneralRebaseInstallNovelty279.LostModel
+#print axioms Yulang.GeneralRebaseInstallNovelty279.silence_iff
+#print axioms Yulang.GeneralRebaseInstallNovelty279.no_loss_iff
+#print axioms Yulang.GeneralRebaseInstallNovelty279.edge_exact
+#print axioms Yulang.GeneralRebaseInstallNovelty279.fresh_iff_edge
+#print axioms Yulang.GeneralRebaseInstallNovelty279.not_covered
+#print axioms Yulang.GeneralRebaseInstallNovelty279.committed_of_silent
+#print axioms Yulang.GeneralRebaseInstallNovelty279.preservation_iff
+#print axioms Yulang.GeneralRebaseInstallNovelty279.novel_child_blocks
+#print axioms Yulang.GeneralRebaseInstallNovelty279.install_dichotomy
+#print axioms Yulang.GeneralRebaseInstallNovelty279.graph_only
+#print axioms Yulang.GeneralRebaseInstallNovelty279.graph_step
+#print axioms Yulang.GeneralRebaseInstallNovelty279.graph_growth
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.silent
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.no_fresh_requests
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.actual_child
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.fresh
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.no_lost_model
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.real_step
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.new_edge
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.generated_before_iff
+#print axioms Yulang.GeneralRebaseInstallDisplayDelta279.generates_real_child

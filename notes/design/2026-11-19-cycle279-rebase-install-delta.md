@@ -1,0 +1,12 @@
+# Cycle 279: exact delta required before a rebase install may be silent
+
+I-52 requires successor semantics, not an unbounded replay of the old version history. Cycle 278 separated 239/240's write from the indefinitely evolving old raw history. To move beyond terminal leaves, record which child edges and which live output obligations a prospective write actually changes. Holding the current packet is not enough (old effects are checked again on the new current site classes); comparing public projections is even weaker.
+
+Use the real `GeneralNominalVersionedInstall232.installCore`, not an invented transition. Define a prospective request delta by membership in the appended **raw sites** and nonmembership in the old request class. No aliases are written by install, so the new request set is exactly old ∪ emitted, and is separable as old ∪ fresh. A fresh class-equation check needs only fresh bodies and same-name target pairs with at least one fresh endpoint. Keep the model and structure obligations separate, using the original semantics for the legacy effect bindings (converted to the already-proved versioned equivalent), the current packet, and prior versioned effects.
+
+Target statements (all quantified over real effect witnesses and assignments):
+1. Snapshots aligned, actual after Models iff before Models, prospective packet and only fresh output obligations for current/legacy/versioned effects. This is not a model decision procedure.
+2. Under the same snapshot, same full Models plus complete old child coverage implies Committed, hence forbids that particular raw installation rule. If an actual enabled uncommitted install preserves all full Models, some child edge is new. A fresh edge itself is enough to be uncommitted regardless of the semantic side.
+3. An exact two-axis finite receipt for the structural side: child-edge novelty is equivalent to membership of a genuinely new edge in the actual post-core. Use this distinction in notes on what would suffice for a finite rebase certificate. Do not modify the raw kernel or claim its general Acc.
+
+Regressions: use published 239/240 witnesses to show public projection agreement never licenses suppression of raw model or operational deltas. Use the real 277 Display→Int nonleaf plan to check that omitting a new ordered edge would lose a generated child. Keep the existing bounded/conditional nature of 277's global Acc bridge. No change to layout/selection rules, owner spec, frozen files, or Audit root.
