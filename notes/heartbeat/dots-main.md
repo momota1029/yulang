@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 280
-- status: completed
-- started: 2026-11-19T19:30:00Z
-- updated: 2026-11-19T20:20:00Z
-- elapsed_min: 50.00
-- activity: Fixed-port decode, finite graph, archived edge bisimulation, exact stored raw state recovery, and audited legacy limits.
+- cycle: 281
+- status: running
+- started: 2026-11-19T20:30:00Z
+- updated: 2026-11-19T20:30:01Z
+- elapsed_min: 0.02
+- activity: Verified cycle 280 complete and active source instructions; designing symbolic progress.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 336055689
-- report: notes/handoff/dots-cycle-280.md
-- resume_hint: Read the latest inbox. Port copy is exact given disjoint support; the next progress needed is a source-proved separation and live-maintenance rule for semantic silent installs, not another proof of unchanged raw Acc.
+- last_local_commit: a78e2d227
+- resume_hint: Develop finite semantic witness chart and safe refinement guard, not a claim that raw loops are fixed.
