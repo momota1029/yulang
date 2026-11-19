@@ -1,0 +1,6 @@
+import Yulang.GeneralRebaseReachableNovelty279
+
+#print axioms Yulang.GeneralRebaseReachableNovelty279.source_models_iff
+#print axioms Yulang.GeneralRebaseReachableNovelty279.committed_iff
+#print axioms Yulang.GeneralRebaseReachableNovelty279.uncommitted_iff
+#print axioms Yulang.GeneralRebaseReachableNovelty279.qualifying_install
