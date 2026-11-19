@@ -1,0 +1,1 @@
+Frozen files byte-for-byte unchanged against prior baseline; 33 append-only barrel additions exactly once.
