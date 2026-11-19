@@ -125,3 +125,23 @@ unknown but its ordinary and overlay branches both decide the same ambiguity
 or rejection. In particular it never needs either overlay answer to reject
 an already known unsafe (non-pending K2) focus. This preserves all previous
 decided results and has the same totality premises as the original evaluator.
+
+### Versioned K2 routing and bounded Origin windows
+
+The full journal's semantic Origin relation is distinct from the raw Fin-slot
+graph. A bounded window with certified partial edge replies can establish
+a positive path returning to its start. A finite negative result transfers
+only given a separately proved cycle-coverage condition, or independent
+proof that no full model exists. An injective window closed under all outgoing
+real edges is one sufficient (not necessary) coverage condition; no general
+construction of such a window is assumed.
+
+The root probe enumerates every raw argument and matching registered center.
+The candidate probe evaluates the raw clause via visible checked declarations,
+located inspection and visited slots; the centered clause enumerates exact
+structural Plan shells for the generated focus and scans their inspection
+tests. Frame membership reduces to independently certified metadata and head
+feasibility plus computed preflight; it is not a caller-supplied frame list.
+The resulting probes are sound for the actual Versioned B4 fields even when
+not total. Neither finite full Origin support nor semantic edge decision has
+been established in general.

@@ -4997,3 +4997,7 @@ import Yulang.GeneralRebaseIntegratedDiagnostic268
 import Yulang.GeneralRebaseIntegratedFixture268
 import Yulang.GeneralRebaseConsensusDiagnostic268
 import Yulang.GeneralRebaseKeyedWeakScheduler268
+import Yulang.GeneralRebaseOriginCycles268
+import Yulang.GeneralRebaseVersionedK2Probe268
+import Yulang.GeneralRebaseRawCandidate268
+import Yulang.GeneralRebaseCandidateK2Source268
