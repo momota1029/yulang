@@ -1,0 +1,16 @@
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+GeneralRebaseTerminalPublic274 PASS
+GeneralRebaseTerminalRowTransfer274 PASS
+GeneralRebaseTerminalRowFrame274 PASS
+GeneralRebaseTerminalRows274 PASS
+GeneralRebaseTerminalMachine274 PASS
+GeneralRebaseTerminalBridge274 PASS
+GeneralRebaseTerminalStableSupport274 PASS
+GeneralRebaseTerminalStableCells274 PASS
+GeneralRebaseTerminalTypePool274 PASS
+GeneralRebaseTerminalAlias274 PASS
+GeneralRebaseTerminalDecode274 PASS
+GeneralRebaseTerminalPointExact274 PASS
+GeneralRebaseTerminalFreshSupport274 PASS
+Additional separate-cache run: 13 of 27 modules recorded PASS at the publication cut; full alternate-cache run and its staged audit not asserted. Standard-cache checks are complete.
+Default memory cap, trust=0 and warning-as-error additionally passed on six main support, exact-install and mixed-frontier modules.

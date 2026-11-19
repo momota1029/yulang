@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 274
-- status: running
+- status: completed
 - started: 2026-11-19T13:31:40Z
-- updated: 2026-11-19T14:21:40Z
-- elapsed_min: 50.01
-- activity: Finalizing 27 focused module and axioms checks for the positive real 230 path.
+- updated: 2026-11-19T14:23:02Z
+- elapsed_min: 51.37
+- activity: Verified real 230 finite owner replay, full public decode, and terminal leaf evidence.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 2317957ea
-- resume_hint: Actual public decode and leaf Evidence checked; mixed cache continuation reduced to raw registration of three width cases.
+- report: notes/handoff/dots-cycle-274.md
+- resume_hint: Read latest integration orders. Open: mixed-cache width refresh frontier, general fixed owner compilation and genuinely recursive child evidence.
