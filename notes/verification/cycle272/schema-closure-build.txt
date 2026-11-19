@@ -1,0 +1,5 @@
+PASS Yulang.GeneralRebaseTreeSchemaProgress272
+PASS Yulang.GeneralRebaseTreeSchemaClosure272
+PASS Yulang.GeneralRebaseCanonicalUniqueness272
+PASS Yulang.GeneralRebaseTreeCompileMonotone272
+PASS Yulang.GeneralRebaseTreeLeastClosure272

@@ -1,0 +1,51 @@
+import Yulang.GeneralRebaseCompoundReplacementEvidence273
+import Yulang.GeneralRebaseCompoundOwnerBlock273
+import Yulang.GeneralRebaseCompoundOwnerCapture273
+import Yulang.GeneralRebaseCompoundOwnerStep273
+
+#print axioms Yulang.GeneralRebaseCompoundReplacementEvidence273.current_children
+#print axioms Yulang.GeneralRebaseCompoundReplacementEvidence273.current_certificate
+#print axioms Yulang.GeneralRebaseCompoundReplacementEvidence273.root_instance
+#print axioms Yulang.GeneralRebaseCompoundReplacementEvidence273.no_root_evidence
+#print axioms Yulang.GeneralRebaseCompoundReplacementEvidence273.local_not_global
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.Slot
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.PublicSlot
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.Block
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.loBind
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.pointBind
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.compile
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.loose
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.point
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.actual_loose
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.actual_point
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.read
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.eval
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.normalized_lo
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.normalized_hi
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.eval_agree
+#print axioms Yulang.GeneralRebaseCompoundOwnerBlock273.compiler_exact
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.low
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.high
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.PairFacts
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.read_pair
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.old_pair
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.current_pair
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.origin
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.actual_is_width
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.historical_center
+#print axioms Yulang.GeneralRebaseCompoundOwnerCapture273.current_center
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.Stage
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.block
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.remaining
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.next
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.Step
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.decreases
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.accessible
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.actual_install
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.actual_replacement
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.no_third
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.no_backwards
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.no_loose_replay
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.PublicMeaning
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.install_meaning
+#print axioms Yulang.GeneralRebaseCompoundOwnerStep273.replacement_meaning

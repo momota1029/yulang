@@ -1,0 +1,37 @@
+import Yulang.GeneralRebaseTreeSchemaProgress272
+import Yulang.GeneralRebaseTreeSchemaClosure272
+import Yulang.GeneralRebaseCanonicalUniqueness272
+import Yulang.GeneralRebaseTreeCompileMonotone272
+import Yulang.GeneralRebaseTreeLeastClosure272
+
+#print axioms Yulang.GeneralRebaseTreeSchemaProgress272.targets
+#print axioms Yulang.GeneralRebaseTreeSchemaProgress272.compute_target
+#print axioms Yulang.GeneralRebaseTreeSchemaProgress272.next_known
+#print axioms Yulang.GeneralRebaseTreeSchemaProgress272.new_target
+#print axioms Yulang.GeneralRebaseTreeSchemaProgress272.missing
+#print axioms Yulang.GeneralRebaseTreeSchemaProgress272.missing_filters
+#print axioms Yulang.GeneralRebaseTreeSchemaProgress272.fixed_of_missing
+#print axioms Yulang.GeneralRebaseTreeSchemaProgress272.strict
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.Stable
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.rounds_stable_identity
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.rounds_stable
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.close
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.close_stable
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.close_sound
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.close_twice
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.preserves
+#print axioms Yulang.GeneralRebaseTreeSchemaClosure272.preserved_by_close
+#print axioms Yulang.GeneralRebaseCanonicalUniqueness272.exact
+#print axioms Yulang.GeneralRebaseCanonicalUniqueness272.source_agree
+#print axioms Yulang.GeneralRebaseTreeCompileMonotone272.Extends
+#print axioms Yulang.GeneralRebaseTreeCompileMonotone272.EnvExtends
+#print axioms Yulang.GeneralRebaseTreeCompileMonotone272.extends_trans
+#print axioms Yulang.GeneralRebaseTreeCompileMonotone272.entry_mono
+#print axioms Yulang.GeneralRebaseTreeCompileMonotone272.compute_mono_support
+#print axioms Yulang.GeneralRebaseTreeCompileMonotone272.enrich_mono
+#print axioms Yulang.GeneralRebaseTreeLeastClosure272.antisymm
+#print axioms Yulang.GeneralRebaseTreeLeastClosure272.pass_mono
+#print axioms Yulang.GeneralRebaseTreeLeastClosure272.rounds_below_fixed
+#print axioms Yulang.GeneralRebaseTreeLeastClosure272.least
+#print axioms Yulang.GeneralRebaseTreeLeastClosure272.fixed_iff_each
+#print axioms Yulang.GeneralRebaseTreeLeastClosure272.order_independent

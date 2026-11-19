@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseOneModelBoundary272
+
+#print axioms Yulang.GeneralRebaseOneModelBoundary272.seed
+#print axioms Yulang.GeneralRebaseOneModelBoundary272.checked
+#print axioms Yulang.GeneralRebaseOneModelBoundary272.computed_local
+#print axioms Yulang.GeneralRebaseOneModelBoundary272.remains_partial
+#print axioms Yulang.GeneralRebaseOneModelBoundary272.equal_in_small
+#print axioms Yulang.GeneralRebaseOneModelBoundary272.not_equal_in_other
+#print axioms Yulang.GeneralRebaseOneModelBoundary272.actual_boundary

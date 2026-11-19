@@ -1,0 +1,29 @@
+'Yulang.GeneralRebaseCompoundOwnerDelta273.pointed' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.addresses' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.old_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.current_distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.old_private' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.current_private' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.aggregate_addresses_change' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.children_addresses_stable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.stable' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.known_delta' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.equal_public_values' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.same_hi' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.same_child_hi' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerDelta273.same_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPairedCompletion273.oldTypes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPairedCompletion273.old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPairedCompletion273.old_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPairedCompletion273.old_model_before_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundPairedCompletion273.old_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundPairedCompletion273.compiler_is_patch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundPairedCompletion273.paired' depends on axioms: [propext, Classical.choice, Quot.sound]

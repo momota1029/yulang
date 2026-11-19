@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 271
+- cycle: 273
 - status: completed
-- started: 2026-11-19T10:30:00Z
-- updated: 2026-11-19T11:20:06Z
-- elapsed_min: 50.10
-- activity: Checked record and nested origin classification; actual 252 local root checks, finite rebase and complete finite trace classification.
+- started: 2026-11-19T12:34:44Z
+- updated: 2026-11-19T13:24:45Z
+- elapsed_min: 50.02
+- activity: Verified source 238 public models and finite owner replacement with the actual optional output; local current certificate does not resolve the unlocated child.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 54adce667
-- report: notes/handoff/dots-cycle-271.md
-- resume_hint: Read latest integration orders. Open: general source observer, finite full-model witnesses beyond unary outputs and full V8 EvidenceNode. Do not claim old-kernel termination.
+- last_local_commit: 83499731b
+- report: notes/handoff/dots-cycle-273.md
+- resume_hint: Read latest integration orders. Open: general owner compiler and isolation; current child location and recursive evidence; no original-kernel Acc claim.

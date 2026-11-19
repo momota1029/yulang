@@ -1,0 +1,37 @@
+'Yulang.GeneralRebaseFiniteTreeCode272.Code' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteTreeCode272.encode' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteTreeCode272.encode_get' depends on axioms: [propext]
+'Yulang.GeneralRebaseFiniteTreeCode272.injective' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCode272.same' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteTreeCode272.same_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.absent_left' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.many_left' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.found_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.compare' depends on axioms: [propext]
+'Yulang.GeneralRebaseFiniteTreeCompare272.compare_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.modelLookup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.local_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.reject' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.reject_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.no_positive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.Actual218.left' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteTreeCompare272.Actual218.right' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteTreeCompare272.Actual218.computed_unequal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTreeCompare272.Actual218.current_not_equal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.Uniform' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.rounds_uniform' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.close_uniform' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.equal_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.Actual252.seed_uniform' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.Actual252.derived_uniform' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.Actual252.backToInput' does not depend on any axioms
+'Yulang.GeneralRebaseUniformTree272.Actual252.checked_selection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.Actual252.checked_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.Actual252.computed_equal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseUniformTree272.Actual252.actual_equal' depends on axioms: [propext, Classical.choice, Quot.sound]

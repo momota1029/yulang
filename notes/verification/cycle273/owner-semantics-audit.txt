@@ -1,0 +1,28 @@
+'Yulang.GeneralRebaseCompoundOwnerExpressions273.physical' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerExpressions273.upper_operand' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerExpressions273.actual_operand' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerExpressions273.raw_upper_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerExpressions273.raw_center_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerChildren273.child_lo_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerChildren273.child_hi_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerChildren273.child_center_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerMeaning273.Sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerMeaning273.historical' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerMeaning273.replacement' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBoundary273.initial_public' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBoundary273.installed_public' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBoundary273.point_public' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBoundary273.replacement_public' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBoundary273.proof_of_slots_loose' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBoundary273.proof_of_slots_point' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBoundary273.exact_two_steps' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

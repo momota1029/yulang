@@ -1,0 +1,38 @@
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+GeneralRebaseCompoundExpr273 PASS
+GeneralRebaseCompoundSchema273 PASS
+GeneralRebaseCompoundActual238273 PASS
+GeneralRebaseCompoundPublic273 PASS
+GeneralRebaseCompoundSourceTypes273 PASS
+GeneralRebaseCompoundFiniteMeaning273 PASS
+GeneralRebaseRowIrrelevance273 PASS
+GeneralRebaseTypeOnlyAtoms273 PASS
+GeneralRebaseCompoundRows273 PASS
+GeneralRebaseCompoundRowsMeaning273 PASS
+GeneralRebaseCompoundReplacement273 PASS
+GeneralRebaseCompoundReplacementFrame273 PASS
+GeneralRebaseCompoundReplacementPublic273 PASS
+GeneralRebaseCompoundChildBoundary273 PASS
+GeneralRebaseCompoundReplacementEvidence273 PASS
+GeneralRebaseCompoundOwnerBlock273 PASS
+GeneralRebaseCompoundOwnerCapture273 PASS
+GeneralRebaseCompoundOwnerStep273 PASS
+GeneralRebaseCompoundOwnerExpressions273 PASS
+GeneralRebaseCompoundOwnerChildren273 PASS
+GeneralRebaseCompoundOwnerMeaning273 PASS
+GeneralRebaseCompoundOwnerBoundary273 PASS
+GeneralRebaseCompoundOwnerDelta273 PASS
+GeneralRebaseCompoundPairedCompletion273 PASS
+GeneralRebaseCompoundChildEntry273 PASS
+GeneralRebaseCompoundOwnerRegression273 PASS
+staged Audit/Cycle273ChildEntry.lean PASS
+staged Audit/Cycle273Compound.lean PASS
+staged Audit/Cycle273Delta.lean PASS
+staged Audit/Cycle273Joint.lean PASS
+staged Audit/Cycle273OwnerFoundation.lean PASS
+staged Audit/Cycle273OwnerRegression.lean PASS
+staged Audit/Cycle273OwnerSemantics.lean PASS
+staged Audit/Cycle273Replacement.lean PASS
+staged Audit/Cycle273Rows.lean PASS
+All isolated audit logs exactly reproduce the staged audit outputs.
+Default memory cap, trust=0, warning-as-error checks additionally passed for the four split owner semantics modules.

@@ -1,0 +1,46 @@
+import Yulang.GeneralRebaseTreeReadbackState272
+import Yulang.GeneralRebaseTreeNominal272
+import Yulang.GeneralRebaseTreeRecord272
+import Yulang.GeneralRebaseTreeStructural272
+import Yulang.GeneralRebaseTreeInterpreter272
+
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.Result
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.Meaning
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.no_structural_position
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.any_structural
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.any_nominal
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.no_child_of_absent_structural
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.no_child_of_absent_nominal
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.absent_acyclic
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.many_acyclic
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.decision
+#print axioms Yulang.GeneralRebaseTreeReadbackState272.decision_sound
+#print axioms Yulang.GeneralRebaseTreeNominal272.fromTree
+#print axioms Yulang.GeneralRebaseTreeNominal272.required
+#print axioms Yulang.GeneralRebaseTreeNominal272.fromTree_sound
+#print axioms Yulang.GeneralRebaseTreeNominal272.step
+#print axioms Yulang.GeneralRebaseTreeNominal272.sound
+#print axioms Yulang.GeneralRebaseTreeRecord272.fromRecord
+#print axioms Yulang.GeneralRebaseTreeRecord272.aligned_observes
+#print axioms Yulang.GeneralRebaseTreeRecord272.visible_at
+#print axioms Yulang.GeneralRebaseTreeRecord272.shadow_many
+#print axioms Yulang.GeneralRebaseTreeRecord272.disjoint
+#print axioms Yulang.GeneralRebaseTreeRecord272.sound
+#print axioms Yulang.GeneralRebaseTreeRecord272.total
+#print axioms Yulang.GeneralRebaseTreeStructural272.unequal
+#print axioms Yulang.GeneralRebaseTreeStructural272.fromTree
+#print axioms Yulang.GeneralRebaseTreeStructural272.needed_tag
+#print axioms Yulang.GeneralRebaseTreeStructural272.width_wrong_for_exact
+#print axioms Yulang.GeneralRebaseTreeStructural272.unequal_sound
+#print axioms Yulang.GeneralRebaseTreeStructural272.fromTree_sound
+#print axioms Yulang.GeneralRebaseTreeStructural272.step
+#print axioms Yulang.GeneralRebaseTreeStructural272.sound
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.Source
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.Certified
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.run
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.run_sound
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.inspect
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.inspect_sound
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.inspectRoot
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.inspectRoot_sound
+#print axioms Yulang.GeneralRebaseTreeInterpreter272.inspectK2_sound

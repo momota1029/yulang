@@ -1,0 +1,4 @@
+PASS Yulang.GeneralRebaseCompoundReplacement273
+PASS Yulang.GeneralRebaseCompoundReplacementFrame273
+PASS Yulang.GeneralRebaseCompoundReplacementPublic273
+PASS Yulang.GeneralRebaseCompoundChildBoundary273

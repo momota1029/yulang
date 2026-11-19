@@ -1,0 +1,19 @@
+'Yulang.GeneralRebaseCompoundChildEntry273.generated_linked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.missing_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.missing_upper' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.no_lower_slot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.no_upper_slot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.linked_but_unlocated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.requiredSources' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.required_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.registration_slot_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.shape_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.point_child_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.mismatch' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildEntry273.no_matching_nominal_head' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

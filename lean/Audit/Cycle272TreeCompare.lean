@@ -1,0 +1,35 @@
+import Yulang.GeneralRebaseFiniteTreeCode272
+import Yulang.GeneralRebaseFiniteTreeCompare272
+import Yulang.GeneralRebaseUniformTree272
+
+#print axioms Yulang.GeneralRebaseFiniteTreeCode272.Code
+#print axioms Yulang.GeneralRebaseFiniteTreeCode272.encode
+#print axioms Yulang.GeneralRebaseFiniteTreeCode272.encode_get
+#print axioms Yulang.GeneralRebaseFiniteTreeCode272.injective
+#print axioms Yulang.GeneralRebaseFiniteTreeCode272.same
+#print axioms Yulang.GeneralRebaseFiniteTreeCode272.same_exact
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.absent_left
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.many_left
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.found_exact
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.compare
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.compare_sound
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.modelLookup
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.local_sound
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.reject
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.reject_sound
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.no_positive
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.Actual218.left
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.Actual218.right
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.Actual218.computed_unequal
+#print axioms Yulang.GeneralRebaseFiniteTreeCompare272.Actual218.current_not_equal
+#print axioms Yulang.GeneralRebaseUniformTree272.Uniform
+#print axioms Yulang.GeneralRebaseUniformTree272.rounds_uniform
+#print axioms Yulang.GeneralRebaseUniformTree272.close_uniform
+#print axioms Yulang.GeneralRebaseUniformTree272.equal_sound
+#print axioms Yulang.GeneralRebaseUniformTree272.Actual252.seed_uniform
+#print axioms Yulang.GeneralRebaseUniformTree272.Actual252.derived_uniform
+#print axioms Yulang.GeneralRebaseUniformTree272.Actual252.backToInput
+#print axioms Yulang.GeneralRebaseUniformTree272.Actual252.checked_selection
+#print axioms Yulang.GeneralRebaseUniformTree272.Actual252.checked_source
+#print axioms Yulang.GeneralRebaseUniformTree272.Actual252.computed_equal
+#print axioms Yulang.GeneralRebaseUniformTree272.Actual252.actual_equal

@@ -1,0 +1,4 @@
+PASS Yulang.GeneralRebaseCompoundOwnerExpressions273
+PASS Yulang.GeneralRebaseCompoundOwnerChildren273
+PASS Yulang.GeneralRebaseCompoundOwnerMeaning273
+PASS Yulang.GeneralRebaseCompoundOwnerBoundary273

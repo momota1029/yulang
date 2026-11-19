@@ -1,0 +1,113 @@
+'Yulang.GeneralRebaseCompoundReplacement273.lower' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.upper' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.shape' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundReplacement273.patch' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.untouched' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.public_patch' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.changed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.lower_not_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.current_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.lower_not_head_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.current_head_schema' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.values' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.upper_value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.center_value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.emitted_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.lower_mode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.upper_mode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.actual_mode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.current_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.current_capture' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.class_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.original_point_does_not_hold' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacement273.one_coordinate_replacement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.Meaning' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.canonical_valid' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.snapshot_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.old_atoms_type_only' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.merges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.checks' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.merges_type_only' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.checks_type_only' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.current_ordinary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.current_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.head_row_free' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.holds_row_free' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.meaning_row_free' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.meaning_equivalent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.output_necessary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementFrame273.fixed_of_meaning' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.updateTypes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.update_same' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.completed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.public_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.same_public' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.no_common_same_assignment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementPublic273.both_witnesses' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundChildBoundary273.raw_lower_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildBoundary273.operand' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildBoundary273.variant_equivalent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundChildBoundary273.historical_lower' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundChildBoundary273.replacement_lower' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundChildBoundary273.cannot_fix_child_lower' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundChildBoundary273.larger_projection_has_no_replacement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

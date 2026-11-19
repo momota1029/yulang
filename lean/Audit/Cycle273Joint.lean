@@ -1,0 +1,36 @@
+import Yulang.GeneralRebaseCompoundPublic273
+import Yulang.GeneralRebaseCompoundSourceTypes273
+import Yulang.GeneralRebaseCompoundFiniteMeaning273
+
+#print axioms Yulang.GeneralRebaseCompoundPublic273.view
+#print axioms Yulang.GeneralRebaseCompoundPublic273.Fixed
+#print axioms Yulang.GeneralRebaseCompoundPublic273.AgreesTypes
+#print axioms Yulang.GeneralRebaseCompoundPublic273.installed_before
+#print axioms Yulang.GeneralRebaseCompoundPublic273.initial_source
+#print axioms Yulang.GeneralRebaseCompoundPublic273.fixed
+#print axioms Yulang.GeneralRebaseCompoundPublic273.complete
+#print axioms Yulang.GeneralRebaseCompoundPublic273.complete_types
+#print axioms Yulang.GeneralRebaseCompoundPublic273.same_model
+#print axioms Yulang.GeneralRebaseCompoundPublic273.complete_valid
+#print axioms Yulang.GeneralRebaseCompoundPublic273.public_exact
+#print axioms Yulang.GeneralRebaseCompoundPublic273.all_public_equivalent
+#print axioms Yulang.GeneralRebaseCompoundSourceTypes273.Prefix
+#print axioms Yulang.GeneralRebaseCompoundSourceTypes273.PublicSource
+#print axioms Yulang.GeneralRebaseCompoundSourceTypes273.source_reads
+#print axioms Yulang.GeneralRebaseCompoundSourceTypes273.source_write
+#print axioms Yulang.GeneralRebaseCompoundSourceTypes273.before_exact
+#print axioms Yulang.GeneralRebaseCompoundSourceTypes273.Body
+#print axioms Yulang.GeneralRebaseCompoundSourceTypes273.restricted_exact
+#print axioms Yulang.GeneralRebaseCompoundSourceTypes273.source_depends_on_types
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.support
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.bodyFact
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.pairFact
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.distinct
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.named_basis
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.factHolds
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.Meaning
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.finished_exact
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.original_before_public
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.original_installed_public
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.point_uses_same_meaning
+#print axioms Yulang.GeneralRebaseCompoundFiniteMeaning273.executable_public_step

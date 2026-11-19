@@ -1,0 +1,36 @@
+import Yulang.GeneralRebaseCompoundExpr273
+import Yulang.GeneralRebaseCompoundSchema273
+import Yulang.GeneralRebaseCompoundActual238273
+
+#print axioms Yulang.GeneralRebaseCompoundExpr273.Env
+#print axioms Yulang.GeneralRebaseCompoundExpr273.Certified
+#print axioms Yulang.GeneralRebaseCompoundExpr273.run
+#print axioms Yulang.GeneralRebaseCompoundExpr273.runMany
+#print axioms Yulang.GeneralRebaseCompoundExpr273.sound
+#print axioms Yulang.GeneralRebaseCompoundExpr273.many_sound
+#print axioms Yulang.GeneralRebaseCompoundSchema273.Table
+#print axioms Yulang.GeneralRebaseCompoundSchema273.Certified
+#print axioms Yulang.GeneralRebaseCompoundSchema273.Uniform
+#print axioms Yulang.GeneralRebaseCompoundSchema273.environment
+#print axioms Yulang.GeneralRebaseCompoundSchema273.environment_sound
+#print axioms Yulang.GeneralRebaseCompoundSchema273.equationResult
+#print axioms Yulang.GeneralRebaseCompoundSchema273.lookup
+#print axioms Yulang.GeneralRebaseCompoundSchema273.lookup_sound
+#print axioms Yulang.GeneralRebaseCompoundSchema273.derive
+#print axioms Yulang.GeneralRebaseCompoundSchema273.derive_sound
+#print axioms Yulang.GeneralRebaseCompoundSchema273.derive_uniform
+#print axioms Yulang.GeneralRebaseCompoundSchema273.empty
+#print axioms Yulang.GeneralRebaseCompoundSchema273.empty_uniform
+#print axioms Yulang.GeneralRebaseCompoundSchema273.fromTrees
+#print axioms Yulang.GeneralRebaseCompoundSchema273.fromTrees_certified
+#print axioms Yulang.GeneralRebaseCompoundActual238273.extracted
+#print axioms Yulang.GeneralRebaseCompoundActual238273.extracted_output
+#print axioms Yulang.GeneralRebaseCompoundActual238273.sound
+#print axioms Yulang.GeneralRebaseCompoundActual238273.exact_output
+#print axioms Yulang.GeneralRebaseCompoundActual238273.no_exact_head
+#print axioms Yulang.GeneralRebaseCompoundActual238273.no_head
+#print axioms Yulang.GeneralRebaseCompoundActual238273.no_edge
+#print axioms Yulang.GeneralRebaseCompoundActual238273.no_cycle
+#print axioms Yulang.GeneralRebaseCompoundActual238273.high_before
+#print axioms Yulang.GeneralRebaseCompoundActual238273.no_public_width
+#print axioms Yulang.GeneralRebaseCompoundActual238273.step_changes_public_projection

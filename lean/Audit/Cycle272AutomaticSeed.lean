@@ -1,0 +1,33 @@
+import Yulang.GeneralRebaseTreeSeedFrame272
+import Yulang.GeneralRebaseTreeSeedExtract272
+import Yulang.GeneralRebaseTreeAuto272
+
+#print axioms Yulang.GeneralRebaseTreeSeedFrame272.Frame
+#print axioms Yulang.GeneralRebaseTreeSeedFrame272.Sound
+#print axioms Yulang.GeneralRebaseTreeSeedFrame272.member
+#print axioms Yulang.GeneralRebaseTreeSeedFrame272.describe
+#print axioms Yulang.GeneralRebaseTreeSeedFrame272.nominal_sound
+#print axioms Yulang.GeneralRebaseTreeSeedFrame272.literal_scalar_sound
+#print axioms Yulang.GeneralRebaseTreeSeedFrame272.describe_sound
+#print axioms Yulang.GeneralRebaseTreeSeedExtract272.fill
+#print axioms Yulang.GeneralRebaseTreeSeedExtract272.filled
+#print axioms Yulang.GeneralRebaseTreeSeedExtract272.extract
+#print axioms Yulang.GeneralRebaseTreeSeedExtract272.extract_sound
+#print axioms Yulang.GeneralRebaseTreeSeedExtract272.seed
+#print axioms Yulang.GeneralRebaseTreeSeedExtract272.seed_uniform
+#print axioms Yulang.GeneralRebaseTreeAuto272.source
+#print axioms Yulang.GeneralRebaseTreeAuto272.source_uniform
+#print axioms Yulang.GeneralRebaseTreeAuto272.source_stable
+#print axioms Yulang.GeneralRebaseTreeAuto272.check
+#print axioms Yulang.GeneralRebaseTreeAuto272.check_sound
+#print axioms Yulang.GeneralRebaseTreeAuto272.check_equality
+#print axioms Yulang.GeneralRebaseTreeAuto272.Actual252.derived
+#print axioms Yulang.GeneralRebaseTreeAuto272.Actual252.input_learned
+#print axioms Yulang.GeneralRebaseTreeAuto272.Actual252.output_not_seeded
+#print axioms Yulang.GeneralRebaseTreeAuto272.Actual252.output_derived
+#print axioms Yulang.GeneralRebaseTreeAuto272.Actual252.checked
+#print axioms Yulang.GeneralRebaseTreeAuto272.Actual252.automated_equal
+#print axioms Yulang.GeneralRebaseTreeAuto272.Branching.all_tree
+#print axioms Yulang.GeneralRebaseTreeAuto272.Branching.fuel_failure
+#print axioms Yulang.GeneralRebaseTreeAuto272.Branching.auto_acyclic
+#print axioms Yulang.GeneralRebaseTreeAuto272.Branching.proved

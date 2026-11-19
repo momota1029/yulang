@@ -1,0 +1,4 @@
+PASS Yulang.GeneralRebaseTreeConstructors272
+PASS Yulang.GeneralRebaseTreeCoverage272
+PASS Yulang.GeneralRebaseTreeActual218272
+PASS Yulang.GeneralRebaseTreeRecordFixture272

@@ -1,0 +1,25 @@
+'Yulang.GeneralRebaseTreeSeedExact272.fill_complete' depends on axioms: [Quot.sound]
+'Yulang.GeneralRebaseTreeSeedExact272.extract_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSeedExact272.Derived' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSeedExact272.derived_by_compute' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSeedExact272.computed_at_height' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeSeedExact272.exact_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.fallback_sound' does not depend on any axioms
+'Yulang.GeneralRebaseTreeHybrid272.finite_never_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.cycle_forces_abstain' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.inspect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.inspect_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.retains_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.root_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.GuardedRecord.actual_pocket' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.GuardedRecord.every_fuel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.Installed252.actual_pocket_missing' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.Installed252.auto_works' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeHybrid272.Installed252.automated_negative' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

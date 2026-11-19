@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseCompoundChildEntry273
+
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.generated_linked
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.missing_lower
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.missing_upper
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.no_lower_slot
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.no_upper_slot
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.linked_but_unlocated
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.requiredSources
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.required_distinct
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.registration_slot_bound
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.shape_head
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.point_child_head
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.mismatch
+#print axioms Yulang.GeneralRebaseCompoundChildEntry273.no_matching_nominal_head
