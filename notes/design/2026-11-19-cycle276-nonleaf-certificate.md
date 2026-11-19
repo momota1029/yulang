@@ -60,3 +60,20 @@ full Step theorem cannot work; the next candidate is a restricted
 proof-irrelevance or role-local preservation theorem for the relevant packets
 and surfaces, including the negative refresh/candidate guards. No such bridge
 is imported into the 276 proofs.
+
+The diagnostic also checks the adapter's unchanged Initial predicate and
+isolates the exact operational proof obligation: transfer only concrete
+install successors. Enqueue, refresh, reobserve, equate and merge constructors
+are independent of the registry. To finish the two-phase adapter result,
+construct the compiled effect at the same root and show its install gives
+a corresponding post-state with the same core and model predicate; rule out extra compiled install effects at both
+phases. This includes the current Frame, SafeKnown, AlternativesSafe and
+candidate completeness, not just the role-0 declaration list. Transport of
+V8 Local/Evidence is a separate diagnostic/semantic obligation.
+
+In fact the diagnostic proves a second obstruction: the versioned journal
+stores the full effect, including its registry. Different registry fields
+imply different raw installed states. The same plan still gives the identical
+legacy core. The bridge should compare distinct raw post-states by their core,
+plans, effects modulo registry, and model predicate, not assume literal
+post-state equality.

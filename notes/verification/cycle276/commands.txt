@@ -1,0 +1,16 @@
+Lean toolchain: Lean 4.35.0.
+Every group build and independent audit recorded in verified-manifest.txt:
+  cd lean
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . \
+    -o .lake/build/lib/lean/Yulang/<group-module>.olean Yulang/<group-module>.lean
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . Audit/Cycle276<group>.lean
+Local integration tree and cycle 275 baseline gates:
+  bash tools/verify-lean.sh . d750e84ea --no-build
+  bash tools/verify-lean.sh . eeda8160d --no-build
+  git diff --check eeda8160d..HEAD
+  git diff --exit-code eeda8160d..HEAD -- spec notes/plan lean/Audit.lean \
+    lean/README.md 'lean/lakefile.*' lean/lean-toolchain
+Closed checks in this directory, executed from lean/:
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle276/executable-fixture.lean
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle276/encoding-diagnostic.lean
+No full lake build, CI, or user-language runtime execution.
