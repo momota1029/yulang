@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 282
-- status: completed
-- started: 2026-11-19T21:35:10Z
-- updated: 2026-11-19T22:25:11Z
-- elapsed_min: 50.02
-- activity: 全 mixed journal・recursive evidence・最新 fixed 表の射影、compiled install guard と guarded path を確認。32モジュール、6独立監査259宣言 PASS。
+- cycle: 283
+- status: running
+- started: 2026-11-19T22:30:00Z
+- updated: 2026-11-19T22:30:27Z
+- elapsed_min: 0.45
+- activity: cycle282完了・単独作業を確認し、全 semantic compiler を差分化する前提を切り分ける。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: e85769ee0
-- report: notes/handoff/dots-cycle-282.md
-- resume_hint: 新版定義が旧 compiled 支持に触れる場合と触れない場合を分け、prospective の差分 compiler を証明する。
+- last_local_commit: 4597a4afd
+- resume_hint: 統合先と運用指示を再読し、新版定義と旧 semantic support の交差を先に調べる。
