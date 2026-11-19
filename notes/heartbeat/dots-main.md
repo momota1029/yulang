@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 278
+- cycle: 279
 - status: running
-- started: 2026-11-19T17:33:21Z
-- updated: 2026-11-19T18:13:21Z
-- elapsed_min: 40.00
-- activity: Closed the proof boundary: exact full-model packet prefix, distinct observation clocks, and a formal counterexample to deciding raw install availability from the semantic history key. Running final independent checks.
+- started: 2026-11-19T18:30:04Z
+- updated: 2026-11-19T18:30:37.238Z
+- elapsed_min: 1
+- activity: Verify and recover cycle 278 before extending the rebase boundary.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 865196059
-- resume_hint: Keep old 239/240 nontermination; preserve raw enablement and actual child/effect obligations when extending beyond these verified paths.
+- last_local_commit: baa676df1
+- resume_hint: Verify the prior remote work and local staged artifacts; do not publish unfinished Lean.
