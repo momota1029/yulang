@@ -25,3 +25,25 @@ a different declared key can collide with an existing source number. Expose
 this as an explicit freshness certificate or prove it from checked support.
 These comparisons concern static candidate/V8 witnesses at paired contexts,
 not arbitrary kernel continuation or universally transparent HeadAlloc.
+
+## Generic kernel findings
+
+- A forged reservation without its ownership key can distinguish the original
+  and encoded registries' freshness at an arbitrary snapshot, even though
+  constructors and role-0 declarations agree. This is not source reachable.
+- Actual mixed-source traces preserve a stronger invariant: each current source
+  name is below the original seed or is the injective encoding of an owned key,
+  and every installed centered output target is linked. All actual operations
+  preserve it, including merge (whose new atoms can name only those linked
+  targets) and certified refresh (whose source support does not grow). Thus
+  freshness in any source-reachable state follows for any registry or binding
+  list, with no restriction to the Display fixture or a finite invocation count.
+- At a fixed reachable state, changing only other roles leaves every V8 Local
+  result (including K2, inspection, associated-output conflict and sharing
+  rejection) and same-model local evidence unchanged. If agreement holds for
+  all currently generated foci, any actual Step from this common state can be
+  matched across the registries. An installation must reconstruct its effect
+  and retains every old/new model obligation, sites, ordered edges, aliases,
+  seed, ordinary equations and Known observations. The successors need not be
+  literally the same state. This one-step result is not by itself a general
+  bisimulation from two different journals.
