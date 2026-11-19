@@ -1,0 +1,19 @@
+Rechecked with Lean 4.35.0: for a in Audit/Cycle278*.lean; do lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . "$a"; done
+Exit 0. All 12 independently checked.
+Audit/Cycle278ExactProbe.lean
+Audit/Cycle278HistoryOrder.lean
+Audit/Cycle278InverseRank.lean
+Audit/Cycle278MicroCore.lean
+Audit/Cycle278MicroPrivate.lean
+Audit/Cycle278ObservationLimit.lean
+Audit/Cycle278OperationalKey.lean
+Audit/Cycle278PacketPrefix.lean
+Audit/Cycle278PairDecoder.lean
+Audit/Cycle278RetainedBinder.lean
+Audit/Cycle278TerminalAbsorption.lean
+Audit/Cycle278TerminalEvidence.lean
+Full local audit output sha256: 1be4ad5baf30c2b5ec356e23cad87a377757c763fa5f44d1cf44146cc6aede04
+[propext,
+[propext, Classical.choice, Quot.sound]
+[propext, Quot.sound]
+[propext]

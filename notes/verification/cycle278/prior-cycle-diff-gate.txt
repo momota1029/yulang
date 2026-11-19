@@ -1,0 +1,5 @@
+Command: bash tools/verify-lean.sh . 6ffaba4af40b7c669a19bac870872d2611a666e3 --no-build
+Local identical-tree baseline: 1c7ff599f
+Full stdout SHA256: f2b8bd5c346c07398eb466b6a86e992b3d801de829d2c4b8ecd2ee9f56037cbe
+verify-lean: . @ baa676df1 (base 1c7ff599f)
+verify-lean: PASS (diff checks only, NO build)
