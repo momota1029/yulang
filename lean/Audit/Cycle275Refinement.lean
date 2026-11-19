@@ -1,0 +1,19 @@
+import Yulang.GeneralRebaseWidthRefinement275
+
+#print axioms Yulang.GeneralRebaseWidthRefinement275.large
+#print axioms Yulang.GeneralRebaseWidthRefinement275.descriptor
+#print axioms Yulang.GeneralRebaseWidthRefinement275.nominals
+#print axioms Yulang.GeneralRebaseWidthRefinement275.nominal_at
+#print axioms Yulang.GeneralRebaseWidthRefinement275.snapshot
+#print axioms Yulang.GeneralRebaseWidthRefinement275.emb_ne_five
+#print axioms Yulang.GeneralRebaseWidthRefinement275.emb_eq_two
+#print axioms Yulang.GeneralRebaseWidthRefinement275.emb_nominal
+#print axioms Yulang.GeneralRebaseWidthRefinement275.raw_equation
+#print axioms Yulang.GeneralRebaseWidthRefinement275.retain_atom
+#print axioms Yulang.GeneralRebaseWidthRefinement275.keep_nominal
+#print axioms Yulang.GeneralRebaseWidthRefinement275.raw_graph_two
+#print axioms Yulang.GeneralRebaseWidthRefinement275.view_graph_two
+#print axioms Yulang.GeneralRebaseWidthRefinement275.refines
+#print axioms Yulang.GeneralRebaseWidthRefinement275.old_id
+#print axioms Yulang.GeneralRebaseWidthRefinement275.support
+#print axioms Yulang.GeneralRebaseWidthRefinement275.registered
