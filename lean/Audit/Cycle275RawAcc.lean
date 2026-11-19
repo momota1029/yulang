@@ -1,0 +1,14 @@
+import Yulang.GeneralRebaseRefreshAcc275
+
+#print axioms Yulang.GeneralRebaseRefreshAcc275.Kept
+#print axioms Yulang.GeneralRebaseRefreshAcc275.initial_observed
+#print axioms Yulang.GeneralRebaseRefreshAcc275.kept_initial
+#print axioms Yulang.GeneralRebaseRefreshAcc275.no_install
+#print axioms Yulang.GeneralRebaseRefreshAcc275.keep_next
+#print axioms Yulang.GeneralRebaseRefreshAcc275.hop_invariant
+#print axioms Yulang.GeneralRebaseRefreshAcc275.exact_hop
+#print axioms Yulang.GeneralRebaseRefreshAcc275.accessible
+#print axioms Yulang.GeneralRebaseRefreshAcc275.actual_230_acc
+#print axioms Yulang.GeneralRebaseRefreshAcc275.ActualPath
+#print axioms Yulang.GeneralRebaseRefreshAcc275.actual_path
+#print axioms Yulang.GeneralRebaseRefreshAcc275.actual_bound

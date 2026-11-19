@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseRefreshFrame275
+
+#print axioms Yulang.GeneralRebaseRefreshFrame275.LocatedFrame
+#print axioms Yulang.GeneralRebaseRefreshFrame275.of_frame
+#print axioms Yulang.GeneralRebaseRefreshFrame275.same_plan
+#print axioms Yulang.GeneralRebaseRefreshFrame275.refinement
+#print axioms Yulang.GeneralRebaseRefreshFrame275.interpretation
+#print axioms Yulang.GeneralRebaseRefreshFrame275.moved
