@@ -5190,3 +5190,4 @@ import Yulang.GeneralRebaseTerminalProgram274
 import Yulang.GeneralRebaseTerminalStoreBoundary274
 import Yulang.GeneralRebaseTerminalMixedRefresh274
 import Yulang.GeneralRebaseTerminalMixedFrontier274
+import Yulang.GeneralRebaseTerminalTrustedWidth274

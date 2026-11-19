@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseTerminalTrustedWidth274
+
+#print axioms Yulang.GeneralRebaseTerminalTrustedWidth274.old_readback
+#print axioms Yulang.GeneralRebaseTerminalTrustedWidth274.older_trusted
+#print axioms Yulang.GeneralRebaseTerminalTrustedWidth274.old_hi_width
+#print axioms Yulang.GeneralRebaseTerminalTrustedWidth274.width
+#print axioms Yulang.GeneralRebaseTerminalTrustedWidth274.width_justified
+#print axioms Yulang.GeneralRebaseTerminalTrustedWidth274.legacy_cannot_justify_width

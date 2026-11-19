@@ -1,0 +1,8 @@
+'Yulang.GeneralRebaseTerminalTrustedWidth274.old_readback' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalTrustedWidth274.older_trusted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalTrustedWidth274.old_hi_width' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalTrustedWidth274.width' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalTrustedWidth274.width_justified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalTrustedWidth274.legacy_cannot_justify_width' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
