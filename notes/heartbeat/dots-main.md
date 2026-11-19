@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 276
-- status: completed
-- started: 2026-11-19T15:30:08Z
-- updated: 2026-11-19T16:20:09Z
-- elapsed_min: 50.02
-- activity: Verified a real Display/Int nonleaf V8 fixture with exactly one mixed-kernel Step from source, an exact executable, and an independent refresh transport.
+- cycle: 277
+- status: running
+- started: 2026-11-19T16:30:14Z
+- updated: 2026-11-19T16:30:26Z
+- elapsed_min: 0.12
+- activity: Reconstruct the compiled Display install and compare its core and V8 model semantics with the direct fixture.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: a9265bdde
-- report: notes/handoff/dots-cycle-276.md
-- resume_hint: Refetch latest orders; keep the direct 198 fixture result. For the encoded adapter, construct the role-local compiled effect and compare core/model-equivalent distinct raw states, or pursue a second independently checked source.
+- last_local_commit: 5c02ae884
+- resume_hint: Verify orders and 276; HeadAlloc changes the Wrap binder and effect registry. Bridge by exact core/model correspondence, not raw-state equality.
