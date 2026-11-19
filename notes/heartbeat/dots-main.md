@@ -2,9 +2,9 @@
 - cycle: 284
 - status: running
 - started: 2026-11-19T23:33:14Z
-- updated: 2026-11-19T23:38:53Z
-- elapsed_min: 5.65
-- activity: 未来の再露出を禁じる条件下で実install・全経路の型読出しを保存。一時点sliceだけで忘れる反例も確認。
+- updated: 2026-11-19T23:43:18Z
+- elapsed_min: 10.07
+- activity: 実239/240の生journal支持は2n以上。どの歴史キーを消しても全割当上のModels保存が壊れる反例を検証。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 903cd6ed3
-- resume_hint: 実239/240で生の支持が非有界なことと、意味の圧縮を区別する。
+- last_local_commit: b21209c5a
+- resume_hint: 公開境界＋row全域の射影で、別の有限状態が何を保存できるかを立てる。

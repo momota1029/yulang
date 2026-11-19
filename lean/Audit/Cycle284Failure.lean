@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseVersionErasureFailure284
+import Yulang.GeneralRebaseLooseErasureFailure284
+#print axioms Yulang.GeneralRebaseRawWatchBound284.atom_in_packet
+#print axioms Yulang.GeneralRebaseRawWatchBound284.raw_target_read
+#print axioms Yulang.GeneralRebaseRawWatchBound284.all_keys_required
+#print axioms Yulang.GeneralRebaseVersionWatchLower284.no_short_watch
+#print axioms Yulang.GeneralRebaseVersionWatchLower284.impossible_uniform
+#print axioms Yulang.GeneralRebaseLooseWatchLower284.no_short_watch
+#print axioms Yulang.GeneralRebaseLooseWatchLower284.impossible_uniform
+#print axioms Yulang.GeneralRebaseRawWatchFailure284.ignores_written
+#print axioms Yulang.GeneralRebaseRawWatchFailure284.omitted_unsound
+#print axioms Yulang.GeneralRebaseVersionErasureFailure284.determined
+#print axioms Yulang.GeneralRebaseVersionErasureFailure284.any_omitted_counterexample
+#print axioms Yulang.GeneralRebaseLooseErasureFailure284.determined
+#print axioms Yulang.GeneralRebaseLooseErasureFailure284.any_omitted_counterexample

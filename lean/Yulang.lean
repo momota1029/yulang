@@ -5470,3 +5470,9 @@ import Yulang.GeneralRebaseActualWatch284
 import Yulang.GeneralRebaseWatchJoint284
 import Yulang.GeneralRebaseWatchTrace284
 import Yulang.GeneralRebaseFutureCounter284
+import Yulang.GeneralRebaseRawWatchBound284
+import Yulang.GeneralRebaseVersionWatchLower284
+import Yulang.GeneralRebaseLooseWatchLower284
+import Yulang.GeneralRebaseRawWatchFailure284
+import Yulang.GeneralRebaseVersionErasureFailure284
+import Yulang.GeneralRebaseLooseErasureFailure284
