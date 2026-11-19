@@ -26,3 +26,18 @@ A single full-model readback is not enough for all-model statements.
    boundary. A projection-preserving replacement should preserve the
    after-state's joint public models, not equate them to the before-state's
    models or produce separate witnesses for mutually dependent outputs.
+
+## Reobserve: ownership of generated child coordinates
+
+The genuine 238 point state keeps the historical lower child output. Its
+current packet requests the same generated name with a different compound
+value. It is not enough to rename the two capture aggregate slots: the
+old and new child-low equations conflict when conjoined. Test a restricted
+replacement that overwrites only the generated child's lower type and
+retains the five original source types and every row. Prove that this
+coordinate is absent from the current head-read support, that the current
+emitted and child schemas then hold jointly, and that the historical packet
+does not generally survive that overwrite. The resulting restricted
+replacement is not a proof of general original-journal equivalence or of
+evidence for an unlocated child. Do not silently classify a generated child
+that is itself observable as an original input/output coordinate.

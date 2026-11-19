@@ -5148,3 +5148,7 @@ import Yulang.GeneralRebaseRowIrrelevance273
 import Yulang.GeneralRebaseTypeOnlyAtoms273
 import Yulang.GeneralRebaseCompoundRows273
 import Yulang.GeneralRebaseCompoundRowsMeaning273
+import Yulang.GeneralRebaseCompoundReplacement273
+import Yulang.GeneralRebaseCompoundReplacementFrame273
+import Yulang.GeneralRebaseCompoundReplacementPublic273
+import Yulang.GeneralRebaseCompoundChildBoundary273
