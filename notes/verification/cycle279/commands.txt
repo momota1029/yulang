@@ -1,0 +1,37 @@
+Lean 4.35.0; using the existing repository/toolchain and targeted modules only.
+
+Repository root, after recording the proof sources:
+  git merge-base --is-ancestor 6ffaba4af40b7c669a19bac870872d2611a666e3 HEAD
+  git diff --check 6ffaba4af40b7c669a19bac870872d2611a666e3..HEAD
+  git diff --check 707497abfa90cb6bd5c1e341ca2ed7e2a78c6441..HEAD
+  git diff --exit-code BASE..HEAD -- spec notes/plan lean/Audit.lean lean/README.md 'lean/lakefile.*' lean/lean-toolchain
+  bash tools/verify-lean.sh . 6ffaba4af40b7c669a19bac870872d2611a666e3 --no-build
+  bash tools/verify-lean.sh . 707497abfa90cb6bd5c1e341ca2ed7e2a78c6441 --no-build
+
+The first base is the latest integration checked this cycle; the second is the
+fixed recovery of 278. The first static attempt identified the preceding
+cycle's untracked, unpublished replay draft under lean/. It was set aside
+unchanged from the worktree; it was not accepted, staged, or published.
+Each static gate was then rerun from a clean Lean worktree. Hashes of full
+tool output are in the two gate summary files.
+
+From lean/, in the exact order recorded in module-list.txt:
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . \
+    -o .lake/build/lib/lean/Yulang/<module>.olean Yulang/<module>.lean
+
+For each independent Audit/Cycle279*.lean:
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . Audit/<name>.lean
+
+Executable fixed test:
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . \
+    ../notes/verification/cycle279/edge-probe.lean
+
+Six typed theorem uses verified independently:
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . \
+    ../notes/verification/cycle279/typed-use.lean
+
+Barrel imports are append-only and cover all added library modules exactly
+once. Each audit imports only Yulang modules, not other audit files. Axiom
+lists were parsed in full, including wrapped lines, and confined to propext,
+Classical.choice and Quot.sound. No full build, full integration gate with a
+build, CI, nor a Yulang2 runtime run was performed by dot.

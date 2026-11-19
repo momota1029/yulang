@@ -1,0 +1,18 @@
+Supplemental, selected existing audits; these are not the full test suite.
+Initial cache misses and final retests:
+Audit/Cycle206Semantic.lean exit=1
+Audit/GroundCopy218Check.lean exit=1
+Audit/Cycle230Final.lean exit=0
+Audit/Cycle230PostRefresh.lean exit=0
+Audit/Cycle239First.lean exit=1
+Audit/Cycle240All.lean exit=1
+Audit/Cycle279Availability.lean exit=0
+Audit/Cycle279FullEdges.lean exit=0
+Focused rebuild of missing dependencies and retests:
+Audit/Cycle206Semantic.lean retry exit=0
+Audit/GroundCopy218Check.lean retry exit=1
+Audit/GroundCopy218Check.lean final retry exit=0
+Audit/Cycle239First.lean final retry exit=1
+Audit/Cycle239First.lean focused retry exit=0
+Cycle240All imports 80+ additional old modules absent from the local cache; not rebuilt.
+The exact old239 and old240 non-accessibility / lossless roundtrip are covered by the new standalone audits.

@@ -1,0 +1,10 @@
+import Yulang.GeneralRebaseClosedEdgeCompound279
+
+#print axioms Yulang.GeneralRebaseClosedEdgeCompound279.initial
+#print axioms Yulang.GeneralRebaseClosedEdgeCompound279.closed
+#print axioms Yulang.GeneralRebaseClosedEdgeCompound279.emittedChild
+#print axioms Yulang.GeneralRebaseClosedEdgeCompound279.singleton
+#print axioms Yulang.GeneralRebaseClosedEdgeCompound279.canonical_ports
+#print axioms Yulang.GeneralRebaseClosedEdgeCompound279.new_child
+#print axioms Yulang.GeneralRebaseClosedEdgeCompound279.full_model_cut
+#print axioms Yulang.GeneralRebaseClosedEdgeCompound279.nonempty_full_cover

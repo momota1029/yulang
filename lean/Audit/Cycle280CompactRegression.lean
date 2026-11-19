@@ -1,0 +1,12 @@
+import Yulang.GeneralRebaseCompactRegression280
+
+#print axioms Yulang.GeneralRebaseCompactRegression280.Display.one_step
+#print axioms Yulang.GeneralRebaseCompactRegression280.Display.no_next
+#print axioms Yulang.GeneralRebaseCompactRegression280.Display.initial_acc
+#print axioms Yulang.GeneralRebaseCompactRegression280.Display.evidenceAt
+#print axioms Yulang.GeneralRebaseCompactRegression280.Display.payload
+#print axioms Yulang.GeneralRebaseCompactRegression280.Display.current_edge
+#print axioms Yulang.GeneralRebaseCompactRegression280.Display.duplicateArchives
+#print axioms Yulang.GeneralRebaseCompactRegression280.Display.compact_archived_once
+#print axioms Yulang.GeneralRebaseCompactRegression280.old239_remains_nonaccessible
+#print axioms Yulang.GeneralRebaseCompactRegression280.old240_remains_nonaccessible

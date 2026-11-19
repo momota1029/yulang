@@ -1,0 +1,27 @@
+'Yulang.GeneralRebaseFiniteProbeObstruction279.eventual_agreement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceEdgeBasis279.project' does not depend on any axioms
+'Yulang.GeneralRebaseSourceEdgeBasis279.candidateEdges' does not depend on any axioms
+'Yulang.GeneralRebaseSourceEdgeBasis279.emitted_project' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourceEdgeBasis279.initial_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceEdgeBasis279.finite_projected_edges' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseProjectedEdgeCount279.Seen' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedEdgeCount279.Fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedEdgeCount279.monotone' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedEdgeCount279.is_installation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedEdgeCount279.Trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedEdgeCount279.annotate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedEdgeCount279.trace_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProjectedEdgeCount279.finite_new_id_pair_steps' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseFiniteProbeObstruction279.V.finite_tests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseFiniteProbeObstruction279.L.finite_tests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0

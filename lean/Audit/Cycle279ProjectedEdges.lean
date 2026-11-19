@@ -1,0 +1,20 @@
+import Yulang.GeneralRebaseFiniteProbeObstruction279
+import Yulang.GeneralRebaseSourceEdgeBasis279
+import Yulang.GeneralRebaseProjectedEdgeCount279
+
+#print axioms Yulang.GeneralRebaseFiniteProbeObstruction279.eventual_agreement
+#print axioms Yulang.GeneralRebaseSourceEdgeBasis279.project
+#print axioms Yulang.GeneralRebaseSourceEdgeBasis279.candidateEdges
+#print axioms Yulang.GeneralRebaseSourceEdgeBasis279.emitted_project
+#print axioms Yulang.GeneralRebaseSourceEdgeBasis279.initial_edges
+#print axioms Yulang.GeneralRebaseSourceEdgeBasis279.finite_projected_edges
+#print axioms Yulang.GeneralRebaseProjectedEdgeCount279.Seen
+#print axioms Yulang.GeneralRebaseProjectedEdgeCount279.Fresh
+#print axioms Yulang.GeneralRebaseProjectedEdgeCount279.monotone
+#print axioms Yulang.GeneralRebaseProjectedEdgeCount279.is_installation
+#print axioms Yulang.GeneralRebaseProjectedEdgeCount279.Trace
+#print axioms Yulang.GeneralRebaseProjectedEdgeCount279.annotate
+#print axioms Yulang.GeneralRebaseProjectedEdgeCount279.trace_rank
+#print axioms Yulang.GeneralRebaseProjectedEdgeCount279.finite_new_id_pair_steps
+#print axioms Yulang.GeneralRebaseFiniteProbeObstruction279.V.finite_tests
+#print axioms Yulang.GeneralRebaseFiniteProbeObstruction279.L.finite_tests

@@ -1,0 +1,57 @@
+import Yulang.GeneralRebaseCompactTrust279
+import Yulang.GeneralRebaseCompactInstallGuard279
+import Yulang.GeneralRebaseCompactObservationGuard279
+import Yulang.GeneralRebaseCompactAvailability279
+import Yulang.GeneralRebaseCompactEvidenceAt279
+import Yulang.GeneralRebaseEdgeLedger279
+
+#print axioms Yulang.GeneralRebaseCompactTrust279.replace_twice
+#print axioms Yulang.GeneralRebaseCompactTrust279.replace_self
+#print axioms Yulang.GeneralRebaseCompactTrust279.legacy_discharged
+#print axioms Yulang.GeneralRebaseCompactTrust279.versioned_discharged
+#print axioms Yulang.GeneralRebaseCompactTrust279.legacy_trusted
+#print axioms Yulang.GeneralRebaseCompactTrust279.versioned_trusted
+#print axioms Yulang.GeneralRebaseCompactTrust279.justified_forward
+#print axioms Yulang.GeneralRebaseCompactTrust279.justified_iff
+#print axioms Yulang.GeneralRebaseCompactTrust279.cache_iff
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.reframe
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.reframe_holds
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.post_core
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.post_versions
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.post_legacy
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.witnesses_iff
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.target_models
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.choice_iff
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.alternatives_iff
+#print axioms Yulang.GeneralRebaseCompactInstallGuard279.enabled_iff
+#print axioms Yulang.GeneralRebaseCompactObservationGuard279.refreshForward
+#print axioms Yulang.GeneralRebaseCompactObservationGuard279.revisionForward
+#print axioms Yulang.GeneralRebaseCompactObservationGuard279.snapshot_eq
+#print axioms Yulang.GeneralRebaseCompactObservationGuard279.improves
+#print axioms Yulang.GeneralRebaseCompactObservationGuard279.certificate
+#print axioms Yulang.GeneralRebaseCompactAvailability279.SameEdges
+#print axioms Yulang.GeneralRebaseCompactAvailability279.admin_forward
+#print axioms Yulang.GeneralRebaseCompactAvailability279.at_forward
+#print axioms Yulang.GeneralRebaseCompactAvailability279.opposite
+#print axioms Yulang.GeneralRebaseCompactAvailability279.at_exists_iff
+#print axioms Yulang.GeneralRebaseCompactAvailability279.step_exists_iff
+#print axioms Yulang.GeneralRebaseCompactAvailability279.stable_iff_not_step
+#print axioms Yulang.GeneralRebaseCompactAvailability279.stable_iff
+#print axioms Yulang.GeneralRebaseCompactAvailability279.reduced_stable
+#print axioms Yulang.GeneralRebaseCompactEvidenceAt279.iff_of_membership
+#print axioms Yulang.GeneralRebaseCompactEvidenceAt279.reduced_iff
+#print axioms Yulang.GeneralRebaseCompactEvidenceAt279.compiled_display
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalize
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalize_members
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalize_nodup
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalize_order
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalize_eq
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalize_idempotent
+#print axioms Yulang.GeneralRebaseEdgeLedger279.advance
+#print axioms Yulang.GeneralRebaseEdgeLedger279.advance_members
+#print axioms Yulang.GeneralRebaseEdgeLedger279.advance_nodup
+#print axioms Yulang.GeneralRebaseEdgeLedger279.advance_limit
+#print axioms Yulang.GeneralRebaseEdgeLedger279.advance_repeated
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalizedInstall
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalized_members
+#print axioms Yulang.GeneralRebaseEdgeLedger279.normalized_nodup

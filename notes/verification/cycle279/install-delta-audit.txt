@@ -1,0 +1,50 @@
+'Yulang.GeneralRebaseInstallRequestDelta279.Core' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseInstallRequestDelta279.Output' does not depend on any axioms
+'Yulang.GeneralRebaseInstallRequestDelta279.EmittedRequest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseInstallRequestDelta279.FreshRequest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallRequestDelta279.append_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallRequestDelta279.split_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallRequestDelta279.fresh_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallRequestDelta279.EffectDelta' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallRequestDelta279.class_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDeltaModels279.Delta' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDeltaModels279.snapshot_effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDeltaModels279.models_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDeltaModels279.NoFreshRequests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDeltaModels279.delta_of_no_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallDeltaModels279.no_fresh_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.Edge' does not depend on any axioms
+'Yulang.GeneralRebaseInstallNovelty279.Covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.FreshChild' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.FullSilent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.LostModel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.silence_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.no_loss_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.edge_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.fresh_iff_edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.not_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.committed_of_silent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.preservation_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.novel_child_blocks' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.install_dichotomy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.graph_only' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.graph_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallNovelty279.graph_growth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.silent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.no_fresh_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.actual_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.no_lost_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.real_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.new_edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.generated_before_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallDisplayDelta279.generates_real_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0

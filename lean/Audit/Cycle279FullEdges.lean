@@ -1,0 +1,30 @@
+import Yulang.GeneralRebaseClosedChildShape279
+import Yulang.GeneralRebaseClosedChildIdentity279
+import Yulang.GeneralRebaseFullEdgeBasis279
+import Yulang.GeneralRebaseFullEdgeProgress279
+import Yulang.GeneralRebaseClosedEdgeObstruction279
+
+#print axioms Yulang.GeneralRebaseClosedChildShape279.ClosedArguments
+#print axioms Yulang.GeneralRebaseClosedChildShape279.argList
+#print axioms Yulang.GeneralRebaseClosedChildShape279.Canonical
+#print axioms Yulang.GeneralRebaseClosedChildShape279.input_is_port
+#print axioms Yulang.GeneralRebaseClosedChildShape279.clause_arguments
+#print axioms Yulang.GeneralRebaseClosedChildShape279.emitted
+#print axioms Yulang.GeneralRebaseClosedChildShape279.trace
+#print axioms Yulang.GeneralRebaseClosedChildIdentity279.same_shape
+#print axioms Yulang.GeneralRebaseClosedChildIdentity279.exact
+#print axioms Yulang.GeneralRebaseClosedChildIdentity279.cross_trace
+#print axioms Yulang.GeneralRebaseFullEdgeBasis279.Registered
+#print axioms Yulang.GeneralRebaseFullEdgeBasis279.endpoints
+#print axioms Yulang.GeneralRebaseFullEdgeBasis279.exact_project
+#print axioms Yulang.GeneralRebaseFullEdgeBasis279.finite_lift
+#print axioms Yulang.GeneralRebaseFullEdgeBasis279.OnTrace
+#print axioms Yulang.GeneralRebaseFullEdgeBasis279.finite_full_edges
+#print axioms Yulang.GeneralRebaseFullEdgeProgress279.projected_iff
+#print axioms Yulang.GeneralRebaseFullEdgeProgress279.graph_only_spends_projected
+#print axioms Yulang.GeneralRebaseFullEdgeProgress279.EdgeFreeModelCover
+#print axioms Yulang.GeneralRebaseFullEdgeProgress279.joined_cover
+#print axioms Yulang.GeneralRebaseFullEdgeProgress279.accessible_if_tests_cover
+#print axioms Yulang.GeneralRebaseClosedEdgeObstruction279.closed
+#print axioms Yulang.GeneralRebaseClosedEdgeObstruction279.finite_full
+#print axioms Yulang.GeneralRebaseClosedEdgeObstruction279.no_semantic_test_cover

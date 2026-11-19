@@ -1,10 +1,11 @@
 # dots-main heartbeat
-- cycle: 279
-- status: running
-- started: 2026-11-19T18:30:04Z
-- updated: 2026-11-19T18:30:37.238Z
-- elapsed_min: 1
-- activity: Verify and recover cycle 278 before extending the rebase boundary.
+- cycle: 280
+- status: completed
+- started: 2026-11-19T19:30:00Z
+- updated: 2026-11-19T20:20:00Z
+- elapsed_min: 50.00
+- activity: Fixed-port decode, finite graph, archived edge bisimulation, exact stored raw state recovery, and audited legacy limits.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: baa676df1
-- resume_hint: Verify the prior remote work and local staged artifacts; do not publish unfinished Lean.
+- last_local_commit: 336055689
+- report: notes/handoff/dots-cycle-280.md
+- resume_hint: Read the latest inbox. Port copy is exact given disjoint support; the next progress needed is a source-proved separation and live-maintenance rule for semantic silent installs, not another proof of unchanged raw Acc.

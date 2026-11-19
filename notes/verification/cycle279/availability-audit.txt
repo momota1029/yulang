@@ -1,0 +1,57 @@
+'Yulang.GeneralRebaseCompactTrust279.replace_twice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactTrust279.replace_self' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactTrust279.legacy_discharged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactTrust279.versioned_discharged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactTrust279.legacy_trusted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactTrust279.versioned_trusted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactTrust279.justified_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactTrust279.justified_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactTrust279.cache_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.reframe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.reframe_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.post_core' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.post_versions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.post_legacy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.witnesses_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.target_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.choice_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.alternatives_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactInstallGuard279.enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactObservationGuard279.refreshForward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompactObservationGuard279.revisionForward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompactObservationGuard279.snapshot_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactObservationGuard279.improves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactObservationGuard279.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.SameEdges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.admin_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.at_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.opposite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.at_exists_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.step_exists_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.stable_iff_not_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.stable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactAvailability279.reduced_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactEvidenceAt279.iff_of_membership' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactEvidenceAt279.reduced_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompactEvidenceAt279.compiled_display' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.normalize' does not depend on any axioms
+'Yulang.GeneralRebaseEdgeLedger279.normalize_members' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.normalize_nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.normalize_order' does not depend on any axioms
+'Yulang.GeneralRebaseEdgeLedger279.normalize_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.normalize_idempotent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.advance' does not depend on any axioms
+'Yulang.GeneralRebaseEdgeLedger279.advance_members' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.advance_nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.advance_limit' depends on axioms: [propext]
+'Yulang.GeneralRebaseEdgeLedger279.advance_repeated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.normalizedInstall' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.normalized_members' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseEdgeLedger279.normalized_nodup' depends on axioms: [propext, Classical.choice, Quot.sound]
+exit=0
