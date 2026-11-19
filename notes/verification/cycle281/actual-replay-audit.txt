@@ -1,0 +1,12 @@
+'Yulang.GeneralRebaseActualReplay281.Checks' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.Baseline' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.checks_supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.baseline_supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.replay_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.replay_project' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.fixedState' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.fixed_known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.fixed_state_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseActualReplay281.projected_actual_replacement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

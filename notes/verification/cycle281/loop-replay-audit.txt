@@ -1,0 +1,26 @@
+'Yulang.GeneralRebaseLoopReplay281.Version.rows' does not depend on any axioms
+'Yulang.GeneralRebaseLoopReplay281.Version.tags_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.versioned_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.same_slots' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.reserve_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.reserve_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.next_lower_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.next_upper_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.versioned_private' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.raw_context' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.projected_equal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Version.known_equal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.rows' does not depend on any axioms
+'Yulang.GeneralRebaseLoopReplay281.Loose.tags_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.versioned_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.same_slots' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.reserve_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.reserve_provenance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.next_lower_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.next_upper_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.versioned_private' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.raw_context' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.projected_equal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoopReplay281.Loose.known_equal' depends on axioms: [propext, Classical.choice, Quot.sound]
