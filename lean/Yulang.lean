@@ -5045,3 +5045,9 @@ import Yulang.GeneralRebaseEnhancedPipeline269
 import Yulang.FiniteBehaviorKeyGraph269
 import Yulang.FiniteBehaviorCheckedRun269
 import Yulang.GeneralRebaseKeyedBehavior269
+import Yulang.GeneralRebaseRetainedMetadata270
+import Yulang.GeneralRebaseOneOutputFacts270
+import Yulang.GeneralRebaseOneOutputProjection270
+import Yulang.GeneralRebaseCompoundProjection270
+import Yulang.GeneralRebaseSingleExitCode270
+import Yulang.GeneralRebaseCompoundExecutable270

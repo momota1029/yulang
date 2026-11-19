@@ -1,0 +1,6 @@
+GeneralRebaseRetainedMetadata270
+GeneralRebaseOneOutputFacts270
+GeneralRebaseOneOutputProjection270
+GeneralRebaseCompoundProjection270
+GeneralRebaseSingleExitCode270
+GeneralRebaseCompoundExecutable270

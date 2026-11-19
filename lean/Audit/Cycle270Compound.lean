@@ -1,0 +1,42 @@
+import Yulang.GeneralRebaseRetainedMetadata270
+import Yulang.GeneralRebaseOneOutputFacts270
+import Yulang.GeneralRebaseOneOutputProjection270
+import Yulang.GeneralRebaseCompoundProjection270
+import Yulang.GeneralRebaseSingleExitCode270
+import Yulang.GeneralRebaseCompoundExecutable270
+
+#print axioms Yulang.GeneralRebaseRetainedMetadata270.Retains
+#print axioms Yulang.GeneralRebaseRetainedMetadata270.retained_step
+#print axioms Yulang.GeneralRebaseRetainedMetadata270.from_empty
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.pairKey
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.body_key_of_mem
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.body_avoids_pairs
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.pair_avoids_body
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.pair_exact
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.body_from_equation
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.pair_proposal
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.body_proposal
+#print axioms Yulang.GeneralRebaseOneOutputFacts270.synchronized
+#print axioms Yulang.GeneralRebaseOneOutputProjection270.basis_two
+#print axioms Yulang.GeneralRebaseOneOutputProjection270.remaining_cases
+#print axioms Yulang.GeneralRebaseCompoundProjection270.one_equation
+#print axioms Yulang.GeneralRebaseCompoundProjection270.all_equations
+#print axioms Yulang.GeneralRebaseCompoundProjection270.dichotomy
+#print axioms Yulang.GeneralRebaseCompoundProjection270.initial_full
+#print axioms Yulang.GeneralRebaseCompoundProjection270.initial_rank
+#print axioms Yulang.GeneralRebaseCompoundProjection270.all_weak_targets
+#print axioms Yulang.GeneralRebaseCompoundProjection270.some_weak_target
+#print axioms Yulang.GeneralRebaseSingleExitCode270.isEmptyLeaf
+#print axioms Yulang.GeneralRebaseSingleExitCode270.isEmptyLeaf_exact
+#print axioms Yulang.GeneralRebaseSingleExitCode270.compile
+#print axioms Yulang.GeneralRebaseSingleExitCode270.exact_code
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.actualBasis
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.actualBasis_exact
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.initialCode
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.initialCode_exact
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.computed_shape
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.run
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.computed_run
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.computed_exit
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.verified_all_exits
+#print axioms Yulang.GeneralRebaseCompoundExecutable270.verified_terminal
