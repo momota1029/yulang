@@ -1,0 +1,58 @@
+'Yulang.GeneralRebaseCompoundReplacementEvidence273.current_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementEvidence273.current_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementEvidence273.root_instance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementEvidence273.no_root_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundReplacementEvidence273.local_not_global' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.Slot' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerBlock273.PublicSlot' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerBlock273.Block' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerBlock273.loBind' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerBlock273.pointBind' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerBlock273.compile' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.loose' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.point' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.actual_loose' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.actual_point' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.read' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerBlock273.eval' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.normalized_lo' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.normalized_hi' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.eval_agree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerBlock273.compiler_exact' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.low' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.high' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.PairFacts' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.read_pair' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.old_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.current_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.origin' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerCapture273.actual_is_width' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.historical_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerCapture273.current_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerStep273.Stage' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerStep273.block' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerStep273.remaining' does not depend on any axioms
+'Yulang.GeneralRebaseCompoundOwnerStep273.next' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerStep273.Step' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerStep273.decreases' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerStep273.accessible' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerStep273.actual_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerStep273.actual_replacement' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerStep273.no_third' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerStep273.no_backwards' depends on axioms: [propext]
+'Yulang.GeneralRebaseCompoundOwnerStep273.no_loose_replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerStep273.PublicMeaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerStep273.install_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompoundOwnerStep273.replacement_meaning' depends on axioms: [propext, Quot.sound]

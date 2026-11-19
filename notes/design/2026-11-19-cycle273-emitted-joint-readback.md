@@ -41,3 +41,24 @@ does not generally survive that overwrite. The resulting restricted
 replacement is not a proof of general original-journal equivalence or of
 evidence for an unlocated child. Do not silently classify a generated child
 that is itself observable as an original input/output coordinate.
+
+## Finite owner block for this checked case
+
+Use one owner identity and five typed field addresses: lower/upper capture,
+lower/upper generated child, and actual generated child center. The two
+actual binding lists consist of identical pairs of endpoints. Restrict a
+small compiler to input name 0 with two equal binding triples over source
+slots 0..4, a checked actual center premise, and the known single child
+schema. Replace the repeated lower union and upper intersection by their
+singleton supporting source under the respective lattice laws. For the
+actual case the observed center has the width at source 2, so the child
+center refers to that public type semantically; it is not an arbitrary
+alias of the upper in generic code.
+
+The finite state machine consumes these actual observations and replaces
+the sole owner's block in place. It has three states (uninstalled, loose,
+point), matching the selected source's strict installation and its first
+Reobserve-plus-replacement, not arbitrary engine scheduling. It must
+retain the real optional body fact for output 4 in both installed states
+and use the fresh bounded projection proof above. A generated child's
+lower type, if retained as a public observation, cannot be preserved.
