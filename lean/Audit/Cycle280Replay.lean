@@ -1,0 +1,65 @@
+import Yulang.GeneralRebasePortTicket280
+import Yulang.GeneralRebaseTicketLedger280
+import Yulang.GeneralRebaseArchiveReplay280
+import Yulang.GeneralRebaseStoredStep280
+import Yulang.GeneralRebaseStoredRegression280
+
+#print axioms Yulang.GeneralRebasePortTicket280.Ticket
+#print axioms Yulang.GeneralRebasePortTicket280.Ticket.read
+#print axioms Yulang.GeneralRebasePortTicket280.compile
+#print axioms Yulang.GeneralRebasePortTicket280.exact_site
+#print axioms Yulang.GeneralRebasePortTicket280.issue
+#print axioms Yulang.GeneralRebasePortTicket280.readChildren
+#print axioms Yulang.GeneralRebasePortTicket280.readRaw
+#print axioms Yulang.GeneralRebasePortTicket280.readEdges
+#print axioms Yulang.GeneralRebasePortTicket280.read_sites
+#print axioms Yulang.GeneralRebasePortTicket280.read_raw
+#print axioms Yulang.GeneralRebasePortTicket280.read_children
+#print axioms Yulang.GeneralRebasePortTicket280.read_edges
+#print axioms Yulang.GeneralRebasePortTicket280.ordered_size
+#print axioms Yulang.GeneralRebaseTicketLedger280.catalog
+#print axioms Yulang.GeneralRebaseTicketLedger280.replayRaw
+#print axioms Yulang.GeneralRebaseTicketLedger280.replayCentres
+#print axioms Yulang.GeneralRebaseTicketLedger280.replayEdges
+#print axioms Yulang.GeneralRebaseTicketLedger280.Exact
+#print axioms Yulang.GeneralRebaseTicketLedger280.append_install
+#print axioms Yulang.GeneralRebaseTicketLedger280.trace
+#print axioms Yulang.GeneralRebaseTicketLedger280.source_exact
+#print axioms Yulang.GeneralRebaseTicketLedger280.rebuild_edges
+#print axioms Yulang.GeneralRebaseTicketLedger280.compact_replayed
+#print axioms Yulang.GeneralRebaseArchiveReplay280.replay
+#print axioms Yulang.GeneralRebaseArchiveReplay280.Ordered
+#print axioms Yulang.GeneralRebaseArchiveReplay280.plans_replay
+#print axioms Yulang.GeneralRebaseArchiveReplay280.trace
+#print axioms Yulang.GeneralRebaseArchiveReplay280.source_order
+#print axioms Yulang.GeneralRebaseArchiveReplay280.clearHistory
+#print axioms Yulang.GeneralRebaseArchiveReplay280.fillHistory
+#print axioms Yulang.GeneralRebaseArchiveReplay280.map_plans
+#print axioms Yulang.GeneralRebaseArchiveReplay280.replay_clear
+#print axioms Yulang.GeneralRebaseArchiveReplay280.fill_clear
+#print axioms Yulang.GeneralRebaseArchiveReplay280.strip
+#print axioms Yulang.GeneralRebaseArchiveReplay280.restore
+#print axioms Yulang.GeneralRebaseArchiveReplay280.current_empty
+#print axioms Yulang.GeneralRebaseArchiveReplay280.history_empty
+#print axioms Yulang.GeneralRebaseArchiveReplay280.exact_roundtrip
+#print axioms Yulang.GeneralRebaseArchiveReplay280.source_roundtrip
+#print axioms Yulang.GeneralRebaseStoredStep280.StoredStep
+#print axioms Yulang.GeneralRebaseStoredStep280.same_strip
+#print axioms Yulang.GeneralRebaseStoredStep280.step
+#print axioms Yulang.GeneralRebaseStoredStep280.match_state
+#print axioms Yulang.GeneralRebaseStoredStep280.stored_path
+#print axioms Yulang.GeneralRebaseStoredStep280.original_path
+#print axioms Yulang.GeneralRebaseStoredStep280.acc_forward
+#print axioms Yulang.GeneralRebaseStoredStep280.acc_backward
+#print axioms Yulang.GeneralRebaseStoredStep280.acc_exact
+#print axioms Yulang.GeneralRebaseStoredStep280.terminal_exact
+#print axioms Yulang.GeneralRebaseStoredRegression280.stage
+#print axioms Yulang.GeneralRebaseStoredRegression280.recovered
+#print axioms Yulang.GeneralRebaseStoredRegression280.raw_edge_absent
+#print axioms Yulang.GeneralRebaseStoredRegression280.restored_edge
+#print axioms Yulang.GeneralRebaseStoredRegression280.one_stored_step
+#print axioms Yulang.GeneralRebaseStoredRegression280.terminal
+#print axioms Yulang.GeneralRebaseStoredRegression280.evidenceAt
+#print axioms Yulang.GeneralRebaseStoredRegression280.payload
+#print axioms Yulang.GeneralRebaseStoredRegression280.version239_lossless
+#print axioms Yulang.GeneralRebaseStoredRegression280.version240_lossless

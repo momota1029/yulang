@@ -1,0 +1,33 @@
+import Yulang.GeneralRebaseArchiveConflict280
+import Yulang.GeneralRebaseArchiveLocal280
+import Yulang.GeneralRebaseCompactSource280
+
+#print axioms Yulang.GeneralRebaseArchiveConflict280.history
+#print axioms Yulang.GeneralRebaseArchiveConflict280.class_equations
+#print axioms Yulang.GeneralRebaseArchiveConflict280.context
+#print axioms Yulang.GeneralRebaseArchiveConflict280.merged
+#print axioms Yulang.GeneralRebaseArchiveConflict280.output
+#print axioms Yulang.GeneralRebaseArchiveConflict280.feasible
+#print axioms Yulang.GeneralRebaseArchiveConflict280.at_key
+#print axioms Yulang.GeneralRebaseArchiveLocal280.root6
+#print axioms Yulang.GeneralRebaseArchiveLocal280.candidate6
+#print axioms Yulang.GeneralRebaseArchiveLocal280.pending6
+#print axioms Yulang.GeneralRebaseArchiveLocal280.reject6
+#print axioms Yulang.GeneralRebaseArchiveLocal280.local6
+#print axioms Yulang.GeneralRebaseArchiveLocal280.root7
+#print axioms Yulang.GeneralRebaseArchiveLocal280.candidate7
+#print axioms Yulang.GeneralRebaseArchiveLocal280.priority
+#print axioms Yulang.GeneralRebaseArchiveLocal280.local7
+#print axioms Yulang.GeneralRebaseArchiveLocal280.sharing
+#print axioms Yulang.GeneralRebaseArchiveLocal280.exact_local
+#print axioms Yulang.GeneralRebaseArchiveLocal280.related_local
+#print axioms Yulang.GeneralRebaseArchiveLocal280.adapter_local
+#print axioms Yulang.GeneralRebaseCompactSource280.evidenceAt_forward
+#print axioms Yulang.GeneralRebaseCompactSource280.evidenceAt_iff
+#print axioms Yulang.GeneralRebaseCompactSource280.compact_EvidenceAt
+#print axioms Yulang.GeneralRebaseCompactSource280.compact_initial
+#print axioms Yulang.GeneralRebaseCompactSource280.SourceCompact
+#print axioms Yulang.GeneralRebaseCompactSource280.reach_lift
+#print axioms Yulang.GeneralRebaseCompactSource280.reach_lower
+#print axioms Yulang.GeneralRebaseCompactSource280.source_accessible
+#print axioms Yulang.GeneralRebaseCompactSource280.finish

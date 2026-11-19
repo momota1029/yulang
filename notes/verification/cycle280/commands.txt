@@ -1,0 +1,14 @@
+Focused independent verification (Lean 4.35.0):
+  for each new library module, in barrel order:
+    cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . -o .lake/build/lib/lean/Yulang/NAME.olean Yulang/NAME.lean
+  for each of the eight new audit files independently:
+    cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . Audit/NAME.lean
+  check every audit only imports Yulang.*; check each new library file is imported once by the root barrel.
+  check reported audit declarations depend only on standard propext, Classical.choice, Quot.sound.
+  cd lean && lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle280/executable-probe.lean
+  cd lean && lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle280/typed-use.lean
+  git diff --check for both the source integration base and prior work checkpoint.
+  bash tools/verify-lean.sh . 6ffaba4af40b7c669a19bac870872d2611a666e3 --no-build
+  bash tools/verify-lean.sh . 058a8659fdb980918d8c0228a3a5a238beee1022 --no-build
+  compare frozen inputs to both bases without mutation.
+No full build, no CI status assertion, no Yulang2 runtime rerun.
