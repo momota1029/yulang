@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseWidthMinimum275
+
+#print axioms Yulang.GeneralRebaseWidthMinimum275.typeIDs
+#print axioms Yulang.GeneralRebaseWidthMinimum275.typeIDs_nodup
+#print axioms Yulang.GeneralRebaseWidthMinimum275.keeps_old
+#print axioms Yulang.GeneralRebaseWidthMinimum275.at_least_eight
+#print axioms Yulang.GeneralRebaseWidthMinimum275.batch_is_minimal

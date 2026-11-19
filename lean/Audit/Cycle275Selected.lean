@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseAllWidthSelected275
+
+#print axioms Yulang.GeneralRebaseAllWidthSelected275.survivor
+#print axioms Yulang.GeneralRebaseAllWidthSelected275.unique
+#print axioms Yulang.GeneralRebaseAllWidthSelected275.equal_outputs
+#print axioms Yulang.GeneralRebaseAllWidthSelected275.selected
+#print axioms Yulang.GeneralRebaseAllWidthSelected275.generated_only
+#print axioms Yulang.GeneralRebaseAllWidthSelected275.evidenceAt
+#print axioms Yulang.GeneralRebaseAllWidthSelected275.regression

@@ -1,0 +1,5 @@
+'Yulang.GeneralRebaseWidthMinimum275.typeIDs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWidthMinimum275.typeIDs_nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWidthMinimum275.keeps_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthMinimum275.at_least_eight' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthMinimum275.batch_is_minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
