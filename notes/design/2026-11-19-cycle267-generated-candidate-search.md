@@ -95,3 +95,26 @@ same state. Under inverse coverage contracts each actual strict Step can be
 observed in this list by the install/merge inversion. Source-wide finite
 basis closure comes from reachability and the old invariant. A scheduler
 running from a frozen source observer is not yet a source-changing driver.
+
+## Recompute after each related source step
+
+A finite decision obtained at one current source state must not be reused
+at its abstract successor. Define a source-indexed trace with one checked
+next result and one actual source Step at each edge, using a probe family
+indexed by the concrete state. With sound and complete contracts at all
+reachable states, initialize a common basis, use the strict remaining
+measure to iterate the checked result with a concrete witness, and end
+at a state with no strict immediate old step. This is an existence/replay
+theorem. It is not an executable selection of concrete representatives,
+nor a claim that an initial stutter chain cannot later unlock progress.
+
+### Retain concrete choices without extracting from a proposition
+
+The install certificate existential does not require classical extraction:
+registry, current snapshot, and the selected Plan determine all computational
+fields of the Effect. Recover only its proof fields from the existential
+certificate, erased by evaluation. Store each proposal beside its actual
+source successor so the exact same scheduler choice can be replayed
+computably. Merge has its concrete pair already. Check the projected list
+matches the earlier observer in the same order, and use the checked-write
+rank for a bounded recomputing driver. Semantic contracts are still inputs.
