@@ -1,0 +1,43 @@
+import Yulang.GeneralRebaseOriginCongruence269
+import Yulang.GeneralRebaseOriginQuotient269
+import Yulang.GeneralRebaseOriginExecutable269
+import Yulang.GeneralRebaseActualArguments269
+
+#print axioms Yulang.GeneralRebaseOriginCongruence269.equal_symm
+#print axioms Yulang.GeneralRebaseOriginCongruence269.equal_trans
+#print axioms Yulang.GeneralRebaseOriginCongruence269.self_left
+#print axioms Yulang.GeneralRebaseOriginCongruence269.self_right
+#print axioms Yulang.GeneralRebaseOriginCongruence269.head_transport
+#print axioms Yulang.GeneralRebaseOriginCongruence269.project_seen
+#print axioms Yulang.GeneralRebaseOriginCongruence269.transport_project_left
+#print axioms Yulang.GeneralRebaseOriginCongruence269.edge_of_equiv
+#print axioms Yulang.GeneralRebaseOriginCongruence269.edge_iff
+#print axioms Yulang.GeneralRebaseOriginCongruence269.edge_left_live
+#print axioms Yulang.GeneralRebaseOriginCongruence269.edge_right_live
+#print axioms Yulang.GeneralRebaseOriginCongruence269.edge_normal
+#print axioms Yulang.GeneralRebaseOriginQuotient269.Forward
+#print axioms Yulang.GeneralRebaseOriginQuotient269.Pos
+#print axioms Yulang.GeneralRebaseOriginQuotient269.to_walk
+#print axioms Yulang.GeneralRebaseOriginQuotient269.lift_positive
+#print axioms Yulang.GeneralRebaseOriginQuotient269.short_closure
+#print axioms Yulang.GeneralRebaseOriginQuotient269.mapped_positive
+#print axioms Yulang.GeneralRebaseOriginQuotient269.retarget_positive
+#print axioms Yulang.GeneralRebaseOriginQuotient269.nonempty_cycle_iff
+#print axioms Yulang.GeneralRebaseOriginQuotient269.complete_window
+#print axioms Yulang.GeneralRebaseOriginQuotient269.TestsCover
+#print axioms Yulang.GeneralRebaseOriginQuotient269.forward_of_tests
+#print axioms Yulang.GeneralRebaseOriginExecutable269.lookup
+#print axioms Yulang.GeneralRebaseOriginExecutable269.located
+#print axioms Yulang.GeneralRebaseOriginExecutable269.lookup_sound
+#print axioms Yulang.GeneralRebaseOriginExecutable269.located_sound
+#print axioms Yulang.GeneralRebaseOriginExecutable269.graphQuery
+#print axioms Yulang.GeneralRebaseOriginExecutable269.graphQuery_sound
+#print axioms Yulang.GeneralRebaseOriginExecutable269.cyclic
+#print axioms Yulang.GeneralRebaseOriginExecutable269.cyclic_sound
+#print axioms Yulang.GeneralRebaseOriginExecutable269.with_semantic_closure
+#print axioms Yulang.GeneralRebaseActualArguments269.Member
+#print axioms Yulang.GeneralRebaseActualArguments269.TypeSlots
+#print axioms Yulang.GeneralRebaseActualArguments269.fits_length
+#print axioms Yulang.GeneralRebaseActualArguments269.bounded_of_observed
+#print axioms Yulang.GeneralRebaseActualArguments269.actual_iff
+#print axioms Yulang.GeneralRebaseActualArguments269.actual_of_empty_models

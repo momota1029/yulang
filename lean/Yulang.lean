@@ -5007,3 +5007,7 @@ import Yulang.GeneralRebaseFiniteSlices268
 import Yulang.GeneralRebaseMergedSlices268
 import Yulang.GeneralRebaseDiagnosticCompiler268
 import Yulang.GeneralRebaseCompilerFixture268
+import Yulang.GeneralRebaseOriginCongruence269
+import Yulang.GeneralRebaseOriginQuotient269
+import Yulang.GeneralRebaseOriginExecutable269
+import Yulang.GeneralRebaseActualArguments269
