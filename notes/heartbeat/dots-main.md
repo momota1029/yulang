@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 273
-- status: completed
-- started: 2026-11-19T12:34:44Z
-- updated: 2026-11-19T13:24:45Z
-- elapsed_min: 50.02
-- activity: Verified source 238 public models and finite owner replacement with the actual optional output; local current certificate does not resolve the unlocated child.
+- cycle: 274
+- status: running
+- started: 2026-11-19T13:31:40Z
+- updated: 2026-11-19T13:32:09Z
+- elapsed_min: 0.48
+- activity: Verify a positive real source 230 rebase and its finite certificate boundary.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 83499731b
-- report: notes/handoff/dots-cycle-273.md
-- resume_hint: Read latest integration orders. Open: general owner compiler and isolation; current child location and recursive evidence; no original-kernel Acc claim.
+- last_local_commit: d750e84ea
+- resume_hint: Start from verified cycle 273; distinguish historic raw rejection and corrected positive leaf evidence.
