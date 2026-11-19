@@ -29,3 +29,12 @@ payload equivalence at that same key holds in every valid model.
 Exact-empty is separately distinguished by an actual carrier probe;
 it has no semantic type edges. All normalized structural shapes now
 share a single edge support theorem.
+
+The executable comparison now also checks distinct canonical record
+signatures, and distinguishes exact-empty from a width record despite
+the common coarse tag. A literal normalized structural projection
+can be replaced by its actual child source. Equality of other sources,
+nested projections, and deferred observations is not guessed.
+The new full-structural window keeps closure and totality distinct:
+positive or negative finite graph answers require checked semantic
+conditions; missing information is still unknown.

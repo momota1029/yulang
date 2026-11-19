@@ -5078,3 +5078,7 @@ import Yulang.GeneralRebaseRecordOverwrite271
 import Yulang.GeneralRebaseRecordIndices271
 import Yulang.GeneralRebaseRecordReadback271
 import Yulang.GeneralRebaseRecordEdge271
+import Yulang.GeneralRebaseStructuralCompare271
+import Yulang.GeneralRebaseFullStructuralWindow271
+import Yulang.GeneralRebaseStructuralRepresentative271
+import Yulang.GeneralRebaseClosedRecordDriver271
