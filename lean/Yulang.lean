@@ -4971,3 +4971,9 @@ import Yulang.GeneralRebaseConcreteCorrect267
 import Yulang.GeneralRebaseConcreteFixture267
 import Yulang.GeneralRebaseStrictAccessibility267
 import Yulang.GeneralRebaseComputedBasis267
+import Yulang.GeneralRebasePartialBool268
+import Yulang.GeneralRebaseDiagnosticData268
+import Yulang.GeneralRebaseDiagnosticV6268
+import Yulang.GeneralRebaseDiagnosticV8268
+import Yulang.GeneralRebaseDiagnosticSource268
+import Yulang.GeneralRebaseDiagnosticFixture268

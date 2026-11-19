@@ -1,0 +1,6 @@
+PASS Yulang.GeneralRebasePartialBool268
+PASS Yulang.GeneralRebaseDiagnosticData268
+PASS Yulang.GeneralRebaseDiagnosticV6268
+PASS Yulang.GeneralRebaseDiagnosticV8268
+PASS Yulang.GeneralRebaseDiagnosticSource268
+PASS Yulang.GeneralRebaseDiagnosticFixture268

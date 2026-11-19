@@ -1,0 +1,57 @@
+import Yulang.GeneralRebasePartialBool268
+import Yulang.GeneralRebaseDiagnosticData268
+import Yulang.GeneralRebaseDiagnosticV6268
+import Yulang.GeneralRebaseDiagnosticV8268
+import Yulang.GeneralRebaseDiagnosticSource268
+import Yulang.GeneralRebaseDiagnosticFixture268
+
+#print axioms Yulang.GeneralRebasePartialBool268.Answer
+#print axioms Yulang.GeneralRebasePartialBool268.Reflect
+#print axioms Yulang.GeneralRebasePartialBool268.neg
+#print axioms Yulang.GeneralRebasePartialBool268.either
+#print axioms Yulang.GeneralRebasePartialBool268.both
+#print axioms Yulang.GeneralRebasePartialBool268.neg_sound
+#print axioms Yulang.GeneralRebasePartialBool268.either_sound
+#print axioms Yulang.GeneralRebasePartialBool268.both_sound
+#print axioms Yulang.GeneralRebasePartialBool268.total_neg
+#print axioms Yulang.GeneralRebasePartialBool268.total_either
+#print axioms Yulang.GeneralRebasePartialBool268.total_both
+#print axioms Yulang.GeneralRebasePartialBool268.true_iff
+#print axioms Yulang.GeneralRebaseDiagnosticData268.Inputs
+#print axioms Yulang.GeneralRebaseDiagnosticData268.SurvivorSound
+#print axioms Yulang.GeneralRebaseDiagnosticData268.Valid
+#print axioms Yulang.GeneralRebaseDiagnosticData268.Ambiguity
+#print axioms Yulang.GeneralRebaseDiagnosticData268.multiple
+#print axioms Yulang.GeneralRebaseDiagnosticData268.multiple_sound
+#print axioms Yulang.GeneralRebaseDiagnosticData268.k2
+#print axioms Yulang.GeneralRebaseDiagnosticData268.priority
+#print axioms Yulang.GeneralRebaseDiagnosticData268.k2_sound
+#print axioms Yulang.GeneralRebaseDiagnosticData268.priority_sound
+#print axioms Yulang.GeneralRebaseDiagnosticV6268.known
+#print axioms Yulang.GeneralRebaseDiagnosticV6268.run
+#print axioms Yulang.GeneralRebaseDiagnosticV6268.known_sound
+#print axioms Yulang.GeneralRebaseDiagnosticV6268.sound
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.conflicts
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.run
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.conflicts_sound
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.sound
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.Complete
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.total_priority
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.total_v6
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.total
+#print axioms Yulang.GeneralRebaseDiagnosticV8268.exact_of_complete
+#print axioms Yulang.GeneralRebaseDiagnosticSource268.Probes
+#print axioms Yulang.GeneralRebaseDiagnosticSource268.Sound
+#print axioms Yulang.GeneralRebaseDiagnosticSource268.prepare
+#print axioms Yulang.GeneralRebaseDiagnosticSource268.pending_exact
+#print axioms Yulang.GeneralRebaseDiagnosticSource268.survivor_bridge
+#print axioms Yulang.GeneralRebaseDiagnosticSource268.valid
+#print axioms Yulang.GeneralRebaseDiagnosticSource268.survivor_total
+#print axioms Yulang.GeneralRebaseDiagnosticSource268.total
+#print axioms Yulang.GeneralRebaseDiagnosticFixture268.checked
+#print axioms Yulang.GeneralRebaseDiagnosticFixture268.probes
+#print axioms Yulang.GeneralRebaseDiagnosticFixture268.sound
+#print axioms Yulang.GeneralRebaseDiagnosticFixture268.input
+#print axioms Yulang.GeneralRebaseDiagnosticFixture268.pendingGate
+#print axioms Yulang.GeneralRebaseDiagnosticFixture268.actual_run
+#print axioms Yulang.GeneralRebaseDiagnosticFixture268.independently_selected
