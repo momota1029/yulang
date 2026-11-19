@@ -23,7 +23,7 @@ abbrev Settled (m : Assignment) :=
 def retain (m : Assignment) : Assignment := fun id =>
   if id = actual then m id else complete m id
 
-theorem actual_large : 3 < actual := GeneralNominalIdentities.source_above_seed .. 
+theorem actual_large : 3 < actual := GeneralNominalIdentities.source_above_seed ..
 
 theorem retain_public (m : Assignment) : Agree (retain m) m := by
  constructor

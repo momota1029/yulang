@@ -1,0 +1,14 @@
+'Yulang.GeneralRebaseObservationLimits278.VersionInstallAvailable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseObservationLimits278.LooseInstallAvailable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseObservationLimits278.version_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObservationLimits278.loose_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseObservationLimits278.version_no_key_install_test' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseObservationLimits278.loose_no_key_install_test' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
