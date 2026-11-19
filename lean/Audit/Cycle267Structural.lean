@@ -1,0 +1,59 @@
+import Yulang.GeneralRebaseSupportedWorklist267
+import Yulang.GeneralRebaseExecutableAlias267
+import Yulang.GeneralRebaseOccurrenceEq267
+import Yulang.GeneralRebaseExecutableGenerated267
+import Yulang.GeneralRebaseCandidateShell267
+import Yulang.GeneralRebaseCandidatePlan267
+import Yulang.GeneralRebaseEnumeratePlans267
+import Yulang.GeneralRebaseCandidateFixture267
+
+#print axioms Yulang.GeneralRebaseSupportedWorklist267.path_supported
+#print axioms Yulang.GeneralRebaseSupportedWorklist267.saturated
+#print axioms Yulang.GeneralRebaseSupportedWorklist267.exact_with_invariant
+#print axioms Yulang.GeneralRebaseSupportedWorklist267.reachable_exact
+#print axioms Yulang.GeneralRebaseExecutableAlias267.next
+#print axioms Yulang.GeneralRebaseExecutableAlias267.support
+#print axioms Yulang.GeneralRebaseExecutableAlias267.next_exact
+#print axioms Yulang.GeneralRebaseExecutableAlias267.support_closed
+#print axioms Yulang.GeneralRebaseExecutableAlias267.path_symmetric
+#print axioms Yulang.GeneralRebaseExecutableAlias267.path_exact
+#print axioms Yulang.GeneralRebaseExecutableAlias267.aliases
+#print axioms Yulang.GeneralRebaseExecutableAlias267.aliases_exact
+#print axioms Yulang.GeneralRebaseExecutableAlias267.aliased
+#print axioms Yulang.GeneralRebaseExecutableAlias267.aliased_exact
+#print axioms Yulang.GeneralRebaseOccurrenceEq267.demandEq
+#print axioms Yulang.GeneralRebaseOccurrenceEq267.occurrenceEq
+#print axioms Yulang.GeneralRebaseOccurrenceEq267.same
+#print axioms Yulang.GeneralRebaseOccurrenceEq267.same_exact
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.children
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.aliases
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.next
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.support
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.children_exact
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.aliases_exact
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.support_closed
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.follow
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.path_sound
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.path_complete
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.discover
+#print axioms Yulang.GeneralRebaseExecutableGenerated267.discover_exact
+#print axioms Yulang.GeneralRebaseCandidateShell267.declarations
+#print axioms Yulang.GeneralRebaseCandidateShell267.declarations_exact
+#print axioms Yulang.GeneralRebaseCandidateShell267.candidates
+#print axioms Yulang.GeneralRebaseCandidateShell267.candidates_exact
+#print axioms Yulang.GeneralRebaseCandidateShell267.covers_install
+#print axioms Yulang.GeneralRebaseCandidatePlan267.DeclChecked
+#print axioms Yulang.GeneralRebaseCandidatePlan267.Shell
+#print axioms Yulang.GeneralRebaseCandidatePlan267.build
+#print axioms Yulang.GeneralRebaseCandidatePlan267.build_sound
+#print axioms Yulang.GeneralRebaseCandidatePlan267.build_recreates
+#print axioms Yulang.GeneralRebaseEnumeratePlans267.plans
+#print axioms Yulang.GeneralRebaseEnumeratePlans267.plans_exact
+#print axioms Yulang.GeneralRebaseEnumeratePlans267.frame_of_member
+#print axioms Yulang.GeneralRebaseEnumeratePlans267.includes_frame
+#print axioms Yulang.GeneralRebaseEnumeratePlans267.includes_install
+#print axioms Yulang.GeneralRebaseCandidateFixture267.checked
+#print axioms Yulang.GeneralRebaseCandidateFixture267.inferred
+#print axioms Yulang.GeneralRebaseCandidateFixture267.actual_listed
+#print axioms Yulang.GeneralRebaseCandidateFixture267.inferred_key
+#print axioms Yulang.GeneralRebaseCandidateFixture267.inferred_exact
