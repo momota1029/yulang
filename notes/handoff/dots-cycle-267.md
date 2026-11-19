@@ -1,0 +1,27 @@
+# Cycle 267: 実sourceから候補を列挙して、具体状態を更新する有限ドライバ
+
+公称 06:30 UTC、実開始 **2026-11-19 06:34:24 UTC**。最終取りまとめ **2026-11-19T07:24:26 UTC**（50.03 分、55 分上限 07:29:24）。25 分では、全 strict Step の反転・merge 接続・具体状態付きの再計算ドライバは未到達だった。次枠は先取りしない。出発 tree は公開済み 266 の `9b6f58f6`。開始時 integration は `a2927fae`、途中 `1b113cfd` に進んだ。両者は手元の祖先であり、standing orders / inbox の blob は同一、ACTIVE・I-51〜53 と凍結を再確認した。
+
+## 閉じた部分目標
+
+1. **候補の完全な構造列挙（健全性・完全性の部分）**。 `GeneralRebaseExecutableAlias267.aliased_exact`、`GeneralRebaseExecutableGenerated267.discover_exact` は、任意の現 journal の全 alias と生成済み occurrence を独立な帰納的判断と iff で照合する。数値 ID だけを occurrence 同値にしない。 `GeneralRebaseEnumeratePlans267.plans_exact` は、任意の現状態と checked 宣言を使い、実 raw site、center site、宣言、計算した argument bounds の構造的 Frame を満たす **完全な Plan データ**と iff。 `.includes_install` は任意の実 generated + Installable の effect の Plan 自体がこのリストに入る。 `GeneralRebaseCandidateFixture267.inferred_exact` は実 compound-where 初期 journal から候補リストの外部供給なしで一つを再現した。
+2. **実 survivor と判定保留（健全性・完全性の部分）**。 `GeneralRebaseCandidatePrepared267.prepared_iff` は正しい構造 Frame に対しリンク・freshness・finished を計算し、独立な Metadata と head model の存在だけを分離。 `GeneralRebaseSourceSurvivor267.from_survivor` は任意の checked reachable source と生成済み focus の任意の実 survivor に、キー・順序付き子が一致する枚挙済み代表を与える。代表の一意性ではない。 `GeneralRebaseSourceClassification267.source_valid` は head probe の正・負がそれぞれ正しいとき、確定出力が true survivorなし／唯一／異なる宣言 ID で複数、の各判断と整合する。未知は保留であり、survivor なしは言語の拒否ではない。全 Local 診断の判定は別。
+3. **実 install への接続（健全性・条件つき網羅性）**。 `GeneralRebaseInstallChecks267.choice_exact` は実 alias と過去 packet から厳密な ChoiceCompatible を計算するため、旧「1 role 1宣言」の仮定が不要。 `GeneralRebaseExecutableInstall267.source_step` と `GeneralRebaseInstallFixture267.actual_generated_install` は、列挙して見つけた具体 Plan が、別に証明した Local 診断と joint residual model の下で実 compound-where install になることを示す。 `GeneralRebaseNoveltyBoundary267.actual_semantic_novelty` は「新しい child 辺がないなら新規でない」を実 optional-output install で反駁する。該当する完全性だけ保留し、独立な semantic novelty と joint probe を加え、同じ観測結果を持つ全 concrete Plan を走査する。 `GeneralRebaseSemanticNoveltyFixture267.recovered_install` で同じ no-child 更新を実際に回復。 `GeneralRebaseInstallCoverage267.all_real_installs` は head が正直かつ全域で、意味 novelty・joint probe が各独立契約を満たすとき、任意の実生成済み・有効・未コミット install が **同じ Plan** で入る。網羅証明と出力の健全性は両方向で別の仮定。各 fixture は既存の別のモデル証人で probe を認証し、一般モデル探索の実装とはしない。
+4. **merge と全 strict Step の被覆（健全性・完全性の部分）**。 `GeneralRebaseMergeCenters267.source_sound` は任意のモデル述語で同 role・同じ中心列なら SameInputs。中心が異なることは失敗ではなく意味 probe に回せる。 `GeneralRebaseMergeScan267` は実登録サイトと生成性・未 alias の対を枚挙し、証人があれば実 merge と affected-only checked write を得る。 `GeneralRebaseMergeScanFixture267.recovered_strict` の実ガード付き strict merge ストレス例は明示構成 journal で、追加 plan の source 到達性は未主張。 `GeneralRebaseStrictSourceCases267.strict_inversion` は任意の source-reachable 状態で射影が変わる旧 Step が実 install か merge に限られると証明。enqueue は登録に反し、refresh/equate/reobserve の射影は不変。
+5. **同じ具体状態からの finite Step iff と実行版（健全性・完全性・停止性の部分）**。 `GeneralRebaseObserverExact267.step_iff` は任意の actual reachable source・固定 basis・sound/complete probes のもと、その同じ具体状態からの strict Step と有限 Step の iff。 `GeneralRebaseConcreteEntries267.same_order` と `GeneralRebaseConcreteScan267.scan_commutes` は発見した提案と **具体 successor を同一順序で保持**して既存の checked scheduler に一致。 `GeneralRebaseComputeEffect267.assemble` は既知の registry/snapshot/Plan をデータとして持ち、存在証明からは消去される proof fields だけを得る。 `GeneralRebaseConcreteDriver267.drive` はこれを実行可能な入力 probe に相対化し、更新した実状態から毎回観測をやり直す。 `GeneralRebaseConcreteCorrect267.verified` は任意の到達状態で sound/complete がそろい固定 basis が閉じているとき、返した実状態へ元 Step の有限列があり、回数は厳密変化数で、終点から直ちに射影を変える Step はないと示す。 `GeneralRebaseStrictAccessibility267.wellFounded` は固定 basis の strict 部分関係の無条件の整礎性で、stutter を含む旧 Step の整礎性ではない。terminal が後続 stutter で変わらないとは未証明。 `GeneralRebaseConcreteFixture267.actual_next` で実 compound-where の一歩の具体 successor を確認し、全語の実行は試験していない。
+6. **basis を初期 source から計算**。 `GeneralRebaseComputedBasis267.covered` / `.drive_on_computed` は、実 source formation、point/ground labels、宣言の coverage の下で、初期 seed、root labels の Paterson mass と有限 owner frontier から実行可能な owner/output basis を一度計算する。全到達状態でライブ義務はその範囲に入り、同じ閉 basis のドライバへ接続する。root label の抽出・型推論・意味 probe の自動化は未主張。
+
+## 検証・公開
+
+- **47 新規 Lean モジュール、248 名前付き宣言**（定理数ではない）。各焦点ビルドを Lean 4.35.0、trust 0、警告をエラーに設定して成功。7本の独立監査は `cd lean && lake env lean --trust=0 -DwarningAsError=true -R . Audit/Cycle267*.lean` を各ファイル別に実行し、標準3公理の部分集合のみ。 [モジュール・監査・ビルド詳細](../verification/cycle267/)。
+- I-53: barrel の全追加行を照合。I-51: 各監査は `Yulang.*` からのみ import。既存 Lean は barrel の追記のみ。凍結の spec・plan・監査本体・README は変更なし。
+- 静的差分ゲート `bash tools/verify-lean.sh . 1b113cfd93bd7ab89ccb1e4b29653dfd5f655775 --no-build` exit 0、[ログ](../verification/cycle267/diff-gate.txt)。全リポジトリのビルド、全公理ゲート、CI、Yulang 実機は未実施。前周に確認した旧監査の X1/2・K2 事例を背景とし、今回の後継 scheduler は Yulang2 との追加実機照合なし。
+- 開始・10・20・30・40・50分の心拍。途中 tree を `07dd38bf`、`c168a519`、`5122e764`、`23062055`、`ea7af20e`、`30df0e0e` で照合。integration の更新を検出して一度公開前停止し、内容と祖先を再照合して安全に再開。最終差分 **88 ファイル**（266の確定 tree 比較）。ディスク開始/終盤空きはいずれも約56 GB。利用量の枠は不明。独立の読み取りレビューは前提を確認し、独立再ビルドではない。
+
+## 残り
+
+I-52 の strict successor・測度・実例を前進したが、旧 Step の全停止性、source 横断の完全な代表対応、B4SkeletonV8 の14 fields の一般実装は未達。新しい言語仕様判断・質問ノートなし。優先は次の3点。
+
+1. full carrier の head/joint/novelty と SameInputs の証人・反証を実際のソルバから供給し、全現状態で契約を満たすこと。診断 Guard の K2/inspection/conflict を計算に接続すること。
+2. stutter の後に strict move が開くかの検査、必要なら source-preserving stutter closure。独立な相互モデル意味・履歴圧縮を接続すること。
+3. mixed-time packet、Permitted、Frame/EvidenceNode、一般の B4 分類への接続。この周を M1 の健全性・完全性・主型性の完了とはしない。

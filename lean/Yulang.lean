@@ -4970,3 +4970,4 @@ import Yulang.GeneralRebaseConcreteDriver267
 import Yulang.GeneralRebaseConcreteCorrect267
 import Yulang.GeneralRebaseConcreteFixture267
 import Yulang.GeneralRebaseStrictAccessibility267
+import Yulang.GeneralRebaseComputedBasis267

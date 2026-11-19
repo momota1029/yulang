@@ -118,3 +118,12 @@ source successor so the exact same scheduler choice can be replayed
 computably. Merge has its concrete pair already. Check the projected list
 matches the earlier observer in the same order, and use the checked-write
 rank for a bounded recomputing driver. Semantic contracts are still inputs.
+
+### Explicit finite basis, not repeatedly guessed
+
+With checked source formation, the root label syntax already used by the
+Paterson descent proof is an executable argument. Its mass and the original
+seed compute the potential owner frontier, and the same frontier computes
+the complete public target pool. Factor the existing existential coverage
+proof through these actual formulas without enumerating the reachable
+journals. The family of semantic probes remains a separate input.

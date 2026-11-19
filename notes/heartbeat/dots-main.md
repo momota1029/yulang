@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 267
-- status: running
+- status: completed
 - started: 2026-11-19T06:34:24Z
-- updated: 2026-11-19T07:24:24Z
-- elapsed_min: 50.01
-- activity: Final strict verification complete: 47 modules, 248 named declarations, static diff gate PASS. Publishing and verifying the completed tree.
+- updated: 2026-11-19T07:24:26Z
+- elapsed_min: 50.03
+- activity: Verified actual source Plan/merge discovery, strict correspondence and recomputing driver relative to independent semantic probes.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 39273f101
-- resume_hint: All verified on local HEAD; last published checkpoint 30df0e0e.
+- report: notes/handoff/dots-cycle-267.md
+- resume_hint: Next check latest integration directives. Open item: construct executable semantic and diagnostic probes; test stutter closure before strengthening old source termination.
