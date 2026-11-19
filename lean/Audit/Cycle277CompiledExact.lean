@@ -1,0 +1,21 @@
+import Yulang.GeneralRebaseCompiledAcc277
+import Yulang.GeneralRebaseCompiledPayload277
+import Yulang.GeneralRebaseCompiledEvidenceAt277
+
+#print axioms Yulang.GeneralRebaseCompiledAcc277.initial_generated
+#print axioms Yulang.GeneralRebaseCompiledAcc277.initial_known
+#print axioms Yulang.GeneralRebaseCompiledAcc277.initial_effect_unique
+#print axioms Yulang.GeneralRebaseCompiledAcc277.only_step
+#print axioms Yulang.GeneralRebaseCompiledAcc277.step_exact
+#print axioms Yulang.GeneralRebaseCompiledAcc277.source_acc
+#print axioms Yulang.GeneralRebaseCompiledAcc277.exact_reached
+#print axioms Yulang.GeneralRebaseCompiledAcc277.adapter
+#print axioms Yulang.GeneralRebaseCompiledAcc277.adapter_acc
+#print axioms Yulang.GeneralRebaseCompiledAcc277.adapter_next
+#print axioms Yulang.GeneralRebaseCompiledPayload277.child_shape
+#print axioms Yulang.GeneralRebaseCompiledPayload277.parent_shape
+#print axioms Yulang.GeneralRebaseCompiledPayload277.exact
+#print axioms Yulang.GeneralRebaseCompiledPayload277.adapter_exact
+#print axioms Yulang.GeneralRebaseCompiledEvidenceAt277.evidenceAt
+#print axioms Yulang.GeneralRebaseCompiledEvidenceAt277.generatedChildren
+#print axioms Yulang.GeneralRebaseCompiledEvidenceAt277.regression
