@@ -1,0 +1,58 @@
+'Yulang.GeneralRebaseEpochWindow284.table_complete' depends on axioms: [propext]
+'Yulang.GeneralRebaseEpochWindow284.table_size' does not depend on any axioms
+'Yulang.GeneralRebaseEpochWindow284.table_distinct' does not depend on any axioms
+'Yulang.GeneralRebaseEpochWindow284.forward' does not depend on any axioms
+'Yulang.GeneralRebaseEpochWindow284.exact_run' does not depend on any axioms
+'Yulang.GeneralRebaseEpochWindow284.ready_iff' depends on axioms: [propext]
+'Yulang.GeneralRebaseEpochWindow284.fresh_observed' depends on axioms: [propext]
+'Yulang.GeneralRebaseEpochWindow284.prior_observed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseEpochWindow284.written' depends on axioms: [propext]
+'Yulang.GeneralRebaseEpochWindow284.cycle' does not depend on any axioms
+'Yulang.GeneralRebaseEpochWindow284.no_acc' does not depend on any axioms
+'Yulang.GeneralRebaseWindowPaths284.every_future' depends on axioms: [propext]
+'Yulang.GeneralRebaseWindowPaths284.map_routes' does not depend on any axioms
+'Yulang.GeneralRebaseWindowPaths284.lift_routes' does not depend on any axioms
+'Yulang.GeneralRebaseWindowPaths284.route_iff' does not depend on any axioms
+'Yulang.GeneralRebaseWindowPaths284.actual_routes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWindowNoFinite284.threshold_right' does not depend on any axioms
+'Yulang.GeneralRebaseWindowNoFinite284.threshold_left' does not depend on any axioms
+'Yulang.GeneralRebaseWindowNoFinite284.counts' does not depend on any axioms
+'Yulang.GeneralRebaseWindowNoFinite284.all_ticks' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWindowNoFinite284.not_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.payload_shape' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.shared_future' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.exact_joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.exact_unbounded_future' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.previous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.readiness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.future_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWindow284.obstruction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.payload_shape' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.shared_future' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.exact_joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.exact_unbounded_future' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.previous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.readiness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.future_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWindow284.obstruction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWindowMinimum284.witness_exact' does not depend on any axioms
+'Yulang.GeneralRebaseWindowMinimum284.distinguish' depends on axioms: [propext]
+'Yulang.GeneralRebaseWindowMinimum284.minimum' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWindowPorts284.presence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWindowPorts284.exact_reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWindowPorts284.previous_has_index' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWindowPorts284.carry' does not depend on any axioms
+'Yulang.GeneralRebaseWindowPorts284.carry_raw' does not depend on any axioms
+'Yulang.GeneralRebaseWindowPorts284.root_bound' depends on axioms: [propext]
+'Yulang.GeneralRebaseWindowPortSound284.equation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionPortRead284.model_stage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionPortRead284.correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionPortRead284.one_witness_with_ports' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseLoosePortRead284.model_stage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoosePortRead284.correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLoosePortRead284.one_witness_with_ports' depends on axioms: [propext, Classical.choice, Quot.sound]
+exit=0

@@ -2,9 +2,9 @@
 - cycle: 284
 - status: running
 - started: 2026-11-19T23:33:14Z
-- updated: 2026-11-19T23:43:18Z
-- elapsed_min: 10.07
-- activity: 実239/240の生journal支持は2n以上。どの歴史キーを消しても全割当上のModels保存が壊れる反例を検証。
+- updated: 2026-11-19T23:53:21Z
+- elapsed_min: 20.12
+- activity: 239/240の実microtraceの6状態窓、公開Models・葉証拠・相対port読みを全未来で照合。無制限raw観測の有限化不能も証明。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: b21209c5a
-- resume_hint: 公開境界＋row全域の射影で、別の有限状態が何を保存できるかを立てる。
+- last_local_commit: cb14687d3
+- resume_hint: 実判断のうち何を近傍portに運べるか、有限watch証明の具体例を広げる。
