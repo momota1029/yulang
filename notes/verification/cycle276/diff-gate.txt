@@ -1,0 +1,5 @@
+Command: bash tools/verify-lean.sh . d750e84ea --no-build
+Full stdout SHA-256: c66ad1819dff7ed8c0c2959c1bc86c8e756bb6d6bf7a665a539925792522d8fa
+Full stdout lines: 903
+verify-lean: . @ d0ee2da6b (base d750e84ea)
+verify-lean: PASS (diff checks only, NO build)

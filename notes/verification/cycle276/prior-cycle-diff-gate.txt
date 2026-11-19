@@ -1,0 +1,5 @@
+Command: bash tools/verify-lean.sh . eeda8160d --no-build
+Full stdout SHA-256: 4e21e82f17105872688a7af5ccb184bdef2ae828d33d1df3eb391b6b4b9ee578
+Full stdout lines: 940
+verify-lean: . @ d0ee2da6b (base eeda8160d)
+verify-lean: PASS (diff checks only, NO build)

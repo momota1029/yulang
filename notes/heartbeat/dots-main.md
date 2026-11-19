@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 276
-- status: running
+- status: completed
 - started: 2026-11-19T15:30:08Z
-- updated: 2026-11-19T16:10:00Z
-- elapsed_min: 39.88
-- activity: Published exact two-node mixed executor, recursive transport, and scalar head invariance; checking exact public reconstruction.
+- updated: 2026-11-19T16:20:09Z
+- elapsed_min: 50.02
+- activity: Verified a real Display/Int nonleaf V8 fixture with exactly one mixed-kernel Step from source, an exact executable, and an independent refresh transport.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: d0ee2da6b
-- resume_hint: No same-repo conflict. Most results already published; finish optional scalar report/public replay and focused logs.
+- last_local_commit: a9265bdde
+- report: notes/handoff/dots-cycle-276.md
+- resume_hint: Refetch latest orders; keep the direct 198 fixture result. For the encoded adapter, construct the role-local compiled effect and compare core/model-equivalent distinct raw states, or pursue a second independently checked source.
