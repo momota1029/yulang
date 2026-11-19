@@ -1,0 +1,49 @@
+'Yulang.GeneralRebaseClosedOriginDriver270.covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.inspect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.inspect_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.inspectRoot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.inspectRoot_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.rootK2' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.rootK2_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.totalEdges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.edges_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.matchSource' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.inspect_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginDriver270.inspect_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Positive.full_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Positive.full_matrix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Positive.computed_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Positive.actual_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Positive.unstored_source_unknown' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Negative.full_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Negative.full_matrix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Negative.computed_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseClosedOriginFixture270.Negative.actual_root_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseOutputFreeCompiler270.recognizes' does not depend on any axioms
+'Yulang.GeneralRebaseOutputFreeCompiler270.recognizes_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOutputFreeCompiler270.compile' does not depend on any axioms
+'Yulang.GeneralRebaseOutputFreeCompiler270.compiler_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputFreeCompiler270.compiler_complete_on_fragment' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOutputFreeCompiler270.run' does not depend on any axioms
+'Yulang.GeneralRebaseOutputFreeCompiler270.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOutputFreeCompiler270.version239_recognized' does not depend on any axioms
+'Yulang.GeneralRebaseOutputFreeCompiler270.version240_recognized' does not depend on any axioms
+'Yulang.GeneralRebaseOutputFreeCompiler270.compound_not_claimed' depends on axioms: [propext, Quot.sound]

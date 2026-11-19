@@ -91,3 +91,22 @@ representative reduction followed by a tag disagreement, not missing
 coverage. The query computes `some false` and Lean proves full-model
 non-recurrence. These are journal models, not surface reachability
 or old-kernel halting claims.
+
+## Automatic dispatch on the two certified scopes
+
+The output-free compiler checks the actual root's requested outputs
+and the finite list of child clauses in every registry declaration.
+A positive check returns canonical behavior for every reached journal,
+not just the original one; a negative check abstains. The old failing
+loops are accepted as visible-terminal, while real compound 238 is
+rejected here and handled by its separate rank-two compiler.
+
+The closed-origin driver builds its window from all raw slots. Its
+partial root probe scans the actual occurrence's demand arguments and
+matching site centers. Its soundness has only the witness of a full
+journal model and the checked windows, and it composes with a
+separately sound raw K2 probe. When the Boolean total-edge check passes
+and the queried origin has a located representative, the recurrence
+answer is exact. In the two synthetic journals the whole matrix is
+determinate and the full root check computes both polarities.
+An unstored origin remains unknown.

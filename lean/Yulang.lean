@@ -5064,3 +5064,6 @@ import Yulang.GeneralRebaseVariantNominalFixture270
 import Yulang.GeneralRebaseOriginNegativeTags270
 import Yulang.GeneralRebaseOriginRepresentative270
 import Yulang.GeneralRebaseAcyclicNominal270
+import Yulang.GeneralRebaseClosedOriginDriver270
+import Yulang.GeneralRebaseClosedOriginFixture270
+import Yulang.GeneralRebaseOutputFreeCompiler270

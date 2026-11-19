@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseClosedOriginDriver270
+PASS Yulang.GeneralRebaseClosedOriginFixture270
+PASS Yulang.GeneralRebaseOutputFreeCompiler270
