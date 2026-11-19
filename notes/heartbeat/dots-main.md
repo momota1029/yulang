@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 271
-- status: completed
-- started: 2026-11-19T10:30:00Z
-- updated: 2026-11-19T11:20:06Z
-- elapsed_min: 50.10
-- activity: Checked record and nested origin classification; actual 252 local root checks, finite rebase and complete finite trace classification.
+- cycle: 272
+- status: running
+- started: 2026-11-19T11:30:00Z
+- updated: 2026-11-19T11:30:19Z
+- elapsed_min: 0.33
+- activity: Prove finite branching readback certificates against the unchanged original semantic Edge and diagnose limits.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 54adce667
-- report: notes/handoff/dots-cycle-271.md
-- resume_hint: Read latest integration orders. Open: general source observer, finite full-model witnesses beyond unary outputs and full V8 EvidenceNode. Do not claim old-kernel termination.
+- last_local_commit: a1cc0b224
+- resume_hint: Read integration standing orders and inbox; previous cycle271 completed.
