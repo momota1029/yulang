@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseDisplayAcc276.initial_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayAcc276.initial_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayAcc276.initial_effect_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayAcc276.only_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayAcc276.step_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayAcc276.source_acc' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayAcc276.exact_reached' depends on axioms: [propext, Classical.choice, Quot.sound]
