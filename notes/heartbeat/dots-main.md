@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 270
-- status: completed
-- started: 2026-11-19T09:30:00Z
-- updated: 2026-11-19T10:20:06Z
-- elapsed_min: 50.10
-- activity: Checked executable finite rebase Steps on real source fragments, bounded replay certificates and positive and negative outcomes of closed semantic root queries.
+- cycle: 271
+- status: running
+- started: 2026-11-19T10:30:00Z
+- updated: 2026-11-19T10:30:19Z
+- elapsed_min: 0.32
+- activity: Check general visible record positions for semantic origin support and its closure for the finite driver.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: d598a96ad
-- report: notes/handoff/dots-cycle-270.md
-- resume_hint: Read latest integration orders. Open: general source observer with exact terminal support, complete visible record positions and full V8 EvidenceNode. Do not claim old-kernel termination.
+- last_local_commit: 7829ecdac
+- resume_hint: Read integration inbox and standing orders first, then latest verified proof checkpoint. Prior cycle 270 was completed.
