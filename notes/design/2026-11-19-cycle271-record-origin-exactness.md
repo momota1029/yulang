@@ -18,3 +18,14 @@ child is equal to the target; unknown target equality remains unknown.
 model witness. Synthetic journal fixtures should include nontrivial
 record fields; no claim about surface reachability, general model
 construction, or kernel termination.
+
+The arbitrary literal record test now reduces to the certified
+canonical layout even if its label order or multiplicities differ.
+First lookup of a different field is unchanged by updating a hidden
+value. A live noncanonical index must survive the full-carrier Int/Str
+comparison in one actual model, which proves it is visible. The set
+of visible labels is fixed by field-presence probes, and the visible
+payload equivalence at that same key holds in every valid model.
+Exact-empty is separately distinguished by an actual carrier probe;
+it has no semantic type edges. All normalized structural shapes now
+share a single edge support theorem.
