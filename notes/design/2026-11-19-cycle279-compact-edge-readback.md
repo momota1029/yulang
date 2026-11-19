@@ -1,0 +1,7 @@
+# Edge delta compression inside the actual install transformer
+
+A child edge is a pair of *full* occurrences. An occurrence ID by itself is not injective by the carrier definition; use ID plus role, the arity-indexed argument list and the named output list. Compare these first-order data, retaining order and repetitions in the filtered write. The retained state is the actual post-install journal with only the edge list changed from old ++ prospective to old ++ fresh: the full old prefix is kept, not sorted or deduplicated, and the packet's original ordered child list is untouched.
+
+The key invariant is membership equivalence at the raw edge type. It gives Generated equivalence, while Models, exact V8 Local and the original ordered dictionary evidence are unchanged even by an arbitrary change of that edge list (sites, aliases, tests, current context, packets and effects are not touched). In particular semantic silence is strictly weaker than a structurally silent install. This is a successor storage law in the concrete versioned boundary, not a new source acceptance rule or a proof that reducing edges also permits erasing packet history.
+
+For operational closure, separately check that the cache trust sources and installable witnesses can be transported. A raw install stores the original effect snapshot; a fully rewritten simulator that changes stored snapshots needs an additional history congruence. Until that is proved, do not claim raw Step equality or a full successor bisimulation.

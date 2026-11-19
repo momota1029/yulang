@@ -1,0 +1,89 @@
+import Yulang.GeneralRebaseOccurrenceCode279
+import Yulang.GeneralRebaseEdgeReceipt279
+import Yulang.GeneralRebaseCompactEdgeInstall279
+import Yulang.GeneralRebaseCompactDisplay279
+import Yulang.GeneralRebaseCompactDiagnostics279
+import Yulang.GeneralRebaseCompactMerged279
+import Yulang.GeneralRebaseCompactLocal279
+
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.DemandCode
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.OccurrenceCode
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.outputCode
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.demandCode
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.occurrenceCode
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.outputCode_injective
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.outputCodes_injective
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.argumentsCode_injective
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.demandCode_injective
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.occurrenceCode_injective
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.codeEdge
+#print axioms Yulang.GeneralRebaseOccurrenceCode279.edgeCode_injective
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.edgeKnown
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.edgeKnown_exact
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.freshEdges
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.mem_freshEdges
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.receipt
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.receipt_exact
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.receipt_retains_order
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.receipt_some_iff
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.receipt_empty_iff
+#print axioms Yulang.GeneralRebaseEdgeReceipt279.append_delta_membership
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.replaceEdges
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.requests_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.classes_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.legacy_models_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.models_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.aliases_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.generated_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.frame_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.evidence_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.committed_exact
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.reduced
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.reduced_membership
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.reduced_models
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.reduced_generated
+#print axioms Yulang.GeneralRebaseCompactEdgeInstall279.reduced_evidence
+#print axioms Yulang.GeneralRebaseCompactDisplay279.exact_receipt
+#print axioms Yulang.GeneralRebaseCompactDisplay279.exact_reduced_edges
+#print axioms Yulang.GeneralRebaseCompactDisplay279.same_models
+#print axioms Yulang.GeneralRebaseCompactDisplay279.actual_child
+#print axioms Yulang.GeneralRebaseCompactDisplay279.actual_payload
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.same_models
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.cyclic_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.root_cycle_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.candidate_cycle_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.safe_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.ready_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.administrative_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.chosen_head_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.chosen_effects_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.output_conflict_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.feasible_iff
+#print axioms Yulang.GeneralRebaseCompactDiagnostics279.at_key_iff
+#print axioms Yulang.GeneralRebaseCompactMerged279.equal_outputs_iff
+#print axioms Yulang.GeneralRebaseCompactMerged279.legacy_class_iff
+#print axioms Yulang.GeneralRebaseCompactMerged279.class_iff
+#print axioms Yulang.GeneralRebaseCompactMerged279.context_iff
+#print axioms Yulang.GeneralRebaseCompactMerged279.merged_class_iff
+#print axioms Yulang.GeneralRebaseCompactMerged279.conflict_iff
+#print axioms Yulang.GeneralRebaseCompactLocal279.B
+#print axioms Yulang.GeneralRebaseCompactLocal279.V7
+#print axioms Yulang.GeneralRebaseCompactLocal279.V6
+#print axioms Yulang.GeneralRebaseCompactLocal279.root_k2
+#print axioms Yulang.GeneralRebaseCompactLocal279.candidate_k2
+#print axioms Yulang.GeneralRebaseCompactLocal279.inspection_pending
+#print axioms Yulang.GeneralRebaseCompactLocal279.safe_known
+#print axioms Yulang.GeneralRebaseCompactLocal279.v6_root
+#print axioms Yulang.GeneralRebaseCompactLocal279.v6_candidate
+#print axioms Yulang.GeneralRebaseCompactLocal279.v6_pending
+#print axioms Yulang.GeneralRebaseCompactLocal279.v7_root
+#print axioms Yulang.GeneralRebaseCompactLocal279.v7_candidate
+#print axioms Yulang.GeneralRebaseCompactLocal279.v7_safe
+#print axioms Yulang.GeneralRebaseCompactLocal279.v6_reject
+#print axioms Yulang.GeneralRebaseCompactLocal279.v6_local
+#print axioms Yulang.GeneralRebaseCompactLocal279.v7_priority
+#print axioms Yulang.GeneralRebaseCompactLocal279.v7_local
+#print axioms Yulang.GeneralRebaseCompactLocal279.sharing
+#print axioms Yulang.GeneralRebaseCompactLocal279.v8_priority
+#print axioms Yulang.GeneralRebaseCompactLocal279.exact
+#print axioms Yulang.GeneralRebaseCompactLocal279.adapter

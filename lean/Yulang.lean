@@ -5307,3 +5307,10 @@ import Yulang.GeneralRebaseInstallRequestDelta279
 import Yulang.GeneralRebaseInstallDeltaModels279
 import Yulang.GeneralRebaseInstallNovelty279
 import Yulang.GeneralRebaseInstallDisplayDelta279
+import Yulang.GeneralRebaseOccurrenceCode279
+import Yulang.GeneralRebaseEdgeReceipt279
+import Yulang.GeneralRebaseCompactEdgeInstall279
+import Yulang.GeneralRebaseCompactDisplay279
+import Yulang.GeneralRebaseCompactDiagnostics279
+import Yulang.GeneralRebaseCompactMerged279
+import Yulang.GeneralRebaseCompactLocal279
