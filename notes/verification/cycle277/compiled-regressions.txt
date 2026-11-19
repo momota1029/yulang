@@ -1,0 +1,8 @@
+12
+1
+true
+true
+true
+false
+true
+exit=0

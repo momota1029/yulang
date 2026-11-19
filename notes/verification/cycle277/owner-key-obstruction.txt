@@ -1,0 +1,4 @@
+'Yulang.Cycle277OwnerKeyObstruction.repeated_owner_not_absorbed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0

@@ -1,0 +1,18 @@
+Toolchain: Lean 4.35.0. All production modules checked by focused commands only:
+  cd lean
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . \
+    -o .lake/build/lib/lean/Yulang/<module>.olean Yulang/<module>.lean
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . Audit/Cycle277<group>.lean
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle277/compiled-regressions.lean
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle277/owner-key-obstruction.lean
+The independent V8, ownership, operational and trace sections are each listed
+with per-declaration axiom outputs in verified-manifest.txt. Two known
+dependencies of the 236 quiet partition were rebuilt locally by the same command.
+
+Static checks from repository root:
+  bash tools/verify-lean.sh . eeda8160d --no-build
+  bash tools/verify-lean.sh . 5c02ae884 --no-build
+  git diff --check 5c02ae884..HEAD
+  git diff --exit-code 5c02ae884..HEAD -- spec notes/plan lean/Audit.lean \
+    lean/README.md 'lean/lakefile.*' lean/lean-toolchain
+No whole Lake build, CI execution or Yulang runtime execution.

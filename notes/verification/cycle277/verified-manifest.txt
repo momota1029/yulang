@@ -1,0 +1,16 @@
+Cycle 277 focused build and independent audit manifests
+compiled-display: 2 modules, 27 audited declarations
+compiled-evidence: 3 modules, 24 audited declarations
+compiled-exact: 3 modules, 17 audited declarations
+compiled-install: 1 modules, 16 audited declarations
+compiled-public: 2 modules, 19 audited declarations
+compiled-stable: 3 modules, 44 audited declarations
+finite-boundary: 1 modules, 5 audited declarations
+finite-code: 1 modules, 6 audited declarations
+mixed-length: 2 modules, 8 audited declarations
+owned-trace: 2 modules, 24 audited declarations
+quiet-growth: 4 modules, 36 audited declarations
+registry-diagnostics: 2 modules, 24 audited declarations
+registry-step: 3 modules, 27 audited declarations
+registry-support: 4 modules, 41 audited declarations
+33 new library modules; 318 distinct named declarations; 14 independent audits; standard axioms only.
