@@ -5129,3 +5129,6 @@ import Yulang.GeneralRebaseTreeSchemaClosure272
 import Yulang.GeneralRebaseCanonicalUniqueness272
 import Yulang.GeneralRebaseTreeCompileMonotone272
 import Yulang.GeneralRebaseTreeLeastClosure272
+import Yulang.GeneralRebaseFiniteTreeCode272
+import Yulang.GeneralRebaseFiniteTreeCompare272
+import Yulang.GeneralRebaseUniformTree272

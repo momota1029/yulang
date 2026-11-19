@@ -79,3 +79,21 @@ change the chosen tree in the same model. Adding more certified seeds
 preserves each compiler result; the bounded closure is least among
 certified fixed points extending the seed, and independent of permutation
 of a fixed retained plan list in the same model.
+
+## A countermodel comparator for finite readbacks
+
+Compare canonical finite trees by a reified head/child code. A single
+actual model can refute old all-model Equal when projected observations
+are absent, nonfunctional, or have distinct readback trees. Matching
+codes prove model-local Same but do not establish an all-model positive.
+Exercise this on the two actual 218 variant branches that have the same
+coarse tag but different scalar leaf types. It is a certificate about the
+specified origins, not a substitute for the separate child sharing guard.
+
+The same evaluator has an all-model positive variant only with uniform
+source certification. Fixed emitted equations preserve the uniform
+certificate one plan/pass at a time. In real installed 252 the source
+input tree is forced across all models by its retained packet, and the
+derived output tree after two selections computes the same witness as
+input 2. The comparison becomes a genuine all-model Equal proof there.
+An isolated fixture model by itself can only disprove that judgment.

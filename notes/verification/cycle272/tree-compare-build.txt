@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseFiniteTreeCode272
+PASS Yulang.GeneralRebaseFiniteTreeCompare272
+PASS Yulang.GeneralRebaseUniformTree272
