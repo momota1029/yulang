@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseNonleafTransport276
+
+#print axioms Yulang.GeneralRebaseNonleafTransport276.ReadyRule
+#print axioms Yulang.GeneralRebaseNonleafTransport276.leaf_or_node
+#print axioms Yulang.GeneralRebaseNonleafTransport276.rule_refresh
+#print axioms Yulang.GeneralRebaseNonleafTransport276.indexed_refresh
+#print axioms Yulang.GeneralRebaseNonleafTransport276.erase_refresh

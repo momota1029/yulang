@@ -1,0 +1,6 @@
+import Yulang.GeneralRebaseNonleafPrepared276
+
+#print axioms Yulang.GeneralRebaseNonleafPrepared276.heads_of_packet
+#print axioms Yulang.GeneralRebaseNonleafPrepared276.located
+#print axioms Yulang.GeneralRebaseNonleafPrepared276.prepared
+#print axioms Yulang.GeneralRebaseNonleafPrepared276.frame

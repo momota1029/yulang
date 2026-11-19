@@ -1,0 +1,4 @@
+'Yulang.GeneralRebaseNonleafPrepared276.heads_of_packet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNonleafPrepared276.located' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonleafPrepared276.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNonleafPrepared276.frame' depends on axioms: [propext, Classical.choice, Quot.sound]

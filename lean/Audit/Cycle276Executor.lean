@@ -1,0 +1,23 @@
+import Yulang.GeneralRebaseDisplayExecutor276
+
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.Phase
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.Goal
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.rank
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.height
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.invocation
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.localTable
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.emit
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.step
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.run
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.raw
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.phase_distinct
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.exact_steps
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.complete
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.model_exact
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.table_exact
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.child_smaller
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.canonical
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.underfuel
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.wrong_key
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.run_exact
+#print axioms Yulang.GeneralRebaseDisplayExecutor276.readback

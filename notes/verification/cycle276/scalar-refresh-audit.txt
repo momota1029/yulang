@@ -1,0 +1,5 @@
+'Yulang.GeneralRebaseScalarRefresh276.nominal_none' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseScalarRefresh276.scalar_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseScalarRefresh276.scalar_inspect' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseScalarRefresh276.scalar_report_mapped' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseScalarRefresh276.no_scalar_in_nominal_contract' depends on axioms: [propext, Quot.sound]

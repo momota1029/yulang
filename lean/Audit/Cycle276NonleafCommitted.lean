@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseNonleafCommitted276
+
+#print axioms Yulang.GeneralRebaseNonleafCommitted276.refinement
+#print axioms Yulang.GeneralRebaseNonleafCommitted276.interpretation
+#print axioms Yulang.GeneralRebaseNonleafCommitted276.result
+#print axioms Yulang.GeneralRebaseNonleafCommitted276.observed
+#print axioms Yulang.GeneralRebaseNonleafCommitted276.committed
+#print axioms Yulang.GeneralRebaseNonleafCommitted276.ready
