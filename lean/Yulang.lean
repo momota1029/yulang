@@ -4977,3 +4977,9 @@ import Yulang.GeneralRebaseDiagnosticV6268
 import Yulang.GeneralRebaseDiagnosticV8268
 import Yulang.GeneralRebaseDiagnosticSource268
 import Yulang.GeneralRebaseDiagnosticFixture268
+import Yulang.GeneralRebaseDirectCycles268
+import Yulang.GeneralRebaseDirectedRoot268
+import Yulang.GeneralRebaseDirectedCandidate268
+import Yulang.GeneralRebasePartialCycles268
+import Yulang.GeneralRebasePartialFinite268
+import Yulang.GeneralRebaseRawK2Probe268

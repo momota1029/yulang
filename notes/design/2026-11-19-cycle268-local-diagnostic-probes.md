@@ -19,3 +19,13 @@ bodies. Nonempty cycles in that adjacency are exactly DirectCycle.
 Emit a positive raw root/candidate cycle only when existing linked/known and
 prepared conditions permit it. A negative direct test alone never refutes the
 rest of K2 (semantic edges or full journal recurrence).
+
+### Finite semantic slot graph: lower and upper evidence
+
+For the raw normalized slot-cycle relation, each edge decision may be
+partial. Construct a lower graph containing certified positive edges and
+an upper graph omitting only certified negative edges. A lower-graph
+cycle is positive, an acyclic upper graph is negative; otherwise defer.
+Both decisions transfer to the independent inductive cycle relation.
+This does not manufacture semantic edge proofs or cover the separate
+full journal Origin graph, whose universe is not given by Fin slots.
