@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseFiniteCodeAcc277
+
+#print axioms Yulang.GeneralRebaseFiniteCodeAcc277.Certificate
+#print axioms Yulang.GeneralRebaseFiniteCodeAcc277.extend
+#print axioms Yulang.GeneralRebaseFiniteCodeAcc277.distinct
+#print axioms Yulang.GeneralRebaseFiniteCodeAcc277.installation_budget
+#print axioms Yulang.GeneralRebaseFiniteCodeAcc277.reached_after_count
+#print axioms Yulang.GeneralRebaseFiniteCodeAcc277.accessible
