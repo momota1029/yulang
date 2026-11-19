@@ -55,3 +55,15 @@ return a concrete first weak witness. Tests replay the actual compound
 install and the actual 238 refresh/reobserve pair. Failure to find a
 strict edge on a supplied path is only path-wise; the independent
 output-free proof is needed to exclude arbitrary alternative strict exits.
+
+### Mixed rigid structural / nominal origin windows
+
+For a raw normalized structural slot, derive the actual full-model head
+and each actual-position projection from the checked raw equations and
+canonical readback functionality. Pair and variant tags uniquely determine
+their positive-arity tests; scalar has no type children. A record tag
+does not identify a literal arbitrary label list, so record and unknown
+heads are outside this exact finite branch. Combine these rigid positions
+with the earlier typed nominal positions in a finite mixed window. Every
+supported successor must be represented, and unknown semantic equality
+must not be treated as negative.

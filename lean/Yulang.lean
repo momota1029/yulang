@@ -5058,3 +5058,6 @@ import Yulang.GeneralRebaseReplayScript270
 import Yulang.GeneralRebaseNoOutputs270
 import Yulang.GeneralRebaseOutputFreeRegressions270
 import Yulang.GeneralRebaseReplayFixture270
+import Yulang.GeneralRebaseStructuralOrigin270
+import Yulang.GeneralRebaseMixedOriginWindow270
+import Yulang.GeneralRebaseVariantNominalFixture270

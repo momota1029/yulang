@@ -1,0 +1,55 @@
+import Yulang.GeneralRebaseStructuralOrigin270
+import Yulang.GeneralRebaseMixedOriginWindow270
+import Yulang.GeneralRebaseVariantNominalFixture270
+
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.Slots
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.Kind
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.shape
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.Rigid
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.kids
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.root_shape
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.shape_head
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.scalar_head
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.projected_equals
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.same_tag
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.rigid_test
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.scalar_no_edge
+#print axioms Yulang.GeneralRebaseStructuralOrigin270.rigid_edge_iff
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.sourceEq
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.sourceEq_sound
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.nominalPart
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.nominalPart_sound
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.edge
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.edge_sound
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.covered
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.check
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.forward
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.window
+#print axioms Yulang.GeneralRebaseMixedOriginWindow270.certified
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.shapes
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.heads
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.base
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.view
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.descriptor
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.state
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.body
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.value
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.model
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.variant_equation
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.list_equation
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.state_models
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.context
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.root
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.journal
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.full_model
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.points
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.window
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.coverage
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.certificate
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.identify
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.identify_sound
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.query
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.calculated_forward
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.calculated_backward
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.calculated_root
+#print axioms Yulang.GeneralRebaseVariantNominalFixture270.actual_cycle

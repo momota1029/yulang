@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseStructuralOrigin270
+PASS Yulang.GeneralRebaseMixedOriginWindow270
+PASS Yulang.GeneralRebaseVariantNominalFixture270
