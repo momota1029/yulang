@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 275
-- status: running
+- status: completed
 - started: 2026-11-19T14:30:10Z
-- updated: 2026-11-19T15:20:10Z
-- elapsed_min: 50.01
-- activity: Final focused gates and executable mixed replay passed; assembling final release.
+- updated: 2026-11-19T15:20:15Z
+- elapsed_min: 50.08
+- activity: Verified full mixed-kernel accessibility from installed 230, a three-step upper bound, and history-independent positive V8 leaf evidence.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 9dff77d7f
-- resume_hint: Ready for expected-head final commit. Passed.
+- report: notes/handoff/dots-cycle-275.md
+- resume_hint: Refetch latest orders; do not redo 230 post-install. Next genuine nonleaf fixture GeneralNominalMixedNonleaf198 or pre-install reachability.
