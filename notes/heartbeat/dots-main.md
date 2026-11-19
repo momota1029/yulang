@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 267
-- status: completed
-- started: 2026-11-19T06:34:24Z
-- updated: 2026-11-19T07:24:26Z
-- elapsed_min: 50.03
-- activity: Verified actual source Plan/merge discovery, strict correspondence and recomputing driver relative to independent semantic probes.
+- cycle: 268
+- status: running
+- started: 2026-11-19T07:30:00Z
+- updated: 2026-11-19T07:30:14Z
+- elapsed_min: 0.23
+- activity: Compile the exact local diagnostic layer; separate executable checks and semantic evidence.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 39273f101
-- report: notes/handoff/dots-cycle-267.md
-- resume_hint: Next check latest integration directives. Open item: construct executable semantic and diagnostic probes; test stutter closure before strengthening old source termination.
+- last_local_commit: 9f6a6104f
+- resume_hint: Cycle 267 is complete; consult current cycle268 design and verified checkpoints when available.
