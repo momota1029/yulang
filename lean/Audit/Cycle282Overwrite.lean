@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseOptionalOverwrite282
+
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.lowerPort
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.before_reached
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.point_reached
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.old_latest
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.new_latest
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.old_write
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.new_write
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.read_lower
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.old_lower
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.new_lower
+#print axioms Yulang.GeneralRebaseOptionalOverwrite282.stale_append_fails
