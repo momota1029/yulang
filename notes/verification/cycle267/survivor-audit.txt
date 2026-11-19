@@ -1,0 +1,61 @@
+'Yulang.GeneralRebaseCandidateChecks267.linked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.linked_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.nonunresolved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.known_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.allKnown' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.allKnown_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.fresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.fresh_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidateChecks267.finished_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidatePrepared267.preflight' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidatePrepared267.preflight_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidatePrepared267.headCondition' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCandidatePrepared267.prepared_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCandidatePrepared267.readyPlans' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCandidatePrepared267.ready_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCandidatePrepared267.includes_real_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceSurvivor267.Boundary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceSurvivor267.Encoded' does not depend on any axioms
+'Yulang.GeneralRebaseSourceSurvivor267.declChecked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceSurvivor267.from_survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceSurvivor267.to_survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.Match' does not depend on any axioms
+'Yulang.GeneralRebaseHeadProbe267.observation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.atFocus' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.atFocus_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.Honest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.positive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.unresolved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.positive_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.unresolved_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.source_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbe267.source_complete_or_unknown' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePartialClassification267.Verdict' does not depend on any axioms
+'Yulang.GeneralRebasePartialClassification267.apart' does not depend on any axioms
+'Yulang.GeneralRebasePartialClassification267.apart_iff' depends on axioms: [propext]
+'Yulang.GeneralRebasePartialClassification267.classify' does not depend on any axioms
+'Yulang.GeneralRebasePartialClassification267.Valid' does not depend on any axioms
+'Yulang.GeneralRebasePartialClassification267.classify_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePartialClassification267.unique_despite_duplicate_unknown' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourceClassification267.verdict' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSourceClassification267.structural_valid' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceClassification267.Justified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceClassification267.source_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbeFixture267.entries' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbeFixture267.entry_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbeFixture267.actual_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbeFixture267.entries_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbeFixture267.certifiedCase' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHeadProbeFixture267.certifiedCase_honest' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseHeadProbeFixture267.verified_choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHeadProbeFixture267.no_model_probe_stays_deferred' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

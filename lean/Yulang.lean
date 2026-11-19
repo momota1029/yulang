@@ -4932,3 +4932,10 @@ import Yulang.GeneralRebaseCandidateShell267
 import Yulang.GeneralRebaseCandidatePlan267
 import Yulang.GeneralRebaseEnumeratePlans267
 import Yulang.GeneralRebaseCandidateFixture267
+import Yulang.GeneralRebaseCandidateChecks267
+import Yulang.GeneralRebaseCandidatePrepared267
+import Yulang.GeneralRebaseSourceSurvivor267
+import Yulang.GeneralRebaseHeadProbe267
+import Yulang.GeneralRebasePartialClassification267
+import Yulang.GeneralRebaseSourceClassification267
+import Yulang.GeneralRebaseHeadProbeFixture267
