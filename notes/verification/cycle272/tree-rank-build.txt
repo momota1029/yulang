@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseFiniteTree272
+PASS Yulang.GeneralRebaseTreeProjection272
+PASS Yulang.GeneralRebaseTreeAcyclic272

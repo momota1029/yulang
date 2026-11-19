@@ -1,0 +1,22 @@
+'Yulang.GeneralRebaseFiniteTree272.Tree' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteTree272.Canonical' depends on axioms: [propext]
+'Yulang.GeneralRebaseFiniteTree272.value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTree272.height' does not depend on any axioms
+'Yulang.GeneralRebaseFiniteTree272.list_height' depends on axioms: [propext]
+'Yulang.GeneralRebaseFiniteTree272.child_height' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTree272.at_agree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteTree272.children_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteTree272.height_invariant' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteTree272.scalar' does not depend on any axioms
+'Yulang.GeneralRebaseTreeProjection272.built_tag' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeProjection272.model_tag' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeProjection272.zip_child' depends on axioms: [propext]
+'Yulang.GeneralRebaseTreeProjection272.transport_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeProjection272.exact_index' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeProjection272.record_index' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeProjection272.exact_empty_conflict' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTreeProjection272.same_or_records' does not depend on any axioms
+'Yulang.GeneralRebaseTreeProjection272.child_of_live' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeAcyclic272.edge_descends' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeAcyclic272.path_descends' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTreeAcyclic272.acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]

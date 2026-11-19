@@ -1,0 +1,26 @@
+import Yulang.GeneralRebaseFiniteTree272
+import Yulang.GeneralRebaseTreeProjection272
+import Yulang.GeneralRebaseTreeAcyclic272
+
+#print axioms Yulang.GeneralRebaseFiniteTree272.Tree
+#print axioms Yulang.GeneralRebaseFiniteTree272.Canonical
+#print axioms Yulang.GeneralRebaseFiniteTree272.value
+#print axioms Yulang.GeneralRebaseFiniteTree272.height
+#print axioms Yulang.GeneralRebaseFiniteTree272.list_height
+#print axioms Yulang.GeneralRebaseFiniteTree272.child_height
+#print axioms Yulang.GeneralRebaseFiniteTree272.at_agree
+#print axioms Yulang.GeneralRebaseFiniteTree272.children_agree
+#print axioms Yulang.GeneralRebaseFiniteTree272.height_invariant
+#print axioms Yulang.GeneralRebaseFiniteTree272.scalar
+#print axioms Yulang.GeneralRebaseTreeProjection272.built_tag
+#print axioms Yulang.GeneralRebaseTreeProjection272.model_tag
+#print axioms Yulang.GeneralRebaseTreeProjection272.zip_child
+#print axioms Yulang.GeneralRebaseTreeProjection272.transport_value
+#print axioms Yulang.GeneralRebaseTreeProjection272.exact_index
+#print axioms Yulang.GeneralRebaseTreeProjection272.record_index
+#print axioms Yulang.GeneralRebaseTreeProjection272.exact_empty_conflict
+#print axioms Yulang.GeneralRebaseTreeProjection272.same_or_records
+#print axioms Yulang.GeneralRebaseTreeProjection272.child_of_live
+#print axioms Yulang.GeneralRebaseTreeAcyclic272.edge_descends
+#print axioms Yulang.GeneralRebaseTreeAcyclic272.path_descends
+#print axioms Yulang.GeneralRebaseTreeAcyclic272.acyclic
