@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseRefreshPublic275.After' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshPublic275.same_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshPublic275.same_public' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshPublic275.payload_shape' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshPublic275.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshPublic275.public_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshPublic275.decode_exact' depends on axioms: [propext, Classical.choice, Quot.sound]

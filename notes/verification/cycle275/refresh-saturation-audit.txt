@@ -1,0 +1,10 @@
+'Yulang.GeneralRebaseRefreshSaturation275.path_append' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshSaturation275.path_unbounded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshSaturation275.stable_completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshSaturation275.remaining_budget' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshSaturation275.no_steps_when_rank_zero' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRefreshSaturation275.all_diagnostics_equal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

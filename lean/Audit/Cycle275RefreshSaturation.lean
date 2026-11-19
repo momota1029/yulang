@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseRefreshSaturation275
+
+#print axioms Yulang.GeneralRebaseRefreshSaturation275.path_append
+#print axioms Yulang.GeneralRebaseRefreshSaturation275.path_unbounded
+#print axioms Yulang.GeneralRebaseRefreshSaturation275.stable_completion
+#print axioms Yulang.GeneralRebaseRefreshSaturation275.remaining_budget
+#print axioms Yulang.GeneralRebaseRefreshSaturation275.no_steps_when_rank_zero
+#print axioms Yulang.GeneralRebaseRefreshSaturation275.all_diagnostics_equal
