@@ -1,0 +1,37 @@
+import Yulang.GeneralRebasePortCatalog280
+import Yulang.GeneralRebaseFixedGraphExec280
+import Yulang.GeneralRebaseFixedDisplayGraph280
+
+#print axioms Yulang.GeneralRebasePortCatalog280.childId
+#print axioms Yulang.GeneralRebasePortCatalog280.code
+#print axioms Yulang.GeneralRebasePortCatalog280.Parents
+#print axioms Yulang.GeneralRebasePortCatalog280.catalog
+#print axioms Yulang.GeneralRebasePortCatalog280.resolve
+#print axioms Yulang.GeneralRebasePortCatalog280.CodedFrom
+#print axioms Yulang.GeneralRebasePortCatalog280.emitted_origin
+#print axioms Yulang.GeneralRebasePortCatalog280.origins_trace
+#print axioms Yulang.GeneralRebasePortCatalog280.origins_source
+#print axioms Yulang.GeneralRebasePortCatalog280.parent_member
+#print axioms Yulang.GeneralRebasePortCatalog280.child_mem
+#print axioms Yulang.GeneralRebasePortCatalog280.handles_registered
+#print axioms Yulang.GeneralRebasePortCatalog280.resolve_complete
+#print axioms Yulang.GeneralRebasePortCatalog280.resolve_sound
+#print axioms Yulang.GeneralRebasePortCatalog280.resolve_registered
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.occurrence
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.occ_code
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.parents_above
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.catalog_reify
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.exact_read
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.EdgeCode
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.recode
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.edgeCodes
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.edgeCode
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.write_exact
+#print axioms Yulang.GeneralRebaseFixedGraphExec280.edges_exact
+#print axioms Yulang.GeneralRebaseFixedDisplayGraph280.baked
+#print axioms Yulang.GeneralRebaseFixedDisplayGraph280.actual_edge_list
+#print axioms Yulang.GeneralRebaseFixedDisplayGraph280.parent_catalog
+#print axioms Yulang.GeneralRebaseFixedDisplayGraph280.matched
+#print axioms Yulang.GeneralRebaseFixedDisplayGraph280.recoded
+#print axioms Yulang.GeneralRebaseFixedDisplayGraph280.fixed_edge_list
+#print axioms Yulang.GeneralRebaseFixedDisplayGraph280.explicit_read

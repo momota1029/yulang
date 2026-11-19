@@ -5340,3 +5340,10 @@ import Yulang.GeneralRebasePortCopy280
 import Yulang.GeneralRebaseFixedGraph280
 import Yulang.GeneralRebaseRawGraph280
 import Yulang.GeneralRebaseProjectedReach280
+import Yulang.GeneralRebaseFixedDisplay280
+import Yulang.GeneralRebasePortDecode280
+import Yulang.GeneralRebasePortGate280
+import Yulang.GeneralRebasePortProjection280
+import Yulang.GeneralRebasePortCatalog280
+import Yulang.GeneralRebaseFixedGraphExec280
+import Yulang.GeneralRebaseFixedDisplayGraph280
