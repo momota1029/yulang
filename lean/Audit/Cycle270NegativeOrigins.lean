@@ -1,0 +1,44 @@
+import Yulang.GeneralRebaseOriginNegativeTags270
+import Yulang.GeneralRebaseOriginRepresentative270
+import Yulang.GeneralRebaseAcyclicNominal270
+
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.test
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.test_sound
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.distinct
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.onSlots
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.onSlots_sound
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.sourceSlot
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.sourceSlot_sound
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.compare
+#print axioms Yulang.GeneralRebaseOriginNegativeTags270.compare_sound
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.tightSlot
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.representative
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.tightSlot_sound
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.representative_sound
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.compare
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.compare_sound
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.window
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.query
+#print axioms Yulang.GeneralRebaseOriginRepresentative270.query_sound
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.shapes
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.heads
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.base
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.view
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.descriptor
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.state
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.model
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.state_models
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.context
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.root
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.journal
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.full_model
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.points
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.coverage
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.projected_name
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.projected_vs_parent
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.calculated_no_loop
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.calculated_leaf
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.calculated_no_return
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.calculated_leaf_terminal
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.calculated_acyclic
+#print axioms Yulang.GeneralRebaseAcyclicNominal270.actual_no_cycle

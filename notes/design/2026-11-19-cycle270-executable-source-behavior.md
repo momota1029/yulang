@@ -67,3 +67,27 @@ heads are outside this exact finite branch. Combine these rigid positions
 with the earlier typed nominal positions in a finite mixed window. Every
 supported successor must be represented, and unknown semantic equality
 must not be treated as negative.
+
+## Negative recurrence by checked origin representatives
+
+The representative lookup is deterministic. A source lookup matches the
+stored natural identity. A one-level nominal projection must have the
+recorded constructor name, a type (not row) slot and a raw variable
+sandwiched between the declared bounds, found by the checked finite
+inequality search. Every returned representative is full-journal
+semantically equal to the ordinary or projected origin. Missing
+representatives are not negative.
+
+For selected representatives, one actual full model with different
+coarse tags disproves all-model equality via the semantic subtype tag
+probe. Matching tags alone prove nothing: e.g. all record shapes have the
+same records tag. The comparison additionally proves literal same-source
+positives. With checked forward coverage the partial finite cycle
+recurrence now needs no external edge/equality responses for these cases.
+
+A nominal-to-Int synthetic journal checks all four entries of its
+two-point graph (exactly one edge). The negative self-edge depends on
+representative reduction followed by a tag disagreement, not missing
+coverage. The query computes `some false` and Lean proves full-model
+non-recurrence. These are journal models, not surface reachability
+or old-kernel halting claims.

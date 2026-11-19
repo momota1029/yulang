@@ -5061,3 +5061,6 @@ import Yulang.GeneralRebaseReplayFixture270
 import Yulang.GeneralRebaseStructuralOrigin270
 import Yulang.GeneralRebaseMixedOriginWindow270
 import Yulang.GeneralRebaseVariantNominalFixture270
+import Yulang.GeneralRebaseOriginNegativeTags270
+import Yulang.GeneralRebaseOriginRepresentative270
+import Yulang.GeneralRebaseAcyclicNominal270
