@@ -1,0 +1,10 @@
+import Yulang.GeneralRebaseFixedReplay281
+
+#print axioms Yulang.GeneralRebaseFixedReplay281.fixed_target_same
+#print axioms Yulang.GeneralRebaseFixedReplay281.fixed_unique
+#print axioms Yulang.GeneralRebaseFixedReplay281.fixed_read
+#print axioms Yulang.GeneralRebaseFixedReplay281.fixed_apart
+#print axioms Yulang.GeneralRebaseFixedReplay281.fixed_isolated
+#print axioms Yulang.GeneralRebaseFixedReplay281.before_supported
+#print axioms Yulang.GeneralRebaseFixedReplay281.fixed_exact
+#print axioms Yulang.GeneralRebaseFixedReplay281.replace_versioned

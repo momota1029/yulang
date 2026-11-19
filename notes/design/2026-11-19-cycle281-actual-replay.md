@@ -1,0 +1,2 @@
+# Cycle 281 — 実 replay の raw model と Known
+版付き実 replay の cross と self-check は現 packet の raw source 支持だけを読み、繰り返し同一の aggregate merge だけが追加 target を必要とする。固定版は before の ordinary 制約へ cross/self-check と具体的なコピー等式のみを付ける。少なくとも source 到達の raw 状態では固定 target は支持から外れる。版付き側も書き先が現 raw 支持から外れる、という別前提の下では、実 replay 全体の raw Models と固定版 Models が旧 source 上の射影で厳密に一致する。構造 slot と observation graph を書かないので両辺の Known は等しい。子 demand、出力、証拠、任意の異なる capture の merge に対する再配置はまだ示さない。

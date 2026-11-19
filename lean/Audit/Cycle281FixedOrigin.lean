@@ -1,0 +1,5 @@
+import Yulang.GeneralRebaseFixedOrigin281
+
+#print axioms Yulang.GeneralRebaseFixedOrigin281.not_declarationKey
+#print axioms Yulang.GeneralRebaseFixedOrigin281.not_reserved
+#print axioms Yulang.GeneralRebaseFixedOrigin281.fixed_absent

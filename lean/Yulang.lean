@@ -5377,3 +5377,10 @@ import Yulang.GeneralRebasePhaseLoop281
 import Yulang.GeneralRebasePhaseCache281
 import Yulang.GeneralRebaseChartDelta281
 import Yulang.GeneralRebasePhasePrivate281
+import Yulang.GeneralRebaseAggregateCollapse281
+import Yulang.GeneralRebaseAggregateCompile281
+import Yulang.GeneralRebaseAggregateSupport281
+import Yulang.GeneralRebaseAggregateLift281
+import Yulang.GeneralRebaseAggregateTags281
+import Yulang.GeneralRebaseFixedOrigin281
+import Yulang.GeneralRebaseFixedReplay281

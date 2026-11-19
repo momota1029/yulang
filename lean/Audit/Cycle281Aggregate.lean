@@ -1,0 +1,50 @@
+import Yulang.GeneralRebaseAggregateCollapse281
+import Yulang.GeneralRebaseAggregateCompile281
+import Yulang.GeneralRebaseAggregateSupport281
+import Yulang.GeneralRebaseAggregateLift281
+import Yulang.GeneralRebaseAggregateTags281
+
+#print axioms Yulang.GeneralRebaseAggregateCollapse281.lower_collapse
+#print axioms Yulang.GeneralRebaseAggregateCollapse281.upper_collapse
+#print axioms Yulang.GeneralRebaseAggregateCollapse281.equivalence_retarget
+#print axioms Yulang.GeneralRebaseAggregateCollapse281.pair_respects
+#print axioms Yulang.GeneralRebaseAggregateCollapse281.collapse_atoms
+#print axioms Yulang.GeneralRebaseAggregateCompile281.repeated
+#print axioms Yulang.GeneralRebaseAggregateCompile281.repeated_exact
+#print axioms Yulang.GeneralRebaseAggregateCompile281.compileBinder
+#print axioms Yulang.GeneralRebaseAggregateCompile281.rawBinder
+#print axioms Yulang.GeneralRebaseAggregateCompile281.binder_exact
+#print axioms Yulang.GeneralRebaseAggregateCompile281.collect
+#print axioms Yulang.GeneralRebaseAggregateCompile281.compile
+#print axioms Yulang.GeneralRebaseAggregateCompile281.collect_exact
+#print axioms Yulang.GeneralRebaseAggregateCompile281.packet_exact
+#print axioms Yulang.GeneralRebaseAggregateSupport281.endKey
+#print axioms Yulang.GeneralRebaseAggregateSupport281.endpoint
+#print axioms Yulang.GeneralRebaseAggregateSupport281.binder_write
+#print axioms Yulang.GeneralRebaseAggregateSupport281.collect_member
+#print axioms Yulang.GeneralRebaseAggregateSupport281.footprint
+#print axioms Yulang.GeneralRebaseAggregateSupport281.unique
+#print axioms Yulang.GeneralRebaseAggregateSupport281.source_read
+#print axioms Yulang.GeneralRebaseAggregateSupport281.source_fresh
+#print axioms Yulang.GeneralRebaseAggregateSupport281.isolated_of_source_apart
+#print axioms Yulang.GeneralRebaseAggregateLift281.sourceView
+#print axioms Yulang.GeneralRebaseAggregateLift281.targetState
+#print axioms Yulang.GeneralRebaseAggregateLift281.Before
+#print axioms Yulang.GeneralRebaseAggregateLift281.preserves_cross
+#print axioms Yulang.GeneralRebaseAggregateLift281.copy_exact
+#print axioms Yulang.GeneralRebaseAggregateLift281.lift
+#print axioms Yulang.GeneralRebaseAggregateLift281.project
+#print axioms Yulang.GeneralRebaseAggregateLift281.rows_preserved
+#print axioms Yulang.GeneralRebaseAggregateTags281.Tag
+#print axioms Yulang.GeneralRebaseAggregateTags281.tag
+#print axioms Yulang.GeneralRebaseAggregateTags281.collectTags
+#print axioms Yulang.GeneralRebaseAggregateTags281.tags
+#print axioms Yulang.GeneralRebaseAggregateTags281.versioned
+#print axioms Yulang.GeneralRebaseAggregateTags281.fixedOrigin
+#print axioms Yulang.GeneralRebaseAggregateTags281.fixed
+#print axioms Yulang.GeneralRebaseAggregateTags281.fixedWrites
+#print axioms Yulang.GeneralRebaseAggregateTags281.binder_exact
+#print axioms Yulang.GeneralRebaseAggregateTags281.collect_exact
+#print axioms Yulang.GeneralRebaseAggregateTags281.versioned_exact
+#print axioms Yulang.GeneralRebaseAggregateTags281.fixed_independent
+#print axioms Yulang.GeneralRebaseAggregateTags281.fixed_reads
