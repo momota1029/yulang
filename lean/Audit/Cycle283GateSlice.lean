@@ -1,0 +1,22 @@
+import Yulang.GeneralRebaseSliceEvidence283
+
+#print axioms Yulang.GeneralRebaseIncrementalGate283.unchanged
+#print axioms Yulang.GeneralRebaseIncrementalGate283.rechecked
+#print axioms Yulang.GeneralRebaseIncrementalGate283.factor_install
+#print axioms Yulang.GeneralRebaseIncrementalGate283.gate_exact
+#print axioms Yulang.GeneralRebaseIncrementalGate283.gate_from_old_model
+#print axioms Yulang.GeneralRebaseIncrementalGate283.enabled
+#print axioms Yulang.GeneralRebaseCachedDriver283.quiet_plans
+#print axioms Yulang.GeneralRebaseCachedDriver283.raw
+#print axioms Yulang.GeneralRebaseCachedDriver283.valid_next
+#print axioms Yulang.GeneralRebaseCachedDriver283.initial_paths
+#print axioms Yulang.GeneralRebaseCachedDriver283.reflects_acc
+#print axioms Yulang.GeneralRebaseCachedDriver283.preserves_acc
+#print axioms Yulang.GeneralRebaseSlice283.closed
+#print axioms Yulang.GeneralRebaseSliceExact283.exact_support
+#print axioms Yulang.GeneralRebaseSliceExact283.agrees
+#print axioms Yulang.GeneralRebaseSliceJournal283.journal
+#print axioms Yulang.GeneralRebaseSliceCertificate283.covered
+#print axioms Yulang.GeneralRebaseSliceCertificate283.certificate
+#print axioms Yulang.GeneralRebaseSliceEvidence283.finite_choices
+#print axioms Yulang.GeneralRebaseSliceEvidence283.exact_finite_query

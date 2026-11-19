@@ -5433,3 +5433,10 @@ import Yulang.GeneralRebaseSortedCache283
 import Yulang.GeneralRebaseInstallCache283
 import Yulang.GeneralRebaseClassDelta283
 import Yulang.GeneralRebaseJournalChecks283
+import Yulang.GeneralRebaseIncrementalGate283
+import Yulang.GeneralRebaseCachedDriver283
+import Yulang.GeneralRebaseSlice283
+import Yulang.GeneralRebaseSliceExact283
+import Yulang.GeneralRebaseSliceJournal283
+import Yulang.GeneralRebaseSliceCertificate283
+import Yulang.GeneralRebaseSliceEvidence283
