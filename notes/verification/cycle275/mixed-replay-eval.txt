@@ -1,0 +1,21 @@
+Command: cd lean; lake env lean --trust=0 -M 2500 -DwarningAsError=true -R . /tmp/c275-replay-smoke.lean
+
+Lean input:
+import Yulang.GeneralRebaseMixedReplay275
+open Yulang.GeneralRebaseMixedReplay275
+#eval (List.range 5).map fun n =>
+  (replay (.rebase .source) (canonical.take n)).map fun stage => (stage,rank stage)
+#eval next (.rebase .source) .exposeKnownWidths
+#eval next .stable .exposeKnownWidths
+#eval replay (.rebase .source) (canonical ++ [.exposeKnownWidths])
+
+Lean output:
+[some (Yulang.GeneralRebaseMixedReplay275.Stage.rebase (Yulang.GeneralRebaseTerminalMachine274.Stage.source), 4),
+ some (Yulang.GeneralRebaseMixedReplay275.Stage.rebase (Yulang.GeneralRebaseTerminalMachine274.Stage.installed), 3),
+ some (Yulang.GeneralRebaseMixedReplay275.Stage.rebase (Yulang.GeneralRebaseTerminalMachine274.Stage.observed), 2),
+ some (Yulang.GeneralRebaseMixedReplay275.Stage.rebase (Yulang.GeneralRebaseTerminalMachine274.Stage.terminal), 1),
+ some (Yulang.GeneralRebaseMixedReplay275.Stage.stable, 0)]
+none
+none
+none
+exit=0

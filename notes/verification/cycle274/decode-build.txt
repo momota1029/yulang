@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseTerminalTypePool274
+PASS Yulang.GeneralRebaseTerminalAlias274
+PASS Yulang.GeneralRebaseTerminalDecode274

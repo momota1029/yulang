@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseRetargetEffects275
+
+#print axioms Yulang.GeneralRebaseRetargetEffects275.body_schema
+#print axioms Yulang.GeneralRebaseRetargetEffects275.body_values
+#print axioms Yulang.GeneralRebaseRetargetEffects275.body_holds
+#print axioms Yulang.GeneralRebaseRetargetEffects275.class_effects
+#print axioms Yulang.GeneralRebaseRetargetEffects275.ready

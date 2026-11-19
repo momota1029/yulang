@@ -1,0 +1,13 @@
+'Yulang.GeneralRebaseRefreshClosure275.width_not_nominal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.only_original_nominals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.rename_point' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.Gates' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.gates_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.nominal_retained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.gates_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.gates_hop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.gates_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.NovelInstall' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshClosure275.step_partition' depends on axioms: [propext, Classical.choice, Quot.sound]

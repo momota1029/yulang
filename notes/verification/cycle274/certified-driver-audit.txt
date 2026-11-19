@@ -1,0 +1,55 @@
+'Yulang.GeneralRebaseTerminalObservation274.collect' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.first' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.revision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.installFrom' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.observeFrom' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.install_computed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.observed_computed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.rejects_unrevised' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalObservation274.bounded_not_generic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.accepts' does not depend on any axioms
+'Yulang.GeneralRebaseTerminalPayload274.payload_shape' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.accepted_shape' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.mapping' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.read_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.ViewEvidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.view_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.decode_acceptance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalPayload274.rejects_wrong_key' does not depend on any axioms
+'Yulang.GeneralRebaseTerminalPayload274.rejects_children' does not depend on any axioms
+'Yulang.GeneralRebaseTerminalScheduler274.scheduler' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalScheduler274.after_install' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalScheduler274.stopped' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalScheduler274.logical_cells' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.beforeService' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.outside' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.preserves' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.still_terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.before_lo' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.before_hi' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.old_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.Store' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.store_initial' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.store_observed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.store_terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.one_common_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.not_both_blocks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalSchedulerModels274.service_changes_lower' depends on axioms: [propext, Quot.sound]

@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseWidthRealized275
+
+#print axioms Yulang.GeneralRebaseWidthRealized275.successor
+#print axioms Yulang.GeneralRebaseWidthRealized275.realized
+#print axioms Yulang.GeneralRebaseWidthRealized275.model_exact
+#print axioms Yulang.GeneralRebaseWidthRealized275.width_refresh
+#print axioms Yulang.GeneralRebaseWidthRealized275.not_mixed_stable
+#print axioms Yulang.GeneralRebaseWidthRealized275.added
+#print axioms Yulang.GeneralRebaseWidthRealized275.different

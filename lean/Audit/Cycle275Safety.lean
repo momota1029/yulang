@@ -1,0 +1,12 @@
+import Yulang.GeneralRebaseAllWidthSafety275
+
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.retained_model
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.acyclic
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.slotForm
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.slotForm_exact
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.raw_edge_decreases
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.path_rank
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.no_raw_recurs
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.known
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.administrative_ready
+#print axioms Yulang.GeneralRebaseAllWidthSafety275.safe

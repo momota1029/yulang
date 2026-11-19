@@ -1,0 +1,33 @@
+'Yulang.GeneralRebaseTerminalMachine274.Stage' does not depend on any axioms
+'Yulang.GeneralRebaseTerminalMachine274.Event' does not depend on any axioms
+'Yulang.GeneralRebaseTerminalMachine274.owner' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.committed' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.pending' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.next' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.Step' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.rank' does not depend on any axioms
+'Yulang.GeneralRebaseTerminalMachine274.strict' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.accessible' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.terminal_halted' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.Public' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalMachine274.initial' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalMachine274.after_install' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalMachine274.replay' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.firstBindings' does not depend on any axioms
+'Yulang.GeneralRebaseTerminalMachine274.pointBindings' does not depend on any axioms
+'Yulang.GeneralRebaseTerminalMachine274.script' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.standard_route' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.no_early_service' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.no_wrong_owner' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.no_stale_observation' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalMachine274.single_overwrite' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalBridge274.raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalBridge274.phase_edges' depends on axioms: [propext]
+'Yulang.GeneralRebaseTerminalBridge274.realized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalBridge274.mixed_realized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalBridge274.trace_realized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalBridge274.old_bindings' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalBridge274.new_bindings' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalBridge274.genuine_route' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalBridge274.public_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalBridge274.terminal_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]

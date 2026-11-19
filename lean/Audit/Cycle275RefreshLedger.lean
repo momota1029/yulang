@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseRefreshLedger275
+
+#print axioms Yulang.GeneralRebaseRefreshLedger275.Retained
+#print axioms Yulang.GeneralRebaseRefreshLedger275.refl
+#print axioms Yulang.GeneralRebaseRefreshLedger275.trans
+#print axioms Yulang.GeneralRebaseRefreshLedger275.hop_retains
+#print axioms Yulang.GeneralRebaseRefreshLedger275.all_retained

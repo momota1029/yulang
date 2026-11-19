@@ -1,0 +1,16 @@
+'Yulang.GeneralRebaseWidthRegistration275.embed' does not depend on any axioms
+'Yulang.GeneralRebaseWidthRegistration275.widthSlot' depends on axioms: [propext]
+'Yulang.GeneralRebaseWidthRegistration275.source' depends on axioms: [propext]
+'Yulang.GeneralRebaseWidthRegistration275.rows' depends on axioms: [propext]
+'Yulang.GeneralRebaseWidthRegistration275.source_embed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWidthRegistration275.row_embed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWidthRegistration275.source_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWidthRegistration275.atoms' depends on axioms: [propext]
+'Yulang.GeneralRebaseWidthRegistration275.shapes' does not depend on any axioms
+'Yulang.GeneralRebaseWidthRegistration275.heads' depends on axioms: [propext]
+'Yulang.GeneralRebaseWidthRegistration275.head_at' depends on axioms: [propext]
+'Yulang.GeneralRebaseWidthRegistration275.base' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWidthRegistration275.viewShapes' does not depend on any axioms
+'Yulang.GeneralRebaseWidthRegistration275.viewHeads' depends on axioms: [propext]
+'Yulang.GeneralRebaseWidthRegistration275.view_at' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWidthRegistration275.view' depends on axioms: [propext, Quot.sound]

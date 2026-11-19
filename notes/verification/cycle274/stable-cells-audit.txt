@@ -1,0 +1,29 @@
+'Yulang.GeneralRebaseTerminalStableSupport274.unused' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.combine' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.terminal_raw_sites' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.source_map' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.terminal_map' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.terminal_legacy' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.plans_unused' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.unused_classes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.effects_unused' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableSupport274.terminal_hidden' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.entry_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.terminal_hidden' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.public_preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.stable_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.terminal_atoms' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.stable_block' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.stable_store' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.agrees_trans' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.StoreChecked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.joint_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStableCells274.exact_joint' depends on axioms: [propext, Classical.choice, Quot.sound]

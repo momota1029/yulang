@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 273
+- cycle: 275
 - status: completed
-- started: 2026-11-19T12:34:44Z
-- updated: 2026-11-19T13:24:45Z
-- elapsed_min: 50.02
-- activity: Verified source 238 public models and finite owner replacement with the actual optional output; local current certificate does not resolve the unlocated child.
+- started: 2026-11-19T14:30:10Z
+- updated: 2026-11-19T15:20:15Z
+- elapsed_min: 50.08
+- activity: Verified full mixed-kernel accessibility from installed 230, a three-step upper bound, and history-independent positive V8 leaf evidence.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 83499731b
-- report: notes/handoff/dots-cycle-273.md
-- resume_hint: Read latest integration orders. Open: general owner compiler and isolation; current child location and recursive evidence; no original-kernel Acc claim.
+- last_local_commit: 9dff77d7f
+- report: notes/handoff/dots-cycle-275.md
+- resume_hint: Refetch latest orders; do not redo 230 post-install. Next genuine nonleaf fixture GeneralNominalMixedNonleaf198 or pre-install reachability.

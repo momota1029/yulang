@@ -1,0 +1,5 @@
+'Yulang.GeneralRebaseRetargetEffects275.body_schema' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRetargetEffects275.body_values' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRetargetEffects275.body_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRetargetEffects275.class_effects' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRetargetEffects275.ready' depends on axioms: [propext, Classical.choice, Quot.sound]

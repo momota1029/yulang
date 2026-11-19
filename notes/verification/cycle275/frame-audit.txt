@@ -1,0 +1,6 @@
+'Yulang.GeneralRebaseAllWidthFrame275.raw_sites' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthFrame275.centers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthFrame275.edges_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthFrame275.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthFrame275.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthFrame275.singleton_frame' depends on axioms: [propext, Classical.choice, Quot.sound]

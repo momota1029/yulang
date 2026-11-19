@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseTerminalProgram274
+import Yulang.GeneralRebaseTerminalStoreBoundary274
+
+#print axioms Yulang.GeneralRebaseTerminalProgram274.run
+#print axioms Yulang.GeneralRebaseTerminalProgram274.computed
+#print axioms Yulang.GeneralRebaseTerminalProgram274.no_replay_without_observation
+#print axioms Yulang.GeneralRebaseTerminalProgram274.exact_output
+#print axioms Yulang.GeneralRebaseTerminalProgram274.source_executed
+#print axioms Yulang.GeneralRebaseTerminalProgram274.source_verified_view
+#print axioms Yulang.GeneralRebaseTerminalStoreBoundary274.atoms_of_source
+#print axioms Yulang.GeneralRebaseTerminalStoreBoundary274.admits_uncommitted_output
+#print axioms Yulang.GeneralRebaseTerminalStoreBoundary274.width_source
+#print axioms Yulang.GeneralRebaseTerminalStoreBoundary274.width_only_store
+#print axioms Yulang.GeneralRebaseTerminalStoreBoundary274.width_not_terminal
+#print axioms Yulang.GeneralRebaseTerminalStoreBoundary274.store_not_evidence

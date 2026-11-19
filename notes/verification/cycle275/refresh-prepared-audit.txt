@@ -1,0 +1,3 @@
+'Yulang.GeneralRebaseRefreshPrepared275.candidate_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRefreshPrepared275.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRefreshPrepared275.rebuild' depends on axioms: [propext, Classical.choice, Quot.sound]

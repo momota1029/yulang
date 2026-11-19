@@ -1,0 +1,24 @@
+'Yulang.GeneralRebaseTerminalProgram274.run' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalProgram274.computed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalProgram274.no_replay_without_observation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalProgram274.exact_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalProgram274.source_executed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalProgram274.source_verified_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTerminalStoreBoundary274.atoms_of_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalStoreBoundary274.admits_uncommitted_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalStoreBoundary274.width_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTerminalStoreBoundary274.width_only_store' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalStoreBoundary274.width_not_terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseTerminalStoreBoundary274.store_not_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

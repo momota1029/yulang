@@ -1,0 +1,36 @@
+import Yulang.GeneralRebaseTerminalMachine274
+import Yulang.GeneralRebaseTerminalBridge274
+
+#print axioms Yulang.GeneralRebaseTerminalMachine274.Stage
+#print axioms Yulang.GeneralRebaseTerminalMachine274.Event
+#print axioms Yulang.GeneralRebaseTerminalMachine274.owner
+#print axioms Yulang.GeneralRebaseTerminalMachine274.committed
+#print axioms Yulang.GeneralRebaseTerminalMachine274.pending
+#print axioms Yulang.GeneralRebaseTerminalMachine274.next
+#print axioms Yulang.GeneralRebaseTerminalMachine274.Step
+#print axioms Yulang.GeneralRebaseTerminalMachine274.rank
+#print axioms Yulang.GeneralRebaseTerminalMachine274.strict
+#print axioms Yulang.GeneralRebaseTerminalMachine274.accessible
+#print axioms Yulang.GeneralRebaseTerminalMachine274.terminal_halted
+#print axioms Yulang.GeneralRebaseTerminalMachine274.Public
+#print axioms Yulang.GeneralRebaseTerminalMachine274.initial
+#print axioms Yulang.GeneralRebaseTerminalMachine274.after_install
+#print axioms Yulang.GeneralRebaseTerminalMachine274.replay
+#print axioms Yulang.GeneralRebaseTerminalMachine274.firstBindings
+#print axioms Yulang.GeneralRebaseTerminalMachine274.pointBindings
+#print axioms Yulang.GeneralRebaseTerminalMachine274.script
+#print axioms Yulang.GeneralRebaseTerminalMachine274.standard_route
+#print axioms Yulang.GeneralRebaseTerminalMachine274.no_early_service
+#print axioms Yulang.GeneralRebaseTerminalMachine274.no_wrong_owner
+#print axioms Yulang.GeneralRebaseTerminalMachine274.no_stale_observation
+#print axioms Yulang.GeneralRebaseTerminalMachine274.single_overwrite
+#print axioms Yulang.GeneralRebaseTerminalBridge274.raw
+#print axioms Yulang.GeneralRebaseTerminalBridge274.phase_edges
+#print axioms Yulang.GeneralRebaseTerminalBridge274.realized
+#print axioms Yulang.GeneralRebaseTerminalBridge274.mixed_realized
+#print axioms Yulang.GeneralRebaseTerminalBridge274.trace_realized
+#print axioms Yulang.GeneralRebaseTerminalBridge274.old_bindings
+#print axioms Yulang.GeneralRebaseTerminalBridge274.new_bindings
+#print axioms Yulang.GeneralRebaseTerminalBridge274.genuine_route
+#print axioms Yulang.GeneralRebaseTerminalBridge274.public_agrees
+#print axioms Yulang.GeneralRebaseTerminalBridge274.terminal_evidence

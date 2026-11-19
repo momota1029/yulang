@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseWidthCertificate275
+
+#print axioms Yulang.GeneralRebaseWidthCertificate275.context
+#print axioms Yulang.GeneralRebaseWidthCertificate275.just_width
+#print axioms Yulang.GeneralRebaseWidthCertificate275.base_models
+#print axioms Yulang.GeneralRebaseWidthCertificate275.fits_forward
+#print axioms Yulang.GeneralRebaseWidthCertificate275.old_nominal
+#print axioms Yulang.GeneralRebaseWidthCertificate275.cache
+#print axioms Yulang.GeneralRebaseWidthCertificate275.certificate

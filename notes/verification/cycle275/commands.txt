@@ -1,0 +1,15 @@
+Lean 4.35.0, reused retained cache. Each library module was built and each
+audit was run independently with
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . <input>
+New module .olean outputs are in lean/.lake/build/lib/lean/Yulang/.
+Final aggregate gate was run without modifying Lean inputs during the run:
+  git diff --check 6d6475be0..HEAD                                exit 0
+  bash tools/verify-lean.sh . a1cc0b224 --no-build                  exit 0
+  bash tools/verify-lean.sh . 6d6475be0 --no-build                  exit 0
+  standalone audit recheck (26 files, all 294 declarations)       exit 0
+  I-51, I-53, frozen bytes, append-only library barrel             exit 0
+  focused fixture recheck (19 key modules)                        exit 0
+Combined final command (with timeout 7m)                         exit 0
+Verification stdout for both static runs and the other final gates is retained
+in the companion files. No clean-cache rebuild, full lake build, CI or runtime
+test was invoked.

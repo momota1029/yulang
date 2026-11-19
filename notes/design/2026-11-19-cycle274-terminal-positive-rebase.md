@@ -1,0 +1,92 @@
+# Positive terminal source rebase (actual 230, cycle 274)
+
+The 230 point case differs from 238: no generated children, hence there
+is no competing emitted child equation. The actual versioned 233 path
+already has install, Reobserve, a second install and stable leaf Evidence.
+Do not reprove its raw operations, or confuse this path with the older
+230 kernel that had a selected-but-no-evidence counterexample.
+
+First certify a common finite public meaning for the three installed or
+observed checkpoints and separately the initial source. The public pool
+is literal type IDs 0..4 and all row components, using a single full
+assignment. Distinguish this from same-assignment equality, which existing
+233 Variant disproves. Show that the corrected terminal witness still
+retains the exact optional output and the actual binder.
+
+Then link the finite owner transition to genuine checkpoints, including a
+strict observation and a terminal single-owner service. Compare fixed
+names/normal forms with historical versioned states using a constructive
+joint completion. Terminal Evidence must refer to the genuine positive
+source state (not just an isolated store); the stable-name view must state
+what it can reflect, and evidence outside this leaf remains separate.
+
+## Compatibility of stable solver cells and the actual dictionary model
+
+The actual I44 terminal journal reads two versions of its private
+aggregates. The finite 242 scheduler writes the older, fixed pair of
+logical addresses. Check the journal's actual finite semantic support to
+show the fixed pair is absent; then check one joint witness for the real
+terminal journal, leaf dictionary, and result of the stable-name executor.
+Do not compare store satisfiability alone to Evidence.
+
+For a stronger finite readback, enumerate exactly a supported pool of
+original source IDs, actual binder, and the old/new aggregate pairs.
+Replace every such type (but no row) by its certified source projection:
+old lower -> source 4; old upper/current lower/current upper/actual -> source 2.
+Prove alias soundness from real full packet/merge equations, then literal
+source-public reduction with a deterministic decode. For the two stable
+executor cells separately choose the committed source IDs of the finished
+block. An unrelated type coordinate can be erased only after proving
+it is outside genuine journal/store support.
+
+## Exact new equations at service
+
+For a genuine point full assignment, characterize the actual second
+installation by exactly two new private type equations. This is stronger
+than exhibiting some terminal full model or comparing only projections.
+Use model congruence to interpret the existing point packet's literal
+constructor certificate at normalized representatives, not as an additional
+source assumption. Then prove the execution can extend every old point
+model by replacing its new private coordinates only. Existing old
+allocations and optional output remain unchanged.
+
+The full first install can also be characterized by the source public
+predicate, optional body, and exactly three private type facts:
+old lower/source 4, old upper/source 2, and actual binder/source 2.
+No general packet generation is inferred. Use a semantic-on-support
+frame (splice literal support values before applying full congruence),
+and show that the chosen initial-output completion may overwrite output 4
+while every other public coordinate and all rows stay literal. This
+provides one modelwise construction through the entire known real trace.
+
+## Executable observation on the checked 230 context
+
+The old/new binding lists used by the finite machine should not be mere
+prewritten events. Read the actual argument slots, compute the source
+inspection report, and take its bindings only when it finishes. The
+reported actual center (source 2) still comes from the checked nominal
+head equality, not from a generic guess. This bounded observer supplies a
+certificate about what it read, not a general candidate/guard search.
+
+## Align the two executable layers
+
+The 242 scheduler begins after the initial install and represents observation
+and service separately. Match its three states to installed/observed/terminal
+in the source-facing machine. At installed/observed, a joint witness loads
+the stable lower slot from source 4; at terminal it loads from source 2.
+The real versioned model remains valid at each stage (its historical slot
+is a different identity). Check that no single stable address can satisfy
+both blocks when the optional output and width are the actual source values.
+
+## Stronger trusted cache boundary
+
+The reachable 233 leaf is stable under its inherited source-only cache.
+The mixed 234 boundary admits stronger semantic refresh facts. Do not
+lift stability by embedding the three old steps. First classify possible
+newly-known names in the actual terminal state: public 0/1/2 already have
+heads; top at 3 and optional output at 4 and the historic lower have no
+exact head in the actual full model. The only remaining names are the
+three private width coordinates. If every non-refresh mixed alternative
+is excluded, equivalence to the existence of one such admissible refresh
+is sharper than an unproved claim of mixed stability. Constructing or
+excluding the refines/cache witness remains separate.

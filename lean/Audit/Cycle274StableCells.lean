@@ -1,0 +1,26 @@
+import Yulang.GeneralRebaseTerminalStableSupport274
+import Yulang.GeneralRebaseTerminalStableCells274
+
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.unused
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.combine
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.terminal_raw_sites
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.source_map
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.terminal_map
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.terminal_legacy
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.plans_unused
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.unused_classes
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.effects_unused
+#print axioms Yulang.GeneralRebaseTerminalStableSupport274.terminal_hidden
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.stable
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.entry_target
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.terminal_hidden
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.preserves
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.public_preserved
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.stable_terminal
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.terminal_atoms
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.stable_block
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.stable_store
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.agrees_trans
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.StoreChecked
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.joint_checked
+#print axioms Yulang.GeneralRebaseTerminalStableCells274.exact_joint

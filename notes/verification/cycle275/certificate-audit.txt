@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseWidthCertificate275.context' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthCertificate275.just_width' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthCertificate275.base_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthCertificate275.fits_forward' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWidthCertificate275.old_nominal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthCertificate275.cache' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthCertificate275.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]

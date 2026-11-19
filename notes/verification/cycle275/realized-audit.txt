@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseWidthRealized275.successor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthRealized275.realized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthRealized275.model_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthRealized275.width_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthRealized275.not_mixed_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthRealized275.added' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWidthRealized275.different' depends on axioms: [propext, Classical.choice, Quot.sound]

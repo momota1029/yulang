@@ -1,0 +1,37 @@
+import Yulang.GeneralRebaseTerminalRowTransfer274
+import Yulang.GeneralRebaseTerminalRowFrame274
+import Yulang.GeneralRebaseTerminalRows274
+
+#print axioms Yulang.GeneralRebaseTerminalRowTransfer274.Invariant
+#print axioms Yulang.GeneralRebaseTerminalRowTransfer274.transfer_same
+#print axioms Yulang.GeneralRebaseTerminalRowTransfer274.ordinary
+#print axioms Yulang.GeneralRebaseTerminalRowTransfer274.head
+#print axioms Yulang.GeneralRebaseTerminalRowTransfer274.holds
+#print axioms Yulang.GeneralRebaseTerminalRowTransfer274.raw_site
+#print axioms Yulang.GeneralRebaseTerminalRowTransfer274.legacy
+#print axioms Yulang.GeneralRebaseTerminalRowTransfer274.journal
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.oldPlan
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.newPlan
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.old_ordinary
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.new_ordinary
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.source
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.first_raw_exact
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.point_raw_exact
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.terminal_raw_exact
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.point_raw
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.terminal_raw
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.old_head
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.new_head
+#print axioms Yulang.GeneralRebaseTerminalRowFrame274.terminal_row_free
+#print axioms Yulang.GeneralRebaseTerminalRows274.completeRows
+#print axioms Yulang.GeneralRebaseTerminalRows274.complete_agrees
+#print axioms Yulang.GeneralRebaseTerminalRows274.complete_model
+#print axioms Yulang.GeneralRebaseTerminalRows274.before_models
+#print axioms Yulang.GeneralRebaseTerminalRows274.before_public
+#print axioms Yulang.GeneralRebaseTerminalRows274.first_public
+#print axioms Yulang.GeneralRebaseTerminalRows274.point_public
+#print axioms Yulang.GeneralRebaseTerminalRows274.terminal_public
+#print axioms Yulang.GeneralRebaseTerminalRows274.HasLeaf
+#print axioms Yulang.GeneralRebaseTerminalRows274.completed_leaf
+#print axioms Yulang.GeneralRebaseTerminalRows274.terminal_leaf_exact
+#print axioms Yulang.GeneralRebaseTerminalRows274.terminal_positive_at_every_boundary

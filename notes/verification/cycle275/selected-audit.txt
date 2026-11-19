@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseAllWidthSelected275.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthSelected275.unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthSelected275.equal_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthSelected275.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthSelected275.generated_only' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthSelected275.evidenceAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseAllWidthSelected275.regression' depends on axioms: [propext, Classical.choice, Quot.sound]

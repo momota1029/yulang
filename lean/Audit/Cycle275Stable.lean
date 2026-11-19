@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseAllWidthStable275
+
+#print axioms Yulang.GeneralRebaseAllWidthStable275.same_body_schema
+#print axioms Yulang.GeneralRebaseAllWidthStable275.same_body_values
+#print axioms Yulang.GeneralRebaseAllWidthStable275.same_body_holds
+#print axioms Yulang.GeneralRebaseAllWidthStable275.ready
+#print axioms Yulang.GeneralRebaseAllWidthStable275.classes
+#print axioms Yulang.GeneralRebaseAllWidthStable275.committed
+#print axioms Yulang.GeneralRebaseAllWidthStable275.any_install_committed
+#print axioms Yulang.GeneralRebaseAllWidthStable275.stable
+#print axioms Yulang.GeneralRebaseAllWidthStable275.halted
+#print axioms Yulang.GeneralRebaseAllWidthStable275.evidence
+#print axioms Yulang.GeneralRebaseAllWidthStable275.normalized_endpoints

@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseAllWidthPlan275
+
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.packet
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.plan
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.retained
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.located
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.query
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.report_exact
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.bindings_exact
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.children_empty
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.unchanged_schema
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.unchanged_head
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.unchanged_capture
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.unchanged_binder
+#print axioms Yulang.GeneralRebaseAllWidthPlan275.unchanged_variables
