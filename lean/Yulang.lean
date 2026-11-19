@@ -5417,3 +5417,10 @@ import Yulang.GeneralRebaseLoopBase282
 import Yulang.GeneralRebaseLoopConstant282
 import Yulang.GeneralRebaseLoopView282
 import Yulang.GeneralRebaseOptionalView282
+import Yulang.GeneralRebaseProspective282
+import Yulang.GeneralRebaseCompiledInstall282
+import Yulang.GeneralRebaseCompiledStep282
+import Yulang.GeneralRebaseCompiledQuery282
+import Yulang.GeneralRebaseCompiledRegressions282
+import Yulang.GeneralRebaseCompiledEvidenceAt282
+import Yulang.GeneralRebaseCompiledFixtures282

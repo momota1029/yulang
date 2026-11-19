@@ -2,9 +2,9 @@
 - cycle: 282
 - status: running
 - started: 2026-11-19T21:35:10Z
-- updated: 2026-11-19T22:05:11Z
-- elapsed_min: 30.02
-- activity: 30分: 全 owner の最新固定表の同時 witness、source 由来のアドレス基底、全行を保つ射影、旧239/240と optional output の回帰まで監査済み。
+- updated: 2026-11-19T22:15:11Z
+- elapsed_min: 40.02
+- activity: 40分: 共通モデルを未仮定の候補判定、compiled driver と実一歩・path の iff、guarded Acc、選択済み EvidenceAt を対象別に検証。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 7f7b4426e
-- resume_hint: 共通モデルを未確認の据え付け候補で先に判定し、実 install guard との iff を作る。
+- last_local_commit: 11dce5777
+- resume_hint: 固定幅は live アドレスのみと区別し、全新規原本・監査と全ログを最終照合する。
