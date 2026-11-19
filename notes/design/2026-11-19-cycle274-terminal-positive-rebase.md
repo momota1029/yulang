@@ -38,3 +38,14 @@ source-public reduction with a deterministic decode. For the two stable
 executor cells separately choose the committed source IDs of the finished
 block. An unrelated type coordinate can be erased only after proving
 it is outside genuine journal/store support.
+
+## Exact new equations at service
+
+For a genuine point full assignment, characterize the actual second
+installation by exactly two new private type equations. This is stronger
+than exhibiting some terminal full model or comparing only projections.
+Use model congruence to interpret the existing point packet's literal
+constructor certificate at normalized representatives, not as an additional
+source assumption. Then prove the execution can extend every old point
+model by replacing its new private coordinates only. Existing old
+allocations and optional output remain unchanged.

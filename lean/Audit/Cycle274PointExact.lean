@@ -1,0 +1,43 @@
+import Yulang.GeneralRebaseTerminalPointExact274
+import Yulang.GeneralRebaseTerminalFreshSupport274
+import Yulang.GeneralRebaseTerminalRepair274
+
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.NewFacts
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.point_source
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.old_actual_width
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.fields
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.present
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.point_legacy_empty
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.representative
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.issues
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.packet_of_point
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.classes_of_point
+#print axioms Yulang.GeneralRebaseTerminalPointExact274.exact
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.Fresh
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.fresh_append
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.first_raw_sites
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.first_sites
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.first_raw
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.snapshot_raw
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.first_legacy
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.plan
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.head
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.class_singleton
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.effect
+#print axioms Yulang.GeneralRebaseTerminalFreshSupport274.first_support
+#print axioms Yulang.GeneralRebaseTerminalRepair274.write
+#print axioms Yulang.GeneralRebaseTerminalRepair274.distinct
+#print axioms Yulang.GeneralRebaseTerminalRepair274.low_large
+#print axioms Yulang.GeneralRebaseTerminalRepair274.high_large
+#print axioms Yulang.GeneralRebaseTerminalRepair274.write_lo
+#print axioms Yulang.GeneralRebaseTerminalRepair274.write_hi
+#print axioms Yulang.GeneralRebaseTerminalRepair274.unchanged
+#print axioms Yulang.GeneralRebaseTerminalRepair274.public_preserved
+#print axioms Yulang.GeneralRebaseTerminalRepair274.write_point
+#print axioms Yulang.GeneralRebaseTerminalRepair274.repair
+#print axioms Yulang.GeneralRebaseTerminalRepair274.repair_new
+#print axioms Yulang.GeneralRebaseTerminalRepair274.repairs
+#print axioms Yulang.GeneralRebaseTerminalRepair274.continued_leaf
+#print axioms Yulang.GeneralRebaseTerminalRepair274.not_equivalent_endpoints
+#print axioms Yulang.GeneralRebaseTerminalRepair274.bad_lo
+#print axioms Yulang.GeneralRebaseTerminalRepair274.bad_hi
