@@ -128,3 +128,10 @@ pocket returns on a full model, since any genuinely recurrent origin
 forces the finite-tree inspector to abstain for every fuel. This
 holds on the guarded recursive record fixture; the reverse combination
 also adds the installed-252 negative omitted by the pocket.
+
+The all-model positive boundary is witnessed by two real models of the
+same *initial* 252 journal. The small model reads output 3 and source 0
+as the same scalar, while another valid initial model reads output 3
+as the deep nominal value and the source as that scalar. A model-local
+positive therefore does not imply old Equal. This is independent of the
+genuine all-model positive for two projections of the *installed* output.

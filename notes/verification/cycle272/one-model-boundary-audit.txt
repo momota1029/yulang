@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseOneModelBoundary272.seed' does not depend on any axioms
+'Yulang.GeneralRebaseOneModelBoundary272.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOneModelBoundary272.computed_local' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOneModelBoundary272.remains_partial' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOneModelBoundary272.equal_in_small' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseOneModelBoundary272.not_equal_in_other' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseOneModelBoundary272.actual_boundary' depends on axioms: [propext, Classical.choice, Quot.sound]
