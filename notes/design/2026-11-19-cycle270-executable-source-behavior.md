@@ -157,3 +157,9 @@ base types in one model. With a full-model witness this excludes that
 index from every semantic equality. A general extension should classify
 every observed label by its first, visible occurrence and rule out each
 shadowed occurrence; raw tag agreement is not exhaustive.
+
+For one-field normalized record snapshots, transport the duplicate
+counterexample to actual journal `Head` quantification using the raw
+checked equation. Retain a sound positive canonical-edge path; the
+failure is specifically the assertion that every positive-arity literal
+head test is the canonical one.

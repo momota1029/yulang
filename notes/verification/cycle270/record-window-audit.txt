@@ -1,0 +1,13 @@
+'Yulang.GeneralRebaseRecordWindowBoundary270.alternate_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordWindowBoundary270.alternate_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRecordWindowBoundary270.no_literal_exhaustion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordWindowBoundary270.noncanonical_hidden_excluded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRecordWindowBoundary270.canonical_positive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
