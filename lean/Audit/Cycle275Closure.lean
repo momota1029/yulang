@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseRefreshClosure275
+
+#print axioms Yulang.GeneralRebaseRefreshClosure275.width_not_nominal
+#print axioms Yulang.GeneralRebaseRefreshClosure275.only_original_nominals
+#print axioms Yulang.GeneralRebaseRefreshClosure275.rename_point
+#print axioms Yulang.GeneralRebaseRefreshClosure275.Gates
+#print axioms Yulang.GeneralRebaseRefreshClosure275.gates_initial
+#print axioms Yulang.GeneralRebaseRefreshClosure275.nominal_retained
+#print axioms Yulang.GeneralRebaseRefreshClosure275.gates_next
+#print axioms Yulang.GeneralRebaseRefreshClosure275.gates_hop
+#print axioms Yulang.GeneralRebaseRefreshClosure275.gates_path
+#print axioms Yulang.GeneralRebaseRefreshClosure275.NovelInstall
+#print axioms Yulang.GeneralRebaseRefreshClosure275.step_partition
