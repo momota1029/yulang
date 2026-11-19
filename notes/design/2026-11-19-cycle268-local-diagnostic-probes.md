@@ -52,3 +52,25 @@ Prove the two current Plan tables differ, and hence that a compiler
 producing the exact concrete tables cannot factor through the projection
 alone. This concerns representation, not source type validity and not
 a claim that a strict finite transition is enabled after every stutter.
+
+### Weak progress through an arbitrary finite prefix of stutters
+
+A weak transition is any finite run of projection-preserving real steps,
+followed by one strictly changing real step. Group every real finite trace
+into an exactly counted run of weak steps followed by a terminal stutter
+suffix. The weak relation is well-founded by remaining facts, without
+requiring stutters to terminate. No weak outgoing edge is exactly invariance
+of the projection along *all* finite future old paths, stronger than the
+previous immediate test. This is a theorem about an inductive relation.
+A complete executable observer of such paths is a distinct obligation.
+
+### No finite list of exact concrete stutter descendants
+
+For every fixed projection basis, the established true 239 recurrence
+eventually has equal endpoint projections for every round. Each individual
+step of those rounds is then a stutter, by monotone remaining-rank.
+Concrete states of distinct indices still differ (the existing slot count
+proof). Consequently no finite list of exact concrete states can cover
+the stutter closure of that reachable suffix start. This rules out a
+naive finite enumeration of exact journals, not a finite behavioral
+quotient or absence of strict exits by other transitions.

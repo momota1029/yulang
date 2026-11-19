@@ -4987,3 +4987,7 @@ import Yulang.GeneralRebaseMergedGate268
 import Yulang.GeneralRebaseAdministrativeProbe268
 import Yulang.GeneralRebaseInspectionChecks268
 import Yulang.GeneralRebaseInspectionProbe268
+import Yulang.GeneralRebaseStutterPlanBoundary268
+import Yulang.GeneralRebaseWeakProgress268
+import Yulang.GeneralRebaseWeakTerminal268
+import Yulang.GeneralRebaseStutterInfinite268
