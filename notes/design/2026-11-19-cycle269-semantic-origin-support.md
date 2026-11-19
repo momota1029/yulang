@@ -60,3 +60,43 @@ The strict merge scanner consumes positives; its negative completeness is
 conditional on known answers on the linked site pairs. A genuine initialized
 fixture compares two nonliteral equal centers, without asserting the second
 comparison site is registered or an actual merge occurs in that fixture.
+
+### Finite weak behavior, independent of administrative syntax
+
+A bounded strict rank and finite observable label set imply a finite space
+of **whole weak-behavior trees**. The code records the current projection
+and a set of complete remaining behavior trees, not merely a set of
+immediate projected outcomes. Use the rank bound as a complete depth,
+not a heuristic cutoff. Enumerate every possible child subset of the
+previous catalogue. A code represents a source only if each listed child
+has a genuine same-source weak witness and each genuine weak successor
+has a listed child. Classical choice/comprehension of existential weak
+witnesses proves mathematical representation even for infinite concrete
+branching; it is not an implementation of that extraction. If an
+observational code is supplied, child transitions preserve/reflect
+reachable observations, and no concrete stutter adjacency is identified
+with the quotient. Distinguish this from the 268 representative-sensitive
+finite administrative worklist, which is still open operationally.
+
+### Canonical finite weak classification and old-round regressions
+
+The canonical class is a function, not merely a finite covering relation.
+At a source of rank r, filter the fixed ordered catalogue at depth r−1
+to exactly those canonical codes realized by a weak successor. Detailing
+why catalogues grow by ordered sublist makes this exact even when a target
+skips many ranks. Equal codes are the coarsest label-preserving weak
+bisimulation when rank is determined by the label. Code children can be
+stepped or settled without rereading syntax, if a certified initial code is
+given. Selecting that code and its concrete witnesses still uses classical
+existential evidence.
+
+During a projection-preserving old stutter, the available target classes are
+an ordered sublist: any future weak step may be prefixed by that stutter.
+Use (remaining fact count, child code count) as lexicographic rank, with a
+finite global bound on children, to remove all unchanged-code old steps.
+The existential old-edge image decreases this rank. Same-representative
+lifting was proved for weak child steps only, not for this broader old-edge
+image. Both actual nonterminating 239 and 240 rounds eventually leave the
+entire mixed-kernel behavior code unchanged; 240 uses the proved erasure to
+the mixed kernel, not an unproved converse. Unchanged code does not assert
+there are no strict exits via other paths.
