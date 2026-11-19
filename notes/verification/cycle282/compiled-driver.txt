@@ -1,0 +1,82 @@
+'Yulang.GeneralRebaseProspective282.packet_context' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspective282.installed_seed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspective282.recorded_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspective282.empty_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspective282.Compiled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspective282.decoded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspective282.members' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspective282.compile_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspective282.acceptance_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.Setup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.setup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.add_common' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.compiled_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.model_invariant' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.table_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.OldInstall' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.NewInstall' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledInstall282.same_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.ExistingNonInstall' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.Driver' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.old_split' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.driver_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.driver_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.Guarded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.guarded_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.guarded_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledStep282.guarded_accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledQuery282.Denoted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledQuery282.compare' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledQuery282.mapped_type' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledQuery282.equality' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledQuery282.all₂_equiv' does not depend on any axioms
+'Yulang.GeneralRebaseCompiledQuery282.same_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledQuery282.same_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.acc_to_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.raw_inaccessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.phase_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.guarded_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.optional' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.Version.driver_not_acc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.Version.retains_first_round' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.Version.excludes_repeat' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.Loose.driver_not_acc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.Loose.retains_first_round' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledRegressions282.Loose.excludes_repeat' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledEvidenceAt282.Evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledEvidenceAt282.evidence_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledEvidenceAt282.map₂' does not depend on any axioms
+'Yulang.GeneralRebaseCompiledEvidenceAt282.EvidenceAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledEvidenceAt282.equivalent_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledFixtures282.Default.selected_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledFixtures282.Default.compiled_default' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledFixtures282.Ground.selected_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledFixtures282.Ground.rejection_still_selected_as_rejected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledFixtures282.Display.reached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompiledFixtures282.Display.selected_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCompiledFixtures282.Display.compiled_nonleaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

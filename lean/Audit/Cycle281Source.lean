@@ -1,0 +1,39 @@
+import Yulang.GeneralRebaseChartFixtures281
+import Yulang.GeneralRebaseChartSilent281
+import Yulang.GeneralRebaseChartPointService281
+
+#print axioms Yulang.GeneralRebaseChartFixtures281.graphChart
+#print axioms Yulang.GeneralRebaseChartFixtures281.outputChart
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.source
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.installed_public
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.exact_relative
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.before_not_entailed
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.fact_gained
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.semantic_install
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.public_cut
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.point_same
+#print axioms Yulang.GeneralRebaseChartFixtures281.Compound.point_kept
+#print axioms Yulang.GeneralRebaseChartFixtures281.Display.graph_fresh
+#print axioms Yulang.GeneralRebaseChartFixtures281.Display.graph_only
+#print axioms Yulang.GeneralRebaseChartFixtures281.Display.no_public_loss
+#print axioms Yulang.GeneralRebaseChartFixtures281.Display.sole_transition
+#print axioms Yulang.GeneralRebaseChartFixtures281.Display.terminal
+#print axioms Yulang.GeneralRebaseChartSilent281.quiet_chart
+#print axioms Yulang.GeneralRebaseChartSilent281.quiet_graph
+#print axioms Yulang.GeneralRebaseChartSilent281.no_strict
+#print axioms Yulang.GeneralRebaseChartSilent281.blocked
+#print axioms Yulang.GeneralRebaseChartSilent281.oldChart
+#print axioms Yulang.GeneralRebaseChartSilent281.looseChart
+#print axioms Yulang.GeneralRebaseChartSilent281.Version.blocked_every
+#print axioms Yulang.GeneralRebaseChartSilent281.Version.preserved_raw
+#print axioms Yulang.GeneralRebaseChartSilent281.Version.no_install
+#print axioms Yulang.GeneralRebaseChartSilent281.Loose.blocked_every
+#print axioms Yulang.GeneralRebaseChartSilent281.Loose.preserved_raw
+#print axioms Yulang.GeneralRebaseChartPointService281.raw_service
+#print axioms Yulang.GeneralRebaseChartPointService281.same_type_public
+#print axioms Yulang.GeneralRebaseChartPointService281.edges_same
+#print axioms Yulang.GeneralRebaseChartPointService281.chart_blocks_service
+#print axioms Yulang.GeneralRebaseChartPointService281.point_plan
+#print axioms Yulang.GeneralRebaseChartPointService281.counter_no_leaf
+#print axioms Yulang.GeneralRebaseChartPointService281.counter_repaired
+#print axioms Yulang.GeneralRebaseChartPointService281.point_leaf_on_repaired

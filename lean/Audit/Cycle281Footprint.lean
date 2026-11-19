@@ -1,0 +1,10 @@
+import Yulang.GeneralRebasePacketFootprint281
+
+#print axioms Yulang.GeneralRebasePacketFootprint281.footprint
+#print axioms Yulang.GeneralRebasePacketFootprint281.footprint_in_source
+#print axioms Yulang.GeneralRebasePacketFootprint281.project_through
+#print axioms Yulang.GeneralRebasePacketFootprint281.all_same
+#print axioms Yulang.GeneralRebasePacketFootprint281.projected_exact
+#print axioms Yulang.GeneralRebasePacketFootprint281.view
+#print axioms Yulang.GeneralRebasePacketFootprint281.cut_iff
+#print axioms Yulang.GeneralRebasePacketFootprint281.footprint_cut

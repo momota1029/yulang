@@ -1,0 +1,66 @@
+import Yulang.GeneralRebaseProspective282
+import Yulang.GeneralRebaseCompiledInstall282
+import Yulang.GeneralRebaseCompiledStep282
+import Yulang.GeneralRebaseCompiledQuery282
+import Yulang.GeneralRebaseCompiledRegressions282
+import Yulang.GeneralRebaseCompiledEvidenceAt282
+import Yulang.GeneralRebaseCompiledFixtures282
+
+#print axioms Yulang.GeneralRebaseProspective282.packet_context
+#print axioms Yulang.GeneralRebaseProspective282.installed_seed
+#print axioms Yulang.GeneralRebaseProspective282.recorded_install
+#print axioms Yulang.GeneralRebaseProspective282.empty_install
+#print axioms Yulang.GeneralRebaseProspective282.Compiled
+#print axioms Yulang.GeneralRebaseProspective282.decoded
+#print axioms Yulang.GeneralRebaseProspective282.members
+#print axioms Yulang.GeneralRebaseProspective282.compile_old
+#print axioms Yulang.GeneralRebaseProspective282.acceptance_before
+#print axioms Yulang.GeneralRebaseCompiledInstall282.Setup
+#print axioms Yulang.GeneralRebaseCompiledInstall282.setup
+#print axioms Yulang.GeneralRebaseCompiledInstall282.add_common
+#print axioms Yulang.GeneralRebaseCompiledInstall282.compiled_at
+#print axioms Yulang.GeneralRebaseCompiledInstall282.model_invariant
+#print axioms Yulang.GeneralRebaseCompiledInstall282.table_at
+#print axioms Yulang.GeneralRebaseCompiledInstall282.OldInstall
+#print axioms Yulang.GeneralRebaseCompiledInstall282.NewInstall
+#print axioms Yulang.GeneralRebaseCompiledInstall282.same_install
+#print axioms Yulang.GeneralRebaseCompiledStep282.ExistingNonInstall
+#print axioms Yulang.GeneralRebaseCompiledStep282.Driver
+#print axioms Yulang.GeneralRebaseCompiledStep282.old_split
+#print axioms Yulang.GeneralRebaseCompiledStep282.raw
+#print axioms Yulang.GeneralRebaseCompiledStep282.driver_exact
+#print axioms Yulang.GeneralRebaseCompiledStep282.driver_path
+#print axioms Yulang.GeneralRebaseCompiledStep282.Guarded
+#print axioms Yulang.GeneralRebaseCompiledStep282.guarded_raw
+#print axioms Yulang.GeneralRebaseCompiledStep282.guarded_exact
+#print axioms Yulang.GeneralRebaseCompiledStep282.guarded_accessible
+#print axioms Yulang.GeneralRebaseCompiledQuery282.Denoted
+#print axioms Yulang.GeneralRebaseCompiledQuery282.compare
+#print axioms Yulang.GeneralRebaseCompiledQuery282.mapped_type
+#print axioms Yulang.GeneralRebaseCompiledQuery282.equality
+#print axioms Yulang.GeneralRebaseCompiledQuery282.all₂_equiv
+#print axioms Yulang.GeneralRebaseCompiledQuery282.same_origin
+#print axioms Yulang.GeneralRebaseCompiledQuery282.same_inputs
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.acc_to_raw
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.raw_inaccessible
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.phase_reachable
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.guarded_path
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.optional
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.Version.driver_not_acc
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.Version.retains_first_round
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.Version.excludes_repeat
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.Loose.driver_not_acc
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.Loose.retains_first_round
+#print axioms Yulang.GeneralRebaseCompiledRegressions282.Loose.excludes_repeat
+#print axioms Yulang.GeneralRebaseCompiledEvidenceAt282.Evidence
+#print axioms Yulang.GeneralRebaseCompiledEvidenceAt282.evidence_exact
+#print axioms Yulang.GeneralRebaseCompiledEvidenceAt282.map₂
+#print axioms Yulang.GeneralRebaseCompiledEvidenceAt282.EvidenceAt
+#print axioms Yulang.GeneralRebaseCompiledEvidenceAt282.equivalent_at
+#print axioms Yulang.GeneralRebaseCompiledFixtures282.Default.selected_preserved
+#print axioms Yulang.GeneralRebaseCompiledFixtures282.Default.compiled_default
+#print axioms Yulang.GeneralRebaseCompiledFixtures282.Ground.selected_preserved
+#print axioms Yulang.GeneralRebaseCompiledFixtures282.Ground.rejection_still_selected_as_rejected
+#print axioms Yulang.GeneralRebaseCompiledFixtures282.Display.reached
+#print axioms Yulang.GeneralRebaseCompiledFixtures282.Display.selected_preserved
+#print axioms Yulang.GeneralRebaseCompiledFixtures282.Display.compiled_nonleaf

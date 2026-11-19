@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 280
+- cycle: 282
 - status: completed
-- started: 2026-11-19T19:30:00Z
-- updated: 2026-11-19T20:20:00Z
-- elapsed_min: 50.00
-- activity: Fixed-port decode, finite graph, archived edge bisimulation, exact stored raw state recovery, and audited legacy limits.
+- started: 2026-11-19T21:35:10Z
+- updated: 2026-11-19T22:25:11Z
+- elapsed_min: 50.02
+- activity: 全 mixed journal・recursive evidence・最新 fixed 表の射影、compiled install guard と guarded path を確認。32モジュール、6独立監査259宣言 PASS。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 336055689
-- report: notes/handoff/dots-cycle-280.md
-- resume_hint: Read the latest inbox. Port copy is exact given disjoint support; the next progress needed is a source-proved separation and live-maintenance rule for semantic silent installs, not another proof of unchanged raw Acc.
+- last_local_commit: e85769ee0
+- report: notes/handoff/dots-cycle-282.md
+- resume_hint: 新版定義が旧 compiled 支持に触れる場合と触れない場合を分け、prospective の差分 compiler を証明する。

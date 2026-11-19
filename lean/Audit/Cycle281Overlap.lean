@@ -1,0 +1,17 @@
+import Yulang.GeneralRebaseOverlap281
+import Yulang.GeneralRebaseReplayCriterion281
+
+#print axioms Yulang.GeneralRebaseOverlap281.kept
+#print axioms Yulang.GeneralRebaseOverlap281.fresh
+#print axioms Yulang.GeneralRebaseOverlap281.in_kept
+#print axioms Yulang.GeneralRebaseOverlap281.in_fresh
+#print axioms Yulang.GeneralRebaseOverlap281.kept_supported
+#print axioms Yulang.GeneralRebaseOverlap281.fresh_apart
+#print axioms Yulang.GeneralRebaseOverlap281.fresh_unique
+#print axioms Yulang.GeneralRebaseOverlap281.fresh_isolated
+#print axioms Yulang.GeneralRebaseOverlap281.respects_partition
+#print axioms Yulang.GeneralRebaseOverlap281.project_overlap
+#print axioms Yulang.GeneralRebaseOverlap281.project_supported
+#print axioms Yulang.GeneralRebaseReplayCriterion281.raw_projection
+#print axioms Yulang.GeneralRebaseReplayCriterion281.fixed_projection
+#print axioms Yulang.GeneralRebaseReplayCriterion281.exact_iff_retained

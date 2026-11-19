@@ -1,0 +1,13 @@
+'Yulang.GeneralRebasePrivateKey282.port' does not depend on any axioms
+'Yulang.GeneralRebasePrivateKey282.Excludes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateKey282.different_purpose' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateKey282.versioned_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateKey282.endpoint_support' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateKey282.capture_private' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateKey282.binder_private' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateHead282.replay_private' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateHead282.head_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateHead282.protected_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateHead282.variable_private' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateHead282.output_private' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePrivateHead282.schema_private' depends on axioms: [propext, Quot.sound]

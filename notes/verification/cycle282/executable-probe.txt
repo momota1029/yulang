@@ -1,0 +1,9 @@
+1
+true
+1
+true
+some 4
+some 4
+[2, 2]
+[2, 4]
+exit=0

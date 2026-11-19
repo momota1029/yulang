@@ -1,0 +1,7 @@
+'Yulang.GeneralRebasePacketChart281.fact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketChart281.pool' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketChart281.supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketChart281.actual_has' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketChart281.view' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketChart281.relative_complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePacketChart281.public_cut_iff' depends on axioms: [propext, Classical.choice, Quot.sound]

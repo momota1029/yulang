@@ -1,0 +1,46 @@
+import Yulang.GeneralRebasePrivateSchema282
+import Yulang.GeneralRebasePrivateChild282
+import Yulang.GeneralRebasePrivateRequests282
+import Yulang.GeneralRebasePrivatePacket282
+import Yulang.GeneralRebasePrivateClass282
+import Yulang.GeneralRebasePrivateTrace282
+import Yulang.GeneralRebasePrivateObserved282
+
+#print axioms Yulang.GeneralRebasePrivateSchema282.SiteSafe
+#print axioms Yulang.GeneralRebasePrivateSchema282.site_private
+#print axioms Yulang.GeneralRebasePrivateSchema282.port_nonzero
+#print axioms Yulang.GeneralRebasePrivateSchema282.index_private
+#print axioms Yulang.GeneralRebasePrivateSchema282.head_private
+#print axioms Yulang.GeneralRebasePrivateChild282.allocation_args
+#print axioms Yulang.GeneralRebasePrivateChild282.allocation_out
+#print axioms Yulang.GeneralRebasePrivateChild282.center_private
+#print axioms Yulang.GeneralRebasePrivateChild282.child_arguments
+#print axioms Yulang.GeneralRebasePrivateChild282.child_site
+#print axioms Yulang.GeneralRebasePrivateChild282.child_output_target
+#print axioms Yulang.GeneralRebasePrivateChild282.child_output
+#print axioms Yulang.GeneralRebasePrivateRequests282.generated_target
+#print axioms Yulang.GeneralRebasePrivateRequests282.child_schema_private
+#print axioms Yulang.GeneralRebasePrivateRequests282.OutputSafe
+#print axioms Yulang.GeneralRebasePrivateRequests282.emitted_target
+#print axioms Yulang.GeneralRebasePrivateRequests282.emitted_schema_private
+#print axioms Yulang.GeneralRebasePrivatePacket282.semantic_subset
+#print axioms Yulang.GeneralRebasePrivatePacket282.private_sources_equal
+#print axioms Yulang.GeneralRebasePrivatePacket282.head_sources_private
+#print axioms Yulang.GeneralRebasePrivatePacket282.Safe
+#print axioms Yulang.GeneralRebasePrivatePacket282.captures_private
+#print axioms Yulang.GeneralRebasePrivatePacket282.children_private
+#print axioms Yulang.GeneralRebasePrivatePacket282.sources_private
+#print axioms Yulang.GeneralRebasePrivateClass282.reads_private
+#print axioms Yulang.GeneralRebasePrivateClass282.many_private
+#print axioms Yulang.GeneralRebasePrivateClass282.center_lookup
+#print axioms Yulang.GeneralRebasePrivateClass282.body_private
+#print axioms Yulang.GeneralRebasePrivateClass282.class_private
+#print axioms Yulang.GeneralRebasePrivateTrace282.root_site
+#print axioms Yulang.GeneralRebasePrivateTrace282.sites_safe
+#print axioms Yulang.GeneralRebasePrivateTrace282.raw_outputs_safe
+#print axioms Yulang.GeneralRebasePrivateTrace282.frame_safe
+#print axioms Yulang.GeneralRebasePrivateTrace282.historical
+#print axioms Yulang.GeneralRebasePrivateObserved282.root_observed
+#print axioms Yulang.GeneralRebasePrivateObserved282.observations
+#print axioms Yulang.GeneralRebasePrivateObserved282.observed_private
+#print axioms Yulang.GeneralRebasePrivateObserved282.source_private

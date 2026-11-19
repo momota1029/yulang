@@ -1,0 +1,16 @@
+Fresh control inputs: git fetch origin integration/m1-final, then read pinned 707497abfa90cb6bd5c1e341ca2ed7e2a78c6441:notes/plan/dots-standing-orders.md and dots-inbox.md. Re-fetched later; status unchanged. Check previous completed 80c7a8c3106444500ff54d8d14c1cdd092778e85 equals local proof baseline tree 19766066981673e54760056c2e70b65d030a3c85.
+Input comparison: fetch work/dots-audit, inspect x-oracle.md X1/X2/X3/X5 and role-claims at 55574b6052ef1534fd0fc36d6d3617ebede59a0e.
+For each module in module-list.txt, in import order:
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . -o ".lake/build/lib/lean/Yulang/$module.olean" "Yulang/$module.lean")
+For each file lean/Audit/Cycle282*.lean, verify imports are only Yulang.* and run independently:
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . "Audit/$audit.lean")
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle282/typed-use.lean)
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle282/executable-probe.lean)
+The same scoped per-audit command ran Cycle206DefaultGap, Cycle206Semantic, Cycle235Fifth, Cycle230Completion, Cycle230Final, Cycle233Final after generating only their missing module dependencies. Results and output digests in legacy-check.txt.
+  bash tools/verify-lean.sh . 707497abfa90cb6bd5c1e341ca2ed7e2a78c6441 --no-build
+  bash tools/verify-lean.sh . 19766066981673e54760056c2e70b65d030a3c85 --no-build
+  git diff --check 707497abfa90cb6bd5c1e341ca2ed7e2a78c6441..HEAD
+  git diff --check 19766066981673e54760056c2e70b65d030a3c85..HEAD
+Verify pre-existing files frozen and new modules' barrel listed exactly once. Only propext/Classical.choice/Quot.sound in new printed declaration dependencies.
+No whole Lake build, integration suite, CI, or new Yulang2 runtime.
+Publication: expected-head non-force update only work/dots-main. Fetch pinned commit and verify all tree bytes relative to local verification snapshot.

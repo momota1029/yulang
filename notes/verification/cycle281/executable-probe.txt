@@ -1,0 +1,9 @@
+true
+true
+false
+false
+some (Yulang.GeneralRebasePhaseFixture281.Phase.loose)
+some (Yulang.GeneralRebasePhaseFixture281.Phase.point)
+1
+2
+exit=0

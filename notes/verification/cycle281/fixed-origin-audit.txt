@@ -1,0 +1,3 @@
+'Yulang.GeneralRebaseFixedOrigin281.not_declarationKey' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFixedOrigin281.not_reserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFixedOrigin281.fixed_absent' depends on axioms: [propext, Classical.choice, Quot.sound]

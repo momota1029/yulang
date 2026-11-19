@@ -1,0 +1,8 @@
+'Yulang.GeneralRebaseFixedReplay281.fixed_target_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFixedReplay281.fixed_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFixedReplay281.fixed_read' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFixedReplay281.fixed_apart' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFixedReplay281.fixed_isolated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFixedReplay281.before_supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFixedReplay281.fixed_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFixedReplay281.replace_versioned' depends on axioms: [propext, Classical.choice, Quot.sound]

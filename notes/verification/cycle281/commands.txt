@@ -1,0 +1,16 @@
+Fresh inputs: fetch origin integration/m1-final; pinned initial 6ffaba4af40b7c669a19bac870872d2611a666e3; later 707497abfa90cb6bd5c1e341ca2ed7e2a78c6441. Read notes/plan/dots-standing-orders.md and notes/plan/dots-inbox.md at start and cmp both pinned paths on second fetch (unchanged).
+Fetch origin work/dots-main; verify completed cycle 280 at e62f33b584c1bba2f9214701d3b3b80591cb386b and exact local baseline tree a78e2d227da10836ceb97e7b22b10d241510a2c6.
+For each new Yulang module in module-list.txt, in dependency order:
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . -o ".lake/build/lib/lean/Yulang/$module.olean" "Yulang/$module.lean")
+For each lean/Audit/Cycle281*.lean, check imports are Yulang.* only and independently:
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . "Audit/$audit.lean")
+Check all printed declaration dependencies against propext, Classical.choice, Quot.sound; no other dependencies admitted by the check.
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle281/executable-probe.lean)
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle281/typed-use.lean)
+  bash tools/verify-lean.sh . 707497abfa90cb6bd5c1e341ca2ed7e2a78c6441 --no-build
+  bash tools/verify-lean.sh . a78e2d227da10836ceb97e7b22b10d241510a2c6 --no-build
+  git diff --check 707497abfa90cb6bd5c1e341ca2ed7e2a78c6441..HEAD
+  git diff --check a78e2d227da10836ceb97e7b22b10d241510a2c6..HEAD
+Check every new Yulang module appears in lean/Yulang.lean exactly once. Check frozen paths against both baselines.
+No whole Lake build, integration suite, CI, or new Yulang2 interpreter run.
+Publish only work/dots-main with non-force expected SHA; fetch pinned commit and compare entire tree with checked local snapshot.
