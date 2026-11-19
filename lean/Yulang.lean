@@ -5347,3 +5347,10 @@ import Yulang.GeneralRebasePortProjection280
 import Yulang.GeneralRebasePortCatalog280
 import Yulang.GeneralRebaseFixedGraphExec280
 import Yulang.GeneralRebaseFixedDisplayGraph280
+import Yulang.GeneralRebaseEffectSnapshot280
+import Yulang.GeneralRebaseArchiveTrust280
+import Yulang.GeneralRebaseArchiveGuards280
+import Yulang.GeneralRebaseArchiveStep280
+import Yulang.GeneralRebaseCurrentStep280
+import Yulang.GeneralRebaseGraphBisim280
+import Yulang.GeneralRebaseCompactMachine280
