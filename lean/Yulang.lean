@@ -5067,3 +5067,6 @@ import Yulang.GeneralRebaseAcyclicNominal270
 import Yulang.GeneralRebaseClosedOriginDriver270
 import Yulang.GeneralRebaseClosedOriginFixture270
 import Yulang.GeneralRebaseOutputFreeCompiler270
+import Yulang.GeneralRebaseReplaySearch270
+import Yulang.GeneralRebaseReplayFrontier270
+import Yulang.GeneralRebaseReplayFrontierFixture270

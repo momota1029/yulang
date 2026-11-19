@@ -110,3 +110,16 @@ and the queried origin has a located representative, the recurrence
 answer is exact. In the two synthetic journals the whole matrix is
 determinate and the full root check computes both polarities.
 An unstored origin remains unknown.
+
+## Bounded old-command frontier search
+
+A finite input frontier now lets the checker try all offered replay
+prefixes up to a raw-depth bound, without deciding concrete journal
+equality. It recovers a checked original weak witness and the admitted
+transcript behind any hit, or proves every offered transcript is a lull.
+A separate support theorem upgrades the latter to all depth-bounded old
+paths only when every original edge is represented in a supplied
+schedule. Neither fuel nor a missing proposal proves general terminality.
+The actual compound fixture has no hit at depth zero and computes the
+real install at depth one; the actual refresh/reobserve fixture supplies
+a two-level old frontier which is entirely a lull.
