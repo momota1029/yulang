@@ -2,9 +2,9 @@
 - cycle: 283
 - status: running
 - started: 2026-11-19T22:30:00Z
-- updated: 2026-11-19T22:30:27Z
-- elapsed_min: 0.45
-- activity: cycle282完了・単独作業を確認し、全 semantic compiler を差分化する前提を切り分ける。
+- updated: 2026-11-19T22:34:57Z
+- elapsed_min: 4.95
+- activity: 全履歴の逐次 solve と dirty 行だけの更新が全割当で一致。実 snapshot の Models・recursive Evidence への接続を確認。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 4597a4afd
-- resume_hint: 統合先と運用指示を再読し、新版定義と旧 semantic support の交差を先に調べる。
+- last_local_commit: cfd416113
+- resume_hint: 旧順序の再利用と live class の再検査を分ける。

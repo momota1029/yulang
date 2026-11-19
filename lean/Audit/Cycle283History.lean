@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseProspectiveDelta283
+
+#print axioms Yulang.GeneralRebaseExactHistory283.equation
+#print axioms Yulang.GeneralRebaseExactHistory283.unique
+#print axioms Yulang.GeneralRebaseExactHistory283.order_independent
+#print axioms Yulang.GeneralRebaseDirtyHistory283.subset
+#print axioms Yulang.GeneralRebaseDirtyHistory283.safe
+#print axioms Yulang.GeneralRebaseDirtyHistory283.skipped
+#print axioms Yulang.GeneralRebaseIncrementalHistory283.exact_update
+#print axioms Yulang.GeneralRebaseIncrementalHistory283.no_change
+#print axioms Yulang.GeneralRebaseProspectiveDelta283.ext_history
+#print axioms Yulang.GeneralRebaseProspectiveDelta283.coherent_history
+#print axioms Yulang.GeneralRebaseProspectiveDelta283.replay_exact
+#print axioms Yulang.GeneralRebaseProspectiveDelta283.guard
+#print axioms Yulang.GeneralRebaseProspectiveDelta283.supports_historical_evidence

@@ -5425,3 +5425,7 @@ import Yulang.GeneralRebaseCompiledRegressions282
 import Yulang.GeneralRebaseCompiledEvidenceAt282
 import Yulang.GeneralRebaseCompiledFixtures282
 import Yulang.GeneralRebaseOptionalOverwrite282
+import Yulang.GeneralRebaseExactHistory283
+import Yulang.GeneralRebaseDirtyHistory283
+import Yulang.GeneralRebaseIncrementalHistory283
+import Yulang.GeneralRebaseProspectiveDelta283
