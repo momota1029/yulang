@@ -1,0 +1,3 @@
+Yulang.GeneralRebaseScopedFrame276.frame_input_occurrence
+Yulang.GeneralRebaseScopedFrame276.same_frame
+Yulang.GeneralRebaseScopedFrame276.declaration_for_focus

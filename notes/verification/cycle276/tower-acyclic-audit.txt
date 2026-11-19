@@ -1,0 +1,2 @@
+'Yulang.GeneralRebaseTowerAcyclic276.edge_decreases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTowerAcyclic276.acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]

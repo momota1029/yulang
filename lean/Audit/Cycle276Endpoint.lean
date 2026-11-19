@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseDisplayEndpoint276
+
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.known_zero
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.known_one
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.any_parent_fresh
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.bad_parent_report
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.bad_child_report
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.bad_parent
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.bad_child
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.wrong_parent_prepared
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.wrong_child_prepared
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.root_distinct
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.centers_for
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.raw_for
+#print axioms Yulang.GeneralRebaseDisplayEndpoint276.generates_only

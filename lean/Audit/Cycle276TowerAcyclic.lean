@@ -1,0 +1,4 @@
+import Yulang.GeneralRebaseTowerAcyclic276
+
+#print axioms Yulang.GeneralRebaseTowerAcyclic276.edge_decreases
+#print axioms Yulang.GeneralRebaseTowerAcyclic276.acyclic

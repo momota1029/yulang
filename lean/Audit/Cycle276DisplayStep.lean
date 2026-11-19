@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseDisplayStep276
+
+#print axioms Yulang.GeneralRebaseDisplayStep276.alternatives
+#print axioms Yulang.GeneralRebaseDisplayStep276.installable
+#print axioms Yulang.GeneralRebaseDisplayStep276.novel
+#print axioms Yulang.GeneralRebaseDisplayStep276.actual_step
+#print axioms Yulang.GeneralRebaseDisplayStep276.initial_source
+#print axioms Yulang.GeneralRebaseDisplayStep276.reachable
+#print axioms Yulang.GeneralRebaseDisplayStep276.substantive_positive

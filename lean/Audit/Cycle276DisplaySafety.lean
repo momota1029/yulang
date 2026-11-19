@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseDisplaySafety276
+
+#print axioms Yulang.GeneralRebaseDisplaySafety276.towers
+#print axioms Yulang.GeneralRebaseDisplaySafety276.before_model
+#print axioms Yulang.GeneralRebaseDisplaySafety276.after_model
+#print axioms Yulang.GeneralRebaseDisplaySafety276.semantic
+#print axioms Yulang.GeneralRebaseDisplaySafety276.depth
+#print axioms Yulang.GeneralRebaseDisplaySafety276.depth_exact
+#print axioms Yulang.GeneralRebaseDisplaySafety276.raw_edge
+#print axioms Yulang.GeneralRebaseDisplaySafety276.raw_acyclic
+#print axioms Yulang.GeneralRebaseDisplaySafety276.wrong_initial_failed
+#print axioms Yulang.GeneralRebaseDisplaySafety276.administrative
+#print axioms Yulang.GeneralRebaseDisplaySafety276.initial_safe
+#print axioms Yulang.GeneralRebaseDisplaySafety276.position_length
+#print axioms Yulang.GeneralRebaseDisplaySafety276.initial_positions

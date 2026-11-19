@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseTowerSemantics276
+
+#print axioms Yulang.GeneralRebaseTowerSemantics276.no_structural
+#print axioms Yulang.GeneralRebaseTowerSemantics276.nominal_projection
+#print axioms Yulang.GeneralRebaseTowerSemantics276.observed_depth
+#print axioms Yulang.GeneralRebaseTowerSemantics276.smaller
+#print axioms Yulang.GeneralRebaseTowerSemantics276.Realizes
+#print axioms Yulang.GeneralRebaseTowerSemantics276.rank
+#print axioms Yulang.GeneralRebaseTowerSemantics276.rank_exact

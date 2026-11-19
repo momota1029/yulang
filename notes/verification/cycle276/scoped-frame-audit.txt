@@ -1,0 +1,3 @@
+'Yulang.GeneralRebaseScopedFrame276.frame_input_occurrence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseScopedFrame276.same_frame' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseScopedFrame276.declaration_for_focus' depends on axioms: [propext, Quot.sound]
