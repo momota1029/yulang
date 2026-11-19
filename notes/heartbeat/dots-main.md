@@ -2,9 +2,9 @@
 - cycle: 278
 - status: running
 - started: 2026-11-19T17:33:21Z
-- updated: 2026-11-19T17:43:50Z
-- elapsed_min: 10.49
-- activity: Published true microedge simulation and exact public models for 239/240, plus strict private install cuts. Building retained-binder and V8 evidence proofs.
+- updated: 2026-11-19T17:53:23Z
+- elapsed_min: 20.05
+- activity: Published semantic binder retention and exact V8 evidence throughout both loops, including under refresh; checking an inverse allocation decoder.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: e67fa5f9d
-- resume_hint: Continue microstate evidence and certify exact stable-binder reconstruction on the finite normalized successor.
+- last_local_commit: dfeff0947
+- resume_hint: Raw loop still exists. Stable-write run unchanged; aim replace the reconstruction numeric scan by descending verified predecessor decode.
