@@ -1,0 +1,14 @@
+import Yulang.GeneralRebaseNonleafRetarget276
+
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.frame_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.children_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.clause_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.center_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.child_site_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.requests_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.emitted_schema_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.child_requests_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.child_schema_eq
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.inputs_iff
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.outputs_iff
+#print axioms Yulang.GeneralRebaseNonleafRetarget276.holds_iff
