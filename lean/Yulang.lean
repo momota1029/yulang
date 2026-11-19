@@ -5172,3 +5172,6 @@ import Yulang.GeneralRebaseTerminalMachine274
 import Yulang.GeneralRebaseTerminalBridge274
 import Yulang.GeneralRebaseTerminalStableSupport274
 import Yulang.GeneralRebaseTerminalStableCells274
+import Yulang.GeneralRebaseTerminalTypePool274
+import Yulang.GeneralRebaseTerminalAlias274
+import Yulang.GeneralRebaseTerminalDecode274

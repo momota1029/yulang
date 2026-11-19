@@ -1,0 +1,43 @@
+import Yulang.GeneralRebaseTerminalTypePool274
+import Yulang.GeneralRebaseTerminalAlias274
+import Yulang.GeneralRebaseTerminalDecode274
+
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.pool
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.pair_subset
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.terminal_map
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.source_map
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.terminal_legacy
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.plans
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.classes
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.effects
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.covered
+#print axioms Yulang.GeneralRebaseTerminalTypePool274.actual_width
+#print axioms Yulang.GeneralRebaseTerminalAlias274.widthKeys
+#print axioms Yulang.GeneralRebaseTerminalAlias274.sourceId
+#print axioms Yulang.GeneralRebaseTerminalAlias274.old_lo
+#print axioms Yulang.GeneralRebaseTerminalAlias274.old_hi
+#print axioms Yulang.GeneralRebaseTerminalAlias274.new_lo
+#print axioms Yulang.GeneralRebaseTerminalAlias274.new_hi
+#print axioms Yulang.GeneralRebaseTerminalAlias274.center
+#print axioms Yulang.GeneralRebaseTerminalAlias274.width_private
+#print axioms Yulang.GeneralRebaseTerminalAlias274.old_private
+#print axioms Yulang.GeneralRebaseTerminalAlias274.public_id
+#print axioms Yulang.GeneralRebaseTerminalAlias274.bounded
+#print axioms Yulang.GeneralRebaseTerminalAlias274.exact_value
+#print axioms Yulang.GeneralRebaseTerminalAlias274.normalize
+#print axioms Yulang.GeneralRebaseTerminalAlias274.normalize_equivalent
+#print axioms Yulang.GeneralRebaseTerminalAlias274.normalize_valid
+#print axioms Yulang.GeneralRebaseTerminalAlias274.no_expand_public
+#print axioms Yulang.GeneralRebaseTerminalAlias274.rerun
+#print axioms Yulang.GeneralRebaseTerminalAlias274.idempotent
+#print axioms Yulang.GeneralRebaseTerminalDecode274.decode
+#print axioms Yulang.GeneralRebaseTerminalDecode274.small_in_pool
+#print axioms Yulang.GeneralRebaseTerminalDecode274.agrees
+#print axioms Yulang.GeneralRebaseTerminalDecode274.independent
+#print axioms Yulang.GeneralRebaseTerminalDecode274.stable_lo
+#print axioms Yulang.GeneralRebaseTerminalDecode274.stable_hi
+#print axioms Yulang.GeneralRebaseTerminalDecode274.terminal
+#print axioms Yulang.GeneralRebaseTerminalDecode274.current_body
+#print axioms Yulang.GeneralRebaseTerminalDecode274.realizes_run
+#print axioms Yulang.GeneralRebaseTerminalDecode274.positive
+#print axioms Yulang.GeneralRebaseTerminalDecode274.exact

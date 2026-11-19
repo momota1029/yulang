@@ -19,3 +19,22 @@ names/normal forms with historical versioned states using a constructive
 joint completion. Terminal Evidence must refer to the genuine positive
 source state (not just an isolated store); the stable-name view must state
 what it can reflect, and evidence outside this leaf remains separate.
+
+## Compatibility of stable solver cells and the actual dictionary model
+
+The actual I44 terminal journal reads two versions of its private
+aggregates. The finite 242 scheduler writes the older, fixed pair of
+logical addresses. Check the journal's actual finite semantic support to
+show the fixed pair is absent; then check one joint witness for the real
+terminal journal, leaf dictionary, and result of the stable-name executor.
+Do not compare store satisfiability alone to Evidence.
+
+For a stronger finite readback, enumerate exactly a supported pool of
+original source IDs, actual binder, and the old/new aggregate pairs.
+Replace every such type (but no row) by its certified source projection:
+old lower -> source 4; old upper/current lower/current upper/actual -> source 2.
+Prove alias soundness from real full packet/merge equations, then literal
+source-public reduction with a deterministic decode. For the two stable
+executor cells separately choose the committed source IDs of the finished
+block. An unrelated type coordinate can be erased only after proving
+it is outside genuine journal/store support.
