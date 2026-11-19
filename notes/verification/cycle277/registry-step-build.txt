@@ -1,0 +1,3 @@
+PASS Yulang.GeneralRebaseRegistryInstallModels277
+PASS Yulang.GeneralRebaseRegistryInstallStep277
+PASS Yulang.GeneralRebaseRegistryOneStep277

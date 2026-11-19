@@ -1,0 +1,41 @@
+import Yulang.GeneralRebaseQuietBasis277
+import Yulang.GeneralRebaseQuietBound277
+import Yulang.GeneralRebaseInstallGrowth277
+import Yulang.GeneralRebaseMixedCounts277
+
+#print axioms Yulang.GeneralRebaseQuietBasis277.sourceNames
+#print axioms Yulang.GeneralRebaseQuietBasis277.centerNames
+#print axioms Yulang.GeneralRebaseQuietBasis277.basis
+#print axioms Yulang.GeneralRebaseQuietBasis277.budget
+#print axioms Yulang.GeneralRebaseQuietBasis277.pair_count
+#print axioms Yulang.GeneralRebaseQuietBasis277.basis_count
+#print axioms Yulang.GeneralRebaseQuietBasis277.source_administrative
+#print axioms Yulang.GeneralRebaseQuietBasis277.advances
+#print axioms Yulang.GeneralRebaseQuietBound277.Counted
+#print axioms Yulang.GeneralRebaseQuietBound277.append
+#print axioms Yulang.GeneralRebaseQuietBound277.remaining_le
+#print axioms Yulang.GeneralRebaseQuietBound277.admin_no_grow
+#print axioms Yulang.GeneralRebaseQuietBound277.admin_same_sources
+#print axioms Yulang.GeneralRebaseQuietBound277.quiet_progress
+#print axioms Yulang.GeneralRebaseQuietBound277.quiet_length
+#print axioms Yulang.GeneralRebaseInstallGrowth277.nodup_names
+#print axioms Yulang.GeneralRebaseInstallGrowth277.reserveBudget
+#print axioms Yulang.GeneralRebaseInstallGrowth277.centerBudget
+#print axioms Yulang.GeneralRebaseInstallGrowth277.declaration_key_count
+#print axioms Yulang.GeneralRebaseInstallGrowth277.key_count
+#print axioms Yulang.GeneralRebaseInstallGrowth277.reserve_length
+#print axioms Yulang.GeneralRebaseInstallGrowth277.emitted_bound
+#print axioms Yulang.GeneralRebaseInstallGrowth277.install_sources
+#print axioms Yulang.GeneralRebaseInstallGrowth277.install_centers
+#print axioms Yulang.GeneralRebaseInstallGrowth277.source_le_of_subset
+#print axioms Yulang.GeneralRebaseMixedCounts277.Actual
+#print axioms Yulang.GeneralRebaseMixedCounts277.Runs
+#print axioms Yulang.GeneralRebaseMixedCounts277.classified
+#print axioms Yulang.GeneralRebaseMixedCounts277.plan_count
+#print axioms Yulang.GeneralRebaseMixedCounts277.count_monotone
+#print axioms Yulang.GeneralRebaseMixedCounts277.poly
+#print axioms Yulang.GeneralRebaseMixedCounts277.sourceCap
+#print axioms Yulang.GeneralRebaseMixedCounts277.centerCap
+#print axioms Yulang.GeneralRebaseMixedCounts277.quietCap
+#print axioms Yulang.GeneralRebaseMixedCounts277.poly_mono
+#print axioms Yulang.GeneralRebaseMixedCounts277.budget_le

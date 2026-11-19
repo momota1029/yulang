@@ -1,0 +1,7 @@
+import Yulang.GeneralRebaseFiniteCodeBoundary277
+
+#print axioms Yulang.GeneralRebaseFiniteCodeBoundary277.absorb_of_meaning
+#print axioms Yulang.GeneralRebaseFiniteCodeBoundary277.Loop.formed
+#print axioms Yulang.GeneralRebaseFiniteCodeBoundary277.Loop.no_finite_code
+#print axioms Yulang.GeneralRebaseFiniteCodeBoundary277.Loop.no_installation_limit
+#print axioms Yulang.GeneralRebaseFiniteCodeBoundary277.Loop.arbitrarily_many_installations

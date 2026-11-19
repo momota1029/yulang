@@ -1,0 +1,6 @@
+'Yulang.GeneralRebaseFiniteCodeAcc277.Certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeAcc277.extend' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeAcc277.distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeAcc277.installation_budget' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeAcc277.reached_after_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeAcc277.accessible' depends on axioms: [propext, Classical.choice, Quot.sound]

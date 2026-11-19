@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseCompiledInstall277
+
+#print axioms Yulang.GeneralRebaseCompiledInstall277.safe
+#print axioms Yulang.GeneralRebaseCompiledInstall277.frame_decl
+#print axioms Yulang.GeneralRebaseCompiledInstall277.positions
+#print axioms Yulang.GeneralRebaseCompiledInstall277.alternatives
+#print axioms Yulang.GeneralRebaseCompiledInstall277.raw_sites_eq
+#print axioms Yulang.GeneralRebaseCompiledInstall277.center_sites_eq
+#print axioms Yulang.GeneralRebaseCompiledInstall277.edges_eq
+#print axioms Yulang.GeneralRebaseCompiledInstall277.no_new_request
+#print axioms Yulang.GeneralRebaseCompiledInstall277.installation
+#print axioms Yulang.GeneralRebaseCompiledInstall277.installable
+#print axioms Yulang.GeneralRebaseCompiledInstall277.novel
+#print axioms Yulang.GeneralRebaseCompiledInstall277.actual_step
+#print axioms Yulang.GeneralRebaseCompiledInstall277.adapter_step
+#print axioms Yulang.GeneralRebaseCompiledInstall277.reachable
+#print axioms Yulang.GeneralRebaseCompiledInstall277.models
+#print axioms Yulang.GeneralRebaseCompiledInstall277.direct_models

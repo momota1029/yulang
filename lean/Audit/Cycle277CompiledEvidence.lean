@@ -1,0 +1,28 @@
+import Yulang.GeneralRebaseCompiledChild277
+import Yulang.GeneralRebaseCompiledChildFresh277
+import Yulang.GeneralRebaseCompiledEvidence277
+
+#print axioms Yulang.GeneralRebaseCompiledChild277.context
+#print axioms Yulang.GeneralRebaseCompiledChild277.packet
+#print axioms Yulang.GeneralRebaseCompiledChild277.plan
+#print axioms Yulang.GeneralRebaseCompiledChild277.query
+#print axioms Yulang.GeneralRebaseCompiledChild277.report_exact
+#print axioms Yulang.GeneralRebaseCompiledChild277.bindings_empty
+#print axioms Yulang.GeneralRebaseCompiledChild277.no_children
+#print axioms Yulang.GeneralRebaseCompiledChild277.emitted_empty
+#print axioms Yulang.GeneralRebaseCompiledChild277.ordinary
+#print axioms Yulang.GeneralRebaseCompiledChild277.head_schema
+#print axioms Yulang.GeneralRebaseCompiledChild277.holds
+#print axioms Yulang.GeneralRebaseCompiledChildFresh277.parentReserved
+#print axioms Yulang.GeneralRebaseCompiledChildFresh277.old_support
+#print axioms Yulang.GeneralRebaseCompiledChildFresh277.child_fresh
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.center_sites
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.raw_sites
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.prepared
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.child_frame
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.ready
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.child_evidence
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.parent_instance
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.real_nonleaf
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.source_nonleaf
+#print axioms Yulang.GeneralRebaseCompiledEvidence277.adapter_evidence

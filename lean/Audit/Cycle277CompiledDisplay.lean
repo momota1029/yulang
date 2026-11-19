@@ -1,0 +1,30 @@
+import Yulang.GeneralRebaseCompiledRetag277
+import Yulang.GeneralRebaseCompiledDisplay277
+
+#print axioms Yulang.GeneralRebaseCompiledRetag277.retagPacket
+#print axioms Yulang.GeneralRebaseCompiledRetag277.retag
+#print axioms Yulang.GeneralRebaseCompiledRetag277.report_eq
+#print axioms Yulang.GeneralRebaseCompiledRetag277.capture_eq
+#print axioms Yulang.GeneralRebaseCompiledRetag277.children_eq
+#print axioms Yulang.GeneralRebaseCompiledRetag277.ordinary
+#print axioms Yulang.GeneralRebaseCompiledRetag277.headModels
+#print axioms Yulang.GeneralRebaseCompiledRetag277.schema_eq
+#print axioms Yulang.GeneralRebaseCompiledRetag277.childSite_eq
+#print axioms Yulang.GeneralRebaseCompiledRetag277.childSchema_eq
+#print axioms Yulang.GeneralRebaseCompiledRetag277.holds
+#print axioms Yulang.GeneralRebaseCompiledRetag277.plan_ne
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.compiled
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.compiledWrap
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.parent
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.compiled_checked
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.compiled_members
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.fresh
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.prepared_parent
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.wrong_failed
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.wrong_not_prepared
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.children
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.frame_parent
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.survivor_parent
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.unique_parent
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.effect
+#print axioms Yulang.GeneralRebaseCompiledDisplay277.after

@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 276
+- cycle: 277
 - status: completed
-- started: 2026-11-19T15:30:08Z
-- updated: 2026-11-19T16:20:09Z
-- elapsed_min: 50.02
-- activity: Verified a real Display/Int nonleaf V8 fixture with exactly one mixed-kernel Step from source, an exact executable, and an independent refresh transport.
+- started: 2026-11-19T16:30:14Z
+- updated: 2026-11-19T17:20:17Z
+- elapsed_min: 50.05
+- activity: Verified the real compiled Display one-step source and V8 evidence, source ownership and local registry transfer, and an exact quantitative mixed trace bound conditional on installations.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: a9265bdde
-- report: notes/handoff/dots-cycle-276.md
-- resume_hint: Refetch latest orders; keep the direct 198 fixture result. For the encoded adapter, construct the role-local compiled effect and compare core/model-equivalent distinct raw states, or pursue a second independently checked source.
+- last_local_commit: ee8cb27d1
+- report: notes/handoff/dots-cycle-277.md
+- resume_hint: Refetch latest orders; do not redo the compiled Display fixture. The unchanged 239 kernel has unbounded installs even for the same owner; prove semantic absorption and retained child edges for a bounded rebased successor fragment, or a supported new fixture.

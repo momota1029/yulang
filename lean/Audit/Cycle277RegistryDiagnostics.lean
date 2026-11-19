@@ -1,0 +1,27 @@
+import Yulang.GeneralRebaseRegistryDiagnostics277
+import Yulang.GeneralRebaseRegistryLocal277
+
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.On
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.surface_of_covered
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.raw_k2_forward
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.cycle_forward
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.k2
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.inspection
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.survivor_iff
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.ready
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.effects
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.chosen_head_forward
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.chosen_effects_forward
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.output_conflict
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.feasible_forward
+#print axioms Yulang.GeneralRebaseRegistryDiagnostics277.at_key_forward
+#print axioms Yulang.GeneralRebaseRegistryLocal277.safe_forward
+#print axioms Yulang.GeneralRebaseRegistryLocal277.unique_iff
+#print axioms Yulang.GeneralRebaseRegistryLocal277.priority_v7
+#print axioms Yulang.GeneralRebaseRegistryLocal277.priority_v8
+#print axioms Yulang.GeneralRebaseRegistryLocal277.reject_v6
+#print axioms Yulang.GeneralRebaseRegistryLocal277.local_v6_forward
+#print axioms Yulang.GeneralRebaseRegistryLocal277.local_v7
+#print axioms Yulang.GeneralRebaseRegistryLocal277.sharing_forward
+#print axioms Yulang.GeneralRebaseRegistryLocal277.local_v8
+#print axioms Yulang.GeneralRebaseRegistryLocal277.reached_local

@@ -1,0 +1,37 @@
+'Yulang.GeneralRebaseRegistryInstallModels277.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.classes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.retagCtors' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.rebound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.rebound_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.emitted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.installed_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.effect_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.prior_live' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.legacy_prior_live' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.new_live' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.installation_equiv' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallModels277.installed_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallStep277.alternatives' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallStep277.committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallStep277.rebound_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRegistryInstallStep277.paired_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.SamePorts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.reflexive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.symmetric' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.output_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.alias_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.generated_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.installed_ports' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.one_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRegistryOneStep277.reached_one_step' depends on axioms: [propext, Classical.choice, Quot.sound]

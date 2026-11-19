@@ -1,0 +1,46 @@
+import Yulang.GeneralRebaseRegistrySurface277
+import Yulang.GeneralRebaseRegistryEvidence277
+import Yulang.GeneralRebaseFreshSupport277
+import Yulang.GeneralRebaseCompiledObservables277
+
+#print axioms Yulang.GeneralRebaseRegistrySurface277.Surface
+#print axioms Yulang.GeneralRebaseRegistrySurface277.symmetric
+#print axioms Yulang.GeneralRebaseRegistrySurface277.metadata
+#print axioms Yulang.GeneralRebaseRegistrySurface277.head_models
+#print axioms Yulang.GeneralRebaseRegistrySurface277.prepared
+#print axioms Yulang.GeneralRebaseRegistrySurface277.failed
+#print axioms Yulang.GeneralRebaseRegistrySurface277.survivor_forward
+#print axioms Yulang.GeneralRebaseRegistrySurface277.survivor
+#print axioms Yulang.GeneralRebaseRegistrySurface277.unique
+#print axioms Yulang.GeneralRebaseRegistrySurface277.inspectionPending
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.compile_body
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.body_schema
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.body_variables
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.body_holds
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.output
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.frame
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.certificate
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.instance_forward
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.instance_iff
+#print axioms Yulang.GeneralRebaseRegistryEvidence277.evidence
+#print axioms Yulang.GeneralRebaseFreshSupport277.Support
+#print axioms Yulang.GeneralRebaseFreshSupport277.fresh_of_support
+#print axioms Yulang.GeneralRebaseFreshSupport277.original_support
+#print axioms Yulang.GeneralRebaseFreshSupport277.compiled_support
+#print axioms Yulang.GeneralRebaseFreshSupport277.fixture_fresh
+#print axioms Yulang.GeneralRebaseFreshSupport277.oldKey
+#print axioms Yulang.GeneralRebaseFreshSupport277.original_key
+#print axioms Yulang.GeneralRebaseFreshSupport277.compiled_no_key
+#print axioms Yulang.GeneralRebaseFreshSupport277.reservedOnly
+#print axioms Yulang.GeneralRebaseFreshSupport277.reserved_support
+#print axioms Yulang.GeneralRebaseFreshSupport277.loses_fresh
+#print axioms Yulang.GeneralRebaseFreshSupport277.compiled_fresh
+#print axioms Yulang.GeneralRebaseFreshSupport277.freshness_counterexample
+#print axioms Yulang.GeneralRebaseCompiledObservables277.direct
+#print axioms Yulang.GeneralRebaseCompiledObservables277.registry_ne
+#print axioms Yulang.GeneralRebaseCompiledObservables277.legacy_core_ne
+#print axioms Yulang.GeneralRebaseCompiledObservables277.state_ne
+#print axioms Yulang.GeneralRebaseCompiledObservables277.old_reserved
+#print axioms Yulang.GeneralRebaseCompiledObservables277.compiled_reserved_absent
+#print axioms Yulang.GeneralRebaseCompiledObservables277.obs_same
+#print axioms Yulang.GeneralRebaseCompiledObservables277.public_ports_same

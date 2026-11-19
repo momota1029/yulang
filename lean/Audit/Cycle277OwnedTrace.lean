@@ -1,0 +1,27 @@
+import Yulang.GeneralRebaseOwnedSupport277
+import Yulang.GeneralRebaseMixedOwnedTrace277
+
+#print axioms Yulang.GeneralRebaseOwnedSupport277.Owned
+#print axioms Yulang.GeneralRebaseOwnedSupport277.Covered
+#print axioms Yulang.GeneralRebaseOwnedSupport277.allFresh
+#print axioms Yulang.GeneralRebaseOwnedSupport277.merge_sources
+#print axioms Yulang.GeneralRebaseOwnedSupport277.atoms_supported
+#print axioms Yulang.GeneralRebaseOwnedSupport277.replay_support
+#print axioms Yulang.GeneralRebaseOwnedSupport277.replay_owned
+#print axioms Yulang.GeneralRebaseOwnedSupport277.certified_refinement
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.raw
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.Invariant
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.initial_invariant
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.source_extend
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.reserved_extend
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.emitted_output
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.install
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.administrative
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.merge
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.step
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.trace
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.all_fresh
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.initial_boundary
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.boundary_reachable
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.adapter_reachable
+#print axioms Yulang.GeneralRebaseMixedOwnedTrace277.adapter_all_fresh

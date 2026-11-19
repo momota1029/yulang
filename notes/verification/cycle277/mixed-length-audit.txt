@@ -1,0 +1,10 @@
+'Yulang.GeneralRebaseMixedLength277.Slice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMixedLength277.summarize' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMixedLength277.mixed_length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMixedLength277.actual_length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBoundedInstallAcc277.accessible_of_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseBoundedInstallAcc277.cap_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBoundedInstallAcc277.bounded_steps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseBoundedInstallAcc277.adapter_accessible' depends on axioms: [propext, Classical.choice, Quot.sound]

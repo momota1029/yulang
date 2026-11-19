@@ -1,0 +1,11 @@
+'Yulang.GeneralRebaseFiniteCodeBoundary277.absorb_of_meaning' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeBoundary277.Loop.formed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeBoundary277.Loop.no_finite_code' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeBoundary277.Loop.no_installation_limit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseFiniteCodeBoundary277.Loop.arbitrarily_many_installations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
