@@ -5168,3 +5168,5 @@ import Yulang.GeneralRebaseTerminalPublic274
 import Yulang.GeneralRebaseTerminalRowTransfer274
 import Yulang.GeneralRebaseTerminalRowFrame274
 import Yulang.GeneralRebaseTerminalRows274
+import Yulang.GeneralRebaseTerminalMachine274
+import Yulang.GeneralRebaseTerminalBridge274
