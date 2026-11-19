@@ -1,0 +1,18 @@
+'Yulang.GeneralRebaseHistoryOrder278.model_order_of_counts' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.version_atCount' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.loose_atCount' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.version_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.loose_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.equality_from_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.version_equality' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.loose_equality' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.lower_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.version_lower_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.loose_lower_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.observationKey' does not depend on any axioms
+'Yulang.GeneralRebaseHistoryOrder278.observationKey_collision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.observedRefines' does not depend on any axioms
+'Yulang.GeneralRebaseHistoryOrder278.version_refines' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseHistoryOrder278.loose_refines' depends on axioms: [propext, Classical.choice, Quot.sound]

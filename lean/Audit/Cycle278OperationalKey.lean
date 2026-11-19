@@ -1,0 +1,14 @@
+import Yulang.GeneralRebaseOperationalKey278
+
+#print axioms Yulang.GeneralRebaseOperationalKey278.Key
+#print axioms Yulang.GeneralRebaseOperationalKey278.encode
+#print axioms Yulang.GeneralRebaseOperationalKey278.decode
+#print axioms Yulang.GeneralRebaseOperationalKey278.decode_encode
+#print axioms Yulang.GeneralRebaseOperationalKey278.encode_injective
+#print axioms Yulang.GeneralRebaseOperationalKey278.decode_sound
+#print axioms Yulang.GeneralRebaseOperationalKey278.version_flag
+#print axioms Yulang.GeneralRebaseOperationalKey278.loose_flag
+#print axioms Yulang.GeneralRebaseOperationalKey278.advance
+#print axioms Yulang.GeneralRebaseOperationalKey278.advance_exact
+#print axioms Yulang.GeneralRebaseOperationalKey278.advance_only
+#print axioms Yulang.GeneralRebaseOperationalKey278.actual_families

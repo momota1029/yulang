@@ -1,0 +1,11 @@
+'Yulang.GeneralRebasePacketPrefix278.prefix_induction' depends on axioms: [propext]
+'Yulang.GeneralRebasePacketPrefix278.version_round_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePacketPrefix278.loose_round_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePacketPrefix278.version_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePacketPrefix278.loose_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePacketPrefix278.version_no_eventual_equality' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebasePacketPrefix278.loose_no_eventual_equality' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

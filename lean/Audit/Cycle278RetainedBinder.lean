@@ -1,0 +1,38 @@
+import Yulang.GeneralRebaseVersionRetained278
+import Yulang.GeneralRebaseLooseRetained278
+import Yulang.GeneralRebaseVersionRefreshLeaf278
+import Yulang.GeneralRebaseLooseRefreshLeaf278
+
+#print axioms Yulang.GeneralRebaseVersionRetained278.Settled
+#print axioms Yulang.GeneralRebaseVersionRetained278.retain
+#print axioms Yulang.GeneralRebaseVersionRetained278.actual_large
+#print axioms Yulang.GeneralRebaseVersionRetained278.retain_public
+#print axioms Yulang.GeneralRebaseVersionRetained278.retain_actual
+#print axioms Yulang.GeneralRebaseVersionRetained278.equivalent
+#print axioms Yulang.GeneralRebaseVersionRetained278.stages_retained
+#print axioms Yulang.GeneralRebaseVersionRetained278.micro_retained
+#print axioms Yulang.GeneralRebaseVersionRetained278.packet_retained
+#print axioms Yulang.GeneralRebaseVersionRetained278.packet_binder
+#print axioms Yulang.GeneralRebaseVersionRetained278.exact_retention
+#print axioms Yulang.GeneralRebaseLooseRetained278.Settled
+#print axioms Yulang.GeneralRebaseLooseRetained278.retain_public
+#print axioms Yulang.GeneralRebaseLooseRetained278.stages_retained
+#print axioms Yulang.GeneralRebaseLooseRetained278.micro_retained
+#print axioms Yulang.GeneralRebaseLooseRetained278.packet_retained
+#print axioms Yulang.GeneralRebaseLooseRetained278.exact_retention
+#print axioms Yulang.GeneralRebaseVersionRefreshLeaf278.replay
+#print axioms Yulang.GeneralRebaseVersionRefreshLeaf278.replay_observed
+#print axioms Yulang.GeneralRebaseVersionRefreshLeaf278.refresh_certificate
+#print axioms Yulang.GeneralRebaseVersionRefreshLeaf278.ready_rule
+#print axioms Yulang.GeneralRebaseVersionRefreshLeaf278.refreshed_rule
+#print axioms Yulang.GeneralRebaseVersionRefreshLeaf278.refreshed_leaf
+#print axioms Yulang.GeneralRebaseVersionRefreshLeaf278.refreshed_shape
+#print axioms Yulang.GeneralRebaseVersionRefreshLeaf278.retained_all_leaves
+#print axioms Yulang.GeneralRebaseLooseRefreshLeaf278.replay
+#print axioms Yulang.GeneralRebaseLooseRefreshLeaf278.replay_observed
+#print axioms Yulang.GeneralRebaseLooseRefreshLeaf278.refresh_certificate
+#print axioms Yulang.GeneralRebaseLooseRefreshLeaf278.ready_rule
+#print axioms Yulang.GeneralRebaseLooseRefreshLeaf278.refreshed_rule
+#print axioms Yulang.GeneralRebaseLooseRefreshLeaf278.refreshed_leaf
+#print axioms Yulang.GeneralRebaseLooseRefreshLeaf278.refreshed_shape
+#print axioms Yulang.GeneralRebaseLooseRefreshLeaf278.retained_all_leaves

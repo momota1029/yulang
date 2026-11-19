@@ -1,0 +1,14 @@
+Cycle 278 focused build and independent audit manifests
+exact-probe: 4 modules, 28 audited declarations
+history-order: 1 modules, 16 audited declarations
+inverse-rank: 2 modules, 21 audited declarations
+micro-core: 3 modules, 41 audited declarations
+micro-private: 2 modules, 14 audited declarations
+observation-limit: 1 modules, 6 audited declarations
+operational-key: 1 modules, 12 audited declarations
+packet-prefix: 1 modules, 7 audited declarations
+pair-decoder: 2 modules, 26 audited declarations
+retained-binder: 4 modules, 33 audited declarations
+terminal-absorption: 3 modules, 18 audited declarations
+terminal-evidence: 3 modules, 20 audited declarations
+27 new library modules; 242 distinct named declarations; 12 independent audits; standard axioms only.

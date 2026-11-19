@@ -1,0 +1,33 @@
+import Yulang.GeneralNominalPairDecode278
+import Yulang.GeneralRebaseFamilyDecode278
+
+#print axioms Yulang.GeneralNominalPairDecode278.unpairCandidate
+#print axioms Yulang.GeneralNominalPairDecode278.sqrt_pair
+#print axioms Yulang.GeneralNominalPairDecode278.splits
+#print axioms Yulang.GeneralNominalPairDecode278.decodePair
+#print axioms Yulang.GeneralNominalPairDecode278.pair_exact
+#print axioms Yulang.GeneralNominalPairDecode278.originCandidate
+#print axioms Yulang.GeneralNominalPairDecode278.origin_roundtrip
+#print axioms Yulang.GeneralNominalPairDecode278.decodeOrigin
+#print axioms Yulang.GeneralNominalPairDecode278.origin_exact
+#print axioms Yulang.GeneralRebaseFamilyDecode278.Style
+#print axioms Yulang.GeneralRebaseFamilyDecode278.Style
+#print axioms Yulang.GeneralRebaseFamilyDecode278.Style
+#print axioms Yulang.GeneralRebaseFamilyDecode278.Style
+#print axioms Yulang.GeneralRebaseFamilyDecode278.Lane
+#print axioms Yulang.GeneralRebaseFamilyDecode278.Lane
+#print axioms Yulang.GeneralRebaseFamilyDecode278.allocated
+#print axioms Yulang.GeneralRebaseFamilyDecode278.pred_lt
+#print axioms Yulang.GeneralRebaseFamilyDecode278.above
+#print axioms Yulang.GeneralRebaseFamilyDecode278.versionPredecessor
+#print axioms Yulang.GeneralRebaseFamilyDecode278.version_predecessor_exact
+#print axioms Yulang.GeneralRebaseFamilyDecode278.candidate
+#print axioms Yulang.GeneralRebaseFamilyDecode278.candidate_roundtrip
+#print axioms Yulang.GeneralRebaseFamilyDecode278.predecessor
+#print axioms Yulang.GeneralRebaseFamilyDecode278.predecessor_exact
+#print axioms Yulang.GeneralRebaseFamilyDecode278.lowerName
+#print axioms Yulang.GeneralRebaseFamilyDecode278.upperName
+#print axioms Yulang.GeneralRebaseFamilyDecode278.version_lower
+#print axioms Yulang.GeneralRebaseFamilyDecode278.loose_lower
+#print axioms Yulang.GeneralRebaseFamilyDecode278.version_upper
+#print axioms Yulang.GeneralRebaseFamilyDecode278.loose_upper

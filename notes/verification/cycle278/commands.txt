@@ -1,0 +1,27 @@
+Lean 4.35.0. Commands at the repository root unless noted.
+
+  git diff --check 1c7ff599f..HEAD
+  bash tools/verify-lean.sh . 5c02ae884 --no-build
+  bash tools/verify-lean.sh . 1c7ff599f --no-build
+  git diff --exit-code 1c7ff599f..HEAD -- spec notes/plan lean/Audit.lean lean/README.md 'lean/lakefile.*' lean/lean-toolchain
+
+Local baselines 5c02ae884 and 1c7ff599f have exactly the same trees as GitHub
+integration 33add29a and completed cycle 277 work 6ffaba4a, respectively.
+On the published history the corresponding commit SHAs may be used.
+The diff gates here are static only; not a full Lake build.
+
+Focused module checks and audit, in lean/:
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . \
+      -o .lake/build/lib/lean/Yulang/<module>.olean Yulang/<module>.lean
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . Audit/Cycle278<group>.lean
+
+Build additions in append order in Yulang.lean to check imports. Exact modules,
+audited named declarations, and sampled fixture rechecks are in this directory.
+Audit files depend only on separate Yulang.<module> imports (not the barrel).
+
+  lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . \
+      ../notes/verification/cycle278/decoder-probe.lean
+
+This last command checks the closed executable examples; compare decoder-probe.txt.
+Verification covered the listed Lean sources only. Full Lake build, CI and the
+Yulang runtime were not exercised.

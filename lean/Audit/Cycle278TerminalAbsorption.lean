@@ -1,0 +1,22 @@
+import Yulang.GeneralRebaseTerminalAbsorb278
+import Yulang.GeneralRebaseVersionAbsorb278
+import Yulang.GeneralRebaseLooseAbsorb278
+
+#print axioms Yulang.GeneralRebaseTerminalAbsorb278.Terminal
+#print axioms Yulang.GeneralRebaseTerminalAbsorb278.InstallTransition
+#print axioms Yulang.GeneralRebaseTerminalAbsorb278.generated_root
+#print axioms Yulang.GeneralRebaseTerminalAbsorb278.unique_plan
+#print axioms Yulang.GeneralRebaseTerminalAbsorb278.no_install
+#print axioms Yulang.GeneralRebaseTerminalAbsorb278.deterministic_install
+#print axioms Yulang.GeneralRebaseVersionAbsorb278.packed_edges
+#print axioms Yulang.GeneralRebaseVersionAbsorb278.stage_edges
+#print axioms Yulang.GeneralRebaseVersionAbsorb278.terminal
+#print axioms Yulang.GeneralRebaseVersionAbsorb278.enter_install
+#print axioms Yulang.GeneralRebaseVersionAbsorb278.installed_absorbs
+#print axioms Yulang.GeneralRebaseVersionAbsorb278.refreshed_absorbs
+#print axioms Yulang.GeneralRebaseLooseAbsorb278.packed_edges
+#print axioms Yulang.GeneralRebaseLooseAbsorb278.stage_edges
+#print axioms Yulang.GeneralRebaseLooseAbsorb278.terminal
+#print axioms Yulang.GeneralRebaseLooseAbsorb278.enter_install
+#print axioms Yulang.GeneralRebaseLooseAbsorb278.installed_absorbs
+#print axioms Yulang.GeneralRebaseLooseAbsorb278.refreshed_absorbs

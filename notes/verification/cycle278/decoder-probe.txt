@@ -1,0 +1,18 @@
+some (Yulang.GeneralRebaseFamilyDecode278.Lane.lower, 1)
+some (Yulang.GeneralRebaseFamilyDecode278.Lane.upper, 1)
+some (Yulang.GeneralRebaseMicroProbe278.Answer.lowerKnown 0 false)
+some (Yulang.GeneralRebaseMicroProbe278.Answer.lowerKnown 0 true)
+some (Yulang.GeneralRebaseMicroProbe278.Answer.upperPatch 0 true)
+some (Yulang.GeneralRebaseMicroProbe278.Answer.upperPatch 0 false)
+none
+some (Yulang.GeneralRebaseMicroProbe278.Answer.upperPatch 1 false)
+(1, 0)
+(1, 1)
+(1, 1)
+true
+false
+none
+some { installed := 1, observed := 1, canInstall := false }
+some { installed := 1, observed := 1, canInstall := true }
+some { installed := 2, observed := 1, canInstall := false }
+exit=0

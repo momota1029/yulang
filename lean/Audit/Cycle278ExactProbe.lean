@@ -1,0 +1,33 @@
+import Yulang.GeneralRebaseInstallTimeline278
+import Yulang.GeneralRebaseVersionKnown278
+import Yulang.GeneralRebaseLooseKnown278
+import Yulang.GeneralRebaseMicroProbe278
+
+#print axioms Yulang.GeneralRebaseInstallTimeline278.installedCount
+#print axioms Yulang.GeneralRebaseInstallTimeline278.observedCount
+#print axioms Yulang.GeneralRebaseInstallTimeline278.install_event
+#print axioms Yulang.GeneralRebaseInstallTimeline278.observe_event
+#print axioms Yulang.GeneralRebaseInstallTimeline278.Version.round_restriction
+#print axioms Yulang.GeneralRebaseInstallTimeline278.Version.enter_patch
+#print axioms Yulang.GeneralRebaseInstallTimeline278.Version.patch_exact
+#print axioms Yulang.GeneralRebaseInstallTimeline278.Loose.round_restriction
+#print axioms Yulang.GeneralRebaseInstallTimeline278.Loose.enter_patch
+#print axioms Yulang.GeneralRebaseInstallTimeline278.Loose.patch_exact
+#print axioms Yulang.GeneralRebaseVersionKnown278.position
+#print axioms Yulang.GeneralRebaseVersionKnown278.position_reads
+#print axioms Yulang.GeneralRebaseVersionKnown278.read_implies
+#print axioms Yulang.GeneralRebaseVersionKnown278.point_known
+#print axioms Yulang.GeneralRebaseVersionKnown278.exposed_known
+#print axioms Yulang.GeneralRebaseVersionKnown278.prefix_known
+#print axioms Yulang.GeneralRebaseLooseKnown278.position
+#print axioms Yulang.GeneralRebaseLooseKnown278.position_reads
+#print axioms Yulang.GeneralRebaseLooseKnown278.read_implies
+#print axioms Yulang.GeneralRebaseLooseKnown278.point_known
+#print axioms Yulang.GeneralRebaseLooseKnown278.exposed_known
+#print axioms Yulang.GeneralRebaseLooseKnown278.prefix_known
+#print axioms Yulang.GeneralRebaseMicroProbe278.Answer
+#print axioms Yulang.GeneralRebaseMicroProbe278.probe
+#print axioms Yulang.GeneralRebaseMicroProbe278.versionLower
+#print axioms Yulang.GeneralRebaseMicroProbe278.looseLower
+#print axioms Yulang.GeneralRebaseMicroProbe278.versionUpper
+#print axioms Yulang.GeneralRebaseMicroProbe278.looseUpper

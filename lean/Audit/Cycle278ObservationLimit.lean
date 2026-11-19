@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseObservationLimits278
+
+#print axioms Yulang.GeneralRebaseObservationLimits278.VersionInstallAvailable
+#print axioms Yulang.GeneralRebaseObservationLimits278.LooseInstallAvailable
+#print axioms Yulang.GeneralRebaseObservationLimits278.version_collision
+#print axioms Yulang.GeneralRebaseObservationLimits278.loose_collision
+#print axioms Yulang.GeneralRebaseObservationLimits278.version_no_key_install_test
+#print axioms Yulang.GeneralRebaseObservationLimits278.loose_no_key_install_test

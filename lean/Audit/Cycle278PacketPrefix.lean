@@ -1,0 +1,9 @@
+import Yulang.GeneralRebasePacketPrefix278
+
+#print axioms Yulang.GeneralRebasePacketPrefix278.prefix_induction
+#print axioms Yulang.GeneralRebasePacketPrefix278.version_round_step
+#print axioms Yulang.GeneralRebasePacketPrefix278.loose_round_step
+#print axioms Yulang.GeneralRebasePacketPrefix278.version_prefix
+#print axioms Yulang.GeneralRebasePacketPrefix278.loose_prefix
+#print axioms Yulang.GeneralRebasePacketPrefix278.version_no_eventual_equality
+#print axioms Yulang.GeneralRebasePacketPrefix278.loose_no_eventual_equality

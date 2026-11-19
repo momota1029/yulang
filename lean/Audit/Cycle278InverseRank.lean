@@ -1,0 +1,24 @@
+import Yulang.GeneralRebaseFamilyRank278
+import Yulang.GeneralRebaseFastLooseFill278
+
+#print axioms Yulang.GeneralRebaseFamilyRank278.depthWithin
+#print axioms Yulang.GeneralRebaseFamilyRank278.depth
+#print axioms Yulang.GeneralRebaseFamilyRank278.greater_base
+#print axioms Yulang.GeneralRebaseFamilyRank278.bounded_complete
+#print axioms Yulang.GeneralRebaseFamilyRank278.correct
+#print axioms Yulang.GeneralRebaseFamilyRank278.bounded_sound
+#print axioms Yulang.GeneralRebaseFamilyRank278.sound
+#print axioms Yulang.GeneralRebaseFamilyRank278.depth_exact
+#print axioms Yulang.GeneralRebaseFamilyRank278.rank
+#print axioms Yulang.GeneralRebaseFamilyRank278.rank_exact
+#print axioms Yulang.GeneralRebaseFamilyRank278.lower_exact
+#print axioms Yulang.GeneralRebaseFamilyRank278.upper_exact
+#print axioms Yulang.GeneralRebaseFastLooseFill278.lowerFlag
+#print axioms Yulang.GeneralRebaseFastLooseFill278.upperFlag
+#print axioms Yulang.GeneralRebaseFastLooseFill278.lower_true
+#print axioms Yulang.GeneralRebaseFastLooseFill278.upper_true
+#print axioms Yulang.GeneralRebaseFastLooseFill278.flags
+#print axioms Yulang.GeneralRebaseFastLooseFill278.fill
+#print axioms Yulang.GeneralRebaseFastLooseFill278.fill_exact
+#print axioms Yulang.GeneralRebaseFastLooseFill278.retain_models
+#print axioms Yulang.GeneralRebaseFastLooseFill278.retain_evidence

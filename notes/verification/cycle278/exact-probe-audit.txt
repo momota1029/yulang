@@ -1,0 +1,32 @@
+'Yulang.GeneralRebaseInstallTimeline278.installedCount' does not depend on any axioms
+'Yulang.GeneralRebaseInstallTimeline278.observedCount' does not depend on any axioms
+'Yulang.GeneralRebaseInstallTimeline278.install_event' does not depend on any axioms
+'Yulang.GeneralRebaseInstallTimeline278.observe_event' does not depend on any axioms
+'Yulang.GeneralRebaseInstallTimeline278.Version.round_restriction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallTimeline278.Version.enter_patch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallTimeline278.Version.patch_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallTimeline278.Loose.round_restriction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallTimeline278.Loose.enter_patch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallTimeline278.Loose.patch_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionKnown278.position' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseVersionKnown278.position_reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseVersionKnown278.read_implies' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionKnown278.point_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionKnown278.exposed_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionKnown278.prefix_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseKnown278.position' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseLooseKnown278.position_reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseLooseKnown278.read_implies' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseKnown278.point_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseKnown278.exposed_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseKnown278.prefix_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMicroProbe278.Answer' does not depend on any axioms
+'Yulang.GeneralRebaseMicroProbe278.probe' depends on axioms: [propext]
+'Yulang.GeneralRebaseMicroProbe278.versionLower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMicroProbe278.looseLower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMicroProbe278.versionUpper' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMicroProbe278.looseUpper' depends on axioms: [propext, Classical.choice, Quot.sound]

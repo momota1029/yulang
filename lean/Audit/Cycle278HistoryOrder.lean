@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseHistoryOrder278
+
+#print axioms Yulang.GeneralRebaseHistoryOrder278.model_order_of_counts
+#print axioms Yulang.GeneralRebaseHistoryOrder278.version_atCount
+#print axioms Yulang.GeneralRebaseHistoryOrder278.loose_atCount
+#print axioms Yulang.GeneralRebaseHistoryOrder278.version_order
+#print axioms Yulang.GeneralRebaseHistoryOrder278.loose_order
+#print axioms Yulang.GeneralRebaseHistoryOrder278.equality_from_order
+#print axioms Yulang.GeneralRebaseHistoryOrder278.version_equality
+#print axioms Yulang.GeneralRebaseHistoryOrder278.loose_equality
+#print axioms Yulang.GeneralRebaseHistoryOrder278.lower_order
+#print axioms Yulang.GeneralRebaseHistoryOrder278.version_lower_order
+#print axioms Yulang.GeneralRebaseHistoryOrder278.loose_lower_order
+#print axioms Yulang.GeneralRebaseHistoryOrder278.observationKey
+#print axioms Yulang.GeneralRebaseHistoryOrder278.observationKey_collision
+#print axioms Yulang.GeneralRebaseHistoryOrder278.observedRefines
+#print axioms Yulang.GeneralRebaseHistoryOrder278.version_refines
+#print axioms Yulang.GeneralRebaseHistoryOrder278.loose_refines
