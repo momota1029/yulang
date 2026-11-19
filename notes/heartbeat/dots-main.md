@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 280
-- status: running
+- status: completed
 - started: 2026-11-19T19:30:00Z
-- updated: 2026-11-19T20:10:01Z
-- elapsed_min: 40.02
-- activity: Verified full V8 diagnostics and EvidenceAt under compaction, and exact graph-free storage reconstruction.
+- updated: 2026-11-19T20:20:00Z
+- elapsed_min: 50.00
+- activity: Fixed-port decode, finite graph, archived edge bisimulation, exact stored raw state recovery, and audited legacy limits.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: dbef88ac0
-- resume_hint: Finalize packet-wide fixed-port writes and repeat focused source and audit checks before completed readback.
+- last_local_commit: 336055689
+- report: notes/handoff/dots-cycle-280.md
+- resume_hint: Read the latest inbox. Port copy is exact given disjoint support; the next progress needed is a source-proved separation and live-maintenance rule for semantic silent installs, not another proof of unchanged raw Acc.

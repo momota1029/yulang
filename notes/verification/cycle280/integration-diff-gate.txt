@@ -1,0 +1,2 @@
+Full stdout SHA256: 72297796878868fc7910cdb57453a5d7969340955de011c994f36981f84c6360; lines: 977
+verify-lean: PASS (diff checks only, NO build)

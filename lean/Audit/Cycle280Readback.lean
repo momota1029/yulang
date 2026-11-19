@@ -1,3 +1,4 @@
+import Yulang.GeneralRebasePortBatch280
 import Yulang.GeneralRebaseFixedDisplay280
 import Yulang.GeneralRebasePortDecode280
 import Yulang.GeneralRebasePortGate280
@@ -69,3 +70,14 @@ import Yulang.GeneralRebasePortProjection280
 #print axioms Yulang.GeneralRebasePortProjection280.linked_sources
 #print axioms Yulang.GeneralRebasePortProjection280.append_conflicts
 #print axioms Yulang.GeneralRebasePortProjection280.append_loses_public
+#print axioms Yulang.GeneralRebasePortBatch280.batch
+#print axioms Yulang.GeneralRebasePortBatch280.cross_target
+#print axioms Yulang.GeneralRebasePortBatch280.batch_iff
+#print axioms Yulang.GeneralRebasePortBatch280.local_in
+#print axioms Yulang.GeneralRebasePortBatch280.batch_unique
+#print axioms Yulang.GeneralRebasePortBatch280.lookup_batch
+#print axioms Yulang.GeneralRebasePortBatch280.endpoint_batch
+#print axioms Yulang.GeneralRebasePortBatch280.decode_batch
+#print axioms Yulang.GeneralRebasePortBatch280.copied_all
+#print axioms Yulang.GeneralRebasePortBatch280.all_alias_atoms
+#print axioms Yulang.GeneralRebasePortBatch280.batch_public

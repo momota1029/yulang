@@ -9,6 +9,7 @@ Focused independent verification (Lean 4.35.0):
   cd lean && lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . ../notes/verification/cycle280/typed-use.lean
   git diff --check for both the source integration base and prior work checkpoint.
   bash tools/verify-lean.sh . 6ffaba4af40b7c669a19bac870872d2611a666e3 --no-build
-  bash tools/verify-lean.sh . 058a8659fdb980918d8c0228a3a5a238beee1022 --no-build
+  bash tools/verify-lean.sh . 917475ecb --no-build
+  git diff --exit-code 058a8659fdb980918d8c0228a3a5a238beee1022 917475ecb  # exact prior tree equivalence
   compare frozen inputs to both bases without mutation.
 No full build, no CI status assertion, no Yulang2 runtime rerun.
