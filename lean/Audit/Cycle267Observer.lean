@@ -1,0 +1,45 @@
+import Yulang.GeneralRebaseMergeCenters267
+import Yulang.GeneralRebaseMergeScan267
+import Yulang.GeneralRebaseMergeScanFixture267
+import Yulang.GeneralRebaseStrictSourceCases267
+import Yulang.GeneralRebaseSourceObserver267
+import Yulang.GeneralRebaseObserverCoverage267
+import Yulang.GeneralRebaseObserverSound267
+import Yulang.GeneralRebaseObserverExact267
+
+#print axioms Yulang.GeneralRebaseMergeCenters267.centers
+#print axioms Yulang.GeneralRebaseMergeCenters267.same
+#print axioms Yulang.GeneralRebaseMergeCenters267.same_exact
+#print axioms Yulang.GeneralRebaseMergeCenters267.related_self
+#print axioms Yulang.GeneralRebaseMergeCenters267.observed
+#print axioms Yulang.GeneralRebaseMergeCenters267.source_sound
+#print axioms Yulang.GeneralRebaseMergeScan267.linkedPairs
+#print axioms Yulang.GeneralRebaseMergeScan267.linkedPairs_exact
+#print axioms Yulang.GeneralRebaseMergeScan267.scan
+#print axioms Yulang.GeneralRebaseMergeScan267.scan_exact
+#print axioms Yulang.GeneralRebaseMergeScan267.source_step
+#print axioms Yulang.GeneralRebaseMergeScan267.actual_covered
+#print axioms Yulang.GeneralRebaseMergeScan267.checked_source_merge
+#print axioms Yulang.GeneralRebaseMergeScanFixture267.noProbe
+#print axioms Yulang.GeneralRebaseMergeScanFixture267.listed
+#print axioms Yulang.GeneralRebaseMergeScanFixture267.recovered_strict
+#print axioms Yulang.GeneralRebaseStrictSourceCases267.InstallCase
+#print axioms Yulang.GeneralRebaseStrictSourceCases267.MergeCase
+#print axioms Yulang.GeneralRebaseStrictSourceCases267.operational
+#print axioms Yulang.GeneralRebaseStrictSourceCases267.strict_inversion
+#print axioms Yulang.GeneralRebaseSourceObserver267.Probes
+#print axioms Yulang.GeneralRebaseSourceObserver267.installAt
+#print axioms Yulang.GeneralRebaseSourceObserver267.installs
+#print axioms Yulang.GeneralRebaseSourceObserver267.installs_exact
+#print axioms Yulang.GeneralRebaseSourceObserver267.proposals
+#print axioms Yulang.GeneralRebaseSourceObserver267.proposals_exact
+#print axioms Yulang.GeneralRebaseObserverCoverage267.Covers
+#print axioms Yulang.GeneralRebaseObserverCoverage267.emits_strict
+#print axioms Yulang.GeneralRebaseObserverSound267.Sound
+#print axioms Yulang.GeneralRebaseObserverSound267.install_certificate
+#print axioms Yulang.GeneralRebaseObserverSound267.witness
+#print axioms Yulang.GeneralRebaseObserverExact267.observe
+#print axioms Yulang.GeneralRebaseObserverExact267.observe_current
+#print axioms Yulang.GeneralRebaseObserverExact267.step_iff
+#print axioms Yulang.GeneralRebaseObserverExact267.source_basis
+#print axioms Yulang.GeneralRebaseObserverExact267.source_relative_terminal

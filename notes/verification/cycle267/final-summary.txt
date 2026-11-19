@@ -1,0 +1,8 @@
+basis 1 5 PASS Classical.choice, Quot.sound, propext
+driver 10 41 PASS Classical.choice, Quot.sound, propext
+install 6 33 PASS Classical.choice, Quot.sound, propext
+novelty 7 30 PASS Classical.choice, Quot.sound, propext
+observer 8 36 PASS Classical.choice, Quot.sound, propext
+structural 8 50 PASS Classical.choice, Quot.sound, propext
+survivor 7 53 PASS Classical.choice, Quot.sound, propext
+47 strict focused module checks, 248 named axiom checks, 7 standalone files; static diff gate PASS

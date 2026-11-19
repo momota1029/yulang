@@ -1,0 +1,61 @@
+import Yulang.GeneralRebaseCandidateChecks267
+import Yulang.GeneralRebaseCandidatePrepared267
+import Yulang.GeneralRebaseSourceSurvivor267
+import Yulang.GeneralRebaseHeadProbe267
+import Yulang.GeneralRebasePartialClassification267
+import Yulang.GeneralRebaseSourceClassification267
+import Yulang.GeneralRebaseHeadProbeFixture267
+
+#print axioms Yulang.GeneralRebaseCandidateChecks267.linked
+#print axioms Yulang.GeneralRebaseCandidateChecks267.linked_exact
+#print axioms Yulang.GeneralRebaseCandidateChecks267.known
+#print axioms Yulang.GeneralRebaseCandidateChecks267.nonunresolved
+#print axioms Yulang.GeneralRebaseCandidateChecks267.known_exact
+#print axioms Yulang.GeneralRebaseCandidateChecks267.allKnown
+#print axioms Yulang.GeneralRebaseCandidateChecks267.allKnown_exact
+#print axioms Yulang.GeneralRebaseCandidateChecks267.fresh
+#print axioms Yulang.GeneralRebaseCandidateChecks267.fresh_exact
+#print axioms Yulang.GeneralRebaseCandidateChecks267.finished
+#print axioms Yulang.GeneralRebaseCandidateChecks267.finished_exact
+#print axioms Yulang.GeneralRebaseCandidatePrepared267.preflight
+#print axioms Yulang.GeneralRebaseCandidatePrepared267.preflight_exact
+#print axioms Yulang.GeneralRebaseCandidatePrepared267.headCondition
+#print axioms Yulang.GeneralRebaseCandidatePrepared267.prepared_iff
+#print axioms Yulang.GeneralRebaseCandidatePrepared267.readyPlans
+#print axioms Yulang.GeneralRebaseCandidatePrepared267.ready_exact
+#print axioms Yulang.GeneralRebaseCandidatePrepared267.includes_real_install
+#print axioms Yulang.GeneralRebaseSourceSurvivor267.Boundary
+#print axioms Yulang.GeneralRebaseSourceSurvivor267.Encoded
+#print axioms Yulang.GeneralRebaseSourceSurvivor267.declChecked
+#print axioms Yulang.GeneralRebaseSourceSurvivor267.from_survivor
+#print axioms Yulang.GeneralRebaseSourceSurvivor267.to_survivor
+#print axioms Yulang.GeneralRebaseHeadProbe267.Match
+#print axioms Yulang.GeneralRebaseHeadProbe267.observation
+#print axioms Yulang.GeneralRebaseHeadProbe267.atFocus
+#print axioms Yulang.GeneralRebaseHeadProbe267.atFocus_exact
+#print axioms Yulang.GeneralRebaseHeadProbe267.Honest
+#print axioms Yulang.GeneralRebaseHeadProbe267.positive
+#print axioms Yulang.GeneralRebaseHeadProbe267.unresolved
+#print axioms Yulang.GeneralRebaseHeadProbe267.positive_exact
+#print axioms Yulang.GeneralRebaseHeadProbe267.unresolved_exact
+#print axioms Yulang.GeneralRebaseHeadProbe267.source_sound
+#print axioms Yulang.GeneralRebaseHeadProbe267.source_complete_or_unknown
+#print axioms Yulang.GeneralRebasePartialClassification267.Verdict
+#print axioms Yulang.GeneralRebasePartialClassification267.apart
+#print axioms Yulang.GeneralRebasePartialClassification267.apart_iff
+#print axioms Yulang.GeneralRebasePartialClassification267.classify
+#print axioms Yulang.GeneralRebasePartialClassification267.Valid
+#print axioms Yulang.GeneralRebasePartialClassification267.classify_valid
+#print axioms Yulang.GeneralRebasePartialClassification267.unique_despite_duplicate_unknown
+#print axioms Yulang.GeneralRebaseSourceClassification267.verdict
+#print axioms Yulang.GeneralRebaseSourceClassification267.structural_valid
+#print axioms Yulang.GeneralRebaseSourceClassification267.Justified
+#print axioms Yulang.GeneralRebaseSourceClassification267.source_valid
+#print axioms Yulang.GeneralRebaseHeadProbeFixture267.entries
+#print axioms Yulang.GeneralRebaseHeadProbeFixture267.entry_count
+#print axioms Yulang.GeneralRebaseHeadProbeFixture267.actual_ready
+#print axioms Yulang.GeneralRebaseHeadProbeFixture267.entries_exact
+#print axioms Yulang.GeneralRebaseHeadProbeFixture267.certifiedCase
+#print axioms Yulang.GeneralRebaseHeadProbeFixture267.certifiedCase_honest
+#print axioms Yulang.GeneralRebaseHeadProbeFixture267.verified_choice
+#print axioms Yulang.GeneralRebaseHeadProbeFixture267.no_model_probe_stays_deferred

@@ -1,0 +1,60 @@
+'Yulang.GeneralRebasePersistentObserver266.Refines' does not depend on any axioms
+'Yulang.GeneralRebasePersistentObserver266.Persistent' does not depend on any axioms
+'Yulang.GeneralRebasePersistentObserver266.Terminal' depends on axioms: [propext]
+'Yulang.GeneralRebasePersistentObserver266.step_refines' depends on axioms: [propext]
+'Yulang.GeneralRebasePersistentObserver266.runs_refine' depends on axioms: [propext]
+'Yulang.GeneralRebasePersistentObserver266.terminal_excludes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePersistentObserver266.bounded_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePersistentObserver266.bounded_runs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePersistentObserver266.terminal_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePersistentObserver266.settle_minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePersistentJoin266.runs_append' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePersistentJoin266.join' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePersistentJoin266.transfer_runs' depends on axioms: [propext]
+'Yulang.GeneralRebasePersistentJoin266.settle_same_relation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveRules266.Rule' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRules266.enabled' depends on axioms: [propext]
+'Yulang.GeneralRebasePositiveRules266.observe' depends on axioms: [propext]
+'Yulang.GeneralRebasePositiveRules266.enabled_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveRules266.membership' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePositiveRules266.known_monotone' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveRules266.closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveRules266.persistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveRules266.same_steps' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebasePositiveRules266.order_independent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveMeaning266.Saturated' depends on axioms: [propext]
+'Yulang.GeneralRebasePositiveMeaning266.terminal_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveMeaning266.least_saturated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveMeaning266.Sound' does not depend on any axioms
+'Yulang.GeneralRebasePositiveMeaning266.sound_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveMeaning266.sound_runs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveMeaning266.sound_settle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveRegression266.seed' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.middle' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.finish' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.basis' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.start' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.first' depends on axioms: [propext]
+'Yulang.GeneralRebasePositiveRegression266.second' depends on axioms: [propext]
+'Yulang.GeneralRebasePositiveRegression266.last' depends on axioms: [propext]
+'Yulang.GeneralRebasePositiveRegression266.r0' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.r1' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.r2' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.rules' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.inverse' does not depend on any axioms
+'Yulang.GeneralRebasePositiveRegression266.observations' depends on axioms: [propext]
+'Yulang.GeneralRebasePositiveRegression266.three_steps' depends on axioms: [propext]
+'Yulang.GeneralRebasePositiveRegression266.executes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveRegression266.settled_state' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePositiveRegression266.order_reversal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTransientRegression266.a' does not depend on any axioms
+'Yulang.GeneralRebaseTransientRegression266.b' does not depend on any axioms
+'Yulang.GeneralRebaseTransientRegression266.basis' does not depend on any axioms
+'Yulang.GeneralRebaseTransientRegression266.beginState' does not depend on any axioms
+'Yulang.GeneralRebaseTransientRegression266.chooseA' does not depend on any axioms
+'Yulang.GeneralRebaseTransientRegression266.chooseB' does not depend on any axioms
+'Yulang.GeneralRebaseTransientRegression266.first_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTransientRegression266.second_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTransientRegression266.unordered_same' depends on axioms: [propext]
+'Yulang.GeneralRebaseTransientRegression266.order_matters' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseTransientRegression266.not_persistent' depends on axioms: [propext, Classical.choice, Quot.sound]

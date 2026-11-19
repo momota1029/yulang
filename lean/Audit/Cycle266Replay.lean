@@ -1,0 +1,26 @@
+import Yulang.GeneralRebasePathQuiescent266
+import Yulang.GeneralRebaseRecurrence266
+import Yulang.GeneralRebasePathCut266
+import Yulang.GeneralRebaseCertifiedReverse266
+
+#print axioms Yulang.GeneralRebasePathQuiescent266.all_stutter
+#print axioms Yulang.GeneralRebasePathQuiescent266.observer_empty
+#print axioms Yulang.GeneralRebasePathQuiescent266.count_zero
+#print axioms Yulang.GeneralRebasePathQuiescent266.immediate
+#print axioms Yulang.GeneralRebasePathQuiescent266.of_round
+#print axioms Yulang.GeneralRebaseRecurrence266.Quiet
+#print axioms Yulang.GeneralRebaseRecurrence266.quiet_of_endpoints
+#print axioms Yulang.GeneralRebaseRecurrence266.point_round_old
+#print axioms Yulang.GeneralRebaseRecurrence266.suffix
+#print axioms Yulang.GeneralRebaseRecurrence266.version239
+#print axioms Yulang.GeneralRebaseRecurrence266.version240
+#print axioms Yulang.GeneralRebasePathCut266.count_cons
+#print axioms Yulang.GeneralRebasePathCut266.cut
+#print axioms Yulang.GeneralRebasePathCut266.prefix_edges
+#print axioms Yulang.GeneralRebasePathCut266.suffix_edges
+#print axioms Yulang.GeneralRebaseCertifiedReverse266.suffix_of_terminal_run
+#print axioms Yulang.GeneralRebaseCertifiedReverse266.same_length_endpoint
+#print axioms Yulang.GeneralRebaseCertifiedReverse266.replay
+#print axioms Yulang.GeneralRebaseCertifiedReverse266.run_budget
+#print axioms Yulang.GeneralRebaseCertifiedReverse266.replay_iff
+#print axioms Yulang.GeneralRebaseCertifiedReverse266.settle_with_exact_budget

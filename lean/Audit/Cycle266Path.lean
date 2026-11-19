@@ -1,0 +1,38 @@
+import Yulang.GeneralRebaseEdgeRules266
+import Yulang.GeneralRebaseEdgeSingleton266
+import Yulang.GeneralRebaseTransientClosed266
+import Yulang.GeneralRebaseCertifiedPath266
+import Yulang.GeneralRebaseCertifiedPathSettle266
+import Yulang.GeneralRebaseCertifiedPathCount266
+
+#print axioms Yulang.GeneralRebaseEdgeRules266.rules
+#print axioms Yulang.GeneralRebaseEdgeRules266.member
+#print axioms Yulang.GeneralRebaseEdgeRules266.follows
+#print axioms Yulang.GeneralRebaseEdgeRules266.run_covered
+#print axioms Yulang.GeneralRebaseEdgeRules266.sound_iff
+#print axioms Yulang.GeneralRebaseEdgeSingleton266.exact_singleton
+#print axioms Yulang.GeneralRebaseEdgeSingleton266.actual_compound
+#print axioms Yulang.GeneralRebaseTransientClosed266.closedA
+#print axioms Yulang.GeneralRebaseTransientClosed266.closedB
+#print axioms Yulang.GeneralRebaseTransientClosed266.same_steps
+#print axioms Yulang.GeneralRebaseTransientClosed266.counterexample
+#print axioms Yulang.GeneralRebaseCertifiedPath266.Path
+#print axioms Yulang.GeneralRebaseCertifiedPath266.edges
+#print axioms Yulang.GeneralRebaseCertifiedPath266.rank
+#print axioms Yulang.GeneralRebaseCertifiedPath266.edge_rank
+#print axioms Yulang.GeneralRebaseCertifiedPath266.rank_path
+#print axioms Yulang.GeneralRebaseCertifiedPath266.rank_bounds
+#print axioms Yulang.GeneralRebaseCertifiedPath266.projected
+#print axioms Yulang.GeneralRebaseCertifiedPath266.terminal
+#print axioms Yulang.GeneralRebaseCertifiedPathSettle266.no_later_origin
+#print axioms Yulang.GeneralRebaseCertifiedPathSettle266.edge_unique
+#print axioms Yulang.GeneralRebaseCertifiedPathSettle266.deterministic
+#print axioms Yulang.GeneralRebaseCertifiedPathSettle266.terminal_runs_unique
+#print axioms Yulang.GeneralRebaseCertifiedPathSettle266.settles
+#print axioms Yulang.GeneralRebaseCertifiedPathCount266.strict_count
+#print axioms Yulang.GeneralRebaseCertifiedPathCount266.exact_run
+#print axioms Yulang.GeneralRebaseCertifiedPathCount266.strict_count_bound
+#print axioms Yulang.GeneralRebaseCertifiedPathCount266.exact_terminal_budget
+#print axioms Yulang.GeneralRebaseCertifiedPathCount266.compoundPath
+#print axioms Yulang.GeneralRebaseCertifiedPathCount266.compound_count
+#print axioms Yulang.GeneralRebaseCertifiedPathCount266.compound_settlement

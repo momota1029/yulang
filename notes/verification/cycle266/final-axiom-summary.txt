@@ -1,0 +1,7 @@
+Cycle266-final-audit.txt: 62 checked; Classical.choice, Quot.sound, propext
+Cycle266Family-final-audit.txt: 25 checked; Classical.choice, Quot.sound, propext
+Cycle266Path-final-audit.txt: 31 checked; Classical.choice, Quot.sound, propext
+Cycle266Persistent-final-audit.txt: 60 checked; Classical.choice, Quot.sound, propext
+Cycle266Projected-final-audit.txt: 19 checked; Classical.choice, Quot.sound, propext
+Cycle266Replay-final-audit.txt: 21 checked; Classical.choice, Quot.sound, propext
+PASS: 218 named declarations across 6 standalone audits

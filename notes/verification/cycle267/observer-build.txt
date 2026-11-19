@@ -1,0 +1,8 @@
+PASS Yulang.GeneralRebaseMergeCenters267
+PASS Yulang.GeneralRebaseMergeScan267
+PASS Yulang.GeneralRebaseMergeScanFixture267
+PASS Yulang.GeneralRebaseStrictSourceCases267
+PASS Yulang.GeneralRebaseSourceObserver267
+PASS Yulang.GeneralRebaseObserverCoverage267
+PASS Yulang.GeneralRebaseObserverSound267
+PASS Yulang.GeneralRebaseObserverExact267
