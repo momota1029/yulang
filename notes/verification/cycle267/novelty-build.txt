@@ -1,0 +1,7 @@
+PASS Yulang.GeneralRebaseNoveltyBoundary267
+PASS Yulang.GeneralRebaseNoveltyProbe267
+PASS Yulang.GeneralRebaseCertifiedPlanEntry267
+PASS Yulang.GeneralRebaseInstallCandidates267
+PASS Yulang.GeneralRebaseCompleteHeadProbe267
+PASS Yulang.GeneralRebaseInstallCoverage267
+PASS Yulang.GeneralRebaseSemanticNoveltyFixture267

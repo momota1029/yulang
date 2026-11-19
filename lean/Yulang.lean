@@ -4945,3 +4945,10 @@ import Yulang.GeneralRebaseSourceSelect267
 import Yulang.GeneralRebaseSourceInstall267
 import Yulang.GeneralRebaseExecutableInstall267
 import Yulang.GeneralRebaseInstallFixture267
+import Yulang.GeneralRebaseNoveltyBoundary267
+import Yulang.GeneralRebaseNoveltyProbe267
+import Yulang.GeneralRebaseCertifiedPlanEntry267
+import Yulang.GeneralRebaseInstallCandidates267
+import Yulang.GeneralRebaseCompleteHeadProbe267
+import Yulang.GeneralRebaseInstallCoverage267
+import Yulang.GeneralRebaseSemanticNoveltyFixture267

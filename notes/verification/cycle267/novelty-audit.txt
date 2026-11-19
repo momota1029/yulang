@@ -1,0 +1,40 @@
+'Yulang.GeneralRebaseNoveltyBoundary267.actual_semantic_novelty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNoveltyBoundary267.structural_selector_omits_this_plan' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNoveltyProbe267.novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoveltyProbe267.flags' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoveltyProbe267.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoveltyProbe267.exact_on_complete_probe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedPlanEntry267.effect_of_entry' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallCandidates267.eligible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallCandidates267.scan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallCandidates267.scan_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallCandidates267.Probes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallCandidates267.source_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompleteHeadProbe267.Covered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseCompleteHeadProbe267.unresolved_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCompleteHeadProbe267.unique_from_complete' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseInstallCoverage267.Covers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseInstallCoverage267.all_real_installs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.initial_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.entries' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.headProbe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.modelProbe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.entry_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.entries_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.honest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.probes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.actual_scan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.equal_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.guards' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSemanticNoveltyFixture267.recovered_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

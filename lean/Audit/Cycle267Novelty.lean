@@ -1,0 +1,38 @@
+import Yulang.GeneralRebaseNoveltyBoundary267
+import Yulang.GeneralRebaseNoveltyProbe267
+import Yulang.GeneralRebaseCertifiedPlanEntry267
+import Yulang.GeneralRebaseInstallCandidates267
+import Yulang.GeneralRebaseCompleteHeadProbe267
+import Yulang.GeneralRebaseInstallCoverage267
+import Yulang.GeneralRebaseSemanticNoveltyFixture267
+
+#print axioms Yulang.GeneralRebaseNoveltyBoundary267.actual_semantic_novelty
+#print axioms Yulang.GeneralRebaseNoveltyBoundary267.structural_selector_omits_this_plan
+#print axioms Yulang.GeneralRebaseNoveltyProbe267.novel
+#print axioms Yulang.GeneralRebaseNoveltyProbe267.flags
+#print axioms Yulang.GeneralRebaseNoveltyProbe267.sound
+#print axioms Yulang.GeneralRebaseNoveltyProbe267.exact_on_complete_probe
+#print axioms Yulang.GeneralRebaseCertifiedPlanEntry267.effect_of_entry
+#print axioms Yulang.GeneralRebaseInstallCandidates267.eligible
+#print axioms Yulang.GeneralRebaseInstallCandidates267.scan
+#print axioms Yulang.GeneralRebaseInstallCandidates267.scan_exact
+#print axioms Yulang.GeneralRebaseInstallCandidates267.Probes
+#print axioms Yulang.GeneralRebaseInstallCandidates267.source_step
+#print axioms Yulang.GeneralRebaseCompleteHeadProbe267.Covered
+#print axioms Yulang.GeneralRebaseCompleteHeadProbe267.unresolved_empty
+#print axioms Yulang.GeneralRebaseCompleteHeadProbe267.unique_from_complete
+#print axioms Yulang.GeneralRebaseInstallCoverage267.Covers
+#print axioms Yulang.GeneralRebaseInstallCoverage267.all_real_installs
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.checked
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.initial_reachable
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.entries
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.headProbe
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.modelProbe
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.entry_count
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.entries_exact
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.honest
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.probes
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.actual_scan
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.equal_outputs
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.guards
+#print axioms Yulang.GeneralRebaseSemanticNoveltyFixture267.recovered_install

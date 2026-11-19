@@ -44,3 +44,30 @@ already being present does not rule out a semantic update. Keep a general
 joint residual model premise; neither a head model nor finite choice checking
 gives it. Add a conditional source install and finite checked write pipeline
 for a genuinely enumerated plan.
+
+## Search among alternative concrete plans with the same observation
+
+A real optional-output install has no unrecorded child edge yet is not
+Committed (existing model violates packet obligations). This is a regression
+against treating the narrow missing-edge selector as complete. Extend it by
+an optional semantic novelty witness instead of changing the language guard.
+Filter all positive plans for a uniquely certified key/ordered children by
+exact choice history, structural-or-semantic novelty and a separate joint
+residual probe. The list (rather than only the first matching head) permits
+trying members with a valid joint model when another representation lacks
+one. Each filter contract concerns an independent obligation. Unknown
+remains a proof gap, not absence of source transition. Include the concrete
+optional-output regression if the exact source entry fits; otherwise retain
+the closed observational obstruction.
+
+## Separate merge producer
+
+Enumerate pairs of actually registered centered sites, restricting the
+first to an independently generated occurrence and excluding existing alias
+pairs. Matching public centers are a computable sufficient case of
+SameInputs at any model predicate; differing center IDs may still be
+semantically equal, so keep a separate positive semantic proof hook.
+For each certified pair prove an actual mixed-kernel merge and connect
+it to the checked affected-only projection write. Confirm strict projection
+on existing 264 merge stress journal, explicitly not a proof that its extra
+supplied plan was source reachable.
