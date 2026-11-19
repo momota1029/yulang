@@ -2,9 +2,9 @@
 - cycle: 272
 - status: running
 - started: 2026-11-19T11:30:00Z
-- updated: 2026-11-19T11:40:00Z
-- elapsed_min: 10.01
-- activity: Finite branching carrier rank and projection inversion; preparing exact first-visible record case
+- updated: 2026-11-19T11:50:00Z
+- elapsed_min: 20.01
+- activity: Finite subtree interpreter and source witness regressions; compiling original emitted expression certificates
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: a1cc0b224
-- resume_hint: Continue scoped checker and a genuine branching source/model regression.
+- last_local_commit: de2c19883
+- resume_hint: Check latest integration before each publication; continue actual journal readback and finite observer audit.
