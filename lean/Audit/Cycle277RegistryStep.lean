@@ -1,0 +1,31 @@
+import Yulang.GeneralRebaseRegistryInstallModels277
+import Yulang.GeneralRebaseRegistryInstallStep277
+import Yulang.GeneralRebaseRegistryOneStep277
+
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.ready
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.classes
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.retagCtors
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.rebound
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.rebound_plan
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.emitted
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.installed_requests
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.effect_holds
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.prior_live
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.legacy_prior_live
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.new_live
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.installation_equiv
+#print axioms Yulang.GeneralRebaseRegistryInstallModels277.installed_models
+#print axioms Yulang.GeneralRebaseRegistryInstallStep277.alternatives
+#print axioms Yulang.GeneralRebaseRegistryInstallStep277.committed
+#print axioms Yulang.GeneralRebaseRegistryInstallStep277.rebound_installable
+#print axioms Yulang.GeneralRebaseRegistryInstallStep277.paired_install
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.SamePorts
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.reflexive
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.symmetric
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.output_requests
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.alias_forward
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.generated_forward
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.generated
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.installed_ports
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.one_step
+#print axioms Yulang.GeneralRebaseRegistryOneStep277.reached_one_step

@@ -5265,3 +5265,6 @@ import Yulang.GeneralRebaseOwnedSupport277
 import Yulang.GeneralRebaseMixedOwnedTrace277
 import Yulang.GeneralRebaseRegistryDiagnostics277
 import Yulang.GeneralRebaseRegistryLocal277
+import Yulang.GeneralRebaseRegistryInstallModels277
+import Yulang.GeneralRebaseRegistryInstallStep277
+import Yulang.GeneralRebaseRegistryOneStep277
