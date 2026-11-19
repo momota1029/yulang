@@ -2,9 +2,9 @@
 - cycle: 274
 - status: running
 - started: 2026-11-19T13:31:40Z
-- updated: 2026-11-19T13:51:52Z
-- elapsed_min: 20.21
-- activity: Verified one genuine terminal model with stable-name executor and deterministic public readback; validating exact second-install frame.
+- updated: 2026-11-19T14:02:26Z
+- elapsed_min: 30.77
+- activity: Verified exact old/new installation facts, real report reader, and compiled leaf payload; publishing fixed scheduler correspondence.
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 337bc9be6
-- resume_hint: All terminal support aliases map to source IDs; second install must add only the two fresh type equations.
+- last_local_commit: c12af8a09
+- resume_hint: Positive source terminal checked. Next test complete input-to-result certificate and stable-frame limits.
