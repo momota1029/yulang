@@ -23,3 +23,14 @@ a total caller Environment. This is finite evidence consistency and scoped
 replay, not completeness/authentication of the catalog or Rust name
 resolution. Use a real archived method-only role and independently labeled
 synthetic associated declarations, including unobserved and ambiguous cases.
+
+A second, independently checkable producer can read the old *lowered*
+row together with its selected symbolic role and recover the demanded
+finite name evidence. Zip outputs in source order, distinguish required
+absence, validate a binder's actual positional index, and read a nullary
+constructor ID only from a zero-argument term. A witnessed C292 lowering
+must yield the original finite capture. The reverse is a structural
+consistency check, not authentication of a handed-in row; inconsistent
+multiple replies must not produce a map. Identical repeats from a
+capture (e.g. two uses of one constructor) can be coalesced only in this
+explicit inversion, not in the raw catalog interface.

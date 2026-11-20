@@ -1,0 +1,4 @@
+Archived role a [0]: catalog row a -> 7, reproduced arity-1 table with no associated outputs.
+Inverse of selected symbolic role and genuine old table recovered exactly the same one-row catalog.
+Unobserved, explicitly absent, conflicting, and retargeted cases stayed distinct.
+Finite ID observation and diagnostic range are supplied evidence; no Rust name resolver or parser executed.

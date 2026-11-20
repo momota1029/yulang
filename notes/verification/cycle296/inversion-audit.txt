@@ -1,0 +1,31 @@
+'Yulang.GeneralSourceRoleCstReifyBody296.from_resolved' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstReifyBody296.from_output' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstReifyBody296.values_match' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstReifyBody296.matches_cons' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstReifyBody296.body_replay' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstReifyBody296.field_replay' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstReifyRow296.fields_from_aligned' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstReifyRow296.fields_replay' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstReifyRow296.recover_from_witness' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstReifyRow296.recover_from_existing_lowerer' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstReifyRow296.recover_replays' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCoalesce296.coalesce_mem' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCoalesce296.coalesce_nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCoalesce296.fiber_empty_of_no_pair' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCoalesce296.singleton_fiber' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredCatalog296.captured_key_known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredCatalog296.catalog_releases_exact_capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredCatalog296.recover_catalog_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredCatalog296.inverted_from_lowered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredCatalog296.recovered_catalog_relowers' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogFailure296.fails_at_prefix' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstCatalogFailure296.first_failure' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredControl296.repeated_queries_share_unique_catalog_observation' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredControl296.contradictory_recovered_ids_refused' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredControl296.binder_must_match_actual_positional_index' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredControl296.shape_does_not_authorize_numeric_ids' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstRecoveredControl296.reports_first_failure_in_query_order' does not depend on any axioms

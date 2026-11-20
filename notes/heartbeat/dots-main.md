@@ -2,9 +2,9 @@
 - cycle: 296
 - status: running
 - started: 2026-11-20T11:30:00Z
-- updated: 2026-11-20T11:35:31Z
-- elapsed_min: 5.52
-- activity: 有限観測表だけで選択 role を変換、必要出力の未観測と観測済み不存在を区別
+- updated: 2026-11-20T11:41:12Z
+- elapsed_min: 11.20
+- activity: 通常の lowering 出力を逆抽出し、同一結果へ再 lowering。矛盾と binder 誤位置を拒否
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 38b5eb2bd
-- resume_hint: 次は既存 lowering 結果から証跡を逆抽出し、反例・保存済み入力を確認する。
+- last_local_commit: 9c1d61011
+- resume_hint: 保存済み role a は単一観測から往復確認。Rust 名前解決の実行ではない。
