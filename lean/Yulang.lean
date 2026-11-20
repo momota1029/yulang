@@ -5853,3 +5853,5 @@ import Yulang.GeneralSourceRoleCstScopeRefine294
 import Yulang.GeneralSourceRoleCstStrictTransport294
 import Yulang.GeneralSourceRoleCstWireBinding294
 import Yulang.GeneralSourceRoleCstBindingControl294
+import Yulang.GeneralSourceRoleCstSelectedSeal295
+import Yulang.GeneralSourceRoleCstSealOrigin295

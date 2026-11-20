@@ -1,0 +1,7 @@
+import Yulang.GeneralSourceRoleCstSealOrigin295
+
+#print axioms Yulang.GeneralSourceRoleCstSelectedSeal295.select_exact
+#print axioms Yulang.GeneralSourceRoleCstSelectedSeal295.different_address_none
+#print axioms Yulang.GeneralSourceRoleCstSelectedSeal295.different_policy_none
+#print axioms Yulang.GeneralSourceRoleCstSealOrigin295.kept_export
+#print axioms Yulang.GeneralSourceRoleCstSealOrigin295.selected_site
