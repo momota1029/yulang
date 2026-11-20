@@ -1,0 +1,6 @@
+import Yulang.GeneralDeferredLadderAdministrative304
+
+#print axioms Yulang.GeneralDeferredLadderAdministrative304.headless_forward
+#print axioms Yulang.GeneralDeferredLadderAdministrative304.equality_forward
+#print axioms Yulang.GeneralDeferredLadderAdministrative304.administrative_forward
+#print axioms Yulang.GeneralDeferredLadderAdministrative304.known_forward

@@ -1,0 +1,6 @@
+PASS n=0, promotion at k=0, 1 subsequent installs; wider catalogue and dictionary verified
+PASS n=3, promotion at k=0, 4 subsequent installs; wider catalogue and dictionary verified
+PASS n=3, promotion at k=2, 2 subsequent installs; wider catalogue and dictionary verified
+PASS n=3, promotion at k=4, 0 subsequent installs; wider catalogue and dictionary verified
+PASS n=5, promotion at k=1, 5 subsequent installs; wider catalogue and dictionary verified
+EXIT=0

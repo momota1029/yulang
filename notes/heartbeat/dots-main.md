@@ -2,9 +2,9 @@
 - cycle: 304
 - status: running
 - started: 2026-11-20T19:31:50Z
-- updated: 2026-11-20T19:43:42.128Z
-- elapsed_min: 11
-- activity: 最初の raw 遷移を公開済み。実到達履歴と仮想 refresh の frame、既存選択、commitment、実 install ガードの輸送を構成中。
+- updated: 2026-11-20T19:49:33.426Z
+- elapsed_min: 17
+- activity: deferred ladder の全実経路を閉じ、厳密な n+2 手・Acc・辞書と根の証拠を独立監査。幅広カタログ5例を実行。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: c4cca0889
-- resume_hint: /tmp/yulang304-relay-build.log。初回以降の relay 不変条件と辞書は検証前。
+- last_local_commit: b2e8e60fc
+- resume_hint: I-54 一般 observer 側では、full Models に加え merged class slice を保つ必要がある。次の設計候補。

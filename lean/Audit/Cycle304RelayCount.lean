@@ -1,0 +1,8 @@
+import Yulang.GeneralDeferredLadderRelayCount304
+
+#print axioms Yulang.GeneralDeferredLadderRelayCount304.possible
+#print axioms Yulang.GeneralDeferredLadderRelayCount304.exact_run
+#print axioms Yulang.GeneralDeferredLadderRelayCount304.counted_iff
+#print axioms Yulang.GeneralDeferredLadderRelayCount304.halted_count
+#print axioms Yulang.GeneralDeferredLadderRelayCount304.halted_outcome
+#print axioms Yulang.GeneralDeferredLadderRelayCount304.some_halted

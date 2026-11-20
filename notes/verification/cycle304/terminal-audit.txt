@@ -1,0 +1,18 @@
+### Audit/Cycle304RelayTerminal.lean
+'Yulang.GeneralDeferredLadderRelayTerminal304.table_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRelayTerminal304.evidence_forward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderRelayTerminal304.halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRelayTerminal304.exact_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderRelayTerminal304.root_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle304RelayCount.lean
+'Yulang.GeneralDeferredLadderRelayCount304.possible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRelayCount304.exact_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRelayCount304.counted_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRelayCount304.halted_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRelayCount304.halted_outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRelayCount304.some_halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0

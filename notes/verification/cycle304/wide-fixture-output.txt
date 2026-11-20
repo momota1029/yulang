@@ -1,0 +1,4 @@
+PASS n=0, k=0: wide catalogue stayed, exactly one row and edge appended
+PASS n=3, k=0: wide catalogue stayed, exactly one row and edge appended
+PASS n=3, k=2: wide catalogue stayed, exactly one row and edge appended
+EXIT=0

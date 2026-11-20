@@ -1,0 +1,6 @@
+'Yulang.GeneralDeferredLadderClosed304.classification' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderClosed304.bounded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderClosed304.halted_outcome' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderClosed304.acc_of_bounded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderClosed304.initial_acc' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0

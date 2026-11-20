@@ -1,0 +1,4 @@
+import Yulang.GeneralDeferredLadderRawCase304
+
+#print axioms Yulang.GeneralDeferredLadderRawCase304.closed_forward
+#print axioms Yulang.GeneralDeferredLadderRawCase304.only_installs
