@@ -5789,3 +5789,6 @@ import Yulang.GeneralSourceRoleCstBody293
 import Yulang.GeneralSourceRoleCstProducer293
 import Yulang.GeneralSourceRoleCstPath293
 import Yulang.GeneralSourceRoleCstFixture293
+import Yulang.GeneralSourceRoleCstSnapshot293
+import Yulang.GeneralSourceRoleCstConsumer293
+import Yulang.GeneralSourceRoleCstConsumerFixture293

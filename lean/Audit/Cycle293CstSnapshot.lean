@@ -1,0 +1,11 @@
+import Yulang.GeneralSourceRoleCstConsumerFixture293
+
+#print axioms Yulang.GeneralSourceRoleCstSnapshot293.address_exact
+#print axioms Yulang.GeneralSourceRoleCstSnapshot293.export_exact
+#print axioms Yulang.GeneralSourceRoleCstSnapshot293.declaration_member_roundtrip
+#print axioms Yulang.GeneralSourceRoleCstSnapshot293.foreign_export_none
+#print axioms Yulang.GeneralSourceRoleCstConsumer293.assoc_locates_type
+#print axioms Yulang.GeneralSourceRoleCstConsumerFixture293.own_export
+#print axioms Yulang.GeneralSourceRoleCstConsumerFixture293.foreign_same_path
+#print axioms Yulang.GeneralSourceRoleCstConsumerFixture293.unresolved_then_attached
+#print axioms Yulang.GeneralSourceRoleCstConsumerFixture293.existing_index_reads_second_argument
