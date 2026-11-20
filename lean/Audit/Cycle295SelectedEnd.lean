@@ -1,0 +1,14 @@
+import Yulang.GeneralSourceRoleCstSelectedEnd295
+
+#print axioms Yulang.GeneralSourceRoleCstExactTags295.compact_role_exact
+#print axioms Yulang.GeneralSourceRoleCstExactTags295.compact_type_exact
+#print axioms Yulang.GeneralSourceRoleCstExactTags295.compact_head_exact
+#print axioms Yulang.GeneralSourceRoleCstExactTags295.exact_role_node
+#print axioms Yulang.GeneralSourceRoleCstExactTags295.exact_type_node
+#print axioms Yulang.GeneralSourceRoleCstExactTags295.exact_head_node
+#print axioms Yulang.GeneralSourceRoleCstRawType295.parts_role_node
+#print axioms Yulang.GeneralSourceRoleCstRawType295.selected_original_role_node
+#print axioms Yulang.GeneralSourceRoleCstRawType295.selected_original_head_node
+#print axioms Yulang.GeneralSourceRoleCstRawType295.type_evidence_original_node
+#print axioms Yulang.GeneralSourceRoleCstSelectedEnd295.text_exports_one_original_role
+#print axioms Yulang.GeneralSourceRoleCstSelectedEnd295.text_read_has_raw_type

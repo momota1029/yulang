@@ -1,0 +1,22 @@
+'Yulang.GeneralSourceRoleCstExactTags295.compact_role_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstExactTags295.compact_type_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstExactTags295.compact_head_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstExactTags295.exact_role_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstExactTags295.exact_type_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstExactTags295.exact_head_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstRawType295.parts_role_node' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRawType295.selected_original_role_node' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstRawType295.selected_original_head_node' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstRawType295.type_evidence_original_node' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedEnd295.text_exports_one_original_role' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedEnd295.text_read_has_raw_type' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

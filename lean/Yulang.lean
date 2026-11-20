@@ -5877,3 +5877,6 @@ import Yulang.GeneralSourceRoleCstExplicitRead295
 import Yulang.GeneralSourceRoleCstSelectedOutcome295
 import Yulang.GeneralSourceRoleCstSelectedJson295
 import Yulang.GeneralSourceRoleCstRequiredControl295
+import Yulang.GeneralSourceRoleCstExactTags295
+import Yulang.GeneralSourceRoleCstRawType295
+import Yulang.GeneralSourceRoleCstSelectedEnd295
