@@ -1,0 +1,16 @@
+import Yulang.GeneralSourceMetadataBundleFixture291
+#print axioms Yulang.GeneralSourceMetadataFresh291.fresh_absent
+#print axioms Yulang.GeneralSourceMetadataFresh291.different_table_at_fresh
+#print axioms Yulang.GeneralSourceMetadataComparison291.exact_linked_metadata
+#print axioms Yulang.GeneralSourceMetadataComparison291.concrete_disagreement
+#print axioms Yulang.GeneralSourceMetadataBundle291.ready_exact
+#print axioms Yulang.GeneralSourceMetadataBundleFixture291.attached_actual
+#print axioms Yulang.GeneralSourceMetadataBundleFixture291.executable_both
+#print axioms Yulang.GeneralSourceMetadataBundleFixture291.executable_false_only_unsupported
+#print axioms Yulang.GeneralSourceMetadataBundleFixture291.outside_coverage_still_installs
+#print axioms Yulang.GeneralSourceMetadataBundleFixture291.different_defaults_control
+#print axioms Yulang.GeneralSourceMetadataBundleFixture291.source_order_control
+
+open Yulang GeneralSourceMetadataBundle291 GeneralSourceMetadataBundleFixture291
+#guard (inspect (actual true)).ready
+#guard !(inspect (actual false)).ready

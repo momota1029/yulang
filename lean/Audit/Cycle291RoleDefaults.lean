@@ -1,0 +1,14 @@
+import Yulang.GeneralSourceMetadataDiagnosticFixture291
+#print axioms Yulang.GeneralSourceMetadataFiniteLookup291.some_iff
+#print axioms Yulang.GeneralSourceMetadataRoles291.check_exact
+#print axioms Yulang.GeneralSourceMetadataRoleManifest291.exact_manifest
+#print axioms Yulang.GeneralSourceMetadataRoleFixture291.actual_role_table
+#print axioms Yulang.GeneralSourceMetadataRoleFixture291.actual_role_manifest
+#print axioms Yulang.GeneralSourceMetadataRoleFixture291.default_controls
+#print axioms Yulang.GeneralSourceMetadataRoleFixture291.omission_not_sound
+#print axioms Yulang.GeneralSourceMetadataProblem291.empty_iff_use
+#print axioms Yulang.GeneralSourceMetadataSites291.source_queries
+#print axioms Yulang.GeneralSourceMetadataDiagnostics291.no_diagnostics_iff
+#print axioms Yulang.GeneralSourceMetadataDiagnosticFixture291.actual_source_failure
+#print axioms Yulang.GeneralSourceMetadataDiagnosticFixture291.actual_default_failure
+#print axioms Yulang.GeneralSourceMetadataDiagnosticFixture291.diagnostic_kinds

@@ -1,0 +1,15 @@
+'Yulang.GeneralSourceMetadataFresh291.fresh_absent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataFresh291.different_table_at_fresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataComparison291.exact_linked_metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataComparison291.concrete_disagreement' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBundle291.ready_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBundleFixture291.attached_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataBundleFixture291.executable_both' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataBundleFixture291.executable_false_only_unsupported' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataBundleFixture291.outside_coverage_still_installs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataBundleFixture291.different_defaults_control' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataBundleFixture291.source_order_control' depends on axioms: [propext]

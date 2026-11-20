@@ -1,0 +1,15 @@
+import Yulang.GeneralSourceMetadataCoverageFixture291
+#print axioms Yulang.GeneralSourceMetadataExport291.representation
+#print axioms Yulang.GeneralSourceMetadataExport291.completed_check_iff
+#print axioms Yulang.GeneralSourceMetadataFixture291.source_constructors
+#print axioms Yulang.GeneralSourceMetadataFixture291.source_interpretation
+#print axioms Yulang.GeneralSourceMetadataFixture291.actual_attachment
+#print axioms Yulang.GeneralSourceMetadataFixture291.validator_controls
+#print axioms Yulang.GeneralSourceMetadataUse291.supported_exact
+#print axioms Yulang.GeneralSourceMetadataSyntax291.pattern_exact
+#print axioms Yulang.GeneralSourceMetadataSyntax291.term_exact
+#print axioms Yulang.GeneralSourceMetadataDeclarations291.explicit_exact
+#print axioms Yulang.GeneralSourceMetadataDefaults291.coverage_exact
+#print axioms Yulang.GeneralSourceMetadataCoverageFixture291.no_role_defaults
+#print axioms Yulang.GeneralSourceMetadataCoverageFixture291.source_coverage_exact
+#print axioms Yulang.GeneralSourceMetadataCoverageFixture291.same_metadata_different_coverage

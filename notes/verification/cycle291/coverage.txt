@@ -1,0 +1,20 @@
+'Yulang.GeneralSourceMetadataExport291.representation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataExport291.completed_check_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataFixture291.source_constructors' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataFixture291.source_interpretation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataFixture291.actual_attachment' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceMetadataFixture291.validator_controls' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataUse291.supported_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSyntax291.pattern_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSyntax291.term_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDeclarations291.explicit_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDefaults291.coverage_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataCoverageFixture291.no_role_defaults' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataCoverageFixture291.source_coverage_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataCoverageFixture291.same_metadata_different_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

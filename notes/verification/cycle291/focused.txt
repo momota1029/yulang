@@ -1,0 +1,175 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+focused GeneralSourceMetadataRows291 exit 0
+focused GeneralSourceMetadataLookup291 exit 0
+focused GeneralSourceMetadataValidation291 exit 0
+focused GeneralSourceMetadataExport291 exit 0
+focused GeneralSourceMetadataFixture291 exit 0
+focused GeneralSourceMetadataUse291 exit 0
+focused GeneralSourceMetadataSyntax291 exit 0
+focused GeneralSourceMetadataDeclarations291 exit 0
+focused GeneralSourceMetadataDefaults291 exit 0
+focused GeneralSourceMetadataCoverageFixture291 exit 0
+focused GeneralSourceMetadataFiniteLookup291 exit 0
+focused GeneralSourceMetadataRoles291 exit 0
+focused GeneralSourceMetadataRoleManifest291 exit 0
+focused GeneralSourceMetadataRoleFixture291 exit 0
+focused GeneralSourceMetadataProblem291 exit 0
+focused GeneralSourceMetadataSites291 exit 0
+focused GeneralSourceMetadataDiagnostics291 exit 0
+focused GeneralSourceMetadataDiagnosticFixture291 exit 0
+focused GeneralSourceMetadataFresh291 exit 0
+focused GeneralSourceMetadataComparison291 exit 0
+focused GeneralSourceMetadataBundle291 exit 0
+focused GeneralSourceMetadataBundleFixture291 exit 0
+focused GeneralSourceMetadataApplication291 exit 0
+focused GeneralSourceMetadataExprDomain291 exit 0
+focused GeneralSourceMetadataDefaultDomain291 exit 0
+focused GeneralSourceMetadataLive291 exit 0
+focused GeneralSourceMetadataLiveDiagnostics291 exit 0
+focused GeneralSourceMetadataLiveFixture291 exit 0
+focused GeneralSourceMetadataPublication291 exit 0
+focused GeneralSourceMetadataSnapshot291 exit 0
+focused GeneralSourceMetadataSnapshotFixture291 exit 0
+focused GeneralSourceMetadataPublicationFixture291 exit 0
+focused GeneralSourceMetadataReport291 exit 0
+focused GeneralSourceMetadataInspectTransport291 exit 0
+focused GeneralSourceMetadataReportMeaning291 exit 0
+focused GeneralSourceMetadataContextTransfer291 exit 0
+focused GeneralSourceMetadataTransportFixture291 exit 0
+focused GeneralSourceMetadataPermutation291 exit 0
+focused GeneralSourceMetadataRolePermutation291 exit 0
+focused GeneralSourceMetadataDiagnosticProvenance291 exit 0
+focused GeneralSourceMetadataBundlePermutation291 exit 0
+focused GeneralSourceMetadataBareRole291 exit 0
+focused GeneralSourceMetadataBuildRoles291 exit 0
+focused GeneralSourceMetadataBareBundle291 exit 0
+focused GeneralSourceMetadataBareFixture291 exit 0
+'Yulang.GeneralSourceMetadataBareRole291.bounded_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareRole291.row_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareRole291.list_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBuildRoles291.build_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBuildRoles291.compiled_manifest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareBundle291.preserves_input' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareBundle291.reassemble' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareFixture291.raw_role_controls' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareFixture291.well_scoped_not_coverage' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareFixture291.actual_exec' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle291BareInput.lean exit 0
+'Yulang.GeneralSourceMetadataApplication291.application_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataExprDomain291.translate_sound' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataExprDomain291.compiler_domain' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDefaultDomain291.default_domain' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataLive291.body_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataLive291.live_ready_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceMetadataLiveDiagnostics291.all_live_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataLiveFixture291.strict_local_not_global' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataLiveFixture291.unsupported_live_body_diagnostic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataLiveFixture291.missing_lookup_not_empty' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataPublication291.same_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle291LiveDomain.lean exit 0
+'Yulang.GeneralSourceMetadataReport291.lower_append' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataInspectTransport291.inspect_lower' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataInspectTransport291.many_lower' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataReportMeaning291.lower_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataContextTransfer291.report_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataContextTransfer291.meaning_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataTransportFixture291.outside_report_unchanged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataTransportFixture291.same_constructor_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataTransportFixture291.old_metadata_unchanged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataTransportFixture291.view_has_different_report' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle291ReportTransport.lean exit 0
+'Yulang.GeneralSourceMetadataRows291.exclusive' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataRows291.outside_constructor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRows291.outside_primitive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRows291.outside_invariant' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataLookup291.projected' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataValidation291.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataValidation291.checked_primitive' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle291ResolvedRows.lean exit 0
+'Yulang.GeneralSourceMetadataSnapshot291.descriptor_present' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.model_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.known_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.attempt_identity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.attempt_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshotFixture291.actual_identified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshotFixture291.observed_missing_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshotFixture291.same_models_not_full_metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataPublicationFixture291.checked_source_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataPublicationFixture291.exact_source_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle291Retag.lean exit 0
+'Yulang.GeneralSourceMetadataFiniteLookup291.some_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRoles291.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRoleManifest291.exact_manifest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRoleFixture291.actual_role_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRoleFixture291.actual_role_manifest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRoleFixture291.default_controls' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataRoleFixture291.omission_not_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataProblem291.empty_iff_use' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSites291.source_queries' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDiagnostics291.no_diagnostics_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDiagnosticFixture291.actual_source_failure' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataDiagnosticFixture291.actual_default_failure' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataDiagnosticFixture291.diagnostic_kinds' depends on axioms: [propext]
+standalone Audit/Cycle291RoleDefaults.lean exit 0
+'Yulang.GeneralSourceMetadataFresh291.fresh_absent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataFresh291.different_table_at_fresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataComparison291.exact_linked_metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataComparison291.concrete_disagreement' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBundle291.ready_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBundleFixture291.attached_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataBundleFixture291.executable_both' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataBundleFixture291.executable_false_only_unsupported' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataBundleFixture291.outside_coverage_still_installs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataBundleFixture291.different_defaults_control' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataBundleFixture291.source_order_control' depends on axioms: [propext]
+standalone Audit/Cycle291SourceBundle.lean exit 0
+'Yulang.GeneralSourceMetadataExport291.representation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataExport291.completed_check_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataFixture291.source_constructors' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataFixture291.source_interpretation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataFixture291.actual_attachment' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceMetadataFixture291.validator_controls' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataUse291.supported_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSyntax291.pattern_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSyntax291.term_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDeclarations291.explicit_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDefaults291.coverage_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataCoverageFixture291.no_role_defaults' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataCoverageFixture291.source_coverage_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataCoverageFixture291.same_metadata_different_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle291SourceCoverage.lean exit 0
+'Yulang.GeneralSourceMetadataPermutation291.get_perm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataPermutation291.source_perm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRolePermutation291.same_role_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRolePermutation291.same_manifest_membership' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDiagnosticProvenance291.exact_origin' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDiagnosticProvenance291.sound_failure' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDiagnosticProvenance291.complete_failure' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBundlePermutation291.attached_reordered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBundlePermutation291.whole_ready_unchanged' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle291SourceEquivalence.lean exit 0
+Counts: focused 45
+Focused reverification result=0
+Wrapped axiom audit: 96 reports, 96 distinct declarations (9 parts), used: Classical.choice, Quot.sound, propext, disallowed: none.
+Exact audit name coverage: 96 unique declarations, including 0 axiom-free; 7 executable assertions compiled at their named standalone parts.
