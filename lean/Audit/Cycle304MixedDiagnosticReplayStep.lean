@@ -1,0 +1,8 @@
+import Yulang.GeneralMixedDiagnosticReplayStep304
+
+#print axioms Yulang.GeneralMixedDiagnosticReplayStep304.model_after
+#print axioms Yulang.GeneralMixedDiagnosticReplayStep304.after_models
+#print axioms Yulang.GeneralMixedDiagnosticReplayStep304.after_head
+#print axioms Yulang.GeneralMixedDiagnosticReplayStep304.mirrored_installable
+#print axioms Yulang.GeneralMixedDiagnosticReplayStep304.actual_install
+#print axioms Yulang.GeneralMixedDiagnosticReplayStep304.local_after

@@ -1,0 +1,9 @@
+import Yulang.GeneralMixedDiagnosticOutputFixture304
+
+#print axioms Yulang.GeneralMixedDiagnosticOutputFixture304.output_present
+#print axioms Yulang.GeneralMixedDiagnosticOutputFixture304.requests_kept
+#print axioms Yulang.GeneralMixedDiagnosticOutputFixture304.real_install_with_request
+#print axioms Yulang.GeneralMixedDiagnosticOutputFixture304.strictly_refines_models
+#print axioms Yulang.GeneralMixedDiagnosticOutputFixture304.exact_install_trace
+#print axioms Yulang.GeneralMixedDiagnosticOutputFixture304.raw_distinct
+#print axioms Yulang.GeneralMixedDiagnosticOutputFixture304.same_resolution

@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderControlCover304
+
+#print axioms Yulang.GeneralDeferredLadderControlCover304.all_count
+#print axioms Yulang.GeneralDeferredLadderControlCover304.all_nodup
+#print axioms Yulang.GeneralDeferredLadderControlCover304.all_exact
+#print axioms Yulang.GeneralDeferredLadderControlCover304.every_control_realized
+#print axioms Yulang.GeneralDeferredLadderControlCover304.quotient_successors

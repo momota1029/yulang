@@ -1,0 +1,4 @@
+PASS slots [some 0, some 1, none] -> [some 1, some 0, none]; observations [Yulang.GeneralNominalTotalLocation304.SlotStatus.known,
+ Yulang.GeneralNominalTotalLocation304.SlotStatus.unresolved,
+ Yulang.GeneralNominalTotalLocation304.SlotStatus.missing]; bounds some [(0, 0)] -> some [(1, 1)]
+EXIT=0
