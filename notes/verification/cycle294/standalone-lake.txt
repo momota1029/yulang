@@ -1,0 +1,12 @@
+lake env lean --trust=0 Audit/Cycle294GroupAnchor.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294IndependentDiagnostics.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294MissingScope.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294MixedReceipt.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294PathFidelity.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294PlainTokenReceipt.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294RecoveryMarks.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294ScopeReport.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294ScopeTransport.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294SelectedCorridor.lean: exit 0
+lake env lean --trust=0 Audit/Cycle294WireBinding.lean: exit 0
+140 declarations passed; 11 independent lake invocations.

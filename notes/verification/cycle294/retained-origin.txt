@@ -1,0 +1,4 @@
+Retained ParsedFile has fallible syntax diagnostics and green wire; diagnostics use operator environment.
+Plain token run identity appends the first raw token ordinal.
+NestingTooDeep identity appends literal 0 after the opaque node path; its range belongs to the node.
+Exact source anchors, not a Rust execution or proof of every diagnostic ownership shape.

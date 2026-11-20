@@ -98,3 +98,26 @@ Whitespace preserves the decoded compact tree, bytes, projected role and
 untied range admission, yet the wire-bound receipt declines reuse. Equal
 wire still does not establish the producer identity, environment or
 completeness of a caller's diagnostic evidence.
+
+### Suggested next Rust producer boundary (design only)
+
+The retained `ParsedFile` already exposes `green()` and fallible
+`syntax_diagnostics()` (full_parse.rs, near lines 234–246); the latter uses its
+stored header/operator environment as well as a walk over that retained green
+root. A future Rust bridge should acquire both through the same retained
+`ParsedFile`, keep `Err` distinct from `Ok([])`, and carry explicit source/env
+snapshot provenance. A diagnostic event and its checked near-source attachment
+should remain distinct fields. Use an adapter layer, not a change to validity
+or the user's Rust structural walk.
+
+The current walker supplies different identity shapes. In `flush`, the run's
+first child index is passed to `push`. At `NestingTooDeep`, it pushes the
+opaque node index into the parent occurrence path and calls `push(..., 0,
+...)`; `push` appends its index argument. For a depth node at e.g. [2], this
+makes identity [2,0] in the source-level account while the reported range is
+the **whole opaque node** [2]. Thus even a real child at the identity path
+would not certify that it owns the event. A next Rust fixture should test
+plain first-token anchors, node-owned depth recovery, a zero-width Missing
+pair, and operator construction diagnostics freshly so that collecting each
+cause can be positively verified without guessing a path from the first
+integer or from byte-span equality. No such Rust runtime check happened here.
