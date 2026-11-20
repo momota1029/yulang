@@ -1,0 +1,8 @@
+crates/yu-syntax/src/tests/declaration/act_decl/operation_where.rs 418af6b6e4f4fc8c4db94ac0449080bbf3e64a84
+290:fn role_method_signature_where_keeps_its_pre_wp17_recovery_cst() {
+299:  RoleDeclaration@0..49
+304:      TypeApplyArgument@6..9
+306:        TypeExpression@7..9
+307:          SigilIdentifier@7..9 "'x"
+342:  Error@49..50 ":"
+Same exact checked-in Rust golden and associated source literal; not regenerated from a Rust run in this workspace.

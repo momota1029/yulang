@@ -1,0 +1,162 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+focused GeneralSourceRoleCstTree293 exit 0
+focused GeneralSourceRoleCstShapes293 exit 0
+focused GeneralSourceRoleCstBody293 exit 0
+focused GeneralSourceRoleCstProducer293 exit 0
+focused GeneralSourceRoleCstPath293 exit 0
+focused GeneralSourceRoleCstFixture293 exit 0
+focused GeneralSourceRoleCstSnapshot293 exit 0
+focused GeneralSourceRoleCstConsumer293 exit 0
+focused GeneralSourceRoleCstConsumerFixture293 exit 0
+focused GeneralSourceRoleCstSpan293 exit 0
+focused GeneralSourceRoleCstLossless293 exit 0
+focused GeneralSourceRoleCstTypeRules293 exit 0
+focused GeneralSourceRoleCstRecovery293 exit 0
+focused GeneralSourceRoleCstSourceExtent293 exit 0
+focused GeneralSourceRoleCstSourceExtentFixture293 exit 0
+focused GeneralSourceRoleCstWireTags293 exit 0
+focused GeneralSourceRoleCstWire293 exit 0
+focused GeneralSourceRoleCstWirePaths293 exit 0
+focused GeneralSourceRoleCstWireFixture293 exit 0
+focused GeneralSourceRoleCstJson293 exit 0
+focused GeneralSourceRoleCstJsonEntry293 exit 0
+focused GeneralSourceRoleCstJsonOrigin293 exit 0
+focused GeneralSourceRoleCstJsonFixture293 exit 0
+focused GeneralSourceRoleCstCoverage293 exit 0
+focused GeneralSourceRoleCstDistinct293 exit 0
+focused GeneralSourceRoleCstOccurrenceControls293 exit 0
+focused GeneralSourceRoleCstTrivia293 exit 0
+focused GeneralSourceRoleCstTriviaFixture293 exit 0
+focused GeneralSourceRoleCstExternalContract293 exit 0
+focused GeneralSourceRoleCstRustHead293 exit 0
+focused GeneralSourceRoleCstRustRole293 exit 0
+focused GeneralSourceRoleCstRustSnapshot293 exit 0
+focused GeneralSourceRoleCstRustEntry293 exit 0
+focused GeneralSourceRoleCstRustOrigin293 exit 0
+focused GeneralSourceRoleCstRustFixture293 exit 0
+'Yulang.GeneralSourceRoleCstCoverage293.direct_complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCoverage293.extract_direct_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCoverage293.cover_path_length' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstDistinct293.indices_nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstDistinct293.significant_nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstDistinct293.index_read' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstDistinct293.aligned_paths_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstDistinct293.exported_paths_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstOccurrenceControls293.no_spelling_dedup_in_unresolved_producer' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstOccurrenceControls293.later_duplicate_id_declined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstOccurrenceControls293.brand_reuse_does_not_authenticate_snapshot' depends on axioms: [propext]
+standalone Audit/Cycle293CstCoverage.lean exit 0
+'Yulang.GeneralSourceRoleCstTrivia293.visible_filter' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTrivia293.insert_one_trivia' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTriviaFixture293.reprojected_paths' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTriviaFixture293.erase_retains_same_unresolved_role' does not depend on any axioms
+'Yulang.GeneralSourceRoleCstTriviaFixture293.extents_shift_by_utf8_width' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTriviaFixture293.stale_address_does_not_choose_shifted_role' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstExternalContract293.same_bytes_not_same_child_kind' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstExternalContract293.no_text_only_equality_certificate' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstExternalContract293.tag_compaction_not_injective' depends on axioms: [propext]
+standalone Audit/Cycle293CstExternalContract.lean exit 0
+'Yulang.GeneralSourceRoleCstJson293.depth_positive' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstJson293.list_prop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJson293.read_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonEntry293.value_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonEntry293.text_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonOrigin293.text_member_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonFixture293.exact_fixture_depth' does not depend on any axioms
+'Yulang.GeneralSourceRoleCstJsonFixture293.wire_at_depth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonFixture293.shallow_input_declined' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonFixture293.exact_external_boundary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonFixture293.outer_shape_errors_distinct' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle293CstJson.lean exit 0
+'Yulang.GeneralSourceRoleCstBody293.classify_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstBody293.statement_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstBody293.members_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstProducer293.extract_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstPath293.follow_append' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstPath293.body_at_ordinal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstPath293.extract_origin' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstFixture293.required_roundtrip' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstFixture293.binder_roundtrip' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstFixture293.scalar_roundtrip' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstFixture293.direct_handle_readback' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstFixture293.nested_member_not_promoted' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstFixture293.missing_rhs_rejected' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstFixture293.unsupported_argument_not_dropped' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstFixture293.recovery_in_method_rejected' depends on axioms: [propext]
+standalone Audit/Cycle293CstProducer.lean exit 0
+'Yulang.GeneralSourceRoleCstTree293.indexed_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstTree293.significant_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstShapes293.argument_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstShapes293.head_exact' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle293CstShape.lean exit 0
+'Yulang.GeneralSourceRoleCstSnapshot293.address_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSnapshot293.export_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSnapshot293.declaration_member_roundtrip' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSnapshot293.foreign_export_none' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstConsumer293.assoc_locates_type' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstConsumerFixture293.own_export' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstConsumerFixture293.foreign_same_path' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstConsumerFixture293.unresolved_then_attached' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstConsumerFixture293.existing_index_reads_second_argument' depends on axioms: [propext,
+ Quot.sound]
+standalone Audit/Cycle293CstSnapshot.lean exit 0
+'Yulang.GeneralSourceRoleCstSpan293.prefix_child_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSpan293.locate_tree' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSpan293.locate_bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstLossless293.render_width' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstLossless293.documented_source_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstLossless293.documented_extents' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstLossless293.utf8_not_character_offset' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTypeRules293.rhs_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTypeRules293.type_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTypeRules293.shape_never_fakes_required_after_equals' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRecovery293.clean_tree_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRecovery293.clean_list_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRecovery293.recovery_descendant_blocks_binding' depends on axioms: [propext]
+standalone Audit/Cycle293CstSpansRecovery.lean exit 0
+'Yulang.GeneralSourceRoleCstRustHead293.argument_exact_rust' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRustHead293.head_exact_rust' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustHead293.direct_shallow_token_not_actual_argument' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRustRole293.extract_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustRole293.extract_origin' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustSnapshot293.export_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRustSnapshot293.declaration_member_roundtrip' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustEntry293.value_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustEntry293.text_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustOrigin293.text_member_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustFixture293.wrapped_roles_export' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRustFixture293.previously_shallow_role_rejected' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstRustFixture293.wrapped_roles_attach' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustFixture293.wrapped_roles_actual_consumer' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRustFixture293.wrapper_paths_unique' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle293RustWrappedCst.lean exit 0
+'Yulang.GeneralSourceRoleCstSourceExtent293.extent_projection' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSourceExtent293.extent_exists' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSourceExtent293.attached_associated_extent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSourceExtentFixture293.direct_default_span' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSourceExtentFixture293.earlier_top_level_not_same' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSourceExtentFixture293.foreign_extent_rejected' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireTags293.kind_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireTags293.closed_controls' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWire293.decode_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstWire293.decode_list_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstWire293.transfer_preserves_text' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWirePaths293.transfer_index' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstWirePaths293.source_index' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWirePaths293.transfer_path' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstWirePaths293.export_wire_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstWireFixture293.actual_tag_spellings_decode' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireFixture293.exported_role_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireFixture293.visible_raw_member_slot' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireFixture293.nested_unknown_tag_rejected' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireFixture293.nesting_recovery_not_opaque' depends on axioms: [propext]
+standalone Audit/Cycle293WireAndExtent.lean exit 0
+Counts: focused 35
+Focused reverification result=0
+107 exact named declarations; 105 with any axioms, used: Classical.choice, Quot.sound, propext; 8 executable guards.

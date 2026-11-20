@@ -1,0 +1,3 @@
+exact checked-in 59-byte Rowan snapshot, actual wrapped binder confirmed
+forged token text, oversized range, dropped trivia, and invalid nesting rejected
+UTF-8 byte token and zero-width recovery controls preserved
