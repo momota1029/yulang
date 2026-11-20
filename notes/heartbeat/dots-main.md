@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 290
-- status: completed
-- started: 2026-11-20T05:30:05Z
-- updated: 2026-11-20T06:20:12Z
-- elapsed_min: 50.12
-- activity: 有限 metadata と同一 producer の現行全性を厳格版で照合し、実二枝と範囲外を検証
-- last_local_commit: 960d4192f
-- report: notes/handoff/dots-cycle-290.md
-- resume_hint: 次周も統合 branch の standing orders と inbox を最初に再読。既存 Step 無変更。同一性の仮定を開示し、次は source exporter または独立の正の行観測。
+- cycle: 291
+- status: running
+- started: 2026-11-20T06:31:17Z
+- updated: 2026-11-20T06:31:38Z
+- elapsed_min: 0.35
+- activity: 前周完了と統合祖先を照合。有限 metadata の source 側表現と読取り閉包を検証。
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang
+- last_local_commit: 32bd5e870
+- resume_hint: 統合命令再読済み。既存 Step を変更せず、source exporter の正確な境界を確認。
