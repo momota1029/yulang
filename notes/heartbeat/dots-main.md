@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 293
-- status: completed
-- started: 2026-11-20T08:32:42Z
-- updated: 2026-11-20T09:22:44Z
-- elapsed_min: 50.03
-- activity: 現行 Rust の保存済み CST golden を未解決 role として実 replay
-- last_local_commit: 70f5b5430
-- report: notes/handoff/dots-cycle-293.md
-- resume_hint: 次周も統合 branch の standing orders と inbox を最初に再読。Rust parser 再実行・production serializer・名前解決は未実装または未検証。保存済み golden の 293 replay は検証済み。
+- cycle: 294
+- status: running
+- started: 2026-11-20T09:30:01Z
+- updated: 2026-11-20T09:30:19Z
+- elapsed_min: 0.30
+- activity: 保存済み Rowan golden の選択 role と全体 recovery を切り分ける
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang
+- last_local_commit: f328e212c
+- resume_hint: 前周完了確認。実 Rust の新規実行なしで、元 wire の marks と所属範囲を厳密に追跡。
