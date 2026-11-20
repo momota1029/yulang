@@ -142,3 +142,23 @@ key 6 is an override. Include a removed key-8 override and a key-8
 primitive override, which the enlarged check must now catch. The
 representation evidence is a named hypothesis unless independently
 provided by the source/exporter construction.
+
+## Reader map and next hard boundary
+
+| Question | Verified Lean entry |
+|---|---|
+| Which table entries matter to the actual normalized-head translator? | `GeneralObservedMetadataTranslation290.translate_eq`, `GeneralObservedMetadataGate290.verified_report` |
+| What about emitted source requests and associated/default code? | `GeneralObservedMetadataBranch290.accepted_branch` (legacy recursive schema), `GeneralObservedMetadataBodies290.bodySchema_eq` (centered expression compiler) |
+| Is the saved object only repeatable, or is the current supporting producer legitimate and total? | `GeneralObservedMetadataSeal290.kept_has_reference_books`, `GeneralObservedMetadataStrict290.actual_owner_total`, `GeneralObservedMetadataPublic290.strict_live_sound` |
+| Does this store a raw fact or solve the existing pending row branch? | No; `GeneralObservedMetadataStrictActual290.strict_release_exact` and `GeneralObservedMetadataPublic290.strict_fixture_mark_sound` make the two cases explicit. |
+| When can a finite witness entail old full Metadata? | `GeneralObservedMetadataClosure290.metadata_iff`, `GeneralObservedMetadataOverlay290.closed_world_iff`; independent representation witnesses must cover off-scope reads. |
+
+A natural small follow-up is a source-backed exporter for the overlay
+hypotheses. It needs independent completeness of the constructor and
+primitive override lists, then a witness that their role classification
+agrees with actual extraction. Do not introduce that completeness as a
+silent precondition of the receipt. Separately, no amount of metadata
+agreement here changes the frozen row inspector: defending one real
+positive ordinary-row observation through a different supported route
+requires its own source/example and reading proof. Neither follows from
+the new metadata seal or from the closed old alias regression.

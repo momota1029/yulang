@@ -2,9 +2,9 @@
 - cycle: 290
 - status: running
 - started: 2026-11-20T05:30:05Z
-- updated: 2026-11-20T06:05:03Z
-- elapsed_min: 34.97
-- activity: 固定 raw・同じ宣言で、有限 metadata 一致が厳格版全体を保存することと全モデルでの実 class-effect を検証。
+- updated: 2026-11-20T06:10:32Z
+- elapsed_min: 40.45
+- activity: 有限 override の全 Metadata 閉包・正規辞書・不適合提案に Frame がない境界まで検証。38焦点・9監査・旧37回帰全成功。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 08396862e
-- resume_hint: 共通既定と有限 override 証明がある場合だけ全 Metadata へ閉じ、最終再構築・監査。
+- last_local_commit: f5926604b
+- resume_hint: 最終報告 50〜55分で公開し、元・中間・最新 tree と blob を照合。

@@ -1,0 +1,7 @@
+'Yulang.GeneralObservedMetadataCanonical290.canonical_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataCanonical290.canonical_only_changes_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataCanonical290.strict_finite_release_not_new_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

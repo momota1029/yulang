@@ -1,0 +1,5 @@
+import Yulang.GeneralObservedMetadataCanonical290
+
+#print axioms Yulang.GeneralObservedMetadataCanonical290.canonical_dictionary
+#print axioms Yulang.GeneralObservedMetadataCanonical290.canonical_only_changes_target
+#print axioms Yulang.GeneralObservedMetadataCanonical290.strict_finite_release_not_new_frame

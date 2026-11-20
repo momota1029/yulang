@@ -1,0 +1,219 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+focused GeneralObservedMetadataKeys290 exit 0
+focused GeneralObservedMetadataEntry290 exit 0
+focused GeneralObservedMetadataLocal290 exit 0
+focused GeneralObservedMetadataTranslation290 exit 0
+focused GeneralObservedMetadataReport290 exit 0
+focused GeneralObservedMetadataScope290 exit 0
+focused GeneralObservedMetadataClosure290 exit 0
+focused GeneralObservedMetadataControls290 exit 0
+focused GeneralObservedMetadataGate290 exit 0
+focused GeneralObservedMetadataActual290 exit 0
+focused GeneralObservedMetadataRequests290 exit 0
+focused GeneralObservedMetadataBranch290 exit 0
+focused GeneralObservedMetadataMaterializationFixture290 exit 0
+focused GeneralObservedMetadataExpressions290 exit 0
+focused GeneralObservedMetadataBodies290 exit 0
+focused GeneralObservedMetadataLive290 exit 0
+focused GeneralObservedMetadataHistorical290 exit 0
+focused GeneralObservedMetadataHistoryFixture290 exit 0
+focused GeneralObservedMetadataBook290 exit 0
+focused GeneralObservedMetadataRequestBook290 exit 0
+focused GeneralObservedMetadataSeal290 exit 0
+focused GeneralObservedMetadataPublication290 exit 0
+focused GeneralObservedMetadataReleaseFixture290 exit 0
+focused GeneralObservedMetadataReleased290 exit 0
+focused GeneralObservedMetadataTotal290 exit 0
+focused GeneralObservedMetadataTotalFixture290 exit 0
+focused GeneralObservedMetadataStrict290 exit 0
+focused GeneralObservedMetadataStrictActual290 exit 0
+focused GeneralObservedMetadataPrimitiveDrift290 exit 0
+focused GeneralObservedMetadataAgreement290 exit 0
+focused GeneralObservedMetadataNoninterference290 exit 0
+focused GeneralObservedMetadataOldCongr290 exit 0
+focused GeneralObservedMetadataRegistryCongr290 exit 0
+focused GeneralObservedMetadataRegistryFixture290 exit 0
+focused GeneralObservedMetadataPublic290 exit 0
+focused GeneralObservedMetadataOverlay290 exit 0
+focused GeneralObservedMetadataOverlayFixture290 exit 0
+focused GeneralObservedMetadataCanonical290 exit 0
+'Yulang.GeneralObservedMetadataRequests290.schema_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBranch290.branch_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBranch290.accepted_branch' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataMaterializationFixture290.actual_request_keys' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataMaterializationFixture290.alternate_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataMaterializationFixture290.head_certificate_cannot_speak_for_schema' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataExpressions290.explicit_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataExpressions290.default_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBodies290.compile_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBodies290.bodySchema_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataLive290.accepted_live_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataHistorical290.owner_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataHistorical290.one_effect_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataHistoryFixture290.actual_installed_results' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataHistoryFixture290.recorded_body_keys' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataHistoryFixture290.live_compiler_needs_compound_key' depends on axioms: [propext]
+'Yulang.GeneralObservedMetadataHistoryFixture290.defaults_use_their_term_keys' depends on axioms: [propext]
+standalone Audit/Cycle290ObservedBodies.lean exit 0
+'Yulang.GeneralObservedMetadataCanonical290.canonical_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataCanonical290.canonical_only_changes_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataCanonical290.strict_finite_release_not_new_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle290ObservedCanonical.lean exit 0
+'Yulang.GeneralObservedMetadataAgreement290.certify_proposal' depends on axioms: [propext]
+'Yulang.GeneralObservedMetadataAgreement290.total_proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataNoninterference290.equivalent_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataNoninterference290.sealed_lists_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataNoninterference290.checked_publish_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataOldCongr290.same_decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryCongr290.compare_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryCongr290.equal_permitted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryCongr290.equal_publish' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryFixture290.actual_whole_key_list' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryFixture290.offscope_double_edit_passes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryFixture290.observed_edit_caught' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryFixture290.whole_gate_unchanged_offscope' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle290ObservedCongruence.lean exit 0
+'Yulang.GeneralObservedMetadataKeys290.app_nested' depends on axioms: [propext]
+'Yulang.GeneralObservedMetadataKeys290.candidate_key' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataEntry290.entry_exact' does not depend on any axioms
+'Yulang.GeneralObservedMetadataEntry290.agree_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataLocal290.primitiveOK_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataLocal290.metadata_restricts' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle290ObservedEntry.lean exit 0
+'Yulang.GeneralObservedMetadataTranslation290.translate_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataReport290.reports_of_candidates' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.good_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.disagreement_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.incompatible_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.accepted_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.accepted_recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataClosure290.metadata_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataClosure290.offscope_from_common_default' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataGate290.ready_has_provenance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.old_report_changed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.invariant_flag_essential' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.incompatible_even_when_equal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.equal_local_incompatible_outside' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.equal_local_missing_catalogue_outside' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataActual290.strict_path_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataActual290.exact_install_diagnostics' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataActual290.unobserved_wrong_proposed_primitive_does_not_block' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle290ObservedGate.lean exit 0
+'Yulang.GeneralObservedMetadataOverlay290.default_outside' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataOverlay290.completed_residual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataOverlay290.closed_world_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataOverlayFixture290.represents_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataOverlayFixture290.full_actual_metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataOverlayFixture290.enlarged_detects_removed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataOverlayFixture290.removed_really_not_metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataOverlayFixture290.enlarged_detects_primitive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataOverlayFixture290.primitive_really_not_metadata' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle290ObservedOverlay.lean exit 0
+'Yulang.GeneralObservedMetadataPublic290.strict_live_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataPublic290.strict_fixture_mark_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle290ObservedPublic.lean exit 0
+'Yulang.GeneralObservedMetadataBook290.book_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBook290.keys_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataRequestBook290.matches_request' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRequestBook290.actual_alias_gains_request_book' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataSeal290.membership' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataSeal290.kept_has_reference_books' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataPublication290.publishFrom_exact' depends on axioms: [propext]
+'Yulang.GeneralObservedMetadataPublication290.issue_is_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataPublication290.ready_release' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.actual_class_book' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.accepted_seals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.pending_seals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.missing_request_same_metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.executable_release_expected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.actual_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataReleased290.released_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataReleased290.public_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataReleased290.bounded_release_still_does_not_imply_global_metadata' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle290ObservedPublication.lean exit 0
+'Yulang.GeneralObservedMetadataTotal290.total_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataTotal290.total_iff_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataTotalFixture290.unsupported_metadata_agrees' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataTotalFixture290.unsupported_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataTotalFixture290.unsupported_effect_imposes_no_equation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataTotalFixture290.live_total_real' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataStrict290.permitted_subset' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataStrict290.actual_owner_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataStrictActual290.strict_publish_preserves_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataStrictActual290.strict_release_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataPrimitiveDrift290.valid_scalar' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataPrimitiveDrift290.same_layout_different_query' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataPrimitiveDrift290.primitive_value_matters' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle290ObservedTotal.lean exit 0
+Counts: focused 38
+Focused reverification result=0
+Wrapped axiom audit: 98 reports, 98 distinct declarations (9 parts), used: Classical.choice, Quot.sound, propext, disallowed: none.
+Exact audit name coverage: 99 unique declarations, including 1 axiom-free; 6 executable assertions compiled at their named standalone parts.
