@@ -1,0 +1,43 @@
+Lean version: 4.35.0 (official).
+Local scoped tested source head: a535d5ce8.
+Diff-gate local base: b13078cdd.
+Prior published C304 baseline: 6307188ff50293b3cbf98033072ff2a965ebfe96.
+Published substantive C305 source pin: 71ac50b7703326c72d9983861aec41a2d578cab1.
+
+Scoped build command: cd lean && lake build --wfail Yulang.<target>
+Focused endpoint targets:
+  GeneralNominalVersionedCandidateCoordinates305
+  GeneralMixedReindexObserver305
+  GeneralMixedIndexedEvidence305
+  GeneralMixedReindexOutputHalt305
+  GeneralMixedReindexOutputCompiler305
+  GeneralMixedRawFanout305
+  GeneralNominalReportSwapFixture305
+  GeneralNominalReportBranchFixture305
+  GeneralMixedRawSchedule305
+  GeneralMixedScalarPartial305
+  GeneralMixedTaggedEarlyRefresh305
+  GeneralMixedObserverNotRaw305
+  GeneralMixedIndexedEvidenceAt305
+  GeneralMixedIndexedClassify305
+Every listed target finished with exit 0. Full repository build not run.
+
+Standalone source audit rerun command:
+  cd lean
+  for a in Audit/Cycle305*.lean; do lake env lean --trust=0 -DwarningAsError=true "$a" || exit; done
+Result: 11 independent parts, 87 named declarations, all exit 0.
+Only dependencies: propext, Classical.choice, Quot.sound.
+The exact rerun output is all-new-audits.txt.
+
+Diff check only:
+  bash tools/verify-lean.sh <checkout> b13078cdd --no-build
+Result: PASS (diff checks only, NO build), exit 0.
+No removals or config changes; each of the 30 modules has one exact barrel import.
+Unabridged output: diff-verification-00.txt through diff-verification-04.txt.
+
+Publication verification (GitHub pinned readback):
+Compared all 56 substantive changed paths at the source pin byte-for-byte.
+For the barrel, expected the published C304 barrel plus the ordered 30 new imports.
+For every other path, expected the scoped tested local commit's exact bytes.
+Results: 56 of 56 identical, including all source and audit files.
+No Rust, parser, whole-project Lean build, full historical audit, or CI was run here.

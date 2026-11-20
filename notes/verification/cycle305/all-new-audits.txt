@@ -1,0 +1,127 @@
+### Audit/Cycle305CatalogueExtension.lean
+'Yulang.GeneralNominalCatalogueExtension305.head_term' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCatalogueExtension305.head_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalCatalogueExtension305.equivalent' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle305EarlySchedules.lean
+'Yulang.GeneralMixedRawSchedule305.lengths_realized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedRawSchedule305.exact_possible_lengths' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedRawSchedule305.finite_fanout_fails_after_early' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedScalarPartial305.seen_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedScalarPartial305.unseen_unknown' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedTaggedEarlyRefresh305.first_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedTaggedEarlyRefresh305.second_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedTaggedEarlyRefresh305.both_orders_arbitrary_labels' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedTaggedEarlyRefresh305.arbitrary_early_fanout' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedObserverNotRaw305.valid_on_any_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedObserverNotRaw305.observed_prefixes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedObserverNotRaw305.different_step_availability' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedIndexedEvidenceAt305.generated_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedEvidenceAt305.evidenceAt_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedClassify305.classify_forward' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedIndexedClassify305.classify_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle305IndexedFrame.lean
+'Yulang.GeneralMixedIndexedFrame305.relocated_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedFrame305.relocated_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedFrame305.inspection_move' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedIndexedFrame305.inspected_tests' depends on axioms: [propext, Quot.sound]
+### Audit/Cycle305IndexedObserver.lean
+'Yulang.GeneralMixedIndexedDiagnosticHeads305.safe_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedDiagnosticOutputs305.output_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedDiagnosticOutputs305.sharing_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedDiagnosticOutputs305.merged_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedDiagnosticLocal305.local_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedDiagnosticLocal305.recursive_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedDiagnosticLocal305.compiler_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexObserver305.models_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexObserver305.semantics' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexObserver305.no_strict_observation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedEvidence305.compilation_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedIndexedEvidence305.witness_forward' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedIndexedEvidence305.certificate_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedEvidence305.indexed_tree_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedEvidence305.evidence_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle305K2Coordinates.lean
+'Yulang.GeneralNominalInverseCoordinates305.reverse' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalK2CoordinateEdges305.structural_forward' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalK2CoordinateEdges305.direct_argument_forward' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalK2CoordinateEdges305.actual_argument_forward' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalK2CoordinateEdges305.recurs_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalK2Coordinates305.root_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalK2Coordinates305.candidate_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle305MixedReportBranch.lean
+'Yulang.GeneralNominalReportBranchFixture305.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalReportBranchFixture305.both_branch_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+### Audit/Cycle305OutputHalt.lean
+'Yulang.GeneralMixedIndexedCommit305.committed_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedCompiler305.valid_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.wideCert' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.other_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.different_successors' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.requests_both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.selected_both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.evidence_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.checked_deep_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedReindexOutputHalt305.widened_halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputHalt305.two_distinct_halts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputCompiler305.actual_run' depends on axioms: [propext]
+'Yulang.GeneralMixedReindexOutputCompiler305.actual_compiler_shared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalReportSwapFixture305.full_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSwapFixture305.actual_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.widened_injective' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedReindexOutputHalt305.many_actual_halts' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle305PrivateHeadModels.lean
+'Yulang.GeneralNominalCandidateReplayModels305.fresh_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCandidateReplayModels305.bindings_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCandidateReplayModels305.checks_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCandidateReplayModels305.private_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCandidateReplayModels305.head_model_iff' depends on axioms: [propext, Quot.sound]
+### Audit/Cycle305RawFanout.lean
+'Yulang.GeneralMixedRawFanout305.firstTag_widened' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedRawFanout305.beyond_any_finite_list' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle305RecursiveReport.lean
+'Yulang.GeneralNominalReportCoordinates305.Coordinates.injective' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportCoordinates305.scalar_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportCoordinates305.node_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportCoordinates305.nominal_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportRecompute305.inspect_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportRecompute305.many_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportContext305.report_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportContext305.erase_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportContext305.arguments_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalReportContext305.same_plan' depends on axioms: [propext, Quot.sound]
+### Audit/Cycle305VersionedCandidates.lean
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.prepared_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.failed_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.children_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.survivor_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.unique_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.inspection_pending_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT=0
