@@ -1,0 +1,26 @@
+'Yulang.GeneralGeneratedDictionaryAcc299.step_fuel' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryAcc299.monotone_fuel' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryAcc299.child_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryAcc299.pull_accessibility' does not depend on any axioms
+'Yulang.GeneralGeneratedDictionaryAcc299.source_accessible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryAcc299.success_accessible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryAcc299.common_fuel' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryAcc299.accessible_success' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryAcc299.iff_accessible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryMinFuel299.earliest_none' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryMinFuel299.earliest_some' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankCheck299.checked_at' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankCheck299.no_later' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankCheck299.checked_closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankCheck299.checked_ranked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankCheck299.checked_total' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankExists299.found_at_cap' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankExists299.all_tested_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankExists299.finite_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryRankExists299.ranked_of_finite_accessibility' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryFiniteCap299.acc_no_loop' does not depend on any axioms
+'Yulang.GeneralGeneratedDictionaryFiniteCap299.no_return' does not depend on any axioms
+'Yulang.GeneralGeneratedDictionaryFiniteCap299.descends_known' does not depend on any axioms
+'Yulang.GeneralGeneratedDictionaryFiniteCap299.bounded_from' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryFiniteCap299.finite_cap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDictionaryFiniteCap299.check_length' depends on axioms: [propext, Classical.choice, Quot.sound]
