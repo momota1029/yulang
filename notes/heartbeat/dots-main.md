@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 304
-- status: completed
-- started: 2026-11-20T19:31:50Z
-- updated: 2026-11-20T20:21:54.139Z
-- elapsed_min: 50
-- activity: 実 deferred ladder 全経路、有限観測制御、一般 V8 slice/再索引を検証・公開。36独立監査159宣言、13実行例、3基準静的差分 PASS。
+- cycle: 305
+- status: running
+- started: 2026-11-20T20:28:28.913Z
+- updated: 2026-11-20T20:28:43.759Z
+- elapsed_min: 0
+- activity: I-54 と C304 完了を確認。非直列 B4 の実到達断片を調査。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 12d7e4929
-- resume_hint: 次は相互 refinement より強い観測一致から、再索引時の recursive report の消去を移送する。新しい出力要求を発行する install は別証明。
-- report: notes/handoff/dots-cycle-304.md
+- resume_hint: 再索引で recursive report を保ち、出力を要求する分岐の既存検証例を基に選ぶ。
