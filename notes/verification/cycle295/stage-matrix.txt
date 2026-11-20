@@ -1,0 +1,13 @@
+PASS second declared binder
+PASS first declared binder
+PASS resolved zero-argument constructor
+PASS requires output but has no default
+PASS unbound RHS binder
+PASS unknown RHS constructor
+PASS missing semantic role name
+PASS duplicate output IDs despite exact-name receipt
+PASS duplicate binders despite exact-name receipt
+PASS unsupported clean integer RHS
+PASS explicit Missing node RHS
+PASS stale ordered naming receipt
+Synthetic portable wire inputs only: exact receipt evidence does not manufacture names or valid rows.

@@ -74,5 +74,7 @@ cmp "$scratch/goldens/role.json" "$source_role"
  done
  lean "${opts[@]}" --run "$verify/run-selected-consumer.lean" >"$scratch/report"
  cmp "$scratch/report" "$verify/selected-consumer.txt"
+ lean "${opts[@]}" --run "$verify/run-stage-matrix.lean" >"$scratch/report"
+ cmp "$scratch/report" "$verify/stage-matrix.txt"
 )
 echo "Isolated build: $count modules; selected archived JSON and closed control outputs matched; no Rust parser execution."

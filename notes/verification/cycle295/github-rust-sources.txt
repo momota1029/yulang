@@ -1,0 +1,5 @@
+GitHub integration/m1-final ea6a9b81a48d8965f2d6f628b81ad92757cf6b5b, downloaded sources identical to local pinned blobs:
+f912b3a77085a930f3ec0204741761d79b17fddb crates/yu-syntax/src/declaration/role_decl.rs
+e6573b9469b45c38c7d802d012520ec8bbf9c90b crates/yu-syntax/src/full_parse.rs
+418af6b6e4f4fc8c4db94ac0449080bbf3e64a84 crates/yu-syntax/src/tests/declaration/act_decl/operation_where.rs
+This is source comparison, not a live Rust parse.

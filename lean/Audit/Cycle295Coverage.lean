@@ -1,0 +1,5 @@
+import Yulang.GeneralSourceRoleCstCoverageEnd295
+
+#print axioms Yulang.GeneralSourceRoleCstSelectedCoverage295.tracked_type_contributes
+#print axioms Yulang.GeneralSourceRoleCstSelectedCoverage295.selected_type_contributes
+#print axioms Yulang.GeneralSourceRoleCstCoverageEnd295.text_has_every_selected_type

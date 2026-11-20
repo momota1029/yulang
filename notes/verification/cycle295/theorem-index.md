@@ -2,6 +2,23 @@
 
 Exact Lean source signatures; Japanese summaries are in the cycle report.
 
+## `lean/Yulang/GeneralSourceRoleCstCoverageEnd295.lean`
+
+```lean
+theorem text_has_every_selected_type {S B : Type} [DecidableEq S] [DecidableEq B]
+    (fuel : Nat) (text : String) (policy : Policy) (scope : S) (brand : B) (a : Address B)
+    (packet : FiniteBoundary S B) (env : S → Environment) (fallback : Nat)
+    (tab : RoleSource) (ok : fromText fuel text policy scope brand a packet env fallback = .ok tab) :
+    ∃ (j : Json) (w : Wire) (p : Tracked S (Address B)),
+      Json.parse text = .ok j ∧ encode w = j ∧ depth w ≤ fuel ∧ p.atRole = a ∧
+      GeneralSourceRoleCstSelectedSeal295.select policy scope w brand a packet.selected.selected = some p ∧
+      ∀ site shape, (site,Child.typeDecl shape) ∈ p.body →
+        ∃ role name value children b stmt leaf,
+          OriginAt env [p] role name value a site ∧
+          (roleTable tab role).assoc name = some value ∧
+          site.path = a.path ++ [b,stmt,leaf] ∧ atWire site.path w = some (.node "TypeDeclaration" children)
+```
+
 ## `lean/Yulang/GeneralSourceRoleCstExactTags295.lean`
 
 ```lean
@@ -469,6 +486,28 @@ theorem reader_differs_by_selected_declaration :
     ((compile .selectedBranch 5 both 71 second (packet second) naming 2).bind actualRead) = some char
 ```
 
+## `lean/Yulang/GeneralSourceRoleCstSelectedCoverage295.lean`
+
+```lean
+theorem tracked_type_contributes {S H : Type} (env : S → Environment) (fallback : Nat)
+    (p : Tracked S H) (table : RoleSource) (done : runTracked env fallback [p] = some table)
+    (site : H) (shape : Shape) (selected : (site,Child.typeDecl shape) ∈ p.body) :
+    ∃ role name value, OriginAt env [p] role name value p.atRole site ∧
+      (roleTable table role).assoc name = some value
+```
+
+```lean
+theorem selected_type_contributes {S B : Type} [DecidableEq S] [DecidableEq B]
+    (policy : Policy) (scope : S) (w : Wire) (brand : B) (a : Address B)
+    (packet : Boundary S B) (env : S → Environment) (fallback : Nat)
+    (table : RoleSource) (ok : compile policy scope w brand a packet env fallback = some table) :
+    ∃ p : Tracked S (Address B), p.atRole = a ∧
+      GeneralSourceRoleCstSelectedSeal295.select policy scope w brand a packet.selected = some p ∧
+      ∀ site shape, (site,Child.typeDecl shape) ∈ p.body →
+      ∃ role name value, OriginAt env [p] role name value a site ∧
+        (roleTable table role).assoc name = some value
+```
+
 ## `lean/Yulang/GeneralSourceRoleCstSelectedDefault295.lean`
 
 ```lean
@@ -744,4 +783,4 @@ theorem handoff_goes_symbolic {S B : Type} [DecidableEq S] [DecidableEq B]
     ∃ out, symbolic p = some out ∧ out.scope = scope
 ```
 
-Indexed 92 theorem declarations; every one appears in exactly one standalone audit.
+Indexed 95 theorem declarations; every one appears in exactly one standalone audit.

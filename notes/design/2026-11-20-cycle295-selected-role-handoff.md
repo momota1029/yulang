@@ -62,3 +62,11 @@ required/binder/nullary RHS shape. Prove that this selected payload
 always reaches the existing symbolic role. This does not show its naming
 or final export is total, since name lookup, duplicate keys, and other
 checks still happen separately.
+
+The direction back from a table read is only half of a source handoff.
+Check the other direction conditional on old lowering success: every
+direct associated declaration of the selected payload contributes a
+resolved output observation (including a required slot with no default).
+Use the existing ordered inventory/output alignment and validation,
+without treating a synthetic successful run as completeness of Yulang
+typing.

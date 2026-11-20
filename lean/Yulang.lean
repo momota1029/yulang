@@ -5883,3 +5883,5 @@ import Yulang.GeneralSourceRoleCstSelectedEnd295
 import Yulang.GeneralSourceRoleCstSymbolicChildren295
 import Yulang.GeneralSourceRoleCstSymbolicTotal295
 import Yulang.GeneralSourceRoleCstOutcomePrecise295
+import Yulang.GeneralSourceRoleCstSelectedCoverage295
+import Yulang.GeneralSourceRoleCstCoverageEnd295
