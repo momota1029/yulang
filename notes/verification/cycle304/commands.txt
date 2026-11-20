@@ -1,0 +1,36 @@
+Lean 4.35.0, in the existing workspace. Mainline integration pin:
+e2ad1d61f9de979dd8259877c7940501b6ea5d98. Local verified source commit:
+dbd8a6d9742df16e0136cc8c4e2d757f8ad5151b.
+
+cd lean
+lake build --wfail \
+  Yulang.GeneralDeferredLadderControlCover304 Yulang.GeneralDeferredLadderWideFixture303 \
+  Yulang.GeneralMixedDiagnosticOutputFixture304 Yulang.GeneralMixedDiagnosticRequestFree304 \
+  Yulang.GeneralMixedDiagnosticSliceCounterexample304 Yulang.GeneralNominalSlotSwapFixture304
+while IFS= read -r f; do
+  lake env lean --trust=0 -DwarningAsError=true "$f" || exit $?
+done < ../notes/verification/cycle304/audit-list.txt
+for fixture in run-wide run-relay run-control run-slot-swap; do
+  lake env lean --trust=0 --run "../notes/verification/cycle304/$fixture.lean" || exit $?
+done
+
+The 36 final standalone audit files ran with three parallel workers, each
+Lean process single-threaded; exit 0 was recorded for every file. Each
+source import is checked to occur exactly once at lean/Yulang.lean.
+An intermediate aggregate audit raced a rebuild of the control-cover
+.olean. The final independent audit reran all 36 files after the rebuild.
+C302 was separately rebuilt as a dependency of the scoped endpoints;
+all its seven independent audit files were rerun (c302-rerun-audit.txt).
+
+In clean detached trees, tools/verify-lean.sh <tree> <base> --no-build
+was run against the local pre-C304 and integration baselines, and against
+the preceding published C303 commit for the exact published tree.
+This is the static diff phase only. Whole-repository Lake build, full
+verify-lean.sh, Rust binaries and CI were not run. The optional old C240
+all-files audit was blocked by an uncached module; its independent check
+timed out (124). Neither is described as an old-regression revalidation.
+
+Publication is expected-head, non-force on work/dots-main. The core
+publication at d158a6ac1024211bfa6e488c6073937ef0dcd6f2 was fetched
+independently; SHA-1 Git blob IDs for 104 changed paths matched the local
+verified tree exactly. Reports and static logs are published afterwards.

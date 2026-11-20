@@ -1,0 +1,3 @@
+import Yulang.GeneralDeferredLadderAgreement303
+
+#print axioms Yulang.GeneralDeferredLadderAgreement303.supported_terminal_agreement

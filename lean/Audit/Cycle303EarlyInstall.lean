@@ -1,0 +1,13 @@
+import Yulang.GeneralDeferredLadderEarlyInstall303
+
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.current_requests
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.effect
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.positions
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.alternatives
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.emitted
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.future_requests
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.installation
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.promoted_reached
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.enabled
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.not_committed
+#print axioms Yulang.GeneralDeferredLadderEarlyInstall303.actual

@@ -1,0 +1,6 @@
+import Yulang.GeneralMixedDiagnosticSliceReplay304
+
+#print axioms Yulang.GeneralMixedDiagnosticSliceReplay304.keeps_of_outputless_rows
+#print axioms Yulang.GeneralMixedDiagnosticSliceReplay304.history_after
+#print axioms Yulang.GeneralMixedDiagnosticSliceReplay304.class_after
+#print axioms Yulang.GeneralMixedDiagnosticSliceReplay304.semantics_after

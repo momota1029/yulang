@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderResnapshot304
+
+#print axioms Yulang.GeneralDeferredLadderResnapshot304.safe_forward
+#print axioms Yulang.GeneralDeferredLadderResnapshot304.alternatives_forward
+#print axioms Yulang.GeneralDeferredLadderResnapshot304.ready_forward
+#print axioms Yulang.GeneralDeferredLadderResnapshot304.resnapshot
+#print axioms Yulang.GeneralDeferredLadderResnapshot304.new_effect_iff

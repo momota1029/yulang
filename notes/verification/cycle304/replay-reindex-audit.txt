@@ -1,0 +1,74 @@
+### Audit/Cycle304MixedDiagnosticArchive.lean
+'Yulang.GeneralMixedDiagnosticArchive304.head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticArchive304.slices' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticArchive304.same_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticArchive304.reuse_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0
+### Audit/Cycle304MixedDiagnosticOutputFixture.lean
+'Yulang.GeneralMixedDiagnosticOutputFixture304.output_present' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedDiagnosticOutputFixture304.requests_kept' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticOutputFixture304.real_install_with_request' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedDiagnosticOutputFixture304.strictly_refines_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedDiagnosticOutputFixture304.exact_install_trace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedDiagnosticOutputFixture304.raw_distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticOutputFixture304.same_resolution' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT=0
+### Audit/Cycle304MixedDiagnosticReplayStep.lean
+'Yulang.GeneralMixedDiagnosticReplayStep304.model_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticReplayStep304.after_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticReplayStep304.after_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticReplayStep304.mirrored_installable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedDiagnosticReplayStep304.actual_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticReplayStep304.local_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0
+### Audit/Cycle304MixedDiagnosticReplayTrace.lean
+'Yulang.GeneralMixedDiagnosticReplayTrace304.trace_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticReplayTrace304.exact_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticReplayTrace304.final_local' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0
+### Audit/Cycle304MixedDiagnosticSliceReplay.lean
+'Yulang.GeneralMixedDiagnosticSliceReplay304.keeps_of_outputless_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedDiagnosticSliceReplay304.history_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticSliceReplay304.class_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedDiagnosticSliceReplay304.semantics_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0
+### Audit/Cycle304NominalPendingReindex.lean
+'Yulang.GeneralNominalPendingReindex304.pending_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPendingReindex304.pending_reflect' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPendingReindex304.pending_reindex' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalPendingReindex304.old_compiler_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0
+### Audit/Cycle304NominalSlotSwapFixture.lean
+'Yulang.GeneralNominalSlotSwapFixture304.refines' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSlotSwapFixture304.concrete_source_changes_slots' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalSlotSwapFixture304.status_values' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalSlotSwapFixture304.statuses_survive_swap' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT=0
+### Audit/Cycle304NominalTotalLocation.lean
+'Yulang.GeneralNominalTotalLocation304.roundtrip' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalTotalLocation304.source_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTotalLocation304.arguments_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTotalLocation304.status_reindex' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTotalLocation304.status_missing_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTotalLocation304.status_known_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalTotalLocation304.status_unresolved_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0
+EXIT=0

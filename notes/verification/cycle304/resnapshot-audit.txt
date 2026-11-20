@@ -1,0 +1,7 @@
+'Yulang.GeneralDeferredLadderResnapshot304.safe_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderResnapshot304.alternatives_forward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderResnapshot304.ready_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderResnapshot304.resnapshot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderResnapshot304.new_effect_iff' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,9 @@
+import Yulang.GeneralNominalTotalLocation304
+
+#print axioms Yulang.GeneralNominalTotalLocation304.roundtrip
+#print axioms Yulang.GeneralNominalTotalLocation304.source_total
+#print axioms Yulang.GeneralNominalTotalLocation304.arguments_total
+#print axioms Yulang.GeneralNominalTotalLocation304.status_reindex
+#print axioms Yulang.GeneralNominalTotalLocation304.status_missing_iff
+#print axioms Yulang.GeneralNominalTotalLocation304.status_known_iff
+#print axioms Yulang.GeneralNominalTotalLocation304.status_unresolved_iff

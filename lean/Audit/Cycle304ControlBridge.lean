@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderControlBridge304
+
+#print axioms Yulang.GeneralDeferredLadderControlBridge304.projects
+#print axioms Yulang.GeneralDeferredLadderControlBridge304.lifts
+#print axioms Yulang.GeneralDeferredLadderControlBridge304.executable_exact
+#print axioms Yulang.GeneralDeferredLadderControlBridge304.executable_halt
+#print axioms Yulang.GeneralDeferredLadderControlBridge304.rank_exact

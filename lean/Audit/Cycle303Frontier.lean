@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderFrontier303
+
+#print axioms Yulang.GeneralDeferredLadderFrontier303.frontier_fresh
+#print axioms Yulang.GeneralDeferredLadderFrontier303.list_prepared
+#print axioms Yulang.GeneralDeferredLadderFrontier303.frontier_frame
+#print axioms Yulang.GeneralDeferredLadderFrontier303.frontier_not_int
+#print axioms Yulang.GeneralDeferredLadderFrontier303.frontier_unique_frame

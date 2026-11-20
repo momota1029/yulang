@@ -1,0 +1,5 @@
+import Yulang.GeneralMixedDiagnosticCompiler304
+
+#print axioms Yulang.GeneralMixedDiagnosticCompiler304.inputs_forward
+#print axioms Yulang.GeneralMixedDiagnosticCompiler304.compiler_exact
+#print axioms Yulang.GeneralMixedDiagnosticCompiler304.recursive_iff

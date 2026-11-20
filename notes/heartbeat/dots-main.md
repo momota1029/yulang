@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 303
+- cycle: 304
 - status: completed
-- started: 2026-11-20T18:31:06Z
-- updated: 2026-11-20T19:20:00.708Z
-- elapsed_min: 48
-- activity: 12 の Lean モジュール、33 宣言の独立監査。公開済み33ファイルの blob ID を検証済み版と照合した。
+- started: 2026-11-20T19:31:50Z
+- updated: 2026-11-20T20:21:54.139Z
+- elapsed_min: 50
+- activity: 実 deferred ladder 全経路、有限観測制御、一般 V8 slice/再索引を検証・公開。36独立監査159宣言、13実行例、3基準静的差分 PASS。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: fe51a9275
-- resume_hint: 任意の早期 refresh 後、最初の実際の raw Step の存在・分類を検証する。未検証草稿は公開していない。
-- report: notes/handoff/dots-cycle-303.md
+- last_local_commit: 12d7e4929
+- resume_hint: 次は相互 refinement より強い観測一致から、再索引時の recursive report の消去を移送する。新しい出力要求を発行する install は別証明。
+- report: notes/handoff/dots-cycle-304.md

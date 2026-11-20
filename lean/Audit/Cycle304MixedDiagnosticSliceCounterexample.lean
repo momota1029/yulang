@@ -1,0 +1,3 @@
+import Yulang.GeneralMixedDiagnosticSliceCounterexample304
+
+#print axioms Yulang.GeneralMixedDiagnosticSliceCounterexample304.head_view_alone_insufficient

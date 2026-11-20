@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderWideFixture303
+
+#print axioms Yulang.GeneralDeferredLadderWideFixture303.certificate
+#print axioms Yulang.GeneralDeferredLadderWideFixture303.known
+#print axioms Yulang.GeneralDeferredLadderWideFixture303.legal_distinct_refresh
+#print axioms Yulang.GeneralDeferredLadderWideFixture303.outside_old_family
+#print axioms Yulang.GeneralDeferredLadderWideFixture303.wider_unique_install

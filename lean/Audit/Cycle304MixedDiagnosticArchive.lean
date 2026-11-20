@@ -1,0 +1,6 @@
+import Yulang.GeneralMixedDiagnosticArchive304
+
+#print axioms Yulang.GeneralMixedDiagnosticArchive304.head
+#print axioms Yulang.GeneralMixedDiagnosticArchive304.slices
+#print axioms Yulang.GeneralMixedDiagnosticArchive304.same_tree
+#print axioms Yulang.GeneralMixedDiagnosticArchive304.reuse_compiler

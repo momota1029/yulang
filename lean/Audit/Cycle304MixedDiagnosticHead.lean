@@ -1,0 +1,9 @@
+import Yulang.GeneralMixedDiagnosticHead304
+
+#print axioms Yulang.GeneralMixedDiagnosticHead304.pending_iff
+#print axioms Yulang.GeneralMixedDiagnosticHead304.root_k2_iff
+#print axioms Yulang.GeneralMixedDiagnosticHead304.candidate_k2_iff
+#print axioms Yulang.GeneralMixedDiagnosticHead304.inspection_iff
+#print axioms Yulang.GeneralMixedDiagnosticHead304.survivor_iff
+#print axioms Yulang.GeneralMixedDiagnosticHead304.output_iff
+#print axioms Yulang.GeneralMixedDiagnosticHead304.sharing_iff

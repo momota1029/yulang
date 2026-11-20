@@ -1,0 +1,6 @@
+import Yulang.GeneralNominalSlotSwapFixture304
+
+#print axioms Yulang.GeneralNominalSlotSwapFixture304.refines
+#print axioms Yulang.GeneralNominalSlotSwapFixture304.concrete_source_changes_slots
+#print axioms Yulang.GeneralNominalSlotSwapFixture304.status_values
+#print axioms Yulang.GeneralNominalSlotSwapFixture304.statuses_survive_swap

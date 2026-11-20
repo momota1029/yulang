@@ -1,0 +1,6 @@
+import Yulang.GeneralNominalPendingReindex304
+
+#print axioms Yulang.GeneralNominalPendingReindex304.pending_exact
+#print axioms Yulang.GeneralNominalPendingReindex304.pending_reflect
+#print axioms Yulang.GeneralNominalPendingReindex304.pending_reindex
+#print axioms Yulang.GeneralNominalPendingReindex304.old_compiler_agrees

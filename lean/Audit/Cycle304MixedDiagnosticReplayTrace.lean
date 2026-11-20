@@ -1,0 +1,5 @@
+import Yulang.GeneralMixedDiagnosticReplayTrace304
+
+#print axioms Yulang.GeneralMixedDiagnosticReplayTrace304.trace_raw
+#print axioms Yulang.GeneralMixedDiagnosticReplayTrace304.exact_trace
+#print axioms Yulang.GeneralMixedDiagnosticReplayTrace304.final_local

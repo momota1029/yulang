@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderClosed304
+
+#print axioms Yulang.GeneralDeferredLadderClosed304.classification
+#print axioms Yulang.GeneralDeferredLadderClosed304.bounded
+#print axioms Yulang.GeneralDeferredLadderClosed304.halted_outcome
+#print axioms Yulang.GeneralDeferredLadderClosed304.acc_of_bounded
+#print axioms Yulang.GeneralDeferredLadderClosed304.initial_acc

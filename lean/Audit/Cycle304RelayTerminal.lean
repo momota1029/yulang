@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderRelayTerminal304
+
+#print axioms Yulang.GeneralDeferredLadderRelayTerminal304.table_eq
+#print axioms Yulang.GeneralDeferredLadderRelayTerminal304.evidence_forward
+#print axioms Yulang.GeneralDeferredLadderRelayTerminal304.halted
+#print axioms Yulang.GeneralDeferredLadderRelayTerminal304.exact_dictionary
+#print axioms Yulang.GeneralDeferredLadderRelayTerminal304.root_evidence

@@ -1,0 +1,5 @@
+import Yulang.GeneralMixedDiagnosticRequestFree304
+
+#print axioms Yulang.GeneralMixedDiagnosticRequestFree304.empty_class
+#print axioms Yulang.GeneralMixedDiagnosticRequestFree304.no_merged
+#print axioms Yulang.GeneralMixedDiagnosticRequestFree304.local_without_slice

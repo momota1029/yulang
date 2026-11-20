@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderRelay304
+
+#print axioms Yulang.GeneralDeferredLadderRelay304.initial
+#print axioms Yulang.GeneralDeferredLadderRelay304.synthetic_closed
+#print axioms Yulang.GeneralDeferredLadderRelay304.enabled
+#print axioms Yulang.GeneralDeferredLadderRelay304.step_exists
+#print axioms Yulang.GeneralDeferredLadderRelay304.step_unique

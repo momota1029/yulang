@@ -1,0 +1,5 @@
+import Yulang.GeneralMixedDiagnosticLocal304
+
+#print axioms Yulang.GeneralMixedDiagnosticLocal304.local6_forward
+#print axioms Yulang.GeneralMixedDiagnosticLocal304.local7_iff
+#print axioms Yulang.GeneralMixedDiagnosticLocal304.local_iff
