@@ -46,3 +46,11 @@ including zero-width possibilities. An omitted implementation output may read
 the selected role's attached default under the existing resolver hypotheses.
 An explicit implementation output instead follows its implementation
 substitution; it is not falsely attributed to the role's default.
+
+An optional executable JSON adapter should preserve existing boundaries in
+its errors: invalid JSON, shape/depth failure, addressed selection or recovery
+rejection, unsupported symbolic role, changed lookup trace, or old exporter
+rejection. It must not claim every old rejection is a missing name. Exact
+success will be characterized as the same table as the finite selected
+naming handoff, on the decoded and wire-bound tree. This is an adapter
+contract, not adoption as a Rust parser or resolver API.
