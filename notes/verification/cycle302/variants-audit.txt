@@ -1,0 +1,28 @@
+'Yulang.GeneralDeferredLadderAfterVariants302.generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAfterVariants302.variant_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderAfterVariants302.variant_owns' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAfterVariants302.owns_advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAfterVariants302.path_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAfterVariants302.raw_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderVariantExact302.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderVariantExact302.past_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderVariantExact302.candidate_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderVariantExact302.only_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderVariantExact302.exact_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderVariantExact302.halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderVariantExact302.accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.list_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.root_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.journal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.counted_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.append' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.terminal_state' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.suffix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.schedule_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.schedule' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderOutcomes302.infinite_halted_outcomes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

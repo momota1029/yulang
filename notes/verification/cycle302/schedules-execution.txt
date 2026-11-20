@@ -1,0 +1,5 @@
+PASS depth 1: every first-promotion phase with 0/1/4 extra equations; raw distinction and compiled dictionary
+PASS depth 2: every first-promotion phase with 0/1/4 extra equations; raw distinction and compiled dictionary
+PASS depth 3: every first-promotion phase with 0/1/4 extra equations; raw distinction and compiled dictionary
+PASS depth 5: every first-promotion phase with 0/1/4 extra equations; raw distinction and compiled dictionary
+PASS depth 8: every first-promotion phase with 0/1/4 extra equations; raw distinction and compiled dictionary
