@@ -1,0 +1,209 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+focused GeneralSourceRoleExport292 exit 0
+focused GeneralSourceRoleFixture292 exit 0
+focused GeneralSourceRoleSpelling292 exit 0
+focused GeneralSourceRoleManifest292 exit 0
+focused GeneralSourceRoleSyntaxBoundary292 exit 0
+focused GeneralSourceRoleSyntaxPipeline292 exit 0
+focused GeneralSourceRoleSyntaxFixture292 exit 0
+focused GeneralSourceRoleChildCoverage292 exit 0
+focused GeneralSourceRoleAssocRead292 exit 0
+focused GeneralSourceRoleAttach292 exit 0
+focused GeneralSourceRoleActualAttach292 exit 0
+focused GeneralSourceRoleLocalEnv292 exit 0
+focused GeneralSourceRoleEnvCheck292 exit 0
+focused GeneralSourceRoleEnvExact292 exit 0
+focused GeneralSourceRoleCoveredShell292 exit 0
+focused GeneralSourceRoleEnvFixture292 exit 0
+focused GeneralSourceRoleDiagnosticLink292 exit 0
+focused GeneralSourceRoleDiagnosticFixture292 exit 0
+focused GeneralSourceRoleQualification292 exit 0
+focused GeneralSourceRoleResolverUse292 exit 0
+focused GeneralSourceRoleResolverFixture292 exit 0
+focused GeneralSourceRoleOperationalRead292 exit 0
+focused GeneralSourceRoleOperationalFixture292 exit 0
+focused GeneralSourceRoleRawAttach292 exit 0
+focused GeneralSourceRoleBinderIndex292 exit 0
+focused GeneralSourceRoleScopedExport292 exit 0
+focused GeneralSourceRoleScopedRead292 exit 0
+focused GeneralSourceRoleScopedFixture292 exit 0
+focused GeneralSourceRoleScopedShell292 exit 0
+focused GeneralSourceRoleUniqueSource292 exit 0
+focused GeneralSourceRoleArityRead292 exit 0
+focused GeneralSourceRoleHeadShape292 exit 0
+focused GeneralSourceRoleHeadPacketRun292 exit 0
+focused GeneralSourceRoleHeadPacketFixture292 exit 0
+focused GeneralSourceRoleTrack292 exit 0
+focused GeneralSourceRoleTrackFixture292 exit 0
+'Yulang.GeneralSourceRoleBinderIndex292.of_index' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleBinderIndex292.index_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleBinderIndex292.duplicate_lookup_cannot_use_every_index' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleBinderIndex292.binder_value_at_exact_index' depends on axioms: [propext]
+standalone Audit/Cycle292BinderIndex.lean exit 0
+'Yulang.GeneralSourceRoleAttach292.assemble_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleAttach292.ready_attached' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleActualAttach292.lowers_exact_actual_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleActualAttach292.original_roles_pointwise' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleActualAttach292.exact_actual_bundle' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleActualAttach292.preserves_actual_ready' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleLocalEnv292.lower_agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvCheck292.check_roles_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvCheck292.shell_check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvCheck292.shell_check_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvExact292.align_both' does not depend on any axioms
+'Yulang.GeneralSourceRoleEnvExact292.same_result_requires_agreement' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvExact292.at_success_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvExact292.shell_at_success_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCoveredShell292.prepare_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCoveredShell292.verify_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCoveredShell292.run_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCoveredShell292.every_direct_type' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCoveredShell292.observable_controls' does not depend on any axioms
+'Yulang.GeneralSourceRoleCoveredShell292.exact_checked_inventory_has_default' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvFixture292.unobserved_check_passes' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleEnvFixture292.unobserved_same_export' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvFixture292.observed_change_detected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvFixture292.both_failed_but_not_agree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleEnvFixture292.name_id_collision_detected' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle292ExactAttachment.lean exit 0
+'Yulang.GeneralSourceRoleDiagnosticLink292.role_use_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleDiagnosticLink292.default_issue_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleDiagnosticFixture292.default_diagnostic_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleDiagnosticFixture292.mere_adapter_success_not_complete_coverage' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleDiagnosticFixture292.omitted_cannot_attach_full_roles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleQualification292.same_spelling_same_key' does not depend on any axioms
+'Yulang.GeneralSourceRoleQualification292.leading_same_spelling_not_accepted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleQualification292.no_flat_resolver_for_distinct_qualified_roles' does not depend on any axioms
+'Yulang.GeneralSourceRoleQualification292.output_identity_is_role_local' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverUse292.omitted_value_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverUse292.selected_omitted_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverUse292.selected_explicit_independent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverUse292.supplied_positional' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleResolverFixture292.body_shells_export' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverFixture292.role_parameter_used_by_actual_reader' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleResolverFixture292.explicit_overrides_shell_default' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverFixture292.nullary_shell_default_used' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverFixture292.required_without_body_is_not_valid_implementation' depends on axioms: [propext,
+ Quot.sound]
+standalone Audit/Cycle292ExistingResolver.lean exit 0
+'Yulang.GeneralSourceRoleArityRead292.present_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleArityRead292.absent_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleArityRead292.declared_readback' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleArityRead292.fallback_readback' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadShape292.arg_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleHeadShape292.head_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadShape292.args_length' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadShape292.packet_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadShape292.structural_head_control' depends on axioms: [propext]
+standalone Audit/Cycle292HeadArity.lean exit 0
+'Yulang.GeneralSourceRoleHeadPacketRun292.make_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketRun292.run_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketRun292.assoc_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketFixture292.complete_packet_same_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketFixture292.exact_source_read' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketFixture292.complete_packet_actual_old_consumer' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketFixture292.malformed_position_cannot_be_silently_shortened' depends on axioms: [propext,
+ Quot.sound]
+standalone Audit/Cycle292HeadPacket.lean exit 0
+'Yulang.GeneralSourceRoleOperationalRead292.assocValue_one_read' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleOperationalRead292.selected_read_congr' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleOperationalRead292.one_read_weaker_than_declared_state' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleOperationalRead292.valid_selected_required_never_omitted' does not depend on any axioms
+'Yulang.GeneralSourceRoleOperationalRead292.resolved_declared_has_compiled_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleOperationalFixture292.old_index_decl_parameter_is_positional' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleOperationalFixture292.parameter_omission_wellformed' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleOperationalFixture292.parameter_default_source' does not depend on any axioms
+'Yulang.GeneralSourceRoleOperationalFixture292.parameter_value_old_total' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleOperationalFixture292.scalar_omission_wellformed' depends on axioms: [propext]
+standalone Audit/Cycle292Operational.lean exit 0
+'Yulang.GeneralSourceRoleRawAttach292.exact_registry_readback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleRawAttach292.same_existing_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleRawAttach292.same_existing_strict_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleRawAttach292.global_readiness_does_not_gate_actual_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle292RawAttachment.lean exit 0
+'Yulang.GeneralSourceRoleChildCoverage292.scan_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleChildCoverage292.member_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleChildCoverage292.no_unknown' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleChildCoverage292.scan_success_iff' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleChildCoverage292.ordered_members' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleAssocRead292.assoc_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleAssocRead292.undeclared_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleAssocRead292.required_exact' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle292Readback.lean exit 0
+'Yulang.GeneralSourceRoleSpelling292.position_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSpelling292.position_index' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSpelling292.position_lt' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSpelling292.body_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSpelling292.body_scoped' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleExport292.output_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleExport292.collect_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleExport292.role_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleExport292.lower_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleFixture292.exact_worlds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleFixture292.no_universal_source_role_id' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleFixture292.malformed_inputs' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle292RoleSpelling.lean exit 0
+'Yulang.GeneralSourceRoleScopedExport292.lower_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedExport292.constant_env' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedRead292.site_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedFixture292.same_short_names_distinct_scoped_values' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleScopedFixture292.same_semantic_id_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedFixture292.positive_source_scope' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedShell292.project_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedShell292.run_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedShell292.source_scope_exact' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle292ScopedFrontend.lean exit 0
+'Yulang.GeneralSourceRoleManifest292.aligned_left' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleManifest292.aligned_right' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleManifest292.manifest_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleManifest292.runtime_default_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxBoundary292.projection_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSyntaxBoundary292.missing_rhs_not_required' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSyntaxBoundary292.present_rhs_requires_equals' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSyntaxBoundary292.same_shape_needs_owner' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSyntaxBoundary292.projectRole_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxPipeline292.pipeline_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxPipeline292.default_from_shells' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxFixture292.same_symbolic' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleSyntaxFixture292.exact_readback' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxFixture292.incomplete_shell_loses_default' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxFixture292.broken_shell_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxFixture292.binder_order_observed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxFixture292.exact_same_shell_two_accepted_worlds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleSyntaxFixture292.no_environment_free_table' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle292SyntaxBoundary.lean exit 0
+'Yulang.GeneralSourceRoleTrack292.origin_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrack292.tracked_readback_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.handle_moves_leave_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.carrying_positions' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.non_type_handle_not_origin' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleTrackFixture292.readback_preserved_after_handle_move' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle292TrackedOccurrence.lean exit 0
+'Yulang.GeneralSourceRoleUniqueSource292.aligned_images' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleUniqueSource292.injective_on_members' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.role_keys_nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.unique_role' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.unique_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.unique_packet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.admitted_shape_unique' does not depend on any axioms
+'Yulang.GeneralSourceRoleUniqueSource292.unique_packet_member' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle292UniqueSource.lean exit 0
+Counts: focused 36
+Focused reverification result=0
+138 exact named declarations; 131 reports with any axioms, axioms used: Classical.choice, Quot.sound, propext; 16 compiled executable guards.

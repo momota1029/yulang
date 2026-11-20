@@ -1,0 +1,48 @@
+Full local barrel dependency inspection, no elaboration/build.
+Current (exit 1); previous exact base (exit 1), same missing pre-existing cache.
+unknown module prefix 'SpecExamples'
+
+No directory 'SpecExamples' or file 'SpecExamples.olean' in the search path entries:
+<checkout>/lean/.lake/build/lib/lean
+<lean-4.35.0>/lib/lean
+<lean-4.35.0>/lib/lean
+Focused recovery attempts on two old root modules (both exit 1, missing old dependencies):
+SpecExamples.lean:1:0: error: object file '<checkout>/lean/.lake/build/lib/lean/Yulang/CommonDeclarationVarianceExamples.olean' of module Yulang.CommonDeclarationVarianceExamples does not exist
+SpecExamplesSettled.lean:1:0: error: object file '<checkout>/lean/.lake/build/lib/lean/Yulang/CommonRoleSettledExamples.olean' of module Yulang.CommonRoleSettledExamples does not exist
+The exact appended import tail alone was accepted by lean --deps (exit 0, 36/36 new modules):
+Yulang/GeneralSourceRoleExport292.olean
+Yulang/GeneralSourceRoleFixture292.olean
+Yulang/GeneralSourceRoleSpelling292.olean
+Yulang/GeneralSourceRoleManifest292.olean
+Yulang/GeneralSourceRoleSyntaxBoundary292.olean
+Yulang/GeneralSourceRoleSyntaxPipeline292.olean
+Yulang/GeneralSourceRoleSyntaxFixture292.olean
+Yulang/GeneralSourceRoleChildCoverage292.olean
+Yulang/GeneralSourceRoleAssocRead292.olean
+Yulang/GeneralSourceRoleAttach292.olean
+Yulang/GeneralSourceRoleActualAttach292.olean
+Yulang/GeneralSourceRoleLocalEnv292.olean
+Yulang/GeneralSourceRoleEnvCheck292.olean
+Yulang/GeneralSourceRoleEnvExact292.olean
+Yulang/GeneralSourceRoleCoveredShell292.olean
+Yulang/GeneralSourceRoleEnvFixture292.olean
+Yulang/GeneralSourceRoleDiagnosticLink292.olean
+Yulang/GeneralSourceRoleDiagnosticFixture292.olean
+Yulang/GeneralSourceRoleQualification292.olean
+Yulang/GeneralSourceRoleResolverUse292.olean
+Yulang/GeneralSourceRoleResolverFixture292.olean
+Yulang/GeneralSourceRoleOperationalRead292.olean
+Yulang/GeneralSourceRoleOperationalFixture292.olean
+Yulang/GeneralSourceRoleRawAttach292.olean
+Yulang/GeneralSourceRoleBinderIndex292.olean
+Yulang/GeneralSourceRoleScopedExport292.olean
+Yulang/GeneralSourceRoleScopedRead292.olean
+Yulang/GeneralSourceRoleScopedFixture292.olean
+Yulang/GeneralSourceRoleScopedShell292.olean
+Yulang/GeneralSourceRoleUniqueSource292.olean
+Yulang/GeneralSourceRoleArityRead292.olean
+Yulang/GeneralSourceRoleHeadShape292.olean
+Yulang/GeneralSourceRoleHeadPacketRun292.olean
+Yulang/GeneralSourceRoleHeadPacketFixture292.olean
+Yulang/GeneralSourceRoleTrack292.olean
+Yulang/GeneralSourceRoleTrackFixture292.olean

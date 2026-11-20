@@ -1,0 +1,10 @@
+'Yulang.GeneralSourceRoleScopedExport292.lower_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedExport292.constant_env' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedRead292.site_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedFixture292.same_short_names_distinct_scoped_values' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleScopedFixture292.same_semantic_id_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedFixture292.positive_source_scope' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedShell292.project_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedShell292.run_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleScopedShell292.source_scope_exact' depends on axioms: [propext, Quot.sound]

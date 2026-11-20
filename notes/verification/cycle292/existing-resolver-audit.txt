@@ -1,0 +1,23 @@
+'Yulang.GeneralSourceRoleDiagnosticLink292.role_use_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleDiagnosticLink292.default_issue_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleDiagnosticFixture292.default_diagnostic_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleDiagnosticFixture292.mere_adapter_success_not_complete_coverage' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleDiagnosticFixture292.omitted_cannot_attach_full_roles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleQualification292.same_spelling_same_key' does not depend on any axioms
+'Yulang.GeneralSourceRoleQualification292.leading_same_spelling_not_accepted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleQualification292.no_flat_resolver_for_distinct_qualified_roles' does not depend on any axioms
+'Yulang.GeneralSourceRoleQualification292.output_identity_is_role_local' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverUse292.omitted_value_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverUse292.selected_omitted_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverUse292.selected_explicit_independent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverUse292.supplied_positional' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleResolverFixture292.body_shells_export' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverFixture292.role_parameter_used_by_actual_reader' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleResolverFixture292.explicit_overrides_shell_default' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverFixture292.nullary_shell_default_used' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleResolverFixture292.required_without_body_is_not_valid_implementation' depends on axioms: [propext,
+ Quot.sound]

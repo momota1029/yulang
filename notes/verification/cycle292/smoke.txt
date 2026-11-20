@@ -1,0 +1,14 @@
+[some true, some false]
+[some [{ entry := { site := Yulang.GeneralSourceMetadataSites291.Site.roleDefault 17 0, query := (6, 0) },
+    details := Yulang.GeneralSourceMetadataProblem291.Problem.wrongArity 1 }],
+ some []]
+[some (some (some (Yulang.Roles.Term.var 1))), some none, some (some (some (Yulang.Roles.Term.var 0)))]
+some (some (some (Yulang.Roles.Term.app 12 [])))
+true
+false
+some [some (some (Yulang.Roles.Term.app 5 [])), some (some (Yulang.Roles.Term.app 12 [])), none]
+true
+[some (Yulang.Roles.Term.app 0 []), some (Yulang.Roles.Term.app 3 []), some (Yulang.Roles.Term.app 3 []), none]
+true
+false
+true

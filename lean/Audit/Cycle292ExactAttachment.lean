@@ -1,0 +1,28 @@
+import Yulang.GeneralSourceRoleEnvFixture292
+import Yulang.GeneralSourceRoleActualAttach292
+
+#print axioms Yulang.GeneralSourceRoleAttach292.assemble_exact
+#print axioms Yulang.GeneralSourceRoleAttach292.ready_attached
+#print axioms Yulang.GeneralSourceRoleActualAttach292.lowers_exact_actual_table
+#print axioms Yulang.GeneralSourceRoleActualAttach292.original_roles_pointwise
+#print axioms Yulang.GeneralSourceRoleActualAttach292.exact_actual_bundle
+#print axioms Yulang.GeneralSourceRoleActualAttach292.preserves_actual_ready
+#print axioms Yulang.GeneralSourceRoleLocalEnv292.lower_agrees
+#print axioms Yulang.GeneralSourceRoleEnvCheck292.check_roles_exact
+#print axioms Yulang.GeneralSourceRoleEnvCheck292.shell_check_exact
+#print axioms Yulang.GeneralSourceRoleEnvCheck292.shell_check_sound
+#print axioms Yulang.GeneralSourceRoleEnvExact292.align_both
+#print axioms Yulang.GeneralSourceRoleEnvExact292.same_result_requires_agreement
+#print axioms Yulang.GeneralSourceRoleEnvExact292.at_success_exact
+#print axioms Yulang.GeneralSourceRoleEnvExact292.shell_at_success_exact
+#print axioms Yulang.GeneralSourceRoleCoveredShell292.prepare_exact
+#print axioms Yulang.GeneralSourceRoleCoveredShell292.verify_exact
+#print axioms Yulang.GeneralSourceRoleCoveredShell292.run_exact
+#print axioms Yulang.GeneralSourceRoleCoveredShell292.every_direct_type
+#print axioms Yulang.GeneralSourceRoleCoveredShell292.observable_controls
+#print axioms Yulang.GeneralSourceRoleCoveredShell292.exact_checked_inventory_has_default
+#print axioms Yulang.GeneralSourceRoleEnvFixture292.unobserved_check_passes
+#print axioms Yulang.GeneralSourceRoleEnvFixture292.unobserved_same_export
+#print axioms Yulang.GeneralSourceRoleEnvFixture292.observed_change_detected
+#print axioms Yulang.GeneralSourceRoleEnvFixture292.both_failed_but_not_agree
+#print axioms Yulang.GeneralSourceRoleEnvFixture292.name_id_collision_detected

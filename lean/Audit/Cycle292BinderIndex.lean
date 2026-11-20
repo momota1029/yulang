@@ -1,0 +1,6 @@
+import Yulang.GeneralSourceRoleBinderIndex292
+
+#print axioms Yulang.GeneralSourceRoleBinderIndex292.of_index
+#print axioms Yulang.GeneralSourceRoleBinderIndex292.index_exact
+#print axioms Yulang.GeneralSourceRoleBinderIndex292.duplicate_lookup_cannot_use_every_index
+#print axioms Yulang.GeneralSourceRoleBinderIndex292.binder_value_at_exact_index

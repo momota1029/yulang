@@ -1,0 +1,9 @@
+import Yulang.GeneralSourceRoleHeadPacketFixture292
+
+#print axioms Yulang.GeneralSourceRoleHeadPacketRun292.make_exact
+#print axioms Yulang.GeneralSourceRoleHeadPacketRun292.run_exact
+#print axioms Yulang.GeneralSourceRoleHeadPacketRun292.assoc_exact
+#print axioms Yulang.GeneralSourceRoleHeadPacketFixture292.complete_packet_same_table
+#print axioms Yulang.GeneralSourceRoleHeadPacketFixture292.exact_source_read
+#print axioms Yulang.GeneralSourceRoleHeadPacketFixture292.complete_packet_actual_old_consumer
+#print axioms Yulang.GeneralSourceRoleHeadPacketFixture292.malformed_position_cannot_be_silently_shortened

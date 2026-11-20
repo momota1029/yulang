@@ -1,0 +1,8 @@
+'Yulang.GeneralSourceRoleChildCoverage292.scan_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleChildCoverage292.member_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleChildCoverage292.no_unknown' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleChildCoverage292.scan_success_iff' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleChildCoverage292.ordered_members' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleAssocRead292.assoc_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleAssocRead292.undeclared_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleAssocRead292.required_exact' depends on axioms: [propext, Quot.sound]

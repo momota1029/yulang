@@ -1,0 +1,9 @@
+'Yulang.GeneralSourceRoleHeadPacketRun292.make_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketRun292.run_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketRun292.assoc_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketFixture292.complete_packet_same_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketFixture292.exact_source_read' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketFixture292.complete_packet_actual_old_consumer' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleHeadPacketFixture292.malformed_position_cannot_be_silently_shortened' depends on axioms: [propext,
+ Quot.sound]
