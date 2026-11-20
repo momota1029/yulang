@@ -1,0 +1,26 @@
+import Yulang.GeneralSourceRoleCstMarkFixture294
+
+#print axioms Yulang.GeneralSourceRoleCstMarkSpans294.reach_has_extent
+#print axioms Yulang.GeneralSourceRoleCstMarkSpans294.entry_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkSpans294.mark_has_entry
+#print axioms Yulang.GeneralSourceRoleCstMarkSpans294.entry_bounds
+#print axioms Yulang.GeneralSourceRoleCstMarkScope294.selected_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkScope294.ancestor_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkScope294.unrelated_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkScope294.below_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkScope294.selected_plain_iff
+#print axioms Yulang.GeneralSourceRoleCstMarkPolicy294.branch_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkPolicy294.whole_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkPolicy294.guarded_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkPolicy294.selected_gate_preserves_whole_success
+#print axioms Yulang.GeneralSourceRoleCstMarkReport294.entries_empty
+#print axioms Yulang.GeneralSourceRoleCstMarkReport294.listed_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkReport294.admission_preserved
+#print axioms Yulang.GeneralSourceRoleCstReportWire294.value_exact
+#print axioms Yulang.GeneralSourceRoleCstReportWire294.input_exact
+#print axioms Yulang.GeneralSourceRoleCstMarkFixture294.clean_agreement
+#print axioms Yulang.GeneralSourceRoleCstMarkFixture294.unrelated_marks_survive_projection
+#print axioms Yulang.GeneralSourceRoleCstMarkFixture294.ancestor_really_blocks_selected_branch
+#print axioms Yulang.GeneralSourceRoleCstMarkFixture294.no_marks_not_same_as_valid_address
+#print axioms Yulang.GeneralSourceRoleCstMarkPolicy294.whole_implies_branch
+#print axioms Yulang.GeneralSourceRoleCstMarkReport294.entries_branch_exact

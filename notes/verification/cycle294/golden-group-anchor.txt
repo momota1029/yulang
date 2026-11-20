@@ -1,0 +1,2 @@
+Externally recorded range 49..58 uniquely attaches to original Error token paths [1], [2], [3].
+Those paths are unrelated to selected [0], not unrelated to []. Partial range 49..57 is refused.

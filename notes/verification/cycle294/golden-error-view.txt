@@ -1,0 +1,2 @@
+Three original Error tokens at [1], [2], [3]; portable touching sibling run 49..58.
+The checked-in Rust fixture separately records one structural recovery 49..58; no Rust diagnostics ran here.

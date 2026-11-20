@@ -1,0 +1,8 @@
+import Yulang.GeneralSourceRoleCstVisibleReceipt294
+#print axioms Yulang.GeneralSourceRoleCstRunVisibility294.visible_exact
+#print axioms Yulang.GeneralSourceRoleCstRunVisibility294.visible_points_to_error
+#print axioms Yulang.GeneralSourceRoleCstVisibleRange294.visible_range_exact
+#print axioms Yulang.GeneralSourceRoleCstVisibleRange294.opacity_is_not_token_run
+#print axioms Yulang.GeneralSourceRoleCstVisibleRange294.error_node_suppresses_direct_tokens
+#print axioms Yulang.GeneralSourceRoleCstVisibleRange294.empty_token_is_not_a_rust_run
+#print axioms Yulang.GeneralSourceRoleCstVisibleReceipt294.project_exact

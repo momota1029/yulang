@@ -1,0 +1,6 @@
+'Yulang.GeneralSourceRoleCstWireBinding294.same_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireBinding294.same_list_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireBinding294.use_bound_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstWireBinding294.compact_equality_cannot_bind_wire' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstBindingControl294.final_newline_compacts_same' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstBindingControl294.root_tail_kind_collision' depends on axioms: [propext, Quot.sound]

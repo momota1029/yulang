@@ -1,0 +1,4 @@
+Archived case: confirmed Missing nodes [0,0,1,0,0] and [0,0,2,0] share 4..4.
+A focus on [0,0,1] contains one but is unrelated to the other; the range does not decide scope.
+Archived for statement: singleton Error run at [0,0,9,0], 13..14, visible out of sibling focus.
+These are recorded Rust CST values, not freshly parsed programs or role projections.

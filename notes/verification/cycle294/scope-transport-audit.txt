@@ -1,0 +1,19 @@
+'Yulang.GeneralSourceRoleCstMaximalRuns294.separation_cons' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMaximalRuns294.no_empty_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstMaximalRuns294.grouped_boundaries' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstMaximalRuns294.adjacent_boundary' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstMaximalRuns294.no_bridge_across_runs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstScopeRefine294.unrelated_descends' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstScopeRefine294.branch_descends' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstScopeRefine294.visible_range_descends' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstScopeRefine294.evidence_descends' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstScopeRefine294.reported_scope_descends' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstStrictTransport294.empty_receipt_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstStrictTransport294.whole_receipt_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstStrictTransport294.whole_to_selected' depends on axioms: [propext, Quot.sound]

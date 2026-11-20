@@ -1,0 +1,7 @@
+import Yulang.GeneralSourceRoleCstBindingControl294
+#print axioms Yulang.GeneralSourceRoleCstWireBinding294.same_exact
+#print axioms Yulang.GeneralSourceRoleCstWireBinding294.same_list_exact
+#print axioms Yulang.GeneralSourceRoleCstWireBinding294.use_bound_exact
+#print axioms Yulang.GeneralSourceRoleCstWireBinding294.compact_equality_cannot_bind_wire
+#print axioms Yulang.GeneralSourceRoleCstBindingControl294.final_newline_compacts_same
+#print axioms Yulang.GeneralSourceRoleCstBindingControl294.root_tail_kind_collision

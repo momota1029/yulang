@@ -1,0 +1,3 @@
+One externally supplied source-visible plain token range: selected role admitted, whole-wire policy denied.
+Absent receipt, wrong brand, partial range, and invented owner [999]: all denied.
+Receipt completeness/authenticity was not checked; this is a replay, not a Rust execution.

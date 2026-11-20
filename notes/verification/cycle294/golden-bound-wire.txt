@@ -1,0 +1,4 @@
+Original checked-in role wire accepts its attached recorded range.
+Changing only the final Newline label to Whitespace does not change compact decode or legacy branch admission.
+The wire-bound receipt still refuses the altered snapshot with the same external brand.
+Wire equality cannot authenticate diagnostic results or their parser environment.

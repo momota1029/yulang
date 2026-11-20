@@ -1,0 +1,9 @@
+import Yulang.GeneralSourceRoleCstGroupFixture294
+#print axioms Yulang.GeneralSourceRoleCstGroupAnchor294.unique_exact
+#print axioms Yulang.GeneralSourceRoleCstGroupAnchor294.candidate_exact
+#print axioms Yulang.GeneralSourceRoleCstGroupAnchor294.unique_has_run
+#print axioms Yulang.GeneralSourceRoleCstGroupAnchor294.origin_for_each
+#print axioms Yulang.GeneralSourceRoleCstGroupAnchor294.outside_exact
+#print axioms Yulang.GeneralSourceRoleCstGroupFixture294.ambiguous_has_two_runs
+#print axioms Yulang.GeneralSourceRoleCstGroupFixture294.ambiguous_extent_refused
+#print axioms Yulang.GeneralSourceRoleCstGroupFixture294.unavailable_range_refused

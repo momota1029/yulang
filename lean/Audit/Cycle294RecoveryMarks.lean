@@ -1,0 +1,6 @@
+import Yulang.GeneralSourceRoleCstMarks294
+
+#print axioms Yulang.GeneralSourceRoleCstMarks294.own_exact
+#print axioms Yulang.GeneralSourceRoleCstMarks294.marks_exact
+#print axioms Yulang.GeneralSourceRoleCstMarks294.child_marks_exact
+#print axioms Yulang.GeneralSourceRoleCstMarks294.no_marks_exact

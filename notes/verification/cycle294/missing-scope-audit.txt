@@ -1,0 +1,7 @@
+'Yulang.GeneralSourceRoleCstMissingReceipt294.row_matches_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMissingReceipt294.verified_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMissingReceipt294.verified_names_original_missing' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMissingReceipt294.outside_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMissingAmbiguity294.no_extent_only_decider' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstMissingAmbiguity294.select_path_allowed_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMissingAmbiguity294.missing_scope_needs_more_than_extent' depends on axioms: [propext]
