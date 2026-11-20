@@ -1,0 +1,6 @@
+import Yulang.GeneralSourceRoleCstShapes293
+
+#print axioms Yulang.GeneralSourceRoleCstTree293.indexed_exact
+#print axioms Yulang.GeneralSourceRoleCstTree293.significant_exact
+#print axioms Yulang.GeneralSourceRoleCstShapes293.argument_exact
+#print axioms Yulang.GeneralSourceRoleCstShapes293.head_exact
