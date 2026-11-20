@@ -544,3 +544,13 @@ cycle 252〜257 で、有限性の部品はよくそろった。そろったの�
 cycle 262〜264 で、新しい 71 モジュールが `lean/Yulang.lean`（barrel）に入っていなかった。統合の `lake build` は barrel から辿れるモジュールしか作らないので、監査が `.olean` を見つけられずに落ちた（「only audit parts import it, so lake build skips it」）。監督役が barrel に 71 行を足して統合した（`fix/dots-264`）。
 - 新しい `lean/Yulang/*.lean` を足したら、同じ公開の中で `lean/Yulang.lean` の末尾に `import Yulang.<Name>` を足すこと（I-43 の「barrel 追記のみ」のとおり）。
 - focused build（個別の `lean` 実行）だけでは、この抜けに気づけない。公開の前に、自分の追加したモジュールが全部 barrel にあることを確かめること。例: `for f in <追加したファイル>; do grep -qx "import Yulang.$(basename $f .lean)" lean/Yulang.lean || echo MISSING $f; done`
+
+## I-54（2026-11-20）B4 の本線に戻る。Rust CST の接続は監督役に頼む（監督役の判断）
+
+cycle 292〜295 は、保存済みの Rust CST を Lean の role 表へ渡す道を作った。境界の引き方（回復診断と選択の分離、範囲でなく path で所属を決める、`SourceNodeKey` を意味 ID にしない）は正しい。ただ、この道は B4 の主定理には要らない。B4 の statement は Lean の registry と goal から始まり、Rust のパーサを前提にしない。
+- 次の周からは、B4 の本線に戻ること。優先順:
+  1. 一般の source に対する observer / compiler の完全性（cycle 279〜281 の「棄却される割り当て」の有限性、cycle 283〜284 の索引の扱い）。
+  2. 据え付け前の保留・見直しの相を含む停止性（cycle 285 の次の候補 1）。
+  3. EvidenceNode の再帰（cycle 273・276・282・287〜290 の結果を一般の node へ）。
+- Rust CST の実物が必要になったら、自分で Rust を探さず、質問ノート（`notes/questions/`）に「どの source をどの関数で parse した結果が欲しいか」を書くこと。監督役の環境には Rust があるので、監督役が実行して結果を `notes/verification/` に置く。
+- 292〜295 の CST 関連の定理は、そのまま残してよい（凍結しない、消さない）。
