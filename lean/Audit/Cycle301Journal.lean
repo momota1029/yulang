@@ -1,0 +1,17 @@
+import Yulang.GeneralObservedLadderJournalRows301
+import Yulang.GeneralObservedLadderJournalCompiler301
+
+#print axioms Yulang.GeneralObservedLadderJournalRows301.site_count
+#print axioms Yulang.GeneralObservedLadderJournalRows301.indexed_site
+#print axioms Yulang.GeneralObservedLadderJournalRows301.raw_hit
+#print axioms Yulang.GeneralObservedLadderJournalRows301.attached_exact
+#print axioms Yulang.GeneralObservedLadderJournalRows301.all_generated
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.probe_list
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.probe_leaf
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.checked_list
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.checked_leaf
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.unrecorded
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.exact_final
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.before_no_dictionary
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.root_available_exact
+#print axioms Yulang.GeneralObservedLadderJournalCompiler301.semantic_at_final

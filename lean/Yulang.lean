@@ -6055,3 +6055,5 @@ import Yulang.GeneralObservedLadderAvailability301
 import Yulang.GeneralObservedLadderLocal301
 import Yulang.GeneralObservedLadderObserver301
 import Yulang.GeneralObservedLadderReadback301
+import Yulang.GeneralObservedLadderJournalRows301
+import Yulang.GeneralObservedLadderJournalCompiler301
