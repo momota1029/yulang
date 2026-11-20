@@ -63,3 +63,42 @@ including unused roles; separately bind those names to the semantic resolver
 environment and revision. Rejecting a shaped input in the Lean experiment
 means this adapter does not cover it, not that the language rejects it.
 No default can be credited to exact source bytes without these two bridges.
+
+## Follow-up acceptance: a real parser-to-Lean producer
+
+Do not infer successful lower from successful `parse_file`. A focused replay
+should exercise the actual public parser with one `Arc<str>` shared by
+`scan_header` and `parse_file` and the selected `SyntaxEnvironment`.
+Use `ParsedFile::source_root` / `SourceNode::children` for parse-owned
+identity; inspect the node's `children_with_tokens` to distinguish source
+Equals from Missing and preserve parent ownership. The public parser already
+uses the same ordinary TypeDeclaration for bare/equality forms.
+
+Suggested targeted inputs (not executed by this cycle):
+1. A top-level `type outer` and a direct `type value` inside
+   `role Index 'container 'key:`, followed by a method signature. Source
+   path ownership should count only the direct role member.
+2. In place of that member test `type value = char` and
+   `type value = 'key` independently; assert complete Equals/RHS and the
+   second positional binder on the latter. The positional regression is
+   from the existing Lean scope rule, not a fresh source-language decision.
+3. Compare `type value =` (missing RHS), an unsupported but well-formed
+   type expression, and a second nested block/member. Verify the bridge
+   rejects its uncovered forms rather than treating any as a required
+   member or silently dropping them.
+4. Repeat the same source with fresh parser products. The same spellings can
+   have fresh source-brand keys, while a stable resolver may rebind them
+   to the same selected semantic IDs. Conversely, the same source shell
+   with two different supplied resolver maps has two valid numeric exports.
+5. For every complete direct statement list, emit every `Child.typeDecl`
+   once in source order and independently classify each `Child.other`;
+   otherwise mark `unknown` and decline to export. For every independently
+   obtained role occurrence, provide its semantic role key and role-local
+   output keys. One-spelling adapters cannot implement distinct scope
+   identities that share a short name; supply a proven ordered qualified
+   path or an existing resolver's attachment, not a numeric hash of text.
+
+A producer test can then replay the unchanged Lean checks (three-way lookup
+and complete default provenance); afterward compare the certified role map to
+an existing real resolver input. Never use a matched export to claim another
+raw state or a general stabilization result.

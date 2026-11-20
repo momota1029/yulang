@@ -1,0 +1,10 @@
+'Yulang.GeneralSourceRoleRawAttach292.exact_registry_readback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleRawAttach292.same_existing_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleRawAttach292.same_existing_strict_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleRawAttach292.global_readiness_does_not_gate_actual_step' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

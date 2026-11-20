@@ -1,0 +1,6 @@
+import Yulang.GeneralSourceRoleRawAttach292
+
+#print axioms Yulang.GeneralSourceRoleRawAttach292.exact_registry_readback
+#print axioms Yulang.GeneralSourceRoleRawAttach292.same_existing_step
+#print axioms Yulang.GeneralSourceRoleRawAttach292.same_existing_strict_release
+#print axioms Yulang.GeneralSourceRoleRawAttach292.global_readiness_does_not_gate_actual_step

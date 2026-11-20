@@ -5770,3 +5770,4 @@ import Yulang.GeneralSourceRoleResolverUse292
 import Yulang.GeneralSourceRoleResolverFixture292
 import Yulang.GeneralSourceRoleOperationalRead292
 import Yulang.GeneralSourceRoleOperationalFixture292
+import Yulang.GeneralSourceRoleRawAttach292
