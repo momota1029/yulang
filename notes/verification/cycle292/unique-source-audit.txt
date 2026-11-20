@@ -1,0 +1,8 @@
+'Yulang.GeneralSourceRoleUniqueSource292.aligned_images' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleUniqueSource292.injective_on_members' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.role_keys_nodup' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.unique_role' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.unique_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.unique_packet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleUniqueSource292.admitted_shape_unique' does not depend on any axioms
+'Yulang.GeneralSourceRoleUniqueSource292.unique_packet_member' depends on axioms: [propext, Quot.sound]

@@ -1,0 +1,10 @@
+import Yulang.GeneralSourceRoleUniqueSource292
+
+#print axioms Yulang.GeneralSourceRoleUniqueSource292.aligned_images
+#print axioms Yulang.GeneralSourceRoleUniqueSource292.injective_on_members
+#print axioms Yulang.GeneralSourceRoleUniqueSource292.role_keys_nodup
+#print axioms Yulang.GeneralSourceRoleUniqueSource292.unique_role
+#print axioms Yulang.GeneralSourceRoleUniqueSource292.unique_output
+#print axioms Yulang.GeneralSourceRoleUniqueSource292.unique_packet
+#print axioms Yulang.GeneralSourceRoleUniqueSource292.admitted_shape_unique
+#print axioms Yulang.GeneralSourceRoleUniqueSource292.unique_packet_member
