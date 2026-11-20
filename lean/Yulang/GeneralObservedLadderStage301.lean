@@ -96,7 +96,7 @@ theorem stage_emits (p : Phase n k) (hi : k ≤ n) :
   obtain ⟨oneSite,eq⟩ := List.length_eq_one_iff.mp one
   rw [eq] at occurs ⊢
   rw [← List.mem_singleton.mp occurs]
-  have exactSite : s = child n k (invocation n k) hi := GeneralNominalVersionedTransport231.childSite_eq .. 
+  have exactSite : s = child n k (invocation n k) hi := GeneralNominalVersionedTransport231.childSite_eq ..
   rw [exactSite,child_site]
 
 theorem stage_children (p : Phase n k) (hi : k ≤ n) :

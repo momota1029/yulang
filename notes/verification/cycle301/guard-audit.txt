@@ -1,0 +1,5 @@
+'Yulang.GeneralObservedLadderCompilerLaws301.probe_unary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderCompilerLaws301.attached_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderCompilerLaws301.supports_actual_edge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

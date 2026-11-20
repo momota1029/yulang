@@ -1,0 +1,23 @@
+'Yulang.GeneralObservedLadderScopedB4301.suffix_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderScopedB4301.not_stable_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderScopedB4301.stable_iff_final' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderScopedB4301.evidence_at_phases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderScopedB4301.evidence_at_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderScopedB4301.generated_children_at_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderScopedB4301.closure_of_any_terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderScopedB4301.compiled_at_terminal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderBudget301.erase' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderBudget301.count_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderBudget301.path_exists' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderBudget301.exact_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderBudget301.completion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderBudget301.remaining_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderBudget301.exact_initial_budget' depends on axioms: [propext, Classical.choice, Quot.sound]

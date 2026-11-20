@@ -1,0 +1,41 @@
+import Yulang.GeneralObservedLadderSemanticGap301
+import Yulang.GeneralObservedLadderRefresh301
+import Yulang.GeneralObservedLadderRefreshChain301
+import Yulang.GeneralObservedLadderRefreshProgram301
+
+#print axioms Yulang.GeneralObservedLadderSemanticGap301.same_models
+#print axioms Yulang.GeneralObservedLadderSemanticGap301.unresolved
+#print axioms Yulang.GeneralObservedLadderSemanticGap301.old_int_report
+#print axioms Yulang.GeneralObservedLadderSemanticGap301.old_list_report
+#print axioms Yulang.GeneralObservedLadderSemanticGap301.no_observation
+#print axioms Yulang.GeneralObservedLadderSemanticGap301.observed
+#print axioms Yulang.GeneralObservedLadderSemanticGap301.strict_gap
+#print axioms Yulang.GeneralObservedLadderRefresh301.initial
+#print axioms Yulang.GeneralObservedLadderRefresh301.known_target
+#print axioms Yulang.GeneralObservedLadderRefresh301.target_support
+#print axioms Yulang.GeneralObservedLadderRefresh301.target_models
+#print axioms Yulang.GeneralObservedLadderRefresh301.cache
+#print axioms Yulang.GeneralObservedLadderRefresh301.endpoint_unknown
+#print axioms Yulang.GeneralObservedLadderRefresh301.actual
+#print axioms Yulang.GeneralObservedLadderRefresh301.refresh_models
+#print axioms Yulang.GeneralObservedLadderRefresh301.receipt_changes
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.before_models
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.outer_atoms
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.step
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.trace
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.keys_installed
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.list_frame
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.list_instance
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.evidence
+#print axioms Yulang.GeneralObservedLadderRefreshChain301.completed_trace
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.old_source_support
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.earlier_known
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.strict_focus
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.not_headless
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.counted
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.no_edges_at_actual_refresh
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.terminal_table
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.computes
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.nodes
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.compiler_sound
+#print axioms Yulang.GeneralObservedLadderRefreshProgram301.actual_refresh_then_compile

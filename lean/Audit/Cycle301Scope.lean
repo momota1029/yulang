@@ -1,0 +1,18 @@
+import Yulang.GeneralObservedLadderScopedB4301
+import Yulang.GeneralObservedLadderBudget301
+
+#print axioms Yulang.GeneralObservedLadderScopedB4301.suffix_generated
+#print axioms Yulang.GeneralObservedLadderScopedB4301.not_stable_before
+#print axioms Yulang.GeneralObservedLadderScopedB4301.stable_iff_final
+#print axioms Yulang.GeneralObservedLadderScopedB4301.evidence_at_phases
+#print axioms Yulang.GeneralObservedLadderScopedB4301.evidence_at_reachable
+#print axioms Yulang.GeneralObservedLadderScopedB4301.generated_children_at_reachable
+#print axioms Yulang.GeneralObservedLadderScopedB4301.closure_of_any_terminal
+#print axioms Yulang.GeneralObservedLadderScopedB4301.compiled_at_terminal
+#print axioms Yulang.GeneralObservedLadderBudget301.erase
+#print axioms Yulang.GeneralObservedLadderBudget301.count_path
+#print axioms Yulang.GeneralObservedLadderBudget301.path_exists
+#print axioms Yulang.GeneralObservedLadderBudget301.exact_count
+#print axioms Yulang.GeneralObservedLadderBudget301.completion
+#print axioms Yulang.GeneralObservedLadderBudget301.remaining_exact
+#print axioms Yulang.GeneralObservedLadderBudget301.exact_initial_budget

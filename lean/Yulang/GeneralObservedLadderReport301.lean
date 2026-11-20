@@ -1,5 +1,5 @@
 import Yulang.GeneralObservedLadderInitial301
-import Yulang.GeneralGeneratedNestedPredictions299
+import Yulang.GeneralNominalUnaryCaptureFacts
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralObservedLadderReport301
