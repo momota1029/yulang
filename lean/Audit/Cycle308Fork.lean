@@ -1,0 +1,13 @@
+import Yulang.GeneralMixedCompoundEarlyNoShortcut308
+import Yulang.GeneralMixedCompoundInitialNonjoin308
+import Yulang.GeneralMixedCompoundPointFirstExact308
+
+open Yulang
+
+#print axioms GeneralMixedCompoundEarlyNoShortcut308.no_shortcut
+#print axioms GeneralMixedCompoundSourceFork308.exact_fork
+#print axioms GeneralMixedCompoundPointFirstExact308.exact_second
+#print axioms GeneralMixedCompoundPointFirstInstall308.generated_child
+#print axioms GeneralMixedCompoundPointFirstPublic308.same_projection
+#print axioms GeneralMixedCompoundInitialNonjoin308.both_real_paths
+#print axioms GeneralMixedCompoundInitialNonjoin308.no_inhabited_join
