@@ -60,3 +60,18 @@ other legal schedules from the equation-only start.
 - For output-producing or multi-where cases separately preserve rejected
   inspected branches and ownership. Do not transfer point-closure or
   headless-completion assumptions without a fresh source proof.
+
+### Concrete first follow-on test
+
+Keep the existing Lean registry checks. Use one unary nominal parent with
+two where rows with different clause IDs and two bare unary roles, so the
+children can use the *same* captured point without assuming same-role
+merging. Use a source namespace such as a positive offset from Fin slot
+numbers; neither capture ID nor clause ID can be passed to the row index
+lookup. Check that both raw emitted child occurrences have distinct allocator
+IDs, distinct roles, one shared argument ID, and two recorded edges. Compare
+an unguarded source-ID keyed table (necessarily loses at least one row) with
+a map indexed by checked occurrences. This is a testing plan, not an
+implemented fixture or a claim on raw scheduling; a same-role sibling merge
+and the `GeneralNominalReobservationMergeDiamond` older transition system
+are separate follow-on cases.

@@ -1,0 +1,147 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Base tree: 489e061237fe8f1419d584844bfed4748d42d3c3; tested data tree: 114ed80e29d38b2c77c9ed9cab213bff4fbb4533.
+Isolated source GeneralObservedLadderSource301 PASS
+Isolated source GeneralObservedLadderInitial301 PASS
+Isolated source GeneralObservedLadderReport301 PASS
+Isolated source GeneralObservedLadderPlan301 PASS
+Isolated source GeneralObservedLadderSemantics301 PASS
+Isolated source GeneralObservedLadderSelection301 PASS
+Isolated source GeneralObservedLadderSafety301 PASS
+Isolated source GeneralObservedLadderRoot301 PASS
+Isolated source GeneralObservedLadderRoute301 PASS
+Isolated source GeneralObservedLadderLedger301 PASS
+Isolated source GeneralObservedLadderStage301 PASS
+Isolated source GeneralObservedLadderEnabled301 PASS
+Isolated source GeneralObservedLadderAdvance301 PASS
+Isolated source GeneralObservedLadderLeaf301 PASS
+Isolated source GeneralObservedLadderEvidence301 PASS
+Isolated source GeneralObservedLadderNoAdmin301 PASS
+Isolated source GeneralObservedLadderOnlyInstall301 PASS
+Isolated source GeneralObservedLadderExact301 PASS
+Isolated source GeneralObservedLadderAvailability301 PASS
+Isolated source GeneralObservedLadderLocal301 PASS
+Isolated source GeneralObservedLadderObserver301 PASS
+Isolated source GeneralObservedLadderReadback301 PASS
+Isolated source GeneralObservedLadderJournalRows301 PASS
+Isolated source GeneralObservedLadderJournalCompiler301 PASS
+Isolated source GeneralObservedLadderScopedB4301 PASS
+Isolated source GeneralObservedLadderBudget301 PASS
+Isolated source GeneralObservedLadderSemanticGap301 PASS
+Isolated source GeneralObservedLadderRefresh301 PASS
+Isolated source GeneralObservedLadderRefreshChain301 PASS
+Isolated source GeneralObservedLadderRefreshProgram301 PASS
+Isolated source GeneralObservedLadderCompilerLaws301 PASS
+Exact audit coverage and unique indexed names: 273
+Standalone lean/Audit/Cycle301Compiler.lean PASS
+Standalone lean/Audit/Cycle301Evidence.lean PASS
+Standalone lean/Audit/Cycle301Exact.lean PASS
+Standalone lean/Audit/Cycle301Guard.lean PASS
+Standalone lean/Audit/Cycle301Install.lean PASS
+Standalone lean/Audit/Cycle301Journal.lean PASS
+Standalone lean/Audit/Cycle301Ladder.lean PASS
+Standalone lean/Audit/Cycle301Refresh.lean PASS
+Standalone lean/Audit/Cycle301Scope.lean PASS
+Standalone lean/Audit/Cycle301Stages.lean PASS
+Audited 273 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
+Existing lean/Audit/Cycle300ActualEvidence.lean PASS
+Existing lean/Audit/Cycle300ExactRun.lean PASS
+Existing lean/Audit/Cycle300FirstInstall.lean PASS
+Existing lean/Audit/Cycle300SecondInstall.lean PASS
+Existing lean/Audit/Cycle300Settled.lean PASS
+Existing lean/Audit/Cycle300SourceObserved.lean PASS
+Existing lean/Audit/Cycle299ActualTables.lean PASS
+Existing lean/Audit/Cycle299BothCurrent.lean PASS
+Existing lean/Audit/Cycle299CheckedSource.lean PASS
+Existing lean/Audit/Cycle299FiniteCap.lean PASS
+Existing lean/Audit/Cycle299NestedSource.lean PASS
+Existing lean/Audit/Cycle299ObservedMemo.lean PASS
+Existing lean/Audit/Cycle299Phase.lean PASS
+Existing lean/Audit/Cycle299RankCore.lean PASS
+Existing lean/Audit/Cycle299Rooted.lean PASS
+Existing lean/Audit/Cycle299SemanticExact.lean PASS
+Existing lean/Audit/Cycle277CompiledInstall.lean PASS
+Existing lean/Audit/Cycle277CompiledEvidence.lean PASS
+Existing lean/Audit/Cycle277CompiledStable.lean PASS
+Existing lean/Audit/Cycle277CompiledExact.lean PASS
+Yulang.GeneralObservedLadderInitial301.actual_initial (n : Nat) :
+  (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Initial
+    GeneralNominalExamples.registry GeneralNominalExamples.displayRoot (GeneralObservedLadderInitial301.initial n)
+Yulang.GeneralObservedLadderAdvance301.phase_step (n k : Nat) (hi : k ≤ n) :
+  (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Step
+    GeneralNominalExamples.registry GeneralNominalExamples.displayRoot (GeneralObservedLadderAdvance301.run n k ⋯).state
+    (GeneralObservedLadderAdvance301.run n (k + 1) ⋯).state
+Yulang.GeneralObservedLadderExact301.exact_step (n k : Nat) (cap : k ≤ n + 1)
+  (s : GeneralNominalVersionedJournal232.State GeneralDeclarationExamples.roles) :
+  (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Step
+      GeneralNominalExamples.registry GeneralNominalExamples.displayRoot
+      (GeneralObservedLadderAdvance301.run n k cap).state s ↔
+    ∃ hi, s = (GeneralObservedLadderAdvance301.run n (k + 1) ⋯).state
+Yulang.GeneralObservedLadderBudget301.exact_initial_budget (n count : Nat)
+  (s : GeneralNominalVersionedJournal232.State GeneralDeclarationExamples.roles)
+  (path : GeneralObservedLadderBudget301.Counted count (GeneralObservedLadderInitial301.initial n) s)
+  (noMore :
+    ∀ (next : (GeneralNominalVersionedDiagnostic232.vocabulary GeneralDeclarationExamples.roles).State),
+      ¬GeneralObservedLadderBudget301.RawStep s next) :
+  count = n + 1 ∧ s = (GeneralObservedLadderEvidence301.final n).state
+Yulang.GeneralObservedLadderScopedB4301.evidence_at_reachable (n : Nat)
+  (s : GeneralNominalVersionedJournal232.State GeneralDeclarationExamples.roles)
+  (fromThisInitial :
+    B4Target.Steps
+      ((GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Step
+        GeneralNominalExamples.registry GeneralNominalExamples.displayRoot)
+      (GeneralObservedLadderInitial301.initial n) s) :
+  B4SkeletonV8.EvidenceAt (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles)
+    GeneralNominalExamples.registry s GeneralNominalExamples.displayRoot
+Yulang.GeneralObservedLadderScopedB4301.generated_children_at_reachable (n : Nat)
+  (s : GeneralNominalVersionedJournal232.State GeneralDeclarationExamples.roles)
+  (fromThisInitial :
+    B4Target.Steps
+      ((GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Step
+        GeneralNominalExamples.registry GeneralNominalExamples.displayRoot)
+      (GeneralObservedLadderInitial301.initial n) s)
+  (o : GeneralSourceDictionaries.Occurrence GeneralDeclarationExamples.roles)
+  (inScope :
+    o = GeneralNominalExamples.displayRoot ∨
+      (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Generated
+        GeneralNominalExamples.registry s GeneralNominalExamples.displayRoot o)
+  (stable :
+    (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Stable
+      GeneralNominalExamples.registry s o)
+  (key : Nat) (children : List (GeneralSourceDictionaries.Occurrence GeneralDeclarationExamples.roles))
+  (selected :
+    B4TargetV8.Local (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles)
+      GeneralNominalExamples.registry s o (CommonRoleOutermostResolver.Frontier.selected key children))
+  (c : GeneralSourceDictionaries.Occurrence GeneralDeclarationExamples.roles) :
+  c ∈ children →
+    (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Generated
+      GeneralNominalExamples.registry s GeneralNominalExamples.displayRoot c
+Yulang.GeneralObservedLadderJournalCompiler301.root_available_exact (n k : Nat) (cap : k ≤ n + 1) (gas : Nat) :
+  GeneralGeneratedDictionaryRun299.run
+      (GeneralObservedLadderJournalCompiler301.table (GeneralObservedLadderAdvance301.run n k cap).state) gas 0 =
+    if k = n + 1 ∧ n + 1 < gas then some (GeneralObservedLadderEvidence301.dictionary (n + 1)) else none
+Yulang.GeneralObservedLadderReadback301.exact_compiled_root (n : Nat) (d : CommonRoleOutermostResolver.Dictionary) :
+  B4TargetV8.Classify (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles)
+      GeneralNominalExamples.registry (GeneralObservedLadderEvidence301.final n).state
+      GeneralNominalExamples.displayRoot (CommonRoleOutermostResolver.Result.selected d) ↔
+    d = GeneralObservedLadderEvidence301.dictionary (n + 1)
+Yulang.GeneralObservedLadderRefresh301.actual (n : Nat) :
+  (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Step
+    GeneralNominalExamples.registry GeneralNominalExamples.displayRoot (GeneralObservedLadderRefresh301.before n)
+    (GeneralObservedLadderRefresh301.after n)
+Yulang.GeneralObservedLadderRefreshProgram301.actual_refresh_then_compile (n : Nat) :
+  GeneralObservedLadderBudget301.Counted (n + 2) (GeneralObservedLadderRefresh301.before n)
+      (GeneralObservedLadderRefreshChain301.settled n).state ∧
+    GeneralGeneratedDictionaryRun299.run
+          (GeneralObservedLadderJournalCompiler301.table (GeneralObservedLadderRefreshChain301.settled n).state) (n + 2)
+          0 =
+        some (GeneralObservedLadderEvidence301.dictionary (n + 1)) ∧
+      ∀ (m : GeneralNominalCommonBridge.Assignment),
+        GeneralNominalVersionedJournal232.Models (GeneralObservedLadderRefreshChain301.settled n).state m →
+          (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Evidence
+            GeneralNominalExamples.registry (GeneralObservedLadderRefreshChain301.settled n).state m
+            GeneralNominalExamples.displayRoot (GeneralObservedLadderEvidence301.dictionary (n + 1))
+Focused barrel tail PASS
+Replay ladder byte-identical PASS
+Replay journal byte-identical PASS
+Replay refresh byte-identical PASS
+Isolated build: 31 modules; no whole Lake build or Rust execution.
