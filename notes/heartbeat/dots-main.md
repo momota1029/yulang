@@ -2,9 +2,9 @@
 - cycle: 294
 - status: running
 - started: 2026-11-20T09:30:01Z
-- updated: 2026-11-20T09:45:29Z
-- elapsed_min: 15.47
-- activity: 選択部分に marks 無しを一般に証明、選択 policy は祖先 corridor を追加検査
+- updated: 2026-11-20T09:51:38Z
+- elapsed_min: 21.62
+- activity: 確認済み保存 CST: 一つの外部エラー範囲で選択 role 可・全体不可、架空 owner を拒否
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: cfd6b516d
-- resume_hint: 既存 golden を再生済み。Rust 独立診断の receipt は仮定つき。次は executable controls と実 span provenance。
+- last_local_commit: bc966fc00
+- resume_hint: 報告は原始印と外部診断の分離。境界条件と独立再ビルドを検証中。

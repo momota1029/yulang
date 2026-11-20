@@ -50,3 +50,12 @@ multiple matching runs, and cannot use a raw foreign label or an unlocated
 path. This permits an exact comparison for the recorded 49..58 case without
 claiming a general Rust structural-diagnostic extractor. The supplied
 range and successful independent diagnosis remain externally attested.
+
+A prefix-only owner test would admit an invented unrelated [999] even in a
+two-child tree. The stronger adapter checks lookup on the same complete
+mixed tree before accepting ordinary ownership. Structural ranges are
+treated differently: the full uniquely matched run, not its common
+parent, supplies the tested relatedness. The archived single-range replay
+uses this mixed gate, and refuses a missing or foreign receipt, partial
+range, or an invented second diagnostic owner. Existence of an owner path
+does not establish that Rust reported the event there.

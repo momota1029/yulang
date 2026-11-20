@@ -5837,3 +5837,6 @@ import Yulang.GeneralSourceRoleCstCleanProducer294
 import Yulang.GeneralSourceRoleCstCleanBoundary294
 import Yulang.GeneralSourceRoleCstGroupAnchor294
 import Yulang.GeneralSourceRoleCstGroupFixture294
+import Yulang.GeneralSourceRoleCstBoundOwners294
+import Yulang.GeneralSourceRoleCstRangeReceipt294
+import Yulang.GeneralSourceRoleCstMixedReceipt294
