@@ -5885,3 +5885,5 @@ import Yulang.GeneralSourceRoleCstSymbolicTotal295
 import Yulang.GeneralSourceRoleCstOutcomePrecise295
 import Yulang.GeneralSourceRoleCstSelectedCoverage295
 import Yulang.GeneralSourceRoleCstCoverageEnd295
+import Yulang.GeneralSourceRoleCstNameCatalog296
+import Yulang.GeneralSourceRoleCstCatalogTrace296
