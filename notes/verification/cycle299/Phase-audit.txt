@@ -1,0 +1,13 @@
+'Yulang.GeneralGeneratedDisplayPhase299.child_not_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayPhase299.before_not_authorized' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedDisplayPhase299.after_authorized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayPhase299.exact_authorization' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayPhase299.initial_child_no_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedDisplayPhase299.initial_parent_no_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedDisplayPhase299.genuine_phase_change' depends on axioms: [propext, Classical.choice, Quot.sound]

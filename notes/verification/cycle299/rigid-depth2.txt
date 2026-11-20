@@ -1,0 +1,4 @@
+PASS compiled rigid nested Display needs three fuel units
+PASS the existing rigid elaborator and computed frontier agree on keys 0 → 0 → 1
+PASS omitting the int goal leaves the selected child's row unresolved
+This is the older rigid elaborator, not a new V8 raw execution.

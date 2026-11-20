@@ -1,0 +1,9 @@
+import Yulang.GeneralGeneratedDisplayPhase299
+
+#print axioms Yulang.GeneralGeneratedDisplayPhase299.child_not_generated
+#print axioms Yulang.GeneralGeneratedDisplayPhase299.before_not_authorized
+#print axioms Yulang.GeneralGeneratedDisplayPhase299.after_authorized
+#print axioms Yulang.GeneralGeneratedDisplayPhase299.exact_authorization
+#print axioms Yulang.GeneralGeneratedDisplayPhase299.initial_child_no_evidence
+#print axioms Yulang.GeneralGeneratedDisplayPhase299.initial_parent_no_evidence
+#print axioms Yulang.GeneralGeneratedDisplayPhase299.genuine_phase_change

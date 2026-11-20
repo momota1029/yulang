@@ -2,9 +2,9 @@
 - cycle: 299
 - status: running
 - started: 2026-11-20T14:31:16Z
-- updated: 2026-11-20T14:49:50Z
-- elapsed_min: 18.57
-- activity: 実 C277 frontier から選択表を生成、既存独立判断と一致。memo 検査と最小高さ、循環・未登録対照を確認
+- updated: 2026-11-20T14:52:11Z
+- elapsed_min: 20.92
+- activity: C277 初期状態では親子 evidence が存在しないことと、実据付後の構成を独立証明。CLI 3件 PASS
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 36ab4349fc
-- resume_hint: CLI 検査、前周回帰、静的統合差分確認と日本語報告
+- last_local_commit: ece392d2c0
+- resume_hint: 次は最小 rank の列を単一段階更新で保持し、verification 一式を固める
