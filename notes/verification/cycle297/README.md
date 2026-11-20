@@ -17,7 +17,7 @@ bash notes/verification/cycle297/verify-focused.sh <C296-commit> <prior-olean-ro
 
 This excludes all C297 objects from a shadow cache, rebuilds only added
 modules in barrel order, audits each C297 file separately, rechecks
-specific previous suites, then runs and compares the three executable
+specific previous suites, then runs and compares the four executable
 controls. It does not use the full Lake target. Shell commands reuse the
 existing Lean 4.35.0 toolchain, in one thread.
 
@@ -30,3 +30,6 @@ existing Lean 4.35.0 toolchain, in one thread.
   incomplete tables, no semantic absence asserted for those.
 - `theorem-index.md`: exact statements audited, including 239/240 sharp raw
   prefix witness lower bounds and the certified pre-install refresh.
+- `preinstall-transport.txt`: runs the candidate enumeration before and after
+  an actual certified scalar refresh, checks the newly known coordinates,
+  and replays the same two signed witness rows.

@@ -79,7 +79,7 @@ done
 } > "$scratch/barrel-tail.lean"
 (cd lean && lean "${opts[@]}" "$scratch/barrel-tail.lean")
 echo "Focused barrel tail PASS"
-for test in depth-observer merge-observer signed-polarities; do
+for test in depth-observer merge-observer signed-polarities preinstall-transport; do
   (cd lean && timeout 140s lean "${opts[@]}" --run "$verify/run-$test.lean") > "$scratch/report"
   cmp "$scratch/report" "$verify/$test.txt"
   echo "Replay $test byte-identical PASS"

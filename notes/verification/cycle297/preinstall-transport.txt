@@ -1,0 +1,3 @@
+PASS actual pre-install refresh recognizes source coordinates 0 and 1.
+PASS the freshly enumerated candidate retains both signed answers using the same two verified assignments.
+The raw administrative state changed; no general phase or termination conclusion is drawn.
