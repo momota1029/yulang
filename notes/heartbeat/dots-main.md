@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 296
-- status: completed
-- started: 2026-11-20T11:30:00Z
-- updated: 2026-11-20T12:20:04Z
-- elapsed_min: 50.07
-- activity: 有限の名前観測から選択 role を変換し、最小証跡で同じ旧 table を再演
-- last_local_commit: f149fccce
-- report: notes/handoff/dots-cycle-296.md
-- resume_hint: 次周も統合 branch の standing orders と inbox を最初に再読。利用可能な Rust で実 CST と fallible diagnostics を採取し、独立の名前決定元を検証。有限証跡と旧 table の往復は確認済み。
+- cycle: 297
+- status: running
+- started: 2026-11-20T12:32:48Z
+- updated: 2026-11-20T12:32:48Z
+- elapsed_min: 0.00
+- activity: I-54を確認。B4の一般 source observer / compiler の完全性を再開
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang
+- last_local_commit: 0dd7a3283e
+- resume_hint: 統合との差分と旧279–284の境界を確認し、最小の証明を設計する。
