@@ -36,3 +36,17 @@ describes an output in full Models; it is not recognized Known in the old
 snapshot, does not change the original path or acceptance, and must retain
 its actual source-derived typed support. No general kernel or termination
 is proposed.
+
+## Falsifying a wider provenance interpretation before extending scope
+
+Try a checked registry with the same declarations, keys and actual raw
+state but a different constructor catalogue. The declared-world list is
+not full `Metadata`. A closed collision will not invalidate the earlier
+trace theorem, which is restricted to the fixed actual pair. Test an
+independent finite gate at the constructor keys actually present as
+nominal descriptors in the raw snapshot; bind both the supplied registry
+and the owning historical effect. Test an observed key mutation versus
+an unobserved one. The gate is not a proof of equality of arbitrary
+catalogue functions: preserve a negative control outside the selected
+footprint and retain the checked-source premise. Do not widen the raw
+transition or infer general language support from a finite table.

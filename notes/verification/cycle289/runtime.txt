@@ -1,0 +1,17 @@
+'Yulang.GeneralRebaseReceiptCompile289.concrete_compile' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptCompile289.compile_has_offered_target' depends on axioms: [propext]
+'Yulang.GeneralRebaseReceiptPoint289.release_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPoint289.published_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPoint289.not_old_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPoint289.noncircular_source_countermodel' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptPublic289.exact_raw_gate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPublic289.canonical_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPublic289.minimal_typed_mark' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.normalized_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.exact_runtime' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.stale_normalized' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.keep_stamp_recheck' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.exact_mark_output' depends on axioms: [propext, Quot.sound]
+["published", "inspection-pending", "no-producer", "not-generated", "has-effects", "stale-stamp", "wrong-registry"]
