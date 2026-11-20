@@ -8,9 +8,10 @@ cannot be the premise that declares the child settled.
 1. Define `SourceSlice` as the original source constraints plus the original
    source-site checks (support slice with no facts). For any registry, state,
    demand, declaration key and plan, the proposed leaf witness consists of its
-   exact current V8 frame, a unique match with zero emitted children, no
-   effective class requests, and semantic packet validity under every
-   SourceSlice assignment. Soundness target: for every such assignment, this
+   exact current V8 frame, SafeKnown and no merged-output conflict, a unique
+   match with zero emitted children, no effective class requests, a nonempty
+   SourceSlice, and semantic packet validity under every SourceSlice
+   assignment. Uniqueness by itself need not exclude other pending matches. Soundness target: for every such assignment, this
    witness implies the existing leaf dictionary at the declaration key. No
    installed parent output or full versioned Models is allowed as a premise.
 2. Define a narrow parent condition: a recorded parent plan, and for each
