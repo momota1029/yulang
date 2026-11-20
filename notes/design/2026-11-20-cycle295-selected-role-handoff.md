@@ -30,3 +30,11 @@ one common role spelling and environment but different associated defaults,
 admits only the designated occurrence and the existing association reader
 observes `int` versus `char` when their receipts are separately issued.
 These are deliberately labeled different kinds of evidence.
+
+One post-selection limit matters for a production caller: a scope tag does
+not prove two independently supplied naming environments agree. Reuse the
+already proved local naming-law only for the selected symbolic role.
+An executable optional narrower witness records role lookup, output ID
+lookup, and nullary constructor lookup when the corresponding output
+exists. The theorem will characterize agreement only on those requested
+names, not authenticate the source of either map or claim language validity.

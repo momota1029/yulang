@@ -1,0 +1,14 @@
+'Yulang.GeneralSourceRoleCstNamingScope295.tracked_symbolic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingScope295.tracked_env_congr' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingScope295.compile_env_congr' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingWitness295.body_match_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingWitness295.output_match_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingWitness295.role_match_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingGate295.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingGate295.checked_reference_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingControl295.unguarded_context_can_change_key' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingControl295.checked_compares_actual_output_requests' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstNamingControl295.constructor_scope_used_only_by_second' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstNamingControl295.unrelated_lookups_do_not_change_selected_export' depends on axioms: [propext,
+ Quot.sound]
