@@ -35,3 +35,22 @@ reference snapshot: same seed, source-support coverage and owned-key mappings,
 and a model-preserving constraints/cache certificate for all normalized
 observations. The old certificate alone cannot be reused verbatim after an
 install, since the actual append changes both sides of these obligations.
+
+The packet → append subproblem is now witnessed by `InstallData303`,
+`Replay303` and `InstalledCert303`: equality of erased report data supplies
+literal equality for allocated keys, reserved identifiers and ordinary atoms.
+The `Refresh` constructor after a reference install uses its inherited trusted
+cache, not an assumption that target cache validity follows only from
+projection agreement. A subsequent operational bisimulation must still account
+for historical plan/effect snapshots in the two true raw states.
+
+A proof relation for the remaining whole early suffix can retain an
+equation-only reference phase and an actual retargeted source state, with:
+(1) a current refresh certificate between the two contexts, (2) equality of
+emitted sites, edges and aliases, (3) equality of model predicates, (4) a
+declaration-key invariant in historical packet lists, and (5) the actual
+current state's reachability, supplying inherited cache soundness. An install
+extends (1) by the certificate constructor and (2) by exact emitted rows and
+edges; no equality of historical packets/plans/effects should be assumed.
+To prove future-step uniqueness use generated-front identity and prior
+semantic commitment, then transport the no-administrative-step guards.

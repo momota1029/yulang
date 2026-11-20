@@ -1,0 +1,5 @@
+import Yulang.GeneralDeferredLadderWiderRoundtrip303
+
+#print axioms Yulang.GeneralDeferredLadderWiderRoundtrip303.recorded_iff
+#print axioms Yulang.GeneralDeferredLadderWiderRoundtrip303.narrow_refines
+#print axioms Yulang.GeneralDeferredLadderWiderRoundtrip303.refinement_both

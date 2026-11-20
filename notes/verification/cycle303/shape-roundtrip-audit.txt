@@ -1,0 +1,6 @@
+'Yulang.GeneralDeferredLadderShape303.nominal_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderShape303.path_rank' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderShape303.raw_acyclic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderRoundtrip303.recorded_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderRoundtrip303.narrow_refines' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderRoundtrip303.refinement_both' depends on axioms: [propext, Quot.sound]
