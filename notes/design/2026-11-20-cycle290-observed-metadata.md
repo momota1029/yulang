@@ -85,3 +85,25 @@ be uniquely distinguished. Off-scope differences can remain invisible,
 and no full Metadata/Frame follows. Test a stale entry with the same
 old typed stamp, and use the two original raw branches to bound what
 this mechanism really releases.
+
+A constructor-key list is not a complete description of current class
+requests: a new target could use a constructor-free body. Add the ordered
+request/lookup list `(name,target,Option Body)` as a separate stamp field.
+It records missing lookups too (it does not assert all are compilable).
+A previously verified alias regression gains a target through a real
+MixedKernel merge, though the supplied premerge journal was not shown
+reachable from these sources. Use that exact distinction to test field
+sensitivity, independently of which metadata keys its bodies use.
+
+## Separate table agreement from live compilation totality
+
+A present body may compile to `none` under both identical tables. Then its
+schema has no equations and may satisfy `ClassEffects` vacuously; table
+agreement faithfully preserves that behavior, not successful evaluation.
+Use an additional executable totality test over the request book: each
+requested name must have a body and its compiler must return an expression.
+Under the finite local agreement hypothesis, test success is equivalent to
+the original `Ready` predicate on the unchanged plan/state. The actual
+preinstall Ready transports to the installed parent because its class
+reqs are unchanged. Prove an independent closed checked declaration with
+unsupported associated rhs still separates `ClassEffects` from `Ready`.
