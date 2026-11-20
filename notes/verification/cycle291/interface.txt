@@ -1,0 +1,110 @@
+Yulang.GeneralSourceMetadataLookup291.projected (fallback : Yulang.GeneralSourceMetadataRows291.DefaultCode)
+  (rows : List Yulang.GeneralSourceMetadataRows291.Row) (key : Nat) :
+  have src := { fallback := fallback, rows := rows };
+  (Yulang.GeneralSourceMetadataRows291.constructors src key, Yulang.GeneralSourceMetadataRows291.primitives src key,
+      Yulang.GeneralSourceMetadataRows291.invariants src key) =
+    match Yulang.GeneralSourceMetadataLookup291.locate key rows with
+    | none => (fallback.decode key, none, false)
+    | some row => (row.ctor, row.classification.primitiveValue, row.classification.invariantFlag)
+Yulang.GeneralSourceMetadataValidation291.check_exact (s : Yulang.GeneralSourceMetadataRows291.Source) :
+  Yulang.GeneralSourceMetadataValidation291.check s = true ↔ Yulang.GeneralSourceMetadataValidation291.Valid s
+Yulang.GeneralSourceMetadataComparison291.exact_linked_metadata {s t : Yulang.GeneralSourceMetadataRows291.Source}
+  {r : Yulang.GeneralDeclarations.Registry} {ctx : Yulang.GeneralNominalCandidates.Context}
+  (link : Yulang.GeneralSourceMetadataComparison291.Linked s t r ctx) (scope : List Nat) :
+  Yulang.GeneralSourceMetadataComparison291.compare s t scope =
+      Yulang.GeneralSourceMetadataComparison291.Result.compared Yulang.GeneralObservedMetadataScope290.Result.good ↔
+    Yulang.GeneralNominalCandidates.Metadata r ctx
+Yulang.GeneralSourceMetadataRoleManifest291.exact_manifest (src : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (valid : Yulang.GeneralSourceMetadataRoles291.Valid src) :
+  Yulang.GeneralSourceMetadataDefaults291.Manifest (Yulang.GeneralSourceMetadataRoles291.roleTable src)
+    (Yulang.GeneralSourceMetadataRoleManifest291.manifestRows src)
+Yulang.GeneralSourceMetadataDiagnostics291.no_diagnostics_iff (r : Yulang.GeneralDeclarations.Registry)
+  (i : Yulang.GeneralNominalInspection.Interpretation) (defaults : List Yulang.GeneralSourceMetadataDefaults291.Default)
+  (known : Yulang.GeneralSourceMetadataDefaults291.Manifest r.roles defaults) :
+  Yulang.GeneralSourceMetadataDiagnostics291.diagnostics r i defaults = [] ↔
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i
+Yulang.GeneralSourceMetadataDiagnosticProvenance291.exact_origin (r : Yulang.GeneralDeclarations.Registry)
+  (i : Yulang.GeneralNominalInspection.Interpretation) (ds : List Yulang.GeneralSourceMetadataDefaults291.Default)
+  (f : Yulang.GeneralSourceMetadataDiagnostics291.Failure) :
+  f ∈ Yulang.GeneralSourceMetadataDiagnostics291.diagnostics r i ds ↔
+    f.entry ∈ Yulang.GeneralSourceMetadataSites291.sourceSites r.declarations ds ∧
+      Yulang.GeneralSourceMetadataProblem291.problem r.constructors i f.entry.query = some f.details
+Yulang.GeneralSourceMetadataBundle291.ready_exact {s : Yulang.GeneralSourceMetadataBundle291.SourceBundle}
+  {r : Yulang.GeneralDeclarations.Registry} {ctx : Yulang.GeneralNominalCandidates.Context}
+  (attached : Yulang.GeneralSourceMetadataBundle291.Attached s r ctx) :
+  (Yulang.GeneralSourceMetadataBundle291.inspect s).ready = true ↔
+    Yulang.GeneralSourceMetadataValidation291.Valid s.declared ∧
+      Yulang.GeneralSourceMetadataValidation291.Valid s.snapshot ∧
+        Yulang.GeneralSourceMetadataRoles291.Valid s.roles ∧
+          Yulang.GeneralNominalCandidates.Metadata r ctx ∧
+            Yulang.GeneralNominalCenteredHeadWFSource.Coverage r ctx.interpretation
+Yulang.GeneralSourceMetadataExprDomain291.compiler_domain (c : Yulang.GeneralDeclarationPatterns.Constructors)
+  (i : Yulang.GeneralNominalInspection.Interpretation) (p : Yulang.GeneralDeclarationPatterns.Pattern) :
+  (∃ v, Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i p = some v) ↔
+    Yulang.GeneralNominalCenteredHeadWFSource.PatternCovered c i p
+Yulang.GeneralSourceMetadataDefaultDomain291.default_domain (c : Yulang.GeneralDeclarationPatterns.Constructors)
+  (i : Yulang.GeneralNominalInspection.Interpretation) (p : Yulang.Roles.Term) :
+  (∃ v, Yulang.GeneralNominalCenteredHeadMatExpressions.translateDefault c i p = some v) ↔
+    Yulang.GeneralNominalCenteredHeadWFSource.TermCovered c i p
+Yulang.GeneralSourceMetadataLive291.live_ready_exact {roles : Yulang.Roles.RoleDecls}
+  (s : Yulang.GeneralNominalCenteredSteps.State roles) (up : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (p : Yulang.GeneralNominalCenters.Plan roles) (c : Yulang.GeneralDeclarationPatterns.Constructors)
+  (i : Yulang.GeneralNominalInspection.Interpretation)
+  (agreement :
+    Yulang.GeneralObservedMetadataEntry290.LocalEqual (Yulang.GeneralObservedMetadataLive290.liveKeys s up p)
+      p.packet.registry.constructors p.packet.context.interpretation c i) :
+  Yulang.GeneralSourceMetadataLive291.liveCheck s up p c i = true ↔
+    Yulang.GeneralNominalCenteredHeadMatEffects.Ready s up p
+Yulang.GeneralSourceMetadataPublication291.same_result {roles : Yulang.Roles.RoleDecls}
+  (r : Yulang.GeneralDeclarations.Registry) (s : Yulang.GeneralNominalVersionedJournal232.State roles)
+  (up down : Yulang.GeneralSourceDictionaries.Occurrence roles) (ask : Yulang.GeneralRebaseReceiptWire289.Offer)
+  (proposed : Yulang.GeneralNominalInspection.Interpretation) (saved : Yulang.GeneralObservedMetadataSeal290.Seal) :
+  Yulang.GeneralSourceMetadataPublication291.publish r s up down ask proposed saved =
+    Yulang.GeneralObservedMetadataStrict290.strictPublish r s up down ask proposed saved
+Yulang.GeneralSourceMetadataSnapshot291.attempt_exact (state : Yulang.GeneralNominalState.State)
+  (src : Yulang.GeneralSourceMetadataRows291.Source) :
+  (∃ ctx, Yulang.GeneralSourceMetadataSnapshot291.attempt state src = some ctx) ↔
+    Yulang.GeneralSourceMetadataSnapshot291.Fits state src
+Yulang.GeneralSourceMetadataSnapshot291.attempt_identity (ctx : Yulang.GeneralNominalCandidates.Context)
+  (src : Yulang.GeneralSourceMetadataRows291.Source)
+  (cat : Yulang.GeneralSourceMetadataRows291.constructors src = ctx.state.constructors)
+  (interp : Yulang.GeneralSourceMetadataRows291.interpretation src = ctx.interpretation) :
+  Yulang.GeneralSourceMetadataSnapshot291.attempt ctx.state src = some ctx
+Yulang.GeneralSourceMetadataContextTransfer291.meaning_transport (old : Yulang.GeneralNominalCandidates.Context)
+  (src : Yulang.GeneralSourceMetadataRows291.Source) (fit : Yulang.GeneralSourceMetadataSnapshot291.Fits old.state src)
+  (d : Yulang.GeneralDeclarations.Declaration) (bounds : List (Yulang.GeneralNominalInspection.Bounds old.state))
+  (agreeLocal :
+    Yulang.GeneralObservedMetadataEntry290.LocalEqual (Yulang.GeneralObservedMetadataKeys290.headKeys d)
+      old.state.constructors old.interpretation (Yulang.GeneralSourceMetadataRows291.constructors src)
+      (Yulang.GeneralSourceMetadataRows291.interpretation src))
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) :
+  let new := Yulang.GeneralSourceMetadataSnapshot291.context old.state src fit;
+  have incoming := Yulang.GeneralNominalRecursiveCandidates.report new d bounds;
+  have prior := Yulang.GeneralNominalRecursiveCandidates.report old d bounds;
+  Yulang.GeneralNominalRecursiveInspection.bindings new.state incoming =
+      Yulang.GeneralNominalRecursiveInspection.bindings old.state prior ∧
+    Yulang.GeneralNominalRecursiveInspection.selfChecks new.state incoming =
+        Yulang.GeneralNominalRecursiveInspection.selfChecks old.state prior ∧
+      (Yulang.GeneralNominalRecursiveInspection.Finished incoming ↔
+          Yulang.GeneralNominalRecursiveInspection.Finished prior) ∧
+        (Yulang.GeneralNominalRecursiveInspection.ProjectionModels new.state incoming m ↔
+          Yulang.GeneralNominalRecursiveInspection.ProjectionModels old.state prior m)
+Yulang.GeneralSourceMetadataTransportFixture291.view_has_different_report :
+  Yulang.GeneralSourceMetadataReport291.lower Yulang.GeneralRebaseRowChildSource287.raw
+      Yulang.GeneralSourceMetadataTransportFixture291.turnOff Yulang.GeneralSourceMetadataTransportFixture291.turnFit
+      (Yulang.GeneralNominalRecursiveCandidates.report
+        (Yulang.GeneralSourceMetadataSnapshot291.context Yulang.GeneralRebaseRowChildSource287.raw
+          Yulang.GeneralSourceMetadataTransportFixture291.turnOff
+          Yulang.GeneralSourceMetadataTransportFixture291.turnFit)
+        Yulang.GeneralRebaseRowChildSource287.parentDecl Yulang.GeneralSourceMetadataTransportFixture291.bounds) ≠
+    Yulang.GeneralNominalRecursiveCandidates.report Yulang.GeneralRebaseRowChildSource287.ctx
+      Yulang.GeneralRebaseRowChildSource287.parentDecl Yulang.GeneralSourceMetadataTransportFixture291.bounds
+Yulang.GeneralSourceMetadataBundlePermutation291.whole_ready_unchanged
+  {old new : Yulang.GeneralSourceMetadataBundle291.SourceBundle} {r : Yulang.GeneralDeclarations.Registry}
+  {ctx : Yulang.GeneralNominalCandidates.Context} (attached : Yulang.GeneralSourceMetadataBundle291.Attached old r ctx)
+  (order : Yulang.GeneralSourceMetadataBundlePermutation291.Reordered old new)
+  (d : Yulang.GeneralSourceMetadataBundlePermutation291.SourceValid old.declared)
+  (t : Yulang.GeneralSourceMetadataBundlePermutation291.SourceValid old.snapshot)
+  (roles : Yulang.GeneralSourceMetadataBundlePermutation291.RolesValid old.roles) :
+  (Yulang.GeneralSourceMetadataBundle291.inspect old).ready = (Yulang.GeneralSourceMetadataBundle291.inspect new).ready
+Interface signature probe exit 0

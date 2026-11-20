@@ -105,3 +105,23 @@ report. Separately require finite agreement on the declaration's head
 keys so that the descriptor/interpretation view also produces the same
 queries. No whole raw State equality is required for this local theorem.
 Do not lift to Step/Frame for the retagged journal.
+
+## Source row ordering
+
+Valid resolved tables are not sequential rewrite scripts. Prove that
+permuting distinct source constructor rows preserves the whole exported
+constructor/primitive/nominal map, and permuting distinct resolved role
+rows preserves the old role map and the default manifest membership.
+This does not claim that ordered diagnostics or presentation bytes
+remain equal. Duplicates are still rejected, not repaired by sorting.
+
+## Construct the role scopedness proofs from finite raw data
+
+The resolved role table currently carries proofs that defaults use only
+positions below the arity. To expose a data-only interface, accept bare
+resolved rows, decide that bound for each default, build the scoped row,
+then run unique role/output name validation. Prove success iff the
+output erases to exactly the supplied source fields and passes the
+previous role check. Test an out-of-scope default distinct from a
+coverage-unsupported (but well-scoped) default, and reassemble the
+actual fixture table. No source syntax parse or source names are guessed.

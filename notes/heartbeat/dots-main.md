@@ -2,9 +2,9 @@
 - cycle: 291
 - status: running
 - started: 2026-11-20T06:31:17Z
-- updated: 2026-11-20T07:01:07Z
-- elapsed_min: 29.83
-- activity: 有限 head 一致で retag view の report 全体・捕獲・projection model を保存。分類 flag だけ変える実境界対照も検証。
+- updated: 2026-11-20T07:07:47Z
+- elapsed_min: 36.50
+- activity: 41焦点・8監査・旧46回帰・shadow再構築を照合済み。source 実行値も確認。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 05434384b
-- resume_hint: 有限 source の順序不変性と独立再構築・旧回帰を確認。
+- last_local_commit: b44eef2a5
+- resume_hint: 入力データに証明を要求しない positional scope 検査を最後に監査。

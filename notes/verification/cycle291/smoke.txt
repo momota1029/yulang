@@ -1,0 +1,17 @@
+[{ declarationsValid := true,
+   snapshotValid := true,
+   roleKeysValid := true,
+   tables := Yulang.GeneralSourceMetadataComparison291.Result.compared
+               (Yulang.GeneralObservedMetadataScope290.Result.good),
+   unsupported := [] },
+ { declarationsValid := true,
+   snapshotValid := true,
+   roleKeysValid := true,
+   tables := Yulang.GeneralSourceMetadataComparison291.Result.compared
+               (Yulang.GeneralObservedMetadataScope290.Result.good),
+   unsupported := [{ entry := { site := Yulang.GeneralSourceMetadataSites291.Site.head 1, query := (6, 1) },
+                     details := Yulang.GeneralSourceMetadataProblem291.Problem.unsupportedNominalLayout }] }]
+Yulang.GeneralSourceMetadataComparison291.Result.fallbackMismatch 7
+[{ entry := { site := Yulang.GeneralSourceMetadataSites291.Site.roleDefault 17 0, query := (6, 1) },
+   details := Yulang.GeneralSourceMetadataProblem291.Problem.unsupportedNominalLayout }]
+Pure finite source replay exit 0; no old Yulang binary launched.
