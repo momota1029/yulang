@@ -107,3 +107,22 @@ the original `Ready` predicate on the unchanged plan/state. The actual
 preinstall Ready transports to the installed parent because its class
 reqs are unchanged. Prove an independent closed checked declaration with
 unsupported associated rhs still separates `ClassEffects` from `Ready`.
+
+## End-to-end noninterference on a fixed raw state
+
+Keep the registry, raw state, occurrences and Offer fixed. Require equal
+proposed interpretation entries on the current filtered-candidate list
+with descriptors, and the live-body key list of every recorded effect.
+The two preflights, every candidate qualification, the exact ordered
+permitted seals and the final auxiliary publish result should then be
+equal. This is stronger than equality of a single report, but does not
+allow changing roles, references, current requests, or the old raw Step.
+Requiring all historical effects is sufficient rather than minimal.
+
+For the executable strict check one can additionally vary the supplied
+registry constructor table while keeping the declaration list fixed and
+requiring the same finite entry hypothesis. Prove the previous exact
+anchor checker only consults source descriptor constructor keys and the
+same declared world. Compose that lemma with the newer current and
+historical read checks; no global old Frame follows. An omitted catalogue
+entry at an unused key is then a deliberate closed noninterference test.
