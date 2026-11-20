@@ -1,0 +1,4 @@
+import Yulang.GeneralObservedMetadataPublic290
+
+#print axioms Yulang.GeneralObservedMetadataPublic290.strict_live_sound
+#print axioms Yulang.GeneralObservedMetadataPublic290.strict_fixture_mark_sound

@@ -1,0 +1,33 @@
+'Yulang.GeneralObservedMetadataAgreement290.certify_proposal' depends on axioms: [propext]
+'Yulang.GeneralObservedMetadataAgreement290.total_proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataNoninterference290.equivalent_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataNoninterference290.sealed_lists_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataNoninterference290.checked_publish_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataOldCongr290.same_decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryCongr290.compare_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryCongr290.equal_permitted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryCongr290.equal_publish' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryFixture290.actual_whole_key_list' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryFixture290.offscope_double_edit_passes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryFixture290.observed_edit_caught' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRegistryFixture290.whole_gate_unchanged_offscope' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

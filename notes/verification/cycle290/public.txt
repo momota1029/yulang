@@ -1,0 +1,4 @@
+'Yulang.GeneralObservedMetadataPublic290.strict_live_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataPublic290.strict_fixture_mark_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

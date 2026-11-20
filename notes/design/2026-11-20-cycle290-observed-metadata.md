@@ -126,3 +126,19 @@ anchor checker only consults source descriptor constructor keys and the
 same declared world. Compose that lemma with the newer current and
 historical read checks; no global old Frame follows. An omitted catalogue
 entry at an unused key is then a deliberate closed noninterference test.
+
+## A finite-complete exception requires separately witnessed representation
+
+The preceding noninterference cannot justify replacing full Metadata.
+There is an independently checkable special case: both constructor
+functions are represented as finite overlays of the **same** default
+function, and the primitive table has a finite overlay with default none.
+Add both override-domain lists and all primitive override keys to the
+observed list. Outside that larger scope the separate residual equalities
+are witnessed by the representation. The old Metadata predicate is then
+equivalent to the enlarged executable check, not by inspecting arbitrary
+functions. On this fixture, the default is the existing example catalogue;
+key 6 is an override. Include a removed key-8 override and a key-8
+primitive override, which the enlarged check must now catch. The
+representation evidence is a named hypothesis unless independently
+provided by the source/exporter construction.
