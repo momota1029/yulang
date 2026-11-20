@@ -5916,3 +5916,9 @@ import Yulang.GeneralRebaseSignedModels297
 import Yulang.GeneralRebaseFiniteWitnessTable297
 import Yulang.GeneralRebaseSourceQuestions297
 import Yulang.GeneralRebaseSignedObserver297
+import Yulang.GeneralRebaseSignedSupport297
+import Yulang.GeneralRebasePriorWitness297
+import Yulang.GeneralRebaseSignedIndex297
+import Yulang.GeneralRebaseWitnessAnchor297
+import Yulang.GeneralRebaseSignedDepth297
+import Yulang.GeneralRebaseDepthCompiler297

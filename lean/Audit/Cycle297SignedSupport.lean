@@ -1,0 +1,23 @@
+import Yulang.GeneralRebaseSignedSupport297
+import Yulang.GeneralRebasePriorWitness297
+import Yulang.GeneralRebaseSignedIndex297
+import Yulang.GeneralRebaseWitnessAnchor297
+
+#print axioms Yulang.GeneralRebaseSignedSupport297.restrict
+#print axioms Yulang.GeneralRebaseSignedSupport297.conditions_iff
+#print axioms Yulang.GeneralRebaseSignedSupport297.prior_iff
+#print axioms Yulang.GeneralRebaseSignedSupport297.on_prior_models
+#print axioms Yulang.GeneralRebaseSignedSupport297.signed_iff
+#print axioms Yulang.GeneralRebasePriorWitness297.covers
+#print axioms Yulang.GeneralRebasePriorWitness297.prior_exact
+#print axioms Yulang.GeneralRebasePriorWitness297.vote_exact
+#print axioms Yulang.GeneralRebaseSignedIndex297.length_exact
+#print axioms Yulang.GeneralRebaseSignedIndex297.lookup_exact
+#print axioms Yulang.GeneralRebaseSignedIndex297.missing_index
+#print axioms Yulang.GeneralRebaseSignedIndex297.same_plan_same_answer
+#print axioms Yulang.GeneralRebaseSignedIndex297.true_exact
+#print axioms Yulang.GeneralRebaseSignedIndex297.false_exact
+#print axioms Yulang.GeneralRebaseWitnessAnchor297.at_most_succ
+#print axioms Yulang.GeneralRebaseWitnessAnchor297.around_covers
+#print axioms Yulang.GeneralRebaseWitnessAnchor297.exists_pool
+#print axioms Yulang.GeneralRebaseWitnessAnchor297.opposed_requires_two

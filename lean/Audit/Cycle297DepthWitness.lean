@@ -1,0 +1,27 @@
+import Yulang.GeneralRebaseSignedDepth297
+import Yulang.GeneralRebaseDepthCompiler297
+
+#print axioms Yulang.GeneralRebaseSignedDepth297.checked
+#print axioms Yulang.GeneralRebaseSignedDepth297.listed
+#print axioms Yulang.GeneralRebaseSignedDepth297.positive
+#print axioms Yulang.GeneralRebaseSignedDepth297.negative
+#print axioms Yulang.GeneralRebaseSignedDepth297.same_public_types
+#print axioms Yulang.GeneralRebaseSignedDepth297.all_rows_same
+#print axioms Yulang.GeneralRebaseSignedDepth297.output_only_rejection
+#print axioms Yulang.GeneralRebaseSignedDepth297.output_must_be_observed
+#print axioms Yulang.GeneralRebaseSignedDepth297.bit_checked
+#print axioms Yulang.GeneralRebaseSignedDepth297.pool_covers
+#print axioms Yulang.GeneralRebaseSignedDepth297.exact_both
+#print axioms Yulang.GeneralRebaseSignedDepth297.computes_both
+#print axioms Yulang.GeneralRebaseSignedDepth297.reject_only_is_incomplete
+#print axioms Yulang.GeneralRebaseSignedDepth297.public_only_impossible
+#print axioms Yulang.GeneralRebaseDepthCompiler297.votes_agree
+#print axioms Yulang.GeneralRebaseDepthCompiler297.root_entries
+#print axioms Yulang.GeneralRebaseDepthCompiler297.entries
+#print axioms Yulang.GeneralRebaseDepthCompiler297.all_models_checked
+#print axioms Yulang.GeneralRebaseDepthCompiler297.head_condition
+#print axioms Yulang.GeneralRebaseDepthCompiler297.scan_root
+#print axioms Yulang.GeneralRebaseDepthCompiler297.no_structural_novelty
+#print axioms Yulang.GeneralRebaseDepthCompiler297.no_joint
+#print axioms Yulang.GeneralRebaseDepthCompiler297.proposals_exact
+#print axioms Yulang.GeneralRebaseDepthCompiler297.same_real_successor
