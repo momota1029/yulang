@@ -1,0 +1,4 @@
+import Yulang.GeneralNominalReportBranchFixture305
+
+#print axioms Yulang.GeneralNominalReportBranchFixture305.exact
+#print axioms Yulang.GeneralNominalReportBranchFixture305.both_branch_outputs

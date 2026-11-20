@@ -1,0 +1,4 @@
+import Yulang.GeneralMixedRawFanout305
+
+#print axioms Yulang.GeneralMixedRawFanout305.firstTag_widened
+#print axioms Yulang.GeneralMixedRawFanout305.beyond_any_finite_list
