@@ -183,3 +183,14 @@ Yulang.GeneralSourceRoleHeadPacketFixture292.complete_packet_actual_old_consumer
         (Yulang.GeneralSourceMetadataRoles291.roleTable table) Yulang.Roles.AssocExamples.omitted_paterson
         (Yulang.Roles.AssocExamples.index Yulang.Roles.Examples.str Yulang.Roles.Examples.int) 0 =
       some Yulang.Roles.Examples.int
+Yulang.GeneralSourceRoleTrack292.tracked_readback_exact {Scope Handle : Type}
+  (env : Scope → Yulang.GeneralSourceRoleSpelling292.Environment) (fallback : Nat)
+  (src : List (Yulang.GeneralSourceRoleTrack292.Tracked Scope Handle))
+  (out : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (success : Yulang.GeneralSourceRoleTrack292.runTracked env fallback src = some out) (r n : Nat)
+  (term : Option Yulang.Roles.Term) :
+  (Yulang.GeneralSourceMetadataRoles291.roleTable out r).assoc n = some term ↔
+    ∃ rSite tSite, Yulang.GeneralSourceRoleTrack292.OriginAt env src r n term rSite tSite
+Yulang.GeneralSourceRoleTrackFixture292.non_type_handle_not_origin :
+  ¬Yulang.GeneralSourceRoleTrack292.OriginAt Yulang.GeneralSourceRoleHeadPacketFixture292.view
+      [Yulang.GeneralSourceRoleTrackFixture292.marked] 2 0 (some (Yulang.Roles.Term.var 1)) 100 101

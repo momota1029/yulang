@@ -9,7 +9,7 @@ No directory 'SpecExamples' or file 'SpecExamples.olean' in the search path entr
 Focused recovery attempts on two old root modules (both exit 1, missing old dependencies):
 SpecExamples.lean:1:0: error: object file '<checkout>/lean/.lake/build/lib/lean/Yulang/CommonDeclarationVarianceExamples.olean' of module Yulang.CommonDeclarationVarianceExamples does not exist
 SpecExamplesSettled.lean:1:0: error: object file '<checkout>/lean/.lake/build/lib/lean/Yulang/CommonRoleSettledExamples.olean' of module Yulang.CommonRoleSettledExamples does not exist
-The exact appended import tail alone was accepted by lean --deps (exit 0, 34/34 new modules):
+The exact appended import tail alone was accepted by lean --deps (exit 0, 36/36 new modules):
 Yulang/GeneralSourceRoleExport292.olean
 Yulang/GeneralSourceRoleFixture292.olean
 Yulang/GeneralSourceRoleSpelling292.olean
@@ -44,3 +44,5 @@ Yulang/GeneralSourceRoleArityRead292.olean
 Yulang/GeneralSourceRoleHeadShape292.olean
 Yulang/GeneralSourceRoleHeadPacketRun292.olean
 Yulang/GeneralSourceRoleHeadPacketFixture292.olean
+Yulang/GeneralSourceRoleTrack292.olean
+Yulang/GeneralSourceRoleTrackFixture292.olean

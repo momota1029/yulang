@@ -11,3 +11,4 @@ true
 [some (Yulang.Roles.Term.app 0 []), some (Yulang.Roles.Term.app 3 []), some (Yulang.Roles.Term.app 3 []), none]
 true
 false
+true

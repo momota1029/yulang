@@ -33,6 +33,8 @@ focused GeneralSourceRoleArityRead292 exit 0
 focused GeneralSourceRoleHeadShape292 exit 0
 focused GeneralSourceRoleHeadPacketRun292 exit 0
 focused GeneralSourceRoleHeadPacketFixture292 exit 0
+focused GeneralSourceRoleTrack292 exit 0
+focused GeneralSourceRoleTrackFixture292 exit 0
 'Yulang.GeneralSourceRoleBinderIndex292.of_index' depends on axioms: [propext]
 'Yulang.GeneralSourceRoleBinderIndex292.index_exact' depends on axioms: [propext]
 'Yulang.GeneralSourceRoleBinderIndex292.duplicate_lookup_cannot_use_every_index' depends on axioms: [propext]
@@ -186,6 +188,13 @@ standalone Audit/Cycle292ScopedFrontend.lean exit 0
 'Yulang.GeneralSourceRoleSyntaxFixture292.exact_same_shell_two_accepted_worlds' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralSourceRoleSyntaxFixture292.no_environment_free_table' depends on axioms: [propext, Quot.sound]
 standalone Audit/Cycle292SyntaxBoundary.lean exit 0
+'Yulang.GeneralSourceRoleTrack292.origin_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrack292.tracked_readback_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.handle_moves_leave_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.carrying_positions' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.non_type_handle_not_origin' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleTrackFixture292.readback_preserved_after_handle_move' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle292TrackedOccurrence.lean exit 0
 'Yulang.GeneralSourceRoleUniqueSource292.aligned_images' depends on axioms: [propext]
 'Yulang.GeneralSourceRoleUniqueSource292.injective_on_members' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralSourceRoleUniqueSource292.role_keys_nodup' depends on axioms: [propext, Quot.sound]
@@ -195,6 +204,6 @@ standalone Audit/Cycle292SyntaxBoundary.lean exit 0
 'Yulang.GeneralSourceRoleUniqueSource292.admitted_shape_unique' does not depend on any axioms
 'Yulang.GeneralSourceRoleUniqueSource292.unique_packet_member' depends on axioms: [propext, Quot.sound]
 standalone Audit/Cycle292UniqueSource.lean exit 0
-Counts: focused 34
+Counts: focused 36
 Focused reverification result=0
-132 exact named declarations; 125 reports with any axioms, axioms used: Classical.choice, Quot.sound, propext; 16 compiled executable guards.
+138 exact named declarations; 131 reports with any axioms, axioms used: Classical.choice, Quot.sound, propext; 16 compiled executable guards.

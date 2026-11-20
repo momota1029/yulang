@@ -1,5 +1,5 @@
-Prepared shadow cache of prior modules only; excluded every one of 34 added modules.
-Independent rebuild candidate 7b9a2c3bb98543b5405f86ccf033ede27424727f
+Prepared shadow cache of prior modules only; excluded every one of 36 added modules.
+Independent rebuild candidate 349f1ae88377ab2b3d4eda4ec551e27ff12df583
 Isolated GeneralSourceRoleSpelling292 exit 0
 Isolated GeneralSourceRoleExport292 exit 0
 Isolated GeneralSourceRoleManifest292 exit 0
@@ -34,6 +34,8 @@ Isolated GeneralSourceRoleOperationalRead292 exit 0
 Isolated GeneralSourceRoleOperationalFixture292 exit 0
 Isolated GeneralSourceRoleHeadPacketFixture292 exit 0
 Isolated GeneralSourceRoleRawAttach292 exit 0
+Isolated GeneralSourceRoleTrack292 exit 0
+Isolated GeneralSourceRoleTrackFixture292 exit 0
 Isolated lean/Audit/Cycle292BinderIndex.lean exit 0
 Isolated lean/Audit/Cycle292ExactAttachment.lean exit 0
 Isolated lean/Audit/Cycle292ExistingResolver.lean exit 0
@@ -45,6 +47,7 @@ Isolated lean/Audit/Cycle292Readback.lean exit 0
 Isolated lean/Audit/Cycle292RoleSpelling.lean exit 0
 Isolated lean/Audit/Cycle292ScopedFrontend.lean exit 0
 Isolated lean/Audit/Cycle292SyntaxBoundary.lean exit 0
+Isolated lean/Audit/Cycle292TrackedOccurrence.lean exit 0
 Isolated lean/Audit/Cycle292UniqueSource.lean exit 0
 Isolated rebuild and audit exit 0
-Initial runner used textual import order instead of the import DAG, and stopped with missing compiled Spelling dependency. The corrected runner follows the actual dependency graph.
+Initial runner used textual barrel order instead of the import DAG, and stopped with missing compiled Spelling dependency. The corrected runner follows the actual dependency graph.

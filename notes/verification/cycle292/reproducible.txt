@@ -1,3 +1,4 @@
 bash notes/verification/cycle292/reproduce-focused.sh <preceding tree-equivalent commit>
-Verified 34 focused modules and 12 standalone audits.
-Exit 0; declaration-level output is recorded in focused.txt.
+The helper succeeded on the published 34-module checkpoint (12 standalone audits).
+Extra final helper run: exit 124; it did not produce an additional passing log.
+The independent final focused and isolation gates each succeeded at 36 modules and 13 audits; see focused.txt and isolated.txt.
