@@ -12,7 +12,10 @@ saved = here.parent / "cycle293"
 reader = importlib.util.spec_from_file_location("gold", saved / "rowan-debug-to-wire.py")
 helper = importlib.util.module_from_spec(reader)
 reader.loader.exec_module(helper)
-baseline = "6972cc6221bb238ee79a96d3f868e25cda6b931c"
+baseline = next(ref for ref in ("adf9fae11d8e29273a28751089db2499bcf205d2",
+                                  "6972cc6221bb238ee79a96d3f868e25cda6b931c")
+                if subprocess.run(["git", "cat-file", "-e", ref + "^{commit}"], cwd=repo,
+                                  stderr=subprocess.DEVNULL).returncode == 0)
 
 
 def checked_source(name):

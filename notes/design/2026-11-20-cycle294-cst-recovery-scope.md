@@ -89,3 +89,12 @@ unrelatedness and the branch check for already anchored range and receipt
 evidence; it cannot produce a role at the new focus. If the stronger
 whole-file gate succeeds, the selected gate reuses the identical unresolved
 payload. This is a conservative gate relation, not new type checking.
+
+A receipt can be paired with its exact retained wire rather than a bare
+caller-chosen brand. The proved comparator checks every original node,
+token, tag, text and mixed child sequence, without hashing away labels.
+On the archived role example, relabeling the trailing Newline token as
+Whitespace preserves the decoded compact tree, bytes, projected role and
+untied range admission, yet the wire-bound receipt declines reuse. Equal
+wire still does not establish the producer identity, environment or
+completeness of a caller's diagnostic evidence.

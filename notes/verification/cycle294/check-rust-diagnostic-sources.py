@@ -2,7 +2,10 @@
 from pathlib import Path
 import subprocess
 repo=Path(__file__).resolve().parents[3]
-base="6972cc6221bb238ee79a96d3f868e25cda6b931c"
+base=next(ref for ref in ("adf9fae11d8e29273a28751089db2499bcf205d2",
+                         "6972cc6221bb238ee79a96d3f868e25cda6b931c")
+          if subprocess.run(["git","cat-file","-e",ref+"^{commit}"],cwd=repo,
+                            stderr=subprocess.DEVNULL).returncode==0)
 targets={
  "crates/yu-syntax/src/full_parse.rs":[
   "fn collect_syntax_diagnostics(",
