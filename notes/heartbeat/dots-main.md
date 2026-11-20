@@ -2,9 +2,9 @@
 - cycle: 296
 - status: running
 - started: 2026-11-20T11:30:00Z
-- updated: 2026-11-20T11:53:14Z
-- elapsed_min: 23.23
-- activity: 有限名前表の JSON 輸送・順序独立性・欠落/重複/null の維持を検証
+- updated: 2026-11-20T11:58:58Z
+- elapsed_min: 28.97
+- activity: 最小証跡を選択・policy・版・fallback に結合。選択と診断は再度検査
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 47cf4f99b
-- resume_hint: 外部環境を認証したのではない。発行された最小証跡の選択・版境界を点検する。
+- last_local_commit: 23443fec3
+- resume_hint: 完了候補を直列の独立 Lean 再構築で確認する。Rust による新規解析なし。

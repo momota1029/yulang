@@ -48,3 +48,18 @@ Each row must decode in place, preserve its typed domain, and distinguish
 explicit null (observed absence) from an omitted row. The entry must
 reject malformed evidence before invoking the existing selected adapter.
 No Rust receipt schema is changed or adopted.
+
+A final optional issued catalog can bind the exact selected wire,
+address, scope/policy, and an independently named semantic environment
+revision. Issue only after the finite producer succeeds and release
+only its trimmed supported observations. A different revision must
+decline even if source bytes coincide. Reuse still runs the current
+selection/diagnostic gate; this is a value-equality contract, not a
+signature, expiry mechanism, or authentication of self-asserted fields.
+
+Observed absence is proper evidence, not necessarily a successful
+export. In the existing selected fragment, any name actually demanded
+by a successful old lowering must have an ID. This is separate from
+an associated type slot that is required but has **no default term**:
+that slot's name is still resolved. Preserve this distinction in the
+producer proof and controls.
