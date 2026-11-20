@@ -38,3 +38,11 @@ An executable optional narrower witness records role lookup, output ID
 lookup, and nullary constructor lookup when the corresponding output
 exists. The theorem will characterize agreement only on those requested
 names, not authenticate the source of either map or claim language validity.
+
+Readback origin is exact: the selected head is an original direct mixed
+child; a member descends by precisely body ordinal, statement ordinal and its
+selected leaf ordinal. Its UTF-8 byte span is contained in the selected role,
+including zero-width possibilities. An omitted implementation output may read
+the selected role's attached default under the existing resolver hypotheses.
+An explicit implementation output instead follows its implementation
+substitution; it is not falsely attributed to the role's default.

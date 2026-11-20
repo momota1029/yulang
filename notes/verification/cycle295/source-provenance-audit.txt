@@ -1,0 +1,8 @@
+'Yulang.GeneralSourceRoleCstHeadOrigin295.head_at_ordinal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstHeadOrigin295.selected_head_from_original' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedExtent295.locate_append' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSelectedExtent295.subextent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedExtent295.selected_member_contained' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRowExtent295.read_locates_own_type' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstExplicitRead295.selected_explicit_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstExplicitRead295.default_and_explicit_reads_differ' depends on axioms: [propext, Quot.sound]
