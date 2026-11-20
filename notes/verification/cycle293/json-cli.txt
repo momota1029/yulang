@@ -1,0 +1,15 @@
+documented unresolved role: {"binders":["'container","'key"],"directMembers":[{"body":"required","name":"value","path":[0,6,1,0]},{"kind":"nonType","path":[0,6,3,0]}],"path":[0],"role":"Index"}
+exact named/positional RHS 'char': {"binders":["'container","'key"],"directMembers":[{"body":["unresolvedName","char"],"name":"value","path":[0,6,1,0]},{"kind":"nonType","path":[0,6,3,0]}],"path":[0],"role":"Index"}
+exact named/positional RHS "'key": {"binders":["'container","'key"],"directMembers":[{"body":["binder","'key"],"name":"value","path":[0,6,1,0]},{"kind":"nonType","path":[0,6,3,0]}],"path":[0],"role":"Index"}
+recovered RHS fails; not a required member
+unknown nested tag fails
+wrong mixed child path fails
+extra JSON field fails
+malformed JSON fails
+known lexical-recovery kind is recognized but rejects the role
+UTF-8 role and associated spelling retained
+duplicate unresolved spellings preserved as different occurrences
+trivia insertion changes the mixed occurrence path, not associated spelling
+explicit wire depth bound rejects input
+actual Rust regression's recorded Rowan golden replay: {"binders":["'x"],"directMembers":[{"kind":"nonType","path":[0,4,2,0]}],"path":[0],"role":"a"}
+Rust-topology entry rejects a shallow argument token without its wrapper

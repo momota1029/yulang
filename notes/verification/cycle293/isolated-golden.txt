@@ -1,0 +1,2 @@
+Lean --run using only the independently rebuilt OLean cache and Lean standard library: exit 0.
+{"binders":["'x"],"directMembers":[{"kind":"nonType","path":[0,4,2,0]}],"path":[0],"role":"a"}

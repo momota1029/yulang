@@ -1,0 +1,10 @@
+'Yulang.GeneralSourceRoleCstSnapshot293.address_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSnapshot293.export_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSnapshot293.declaration_member_roundtrip' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSnapshot293.foreign_export_none' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstConsumer293.assoc_locates_type' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstConsumerFixture293.own_export' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstConsumerFixture293.foreign_same_path' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstConsumerFixture293.unresolved_then_attached' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstConsumerFixture293.existing_index_reads_second_argument' depends on axioms: [propext,
+ Quot.sound]

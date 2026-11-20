@@ -1,0 +1,107 @@
+Yulang.GeneralSourceRoleCstTree293.significant_exact {children : List Yulang.GeneralSourceRoleCstTree293.Tree} {i : Nat}
+  {t : Yulang.GeneralSourceRoleCstTree293.Tree} :
+  (i, t) ∈ Yulang.GeneralSourceRoleCstTree293.significant children ↔
+    children[i]? = some t ∧ Yulang.GeneralSourceRoleCstTree293.trivia t = false
+Yulang.GeneralSourceRoleCstRustHead293.head_exact_rust (t : Yulang.GeneralSourceRoleCstTree293.Tree) (name : String)
+  (params : List String) :
+  Yulang.GeneralSourceRoleCstRustHead293.readHead t = some (name, params) ↔
+    Yulang.GeneralSourceRoleCstRustHead293.ActualHead t name params
+Yulang.GeneralSourceRoleCstTypeRules293.type_exact (t : Yulang.GeneralSourceRoleCstTree293.Tree)
+  (out : Yulang.GeneralSourceRoleSyntaxBoundary292.Shape) :
+  Yulang.GeneralSourceRoleCstShapes293.typeView t = some out ↔ Yulang.GeneralSourceRoleCstTypeRules293.IsType t out
+Yulang.GeneralSourceRoleCstRecovery293.clean_tree_exact (root : Yulang.GeneralSourceRoleCstTree293.Tree) :
+  Yulang.GeneralSourceRoleCstShapes293.cleanTree root = true ↔ Yulang.GeneralSourceRoleCstRecovery293.TreePlain root
+Yulang.GeneralSourceRoleCstRustRole293.extract_exact {Scope : Type} (scope : Scope)
+  (site : Yulang.GeneralSourceRoleCstTree293.Path) (t : Yulang.GeneralSourceRoleCstTree293.Tree)
+  (out : Yulang.GeneralSourceRoleTrack292.Tracked Scope Yulang.GeneralSourceRoleCstTree293.Path) :
+  Yulang.GeneralSourceRoleCstRustRole293.extract scope site t = some out ↔
+    Yulang.GeneralSourceRoleCstRustRole293.Witness scope site t out
+Yulang.GeneralSourceRoleCstRustRole293.extract_origin {Scope : Type} {scope : Scope}
+  {site : Yulang.GeneralSourceRoleCstTree293.Path} {whole role : Yulang.GeneralSourceRoleCstTree293.Tree}
+  {out : Yulang.GeneralSourceRoleTrack292.Tracked Scope Yulang.GeneralSourceRoleCstTree293.Path}
+  (selected : Yulang.GeneralSourceRoleCstPath293.follow site whole = some role)
+  (exported : Yulang.GeneralSourceRoleCstRustRole293.extract scope site role = some out)
+  (p : Yulang.GeneralSourceRoleCstTree293.Path × Yulang.GeneralSourceRoleChildCoverage292.Child)
+  (member : p ∈ out.body) :
+  ∃ raw,
+    Yulang.GeneralSourceRoleCstPath293.follow p.fst whole = some raw ∧
+      Yulang.GeneralSourceRoleCstBody293.Classification raw p.snd
+Yulang.GeneralSourceRoleCstRustSnapshot293.declaration_member_roundtrip {Scope Brand : Type} [DecidableEq Brand]
+  (scope : Scope) (s : Yulang.GeneralSourceRoleCstSnapshot293.Snapshot Brand)
+  (a : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)
+  (out : Yulang.GeneralSourceRoleTrack292.Tracked Scope (Yulang.GeneralSourceRoleCstSnapshot293.Address Brand))
+  (ok : Yulang.GeneralSourceRoleCstRustSnapshot293.exportAt scope s a = some out)
+  (p : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand × Yulang.GeneralSourceRoleChildCoverage292.Child)
+  (member : p ∈ out.body) :
+  ∃ t,
+    Yulang.GeneralSourceRoleCstSnapshot293.atAddress s p.fst = some t ∧
+      Yulang.GeneralSourceRoleCstBody293.Classification t p.snd
+Yulang.GeneralSourceRoleCstDistinct293.aligned_paths_unique (base : Yulang.GeneralSourceRoleCstTree293.Path)
+  (children : List Yulang.GeneralSourceRoleCstTree293.Tree)
+  (results : List (Yulang.GeneralSourceRoleCstTree293.Path × Yulang.GeneralSourceRoleChildCoverage292.Child))
+  (items :
+    Yulang.GeneralSourceRoleExport292.Aligned
+      (fun p => Yulang.GeneralSourceRoleCstBody293.IsStatement (base ++ [p.fst]) p.snd)
+      (Yulang.GeneralSourceRoleCstTree293.significant children) results) :
+  (List.map Prod.fst results).Nodup
+Yulang.GeneralSourceRoleCstRustFixture293.wrapper_paths_unique {Scope : Type} (scope : Scope) (p : List Nat)
+  (tree : Yulang.GeneralSourceRoleCstTree293.Tree) (out : Yulang.GeneralSourceRoleTrack292.Tracked Scope (List Nat))
+  (accepted : Yulang.GeneralSourceRoleCstRustRole293.extract scope p tree = some out) :
+  (List.map Prod.fst out.body).Nodup
+Yulang.GeneralSourceRoleCstWirePaths293.transfer_path {wire : Yulang.GeneralSourceRoleCstWire293.Wire}
+  {root : Yulang.GeneralSourceRoleCstTree293.Tree} (mapping : Yulang.GeneralSourceRoleCstWire293.Transfer wire root)
+  (path : Yulang.GeneralSourceRoleCstTree293.Path) (t : Yulang.GeneralSourceRoleCstTree293.Tree) :
+  Yulang.GeneralSourceRoleCstPath293.follow path root = some t ↔
+    ∃ w,
+      Yulang.GeneralSourceRoleCstWirePaths293.atWire path wire = some w ∧
+        Yulang.GeneralSourceRoleCstWire293.Transfer w t
+Yulang.GeneralSourceRoleCstJson293.read_exact (fuel : Nat) (j : Lean.Json)
+  (w : Yulang.GeneralSourceRoleCstWire293.Wire) :
+  Yulang.GeneralSourceRoleCstJson293.read fuel j = some w ↔
+    Yulang.GeneralSourceRoleCstJson293.encode w = j ∧ Yulang.GeneralSourceRoleCstJson293.depth w ≤ fuel
+Yulang.GeneralSourceRoleCstRustEntry293.value_exact {Scope Brand : Type} [DecidableEq Brand] (fuel : Nat)
+  (j : Lean.Json) (scope : Scope) (brand : Brand) (address : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)
+  (out : Yulang.GeneralSourceRoleTrack292.Tracked Scope (Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)) :
+  Yulang.GeneralSourceRoleCstRustEntry293.extractValue fuel j scope brand address = Except.ok out ↔
+    ∃ wire tree,
+      Yulang.GeneralSourceRoleCstJson293.encode wire = j ∧
+        Yulang.GeneralSourceRoleCstJson293.depth wire ≤ fuel ∧
+          Yulang.GeneralSourceRoleCstWire293.Transfer wire tree ∧
+            Yulang.GeneralSourceRoleCstRustSnapshot293.exportAt scope { brand := brand, root := tree } address =
+              some out
+Yulang.GeneralSourceRoleCstRustOrigin293.text_member_origin {Scope Brand : Type} [DecidableEq Brand] (fuel : Nat)
+  (text : String) (scope : Scope) (brand : Brand) (a : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)
+  (payload : Yulang.GeneralSourceRoleTrack292.Tracked Scope (Yulang.GeneralSourceRoleCstSnapshot293.Address Brand))
+  (ok : Yulang.GeneralSourceRoleCstRustEntry293.extractText fuel text scope brand a = Except.ok payload)
+  (p : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand × Yulang.GeneralSourceRoleChildCoverage292.Child)
+  (found : p ∈ payload.body) :
+  ∃ json wire root child raw span,
+    Lean.Json.parse text = Except.ok json ∧
+      Yulang.GeneralSourceRoleCstJson293.encode wire = json ∧
+        Yulang.GeneralSourceRoleCstJson293.depth wire ≤ fuel ∧
+          Yulang.GeneralSourceRoleCstWire293.Transfer wire root ∧
+            p.fst.brand = brand ∧
+              Yulang.GeneralSourceRoleCstWirePaths293.atWire p.fst.path wire = some raw ∧
+                Yulang.GeneralSourceRoleCstWire293.Transfer raw child ∧
+                  Yulang.GeneralSourceRoleCstBody293.Classification child p.snd ∧
+                    Yulang.GeneralSourceRoleCstSourceExtent293.lookupExtent { brand := brand, root := root } p.fst =
+                        some (child, span) ∧
+                      span.high = span.low + (Yulang.GeneralSourceRoleCstWire293.spelling raw).utf8ByteSize ∧
+                        span.high ≤ (Yulang.GeneralSourceRoleCstWire293.spelling wire).utf8ByteSize
+Yulang.GeneralSourceRoleCstExternalContract293.no_text_only_equality_certificate :
+  ¬∃ recover,
+      ∀ (w : Yulang.GeneralSourceRoleCstWire293.Wire),
+        recover (Yulang.GeneralSourceRoleCstWire293.spelling w) =
+          Yulang.GeneralSourceRoleCstWirePaths293.exportWire () 42 w Yulang.GeneralSourceRoleCstWireFixture293.path
+Yulang.GeneralSourceRoleCstRustFixture293.wrapped_roles_actual_consumer
+  (table : Yulang.GeneralSourceMetadataRoles291.RoleSource) :
+  ((Yulang.GeneralSourceRoleCstRustSnapshot293.exportAt () Yulang.GeneralSourceRoleCstRustFixture293.wrapped
+            { brand := 10, path := [0] }).bind
+        fun payload =>
+        Yulang.GeneralSourceRoleTrack292.runTracked (fun x => Yulang.GeneralSourceRoleResolverFixture292.localEnv) 2
+          [payload]) =
+      some table →
+    Yulang.Roles.assocOf (Yulang.Roles.AssocExamples.singletonEnv Yulang.Roles.AssocExamples.omittedImpl)
+        (Yulang.GeneralSourceMetadataRoles291.roleTable table) Yulang.Roles.AssocExamples.omitted_paterson
+        (Yulang.Roles.AssocExamples.index Yulang.Roles.Examples.str Yulang.Roles.Examples.int) 0 =
+      some Yulang.Roles.Examples.int

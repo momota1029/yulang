@@ -1,0 +1,17 @@
+'Yulang.GeneralSourceRoleCstJson293.depth_positive' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstJson293.list_prop' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJson293.read_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonEntry293.value_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonEntry293.text_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonOrigin293.text_member_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonFixture293.exact_fixture_depth' does not depend on any axioms
+'Yulang.GeneralSourceRoleCstJsonFixture293.wire_at_depth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonFixture293.shallow_input_declined' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonFixture293.exact_external_boundary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstJsonFixture293.outer_shape_errors_distinct' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

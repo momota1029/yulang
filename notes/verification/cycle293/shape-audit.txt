@@ -1,0 +1,4 @@
+'Yulang.GeneralSourceRoleCstTree293.indexed_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstTree293.significant_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstShapes293.argument_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstShapes293.head_exact' depends on axioms: [propext, Quot.sound]

@@ -1,0 +1,16 @@
+import Yulang.GeneralSourceRoleCstLossless293
+import Yulang.GeneralSourceRoleCstRecovery293
+
+#print axioms Yulang.GeneralSourceRoleCstSpan293.prefix_child_bound
+#print axioms Yulang.GeneralSourceRoleCstSpan293.locate_tree
+#print axioms Yulang.GeneralSourceRoleCstSpan293.locate_bounds
+#print axioms Yulang.GeneralSourceRoleCstLossless293.render_width
+#print axioms Yulang.GeneralSourceRoleCstLossless293.documented_source_exact
+#print axioms Yulang.GeneralSourceRoleCstLossless293.documented_extents
+#print axioms Yulang.GeneralSourceRoleCstLossless293.utf8_not_character_offset
+#print axioms Yulang.GeneralSourceRoleCstTypeRules293.rhs_exact
+#print axioms Yulang.GeneralSourceRoleCstTypeRules293.type_exact
+#print axioms Yulang.GeneralSourceRoleCstTypeRules293.shape_never_fakes_required_after_equals
+#print axioms Yulang.GeneralSourceRoleCstRecovery293.clean_tree_exact
+#print axioms Yulang.GeneralSourceRoleCstRecovery293.clean_list_exact
+#print axioms Yulang.GeneralSourceRoleCstRecovery293.recovery_descendant_blocks_binding
