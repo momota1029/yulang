@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 287
-- status: completed
-- started: 2026-11-20T02:30:05Z
-- updated: 2026-11-20T03:21:06Z
-- elapsed_min: 51.02
-- activity: 実の非葉据付、二つの診断木、行支持・信頼境界を検証済み
-- last_local_commit: 8ccc99ad5
-- report: notes/handoff/dots-cycle-287.md
-- resume_hint: 次周は統合先の standing orders と inbox を取得。行型の検査、GroundRoots、ledger と診断の境界を別に扱う。
+- cycle: 288
+- status: running
+- started: 2026-11-20T03:35:05Z
+- updated: 2026-11-20T03:35:27Z
+- elapsed_min: 0.37
+- activity: 前周の公開済み完了を確認し、効果のない葉の source 由来証拠と既存 ledger の境界を調べる
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang
+- last_local_commit: d1b1494ef
+- resume_hint: cycle287 source-only leaf と既存 discharge の負例を起点に、方針の変更なしで条件を分離する
