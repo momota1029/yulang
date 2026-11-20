@@ -5796,3 +5796,9 @@ import Yulang.GeneralSourceRoleCstSpan293
 import Yulang.GeneralSourceRoleCstLossless293
 import Yulang.GeneralSourceRoleCstTypeRules293
 import Yulang.GeneralSourceRoleCstRecovery293
+import Yulang.GeneralSourceRoleCstSourceExtent293
+import Yulang.GeneralSourceRoleCstSourceExtentFixture293
+import Yulang.GeneralSourceRoleCstWireTags293
+import Yulang.GeneralSourceRoleCstWire293
+import Yulang.GeneralSourceRoleCstWirePaths293
+import Yulang.GeneralSourceRoleCstWireFixture293

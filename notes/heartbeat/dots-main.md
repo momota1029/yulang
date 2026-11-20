@@ -2,9 +2,9 @@
 - cycle: 293
 - status: running
 - started: 2026-11-20T08:32:42Z
-- updated: 2026-11-20T08:40:19Z
-- elapsed_min: 7.62
-- activity: raw CST mirror から未解決 role と直接所属パスを確認
+- updated: 2026-11-20T08:49:00Z
+- elapsed_min: 16.30
+- activity: 実 Rust tag 名 wire を読んで完全な位置を保持する未解決 producer を検証
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: c37a364a6
-- resume_hint: 実 Rust toolchain 不在。次は parser emission の静的照合と adapter 範囲の精密な監査。
+- last_local_commit: 44bb17fdc
+- resume_hint: Rust 自体を動かしていない。契約と照合を仕上げ、実 case の byte extent と旧 Lean consumer を検証。

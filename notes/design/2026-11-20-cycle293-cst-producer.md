@@ -52,3 +52,14 @@ claimed. Scope and parse identity are independently supplied.
 An occurrence byte range can be replayed from the complete token widths and
 mixed ordinal path. This is a projection on the supplied mirror (UTF-8 bytes).
 It cannot certify Rust ranges if the upstream transport loses tokens.
+
+## Wire boundary (portable, no Rust parser replacement)
+
+The portable reader may take the exact current Rust SyntaxKind variant names
+and an explicit node/token discriminator. It rejects labels outside the
+audited finite enum; Node/Token structure and every payload and slot are
+preserved. Actual Newline/Whitespace and comments are recognized as trivia
+only when token-shaped. Unknown lexical tokens and NestingTooDeep are marked
+conservatively as recovery rather than passed as opaque method content.
+Nothing here resolves user names, parses source text, or supplies a Rust
+serializer already connected to ParsedFile.
