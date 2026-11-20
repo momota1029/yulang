@@ -1,0 +1,14 @@
+import Yulang.GeneralMixedCompoundUpperChild307
+import Yulang.GeneralMixedCompoundUpperObstruction307
+
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.support
+#print axioms Yulang.GeneralMixedCompoundUpperTrust307.aggregate
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.step
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.models_iff
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.report_exact
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.failed
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.no_evidence
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.reachable
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.same_request
+#print axioms Yulang.GeneralMixedCompoundUpperRoot307.frame_plan
+#print axioms Yulang.GeneralMixedCompoundUpperObstruction307.no_current_packet
