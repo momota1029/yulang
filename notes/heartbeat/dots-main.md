@@ -2,9 +2,9 @@
 - cycle: 307
 - status: running
 - started: 2026-11-20T22:33:16Z
-- updated: 2026-11-20T22:52:04.622Z
-- elapsed_min: 18
-- activity: C238→C239 後に、子の拒否行・出力要請・全 journal Models を保つ第4の実 refresh を検証済み。
+- updated: 2026-11-20T22:54:56.512Z
+- elapsed_min: 21
+- activity: 正規化された追加 refresh 先は全 raw 規則で停止。任意の予約済み上端 refresh に停止性が移るか検証中。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 24f181dcf
-- resume_hint: 追加 refresh の raw 終点・任意同種 refresh の lift を検証。
+- resume_hint: C238/C239 の実到達3手と、新規の第4手・局所 child failure は 8e1b001f7e3c96825169bd54256ec17ace60cd3d に公開済み。
