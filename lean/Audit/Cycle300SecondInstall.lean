@@ -1,0 +1,66 @@
+import Yulang.GeneralDepthTwoMiddlePlan300
+import Yulang.GeneralDepthTwoMiddleContext300
+import Yulang.GeneralDepthTwoMiddleFrame300
+import Yulang.GeneralDepthTwoCenters300
+import Yulang.GeneralDepthTwoSecondInstall300
+
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.bindings
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.center
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.captured
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.head_schema
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.emitted_schema
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.emitted_sites
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.child_args
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.child_data
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.child_schema
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.var_actual
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.var_bounds
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.update_support
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.input_holds
+#print axioms Yulang.GeneralDepthTwoMiddlePlan300.holds
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.real_context
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.same_base
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.seed_exact
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.prior_updates
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.holds
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.same_children
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.middle_raw_site
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.after_raw_sites
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.after_center_sites
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.source_support
+#print axioms Yulang.GeneralDepthTwoMiddleContext300.fresh
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.after_model
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.located
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.middle_role
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.input_bounds
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.known
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.linked
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.prepared
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.wrong_failed
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.wrong_not_prepared
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.outputs_empty
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.inputs_eq_when_blank
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.point_inputs
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.frame
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.survivor
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.unique
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.ready
+#print axioms Yulang.GeneralDepthTwoCenters300.symbolic_exact
+#print axioms Yulang.GeneralDepthTwoCenters300.bounded_same
+#print axioms Yulang.GeneralDepthTwoCenters300.same_center
+#print axioms Yulang.GeneralDepthTwoCenters300.distinct_center
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.root_observed
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.middle_observed
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.middle_site
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.safe
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.positions
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.frame_unique
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.alternatives
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.emitted_sites
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.terminal_site
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.final_requests
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.installation
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.enabled
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.actual
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.actual_terminal
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.models
