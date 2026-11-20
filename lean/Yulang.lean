@@ -5747,3 +5747,6 @@ import Yulang.GeneralSourceMetadataBareRole291
 import Yulang.GeneralSourceMetadataBuildRoles291
 import Yulang.GeneralSourceMetadataBareBundle291
 import Yulang.GeneralSourceMetadataBareFixture291
+import Yulang.GeneralSourceRoleExport292
+import Yulang.GeneralSourceRoleFixture292
+import Yulang.GeneralSourceRoleSpelling292

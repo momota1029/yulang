@@ -1,0 +1,14 @@
+import Yulang.GeneralSourceRoleFixture292
+
+#print axioms Yulang.GeneralSourceRoleSpelling292.position_exact
+#print axioms Yulang.GeneralSourceRoleSpelling292.position_index
+#print axioms Yulang.GeneralSourceRoleSpelling292.position_lt
+#print axioms Yulang.GeneralSourceRoleSpelling292.body_exact
+#print axioms Yulang.GeneralSourceRoleSpelling292.body_scoped
+#print axioms Yulang.GeneralSourceRoleExport292.output_exact
+#print axioms Yulang.GeneralSourceRoleExport292.collect_exact
+#print axioms Yulang.GeneralSourceRoleExport292.role_exact
+#print axioms Yulang.GeneralSourceRoleExport292.lower_exact
+#print axioms Yulang.GeneralSourceRoleFixture292.exact_worlds
+#print axioms Yulang.GeneralSourceRoleFixture292.no_universal_source_role_id
+#print axioms Yulang.GeneralSourceRoleFixture292.malformed_inputs
