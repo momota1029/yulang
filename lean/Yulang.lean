@@ -5628,3 +5628,6 @@ import Yulang.GeneralRebaseRowLeafHeadSupport288
 import Yulang.GeneralRebaseRowOutputHeadSupport288
 import Yulang.GeneralRebaseRowLeafDecisionGuard288
 import Yulang.GeneralRebaseRowDeferredDecisionGuard288
+import Yulang.GeneralRebaseReceiptWire289
+import Yulang.GeneralRebaseReceiptExtract289
+import Yulang.GeneralRebaseReceiptFixture289
