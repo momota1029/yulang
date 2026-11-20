@@ -2,9 +2,9 @@
 - cycle: 299
 - status: running
 - started: 2026-11-20T14:31:16Z
-- updated: 2026-11-20T14:45:18Z
-- elapsed_min: 14.03
-- activity: 有限閉表で selected-edge Acc と有限成功を同値化。全行数を実行上限にできることを Lean で証明
+- updated: 2026-11-20T14:49:50Z
+- elapsed_min: 18.57
+- activity: 実 C277 frontier から選択表を生成、既存独立判断と一致。memo 検査と最小高さ、循環・未登録対照を確認
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 8552365fdd
-- resume_hint: 次は failure controls と同一モデルの実装接続を検証
+- last_local_commit: 36ab4349fc
+- resume_hint: CLI 検査、前周回帰、静的統合差分確認と日本語報告
