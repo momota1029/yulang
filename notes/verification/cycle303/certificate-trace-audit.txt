@@ -1,0 +1,3 @@
+'Yulang.GeneralDeferredLadderCertificateTrace303.refresh_of_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
