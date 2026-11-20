@@ -1,0 +1,37 @@
+import Yulang.GeneralObservedLadderNoAdmin301
+import Yulang.GeneralObservedLadderOnlyInstall301
+import Yulang.GeneralObservedLadderExact301
+import Yulang.GeneralObservedLadderAvailability301
+
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.fixed
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.free
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.snapshot_padded
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.padded
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.all_known
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.headless
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.tower_not_top
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.isolate
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.only_equal_names
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.equality_closed
+#print axioms Yulang.GeneralObservedLadderNoAdmin301.point_closed
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.raw_hit
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.generated
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.recorded
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.wrong_int_at
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.inner_frame
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.past_committed
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.leaf_frame
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.leaf_committed
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.same_effect
+#print axioms Yulang.GeneralObservedLadderOnlyInstall301.candidate_exact
+#print axioms Yulang.GeneralObservedLadderExact301.only_step
+#print axioms Yulang.GeneralObservedLadderExact301.exact_step
+#print axioms Yulang.GeneralObservedLadderExact301.halted
+#print axioms Yulang.GeneralObservedLadderExact301.reachable_phases
+#print axioms Yulang.GeneralObservedLadderExact301.phases_distinct
+#print axioms Yulang.GeneralObservedLadderExact301.rank_decreases
+#print axioms Yulang.GeneralObservedLadderExact301.accessible_phase
+#print axioms Yulang.GeneralObservedLadderExact301.accessible_initial
+#print axioms Yulang.GeneralObservedLadderAvailability301.not_recorded
+#print axioms Yulang.GeneralObservedLadderAvailability301.nonterminal_empty
+#print axioms Yulang.GeneralObservedLadderAvailability301.exact_root_availability
