@@ -13,3 +13,12 @@ the C300 depth-two dictionary in child order. The structural
 `CenteredSteps.refresh` view used in a frame theorem is not a raw
 refresh event. No general closure, termination, or executable Rust
 result is implied.
+
+Verify the independent final source `Local` decisions for all three
+actual occurrences. Separate the same-model dictionary proof from the
+one-step operational question of whether any further event exists.
+A checked finite observer must supply the exact selected rows and
+terminal scalar in the final snapshot. Pass this data to the C299
+bounded reader, proving its root result agrees with the independently
+classified actual dictionary. A Boolean reader alone is never evidence
+for a different raw snapshot.

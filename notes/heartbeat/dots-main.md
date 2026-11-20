@@ -2,9 +2,9 @@
 - cycle: 300
 - status: running
 - started: 2026-11-20T15:34:00Z
-- updated: 2026-11-20T15:53:33Z
-- elapsed_min: 19.55
-- activity: 実二段据付後、親の所有権・中央・末端の時点を一致させ、全モデルの深さ2辞書を証明
+- updated: 2026-11-20T16:00:35Z
+- elapsed_min: 26.58
+- activity: 実二段後の三 occurrence に独立 Local.selected、表 reader と全原モデルの辞書を照合。中間の末端 evidence は不可
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 0354b71a49
-- resume_hint: 有限観測の盲点と最終スナップショットの局所選択・追加 step 条件を調べる
+- last_local_commit: bd48be5151
+- resume_hint: 最終状態で追加 raw step が起きないかを固定 fixture で検証
