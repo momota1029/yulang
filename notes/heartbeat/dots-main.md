@@ -2,9 +2,9 @@
 - cycle: 304
 - status: running
 - started: 2026-11-20T19:31:50Z
-- updated: 2026-11-20T19:32:20.056Z
-- elapsed_min: 0
-- activity: 最新の I-54 と C303 完了を確認。早期 refresh の実 raw Step 草稿と前周の依存キャッシュを再検証する。
+- updated: 2026-11-20T19:36:16.583Z
+- elapsed_min: 4
+- activity: 履歴スナップショットを同一視せず、生成・出力要求・コミット済み判定・選択ガードを輸送する七宣言を検証。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: fe51a9275
-- resume_hint: C303 完了ピン 79755b7a1f3c197987540fadf259566d84d94d75。旧ログ /tmp/yulang303-build-resume2.log の未完部分はキャッシュから再開。未検証草稿を公開しない。
+- last_local_commit: 4f117148f
+- resume_hint: 初回 raw Step の下書き依存は /tmp/yulang304-focused.log。残りは個別の対象ビルド＋独立監査。

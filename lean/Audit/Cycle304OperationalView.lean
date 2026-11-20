@@ -1,0 +1,9 @@
+import Yulang.GeneralDeferredLadderOperationalView304
+
+#print axioms Yulang.GeneralDeferredLadderOperationalView304.generated_iff
+#print axioms Yulang.GeneralDeferredLadderOperationalView304.requests_iff
+#print axioms Yulang.GeneralDeferredLadderOperationalView304.committed_iff
+#print axioms Yulang.GeneralDeferredLadderOperationalView304.after_install
+#print axioms Yulang.GeneralDeferredLadderOperationalView304.choice_iff
+#print axioms Yulang.GeneralDeferredLadderOperationalView304.after_choices
+#print axioms Yulang.GeneralDeferredLadderOperationalView304.frame_forward
