@@ -1,0 +1,6 @@
+'Yulang.GeneralSourceRoleCstSelectedRow295.aligned_singleton' does not depend on any axioms
+'Yulang.GeneralSourceRoleCstSelectedRow295.map_singleton' does not depend on any axioms
+'Yulang.GeneralSourceRoleCstSelectedRow295.tracked_single_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedRow295.compile_single_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstOtherRole295.other_role_is_fallback' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstOtherRole295.no_other_role_data' depends on axioms: [propext, Quot.sound]

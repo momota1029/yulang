@@ -5860,3 +5860,5 @@ import Yulang.GeneralSourceRoleCstSelectedMembers295
 import Yulang.GeneralSourceRoleCstSelectedReadback295
 import Yulang.GeneralSourceRoleCstSelectedDefault295
 import Yulang.GeneralSourceRoleCstSelectedControl295
+import Yulang.GeneralSourceRoleCstSelectedRow295
+import Yulang.GeneralSourceRoleCstOtherRole295

@@ -1,0 +1,8 @@
+import Yulang.GeneralSourceRoleCstOtherRole295
+
+#print axioms Yulang.GeneralSourceRoleCstSelectedRow295.aligned_singleton
+#print axioms Yulang.GeneralSourceRoleCstSelectedRow295.map_singleton
+#print axioms Yulang.GeneralSourceRoleCstSelectedRow295.tracked_single_row
+#print axioms Yulang.GeneralSourceRoleCstSelectedRow295.compile_single_row
+#print axioms Yulang.GeneralSourceRoleCstOtherRole295.other_role_is_fallback
+#print axioms Yulang.GeneralSourceRoleCstOtherRole295.no_other_role_data
