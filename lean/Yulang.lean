@@ -5846,3 +5846,5 @@ import Yulang.GeneralSourceRoleCstEqualSpans294
 import Yulang.GeneralSourceRoleCstRunVisibility294
 import Yulang.GeneralSourceRoleCstVisibleRange294
 import Yulang.GeneralSourceRoleCstVisibleReceipt294
+import Yulang.GeneralSourceRoleCstMissingReceipt294
+import Yulang.GeneralSourceRoleCstMissingAmbiguity294

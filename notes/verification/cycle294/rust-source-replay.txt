@@ -1,0 +1,6 @@
+crates/yu-syntax/src/tests/declaration/act_decl/operation_where.rs blob 418af6b6e4f4fc8c4db94ac0449080bbf3e64a84
+Role fixture: exactly the prior independently recorded Rust CST JSON.
+crates/yu-syntax/src/tests/case_like.rs blob 4234bdd880c186877ebcb93f48c17698f6bc0e2c
+crates/yu-syntax/src/tests/expression_recovery.rs blob 844f0786d2b312f699c39d145cdfa941f9a59594
+Rust tests record two equal-range Missing nodes and a nested raw Error token at 13..14.
+Exact dump extraction and byte partition checks completed, with no Rust runtime involved.

@@ -70,3 +70,14 @@ through the retained Root and rejects all three barriers. It is not a
 model of Rust's complete structural walker: node-owned and opaque
 diagnostics require independently grounded evidence. The real archived
 49..58 direct-root range passes the stronger gate.
+
+Two more checked-in Rust CST fixtures were extracted with exact
+source/dump byte coverage. The archived `case` has distinct zero-width Missing
+nodes at [0,0,1,0,0] and [0,0,2,0], each 4..4. Focusing [0,0,1]
+makes one inside and the other unrelated. A formal counterexample rules out
+an extent-only ownership decision. The verified Missing adapter requires
+an independently named raw address plus exact zero-width extent and
+rejects wrong paths or ranges. The archived `for x in xs: @` has a plain
+nested Error-token run at [0,0,9,0], 13..14, accepted by the stronger
+scope checker outside the pattern sibling. These are not role
+projections: they test scope and raw ownership on actual recorded structures.
