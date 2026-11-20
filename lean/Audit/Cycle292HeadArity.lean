@@ -1,0 +1,11 @@
+import Yulang.GeneralSourceRoleHeadShape292
+
+#print axioms Yulang.GeneralSourceRoleArityRead292.present_exact
+#print axioms Yulang.GeneralSourceRoleArityRead292.absent_exact
+#print axioms Yulang.GeneralSourceRoleArityRead292.declared_readback
+#print axioms Yulang.GeneralSourceRoleArityRead292.fallback_readback
+#print axioms Yulang.GeneralSourceRoleHeadShape292.arg_exact
+#print axioms Yulang.GeneralSourceRoleHeadShape292.head_exact
+#print axioms Yulang.GeneralSourceRoleHeadShape292.args_length
+#print axioms Yulang.GeneralSourceRoleHeadShape292.packet_exact
+#print axioms Yulang.GeneralSourceRoleHeadShape292.structural_head_control

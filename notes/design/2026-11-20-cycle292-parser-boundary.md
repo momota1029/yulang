@@ -124,3 +124,14 @@ preserves parser-independent ID assignment: two scoped roles with equal short
 names can be tested using distinct independently supplied IDs, but a collision
 in those semantic IDs is still rejected. Neither qualified paths, shadowing,
 imports nor cross-file scope ownership are inferred by the helper.
+
+The existing Rust test
+`role_head_is_one_full_type_and_nested_body_punctuation_is_suspended`
+includes `role F (A->B) 't;`, rows, and quantified heads as syntax examples.
+Consequently a successful ordinary head parse cannot be translated by
+filtering out unrecognized arguments. `HeadShape292` implements a separate
+finite check after an exact direct walk: a simple primary with every ordered
+argument classified as a bare binder, preserving their count; anything else
+is outside this adapter. This includes a synthetic model of a structured
+first argument before a valid second binder. It does not turn a parser test
+into a source type error.

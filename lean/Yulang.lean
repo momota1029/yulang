@@ -5777,3 +5777,5 @@ import Yulang.GeneralSourceRoleScopedRead292
 import Yulang.GeneralSourceRoleScopedFixture292
 import Yulang.GeneralSourceRoleScopedShell292
 import Yulang.GeneralSourceRoleUniqueSource292
+import Yulang.GeneralSourceRoleArityRead292
+import Yulang.GeneralSourceRoleHeadShape292
