@@ -1,0 +1,23 @@
+import Yulang.GeneralMixedFullControlMinimal306
+import Yulang.GeneralMixedFullControlTrace306
+import Yulang.GeneralMixedPreInstallSigns306
+
+#print axioms Yulang.GeneralMixedControlLabels306.any_label_bisim_is_equality
+#print axioms Yulang.GeneralMixedControlLabels306.labelled_agreement_exact
+#print axioms Yulang.GeneralMixedControlTrace306.route_exact
+#print axioms Yulang.GeneralMixedControlTrace306.length_bound
+#print axioms Yulang.GeneralMixedFullControlCode306.marker
+#print axioms Yulang.GeneralMixedFullControlStep306.split
+#print axioms Yulang.GeneralMixedFullControlStep306.exact_labelled
+#print axioms Yulang.GeneralMixedFullControlUnlabelled306.raw_exact
+#print axioms Yulang.GeneralMixedFullControlUnlabelled306.raw_class_exact
+#print axioms Yulang.GeneralFiniteBisimRefinement306.retains
+#print axioms Yulang.GeneralFiniteBisimRefinement306.descends
+#print axioms Yulang.GeneralMixedFullControlMinimal306.separated
+#print axioms Yulang.GeneralMixedFullControlMinimal306.each_bisim_respects_classes
+#print axioms Yulang.GeneralMixedFullControlMinimal306.classes_bisim
+#print axioms Yulang.GeneralMixedFullControlMinimal306.counting_is_not_exact
+#print axioms Yulang.GeneralMixedFullControlTrace306.exact_checker
+#print axioms Yulang.GeneralMixedFullControlTrace306.all_constructible
+#print axioms Yulang.GeneralMixedPreInstallSigns306.signed_compiler_exact
+#print axioms Yulang.GeneralMixedPreInstallSigns306.exact_on_any_prior_path

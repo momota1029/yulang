@@ -1,0 +1,24 @@
+'Yulang.GeneralMixedControlLabels306.any_label_bisim_is_equality' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedControlLabels306.labelled_agreement_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedControlTrace306.route_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlTrace306.length_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlCode306.marker' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlStep306.split' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlStep306.exact_labelled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlUnlabelled306.raw_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlUnlabelled306.raw_class_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteBisimRefinement306.retains' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteBisimRefinement306.descends' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlMinimal306.separated' does not depend on any axioms
+'Yulang.GeneralMixedFullControlMinimal306.each_bisim_respects_classes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlMinimal306.classes_bisim' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlMinimal306.counting_is_not_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlTrace306.exact_checker' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlTrace306.all_constructible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedPreInstallSigns306.signed_compiler_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedPreInstallSigns306.exact_on_any_prior_path' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT=0
