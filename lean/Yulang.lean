@@ -5840,3 +5840,6 @@ import Yulang.GeneralSourceRoleCstGroupFixture294
 import Yulang.GeneralSourceRoleCstBoundOwners294
 import Yulang.GeneralSourceRoleCstRangeReceipt294
 import Yulang.GeneralSourceRoleCstMixedReceipt294
+import Yulang.GeneralSourceRoleCstMarkUnique294
+import Yulang.GeneralSourceRoleCstPathFidelity294
+import Yulang.GeneralSourceRoleCstEqualSpans294

@@ -1,0 +1,15 @@
+import Yulang.GeneralSourceRoleCstEqualSpans294
+#print axioms Yulang.GeneralSourceRoleCstMarkUnique294.own_paths
+#print axioms Yulang.GeneralSourceRoleCstMarkUnique294.child_path_first
+#print axioms Yulang.GeneralSourceRoleCstMarkUnique294.own_path_nil
+#print axioms Yulang.GeneralSourceRoleCstMarkUnique294.prepend_paths
+#print axioms Yulang.GeneralSourceRoleCstMarkUnique294.marks_paths_nodup
+#print axioms Yulang.GeneralSourceRoleCstMarkUnique294.child_paths_nodup
+#print axioms Yulang.GeneralSourceRoleCstPathFidelity294.ordered_path_map
+#print axioms Yulang.GeneralSourceRoleCstPathFidelity294.entries_same_paths
+#print axioms Yulang.GeneralSourceRoleCstPathFidelity294.original_same_paths
+#print axioms Yulang.GeneralSourceRoleCstPathFidelity294.original_paths_nodup
+#print axioms Yulang.GeneralSourceRoleCstPathFidelity294.original_count
+#print axioms Yulang.GeneralSourceRoleCstEqualSpans294.equal_width_decode
+#print axioms Yulang.GeneralSourceRoleCstEqualSpans294.equal_width_marks_both_retained
+#print axioms Yulang.GeneralSourceRoleCstEqualSpans294.zero_width_non_error_not_anchored
