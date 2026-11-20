@@ -80,3 +80,16 @@ arity and the appropriate primitive/nominal branch. Combine with the
 existing completeness theorem. A request-local decision can then check
 only looked-up live bodies, while a missing lookup remains failure.
 This is about actual output-class Ready, not preparation of a new Frame.
+
+## Materializing a metadata-only context without manufacturing a raw Step
+
+An independently supplied resolved table can re-express an existing
+observation state if the finite list of *actual recorded descriptor*
+keys agrees. Prove that check iff its catalogue field can legitimately
+be rebuilt. Replace only the constructor table and the interpretation;
+prove unchanged observation/model/knownness fields and an exact
+original-context identity when the source attachment equality holds.
+This is a view-level constructor, not installation, transport of an
+entire journal, or a claim that arbitrary retagged Contexts are reachable.
+The unused-key control should be accepted as a view while old full
+Metadata against the original registry still fails.

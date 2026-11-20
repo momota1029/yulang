@@ -1,0 +1,12 @@
+import Yulang.GeneralSourceMetadataPublication291
+#print axioms Yulang.GeneralSourceMetadataApplication291.application_exact
+#print axioms Yulang.GeneralSourceMetadataExprDomain291.translate_sound
+#print axioms Yulang.GeneralSourceMetadataExprDomain291.compiler_domain
+#print axioms Yulang.GeneralSourceMetadataDefaultDomain291.default_domain
+#print axioms Yulang.GeneralSourceMetadataLive291.body_exact
+#print axioms Yulang.GeneralSourceMetadataLive291.live_ready_exact
+#print axioms Yulang.GeneralSourceMetadataLiveDiagnostics291.all_live_exact
+#print axioms Yulang.GeneralSourceMetadataLiveFixture291.strict_local_not_global
+#print axioms Yulang.GeneralSourceMetadataLiveFixture291.unsupported_live_body_diagnostic
+#print axioms Yulang.GeneralSourceMetadataLiveFixture291.missing_lookup_not_empty
+#print axioms Yulang.GeneralSourceMetadataPublication291.same_result

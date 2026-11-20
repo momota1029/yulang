@@ -1,0 +1,15 @@
+'Yulang.GeneralSourceMetadataApplication291.application_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataExprDomain291.translate_sound' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataExprDomain291.compiler_domain' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataDefaultDomain291.default_domain' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataLive291.body_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataLive291.live_ready_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceMetadataLiveDiagnostics291.all_live_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataLiveFixture291.strict_local_not_global' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataLiveFixture291.unsupported_live_body_diagnostic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataLiveFixture291.missing_lookup_not_empty' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataPublication291.same_result' depends on axioms: [propext, Classical.choice, Quot.sound]

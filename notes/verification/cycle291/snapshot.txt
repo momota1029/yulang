@@ -1,0 +1,17 @@
+'Yulang.GeneralSourceMetadataSnapshot291.descriptor_present' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.model_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.known_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.attempt_identity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshot291.attempt_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshotFixture291.actual_identified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshotFixture291.observed_missing_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataSnapshotFixture291.same_models_not_full_metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataPublicationFixture291.checked_source_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceMetadataPublicationFixture291.exact_source_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
