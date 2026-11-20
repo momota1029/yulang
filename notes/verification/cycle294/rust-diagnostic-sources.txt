@@ -1,0 +1,23 @@
+crates/yu-syntax/src/full_parse.rs exact blob e6573b9469b45c38c7d802d012520ec8bbf9c90b
+  323: fn collect_syntax_diagnostics(
+  355: if let Some((conflict, matches)) = conflicts.borrow_mut().get_mut(&range)
+  362: SyntaxDiagnostic::conflicting_operator_fixity(
+  379: SyntaxDiagnostic::structural(occurrence)
+  772: fn parse_file_keeps_the_first_local_fixity_and_reports_the_rejected_site()
+  791: operator construction must not masquerade as CST recovery
+  790,886,933: SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) = diagnostic.cause()
+  802: fn parse_file_emits_construction_and_recovery_in_cst_preorder()
+crates/yu-syntax/src/structural_diagnostic.rs exact blob a125d90461f9b9e2f5b8227787bc75d234fc7649
+  242: children: node.children_with_tokens().collect(),
+  295,348: occurrence_path.push(index as u32);
+  393: fn flush(
+  400: if let Some((range, index)) = run.take() {
+crates/yu-syntax/src/tests/declaration/act_decl/operation_where.rs exact blob 418af6b6e4f4fc8c4db94ac0449080bbf3e64a84
+  290: fn role_method_signature_where_keeps_its_pre_wp17_recovery_cst()
+  342: Error@49..50
+  343: Error@50..51
+  344: Error@51..58
+  353: assert_eq!(parsed.structural_recoveries().len(), 1);
+  354: assert_eq!(parsed.structural_recoveries()[0].range(), &(49..58));
+Recorded golden: three raw Error tokens, one recorded structural recovery 49..58
+Operator diagnostics constructed separately; this is source inspection, not a Rust run.
