@@ -43,3 +43,10 @@ The optional token-run display groups only original wire Error tokens with
 a shared sibling owner, consecutive mixed ordinals, and touching byte
 extents; flattening retains the complete original marks. It is not a
 general reimplementation of Rust's ErrorGroup events.
+
+An optional ErrorGroup anchor checks a supplied parser-recorded range against
+exactly one portable run of original Error tokens. It rejects no match or
+multiple matching runs, and cannot use a raw foreign label or an unlocated
+path. This permits an exact comparison for the recorded 49..58 case without
+claiming a general Rust structural-diagnostic extractor. The supplied
+range and successful independent diagnosis remain externally attested.

@@ -1,0 +1,8 @@
+'Yulang.GeneralSourceRoleCstGroupAnchor294.unique_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstGroupAnchor294.candidate_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstGroupAnchor294.unique_has_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstGroupAnchor294.origin_for_each' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstGroupAnchor294.outside_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstGroupFixture294.ambiguous_has_two_runs' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstGroupFixture294.ambiguous_extent_refused' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstGroupFixture294.unavailable_range_refused' depends on axioms: [propext]
