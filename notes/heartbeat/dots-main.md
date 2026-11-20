@@ -1,11 +1,10 @@
 # dots-main heartbeat
-- cycle: 284
-- status: completed
-- started: 2026-11-19T23:33:14Z
-- updated: 2026-11-20T00:23:18Z
-- elapsed_min: 50.07
-- activity: 将来の型読みを閉じた watch 更新の厳密性と、実239/240の raw 圧縮限界・6状態相対窓を検証。
+- cycle: 285
+- status: running
+- started: 2026-11-20T00:32:29Z
+- updated: 2026-11-20T00:32:52Z
+- elapsed_min: 0.38
+- activity: 前周完了・統合版の現行指示・単独作業を確認。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: cfa485ed7
-- report: notes/handoff/dots-cycle-284.md
-- resume_hint: 型付き source 由来の将来被覆を、単一変数の正規形を超える非葉・効果ありで証明する。
+- last_local_commit: c2c00fa3e
+- resume_hint: 非変数の出力を持つ実例で、型付き読みの被覆と正準化の境界を調べる。
