@@ -1,0 +1,47 @@
+Yulang.GeneralSourceRoleCstWireBinding294.use_bound_exact {Scope Brand : Type} [DecidableEq Brand]
+  (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : Scope)
+  (retained : Yulang.GeneralSourceRoleCstWire293.Wire) (brand : Brand)
+  (a : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)
+  (external : Yulang.GeneralSourceRoleCstWireBinding294.BoundReceipt Brand)
+  (out : Yulang.GeneralSourceRoleTrack292.Tracked Scope (Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)) :
+  Yulang.GeneralSourceRoleCstWireBinding294.useBound policy scope retained brand a external = some out ↔
+    external.fromWire = retained ∧
+      Yulang.GeneralSourceRoleCstVisibleReceipt294.project policy scope retained brand a external.diagnostics = some out
+Yulang.GeneralSourceRoleCstMissingAmbiguity294.no_extent_only_decider (w : Yulang.GeneralSourceRoleCstWire293.Wire)
+  (p : Yulang.GeneralSourceRoleCstTree293.Path) (a b : Yulang.GeneralSourceRoleCstMissingReceipt294.MissingAnchor)
+  (sameRange : a.span = b.span) (aVer : Yulang.GeneralSourceRoleCstMissingReceipt294.verified w a = true)
+  (bVer : Yulang.GeneralSourceRoleCstMissingReceipt294.verified w b = true)
+  (aBlocked : Yulang.GeneralSourceRoleCstMissingReceipt294.independentlyOutside w p a = false)
+  (bOutside : Yulang.GeneralSourceRoleCstMissingReceipt294.independentlyOutside w p b = true) :
+  ¬∃ guess,
+      ∀ (e : Yulang.GeneralSourceRoleCstMissingReceipt294.MissingAnchor),
+        Yulang.GeneralSourceRoleCstMissingReceipt294.verified w e = true →
+          guess e.span = Yulang.GeneralSourceRoleCstMissingReceipt294.independentlyOutside w p e
+Yulang.GeneralSourceRoleCstMarkSpans294.entry_exact (root : Yulang.GeneralSourceRoleCstTree293.Tree)
+  (e : Yulang.GeneralSourceRoleCstMarkSpans294.Entry) :
+  e ∈ Yulang.GeneralSourceRoleCstMarkSpans294.entries root ↔
+    ∃ node,
+      Yulang.GeneralSourceRoleCstSpan293.locate e.path root 0 = some (node, e.extent) ∧
+        node.kind = e.kind ∧ ¬Yulang.GeneralSourceRoleCstRecovery293.Plain e.kind
+Yulang.GeneralSourceRoleCstCleanBoundary294.exact_corridor {Scope Brand : Type} [DecidableEq Brand] (scope : Scope)
+  (s : Yulang.GeneralSourceRoleCstSnapshot293.Snapshot Brand) (a : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)
+  (out : Yulang.GeneralSourceRoleTrack292.Tracked Scope (Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)) :
+  Yulang.GeneralSourceRoleCstMarkPolicy294.guarded Yulang.GeneralSourceRoleCstMarkPolicy294.Policy.selectedBranch scope
+        s a =
+      some out ↔
+    Yulang.GeneralSourceRoleCstRustSnapshot293.exportAt scope s a = some out ∧
+      Yulang.GeneralSourceRoleCstCleanBoundary294.AncestorClear s.root a.path
+Yulang.GeneralSourceRoleCstStrictTransport294.whole_to_selected {Scope Brand : Type} [DecidableEq Brand] (scope : Scope)
+  (w : Yulang.GeneralSourceRoleCstWire293.Wire) (brand : Brand)
+  (a : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)
+  (r : Yulang.GeneralSourceRoleCstMixedReceipt294.Receipt Brand)
+  (out : Yulang.GeneralSourceRoleTrack292.Tracked Scope (Yulang.GeneralSourceRoleCstSnapshot293.Address Brand))
+  (ok :
+    Yulang.GeneralSourceRoleCstVisibleReceipt294.project Yulang.GeneralSourceRoleCstMarkPolicy294.Policy.whole scope w
+        brand a r =
+      some out) :
+  Yulang.GeneralSourceRoleCstVisibleReceipt294.project Yulang.GeneralSourceRoleCstMarkPolicy294.Policy.selectedBranch
+      scope w brand a r =
+    some out
+
+exit=0 :: focused supplemental barrel-tail check

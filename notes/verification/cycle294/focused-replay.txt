@@ -1,0 +1,70 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Base tree: eab506de8ebb1310c96128787d1a50b7313f7d21; tested data tree: 0aa9f07ccef29a58f0de5448db2144409b7e4092.
+Isolated source GeneralSourceRoleCstMarks294 PASS
+Isolated source GeneralSourceRoleCstMarkSpans294 PASS
+Isolated source GeneralSourceRoleCstMarkScope294 PASS
+Isolated source GeneralSourceRoleCstMarkPolicy294 PASS
+Isolated source GeneralSourceRoleCstMarkReport294 PASS
+Isolated source GeneralSourceRoleCstReportWire294 PASS
+Isolated source GeneralSourceRoleCstMarkFixture294 PASS
+Isolated source GeneralSourceRoleCstDiagnostics294 PASS
+Isolated source GeneralSourceRoleCstAttestedGate294 PASS
+Isolated source GeneralSourceRoleCstDiagnosticFixture294 PASS
+Isolated source GeneralSourceRoleCstOriginalMarks294 PASS
+Isolated source GeneralSourceRoleCstErrorRuns294 PASS
+Isolated source GeneralSourceRoleCstRunExtent294 PASS
+Isolated source GeneralSourceRoleCstRunControls294 PASS
+Isolated source GeneralSourceRoleCstCleanMembers294 PASS
+Isolated source GeneralSourceRoleCstCleanProducer294 PASS
+Isolated source GeneralSourceRoleCstCleanBoundary294 PASS
+Isolated source GeneralSourceRoleCstGroupAnchor294 PASS
+Isolated source GeneralSourceRoleCstGroupFixture294 PASS
+Isolated source GeneralSourceRoleCstBoundOwners294 PASS
+Isolated source GeneralSourceRoleCstRangeReceipt294 PASS
+Isolated source GeneralSourceRoleCstMixedReceipt294 PASS
+Isolated source GeneralSourceRoleCstMarkUnique294 PASS
+Isolated source GeneralSourceRoleCstPathFidelity294 PASS
+Isolated source GeneralSourceRoleCstEqualSpans294 PASS
+Isolated source GeneralSourceRoleCstRunVisibility294 PASS
+Isolated source GeneralSourceRoleCstVisibleRange294 PASS
+Isolated source GeneralSourceRoleCstVisibleReceipt294 PASS
+Isolated source GeneralSourceRoleCstMissingReceipt294 PASS
+Isolated source GeneralSourceRoleCstMissingAmbiguity294 PASS
+Isolated source GeneralSourceRoleCstMaximalRuns294 PASS
+Isolated source GeneralSourceRoleCstScopeRefine294 PASS
+Isolated source GeneralSourceRoleCstStrictTransport294 PASS
+Isolated source GeneralSourceRoleCstWireBinding294 PASS
+Isolated source GeneralSourceRoleCstBindingControl294 PASS
+Standalone lean/Audit/Cycle294GroupAnchor.lean PASS
+Standalone lean/Audit/Cycle294IndependentDiagnostics.lean PASS
+Standalone lean/Audit/Cycle294MissingScope.lean PASS
+Standalone lean/Audit/Cycle294MixedReceipt.lean PASS
+Standalone lean/Audit/Cycle294PathFidelity.lean PASS
+Standalone lean/Audit/Cycle294PlainTokenReceipt.lean PASS
+Standalone lean/Audit/Cycle294RecoveryMarks.lean PASS
+Standalone lean/Audit/Cycle294ScopeReport.lean PASS
+Standalone lean/Audit/Cycle294ScopeTransport.lean PASS
+Standalone lean/Audit/Cycle294SelectedCorridor.lean PASS
+Standalone lean/Audit/Cycle294WireBinding.lean PASS
+Audited 140 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
+Existing lean/Audit/Cycle293CstCoverage.lean PASS
+Existing lean/Audit/Cycle293CstExternalContract.lean PASS
+Existing lean/Audit/Cycle293CstJson.lean PASS
+Existing lean/Audit/Cycle293CstProducer.lean PASS
+Existing lean/Audit/Cycle293CstShape.lean PASS
+Existing lean/Audit/Cycle293CstSnapshot.lean PASS
+Existing lean/Audit/Cycle293CstSpansRecovery.lean PASS
+Existing lean/Audit/Cycle293RustWrappedCst.lean PASS
+Existing lean/Audit/Cycle293WireAndExtent.lean PASS
+crates/yu-syntax/src/tests/declaration/act_decl/operation_where.rs blob 418af6b6e4f4fc8c4db94ac0449080bbf3e64a84
+Role fixture: exactly the prior independently recorded Rust CST JSON.
+crates/yu-syntax/src/tests/case_like.rs blob 4234bdd880c186877ebcb93f48c17698f6bc0e2c
+crates/yu-syntax/src/tests/expression_recovery.rs blob 844f0786d2b312f699c39d145cdfa941f9a59594
+Rust tests record two equal-range Missing nodes and a nested raw Error token at 13..14.
+Exact dump extraction and byte partition checks completed, with no Rust runtime involved.
+12 archived/synthetic report controls match independent mixed-child traversal and UTF-8 spans.
+4 malformed/unknown/too-deep wire inputs rejected before producing any report.
+The matrix executes Lean only; separately supplied parser diagnostics are never marked checked.
+Isolated build: 35 modules; all archived outputs matched; no Rust parser execution.
+
+exit=0 :: bash notes/verification/cycle294/verify-focused.sh (cycle 293 base)
