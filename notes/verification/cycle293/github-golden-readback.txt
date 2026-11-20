@@ -1,0 +1,8 @@
+GitHub integration/m1-final verified starting tip: 396ffa8a4a7984a19431e299b434f4d65bceb664
+Source: crates/yu-syntax/src/tests/declaration/act_decl/operation_where.rs
+Independent GitHub source blob: 418af6b6e4f4fc8c4db94ac0449080bbf3e64a84
+Exact remote text rehashed locally and equals the checked local integration source.
+The recorded Rust role golden re-converts to the byte-identical tagged JSON fixture.
+Independently rebuilt Lean cache, executable replay exit 0:
+{"binders":["'x"],"directMembers":[{"kind":"nonType","path":[0,4,2,0]}],"path":[0],"role":"a"}
+No Rust parser or Rust tests ran in this environment.
