@@ -1,10 +1,10 @@
 # dots-main heartbeat
 - cycle: 290
-- status: running
+- status: completed
 - started: 2026-11-20T05:30:05Z
-- updated: 2026-11-20T06:13:27Z
-- elapsed_min: 43.37
-- activity: 検査済み候補を照合済み。独立行読取りの反証基準と未着手境界を設計に追記。
-- workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 8839baaf6
-- resume_hint: 最終報告を 50–55 分内に公開し、完了心拍・報告・全 tree を再読出し。
+- updated: 2026-11-20T06:20:12Z
+- elapsed_min: 50.12
+- activity: 有限 metadata と同一 producer の現行全性を厳格版で照合し、実二枝と範囲外を検証
+- last_local_commit: 960d4192f
+- report: notes/handoff/dots-cycle-290.md
+- resume_hint: 次周も統合 branch の standing orders と inbox を最初に再読。既存 Step 無変更。同一性の仮定を開示し、次は source exporter または独立の正の行観測。
