@@ -5979,3 +5979,6 @@ import Yulang.GeneralGeneratedMixedCurrentNodes299
 import Yulang.GeneralGeneratedDictionaryCoherent299
 import Yulang.GeneralGeneratedDisplayTable299
 import Yulang.GeneralGeneratedRigidNested299
+import Yulang.GeneralGeneratedDisplayParentCurrent299
+import Yulang.GeneralGeneratedDisplayBothCurrent299
+import Yulang.GeneralGeneratedRigidCompile299

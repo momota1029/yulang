@@ -25,3 +25,11 @@ Prefer a concrete depth-2 **dictionary** fixture (not constructor output
 depth alone). If not supported by an existing real raw execution, keep any
 deep synthetic or proof-local table clearly distinguished from the C277
 actual one-edge regression, and look for an existing two-install boundary.
+
+A stronger concrete end-to-end check constructs the replayed parent's
+`Current` as well as the child's. Repeated emission of an already-recorded
+site can change list multiplicity without changing request membership or
+alias classes. Prove this explicitly, not by equating whole raw snapshots.
+Then the table can use only a scoped provider for both nodes, with no
+assumed root `EvidenceAt` theorem in the construction. This does not create
+a novel raw step or establish a provider for other reachable states.

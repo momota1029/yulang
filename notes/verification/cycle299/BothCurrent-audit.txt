@@ -1,0 +1,34 @@
+'Yulang.GeneralGeneratedDisplayParentCurrent299.original_sites' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.replay_sites' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.new_raw_site' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.no_additional_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.noRequests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.commonModel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.inspection_length' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.alternatives' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayParentCurrent299.installable_but_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedDisplayBothCurrent299.providers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayBothCurrent299.local_nodes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayBothCurrent299.root_from_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedDisplayBothCurrent299.child_from_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedDisplayBothCurrent299.instantiated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedRigidCompile299.keys_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedRigidCompile299.row_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedRigidCompile299.roundtrip' depends on axioms: [propext]
+'Yulang.GeneralGeneratedRigidCompile299.computed_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedRigidCompile299.missing_grandchild' depends on axioms: [propext]
+'Yulang.GeneralGeneratedRigidCompile299.unfinished_is_no_result' depends on axioms: [propext]
+'Yulang.GeneralGeneratedRigidCompile299.matches_elaboration' depends on axioms: [propext, Quot.sound]
