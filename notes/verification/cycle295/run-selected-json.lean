@@ -45,6 +45,9 @@ def main (args : List String) : IO UInt32 := do
   let named := (⟨selection,[(.role "a",some 7)]⟩ : FiniteBoundary Nat Nat)
   let .ok t := fromText 64 serialized .selectedBranch 11 17 a named goldenEnv 1 | return 1
   let [r] := t.rows | return 1
+  -- Wire structure is fixed, not the enclosing JSON whitespace.
+  let .ok spaced := fromText 64 ("  \n" ++ serialized ++ "\n  ") .selectedBranch 11 17 a named goldenEnv 1 | return 1
+  unless spaced.rows.length == 1 do return 1
   unless r.role == 7 && r.arity == 1 && r.outputs.isEmpty do return 1
   let .error (.badJson _) := fromText 64 "{broken" .selectedBranch 11 17 a named goldenEnv 1 | return 1
   unless failsAs .schemaOrDepth (fromText 64 "{}" .selectedBranch 11 17 a named goldenEnv 1) do return 1
@@ -80,5 +83,6 @@ def main (args : List String) : IO UInt32 := do
   IO.println "Synthetic paired roles: chosen [0] produced the binder default; chosen [2] produced char."
   IO.println "First seal cannot retarget [2]; changed output or used constructor rejected, irrelevant name permitted."
   IO.println "A changed retained wire, a foreign brand, and an absent diagnostic receipt all deny handoff."
+  IO.println "Reformatting only the JSON envelope preserves the exact retained wire and selected role."
   IO.println "Lean execution over portable CST; no Rust run or authenticated lookup/diagnostic source."
   return 0

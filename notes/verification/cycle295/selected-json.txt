@@ -3,4 +3,5 @@ Malformed JSON, depth/schema failure, retargeting, changed naming, and old expor
 Synthetic paired roles: chosen [0] produced the binder default; chosen [2] produced char.
 First seal cannot retarget [2]; changed output or used constructor rejected, irrelevant name permitted.
 A changed retained wire, a foreign brand, and an absent diagnostic receipt all deny handoff.
+Reformatting only the JSON envelope preserves the exact retained wire and selected role.
 Lean execution over portable CST; no Rust run or authenticated lookup/diagnostic source.

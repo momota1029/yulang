@@ -26,7 +26,7 @@ while IFS= read -r f; do
   if [[ ! ${new[${b%%.*}]+added} ]]; then ln -s "$f" "$scratch/Yulang/$b"; fi
 done < <(find "$(realpath "$prior/Yulang")" -maxdepth 1 -type f | sort)
 export LEAN_PATH="$scratch:$(lean --print-prefix)/lib/lean"
-opts=(--trust=0 -M 3200 -DwarningAsError=true)
+opts=(--trust=0 -j 1 -M 3200 -DwarningAsError=true)
 python3 "$verify/theorem-index.py" >"$scratch/index"
 cmp "$scratch/index" "$verify/theorem-index.md"
 echo "Lean $(lean --version)"
