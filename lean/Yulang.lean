@@ -5576,3 +5576,13 @@ import Yulang.GeneralRebaseRowGroundBoundary287
 import Yulang.GeneralRebaseRowParentFrame287
 import Yulang.GeneralRebaseRowParentStep287
 import Yulang.GeneralRebaseRowGeneratedChild287
+import Yulang.GeneralRebaseRowWholeChild287
+import Yulang.GeneralRebaseRowParentEvidence287
+import Yulang.GeneralRebaseRowPayloadExact287
+import Yulang.GeneralRebaseRowPublic287
+import Yulang.GeneralRebaseRowMinimal287
+import Yulang.GeneralRebaseRowAfterSafety287
+import Yulang.GeneralRebaseRowLocal287
+import Yulang.GeneralRebaseRowSettlement287
+import Yulang.GeneralRebaseRowTrustedBoundary287
+import Yulang.GeneralRebaseRowSemanticMark287

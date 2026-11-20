@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseRowSettlement287.evidence_without_discharge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowSettlement287.parent_not_settled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowTrustedBoundary287.raw_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowTrustedBoundary287.versioned_slice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowTrustedBoundary287.forbidden_known' depends on axioms: [propext, Classical.choice, Quot.sound]
