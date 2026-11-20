@@ -1,0 +1,23 @@
+import Yulang.GeneralMixedCompoundTailPresentation307
+import Yulang.GeneralMixedCompoundTailChildOutcome307
+import Yulang.GeneralMixedCompoundTailFan307
+
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.halted
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.no_selected_tree
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.no_root_evidence
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.evidenceAt
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.can_gain_only_upper
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.no_further_refresh
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.point_closed
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.same_read
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.no_packet
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.report_exact
+#print axioms Yulang.GeneralMixedCompoundTailEq307.at_anchor
+#print axioms Yulang.GeneralMixedCompoundTailEq307.at_refresh
+#print axioms Yulang.GeneralMixedCompoundTail307.exact_anchor
+#print axioms Yulang.GeneralMixedCompoundTail307.every_successor_halted
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.present
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.exact_tail_minimum
+#print axioms Yulang.GeneralMixedCompoundTailChildOutcome307.unchanged
+#print axioms Yulang.GeneralMixedCompoundTailChildOutcome307.silent_but_operationally_strict
+#print axioms Yulang.GeneralMixedCompoundTailFan307.infinitely_many_halts
