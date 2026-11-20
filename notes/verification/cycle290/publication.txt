@@ -1,0 +1,36 @@
+'Yulang.GeneralObservedMetadataBook290.book_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBook290.keys_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataRequestBook290.matches_request' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataRequestBook290.actual_alias_gains_request_book' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataSeal290.membership' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataSeal290.kept_has_reference_books' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataPublication290.publishFrom_exact' depends on axioms: [propext]
+'Yulang.GeneralObservedMetadataPublication290.issue_is_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataPublication290.ready_release' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.actual_class_book' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.accepted_seals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.pending_seals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.missing_request_same_metadata' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.executable_release_expected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataReleaseFixture290.actual_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataReleased290.released_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataReleased290.public_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataReleased290.bounded_release_still_does_not_imply_global_metadata' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

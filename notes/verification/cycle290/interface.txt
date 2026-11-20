@@ -1,0 +1,182 @@
+Yulang.GeneralObservedMetadataTranslation290.translate_eq (c : Yulang.GeneralDeclarationPatterns.Constructors)
+  (i : Yulang.GeneralNominalInspection.Interpretation) (d : Yulang.GeneralDeclarationPatterns.Constructors)
+  (j : Yulang.GeneralNominalInspection.Interpretation) (p : Yulang.GeneralDeclarationPatterns.Pattern)
+  (localEq : Yulang.GeneralObservedMetadataEntry290.LocalEqual (Yulang.GeneralObservedMetadataKeys290.keys p) c i d j) :
+  Yulang.GeneralNominalInspection.translate c i p = Yulang.GeneralNominalInspection.translate d j p
+Yulang.GeneralObservedMetadataGate290.verified_report {roles : Yulang.Roles.RoleDecls}
+  {r : Yulang.GeneralDeclarations.Registry} {s : Yulang.GeneralNominalVersionedJournal232.State roles}
+  {down : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {candidate : Yulang.GeneralNominalInspection.Interpretation}
+  (good :
+    Yulang.GeneralObservedMetadataGate290.preflight r s down candidate =
+      Yulang.GeneralObservedMetadataScope290.Result.good)
+  (d : Yulang.GeneralDeclarations.Declaration) (visible : d ∈ r.declarations) (role : d.role = down.demand.role)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds (Yulang.GeneralObservedMetadataGate290.context s).state)) :
+  Yulang.GeneralObservedMetadataReport290.reportFrom (Yulang.GeneralObservedMetadataGate290.context s).state
+      r.constructors candidate d bounds =
+    Yulang.GeneralNominalRecursiveCandidates.report (Yulang.GeneralObservedMetadataGate290.context s) d bounds
+Yulang.GeneralObservedMetadataBranch290.accepted_branch {roles : Yulang.Roles.RoleDecls}
+  (r : Yulang.GeneralDeclarations.Registry) (ctx : Yulang.GeneralNominalCandidates.Context)
+  (c : Yulang.GeneralDeclarationPatterns.Constructors) (i : Yulang.GeneralNominalInspection.Interpretation)
+  (root : Yulang.GeneralSourceDictionaries.Occurrence roles) (d : Yulang.GeneralDeclarations.Declaration)
+  (checked : Yulang.GeneralDeclarations.DeclarationChecked r.constructors roles d)
+  (bounds : List (Yulang.GeneralNominalInspection.Bounds ctx.state))
+  (same :
+    Yulang.GeneralObservedMetadataScope290.certify
+        (Yulang.GeneralObservedMetadataBranch290.branchFootprint r ctx root d checked bounds) ctx.state.constructors
+        ctx.interpretation c i =
+      Yulang.GeneralObservedMetadataScope290.Result.good) :
+  Yulang.GeneralObservedMetadataBranch290.branchFrom r ctx.state c i root d checked bounds =
+    (Yulang.GeneralNominalRecursiveCandidates.report ctx d bounds,
+      Yulang.GeneralObservedMetadataBranch290.referenceRequests r ctx root d checked bounds,
+      Yulang.GeneralNominalRecursiveCandidates.generated r ctx root d checked bounds)
+Yulang.GeneralObservedMetadataBodies290.bodySchema_eq {roles : Yulang.Roles.RoleDecls}
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (c : Yulang.GeneralDeclarationPatterns.Constructors)
+  (i : Yulang.GeneralNominalInspection.Interpretation) (target : Nat)
+  (b : Yulang.GeneralDictionaryAssociatedProvenance.Body)
+  (h :
+    Yulang.GeneralObservedMetadataEntry290.LocalEqual (Yulang.GeneralObservedMetadataBodies290.bodyKeys b)
+      plan.packet.registry.constructors plan.packet.context.interpretation c i) :
+  Yulang.GeneralObservedMetadataBodies290.bodySchemaFrom c i target b =
+    Yulang.GeneralNominalCenteredHeadMatEffects.bodySchema plan target b
+Yulang.GeneralObservedMetadataSeal290.kept_has_reference_books {roles : Yulang.Roles.RoleDecls}
+  {r : Yulang.GeneralDeclarations.Registry} {s : Yulang.GeneralNominalVersionedJournal232.State roles}
+  {up down : Yulang.GeneralSourceDictionaries.Occurrence roles} {ask : Yulang.GeneralRebaseReceiptWire289.Offer}
+  {proposed : Yulang.GeneralNominalInspection.Interpretation} {token : Yulang.GeneralObservedMetadataSeal290.Seal}
+  (consistent : token ∈ Yulang.GeneralObservedMetadataSeal290.seals r s up down ask proposed) :
+  token.current =
+      Yulang.GeneralObservedMetadataBook290.book (Yulang.GeneralObservedMetadataGate290.footprint r s down)
+        (Yulang.GeneralObservedMetadataGate290.context s).state.constructors
+        (Yulang.GeneralObservedMetadataGate290.context s).interpretation ∧
+    ∃ e,
+      e ∈ s.effects ∧
+        e.plan.packet.site.occurrence = up ∧
+          token.history =
+              Yulang.GeneralObservedMetadataBook290.book
+                (Yulang.GeneralObservedMetadataLive290.liveKeys s.core up e.plan) e.plan.packet.registry.constructors
+                e.plan.packet.context.interpretation ∧
+            token.requests = Yulang.GeneralObservedMetadataRequestBook290.requestBook s.core up e.plan
+Yulang.GeneralObservedMetadataTotal290.total_iff_ready {roles : Yulang.Roles.RoleDecls}
+  (s : Yulang.GeneralNominalCenteredSteps.State roles) (up : Yulang.GeneralSourceDictionaries.Occurrence roles)
+  (plan : Yulang.GeneralNominalCenters.Plan roles) (c : Yulang.GeneralDeclarationPatterns.Constructors)
+  (i : Yulang.GeneralNominalInspection.Interpretation)
+  (metadata :
+    Yulang.GeneralObservedMetadataEntry290.LocalEqual (Yulang.GeneralObservedMetadataLive290.liveKeys s up plan)
+      plan.packet.registry.constructors plan.packet.context.interpretation c i) :
+  Yulang.GeneralObservedMetadataTotal290.total s up plan c i = true ↔
+    Yulang.GeneralNominalCenteredHeadMatEffects.Ready s up plan
+Yulang.GeneralObservedMetadataStrict290.actual_owner_total {roles : Yulang.Roles.RoleDecls}
+  {r : Yulang.GeneralDeclarations.Registry} {s : Yulang.GeneralNominalVersionedJournal232.State roles}
+  {up down : Yulang.GeneralSourceDictionaries.Occurrence roles} {ask : Yulang.GeneralRebaseReceiptWire289.Offer}
+  {proposed : Yulang.GeneralNominalInspection.Interpretation} {saved : Yulang.GeneralObservedMetadataSeal290.Seal}
+  {value : Yulang.GeneralRebaseReceiptCompile289.Mark}
+  (out :
+    Yulang.GeneralObservedMetadataStrict290.strictPublish r s up down ask proposed saved =
+      Yulang.GeneralObservedMetadataPublication290.Output.released value) :
+  Yulang.GeneralObservedMetadataPublication290.publish r s up down ask proposed saved =
+      Yulang.GeneralObservedMetadataPublication290.Output.released value ∧
+    ∃ e,
+      e ∈ s.effects ∧
+        e.plan.packet.site.occurrence = up ∧
+          down ∈ Yulang.GeneralNominalVersionedFrame231.children e.plan.packet ∧
+            Yulang.GeneralNominalCenteredHeadMatEffects.Ready s.core up e.plan ∧
+              ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                Yulang.GeneralObservedMetadataLive290.ProposedModels s.core up e.plan r.constructors proposed m ↔
+                  e.Live s.core m
+Yulang.GeneralObservedMetadataPublic290.strict_live_sound {roles : Yulang.Roles.RoleDecls}
+  {r : Yulang.GeneralDeclarations.Registry} {s : Yulang.GeneralNominalVersionedJournal232.State roles}
+  {up down : Yulang.GeneralSourceDictionaries.Occurrence roles} {ask : Yulang.GeneralRebaseReceiptWire289.Offer}
+  {proposal : Yulang.GeneralNominalInspection.Interpretation} {saved : Yulang.GeneralObservedMetadataSeal290.Seal}
+  {value : Yulang.GeneralRebaseReceiptCompile289.Mark}
+  (done :
+    Yulang.GeneralObservedMetadataStrict290.strictPublish r s up down ask proposal saved =
+      Yulang.GeneralObservedMetadataPublication290.Output.released value) :
+  value.target = ask.output ∧
+    (up, down) ∈ s.core.erased.current.edges ∧
+      (∀ (d : Yulang.GeneralDeclarations.Declaration),
+          d ∈ r.declarations →
+            d.role = down.demand.role →
+              ∀
+                (bounds :
+                  List
+                    (Yulang.GeneralNominalInspection.Bounds (Yulang.GeneralObservedMetadataGate290.context s).state)),
+                Yulang.GeneralObservedMetadataReport290.reportFrom
+                    (Yulang.GeneralObservedMetadataGate290.context s).state r.constructors proposal d bounds =
+                  Yulang.GeneralNominalRecursiveCandidates.report (Yulang.GeneralObservedMetadataGate290.context s) d
+                    bounds) ∧
+        ∃ e,
+          e ∈ s.effects ∧
+            e.plan.packet.site.occurrence = up ∧
+              down ∈ Yulang.GeneralNominalVersionedFrame231.children e.plan.packet ∧
+                Yulang.GeneralNominalCenteredHeadMatEffects.Ready s.core up e.plan ∧
+                  ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralNominalVersionedJournal232.Models s model →
+                      Yulang.GeneralObservedMetadataLive290.ProposedModels s.core up e.plan r.constructors proposal
+                        model
+Yulang.GeneralObservedMetadataStrictActual290.strict_release_exact (choice : Bool)
+  {s : Yulang.GeneralNominalVersionedJournal232.State Yulang.GeneralRebaseRowChildSource287.roles}
+  (path : Yulang.GeneralRebaseReceiptWitness289.ActualPath choice s)
+  (token : Yulang.GeneralObservedMetadataSeal290.Seal) (value : Yulang.GeneralRebaseReceiptCompile289.Mark) :
+  Yulang.GeneralObservedMetadataStrict290.strictPublish (Yulang.GeneralRebaseRowChildSource287.registry choice) s
+        Yulang.GeneralRebaseRowChildSource287.root (Yulang.GeneralRebaseRowParentPacket287.child choice)
+        (Yulang.GeneralRebaseReceiptFixture289.request choice) Yulang.GeneralRebaseRowChildSource287.interp token =
+      Yulang.GeneralObservedMetadataPublication290.Output.released value ↔
+    choice = true ∧
+      s = Yulang.GeneralRebaseRowParentFrame287.after true ∧
+        token = Yulang.GeneralObservedMetadataReleaseFixture290.normalized ∧
+          value = Yulang.GeneralRebaseReceiptCompile289.actualMark
+Yulang.GeneralObservedMetadataPublic290.strict_fixture_mark_sound (choice : Bool)
+  {s : Yulang.GeneralNominalVersionedJournal232.State Yulang.GeneralRebaseRowChildSource287.roles}
+  (path : Yulang.GeneralRebaseReceiptWitness289.ActualPath choice s)
+  (saved : Yulang.GeneralObservedMetadataSeal290.Seal) (value : Yulang.GeneralRebaseReceiptCompile289.Mark)
+  (done :
+    Yulang.GeneralObservedMetadataStrict290.strictPublish (Yulang.GeneralRebaseRowChildSource287.registry choice) s
+        Yulang.GeneralRebaseRowChildSource287.root (Yulang.GeneralRebaseRowParentPacket287.child choice)
+        (Yulang.GeneralRebaseReceiptFixture289.request choice) Yulang.GeneralRebaseRowChildSource287.interp saved =
+      Yulang.GeneralObservedMetadataPublication290.Output.released value) :
+  Yulang.GeneralRebaseReceiptWitness289.Witness choice s ∧
+    (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralNominalVersionedJournal232.Models s m ↔
+          Yulang.GeneralRebaseInertLeaf288.SourceSlice s m ∧ value.Holds m) ∧
+      ¬Yulang.GeneralNominalState.Known s.core.erased.current.context.state value.target
+Yulang.GeneralObservedMetadataRegistryCongr290.equal_publish {roles : Yulang.Roles.RoleDecls}
+  {r q : Yulang.GeneralDeclarations.Registry} {s : Yulang.GeneralNominalVersionedJournal232.State roles}
+  {up down : Yulang.GeneralSourceDictionaries.Occurrence roles} {i j : Yulang.GeneralNominalInspection.Interpretation}
+  (h : Yulang.GeneralObservedMetadataRegistryCongr290.compare r q s up down i j = true)
+  (ask : Yulang.GeneralRebaseReceiptWire289.Offer) (saved : Yulang.GeneralObservedMetadataSeal290.Seal) :
+  Yulang.GeneralObservedMetadataStrict290.strictPublish r s up down ask i saved =
+    Yulang.GeneralObservedMetadataStrict290.strictPublish q s up down ask j saved
+Yulang.GeneralObservedMetadataOverlay290.closed_world_iff (r : Yulang.GeneralDeclarations.Registry)
+  (ctx : Yulang.GeneralNominalCandidates.Context) (data : Yulang.GeneralObservedMetadataOverlay290.Data)
+  (scope : List Nat) (representation : Yulang.GeneralObservedMetadataOverlay290.Represented r ctx data) :
+  Yulang.GeneralNominalCandidates.Metadata r ctx ↔
+    Yulang.GeneralObservedMetadataScope290.certify (data.extended scope) r.constructors ctx.interpretation
+        ctx.state.constructors ctx.interpretation =
+      Yulang.GeneralObservedMetadataScope290.Result.good
+Yulang.GeneralObservedMetadataCanonical290.canonical_dictionary (choice : Bool)
+  {s : Yulang.GeneralNominalVersionedJournal232.State Yulang.GeneralRebaseRowChildSource287.roles}
+  (path : Yulang.GeneralRebaseReceiptWitness289.ActualPath choice s)
+  (saved : Yulang.GeneralObservedMetadataSeal290.Seal) (value : Yulang.GeneralRebaseReceiptCompile289.Mark)
+  (pub :
+    Yulang.GeneralObservedMetadataStrict290.strictPublish (Yulang.GeneralRebaseRowChildSource287.registry choice) s
+        Yulang.GeneralRebaseRowChildSource287.root (Yulang.GeneralRebaseRowParentPacket287.child choice)
+        (Yulang.GeneralRebaseReceiptFixture289.request choice) Yulang.GeneralRebaseRowChildSource287.interp saved =
+      Yulang.GeneralObservedMetadataPublication290.Output.released value)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (p : Yulang.GeneralDictionaryReadback.Payload) :
+  Yulang.GeneralNominalVersionedJournal232.Models s (Yulang.GeneralRebaseRowParentOutput287.replaceOutput m) ∧
+      Yulang.GeneralNominalVersionedEvidence231.Evidence (Yulang.GeneralRebaseRowChildSource287.registry choice) s.core
+        (Yulang.GeneralRebaseRowParentOutput287.replaceOutput m) Yulang.GeneralRebaseRowChildSource287.root p ↔
+    Yulang.GeneralRebaseInertLeaf288.SourceSlice s m ∧
+      p = Yulang.CommonRoleOutermostResolver.Dictionary.node 0 [Yulang.CommonRoleOutermostResolver.Dictionary.node 1 []]
+Yulang.GeneralObservedMetadataCanonical290.strict_finite_release_not_new_frame :
+  Yulang.GeneralObservedMetadataStrict290.strictPublish (Yulang.GeneralRebaseReceiptCollision289.removed 8)
+        (Yulang.GeneralRebaseRowParentFrame287.after true) Yulang.GeneralRebaseRowChildSource287.root
+        (Yulang.GeneralRebaseRowParentPacket287.child true) (Yulang.GeneralRebaseReceiptFixture289.request true)
+        Yulang.GeneralObservedMetadataControls290.primitiveOutside
+        Yulang.GeneralObservedMetadataReleaseFixture290.normalized =
+      Yulang.GeneralObservedMetadataPublication290.Output.released Yulang.GeneralRebaseReceiptCompile289.actualMark ∧
+    ∀ (key : Nat) (p : Yulang.GeneralNominalCenters.Plan Yulang.GeneralRebaseRowChildSource287.roles),
+      ¬Yulang.GeneralNominalVersionedEvidence231.Frame (Yulang.GeneralRebaseReceiptCollision289.removed 8)
+          (Yulang.GeneralRebaseRowParentFrame287.after true).core (Yulang.GeneralRebaseRowParentPacket287.child true)
+          key p
+Interface signature probe exit 0

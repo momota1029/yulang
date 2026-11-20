@@ -1,0 +1,25 @@
+'Yulang.GeneralObservedMetadataTotal290.total_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataTotal290.total_iff_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataTotalFixture290.unsupported_metadata_agrees' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataTotalFixture290.unsupported_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataTotalFixture290.unsupported_effect_imposes_no_equation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataTotalFixture290.live_total_real' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataStrict290.permitted_subset' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataStrict290.actual_owner_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataStrictActual290.strict_publish_preserves_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataStrictActual290.strict_release_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataPrimitiveDrift290.valid_scalar' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataPrimitiveDrift290.same_layout_different_query' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataPrimitiveDrift290.primitive_value_matters' depends on axioms: [propext, Quot.sound]

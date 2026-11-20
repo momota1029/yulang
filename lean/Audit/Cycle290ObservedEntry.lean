@@ -1,0 +1,8 @@
+import Yulang.GeneralObservedMetadataLocal290
+
+#print axioms Yulang.GeneralObservedMetadataKeys290.app_nested
+#print axioms Yulang.GeneralObservedMetadataKeys290.candidate_key
+#print axioms Yulang.GeneralObservedMetadataEntry290.entry_exact
+#print axioms Yulang.GeneralObservedMetadataEntry290.agree_exact
+#print axioms Yulang.GeneralObservedMetadataLocal290.primitiveOK_exact
+#print axioms Yulang.GeneralObservedMetadataLocal290.metadata_restricts

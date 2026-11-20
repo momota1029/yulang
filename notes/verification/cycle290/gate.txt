@@ -1,0 +1,23 @@
+'Yulang.GeneralObservedMetadataTranslation290.translate_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataReport290.reports_of_candidates' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.good_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.disagreement_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.incompatible_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.accepted_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataScope290.accepted_recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataClosure290.metadata_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataClosure290.offscope_from_common_default' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataGate290.ready_has_provenance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.old_report_changed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.invariant_flag_essential' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.incompatible_even_when_equal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.equal_local_incompatible_outside' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataControls290.equal_local_missing_catalogue_outside' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataActual290.strict_path_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataActual290.exact_install_diagnostics' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataActual290.unobserved_wrong_proposed_primitive_does_not_block' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
