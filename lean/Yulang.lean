@@ -5792,3 +5792,7 @@ import Yulang.GeneralSourceRoleCstFixture293
 import Yulang.GeneralSourceRoleCstSnapshot293
 import Yulang.GeneralSourceRoleCstConsumer293
 import Yulang.GeneralSourceRoleCstConsumerFixture293
+import Yulang.GeneralSourceRoleCstSpan293
+import Yulang.GeneralSourceRoleCstLossless293
+import Yulang.GeneralSourceRoleCstTypeRules293
+import Yulang.GeneralSourceRoleCstRecovery293
