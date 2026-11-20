@@ -5809,3 +5809,6 @@ import Yulang.GeneralSourceRoleCstJsonFixture293
 import Yulang.GeneralSourceRoleCstCoverage293
 import Yulang.GeneralSourceRoleCstDistinct293
 import Yulang.GeneralSourceRoleCstOccurrenceControls293
+import Yulang.GeneralSourceRoleCstTrivia293
+import Yulang.GeneralSourceRoleCstTriviaFixture293
+import Yulang.GeneralSourceRoleCstExternalContract293

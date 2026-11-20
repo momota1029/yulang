@@ -54,3 +54,38 @@ with tempfile.TemporaryDirectory() as tmp:
     r=cli("{badJson",["0"])
     assert r.returncode==1 and ".json" in r.stderr,(r.returncode,r.stderr)
     print("malformed JSON fails")
+    x=copy()
+    x[2][0][2][6][2][3][2][0][2].append(["token","Unknown","?"])
+    r=cli(x,["0"])
+    assert r.returncode==1 and "foreignOrUnsupportedRole" in r.stderr,(r.returncode,r.stderr)
+    print("known lexical-recovery kind is recognized but rejects the role")
+    x=copy()
+    x[2][0][2][4][2][0]=["token","Identifier","型"]
+    x[2][0][2][6][2][1][2][0][2][2]=["token","Identifier","値"]
+    r=cli(x,["0"])
+    assert r.returncode==0,(r.returncode,r.stderr)
+    got=json.loads(r.stdout)
+    assert got["role"]=="型" and got["directMembers"][0]["name"]=="値",got
+    print("UTF-8 role and associated spelling retained")
+    x=copy()
+    tree=x[2][0][2][6][2]
+    tree[3]=json.loads(json.dumps(tree[1]))
+    r=cli(x,["0"])
+    assert r.returncode==0,(r.returncode,r.stderr)
+    items=json.loads(r.stdout)["directMembers"]
+    assert [(w["name"],w["path"]) for w in items]==[("value",[0,6,1,0]),("value",[0,6,3,0])],items
+    print("duplicate unresolved spellings preserved as different occurrences")
+    x=copy()
+    x[2].insert(0,["token","Whitespace"," "])
+    x[2][1][2].insert(5,["token","Whitespace"," "])
+    r=cli(x,["1"])
+    assert r.returncode==0,(r.returncode,r.stderr)
+    got=json.loads(r.stdout)
+    assert got["role"]=="Index" and got["directMembers"][0]["path"]==[1,7,1,0],got
+    print("trivia insertion changes the mixed occurrence path, not associated spelling")
+    deep=["token","Identifier","deep"]
+    for _ in range(64):
+        deep=["node","BindingBody",[deep]]
+    r=cli(deep,[])
+    assert r.returncode==1 and "schemaOrDepth" in r.stderr,(r.returncode,r.stderr)
+    print("explicit wire depth bound rejects input")

@@ -70,3 +70,24 @@ The depth limit is a transport resource bound, not part of Yulang grammar.
 Snapshot brand and selected path are explicit outside this data. A parser
 serializer can stream the ordered tags and raw token spellings; no numeric
 role ID belongs in the structure.
+
+## What the portable entry verifies
+
+From the repository root, with the prior Lean dependency cache and new
+modules built, use `python3 notes/verification/cycle293/test-json-cli.py`
+or from `lean/`:
+
+```sh
+lake env lean --trust=0 --run ../notes/verification/cycle293/run-unresolved-cst.lean \
+  ../notes/verification/cycle293/documented-cst.json 0
+```
+
+The argument 0 selects the role through the root's original mixed child
+positions. The fixture is reconstructed from the documented Rust CST, not
+captured from a Rust parser run. This execution verifies the actual Lean JSON
+transport and projector. It does not validate the Rust exporter that would
+supply these inputs. In particular two accepted tagged input trees can agree
+on every byte of spelling but differ on whether a child is a TypeDeclaration.
+This is a synthetic counterexample to using byte equality as an authenticity
+certificate, not a parser failure. Preserve distinct snapshot brands, and keep
+the original wire if original unclassified labels are needed.

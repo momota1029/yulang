@@ -1,0 +1,9 @@
+'Yulang.GeneralSourceRoleCstTrivia293.visible_filter' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTrivia293.insert_one_trivia' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTriviaFixture293.reprojected_paths' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTriviaFixture293.erase_retains_same_unresolved_role' does not depend on any axioms
+'Yulang.GeneralSourceRoleCstTriviaFixture293.extents_shift_by_utf8_width' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstTriviaFixture293.stale_address_does_not_choose_shifted_role' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstExternalContract293.same_bytes_not_same_child_kind' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstExternalContract293.no_text_only_equality_certificate' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstExternalContract293.tag_compaction_not_injective' depends on axioms: [propext]

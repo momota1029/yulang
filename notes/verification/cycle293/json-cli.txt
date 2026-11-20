@@ -6,3 +6,8 @@ unknown nested tag fails
 wrong mixed child path fails
 extra JSON field fails
 malformed JSON fails
+known lexical-recovery kind is recognized but rejects the role
+UTF-8 role and associated spelling retained
+duplicate unresolved spellings preserved as different occurrences
+trivia insertion changes the mixed occurrence path, not associated spelling
+explicit wire depth bound rejects input
