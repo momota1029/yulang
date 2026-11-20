@@ -1,0 +1,23 @@
+'Yulang.GeneralRebaseRowAdministrative287.equality_is_reflexive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowClosure287.no_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowActualPaths287.only_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowActualPaths287.maximal_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowActualPaths287.raw_accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowEvidenceAt287.evidence_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowEvidenceAt287.stable_pending_without_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowProjection287.actual_square' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowProjection287.materially_different_at_same_output_view' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowProjection287.no_dictionary_status_from_output_view' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowSourceLeaf287.source_verified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowSourceLeaf287.output_independent_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowOuterBoundary287.no_outer_reach' depends on axioms: [propext, Classical.choice, Quot.sound]

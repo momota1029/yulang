@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseRowOuterBoundary287
+
+#print axioms Yulang.GeneralRebaseRowAdministrative287.equality_is_reflexive
+#print axioms Yulang.GeneralRebaseRowClosure287.no_step
+#print axioms Yulang.GeneralRebaseRowActualPaths287.only_before
+#print axioms Yulang.GeneralRebaseRowActualPaths287.maximal_endpoint
+#print axioms Yulang.GeneralRebaseRowActualPaths287.raw_accessible
+#print axioms Yulang.GeneralRebaseRowEvidenceAt287.evidence_at
+#print axioms Yulang.GeneralRebaseRowEvidenceAt287.stable_pending_without_dictionary
+#print axioms Yulang.GeneralRebaseRowProjection287.actual_square
+#print axioms Yulang.GeneralRebaseRowProjection287.materially_different_at_same_output_view
+#print axioms Yulang.GeneralRebaseRowProjection287.no_dictionary_status_from_output_view
+#print axioms Yulang.GeneralRebaseRowSourceLeaf287.source_verified
+#print axioms Yulang.GeneralRebaseRowSourceLeaf287.output_independent_leaf
+#print axioms Yulang.GeneralRebaseRowOuterBoundary287.no_outer_reach

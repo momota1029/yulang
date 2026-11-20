@@ -1,0 +1,5 @@
+import Yulang.GeneralRebaseRowClosedTerm287
+
+#print axioms Yulang.GeneralRebaseRowClosedTerm287.r_not_closed
+#print axioms Yulang.GeneralRebaseRowClosedTerm287.child_closed
+#print axioms Yulang.GeneralRebaseRowClosedTerm287.wrapped_not_closed

@@ -5586,3 +5586,11 @@ import Yulang.GeneralRebaseRowLocal287
 import Yulang.GeneralRebaseRowSettlement287
 import Yulang.GeneralRebaseRowTrustedBoundary287
 import Yulang.GeneralRebaseRowSemanticMark287
+import Yulang.GeneralRebaseRowAdministrative287
+import Yulang.GeneralRebaseRowClosure287
+import Yulang.GeneralRebaseRowProjection287
+import Yulang.GeneralRebaseRowActualPaths287
+import Yulang.GeneralRebaseRowEvidenceAt287
+import Yulang.GeneralRebaseRowSourceLeaf287
+import Yulang.GeneralRebaseRowOuterBoundary287
+import Yulang.GeneralRebaseRowClosedTerm287
