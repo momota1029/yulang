@@ -1,7 +1,7 @@
 import Yulang.GeneralSourceRoleCstGroupAnchor294
 
 /-! Validate that a separately attached owner path denotes a real mixed CST
-child before using it to admit a diagnostic outside the selected corridor.
+child before using it to allow a diagnostic outside the selected corridor.
 Path existence does not authenticate the attachment. -/
 namespace Yulang.GeneralSourceRoleCstBoundOwners294
 open GeneralSourceRoleCstTree293 (Path Tree)

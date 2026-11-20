@@ -59,3 +59,14 @@ parent, supplies the tested relatedness. The archived single-range replay
 uses this mixed gate, and refuses a missing or foreign receipt, partial
 range, or an invented second diagnostic owner. Existence of an owner path
 does not establish that Rust reported the event there.
+
+The portable byte-range gate is insufficient to identify even a supplied
+Rust ErrorGroup's origin: the checked-in walker treats NestingTooDeep as
+opaque, suppresses directly contained Error tokens under an Error node,
+and rejects empty raw Error tokens. Closed examples make the portable
+gate succeed for a matching range while a conservative plain-token
+check must decline it. The stronger adapter traces every matched token
+through the retained Root and rejects all three barriers. It is not a
+model of Rust's complete structural walker: node-owned and opaque
+diagnostics require independently grounded evidence. The real archived
+49..58 direct-root range passes the stronger gate.

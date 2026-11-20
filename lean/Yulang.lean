@@ -5843,3 +5843,6 @@ import Yulang.GeneralSourceRoleCstMixedReceipt294
 import Yulang.GeneralSourceRoleCstMarkUnique294
 import Yulang.GeneralSourceRoleCstPathFidelity294
 import Yulang.GeneralSourceRoleCstEqualSpans294
+import Yulang.GeneralSourceRoleCstRunVisibility294
+import Yulang.GeneralSourceRoleCstVisibleRange294
+import Yulang.GeneralSourceRoleCstVisibleReceipt294
