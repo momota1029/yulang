@@ -1,0 +1,4 @@
+'Yulang.GeneralRebaseRowGeneratedChild287.raw_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowGeneratedChild287.center_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowGeneratedChild287.pending_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowGeneratedChild287.no_child_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]

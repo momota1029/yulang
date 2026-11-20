@@ -1,0 +1,14 @@
+import Yulang.GeneralRebaseRowParentStep287
+
+#print axioms Yulang.GeneralRebaseRowParentPacket287.sole_child
+#print axioms Yulang.GeneralRebaseRowParentPacket287.emitted
+#print axioms Yulang.GeneralRebaseRowParentOutput287.outputs_exact
+#print axioms Yulang.GeneralRebaseRowParentInputs287.parent_packet
+#print axioms Yulang.GeneralRebaseRowChildRaw287.exact_source
+#print axioms Yulang.GeneralRebaseRowChildRaw287.ambient_boundary
+#print axioms Yulang.GeneralRebaseRowChildRaw287.complete_check
+#print axioms Yulang.GeneralRebaseRowGroundBoundary287.formed_but_not_ground
+#print axioms Yulang.GeneralRebaseRowSpineCycles287.acyclic
+#print axioms Yulang.GeneralRebaseRowParentFrame287.after_exact
+#print axioms Yulang.GeneralRebaseRowParentStep287.actual_step
+#print axioms Yulang.GeneralRebaseRowParentStep287.generated
