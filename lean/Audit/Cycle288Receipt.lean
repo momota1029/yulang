@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseRowLeafReceipt288
+
+#print axioms Yulang.GeneralRebaseRowLeafWindow288.not_yet_generated
+#print axioms Yulang.GeneralRebaseRowLeafWindow288.actual_activation_window
+#print axioms Yulang.GeneralRebaseRowLeafWindow288.post_mark_absent
+#print axioms Yulang.GeneralRebaseRowRefreshDiagnostics288.no_semantic_recurrence
+#print axioms Yulang.GeneralRebaseRowRefreshDiagnostics288.safe
+#print axioms Yulang.GeneralRebaseRowRefreshDiagnostics288.unique_from_role
+#print axioms Yulang.GeneralRebaseRowRefreshDiagnostics288.selected_parent
+#print axioms Yulang.GeneralRebaseRowRefreshDiagnostics288.selected_child
+#print axioms Yulang.GeneralRebaseRowRefreshDiagnostics288.fully_selected
+#print axioms Yulang.GeneralRebaseRowRefreshDiagnostics288.exact_tree
+#print axioms Yulang.GeneralRebaseLeafReceipt288.strong_if_ambient
+#print axioms Yulang.GeneralRebaseLeafReceipt288.instantiate
+#print axioms Yulang.GeneralRebaseRowLeafReceipt288.receipt
+#print axioms Yulang.GeneralRebaseRowLeafReceipt288.strong_and_weak_separate
+#print axioms Yulang.GeneralRebaseRowLeafReceipt288.no_foreign_receipt
+#print axioms Yulang.GeneralRebaseRowLeafReceipt288.no_pre_emission_receipt

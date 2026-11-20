@@ -112,3 +112,13 @@ postulates fresh full packet evidence in that narrowed snapshot nor
 authorizes a new settlement rule. A local support proof must retain the
 Known/head guard, even when a variable-pattern packet's equations are
 trivial. The wrong-registry frame remains invalid.
+
+The local alternative is recorded as a separate proof interface only:
+exact current frame and V8 guards; no children or class requests; every
+actual root head and nested read justified from the empty source slice;
+local packet input/output equations proved from that slice. Realizing
+ordinary evidence uses the full model at the ambient-snapshot conjunct,
+not as justification for the source reads. Test existence of this weaker
+*support certificate* after the harmless refresh, while the strong fresh
+`Leaf` remains impossible. Do not plug the new interface into
+`Trusted.output` or extend the kernel.

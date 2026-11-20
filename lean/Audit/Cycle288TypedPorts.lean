@@ -1,0 +1,12 @@
+import Yulang.GeneralRebaseRowLeafDecisionGuard288
+
+#print axioms Yulang.GeneralRebaseRowLeafHeadSupport288.inner_denotes_iff
+#print axioms Yulang.GeneralRebaseRowLeafHeadSupport288.exact_head_check
+#print axioms Yulang.GeneralRebaseRowLeafHeadSupport288.typed_support_minimal
+#print axioms Yulang.GeneralRebaseRowLeafHeadSupport288.source_never_loses_head
+#print axioms Yulang.GeneralRebaseRowOutputHeadSupport288.actually_recorded
+#print axioms Yulang.GeneralRebaseRowOutputHeadSupport288.prior_descriptor_meaning
+#print axioms Yulang.GeneralRebaseRowOutputHeadSupport288.exact_read
+#print axioms Yulang.GeneralRebaseRowOutputHeadSupport288.no_private_or_row_read
+#print axioms Yulang.GeneralRebaseRowLeafDecisionGuard288.ready_from_source
+#print axioms Yulang.GeneralRebaseRowLeafDecisionGuard288.actual_guard
