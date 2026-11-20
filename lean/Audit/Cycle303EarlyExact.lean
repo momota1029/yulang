@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderEarlyExact303
+
+#print axioms Yulang.GeneralDeferredLadderEarlyExact303.not_int
+#print axioms Yulang.GeneralDeferredLadderEarlyExact303.any_list_frame_eq
+#print axioms Yulang.GeneralDeferredLadderEarlyExact303.prior_committed
+#print axioms Yulang.GeneralDeferredLadderEarlyExact303.after_only_install
+#print axioms Yulang.GeneralDeferredLadderEarlyExact303.exact_next

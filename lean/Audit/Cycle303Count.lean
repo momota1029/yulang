@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderCount303
+
+#print axioms Yulang.GeneralDeferredLadderCount303.count_from
+#print axioms Yulang.GeneralDeferredLadderCount303.count_exact
+#print axioms Yulang.GeneralDeferredLadderCount303.remaining_exact
+#print axioms Yulang.GeneralDeferredLadderCount303.halted_count_iff
+#print axioms Yulang.GeneralDeferredLadderCount303.suffix_readback

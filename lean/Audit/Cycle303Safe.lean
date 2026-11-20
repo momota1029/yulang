@@ -1,0 +1,7 @@
+import Yulang.GeneralDeferredLadderSafe303
+
+#print axioms Yulang.GeneralDeferredLadderSafe303.known
+#print axioms Yulang.GeneralDeferredLadderSafe303.chosen_children
+#print axioms Yulang.GeneralDeferredLadderSafe303.unique
+#print axioms Yulang.GeneralDeferredLadderSafe303.administrative
+#print axioms Yulang.GeneralDeferredLadderSafe303.safe

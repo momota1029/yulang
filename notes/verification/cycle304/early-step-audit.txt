@@ -1,0 +1,66 @@
+### Audit/Cycle303Frontier.lean
+'Yulang.GeneralDeferredLadderFrontier303.frontier_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderFrontier303.list_prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderFrontier303.frontier_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderFrontier303.frontier_not_int' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderFrontier303.frontier_unique_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+### Audit/Cycle303Safe.lean
+'Yulang.GeneralDeferredLadderSafe303.known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderSafe303.chosen_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderSafe303.unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderSafe303.administrative' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderSafe303.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle303EarlyInstall.lean
+'Yulang.GeneralDeferredLadderEarlyInstall303.current_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.alternatives' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.emitted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.future_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.installation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.promoted_reached' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.not_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyInstall303.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle303EarlyExact.lean
+'Yulang.GeneralDeferredLadderEarlyExact303.not_int' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyExact303.any_list_frame_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyExact303.prior_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyExact303.after_only_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyExact303.exact_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle303EarlyReplay.lean
+'Yulang.GeneralDeferredLadderEarlyReplay303.all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyReplay303.reindexed_to_ref' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderEarlyReplay303.after_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+### Audit/Cycle303WideFixture.lean
+'Yulang.GeneralDeferredLadderWideFixture303.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderWideFixture303.known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderWideFixture303.legal_distinct_refresh' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderWideFixture303.outside_old_family' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderWideFixture303.wider_unique_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+### Audit/Cycle303Count.lean
+'Yulang.GeneralDeferredLadderCount303.count_from' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCount303.count_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCount303.remaining_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCount303.halted_count_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCount303.suffix_readback' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle303Agreement.lean
+'Yulang.GeneralDeferredLadderAgreement303.supported_terminal_agreement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
