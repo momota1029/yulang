@@ -1,0 +1,22 @@
+'Yulang.GeneralSourceRoleCstCatalogScalar296.nat_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogScalar296.value_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogQueryWire296.fields_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogQueryWire296.query_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogWire296.row_fields_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogWire296.row_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogWire296.aligned_rows_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogWire296.rows_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogWire296.catalog_fields_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogWire296.catalog_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogEntry296.value_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogEntry296.text_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogOrder296.fiber_perm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogOrder296.lookup_perm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogOrder296.require_congr_on_keys' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogOrder296.produce_local' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogOrder296.run_local' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogOrder296.run_perm' depends on axioms: [propext, Quot.sound]

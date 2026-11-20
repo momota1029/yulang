@@ -1,0 +1,19 @@
+import Yulang.GeneralSourceRoleCstCatalogOrder296
+#print axioms Yulang.GeneralSourceRoleCstCatalogScalar296.nat_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogScalar296.value_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogQueryWire296.fields_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogQueryWire296.query_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogWire296.row_fields_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogWire296.row_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogWire296.aligned_rows_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogWire296.rows_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogWire296.catalog_fields_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogWire296.catalog_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogEntry296.value_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogEntry296.text_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogOrder296.fiber_perm
+#print axioms Yulang.GeneralSourceRoleCstCatalogOrder296.lookup_perm
+#print axioms Yulang.GeneralSourceRoleCstCatalogOrder296.require_congr_on_keys
+#print axioms Yulang.GeneralSourceRoleCstCatalogOrder296.produce_local
+#print axioms Yulang.GeneralSourceRoleCstCatalogOrder296.run_local
+#print axioms Yulang.GeneralSourceRoleCstCatalogOrder296.run_perm

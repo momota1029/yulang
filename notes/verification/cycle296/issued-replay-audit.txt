@@ -1,0 +1,17 @@
+'Yulang.GeneralSourceRoleCstIssuedScope296.checks_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstIssuedScope296.accept_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstIssuedScope296.changed_revision_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstIssuePacket296.issue_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstIssuePacket296.issued_replays_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstIssueControl296.issued_contains_only_demanded_rows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstIssueControl296.replay_binds_scope_revision_and_fallback' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstIssueControl296.issue_does_not_clear_fresh_recovery_gate' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstMinimalCatalog296.coalesce_preserves_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMinimalCatalog296.coalesce_idempotent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMinimalCatalog296.least_among_same_selected_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstKnownOnSuccess296.resolved_body_keys_found' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstKnownOnSuccess296.resolved_output_keys_found' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstKnownOnSuccess296.lowered_role_keys_found' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstKnownOnSuccess296.success_has_no_absent_replies' depends on axioms: [propext, Quot.sound]

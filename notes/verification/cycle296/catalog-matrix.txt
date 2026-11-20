@@ -1,0 +1,14 @@
+PASS unobserved role
+PASS observed absence of role
+PASS unobserved output
+PASS constructor namespace cannot stand in for the output name
+PASS same spelling in a different role is a different output
+PASS observed absence of output
+PASS equivalent duplicate is still duplicate raw evidence
+PASS contradictory rows
+PASS unobserved demanded constructor
+PASS observed absence of constructor
+PASS required output has no default term but its name has a present ID.
+PASS reordered catalog yields unchanged ordered trace, unrelated conflicting key ignored.
+PASS exact issued footprint replays; altered revision, fallback or address and absent fresh recovery observation deny replay.
+Synthetic cases use Lean values; scope/epoch comparisons are not authentication.

@@ -1,0 +1,5 @@
+'Yulang.GeneralSourceRoleCstSelectedControl295.reusable_view_found_both' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSelectedControl295.selected_controls' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedControl295.wrong_context_denied' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedControl295.reader_differs_by_selected_declaration' depends on axioms: [propext,
+ Quot.sound]

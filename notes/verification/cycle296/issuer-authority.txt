@@ -1,0 +1,4 @@
+Same archived wire, role [0], and revision 41 accept two separately supplied contradictory catalogs.
+One replay yields a row with ID 7 and the other with ID 8.
+Combining both observations is rejected as ambiguous; matching revision fields cannot attest either ID.
+Archived syntax is real fixture data; the alternate numeric observations are explicitly synthetic.

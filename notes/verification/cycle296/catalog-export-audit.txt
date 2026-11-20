@@ -1,0 +1,15 @@
+'Yulang.GeneralSourceRoleCstCatalogAgreement296.own_environment_fits' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstCatalogAgreement296.fits_iff_reads_agree' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstCatalogAgreement296.supported_role_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogAgreement296.producer_trace_authority' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogAgreement296.queried_keys_stable' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogExport296.run_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogExport296.evidence_failure_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogReplay296.agrees_replays' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogControl296.exact_finite_exports' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogControl296.unobserved_and_explicit_absence_differ' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogControl296.duplicate_and_conflicting_rows_rejected' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogControl296.footprint_is_local' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogControl296.cannot_retarget_catalog_export' depends on axioms: [propext, Quot.sound]

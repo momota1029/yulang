@@ -1,0 +1,5 @@
+Actual existing Lean assocOf after inversion/replay: selected [0] -> int; selected [2] -> char.
+Finite extraction omitted unrelated rows and coalesced two compatible occurrences of one constructor.
+Conflicting constructor resolutions and a substituted wrong binder position were rejected.
+Two structurally valid different numeric tables remain possible; no authority comes from syntax.
+Synthetic wrapped associations, executed in Lean only.

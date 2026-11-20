@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 294
+- cycle: 296
 - status: completed
-- started: 2026-11-20T09:30:01Z
-- updated: 2026-11-20T10:20:05Z
+- started: 2026-11-20T11:30:00Z
+- updated: 2026-11-20T12:20:04Z
 - elapsed_min: 50.07
-- activity: 保存済み Rowan CST の原始印・診断 receipt・選択 role の境界を検証
-- last_local_commit: 85dc9e1b5
-- report: notes/handoff/dots-cycle-294.md
-- resume_hint: 次周も統合 branch の standing orders と inbox を最初に再読。Rust parser の新規実行、診断完全性の真正確認、production serializer、名前解決は未検証。3つの保存 path replay は確認済み。
+- activity: 有限の名前観測から選択 role を変換し、最小証跡で同じ旧 table を再演
+- last_local_commit: f149fccce
+- report: notes/handoff/dots-cycle-296.md
+- resume_hint: 次周も統合 branch の standing orders と inbox を最初に再読。利用可能な Rust で実 CST と fallible diagnostics を採取し、独立の名前決定元を検証。有限証跡と旧 table の往復は確認済み。

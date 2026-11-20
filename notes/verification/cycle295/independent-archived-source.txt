@@ -1,0 +1,8 @@
+[0]: RoleDeclaration 0..49
+[0, 2]: TypeExpression 5..9
+[0, 4, 2, 0]: BindingStatement 15..49
+[1]: Error 49..50
+[2]: Error 50..51
+[3]: Error 51..58
+One direct method and no associated type; nothing here assigns a semantic role ID.
+Archived Rust source replay only; raw offsets independently confirmed.

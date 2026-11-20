@@ -1,0 +1,5 @@
+'Yulang.GeneralSourceRoleCstSelectedCoverage295.tracked_type_contributes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedCoverage295.selected_type_contributes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCoverageEnd295.text_has_every_selected_type' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

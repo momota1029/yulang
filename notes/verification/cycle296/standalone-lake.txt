@@ -1,0 +1,8 @@
+lake env lean --trust=0 -j 1 Audit/Cycle296Catalog.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle296CatalogExport.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle296CatalogTransport.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle296ExactFootprint.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle296Inversion.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle296IssuedReplay.lean: exit 0
+New barrel imports and two existing C295 CLI outputs unchanged: PASS.
+Serialized guard elapsed: 14 sec.

@@ -1,0 +1,12 @@
+coverage-audit.txt: 3 declarations checked
+naming-boundary-audit.txt: 12 declarations checked
+naming-packet-audit.txt: 17 declarations checked
+selected-control-audit.txt: 4 declarations checked
+selected-default-audit.txt: 10 declarations checked
+selected-end-audit.txt: 12 declarations checked
+selected-entry-audit.txt: 8 declarations checked
+selected-row-audit.txt: 6 declarations checked
+selected-seal-audit.txt: 5 declarations checked
+source-provenance-audit.txt: 8 declarations checked
+symbolic-total-audit.txt: 10 declarations checked
+All 95 separate declarations accounted for by 11 successful standalone audits.

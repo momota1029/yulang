@@ -1,0 +1,6 @@
+import Yulang.GeneralSourceRoleCstSelectedControl295
+
+#print axioms Yulang.GeneralSourceRoleCstSelectedControl295.reusable_view_found_both
+#print axioms Yulang.GeneralSourceRoleCstSelectedControl295.selected_controls
+#print axioms Yulang.GeneralSourceRoleCstSelectedControl295.wrong_context_denied
+#print axioms Yulang.GeneralSourceRoleCstSelectedControl295.reader_differs_by_selected_declaration

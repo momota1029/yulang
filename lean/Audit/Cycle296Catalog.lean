@@ -1,0 +1,9 @@
+import Yulang.GeneralSourceRoleCstCatalogTrace296
+#print axioms Yulang.GeneralSourceRoleCstNameCatalog296.known_exact
+#print axioms Yulang.GeneralSourceRoleCstNameCatalog296.empty_exact
+#print axioms Yulang.GeneralSourceRoleCstNameCatalog296.ambiguous_exact
+#print axioms Yulang.GeneralSourceRoleCstNameCatalog296.reply_from_catalog
+#print axioms Yulang.GeneralSourceRoleCstNameCatalog296.known_reply
+#print axioms Yulang.GeneralSourceRoleCstNameCatalog296.member_of_fiber
+#print axioms Yulang.GeneralSourceRoleCstCatalogTrace296.require_exact
+#print axioms Yulang.GeneralSourceRoleCstCatalogTrace296.produce_exact

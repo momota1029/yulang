@@ -1,0 +1,10 @@
+'Yulang.GeneralSourceRoleCstSelectedOutcome295.ok_iff_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedOutcome295.rejects_selection_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedOutcome295.rejects_changed_naming' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedJson295.value_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedJson295.text_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSourceRoleCstRequiredControl295.required_slot_separate_from_nondeclaration' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstRequiredControl295.required_omitted_not_a_default' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstRequiredControl295.both_selected_still_not_a_joint_same_key_export' depends on axioms: [propext,
+ Quot.sound]

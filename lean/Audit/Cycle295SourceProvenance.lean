@@ -1,0 +1,10 @@
+import Yulang.GeneralSourceRoleCstExplicitRead295
+
+#print axioms Yulang.GeneralSourceRoleCstHeadOrigin295.head_at_ordinal
+#print axioms Yulang.GeneralSourceRoleCstHeadOrigin295.selected_head_from_original
+#print axioms Yulang.GeneralSourceRoleCstSelectedExtent295.locate_append
+#print axioms Yulang.GeneralSourceRoleCstSelectedExtent295.subextent
+#print axioms Yulang.GeneralSourceRoleCstSelectedExtent295.selected_member_contained
+#print axioms Yulang.GeneralSourceRoleCstRowExtent295.read_locates_own_type
+#print axioms Yulang.GeneralSourceRoleCstExplicitRead295.selected_explicit_preserved
+#print axioms Yulang.GeneralSourceRoleCstExplicitRead295.default_and_explicit_reads_differ

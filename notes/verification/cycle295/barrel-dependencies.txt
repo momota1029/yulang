@@ -1,0 +1,78 @@
+Yulang.GeneralSourceRoleCstSelectedEnd295.text_exports_one_original_role {S B : Type} [DecidableEq S] [DecidableEq B]
+  (fuel : Nat) (text : String) (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : S) (brand : B)
+  (a : Yulang.GeneralSourceRoleCstSnapshot293.Address B)
+  (packet : Yulang.GeneralSourceRoleCstNamingPacket295.FiniteBoundary S B)
+  (env : S → Yulang.GeneralSourceRoleSpelling292.Environment) (fallback : Nat)
+  (table : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (ok :
+    Yulang.GeneralSourceRoleCstSelectedJson295.fromText fuel text policy scope brand a packet env fallback =
+      Except.ok table) :
+  ∃ j w children row name arguments,
+    Lean.Json.parse text = Except.ok j ∧
+      Yulang.GeneralSourceRoleCstJson293.encode w = j ∧
+        Yulang.GeneralSourceRoleCstJson293.depth w ≤ fuel ∧
+          a = packet.selected.selected.address ∧
+            scope = packet.selected.allowedScope ∧
+              Yulang.GeneralSourceRoleCstWirePaths293.atWire a.path w =
+                  some (Yulang.GeneralSourceRoleCstWire293.Wire.node "RoleDeclaration" children) ∧
+                table.rows = [row] ∧
+                  Yulang.GeneralSourceMetadataRoles291.Valid table ∧
+                    row.arity = arguments.length ∧ (env scope).role name = some row.role
+Yulang.GeneralSourceRoleCstCoverageEnd295.text_has_every_selected_type {S B : Type} [DecidableEq S] [DecidableEq B]
+  (fuel : Nat) (text : String) (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : S) (brand : B)
+  (a : Yulang.GeneralSourceRoleCstSnapshot293.Address B)
+  (packet : Yulang.GeneralSourceRoleCstNamingPacket295.FiniteBoundary S B)
+  (env : S → Yulang.GeneralSourceRoleSpelling292.Environment) (fallback : Nat)
+  (tab : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (ok :
+    Yulang.GeneralSourceRoleCstSelectedJson295.fromText fuel text policy scope brand a packet env fallback =
+      Except.ok tab) :
+  ∃ j w p,
+    Lean.Json.parse text = Except.ok j ∧
+      Yulang.GeneralSourceRoleCstJson293.encode w = j ∧
+        Yulang.GeneralSourceRoleCstJson293.depth w ≤ fuel ∧
+          p.atRole = a ∧
+            Yulang.GeneralSourceRoleCstSelectedSeal295.select policy scope w brand a packet.selected.selected = some p ∧
+              ∀ (site : Yulang.GeneralSourceRoleCstSnapshot293.Address B)
+                (shape : Yulang.GeneralSourceRoleSyntaxBoundary292.Shape),
+                (site, Yulang.GeneralSourceRoleChildCoverage292.Child.typeDecl shape) ∈ p.body →
+                  ∃ role name value children b stmt leaf,
+                    Yulang.GeneralSourceRoleTrack292.OriginAt env [p] role name value a site ∧
+                      (Yulang.GeneralSourceMetadataRoles291.roleTable tab role).assoc name = some value ∧
+                        site.path = a.path ++ [b, stmt, leaf] ∧
+                          Yulang.GeneralSourceRoleCstWirePaths293.atWire site.path w =
+                            some (Yulang.GeneralSourceRoleCstWire293.Wire.node "TypeDeclaration" children)
+Yulang.GeneralSourceRoleCstSelectedDefault295.old_read_omitted_exact {Scope Brand : Type} [DecidableEq Scope]
+  [DecidableEq Brand] (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : Scope)
+  (w : Yulang.GeneralSourceRoleCstWire293.Wire) (brand : Brand)
+  (a : Yulang.GeneralSourceRoleCstSnapshot293.Address Brand)
+  (sealed : Yulang.GeneralSourceRoleCstSelectedCompile295.Boundary Scope Brand)
+  (env : Scope → Yulang.GeneralSourceRoleSpelling292.Environment) (fallback : Nat)
+  (table : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (built :
+    Yulang.GeneralSourceRoleCstSelectedCompile295.compile policy scope w brand a sealed env fallback = some table)
+  (impls : Yulang.Roles.AssocEnv) (wf : Yulang.Roles.WellFormed impls.cores) (goal : Yulang.Roles.Goal) (name : Nat)
+  (success : Yulang.Roles.resolve impls.cores wf goal = Yulang.Roles.Result.resolved) (impl : Yulang.Roles.AssocImpl)
+  (present : impl ∈ impls.impls) (selected : Yulang.Roles.candidates impls.cores goal = [impl.impl])
+  (omitted : List.lookup name impl.assoc = none) (value : Yulang.Roles.Term) :
+  ∃ entry,
+    entry.atRole = a ∧
+      a = sealed.selected.address ∧
+        (Yulang.Roles.assocOf impls (Yulang.GeneralSourceMetadataRoles291.roleTable table) wf goal name = some value ↔
+          ∃ body,
+            Yulang.GeneralSourceRoleCstSelectedReadback295.AnchoredAssoc w env entry a goal.role name (some body) ∧
+              Yulang.Roles.Term.subst (Yulang.Roles.defaultSubst goal.args) body = value)
+Yulang.GeneralSourceRoleCstNamingPacket295.captured_naming_same_result {S B : Type} [DecidableEq S] [DecidableEq B]
+  (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : S) (w : Yulang.GeneralSourceRoleCstWire293.Wire)
+  (brand : B) (a : Yulang.GeneralSourceRoleCstSnapshot293.Address B)
+  (packet : Yulang.GeneralSourceRoleCstNamingPacket295.FiniteBoundary S B)
+  (reference actual : S → Yulang.GeneralSourceRoleSpelling292.Environment) (fallback : Nat)
+  (table : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (named :
+    Yulang.GeneralSourceRoleCstNamingPacket295.captureAt policy scope w brand a packet.selected reference =
+      some packet.naming)
+  (ok : Yulang.GeneralSourceRoleCstNamingPacket295.checked policy scope w brand a packet actual fallback = some table) :
+  Yulang.GeneralSourceRoleCstSelectedCompile295.compile policy scope w brand a packet.selected reference fallback =
+    some table
+
+exit=0 :: all 32 new imports loaded together and key boundary types checked

@@ -1,0 +1,5 @@
+Archived role a [0], method child [0,4,2,0], selected declaration only.
+Role bytes 0..49; direct head [0,2] bytes 5..9; method bytes 15..49.
+Caller-provided map a -> 7 yields one role row (arity 1); no associated outputs.
+Without the map, or with a different site or policy, no table is produced.
+No runtime Rust parser, full diagnostic receipt or compiler naming environment was collected.

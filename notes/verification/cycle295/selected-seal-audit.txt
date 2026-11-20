@@ -1,0 +1,5 @@
+'Yulang.GeneralSourceRoleCstSelectedSeal295.select_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSelectedSeal295.different_address_none' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSelectedSeal295.different_policy_none' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSealOrigin295.kept_export' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSealOrigin295.selected_site' depends on axioms: [propext, Quot.sound]

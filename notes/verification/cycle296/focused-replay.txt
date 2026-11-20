@@ -1,0 +1,52 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Base tree: b237aeefb46f6b0c2121d7b41c23f77d232b247e; tested data tree: a61fb765efe3e3e04135459cd5f7e953b254f371.
+Isolated source GeneralSourceRoleCstNameCatalog296 PASS
+Isolated source GeneralSourceRoleCstCatalogTrace296 PASS
+Isolated source GeneralSourceRoleCstCatalogAgreement296 PASS
+Isolated source GeneralSourceRoleCstCatalogExport296 PASS
+Isolated source GeneralSourceRoleCstCatalogReplay296 PASS
+Isolated source GeneralSourceRoleCstCatalogControl296 PASS
+Isolated source GeneralSourceRoleCstReifyBody296 PASS
+Isolated source GeneralSourceRoleCstReifyRow296 PASS
+Isolated source GeneralSourceRoleCstCoalesce296 PASS
+Isolated source GeneralSourceRoleCstRecoveredCatalog296 PASS
+Isolated source GeneralSourceRoleCstCatalogFailure296 PASS
+Isolated source GeneralSourceRoleCstRecoveredControl296 PASS
+Isolated source GeneralSourceRoleCstTrackedRow296 PASS
+Isolated source GeneralSourceRoleCstTableEvidence296 PASS
+Isolated source GeneralSourceRoleCstSelectedEvidence296 PASS
+Isolated source GeneralSourceRoleCstCatalogFootprint296 PASS
+Isolated source GeneralSourceRoleCstTrimCatalog296 PASS
+Isolated source GeneralSourceRoleCstCatalogScalar296 PASS
+Isolated source GeneralSourceRoleCstCatalogQueryWire296 PASS
+Isolated source GeneralSourceRoleCstCatalogWire296 PASS
+Isolated source GeneralSourceRoleCstCatalogEntry296 PASS
+Isolated source GeneralSourceRoleCstCatalogOrder296 PASS
+Isolated source GeneralSourceRoleCstIssuedScope296 PASS
+Isolated source GeneralSourceRoleCstIssuePacket296 PASS
+Isolated source GeneralSourceRoleCstIssueControl296 PASS
+Isolated source GeneralSourceRoleCstMinimalCatalog296 PASS
+Isolated source GeneralSourceRoleCstKnownOnSuccess296 PASS
+Standalone lean/Audit/Cycle296Catalog.lean PASS
+Standalone lean/Audit/Cycle296CatalogExport.lean PASS
+Standalone lean/Audit/Cycle296CatalogTransport.lean PASS
+Standalone lean/Audit/Cycle296ExactFootprint.lean PASS
+Standalone lean/Audit/Cycle296Inversion.lean PASS
+Standalone lean/Audit/Cycle296IssuedReplay.lean PASS
+Audited 93 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
+Existing lean/Audit/Cycle295Coverage.lean PASS
+Existing lean/Audit/Cycle295NamingBoundary.lean PASS
+Existing lean/Audit/Cycle295NamingPacket.lean PASS
+Existing lean/Audit/Cycle295SelectedControl.lean PASS
+Existing lean/Audit/Cycle295SelectedDefault.lean PASS
+Existing lean/Audit/Cycle295SelectedEnd.lean PASS
+Existing lean/Audit/Cycle295SelectedEntry.lean PASS
+Existing lean/Audit/Cycle295SelectedRow.lean PASS
+Existing lean/Audit/Cycle295SelectedSeal.lean PASS
+Existing lean/Audit/Cycle295SourceProvenance.lean PASS
+Existing lean/Audit/Cycle295SymbolicTotal.lean PASS
+Existing lean/Audit/Cycle294IndependentDiagnostics.lean PASS
+Existing lean/Audit/Cycle294WireBinding.lean PASS
+Isolated build: 27 modules; five replay outputs matched; no Rust parser execution.
+
+exit=0 :: independent focused build and executable replay (serialized)

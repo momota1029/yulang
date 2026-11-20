@@ -1,0 +1,5 @@
+[0]: original TypeDeclaration at [0, 6, 1, 0], bytes 36..53: type value = 'key
+[2]: original TypeDeclaration at [2, 6, 1, 0], bytes 119..136: type value = char
+Existing assocOf: selected [0] omitted -> int; selected [2] omitted -> char.
+Existing assocOf explicit override on [0] -> char; required-without-default -> none.
+Closed synthetic Wire controls and actual Lean association reader; no Rust parser result.

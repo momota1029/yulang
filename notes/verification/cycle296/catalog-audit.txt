@@ -1,0 +1,8 @@
+'Yulang.GeneralSourceRoleCstNameCatalog296.known_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstNameCatalog296.empty_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstNameCatalog296.ambiguous_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstNameCatalog296.reply_from_catalog' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstNameCatalog296.known_reply' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstNameCatalog296.member_of_fiber' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogTrace296.require_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCatalogTrace296.produce_exact' depends on axioms: [propext, Quot.sound]
