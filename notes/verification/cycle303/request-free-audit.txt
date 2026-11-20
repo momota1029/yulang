@@ -1,0 +1,5 @@
+'Yulang.GeneralDeferredLadderRequestFree303.classes_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRequestFree303.model_of_request_free_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderRequestFree303.model_alignment' depends on axioms: [propext, Classical.choice, Quot.sound]

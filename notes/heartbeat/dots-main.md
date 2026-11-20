@@ -2,9 +2,9 @@
 - cycle: 303
 - status: running
 - started: 2026-11-20T18:31:06Z
-- updated: 2026-11-20T19:06:31.673Z
-- elapsed_min: 35
-- activity: 待機中: 残りの scoped Lean 依存を再構築し、監査を準備。先に確認できた文脈立証は公開済み。
+- updated: 2026-11-20T19:11:46.860Z
+- elapsed_min: 40
+- activity: 任意の既存モデルを据え付け前後に同じく保つための request-free 一般定理を検証。cold build の残りを再開。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 40e6f3b48
-- resume_hint: /tmp/yulang303-build-resume.log。公式 Lean ツールチェーンと回復された Git tree; pin df23322a を守る。
+- last_local_commit: 85f40dc42
+- resume_hint: d0689c61 と本 pin は焦点 Lean 照合済み。旧依存は /tmp/yulang303-build-resume2.log にて構築中。
