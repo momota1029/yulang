@@ -2,9 +2,9 @@
 - cycle: 296
 - status: running
 - started: 2026-11-20T11:30:00Z
-- updated: 2026-11-20T11:41:12Z
-- elapsed_min: 11.20
-- activity: 通常の lowering 出力を逆抽出し、同一結果へ再 lowering。矛盾と binder 誤位置を拒否
+- updated: 2026-11-20T11:46:38Z
+- elapsed_min: 16.63
+- activity: 同じ選択行の逆抽出・最小証跡・旧 assocOf の int/char 再走を確認
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 9c1d61011
-- resume_hint: 保存済み role a は単一観測から往復確認。Rust 名前解決の実行ではない。
+- last_local_commit: 1b806362b
+- resume_hint: 次は有限観測表の順序独立性と保護された輸送。Rust live 実行なし。

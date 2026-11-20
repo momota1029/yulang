@@ -34,3 +34,10 @@ consistency check, not authentication of a handed-in row; inconsistent
 multiple replies must not produce a map. Identical repeats from a
 capture (e.g. two uses of one constructor) can be coalesced only in this
 explicit inversion, not in the raw catalog interface.
+
+The selected one-row old table can now be inverted while retaining the
+same sealed handoff. The recovered catalog contains precisely the
+literal entries queried by that successful output. Re-running from
+the shortened, coalesced catalog gives the identical trace and table.
+Among catalogs that produce the same selected resolved row, the
+occurrence trace is determined even if unused observations differ.
