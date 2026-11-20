@@ -1,0 +1,11 @@
+import Yulang.GeneralSourceRoleChildCoverage292
+import Yulang.GeneralSourceRoleAssocRead292
+
+#print axioms Yulang.GeneralSourceRoleChildCoverage292.scan_exact
+#print axioms Yulang.GeneralSourceRoleChildCoverage292.member_exact
+#print axioms Yulang.GeneralSourceRoleChildCoverage292.no_unknown
+#print axioms Yulang.GeneralSourceRoleChildCoverage292.scan_success_iff
+#print axioms Yulang.GeneralSourceRoleChildCoverage292.ordered_members
+#print axioms Yulang.GeneralSourceRoleAssocRead292.assoc_exact
+#print axioms Yulang.GeneralSourceRoleAssocRead292.undeclared_exact
+#print axioms Yulang.GeneralSourceRoleAssocRead292.required_exact

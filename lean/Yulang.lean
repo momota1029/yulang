@@ -5754,3 +5754,5 @@ import Yulang.GeneralSourceRoleManifest292
 import Yulang.GeneralSourceRoleSyntaxBoundary292
 import Yulang.GeneralSourceRoleSyntaxPipeline292
 import Yulang.GeneralSourceRoleSyntaxFixture292
+import Yulang.GeneralSourceRoleChildCoverage292
+import Yulang.GeneralSourceRoleAssocRead292
