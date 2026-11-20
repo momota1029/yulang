@@ -1,0 +1,24 @@
+'Yulang.GeneralObservedMetadataRequests290.schema_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBranch290.branch_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBranch290.accepted_branch' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataMaterializationFixture290.actual_request_keys' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataMaterializationFixture290.alternate_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataMaterializationFixture290.head_certificate_cannot_speak_for_schema' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataExpressions290.explicit_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataExpressions290.default_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBodies290.compile_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataBodies290.bodySchema_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataLive290.accepted_live_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataHistorical290.owner_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedMetadataHistorical290.one_effect_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataHistoryFixture290.actual_installed_results' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataHistoryFixture290.recorded_body_keys' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedMetadataHistoryFixture290.live_compiler_needs_compound_key' depends on axioms: [propext]
+'Yulang.GeneralObservedMetadataHistoryFixture290.defaults_use_their_term_keys' depends on axioms: [propext]

@@ -1,0 +1,24 @@
+import Yulang.GeneralObservedMetadataHistoryFixture290
+
+#print axioms Yulang.GeneralObservedMetadataRequests290.schema_eq
+#print axioms Yulang.GeneralObservedMetadataBranch290.branch_eq
+#print axioms Yulang.GeneralObservedMetadataBranch290.accepted_branch
+#print axioms Yulang.GeneralObservedMetadataMaterializationFixture290.actual_request_keys
+#print axioms Yulang.GeneralObservedMetadataMaterializationFixture290.alternate_checked
+#print axioms Yulang.GeneralObservedMetadataMaterializationFixture290.head_certificate_cannot_speak_for_schema
+#print axioms Yulang.GeneralObservedMetadataExpressions290.explicit_eq
+#print axioms Yulang.GeneralObservedMetadataExpressions290.default_eq
+#print axioms Yulang.GeneralObservedMetadataBodies290.compile_eq
+#print axioms Yulang.GeneralObservedMetadataBodies290.bodySchema_eq
+#print axioms Yulang.GeneralObservedMetadataLive290.accepted_live_models
+#print axioms Yulang.GeneralObservedMetadataHistorical290.owner_exact
+#print axioms Yulang.GeneralObservedMetadataHistorical290.one_effect_sound
+#print axioms Yulang.GeneralObservedMetadataHistoryFixture290.actual_installed_results
+#print axioms Yulang.GeneralObservedMetadataHistoryFixture290.recorded_body_keys
+#print axioms Yulang.GeneralObservedMetadataHistoryFixture290.live_compiler_needs_compound_key
+#print axioms Yulang.GeneralObservedMetadataHistoryFixture290.defaults_use_their_term_keys
+
+#guard Yulang.GeneralObservedMetadataBodies290.bodyKeys
+  Yulang.GeneralObservedMetadataHistoryFixture290.compoundBody == [0,1]
+#guard Yulang.GeneralObservedMetadataBodies290.bodyKeys
+  Yulang.GeneralObservedMetadataHistoryFixture290.defaultBody == [1]
