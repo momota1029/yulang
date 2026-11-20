@@ -5912,3 +5912,7 @@ import Yulang.GeneralSourceRoleCstIssuePacket296
 import Yulang.GeneralSourceRoleCstIssueControl296
 import Yulang.GeneralSourceRoleCstMinimalCatalog296
 import Yulang.GeneralSourceRoleCstKnownOnSuccess296
+import Yulang.GeneralRebaseSignedModels297
+import Yulang.GeneralRebaseFiniteWitnessTable297
+import Yulang.GeneralRebaseSourceQuestions297
+import Yulang.GeneralRebaseSignedObserver297

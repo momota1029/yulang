@@ -1,0 +1,30 @@
+import Yulang.GeneralRebaseSignedObserver297
+
+#print axioms Yulang.GeneralRebaseSignedModels297.reject_exact
+#print axioms Yulang.GeneralRebaseSignedModels297.pass_exact
+#print axioms Yulang.GeneralRebaseSignedModels297.accepted_exact
+#print axioms Yulang.GeneralRebaseSignedModels297.rejected_exact
+#print axioms Yulang.GeneralRebaseSignedModels297.exclusive
+#print axioms Yulang.GeneralRebaseSignedModels297.neither_of_no_model
+#print axioms Yulang.GeneralRebaseSignedModels297.reject_loses
+#print axioms Yulang.GeneralRebaseSignedModels297.loss_includes_delta
+#print axioms Yulang.GeneralRebaseSignedModels297.loss_exact_of_no_requests
+#print axioms Yulang.GeneralRebaseFiniteWitnessTable297.length_le
+#print axioms Yulang.GeneralRebaseFiniteWitnessTable297.covers
+#print axioms Yulang.GeneralRebaseFiniteWitnessTable297.hit_true
+#print axioms Yulang.GeneralRebaseFiniteWitnessTable297.hit_exact
+#print axioms Yulang.GeneralRebaseFiniteWitnessTable297.hit_false
+#print axioms Yulang.GeneralRebaseSourceQuestions297.of_focus
+#print axioms Yulang.GeneralRebaseSourceQuestions297.entries_exact
+#print axioms Yulang.GeneralRebaseSourceQuestions297.question_exact
+#print axioms Yulang.GeneralRebaseSourceQuestions297.question_count
+#print axioms Yulang.GeneralRebaseSourceQuestions297.materialize_covers
+#print axioms Yulang.GeneralRebaseSourceQuestions297.materialize_size
+#print axioms Yulang.GeneralRebaseSourceQuestions297.signed_exact
+#print axioms Yulang.GeneralRebaseSourceQuestions297.exact
+#print axioms Yulang.GeneralRebaseSignedObserver297.novelty_exact
+#print axioms Yulang.GeneralRebaseSignedObserver297.joint_exact
+#print axioms Yulang.GeneralRebaseSignedObserver297.sound_guards
+#print axioms Yulang.GeneralRebaseSignedObserver297.complete_guards
+#print axioms Yulang.GeneralRebaseSignedObserver297.contracts
+#print axioms Yulang.GeneralRebaseSignedObserver297.strict_exact
