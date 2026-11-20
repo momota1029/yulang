@@ -1,0 +1,37 @@
+'Yulang.GeneralRebaseSignedOptional297.negative' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedOptional297.positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedOptional297.no_new_edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedOptional297.structural_gate_empty' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedOptional297.semantically_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedOptional297.mixed_raw_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.EqualCenter.no_counter' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.EqualCenter.coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.EqualCenter.computed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.EqualCenter.determined' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.EqualCenter.same_not_literal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.DifferentCenter.not_equal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.DifferentCenter.loss' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.DifferentCenter.coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.DifferentCenter.computed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.DifferentCenter.determined' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.DifferentCenter.missing_counter_unsound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.ActualStep.listed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseMergeWitnessFixture297.ActualStep.actual_preserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

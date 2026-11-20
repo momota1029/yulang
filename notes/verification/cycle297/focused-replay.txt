@@ -1,0 +1,105 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Base tree: b0a3366ac77716a2ed293a69aa816c79aae6f7a2; tested data tree: db1f7c10bd08b1bdc8fb4a2ddcde80f10f0854f0.
+Isolated source GeneralRebaseSignedModels297 PASS
+Isolated source GeneralRebaseFiniteWitnessTable297 PASS
+Isolated source GeneralRebaseSourceQuestions297 PASS
+Isolated source GeneralRebaseSignedObserver297 PASS
+Isolated source GeneralRebaseSignedSupport297 PASS
+Isolated source GeneralRebasePriorWitness297 PASS
+Isolated source GeneralRebaseSignedIndex297 PASS
+Isolated source GeneralRebaseWitnessAnchor297 PASS
+Isolated source GeneralRebaseSignedDepth297 PASS
+Isolated source GeneralRebaseDepthCompiler297 PASS
+Isolated source GeneralRebaseMergeQuestions297 PASS
+Isolated source GeneralRebaseSourceWitnessProgram297 PASS
+Isolated source GeneralRebaseWitnessContracts297 PASS
+Isolated source GeneralRebaseRawInstallScan297 PASS
+Isolated source GeneralRebaseRawObserver297 PASS
+Isolated source GeneralRebaseRawDepthReplay297 PASS
+Isolated source GeneralRebaseRawSafetyBits297 PASS
+Isolated source GeneralRebaseWitnessExistence297 PASS
+Isolated source GeneralRebaseSignedHistory297 PASS
+Isolated source GeneralRebaseSignedOptional297 PASS
+Isolated source GeneralRebaseMergeWitnessFixture297 PASS
+Isolated source GeneralRebaseSignedRefresh297 PASS
+Isolated source GeneralRebasePreInstallReplay297 PASS
+Isolated source GeneralRebaseSourceMetadata297 PASS
+Standalone lean/Audit/Cycle297DepthWitness.lean PASS
+Standalone lean/Audit/Cycle297HistoryLimit.lean PASS
+Standalone lean/Audit/Cycle297LegacyCases.lean PASS
+Standalone lean/Audit/Cycle297PreInstall.lean PASS
+Standalone lean/Audit/Cycle297RawDepth.lean PASS
+Standalone lean/Audit/Cycle297RawObserver.lean PASS
+Standalone lean/Audit/Cycle297SignedObserver.lean PASS
+Standalone lean/Audit/Cycle297SignedSupport.lean PASS
+Standalone lean/Audit/Cycle297WitnessProgram.lean PASS
+Audited 176 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
+Existing lean/Audit/Cycle267Observer.lean PASS
+Existing lean/Audit/Cycle267Novelty.lean PASS
+Existing lean/Audit/Cycle267Install.lean PASS
+Existing lean/Audit/Cycle269Journal.lean PASS
+Existing lean/Audit/Cycle269Adapters.lean PASS
+Existing lean/Audit/Cycle269Raw.lean PASS
+Existing lean/Audit/Cycle271ActualBoundary.lean PASS
+Existing lean/Audit/Cycle271SourceTraces.lean PASS
+Existing lean/Audit/Cycle279InstallDelta.lean PASS
+Existing lean/Audit/Cycle279Witness.lean PASS
+Existing lean/Audit/Cycle279ReachableNovelty.lean PASS
+Existing lean/Audit/Cycle280Replay.lean PASS
+Existing lean/Audit/Cycle280Archive.lean PASS
+Existing lean/Audit/Cycle281Footprint.lean PASS
+Existing lean/Audit/Cycle281PacketChart.lean PASS
+Existing lean/Audit/Cycle284Driver.lean PASS
+Existing lean/Audit/Cycle284Window.lean PASS
+Existing lean/Audit/Cycle284Failure.lean PASS
+Existing lean/Audit/Cycle285Path.lean PASS
+Existing lean/Audit/Cycle285Sharp.lean PASS
+Existing lean/Audit/Cycle285Complete.lean PASS
+Yulang.GeneralRebaseRawObserver297.strict_exact {roles : Roles.RoleDecls} {r : GeneralDeclarations.Registry}
+  {s : GeneralNominalVersionedJournal232.State roles} {root : GeneralSourceDictionaries.Occurrence roles}
+  {checked : (GeneralRebaseSourceSurvivor267.Boundary roles).Checked r}
+  {xs : List GeneralNominalCommonBridge.Assignment} {c : GeneralRebaseSourceWitnessProgram297.Checks roles}
+  {safety : GeneralSourceDictionaries.Occurrence roles → Bool}
+  (reach : B4TargetV8.Reachable (GeneralRebaseSourceSurvivor267.Boundary roles) r root s)
+  (metadata :
+    GeneralNominalRecursiveCandidates.Metadata (GeneralRebaseSourceSurvivor267.Encoded r) s.core.erased.current.context)
+  (safe : GeneralRebaseRawObserver297.ExactSafety r s root safety)
+  (cover :
+    GeneralRebaseFiniteWitnessTable297.Covers (GeneralRebaseSourceWitnessProgram297.Holds s)
+      (GeneralRebaseSourceWitnessProgram297.questions r s root checked) xs)
+  (cert :
+    GeneralRebaseSourceWitnessProgram297.Observed s xs (GeneralRebaseSourceQuestions297.entries r s root checked) c)
+  (owners : List Nat) (pool : List GeneralSourceState.Output)
+  (target : GeneralRebaseStep258.State (GeneralRebaseCompression266.Basis owners pool)) :
+  GeneralRebaseStep258.Step (GeneralRebaseRawObserver297.observe r s root checked xs c safety owners pool)
+      (GeneralRebaseLiveProjection264.project owners pool s) target ↔
+    ∃ after,
+      (GeneralRebaseSourceSurvivor267.Boundary roles).Step r root s after ∧
+        GeneralRebaseLiveProjection264.project owners pool after = target ∧
+          target ≠ GeneralRebaseLiveProjection264.project owners pool s
+Yulang.GeneralRebaseSignedHistory297.Version.finite_prefix_minimum (limit : Nat) :
+  ∃ xs,
+    xs.length = limit ∧
+      (∀ (n : Nat), n < limit → ∃ a, a ∈ xs ∧ GeneralRebaseSignedHistory297.Version.dropped n a) ∧
+        ∀ (ys : List GeneralNominalCommonBridge.Assignment),
+          (∀ (n : Nat), n < limit → ∃ a, a ∈ ys ∧ GeneralRebaseSignedHistory297.Version.dropped n a) → limit ≤ ys.length
+Yulang.GeneralRebaseSignedHistory297.Loose.finite_prefix_minimum (limit : Nat) :
+  ∃ xs,
+    xs.length = limit ∧
+      (∀ (n : Nat), n < limit → ∃ a, a ∈ xs ∧ GeneralRebaseSignedHistory297.Loose.dropped n a) ∧
+        ∀ (ys : List GeneralNominalCommonBridge.Assignment),
+          (∀ (n : Nat), n < limit → ∃ a, a ∈ ys ∧ GeneralRebaseSignedHistory297.Loose.dropped n a) → limit ≤ ys.length
+Yulang.GeneralRebaseSignedRefresh297.preserves_test {roles : Roles.RoleDecls}
+  {s : GeneralNominalVersionedJournal232.State roles} {p : GeneralNominalCenters.Plan roles}
+  {ctx : GeneralNominalCandidates.Context} (cert : GeneralNominalVersionedMixedObservations233.Refresh s ctx)
+  (current : p.packet.context = s.core.erased.current.context) (seen : GeneralRebaseRetarget275.Observed p)
+  (sign : GeneralRebaseSignedModels297.Sign) (m : GeneralNominalCommonBridge.Assignment) :
+  GeneralRebaseSignedModels297.Test (GeneralNominalVersionedRefresh232.refresh s ctx)
+      (GeneralRebaseSignedRefresh297.moved cert current) sign m ↔
+    GeneralRebaseSignedModels297.Test s p sign m
+Focused barrel tail PASS
+Replay depth-observer byte-identical PASS
+Replay merge-observer byte-identical PASS
+Replay signed-polarities byte-identical PASS
+Replay preinstall-transport byte-identical PASS
+Isolated build: 24 modules; no whole Lake build or Rust execution.

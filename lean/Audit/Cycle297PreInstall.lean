@@ -1,0 +1,29 @@
+import Yulang.GeneralRebaseSignedRefresh297
+import Yulang.GeneralRebasePreInstallReplay297
+import Yulang.GeneralRebaseSourceMetadata297
+
+#print axioms Yulang.GeneralRebaseSignedRefresh297.interp
+#print axioms Yulang.GeneralRebaseSignedRefresh297.class_exact
+#print axioms Yulang.GeneralRebaseSignedRefresh297.candidate_exact
+#print axioms Yulang.GeneralRebaseSignedRefresh297.preserves_test
+#print axioms Yulang.GeneralRebaseSignedRefresh297.preserves_covers
+#print axioms Yulang.GeneralRebasePreInstallReplay297.kept
+#print axioms Yulang.GeneralRebasePreInstallReplay297.sound_cache
+#print axioms Yulang.GeneralRebasePreInstallReplay297.zero_old
+#print axioms Yulang.GeneralRebasePreInstallReplay297.zero_new
+#print axioms Yulang.GeneralRebasePreInstallReplay297.zero_source
+#print axioms Yulang.GeneralRebasePreInstallReplay297.actual_before_install
+#print axioms Yulang.GeneralRebasePreInstallReplay297.different
+#print axioms Yulang.GeneralRebasePreInstallReplay297.seen
+#print axioms Yulang.GeneralRebasePreInstallReplay297.all_tests
+#print axioms Yulang.GeneralRebasePreInstallReplay297.signs_preserved
+#print axioms Yulang.GeneralRebasePreInstallReplay297.source_reachable
+#print axioms Yulang.GeneralRebasePreInstallReplay297.raw_observation_not_determined_by_tests
+#print axioms Yulang.GeneralRebasePreInstallReplay297.listed_after
+#print axioms Yulang.GeneralRebasePreInstallReplay297.retained_table
+#print axioms Yulang.GeneralRebasePreInstallReplay297.retained_coverage
+#print axioms Yulang.GeneralRebasePreInstallReplay297.retained_answers
+#print axioms Yulang.GeneralRebaseSourceMetadata297.context_equalities
+#print axioms Yulang.GeneralRebaseSourceMetadata297.fixed_metadata
+#print axioms Yulang.GeneralRebaseSourceMetadata297.reachable_metadata
+#print axioms Yulang.GeneralRebaseSourceMetadata297.source_strict_exact

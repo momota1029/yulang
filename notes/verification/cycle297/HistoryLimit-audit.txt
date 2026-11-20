@@ -1,0 +1,25 @@
+'Yulang.GeneralRebaseWitnessExistence297.flag_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessExistence297.all_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessExistence297.finite_statement' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessExistence297.smaller_pool' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessExistence297.finite_raw_observer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.at_least' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.no_fixed_table' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Version.exact_loss' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Version.bad_witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Version.disjoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Version.no_universal_rejections' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Version.finite_prefix_minimum' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Loose.exact_loss' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Loose.bad_witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Loose.disjoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Loose.no_universal_rejections' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSignedHistory297.Loose.finite_prefix_minimum' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

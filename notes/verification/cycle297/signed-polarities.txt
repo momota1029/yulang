@@ -1,0 +1,3 @@
+PASS duplicate entries preserve the same answer at distinct list positions; an out-of-range position remains absent.
+PASS both signs, neither sign, pass-only, and reject-only are distinct signed table replies.
+Fixture rows are actual source models; filtered-away or intentionally incomplete rows do not certify semantic absence.

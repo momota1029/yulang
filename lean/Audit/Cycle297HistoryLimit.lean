@@ -1,0 +1,20 @@
+import Yulang.GeneralRebaseWitnessExistence297
+import Yulang.GeneralRebaseSignedHistory297
+
+#print axioms Yulang.GeneralRebaseWitnessExistence297.flag_exact
+#print axioms Yulang.GeneralRebaseWitnessExistence297.all_checked
+#print axioms Yulang.GeneralRebaseWitnessExistence297.finite_statement
+#print axioms Yulang.GeneralRebaseWitnessExistence297.smaller_pool
+#print axioms Yulang.GeneralRebaseWitnessExistence297.finite_raw_observer
+#print axioms Yulang.GeneralRebaseSignedHistory297.at_least
+#print axioms Yulang.GeneralRebaseSignedHistory297.no_fixed_table
+#print axioms Yulang.GeneralRebaseSignedHistory297.Version.exact_loss
+#print axioms Yulang.GeneralRebaseSignedHistory297.Version.bad_witness
+#print axioms Yulang.GeneralRebaseSignedHistory297.Version.disjoint
+#print axioms Yulang.GeneralRebaseSignedHistory297.Version.no_universal_rejections
+#print axioms Yulang.GeneralRebaseSignedHistory297.Version.finite_prefix_minimum
+#print axioms Yulang.GeneralRebaseSignedHistory297.Loose.exact_loss
+#print axioms Yulang.GeneralRebaseSignedHistory297.Loose.bad_witness
+#print axioms Yulang.GeneralRebaseSignedHistory297.Loose.disjoint
+#print axioms Yulang.GeneralRebaseSignedHistory297.Loose.no_universal_rejections
+#print axioms Yulang.GeneralRebaseSignedHistory297.Loose.finite_prefix_minimum

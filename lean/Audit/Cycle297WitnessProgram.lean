@@ -1,0 +1,26 @@
+import Yulang.GeneralRebaseMergeQuestions297
+import Yulang.GeneralRebaseSourceWitnessProgram297
+import Yulang.GeneralRebaseWitnessContracts297
+
+#print axioms Yulang.GeneralRebaseMergeQuestions297.shape_exact
+#print axioms Yulang.GeneralRebaseMergeQuestions297.roles_force_length
+#print axioms Yulang.GeneralRebaseMergeQuestions297.all₂_zip
+#print axioms Yulang.GeneralRebaseMergeQuestions297.semantic_exact
+#print axioms Yulang.GeneralRebaseMergeQuestions297.counter_exact
+#print axioms Yulang.GeneralRebaseMergeQuestions297.equal_exact
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.pairs_exact
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.pairs_size
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.head_listed
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.install_listed
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.merge_listed
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.questions_size
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.mergeBit_exact
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.materialize_covers
+#print axioms Yulang.GeneralRebaseSourceWitnessProgram297.materialize_size
+#print axioms Yulang.GeneralRebaseWitnessContracts297.install_coverage
+#print axioms Yulang.GeneralRebaseWitnessContracts297.merge_coverage
+#print axioms Yulang.GeneralRebaseWitnessContracts297.head_exact
+#print axioms Yulang.GeneralRebaseWitnessContracts297.honest
+#print axioms Yulang.GeneralRebaseWitnessContracts297.head_total
+#print axioms Yulang.GeneralRebaseWitnessContracts297.merge_exact
+#print axioms Yulang.GeneralRebaseWitnessContracts297.all_observer_contracts

@@ -1,0 +1,5 @@
+PASS actual generated root: one candidate, one strict projected proposal; remaining facts 2 -> 0.
+PASS the two checked prior assignments return both pass and reject (agreement on inputs and rows is proved separately).
+PASS replay lookup distinguishes index 0 pass/reject from absent index 1.
+PASS disabling raw safety, omitting the semantic novelty witness or omitting the joint witness yields no install.
+PASS independent SafeKnown replies distinguish all clear, unknown, and confirmed unsafe.
