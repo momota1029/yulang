@@ -47,3 +47,13 @@ through that state's `EvidenceAt` to the selected parent. Do not infer a second
 transition: check `GeneralRebaseCompiledStable277.halted` and explicitly rule
 out an extra source step. This tests recursive evidence composition locally,
 not existence of a current candidate for every selection.
+
+Final C298 result: the selected compiled C277 Display child really does have
+a `Current` effect at the post-parent snapshot. It emits no new child sites,
+so the raw request list for every focus is unchanged by its hypothetical
+installation. The exact scalar inspected position and recorded alias class
+discharge the local guards. This separately certifies the full `Installable`
+predicate (via existing reachable cache/selection lemmas) and `Committed`;
+do not confuse that pair with an actual install, which also requires novelty.
+The two corresponding compiled root/child plans are not asserted to cover
+arbitrary reached selections. The closed fragment here is the generated child.

@@ -80,6 +80,7 @@ done
   echo "#check GeneralRebaseRefreshPayload298.same_models_and_payload"
   echo "#check GeneralRebasePackedNonleaf298.model_and_tree_packed"
   echo "#check GeneralRebasePackedNodeCompose298.supplied_model_composes"
+  echo "#check GeneralRebaseGeneratedCurrent298.installable_but_committed"
   echo "#check GeneralRebaseAlignedScan298.scan_exact"
 } > "$scratch/barrel-tail.lean"
 (cd lean && lean "${opts[@]}" "$scratch/barrel-tail.lean")

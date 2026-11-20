@@ -136,6 +136,57 @@ theorem Yulang.GeneralRebaseFiniteSublists298.samples_sourced (holds : Q → A �
 ```
 
 
+## lean/Yulang/GeneralRebaseGeneratedCurrent298.lean
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.noEmits : GeneralNominalVersionedChildren232.emitted child = []
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.sameSites : (installCore after.core child).erased.current.sites = after.core.erased.current.sites
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.noRequests (focus) : GeneralNominalCenteredHeadOutputs.requests (installCore after.core child) focus = []
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.commonModel : InstallationModels after certificate model
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.alias_eq {a b} (p : GeneralNominalSaturationState.Alias after.core.erased.current a b) : a = b
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.compatible : GeneralNominalCycleSteps.ChoiceCompatible after.core.erased.current child.packet
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.inspection_length :
+    (GeneralNominalCenteredSteps.inspection child).inspected.length =
+      (GeneralNominalCenteredSteps.inspection child).tests.length
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.positions : GeneralNominalVersionedCycles232.Safe after child
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.alternatives : GeneralNominalVersionedMixedKernel234.AlternativesSafe compiled after child.input
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.current : Current compiled after displayChild certificate
+```
+
+```lean
+theorem Yulang.GeneralRebaseGeneratedCurrent298.installable_but_committed :
+    GeneralNominalVersionedMixedKernel234.Installable compiled after certificate ∧
+      GeneralNominalVersionedMixedKernel234.Committed after certificate.plan
+```
+
+
 ## lean/Yulang/GeneralRebaseLocalProgram298.lean
 
 ```lean
@@ -1115,4 +1166,4 @@ theorem Yulang.GeneralRebaseWeakWindowLegacy298.empty_but_divergent (checked : (
       ¬ Acc (fun next prev => Step registry root prev next) (installed 0)
 ```
 
-Indexed 172 theorem declarations. Each has one standalone audit.
+Indexed 183 theorem declarations. Each has one standalone audit.

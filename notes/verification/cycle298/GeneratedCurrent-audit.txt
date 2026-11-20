@@ -1,0 +1,13 @@
+'Yulang.GeneralRebaseGeneratedCurrent298.noEmits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.sameSites' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.noRequests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.commonModel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.alias_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.inspection_length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.alternatives' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseGeneratedCurrent298.installable_but_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

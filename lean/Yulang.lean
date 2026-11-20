@@ -5971,3 +5971,4 @@ import Yulang.GeneralRebaseAlignedScan298
 import Yulang.GeneralRebasePackedNonleaf298
 import Yulang.GeneralRebaseDepthWindowExact298
 import Yulang.GeneralRebasePackedNodeCompose298
+import Yulang.GeneralRebaseGeneratedCurrent298
