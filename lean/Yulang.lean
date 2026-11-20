@@ -6170,3 +6170,10 @@ import Yulang.GeneralMixedTaggedEarlyRefresh305
 import Yulang.GeneralMixedObserverNotRaw305
 import Yulang.GeneralMixedIndexedEvidenceAt305
 import Yulang.GeneralMixedIndexedClassify305
+import Yulang.GeneralMixedControlAtoms306
+import Yulang.GeneralMixedCheckedPromotion306
+import Yulang.GeneralMixedControlMask306
+import Yulang.GeneralMixedControlRealize306
+import Yulang.GeneralMixedControlBisim306
+import Yulang.GeneralMixedControlLiveness306
+import Yulang.GeneralMixedControlRank306

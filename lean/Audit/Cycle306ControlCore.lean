@@ -1,0 +1,17 @@
+import Yulang.GeneralMixedControlBisim306
+
+#print axioms Yulang.GeneralMixedControlAtoms306.atoms_preserved
+#print axioms Yulang.GeneralMixedControlAtoms306.install_cache
+#print axioms Yulang.GeneralMixedControlAtoms306.initial_basic
+#print axioms Yulang.GeneralMixedControlAtoms306.refresh_basic
+#print axioms Yulang.GeneralMixedControlAtoms306.reach_facts
+#print axioms Yulang.GeneralMixedCheckedPromotion306.known_exact
+#print axioms Yulang.GeneralMixedCheckedPromotion306.certify
+#print axioms Yulang.GeneralMixedControlRealize306.actual
+#print axioms Yulang.GeneralMixedControlRealize306.exact_known
+#print axioms Yulang.GeneralMixedControlMask306.seen_exact
+#print axioms Yulang.GeneralMixedControlMask306.fire_exact
+#print axioms Yulang.GeneralMixedControlBisim306.raw
+#print axioms Yulang.GeneralMixedControlBisim306.lift_projection
+#print axioms Yulang.GeneralMixedControlBisim306.labelled
+#print axioms Yulang.GeneralMixedControlBisim306.unlabelled

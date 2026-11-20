@@ -1,0 +1,10 @@
+import Yulang.GeneralMixedControlRank306
+
+#print axioms Yulang.GeneralMixedControlLiveness306.label_enabled
+#print axioms Yulang.GeneralMixedControlLiveness306.raw_halts
+#print axioms Yulang.GeneralMixedControlLiveness306.table
+#print axioms Yulang.GeneralMixedControlLiveness306.target_raw_exact
+#print axioms Yulang.GeneralMixedControlRank306.raw_rank_exact
+#print axioms Yulang.GeneralMixedControlRank306.rank_matches
+#print axioms Yulang.GeneralMixedControlRank306.rank_bisim
+#print axioms Yulang.GeneralMixedControlRank306.any_bisim_respects_rank
