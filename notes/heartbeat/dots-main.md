@@ -2,9 +2,9 @@
 - cycle: 307
 - status: running
 - started: 2026-11-20T22:33:16Z
-- updated: 2026-11-20T23:04:15.354Z
-- elapsed_min: 30
-- activity: 半順序の子拒否を保つ C239 tail の全 raw 後続を証明。任意 cert の後続はすべて停止、厳密な最小2状態。
+- updated: 2026-11-20T23:13:36.263Z
+- elapsed_min: 40
+- activity: 最初の再観測後は任意の実 raw 手が refresh と一致し、全経路は最大3手。1・2・3手で同じ停止状態に達することも検証済み。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
 - last_local_commit: 79d3eb221
-- resume_hint: 次は再観測直後から refresh だけを任意順で行った場合の鋭い3手上界を検証。
+- resume_hint: GeneralMixedCompoundPointExact307 は focused Lake 通過。Acc と監査・diff・公開照合を仕上げ。
