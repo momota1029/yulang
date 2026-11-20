@@ -325,7 +325,10 @@ theorem Yulang.GeneralRebasePackedNodeCompose298.parent_of_answer (v : Vector fo
 
 ```lean
 theorem Yulang.GeneralRebasePackedNodeCompose298.supplied_model_composes (fallback : Assignment) :
-    let v
+    let v := pack footprint model
+    Models after (complete v fallback) ∧
+      (boundary roles).Evidence registry after (complete v fallback) displayChild (.node 3 []) ∧
+      (boundary roles).Evidence registry after (complete v fallback) displayRoot (.node 1 [.node 3 []])
 ```
 
 

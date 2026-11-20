@@ -1,4 +1,5 @@
 Standalone Lake lean/Audit/Cycle298ConcreteBranches.lean: output identical
+Standalone Lake lean/Audit/Cycle298NodeCompose.lean: output identical
 Standalone Lake lean/Audit/Cycle298PackedAnswers.lean: output identical
 Standalone Lake lean/Audit/Cycle298PackedDecisions.lean: output identical
 Standalone Lake lean/Audit/Cycle298Program.lean: output identical
@@ -12,6 +13,7 @@ Lake execution row-vector: output identical
 Lake execution revisited-window: output identical
 Lake execution packed-decisions: output identical
 lean/Audit/Cycle298ConcreteBranches.lean: OK
+lean/Audit/Cycle298NodeCompose.lean: OK
 lean/Audit/Cycle298PackedAnswers.lean: OK
 lean/Audit/Cycle298PackedDecisions.lean: OK
 lean/Audit/Cycle298Program.lean: OK
@@ -30,6 +32,7 @@ lean/Yulang/GeneralRebaseLocalProgram298.lean: OK
 lean/Yulang/GeneralRebasePackedAnswers298.lean: OK
 lean/Yulang/GeneralRebasePackedDecision298.lean: OK
 lean/Yulang/GeneralRebasePackedDepthDecision298.lean: OK
+lean/Yulang/GeneralRebasePackedNodeCompose298.lean: OK
 lean/Yulang/GeneralRebasePackedNonleaf298.lean: OK
 lean/Yulang/GeneralRebasePackedRowFixture298.lean: OK
 lean/Yulang/GeneralRebasePackedSource298.lean: OK

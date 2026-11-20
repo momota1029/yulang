@@ -9,7 +9,10 @@ def declarations(path):
     source = path.read_text()
     # Every proof body here is indented; top-level namespaces may be nested.
     stack = []
-    sem = r"^namespace (\S+)|^end (\S+)|^theorem (\w+)(.*?)(?=\s*:=)"
+    # The declarations below use ":= by", ":= rfl", or a newline before
+    # their proof terms. Do not mistake a let binding in the type for the
+    # proof delimiter.
+    sem = r"^namespace (\S+)|^end (\S+)|^theorem (\w+)(.*?)(?=\s*:=[ \t]*(?:by\b|rfl\b|\n))"
     for opened, ended, name, signature in re.findall(sem, source, re.M | re.S):
         if opened:
             stack.append(opened)
