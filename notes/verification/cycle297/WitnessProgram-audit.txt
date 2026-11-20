@@ -1,0 +1,28 @@
+'Yulang.GeneralRebaseMergeQuestions297.shape_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseMergeQuestions297.roles_force_length' depends on axioms: [propext]
+'Yulang.GeneralRebaseMergeQuestions297.all₂_zip' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeQuestions297.semantic_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeQuestions297.counter_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseMergeQuestions297.equal_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.pairs_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.pairs_size' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.head_listed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.install_listed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.merge_listed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.questions_size' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.mergeBit_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.materialize_covers' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSourceWitnessProgram297.materialize_size' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseWitnessContracts297.install_coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessContracts297.merge_coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessContracts297.head_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessContracts297.honest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessContracts297.head_total' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessContracts297.merge_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWitnessContracts297.all_observer_contracts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -5922,3 +5922,8 @@ import Yulang.GeneralRebaseSignedIndex297
 import Yulang.GeneralRebaseWitnessAnchor297
 import Yulang.GeneralRebaseSignedDepth297
 import Yulang.GeneralRebaseDepthCompiler297
+import Yulang.GeneralRebaseMergeQuestions297
+import Yulang.GeneralRebaseSourceWitnessProgram297
+import Yulang.GeneralRebaseWitnessContracts297
+import Yulang.GeneralRebaseRawInstallScan297
+import Yulang.GeneralRebaseRawObserver297
