@@ -2,9 +2,9 @@
 - cycle: 285
 - status: running
 - started: 2026-11-20T00:32:29Z
-- updated: 2026-11-20T01:01:21Z
-- elapsed_min: 28.87
-- activity: 実入れ子例の raw 後続が存在し、scalar refresh 後はすべての実 mixed 遷移を排除できることを独立監査済み。
+- updated: 2026-11-20T01:10:42Z
+- elapsed_min: 38.22
+- activity: 実 install 後の全 raw 継続が高々2 refresh、2回で同じ終点に到達する鋭い例、任意経路で全 Models と payload 保存を監査済み。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: fcbeaa73f
-- resume_hint: 実経路と終点は検証済み。終点での同じ証拠 payload、および型付き新計算例を検査する。
+- last_local_commit: e0be94633
+- resume_hint: 次は旧回帰・型付き適用例・静的範囲を再確認する。

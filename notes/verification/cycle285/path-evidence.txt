@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseDepthPathEvidence285.candidate_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidence285.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidence285.after_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidence285.witness_start' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidence285.witness_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidence285.witness_any' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidence285.query' depends on axioms: [propext, Classical.choice, Quot.sound]

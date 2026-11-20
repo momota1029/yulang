@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseDepthHaltSelection285
+
+#print axioms Yulang.GeneralRebaseDepthHaltEvidence285.final_models
+#print axioms Yulang.GeneralRebaseDepthHaltEvidence285.final_prepared
+#print axioms Yulang.GeneralRebaseDepthHaltEvidence285.final_frame
+#print axioms Yulang.GeneralRebaseDepthHaltEvidence285.final_ready
+#print axioms Yulang.GeneralRebaseDepthHaltEvidence285.evidence_payload
+#print axioms Yulang.GeneralRebaseDepthHaltEvidence285.strict_raw_refinement_payload
+#print axioms Yulang.GeneralRebaseDepthHaltSelection285.raw_acyclic
+#print axioms Yulang.GeneralRebaseDepthHaltSelection285.semantic_acyclic
+#print axioms Yulang.GeneralRebaseDepthHaltSelection285.unique
+#print axioms Yulang.GeneralRebaseDepthHaltSelection285.selected
+#print axioms Yulang.GeneralRebaseDepthHaltSelection285.evidence_at
