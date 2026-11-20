@@ -65,3 +65,14 @@ The first pass found missing cached `.olean` dependencies specifically for
 import trees compiled only seven absent dependencies using the module
 command above; both parts passed on retry. A fresh pass over all 24
 succeeded. See [legacy.txt](legacy.txt) for exact targets and statuses.
+
+## Independent import-order check
+
+Rebuilt all added modules in a separate blank cycle-specific Lean cache.
+Only symlinks to old module files and unchanged root `Main.olean` were
+available before that run; the original output directory was not in
+`LEAN_PATH`. Used the same flags and barrel ordering, with direct `lean`;
+then ran each standalone audit against that cache. The first setup omitted
+the old root module, so its bootstrap failure was recorded and rerun after
+linking that one dependency. This was not a whole-history clean build.
+See [isolated.txt](isolated.txt).

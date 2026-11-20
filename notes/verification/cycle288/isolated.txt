@@ -1,0 +1,50 @@
+First shadow-cache attempt omitted the unchanged root Main.olean and failed; no new module was loaded from the original build directory.
+Yulang/GeneralRebaseInertLeaf288.lean:1:0: error: unknown module prefix 'Main'
+Second attempt includes unchanged Main.olean but no added cycle module.
+Prepared shadow cache of prior modules only; excluded every one of 33 added modules.
+Independent rebuild candidate 9bf22e26a56df929c6255a1a27dcfab4cc8b7389
+Isolated GeneralRebaseInertLeaf288 exit 0
+Isolated GeneralRebaseLeafOutput288 exit 0
+Isolated GeneralRebaseRowLeafWitness288 exit 0
+Isolated GeneralRebaseRowLeafSlice288 exit 0
+Isolated GeneralRebaseLeafObservation288 exit 0
+Isolated GeneralRebaseRowLeafMark288 exit 0
+Isolated GeneralRebaseLeafLedger288 exit 0
+Isolated GeneralRebaseRowLedger288 exit 0
+Isolated GeneralRebaseRowLedgerStep288 exit 0
+Isolated GeneralRebaseRowLedgerView288 exit 0
+Isolated GeneralRebaseRowLedgerFirst288 exit 0
+Isolated GeneralRebaseRowLedgerNames288 exit 0
+Isolated GeneralRebaseForeignLeaf288 exit 0
+Isolated GeneralRebaseRowRefreshShape288 exit 0
+Isolated GeneralRebaseRowRefreshClosed288 exit 0
+Isolated GeneralRebaseRowRefreshPackets288 exit 0
+Isolated GeneralRebaseRowRefreshHalt288 exit 0
+Isolated GeneralRebaseRowLedgerPhase288 exit 0
+Isolated GeneralRebaseRowPhaseSimulation288 exit 0
+Isolated GeneralRebaseRowLeafLifetime288 exit 0
+Isolated GeneralRebaseRowRefreshEvidence288 exit 0
+Isolated GeneralRebaseRowRefreshProjection288 exit 0
+Isolated GeneralRebaseRowLeafLocality288 exit 0
+Isolated GeneralRebaseSourceHeadTransport288 exit 0
+Isolated GeneralRebaseRowLeafSourceHeads288 exit 0
+Isolated GeneralRebaseRowLeafWindow288 exit 0
+Isolated GeneralRebaseRowRefreshDiagnostics288 exit 0
+Isolated GeneralRebaseLeafReceipt288 exit 0
+Isolated GeneralRebaseRowLeafReceipt288 exit 0
+Isolated GeneralRebaseRowLeafHeadSupport288 exit 0
+Isolated GeneralRebaseRowOutputHeadSupport288 exit 0
+Isolated GeneralRebaseRowLeafDecisionGuard288 exit 0
+Isolated GeneralRebaseRowDeferredDecisionGuard288 exit 0
+Isolated lean/Audit/Cycle288DecisionGuard.lean exit 0
+Isolated lean/Audit/Cycle288ForeignLeaf.lean exit 0
+Isolated lean/Audit/Cycle288LeafMark.lean exit 0
+Isolated lean/Audit/Cycle288LeafWitness.lean exit 0
+Isolated lean/Audit/Cycle288Ledger.lean exit 0
+Isolated lean/Audit/Cycle288Locality.lean exit 0
+Isolated lean/Audit/Cycle288Phase.lean exit 0
+Isolated lean/Audit/Cycle288Receipt.lean exit 0
+Isolated lean/Audit/Cycle288Refresh.lean exit 0
+Isolated lean/Audit/Cycle288TypedPorts.lean exit 0
+Isolated rebuild and audit exit 0
+SHA-256 of isolated .olean outputs vs ordinary focused .olean outputs: identical 33 / 33.
