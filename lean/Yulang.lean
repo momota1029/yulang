@@ -5958,3 +5958,10 @@ import Yulang.GeneralRebaseRefreshSafety298
 import Yulang.GeneralRebaseRefreshCode298
 import Yulang.GeneralRebaseRefreshInstall298
 import Yulang.GeneralRebaseRefreshPayload298
+import Yulang.GeneralRebaseFiniteSublists298
+import Yulang.GeneralRebaseWeakExit298
+import Yulang.GeneralRebaseWeakWindow298
+import Yulang.GeneralRebaseSilentFactor298
+import Yulang.GeneralRebaseExplicitWindow298
+import Yulang.GeneralRebaseWeakWindowLegacy298
+import Yulang.GeneralRebaseRequestMultiplicity298

@@ -1,0 +1,28 @@
+import Yulang.GeneralRebaseFiniteSublists298
+import Yulang.GeneralRebaseWeakExit298
+import Yulang.GeneralRebaseWeakWindow298
+import Yulang.GeneralRebaseSilentFactor298
+
+#print axioms Yulang.GeneralRebaseFiniteSublists298.choices_exact
+#print axioms Yulang.GeneralRebaseFiniteSublists298.choices_count
+#print axioms Yulang.GeneralRebaseFiniteSublists298.samples_sourced
+#print axioms Yulang.GeneralRebaseWeakExit298.listed
+#print axioms Yulang.GeneralRebaseWeakExit298.target_sublist
+#print axioms Yulang.GeneralRebaseWeakExit298.realizes
+#print axioms Yulang.GeneralRebaseWeakExit298.completeness
+#print axioms Yulang.GeneralRebaseWeakExit298.sound_window
+#print axioms Yulang.GeneralRebaseWeakWindow298.window_size
+#print axioms Yulang.GeneralRebaseWeakWindow298.genuine
+#print axioms Yulang.GeneralRebaseWeakWindow298.enough
+#print axioms Yulang.GeneralRebaseWeakWindow298.exact
+#print axioms Yulang.GeneralRebaseWeakWindow298.target_codes_exact
+#print axioms Yulang.GeneralRebaseWeakWindow298.no_weak_iff
+#print axioms Yulang.GeneralRebaseSilentFactor298.path_extend
+#print axioms Yulang.GeneralRebaseSilentFactor298.restrict_acc
+#print axioms Yulang.GeneralRebaseSilentFactor298.accessible_factor
+#print axioms Yulang.GeneralRebaseSilentFactor298.Source.monotone
+#print axioms Yulang.GeneralRebaseSilentFactor298.Source.silent_iff
+#print axioms Yulang.GeneralRebaseSilentFactor298.Source.necessary_and_sufficient
+#print axioms Yulang.GeneralRebaseSilentFactor298.Source.stutter_no_install
+#print axioms Yulang.GeneralRebaseSilentFactor298.Source.counted_quiet
+#print axioms Yulang.GeneralRebaseSilentFactor298.Source.accessible_if_visible_install
