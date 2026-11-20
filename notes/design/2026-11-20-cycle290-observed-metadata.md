@@ -162,3 +162,24 @@ agreement here changes the frozen row inspector: defending one real
 positive ordinary-row observation through a different supported route
 requires its own source/example and reading proof. Neither follows from
 the new metadata seal or from the closed old alias regression.
+
+### Falsification-first check for a future real row fixture
+
+Do not label
+`GeneralNominalCenteredHeadMatStepRows.source_packet_extension` an
+independent effect-row Step: it is packet assembly for a
+multi-tag variant row. `GeneralRebaseRowOriginFixture269.no_cycle` is
+also negative: row arguments intentionally do not create type-origin
+edges. For a genuinely positive independent row read, start from a
+supported ordinary row operand (or an already translated arrow row),
+and require a fixed source compiler to emit the operand. Then construct
+two pre-step source models with the same used type-coordinate values
+and differing at exactly the used row coordinate, and prove that the
+emitted row condition distinguishes them. The cycle-287 recorded
+`R(row0)` fixture is not this control: changing row0 there changes the
+observed nominal input (`GeneralRebaseRowGroundBoundary287.roots_differ`).
+`GeneralRebaseCoordinateProfile285.ofEquation_exact` can certify the
+read profile once a source substitution mapping is constructed; its
+arbitrary mapping parameter does not supply source provenance. If the
+only route would change the frozen inspector, keep this as an open
+source-witness obligation instead of broadening current release rules.
