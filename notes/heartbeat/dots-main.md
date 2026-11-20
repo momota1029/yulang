@@ -2,9 +2,9 @@
 - cycle: 289
 - status: running
 - started: 2026-11-20T04:30:00Z
-- updated: 2026-11-20T04:49:34Z
-- elapsed_min: 19.57
-- activity: 実行対照は成功／保留。既知 constructor を消す checked registry 衝突を閉じ、有限 gate で検出
+- updated: 2026-11-20T04:58:25Z
+- elapsed_min: 28.42
+- activity: ID が同じでも引数が違う実反例を閉じ、完全な occurrence/producer 照合を補助器へ接続
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: f982f8857
-- resume_hint: 元の二枝からの生経路は同一。有限 gate を補助実行へ接続し、外の catalogue 同一性は主張しない。
+- last_local_commit: 761438f56
+- resume_hint: 旧実経路、確定／保留の木を保つ。有限 catalogue は全体の Metadata ではない。alias 要求がある場合は発行しない。

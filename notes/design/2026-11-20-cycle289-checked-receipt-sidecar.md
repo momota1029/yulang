@@ -50,3 +50,16 @@ an unobserved one. The gate is not a proof of equality of arbitrary
 catalogue functions: preserve a negative control outside the selected
 footprint and retain the checked-source premise. Do not widen the raw
 transition or infer general language support from a finite table.
+
+## Identical allocator identity is not identical demand
+
+The raw carrier does not make occurrence IDs injective over all caller-
+constructed demands. Test a second counterfeit using the real child's
+identity and role but changing its argument from point 0 to point 1.
+Both points are nominal and the opaque pattern finishes in either case.
+An ID-only edge check will not distinguish them. Compare complete finite
+occurrence data (role, ordered endpoint pairs and named output pairs)
+against the actual edge and the actual matched producer; prove its
+injectivity at a fixed Roles environment. On the real initial/installed
+pair this changes no outcome. It does not prove global catalogue/context
+authenticity; the separate unobserved-key control still matters.
