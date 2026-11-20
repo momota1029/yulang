@@ -1,0 +1,48 @@
+Yulang.GeneralSourceRoleCstSelectedEvidence296.extracted_table_replays {S B : Type} [DecidableEq S] [DecidableEq B]
+  (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : S) (w : Yulang.GeneralSourceRoleCstWire293.Wire)
+  (brand : B) (a : Yulang.GeneralSourceRoleCstSnapshot293.Address B)
+  (sealed : Yulang.GeneralSourceRoleCstSelectedCompile295.Boundary S B)
+  (table : Yulang.GeneralSourceMetadataRoles291.RoleSource) (c : Yulang.GeneralSourceRoleCstNameCatalog296.Catalog)
+  (obtained :
+    Yulang.GeneralSourceRoleCstSelectedEvidence296.extractCatalog policy scope w brand a sealed table = some c) :
+  ∃ t,
+    Yulang.GeneralSourceRoleCstCatalogExport296.run policy scope w brand a sealed c table.fallbackArity =
+      Except.ok { trace := t, table := table }
+Yulang.GeneralSourceRoleCstMinimalCatalog296.least_among_same_selected_table {S B : Type} [DecidableEq S]
+  [DecidableEq B] (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : S)
+  (w : Yulang.GeneralSourceRoleCstWire293.Wire) (brand : B) (a : Yulang.GeneralSourceRoleCstSnapshot293.Address B)
+  (bound : Yulang.GeneralSourceRoleCstSelectedCompile295.Boundary S B)
+  (c d : Yulang.GeneralSourceRoleCstNameCatalog296.Catalog) (fallback : Nat)
+  (out other : Yulang.GeneralSourceRoleCstCatalogExport296.Exported)
+  (first : Yulang.GeneralSourceRoleCstCatalogExport296.run policy scope w brand a bound c fallback = Except.ok out)
+  (second : Yulang.GeneralSourceRoleCstCatalogExport296.run policy scope w brand a bound d fallback = Except.ok other)
+  (same : out.table = other.table) (row : Yulang.GeneralSourceRoleCstNamingRequests295.Query × Option Nat) :
+  row ∈ Yulang.GeneralSourceRoleCstCoalesce296.coalesce out.trace → row ∈ d
+Yulang.GeneralSourceRoleCstIssuePacket296.issued_replays_exact {S B R : Type} [DecidableEq S] [DecidableEq B]
+  [DecidableEq R] (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : S)
+  (w : Yulang.GeneralSourceRoleCstWire293.Wire) (brand : B) (a : Yulang.GeneralSourceRoleCstSnapshot293.Address B)
+  (epoch : R) (sealed : Yulang.GeneralSourceRoleCstSelectedCompile295.Boundary S B)
+  (c : Yulang.GeneralSourceRoleCstNameCatalog296.Catalog) (fallback : Nat)
+  (out : Yulang.GeneralSourceRoleCstIssuePacket296.Issued S B R)
+  (ready :
+    Yulang.GeneralSourceRoleCstIssuePacket296.issue policy scope w brand a epoch sealed c fallback = Except.ok out) :
+  Yulang.GeneralSourceRoleCstIssuedScope296.accept out.packet w scope brand a policy epoch sealed fallback =
+      Except.ok out.exportResult ∧
+    ∀ (row : Yulang.GeneralSourceRoleCstNamingRequests295.Query × Option Nat), row ∈ out.packet.catalog → row ∈ c
+Yulang.GeneralSourceRoleCstCatalogEntry296.text_exact {S B : Type} [DecidableEq S] [DecidableEq B] (fuel : Nat)
+  (source names : String) (policy : Yulang.GeneralSourceRoleCstMarkPolicy294.Policy) (scope : S) (brand : B)
+  (selected : Yulang.GeneralSourceRoleCstSnapshot293.Address B)
+  (sealed : Yulang.GeneralSourceRoleCstSelectedCompile295.Boundary S B) (fallback : Nat)
+  (out : Yulang.GeneralSourceRoleCstCatalogExport296.Exported) :
+  Yulang.GeneralSourceRoleCstCatalogEntry296.fromText fuel source names policy scope brand selected sealed fallback =
+      Except.ok out ↔
+    ∃ s n w c,
+      Lean.Json.parse source = Except.ok s ∧
+        Lean.Json.parse names = Except.ok n ∧
+          s = Yulang.GeneralSourceRoleCstJson293.encode w ∧
+            Yulang.GeneralSourceRoleCstJson293.depth w ≤ fuel ∧
+              n = Yulang.GeneralSourceRoleCstCatalogWire296.encodeCatalog c ∧
+                Yulang.GeneralSourceRoleCstCatalogExport296.run policy scope w brand selected sealed c fallback =
+                  Except.ok out
+
+exit=0 :: focused barrel tail (all 27 new imports)
