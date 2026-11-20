@@ -5750,3 +5750,7 @@ import Yulang.GeneralSourceMetadataBareFixture291
 import Yulang.GeneralSourceRoleExport292
 import Yulang.GeneralSourceRoleFixture292
 import Yulang.GeneralSourceRoleSpelling292
+import Yulang.GeneralSourceRoleManifest292
+import Yulang.GeneralSourceRoleSyntaxBoundary292
+import Yulang.GeneralSourceRoleSyntaxPipeline292
+import Yulang.GeneralSourceRoleSyntaxFixture292
