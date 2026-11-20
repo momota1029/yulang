@@ -1,0 +1,7 @@
+'Yulang.GeneralDeferredLadderRefreshAppend303.extend_refines' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderRefreshAppend303.extend_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderInstallData303.reserved_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderInstallData303.allocated_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderInstallData303.atoms_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderReplay303.replay_refines' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderReplay303.replay_support' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeferredLadderInstallData303
+
+#print axioms Yulang.GeneralDeferredLadderInstallData303.reserved_eq
+#print axioms Yulang.GeneralDeferredLadderInstallData303.allocated_eq
+#print axioms Yulang.GeneralDeferredLadderInstallData303.atoms_eq
