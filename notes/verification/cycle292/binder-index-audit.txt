@@ -1,0 +1,4 @@
+'Yulang.GeneralSourceRoleBinderIndex292.of_index' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleBinderIndex292.index_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleBinderIndex292.duplicate_lookup_cannot_use_every_index' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleBinderIndex292.binder_value_at_exact_index' depends on axioms: [propext]

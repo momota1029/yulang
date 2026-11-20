@@ -102,3 +102,14 @@ A producer test can then replay the unchanged Lean checks (three-way lookup
 and complete default provenance); afterward compare the certified role map to
 an existing real resolver input. Never use a matched export to claim another
 raw state or a general stabilization result.
+
+The actual parser also has a deliberate zero-width identity counterexample:
+`source_node_keys_expose_shared_zero_width_ambiguity` builds two nodes from a
+shared empty green allocation at the same byte start in one parse and asserts
+equal keys despite distinct child positions. This is an internal construction,
+not evidence that a particular user source triggers it. A future producer
+should not deduplicate recovery or count all necessary members by key alone.
+`try_structural_recoveries` already provides the recovery occurrence's
+structural path, ordinal and direct-root ordinal. If needed, associate those
+with ownership in the original traversal; reusing a recovered node's range
+or identity does not turn recovery into a required association.

@@ -10,6 +10,12 @@ crates/yu-syntax/src/full_parse.rs unchanged blob e6573b9469b45c38c7d802d012520e
   lines 444 'fn source_node_keys_preserve_clone_brand_and_reject_reused_green_root()'
   lines 459 'assert_ne!(parsed.source_root().key(), foreign.source_root().key());'
   lines 460 'assert!(!parsed.owns_source_key(&foreign.source_root().key()));'
+  lines 470 'fn source_node_keys_expose_shared_zero_width_ambiguity()'
+  lines 492 'assert_eq!(children[0].key(), children[1].key());'
+  lines 254 'pub fn try_structural_recoveries('
+  lines 281 'ordinal: occurrence.ordinal()'
+  lines 282 'path: occurrence.path().into()'
+  lines 283 'direct_root_ordinal: occurrence.direct_root_ordinal()'
 crates/yu-syntax/src/type_expr/mod.rs unchanged blob 23799253b73868d0fc4297bf8eb1f22392710e61
   lines 2202 'start_node(SyntaxKind::TypeApplyArgument.into())'
 crates/yu-syntax/src/statement.rs unchanged blob b942d83abf60a1a179d141452afdabc0fba4fb84
