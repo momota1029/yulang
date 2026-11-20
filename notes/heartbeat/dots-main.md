@@ -1,10 +1,10 @@
 # dots-main heartbeat
 - cycle: 294
-- status: running
+- status: completed
 - started: 2026-11-20T09:30:01Z
-- updated: 2026-11-20T10:13:47Z
-- elapsed_min: 43.77
-- activity: 全35モジュール・140定理、保存済み fixture 3種、原文診断 identity の境界を再検査済み
-- workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 1a9f69830
-- resume_hint: 変更なしの最終 tree を確認し、50分以降に報告・完了心拍を同時公開予定。
+- updated: 2026-11-20T10:20:05Z
+- elapsed_min: 50.07
+- activity: 保存済み Rowan CST の原始印・診断 receipt・選択 role の境界を検証
+- last_local_commit: 85dc9e1b5
+- report: notes/handoff/dots-cycle-294.md
+- resume_hint: 次周も統合 branch の standing orders と inbox を最初に再読。Rust parser の新規実行、診断完全性の真正確認、production serializer、名前解決は未検証。3つの保存 path replay は確認済み。
