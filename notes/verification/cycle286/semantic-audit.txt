@@ -1,0 +1,24 @@
+'Yulang.GeneralRebaseDepthSemanticTransitions286.installs_strict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.visible_iff_strict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.silent_iff_same_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.joint_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.same_view_iff_same_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.next_none_iff_post' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.raw_halt_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.finished_driver_unfinished_raw' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

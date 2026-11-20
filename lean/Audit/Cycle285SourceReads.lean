@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseDepthReads285
+
+#print axioms Yulang.GeneralRebaseSourceDemands285.exact_support
+#print axioms Yulang.GeneralRebaseSourceDemands285.covered_iff
+#print axioms Yulang.GeneralRebaseBodyReads285.program_exact
+#print axioms Yulang.GeneralRebaseBodyReads285.frame_exact
+#print axioms Yulang.GeneralRebaseBodyReads285.value_agrees
+#print axioms Yulang.GeneralRebaseBodyReads285.equation_agrees
+#print axioms Yulang.GeneralRebaseDepthReads285.translated
+#print axioms Yulang.GeneralRebaseDepthReads285.actualDemand
+#print axioms Yulang.GeneralRebaseDepthReads285.equation_emitted
+#print axioms Yulang.GeneralRebaseDepthReads285.read_input
+#print axioms Yulang.GeneralRebaseDepthReads285.read_equation
+#print axioms Yulang.GeneralRebaseDepthReads285.sameValue
+#print axioms Yulang.GeneralRebaseDepthReads285.real_readback

@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseDepthConfluence286
+
+#print axioms Yulang.GeneralRebaseDepthPreAvailable286.offers
+#print axioms Yulang.GeneralRebaseDepthPostQueries286.concrete
+#print axioms Yulang.GeneralRebaseDepthPostQueries286.evidence_at
+#print axioms Yulang.GeneralRebaseDepthFullTrace286.decomposes
+#print axioms Yulang.GeneralRebaseDepthFullTrace286.maximal_crosses
+#print axioms Yulang.GeneralRebaseDepthFullTrace286.maximal_result
+#print axioms Yulang.GeneralRebaseDepthFullTrace286.finishes
+#print axioms Yulang.GeneralRebaseDepthFullTrace286.sharp_path
+#print axioms Yulang.GeneralRebaseDepthPreSharp286.two_refreshes
+#print axioms Yulang.GeneralRebaseDepthPreSharp286.sharp_install_last
+#print axioms Yulang.GeneralRebaseDepthConfluence286.maximal_same
+#print axioms Yulang.GeneralRebaseDepthConfluence286.completion_same
+#print axioms Yulang.GeneralRebaseDepthConfluence286.maximal_initial_filter

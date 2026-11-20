@@ -1,0 +1,6 @@
+import Yulang.GeneralRebaseDepthView285
+
+#print axioms Yulang.GeneralRebaseDepthView285.projected_exact
+#print axioms Yulang.GeneralRebaseDepthView285.arbitrary_rows
+#print axioms Yulang.GeneralRebaseDepthView285.project_raw_compat
+#print axioms Yulang.GeneralRebaseDepthView285.source_installed_common

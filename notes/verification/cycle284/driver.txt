@@ -1,0 +1,47 @@
+'Yulang.GeneralRebaseCertifiedWatchDriver284.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedWatchDriver284.valid_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedWatchDriver284.install_lift' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchPathLift284.full_pass' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseWatchPathLift284.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchPathLift284.path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseCertifiedWatchFixtures284.Display.all_routes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCertifiedWatchFixtures284.Display.validator_not_source_rejection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseCertifiedWatchFixtures284.Optional.accepted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSingleQueryObstruction284.impossibility' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSingleQueryObstruction284.Version.no_finite_known' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSingleQueryObstruction284.Version.no_finite_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSingleQueryObstruction284.Version.same_window_distinct_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSingleQueryObstruction284.Loose.no_finite_known' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSingleQueryObstruction284.Loose.no_finite_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSingleQueryObstruction284.Loose.same_window_distinct_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseWatchGuardQueries284.exact_compare' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchGuardQueries284.equality' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchGuardQueries284.shared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchGuardQueries284.same_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchGuardSteps284.equate_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchGuardSteps284.merge_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDefaultFeedback284.retains_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDefaultFeedback284.actual_feedback' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchedEvidenceAt284.admit_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWatchedEvidenceAt284.equivalent_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEvidenceWatch284.coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayEvidenceWatch284.evidence_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+exit=0

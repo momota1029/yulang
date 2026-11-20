@@ -1,0 +1,4 @@
+'Yulang.GeneralRebaseDepthPathEvidenceAt285.move_location' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidenceAt285.kept_survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidenceAt285.selected_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathEvidenceAt285.evidence_at' depends on axioms: [propext, Classical.choice, Quot.sound]

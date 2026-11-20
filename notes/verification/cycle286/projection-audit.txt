@@ -1,0 +1,11 @@
+'Yulang.GeneralRebaseDepthProjectedPath286.silent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthProjectedPath286.installed_observe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthProjectedPath286.observed_phase' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthSimulation286.shadow' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthSimulation286.exact_lift' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthSimulation286.visible_iff_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreEvidence286.exact_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreEvidence286.same_joint_everywhere' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthPreEvidence286.pre_noncoverage' depends on axioms: [propext, Classical.choice, Quot.sound]

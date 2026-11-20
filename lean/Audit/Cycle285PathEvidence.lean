@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseDepthPathEvidence285
+
+#print axioms Yulang.GeneralRebaseDepthPathEvidence285.candidate_models
+#print axioms Yulang.GeneralRebaseDepthPathEvidence285.prepared
+#print axioms Yulang.GeneralRebaseDepthPathEvidence285.after_frame
+#print axioms Yulang.GeneralRebaseDepthPathEvidence285.witness_start
+#print axioms Yulang.GeneralRebaseDepthPathEvidence285.witness_next
+#print axioms Yulang.GeneralRebaseDepthPathEvidence285.witness_any
+#print axioms Yulang.GeneralRebaseDepthPathEvidence285.query

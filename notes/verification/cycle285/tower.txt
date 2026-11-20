@@ -1,0 +1,4 @@
+'Yulang.GeneralRebaseTowerEndpoint285.subtype_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTowerEndpoint285.requires_lower' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTowerEndpoint285.requires_present_rank' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseTowerEndpoint285.descriptor_iff' depends on axioms: [propext, Quot.sound]

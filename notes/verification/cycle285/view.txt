@@ -1,0 +1,4 @@
+'Yulang.GeneralRebaseDepthView285.projected_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthView285.arbitrary_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthView285.project_raw_compat' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthView285.source_installed_common' depends on axioms: [propext, Classical.choice, Quot.sound]

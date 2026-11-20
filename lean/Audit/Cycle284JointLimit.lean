@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseNoLiteralTrim284
+#print axioms Yulang.GeneralRebaseNoLiteralTrim284.trim_all
+#print axioms Yulang.GeneralRebaseNoLiteralTrim284.necessary
+#print axioms Yulang.GeneralRebaseNoLiteralTrim284.Version.necessary_models
+#print axioms Yulang.GeneralRebaseNoLiteralTrim284.Version.joint_counter
+#print axioms Yulang.GeneralRebaseNoLiteralTrim284.Version.necessary_joint
+#print axioms Yulang.GeneralRebaseNoLiteralTrim284.Loose.necessary_models
+#print axioms Yulang.GeneralRebaseNoLiteralTrim284.Loose.joint_counter
+#print axioms Yulang.GeneralRebaseNoLiteralTrim284.Loose.necessary_joint

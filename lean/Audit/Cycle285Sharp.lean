@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseDepthPathSharp285
+
+#print axioms Yulang.GeneralRebaseDepthPathSharp285.cert_half
+#print axioms Yulang.GeneralRebaseDepthPathSharp285.no_one_half
+#print axioms Yulang.GeneralRebaseDepthPathSharp285.cert_both
+#print axioms Yulang.GeneralRebaseDepthPathSharp285.first
+#print axioms Yulang.GeneralRebaseDepthPathSharp285.second
+#print axioms Yulang.GeneralRebaseDepthPathSharp285.same_endpoint
+#print axioms Yulang.GeneralRebaseDepthPathSharp285.two_refreshes

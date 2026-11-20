@@ -1,0 +1,5 @@
+'Yulang.GeneralRebaseDepthBudgetExact286.length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthBudgetExact286.upper_from_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthBudgetExact286.attained_from_prefix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

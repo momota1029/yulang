@@ -1,0 +1,18 @@
+'Yulang.GeneralRebaseDepthPreAnchor286.initial_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.start' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.forbidden_large' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.novel_position' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.only_named' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.equality_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPrePlan286.start' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPrePlan286.unrelated_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthPrePlan286.prepares' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPrePlan286.advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.unique_located' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.installed_uses_certified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.installation_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.installed_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.genuinely_novel' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,18 @@
+'Yulang.GeneralRebaseRawWatchBound284.atom_in_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawWatchBound284.raw_target_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawWatchBound284.all_keys_required' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWatchLower284.no_short_watch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionWatchLower284.impossible_uniform' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWatchLower284.no_short_watch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseWatchLower284.impossible_uniform' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawWatchFailure284.ignores_written' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRawWatchFailure284.omitted_unsound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionErasureFailure284.determined' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseVersionErasureFailure284.any_omitted_counterexample' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseLooseErasureFailure284.determined' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLooseErasureFailure284.any_omitted_counterexample' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0

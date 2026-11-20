@@ -1,0 +1,66 @@
+#!/bin/bash
+set -euo pipefail
+export PATH=/tmp/lean-4.35.0-linux/bin:$PATH
+prior=d8c6e0d01
+integrated=e62f33b584c1bba2f9214701d3b3b80591cb386b
+dir=notes/verification/cycle284
+git merge-base --is-ancestor "$integrated" HEAD
+git diff --check "$prior"..HEAD
+git diff --check "$integrated"..HEAD
+git diff --exit-code "$prior"..HEAD -- spec notes/plan lean/Audit.lean lean/README.md 'lean/lakefile.*' lean/lean-toolchain
+git diff --exit-code "$integrated"..HEAD -- spec notes/plan lean/Audit.lean lean/README.md 'lean/lakefile.*' lean/lean-toolchain
+git diff --unified=0 "$prior"..HEAD -- '*.lean' | awk '/^\+[^+]/{print substr($0,2)}' >/tmp/c284-added-lean.txt
+if grep -nwE 'sorry|admit|native_decide|axiom' /tmp/c284-added-lean.txt; then exit 1; fi
+bash tools/verify-lean.sh . "$integrated" --no-build >/tmp/c284-integration-diff.txt
+bash tools/verify-lean.sh . "$prior" --no-build >/tmp/c284-prior-diff.txt
+for f in integration prior; do
+  cp "/tmp/c284-$f-diff.txt" "$dir/$f-diff-full.txt"
+  log="/tmp/c284-$f-diff.txt"
+  {
+    printf 'Full stdout SHA256: %s; lines: %s\n' "$(sha256sum "$log" | cut -d" " -f1)" "$(wc -l < "$log")"
+    grep -F 'verify-lean: PASS (diff checks only, NO build)' "$log"
+  } >"$dir/$f-diff-gate.txt"
+done
+mapfile -t modules < <(git diff "$prior"..HEAD -- lean/Yulang.lean | sed -n 's/^+import Yulang\.//p')
+mapfile -t paths < <(git diff --name-only "$prior"..HEAD -- lean/Yulang | sed -nE 's@^lean/Yulang/(.*)\.lean$@\1@p')
+diff <(printf '%s\n' "${modules[@]}" | sort) <(printf '%s\n' "${paths[@]}" | sort)
+for m in "${modules[@]}"; do test "$(grep -xc "import Yulang.$m" lean/Yulang.lean)" -eq 1; done
+printf '%s\n' "${modules[@]}" >"$dir/module-list.txt"
+for m in "${modules[@]}"; do
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . \
+      -o ".lake/build/lib/lean/Yulang/$m.olean" "Yulang/$m.lean") >/tmp/c284-recheck-"$m".txt 2>&1
+  echo "$m PASS"
+done >"$dir/module-recheck.txt"
+: >/tmp/c284-all-audit.txt
+for f in lean/Audit/Cycle284*.lean; do
+  a="${f#lean/}"
+  ! grep '^import ' "$f" | grep -qv '^import Yulang\.'
+  (cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . "$a") >/tmp/c284-cur-audit.txt
+  cat /tmp/c284-cur-audit.txt >>/tmp/c284-all-audit.txt
+  printf '%s PASS\n' "$a"
+done >"$dir/independent-recheck.txt"
+python - <<'PY'
+import re
+from pathlib import Path
+s=Path('/tmp/c284-all-audit.txt').read_text()
+found=re.findall(r"depends on axioms:\s+\[(.*?)\]",s,re.S)
+assert found
+for row in found:
+    assert set(p.strip() for p in row.split(',')) <= {'propext','Classical.choice','Quot.sound'},row
+a=set(re.findall(r"^'([^']+)' (?:does not depend on any axioms|depends on axioms:)",s,re.M))
+files=Path('notes/verification/cycle284')
+modules=len((files/'module-recheck.txt').read_text().splitlines())
+audits=len((files/'independent-recheck.txt').read_text().splitlines())
+assert modules == 41,(audits,modules)
+assert audits == 6,(audits,modules)
+with (files/'independent-recheck.txt').open('a') as out:
+    print(f'{modules} original modules; {audits} independent audits; {len(a)} distinct audited declarations; standard axioms only.',file=out)
+PY
+(cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . "../$dir/executable.lean") > /tmp/c284-probe-recheck.txt
+printf 'exit=0\n' >> /tmp/c284-probe-recheck.txt
+cmp /tmp/c284-probe-recheck.txt "$dir/executable.txt"
+(cd lean && timeout 150s lake env lean --trust=0 -M 3200 -DwarningAsError=true -R . "../$dir/typed-use.lean") > /tmp/c284-typed-recheck.txt
+test ! -s /tmp/c284-typed-recheck.txt
+printf 'exit=0\n' >> /tmp/c284-typed-recheck.txt
+cmp /tmp/c284-typed-recheck.txt "$dir/typed-use.txt"
+printf 'Verified all new sources, every standalone audit, barrel, freezes, both static gates, typed uses, and the executable probe.\n'

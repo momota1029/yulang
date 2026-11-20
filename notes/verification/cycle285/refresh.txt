@@ -1,0 +1,17 @@
+'Yulang.GeneralRebaseDepthRefresh285.no_lower_slot' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthRefresh285.nominal_unrepresentable' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthRefresh285.no_certified_deep_head_of_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthRefresh285.no_refresh_at_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.cache' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.cert' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.actual_silent_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.fixed_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.actual_followup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.actual_stutters' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.post_refresh_deep_not_known' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthScalar285.separation' depends on axioms: [propext, Classical.choice, Quot.sound]

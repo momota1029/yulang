@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseDepthPreInstall286
+
+#print axioms Yulang.GeneralRebaseDepthPreAnchor286.initial_models
+#print axioms Yulang.GeneralRebaseDepthPreAnchor286.start
+#print axioms Yulang.GeneralRebaseDepthPreAnchor286.forbidden_large
+#print axioms Yulang.GeneralRebaseDepthPreAnchor286.novel_position
+#print axioms Yulang.GeneralRebaseDepthPreAnchor286.only_named
+#print axioms Yulang.GeneralRebaseDepthPreAnchor286.advance
+#print axioms Yulang.GeneralRebaseDepthPreAnchor286.equality_closed
+#print axioms Yulang.GeneralRebaseDepthPrePlan286.start
+#print axioms Yulang.GeneralRebaseDepthPrePlan286.unrelated_output
+#print axioms Yulang.GeneralRebaseDepthPrePlan286.prepares
+#print axioms Yulang.GeneralRebaseDepthPrePlan286.advance
+#print axioms Yulang.GeneralRebaseDepthPreInstall286.unique_located
+#print axioms Yulang.GeneralRebaseDepthPreInstall286.installed_uses_certified
+#print axioms Yulang.GeneralRebaseDepthPreInstall286.installation_check
+#print axioms Yulang.GeneralRebaseDepthPreInstall286.installed_check
+#print axioms Yulang.GeneralRebaseDepthPreInstall286.genuinely_novel

@@ -1,0 +1,163 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+focused GeneralRebaseDepthPreAnchor286 exit 0
+focused GeneralRebaseDepthPrePlan286 exit 0
+focused GeneralRebaseDepthPreInstall286 exit 0
+focused GeneralRebaseDepthCrossAnchor286 exit 0
+focused GeneralRebaseDepthCrossWitness286 exit 0
+focused GeneralRebaseDepthPhase286 exit 0
+focused GeneralRebaseDepthFullRank286 exit 0
+focused GeneralRebaseDepthEnableShape286 exit 0
+focused GeneralRebaseDepthEnableSafety286 exit 0
+focused GeneralRebaseDepthPreAvailable286 exit 0
+focused GeneralRebaseDepthPostQueries286 exit 0
+focused GeneralRebaseDepthFullTrace286 exit 0
+focused GeneralRebaseDepthPreSharp286 exit 0
+focused GeneralRebaseDepthConfluence286 exit 0
+focused GeneralRebaseDepthRefreshTrust286 exit 0
+focused GeneralRebaseDepthScalarMark286 exit 0
+focused GeneralRebaseDepthScalarOffer286 exit 0
+focused GeneralRebaseDepthSchedule286 exit 0
+focused GeneralRebaseDepthScheduleWord286 exit 0
+focused GeneralRebaseDepthExactEnd286 exit 0
+focused GeneralRebaseDepthNonunique286 exit 0
+focused GeneralRebaseDepthProjectedPath286 exit 0
+focused GeneralRebaseDepthSimulation286 exit 0
+focused GeneralRebaseDepthPreEvidence286 exit 0
+focused GeneralRebaseDepthReachableReadback286 exit 0
+focused GeneralRebaseDepthBatch286 exit 0
+focused GeneralRebaseDepthTraceCost286 exit 0
+focused GeneralRebaseDepthBudgetExact286 exit 0
+focused GeneralRebaseDepthSemanticTransitions286 exit 0
+'Yulang.GeneralRebaseDepthBudgetExact286.length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthBudgetExact286.upper_from_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthBudgetExact286.attained_from_prefix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle286Budget.lean exit 0
+'Yulang.GeneralRebaseDepthPreAnchor286.initial_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.start' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.forbidden_large' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.novel_position' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.only_named' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreAnchor286.equality_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPrePlan286.start' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPrePlan286.unrelated_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthPrePlan286.prepares' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPrePlan286.advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.unique_located' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.installed_uses_certified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.installation_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.installed_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreInstall286.genuinely_novel' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle286FirstInstall.lean exit 0
+'Yulang.GeneralRebaseDepthReachableReadback286.public_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthReachableReadback286.public_inflation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthReachableReadback286.canonical_from_initial' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthReachableReadback286.strict_raw_filter' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthBatch286.pre_batch_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthBatch286.install_post_batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthTraceCost286.classify_counts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthTraceCost286.maximal_trace_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle286FullReadback.lean exit 0
+'Yulang.GeneralRebaseDepthProjectedPath286.silent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthProjectedPath286.installed_observe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthProjectedPath286.observed_phase' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthSimulation286.shadow' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthSimulation286.exact_lift' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthSimulation286.visible_iff_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreEvidence286.exact_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreEvidence286.same_joint_everywhere' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthPreEvidence286.pre_noncoverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle286Projection.lean exit 0
+'Yulang.GeneralRebaseDepthCrossAnchor286.output_equality_closed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthCrossAnchor286.raw_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthCrossAnchor286.anchored' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthCrossAnchor286.known_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthCrossWitness286.replay_refines' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthCrossWitness286.replay_retarget' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthCrossWitness286.witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPhase286.exclusive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPhase286.pre_partition' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPhase286.pre_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPhase286.cross' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPhase286.post_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPhase286.path_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullRank286.rank_le_three' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullRank286.scalar_same_at_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullRank286.drops' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullRank286.all_paths' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullRank286.complete_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullRank286.initial_accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle286Rank.lean exit 0
+'Yulang.GeneralRebaseDepthRefreshTrust286.retained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalarMark286.target_other' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalarOffer286.reached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScalarOffer286.offers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthSchedule286.exact_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthSchedule286.realize' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScheduleWord286.realizable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthScheduleWord286.permutation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthExactEnd286.exact_terminal_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthExactEnd286.maximal_lengths' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthExactEnd286.short_maximal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthExactEnd286.output_gap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthNonunique286.different' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthNonunique286.not_raw_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle286Schedule.lean exit 0
+'Yulang.GeneralRebaseDepthSemanticTransitions286.installs_strict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.visible_iff_strict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.silent_iff_same_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.joint_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.same_view_iff_same_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.next_none_iff_post' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.raw_halt_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthSemanticTransitions286.finished_driver_unfinished_raw' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle286Semantic.lean exit 0
+'Yulang.GeneralRebaseDepthPreAvailable286.offers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPostQueries286.concrete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPostQueries286.evidence_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullTrace286.decomposes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullTrace286.maximal_crosses' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullTrace286.maximal_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullTrace286.finishes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthFullTrace286.sharp_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreSharp286.two_refreshes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPreSharp286.sharp_install_last' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthConfluence286.maximal_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthConfluence286.completion_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthConfluence286.maximal_initial_filter' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle286Trace.lean exit 0
+Counts: focused 29
+Focused reverification result=0
+Wrapped axiom audit: 90 reports, 90 distinct declarations (8 parts), used: Classical.choice, Quot.sound, propext, disallowed: none.

@@ -1,0 +1,11 @@
+import Yulang.GeneralRebaseDepthPreEvidence286
+
+#print axioms Yulang.GeneralRebaseDepthProjectedPath286.silent
+#print axioms Yulang.GeneralRebaseDepthProjectedPath286.installed_observe
+#print axioms Yulang.GeneralRebaseDepthProjectedPath286.observed_phase
+#print axioms Yulang.GeneralRebaseDepthSimulation286.shadow
+#print axioms Yulang.GeneralRebaseDepthSimulation286.exact_lift
+#print axioms Yulang.GeneralRebaseDepthSimulation286.visible_iff_install
+#print axioms Yulang.GeneralRebaseDepthPreEvidence286.exact_before
+#print axioms Yulang.GeneralRebaseDepthPreEvidence286.same_joint_everywhere
+#print axioms Yulang.GeneralRebaseDepthPreEvidence286.pre_noncoverage

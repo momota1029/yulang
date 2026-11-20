@@ -1,0 +1,16 @@
+import Yulang.GeneralRebaseDepthPathRank285
+
+#print axioms Yulang.GeneralRebaseDepthPathAnchor285.initial
+#print axioms Yulang.GeneralRebaseDepthPathAnchor285.valid_high
+#print axioms Yulang.GeneralRebaseDepthPathAnchor285.fresh_position
+#print axioms Yulang.GeneralRebaseDepthPathAnchor285.only_nominal
+#print axioms Yulang.GeneralRebaseDepthPathAnchor285.next
+#print axioms Yulang.GeneralRebaseDepthPathKeep285.same_plan
+#print axioms Yulang.GeneralRebaseDepthPathKeep285.advance
+#print axioms Yulang.GeneralRebaseDepthPathKeep285.no_install
+#print axioms Yulang.GeneralRebaseDepthPathRank285.exact
+#print axioms Yulang.GeneralRebaseDepthPathRank285.anchored
+#print axioms Yulang.GeneralRebaseDepthPathRank285.drop
+#print axioms Yulang.GeneralRebaseDepthPathRank285.actual_accessible
+#print axioms Yulang.GeneralRebaseDepthPathRank285.path_rank
+#print axioms Yulang.GeneralRebaseDepthPathRank285.all_after_install

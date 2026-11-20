@@ -1,0 +1,11 @@
+import Yulang.GeneralRebaseDepthPayload285
+
+#print axioms Yulang.GeneralRebaseDepthGroundModels285.source_inputs
+#print axioms Yulang.GeneralRebaseDepthGroundModels285.close_ground
+#print axioms Yulang.GeneralRebaseDepthGroundModels285.final_check
+#print axioms Yulang.GeneralRebaseDepthGroundModels285.no_row_requirement
+#print axioms Yulang.GeneralRebaseDepthGroundModels285.canonical_check
+#print axioms Yulang.GeneralRebaseDepthPayload285.payload_shape
+#print axioms Yulang.GeneralRebaseDepthPayload285.evidence_exact
+#print axioms Yulang.GeneralRebaseDepthPayload285.same_assignment_exact
+#print axioms Yulang.GeneralRebaseDepthPayload285.canonical_exact

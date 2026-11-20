@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseDepthPathSharp285.cert_half' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathSharp285.no_one_half' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathSharp285.cert_both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathSharp285.first' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathSharp285.second' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathSharp285.same_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthPathSharp285.two_refreshes' depends on axioms: [propext, Classical.choice, Quot.sound]

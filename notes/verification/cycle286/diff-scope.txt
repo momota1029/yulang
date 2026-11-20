@@ -1,0 +1,22 @@
+verify-lean: . @ 62b8401b9 (base e9428d67aab2d1e276f1292500d0f5e4973fe79f)
+ok: no removed lines in lean/ since e9428d67aab2d1e276f1292500d0f5e4973fe79f
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+exit=0 :: bash tools/verify-lean.sh . e9428d67aab2d1e276f1292500d0f5e4973fe79f --no-build
+verify-lean: . @ 62b8401b9 (base b9bb2a19d271447d6f03f8b99e8ec97c9ee50363)
+ok: no removed lines in lean/ since b9bb2a19d271447d6f03f8b99e8ec97c9ee50363
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+exit=0 :: bash tools/verify-lean.sh . b9bb2a19d271447d6f03f8b99e8ec97c9ee50363 --no-build
+exit=0 :: git diff --check e9428d67aab2d1e276f1292500d0f5e4973fe79f HEAD
+exit=0 :: git merge-base --is-ancestor b9bb2a19d271447d6f03f8b99e8ec97c9ee50363 HEAD
+exit=0 :: git diff --exit-code e9428d67aab2d1e276f1292500d0f5e4973fe79f HEAD -- lean/Audit.lean lean/README.md lean/lakefile.lean lean/lean-toolchain notes/plan spec crates Cargo.toml Cargo.lock
+Append-only barrel and freeze check: 29 new modules, 8 standalone audit parts
+exit=0 :: python3 -
+Non-changing audit-part confirmation lines abbreviated: 2065
