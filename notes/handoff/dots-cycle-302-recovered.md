@@ -1,0 +1,7 @@
+# Cycle 302 — recovered checkpoint, not original final
+
+- Last retained C302 tree: `78ffc88a4efa74cb8a9e197dd535debd14acb10f`; last old heartbeat 18:03:59 UTC (30 min). No original final report was present.
+- This is a description of what was already published there, not a claim about any later unpublished work. The local commit mentioned by the old heartbeat did not survive environment replacement; the fixed GitHub tree did. Compare with the C301 final: 46 paths, including 27 Lean library modules, the barrel, seven standalone audit files and their outputs.
+- The archived audits name 230 unique declarations; recorded axioms are the usual `propext`, `Classical.choice`, `Quot.sound` subset. Archived execution compared the actual bounded journal/dictionary at depths 1, 2, 3, 5 and 8, over first-promotion phases and selected redundant-equation counts 0, 1 and 4.
+- While the last Int is not observed, the actual raw transition is either the next front installation if any or a promotion that makes the terminal source known. Any legal promotion *after the complete install prefix* is terminal and reads the expected dictionary in every model. Selected early promotions keep the same dictionary but can diverge in raw stored state; there are infinitely many terminal raw states for the same model and dictionary.
+- Arbitrary early promotion suffixes, whole-system termination, Rust, CI and full build were not established by this retained pin. Exact reconstruction and test reruns are tracked separately in cycle 303.
