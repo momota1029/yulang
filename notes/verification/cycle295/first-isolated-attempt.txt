@@ -1,0 +1,21 @@
+The first concurrent attempt exited 137; no proof failure was reported before termination.
+A fresh sequential run with one Lean thread later completed (focused-replay.txt).
+
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Base tree: 56fc3daa3b3131bffea98ede079508eb4d4f8d42; tested data tree: e9782dc60e2e2d9b63e4ec088449a64bdbe05dec.
+Isolated source GeneralSourceRoleCstSelectedSeal295 PASS
+Isolated source GeneralSourceRoleCstSealOrigin295 PASS
+Isolated source GeneralSourceRoleCstSelectedCompile295 PASS
+Isolated source GeneralSourceRoleCstSelectedMembers295 PASS
+Isolated source GeneralSourceRoleCstSelectedReadback295 PASS
+Isolated source GeneralSourceRoleCstSelectedDefault295 PASS
+Isolated source GeneralSourceRoleCstSelectedControl295 PASS
+Isolated source GeneralSourceRoleCstSelectedRow295 PASS
+Isolated source GeneralSourceRoleCstOtherRole295 PASS
+Isolated source GeneralSourceRoleCstNamingScope295 PASS
+Isolated source GeneralSourceRoleCstNamingWitness295 PASS
+Isolated source GeneralSourceRoleCstNamingGate295 PASS
+Isolated source GeneralSourceRoleCstNamingControl295 PASS
+notes/verification/cycle295/verify-focused.sh: line 40:  3393 Killed                  ( cd lean && timeout 180s lean "${opts[@]}" -R . -o "$scratch/Yulang/$m.olean" "Yulang/$m.lean" )
+
+exit=137 :: first concurrent independent run

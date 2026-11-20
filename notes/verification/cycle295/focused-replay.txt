@@ -1,0 +1,69 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Base tree: 56fc3daa3b3131bffea98ede079508eb4d4f8d42; tested data tree: 8d372769e5cb28af2ee8951d5de7b7753e0b1603.
+Isolated source GeneralSourceRoleCstSelectedSeal295 PASS
+Isolated source GeneralSourceRoleCstSealOrigin295 PASS
+Isolated source GeneralSourceRoleCstSelectedCompile295 PASS
+Isolated source GeneralSourceRoleCstSelectedMembers295 PASS
+Isolated source GeneralSourceRoleCstSelectedReadback295 PASS
+Isolated source GeneralSourceRoleCstSelectedDefault295 PASS
+Isolated source GeneralSourceRoleCstSelectedControl295 PASS
+Isolated source GeneralSourceRoleCstSelectedRow295 PASS
+Isolated source GeneralSourceRoleCstOtherRole295 PASS
+Isolated source GeneralSourceRoleCstNamingScope295 PASS
+Isolated source GeneralSourceRoleCstNamingWitness295 PASS
+Isolated source GeneralSourceRoleCstNamingGate295 PASS
+Isolated source GeneralSourceRoleCstNamingControl295 PASS
+Isolated source GeneralSourceRoleCstNamingRequests295 PASS
+Isolated source GeneralSourceRoleCstNamingTrace295 PASS
+Isolated source GeneralSourceRoleCstNamingPacket295 PASS
+Isolated source GeneralSourceRoleCstNamingPacketFixture295 PASS
+Isolated source GeneralSourceRoleCstHeadOrigin295 PASS
+Isolated source GeneralSourceRoleCstSelectedExtent295 PASS
+Isolated source GeneralSourceRoleCstRowExtent295 PASS
+Isolated source GeneralSourceRoleCstExplicitRead295 PASS
+Isolated source GeneralSourceRoleCstSelectedOutcome295 PASS
+Isolated source GeneralSourceRoleCstSelectedJson295 PASS
+Isolated source GeneralSourceRoleCstRequiredControl295 PASS
+Isolated source GeneralSourceRoleCstExactTags295 PASS
+Isolated source GeneralSourceRoleCstRawType295 PASS
+Isolated source GeneralSourceRoleCstSelectedEnd295 PASS
+Isolated source GeneralSourceRoleCstSymbolicChildren295 PASS
+Isolated source GeneralSourceRoleCstSymbolicTotal295 PASS
+Isolated source GeneralSourceRoleCstOutcomePrecise295 PASS
+Isolated source GeneralSourceRoleCstSelectedCoverage295 PASS
+Isolated source GeneralSourceRoleCstCoverageEnd295 PASS
+Standalone lean/Audit/Cycle295Coverage.lean PASS
+Standalone lean/Audit/Cycle295NamingBoundary.lean PASS
+Standalone lean/Audit/Cycle295NamingPacket.lean PASS
+Standalone lean/Audit/Cycle295SelectedControl.lean PASS
+Standalone lean/Audit/Cycle295SelectedDefault.lean PASS
+Standalone lean/Audit/Cycle295SelectedEnd.lean PASS
+Standalone lean/Audit/Cycle295SelectedEntry.lean PASS
+Standalone lean/Audit/Cycle295SelectedRow.lean PASS
+Standalone lean/Audit/Cycle295SelectedSeal.lean PASS
+Standalone lean/Audit/Cycle295SourceProvenance.lean PASS
+Standalone lean/Audit/Cycle295SymbolicTotal.lean PASS
+Audited 95 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
+Existing lean/Audit/Cycle294GroupAnchor.lean PASS
+Existing lean/Audit/Cycle294IndependentDiagnostics.lean PASS
+Existing lean/Audit/Cycle294MissingScope.lean PASS
+Existing lean/Audit/Cycle294MixedReceipt.lean PASS
+Existing lean/Audit/Cycle294PathFidelity.lean PASS
+Existing lean/Audit/Cycle294PlainTokenReceipt.lean PASS
+Existing lean/Audit/Cycle294RecoveryMarks.lean PASS
+Existing lean/Audit/Cycle294ScopeReport.lean PASS
+Existing lean/Audit/Cycle294ScopeTransport.lean PASS
+Existing lean/Audit/Cycle294SelectedCorridor.lean PASS
+Existing lean/Audit/Cycle294WireBinding.lean PASS
+Existing lean/Audit/Cycle293CstCoverage.lean PASS
+Existing lean/Audit/Cycle293CstExternalContract.lean PASS
+Existing lean/Audit/Cycle293CstJson.lean PASS
+Existing lean/Audit/Cycle293CstProducer.lean PASS
+Existing lean/Audit/Cycle293CstShape.lean PASS
+Existing lean/Audit/Cycle293CstSnapshot.lean PASS
+Existing lean/Audit/Cycle293CstSpansRecovery.lean PASS
+Existing lean/Audit/Cycle293RustWrappedCst.lean PASS
+Existing lean/Audit/Cycle293WireAndExtent.lean PASS
+Isolated build: 32 modules; selected archived JSON and closed control outputs matched; no Rust parser execution.
+
+exit=0 :: isolated focused build (serialized)
