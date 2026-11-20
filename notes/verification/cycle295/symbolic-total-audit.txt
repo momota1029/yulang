@@ -1,0 +1,10 @@
+'Yulang.GeneralSourceRoleCstSymbolicChildren295.type_admitted' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSymbolicChildren295.classified_compatible' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSymbolicChildren295.collect_compatible' does not depend on any axioms
+'Yulang.GeneralSourceRoleCstSymbolicTotal295.generated_head' does not depend on any axioms
+'Yulang.GeneralSourceRoleCstSymbolicTotal295.compatible_to_symbolic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSymbolicTotal295.selected_goes_symbolic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSymbolicTotal295.handoff_goes_symbolic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstOutcomePrecise295.never_unsupported_symbolic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstOutcomePrecise295.naming_mismatch_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstOutcomePrecise295.old_export_rejection_exact' depends on axioms: [propext, Quot.sound]

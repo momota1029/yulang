@@ -2,9 +2,9 @@
 - cycle: 295
 - status: running
 - started: 2026-11-20T10:30:00Z
-- updated: 2026-11-20T10:52:30Z
-- elapsed_min: 22.50
-- activity: 保存 JSON から旧 role table への手渡しと、同一 role 名の別位置・必須型・診断欠落を検証
+- updated: 2026-11-20T10:58:45Z
+- elapsed_min: 28.75
+- activity: 合成２宣言で旧 assocOf の int・char 読出しを実走、symbolic 到達性を証明
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 9df50228f
-- resume_hint: この結果はLean側。次に独立キャッシュ再実行、名前 trace と難例を点検。
+- last_local_commit: ed52c365e
+- resume_hint: Rust実行ではない。独立再現・監査全文の準備を続ける。

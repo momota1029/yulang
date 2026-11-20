@@ -5880,3 +5880,6 @@ import Yulang.GeneralSourceRoleCstRequiredControl295
 import Yulang.GeneralSourceRoleCstExactTags295
 import Yulang.GeneralSourceRoleCstRawType295
 import Yulang.GeneralSourceRoleCstSelectedEnd295
+import Yulang.GeneralSourceRoleCstSymbolicChildren295
+import Yulang.GeneralSourceRoleCstSymbolicTotal295
+import Yulang.GeneralSourceRoleCstOutcomePrecise295

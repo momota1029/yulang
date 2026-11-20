@@ -54,3 +54,11 @@ rejection. It must not claim every old rejection is a missing name. Exact
 success will be characterized as the same table as the finite selected
 naming handoff, on the decoded and wire-bound tree. This is an adapter
 contract, not adoption as a Rust parser or resolver API.
+
+The demonstrable supported-symbolic boundary is narrower than a generic
+Tracked input. Once exact wrapped CST selection succeeds, every emitted
+child has Classification, and its associated member has the admitted
+required/binder/nullary RHS shape. Prove that this selected payload
+always reaches the existing symbolic role. This does not show its naming
+or final export is total, since name lookup, duplicate keys, and other
+checks still happen separately.
