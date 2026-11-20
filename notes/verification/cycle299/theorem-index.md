@@ -923,6 +923,149 @@ theorem Yulang.GeneralGeneratedMixedRooted299.after_halt (read : Read) (decode :
 ```
 
 
+## lean/Yulang/GeneralGeneratedNestedInitial299.lean
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInitial299.closed_label : ClosedTerm context labels[0] sourceExpr
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInitial299.scalar (m : Assignment) (valid : GeneralNominalState.Models snapshot m) :
+    Equivalent (m 2).1 intTy
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInitial299.one_level (m : Assignment) (valid : GeneralNominalState.Models snapshot m) :
+    Equivalent (m 1).1 listTy
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInitial299.two_levels (m : Assignment) (valid : GeneralNominalState.Models snapshot m) :
+    Equivalent (m 0).1 nestedTy
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInitial299.ground : GroundRoots context root labels
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInitial299.initial_source : GeneralNominalSourceFormation.InitialSource registry context root
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInitial299.actual_initial : (boundary roles).Initial registry root initial
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInitial299.grounded_reachable :
+    B4TargetV8.Reachable (boundary roles) registry root initial ∧ Models initial model
+```
+
+
+## lean/Yulang/GeneralGeneratedNestedInstallInterface299.lean
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInstallInterface299.root_edge {e : Effect roles} (shape : e.plan.packet = parentPacket) :
+    e.plan.packet.site.occurrence = root ∧ children e.plan.packet = [middle]
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInstallInterface299.first_not_committed {e : Effect roles} (shape : e.plan.packet = parentPacket) :
+    ¬ Committed initial e.plan
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInstallInterface299.middle_generated {e : Effect roles} (shape : e.plan.packet = parentPacket) :
+    Generated (install initial e).core.erased.current root middle
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInstallInterface299.only_first_edge {e : Effect roles} (shape : e.plan.packet = parentPacket) :
+    (install initial e).core.erased.current.edges = [(root,middle)]
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInstallInterface299.second_not_committed {e₁ e₂ : Effect roles} (shape : e₁.plan.packet = parentPacket)
+    (focus : e₂.plan.packet.site.occurrence = middle)
+    (target : children e₂.plan.packet = [terminal]) :
+    ¬ Committed (install initial e₁) e₂.plan
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedInstallInterface299.cascade {e₁ e₂ : Effect roles} (shape : e₁.plan.packet = parentPacket)
+    (first : Installable compiled initial e₁)
+    (focus : e₂.plan.packet.site.occurrence = middle)
+    (target : children e₂.plan.packet = [terminal])
+    (second : Installable compiled (install initial e₁) e₂) :
+    Steps ((boundary roles).Step registry root) initial (install (install initial e₁) e₂) ∧
+      B4TargetV8.Reachable (boundary roles) registry root (install (install initial e₁) e₂) ∧
+      Generated (install (install initial e₁) e₂).core.erased.current root terminal ∧
+      ∀ m, Models (install (install initial e₁) e₂) m → Models initial m
+```
+
+
+## lean/Yulang/GeneralGeneratedNestedPredictions299.lean
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.query : GeneralNominalInspection.queries snapshot interpretation display =
+    [.nominal 0 [.variables [0]]]
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.root_report : report context display [(0,0)] = captured snapshot 0 0 0 (1,1)
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.middle_report : report context display [(1,1)] = captured snapshot 1 0 0 (2,2)
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.terminal_report : report context intDisplay [(2,2)] =
+    { inspected := [(2,2)], checked := [(2,2),(2,2)] }
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.one_child (packet : Packet roles) (fallback : Occurrence roles)
+    (one : (children packet).length = 1) :
+    children packet = [(children packet).headD fallback]
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.parent_children : children parentPacket = [middle]
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.middle_children : children middlePacket = [terminal]
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.terminal_children : children terminalPacket = []
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.middle_bounds : middle.demand.arguments ⟨0,by decide +kernel⟩ = (1,1)
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.terminal_bounds : terminal.demand.arguments ⟨0,by decide +kernel⟩ = (2,2)
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedPredictions299.different_occurrences : root.identity ≠ middle.identity ∧ middle.identity ≠ terminal.identity
+```
+
+
+## lean/Yulang/GeneralGeneratedNestedSource299.lean
+
+```lean
+theorem Yulang.GeneralGeneratedNestedSource299.snapshot_model : GeneralNominalState.Models snapshot model
+```
+
+```lean
+theorem Yulang.GeneralGeneratedNestedSource299.initial_model : Models initial model
+```
+
+
 ## lean/Yulang/GeneralGeneratedRigidCompile299.lean
 
 ```lean
@@ -1067,4 +1210,4 @@ theorem Yulang.GeneralGeneratedSemanticAcc299.bounded_semantic_iff (read : Read)
     (∃ d, run read domain.length i = some d) ↔ Acc (Child (Local b r s)) (decode i)
 ```
 
-Indexed 173 theorem declarations. Each has one standalone audit.
+Indexed 200 theorem declarations. Each has one standalone audit.

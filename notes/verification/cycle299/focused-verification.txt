@@ -1,0 +1,209 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Base tree: b70c7db2915288719aff28cb278a2b129ed8c117; tested data tree: 1af3808463b95aa3de849e6ac5b38e4d3c25a0ed.
+Isolated source GeneralGeneratedDictionaryRun299 PASS
+Isolated source GeneralGeneratedDictionaryScope299 PASS
+Isolated source GeneralGeneratedDictionaryNodes299 PASS
+Isolated source GeneralGeneratedMixedCurrentNodes299 PASS
+Isolated source GeneralGeneratedDictionaryCoherent299 PASS
+Isolated source GeneralGeneratedDisplayTable299 PASS
+Isolated source GeneralGeneratedRigidNested299 PASS
+Isolated source GeneralGeneratedDisplayParentCurrent299 PASS
+Isolated source GeneralGeneratedDisplayBothCurrent299 PASS
+Isolated source GeneralGeneratedRigidCompile299 PASS
+Isolated source GeneralGeneratedDictionaryAcc299 PASS
+Isolated source GeneralGeneratedDictionaryMinFuel299 PASS
+Isolated source GeneralGeneratedDictionaryRankCheck299 PASS
+Isolated source GeneralGeneratedDictionaryRankExists299 PASS
+Isolated source GeneralGeneratedDictionaryFiniteCap299 PASS
+Isolated source GeneralGeneratedDictionaryHeight299 PASS
+Isolated source GeneralGeneratedDictionaryMemo299 PASS
+Isolated source GeneralGeneratedDictionaryMemoCheck299 PASS
+Isolated source GeneralGeneratedFrontierReceipt299 PASS
+Isolated source GeneralGeneratedDisplayObserved299 PASS
+Isolated source GeneralGeneratedDictionaryControls299 PASS
+Isolated source GeneralGeneratedDisplayPhase299 PASS
+Isolated source GeneralGeneratedDictionaryRankBook299 PASS
+Isolated source GeneralGeneratedMixedRooted299 PASS
+Isolated source GeneralGeneratedDictionarySlice299 PASS
+Isolated source GeneralGeneratedDictionaryRootedFixtures299 PASS
+Isolated source GeneralGeneratedSemanticAcc299 PASS
+Isolated source GeneralGeneratedSelectedExact299 PASS
+Isolated source GeneralGeneratedDisplayComplete299 PASS
+Isolated source GeneralGeneratedNestedSource299 PASS
+Isolated source GeneralGeneratedNestedInitial299 PASS
+Isolated source GeneralGeneratedNestedPredictions299 PASS
+Isolated source GeneralGeneratedNestedInstallInterface299 PASS
+Standalone lean/Audit/Cycle299ActualTables.lean PASS
+Standalone lean/Audit/Cycle299BothCurrent.lean PASS
+Standalone lean/Audit/Cycle299CheckedSource.lean PASS
+Standalone lean/Audit/Cycle299FiniteCap.lean PASS
+Standalone lean/Audit/Cycle299NestedSource.lean PASS
+Standalone lean/Audit/Cycle299ObservedMemo.lean PASS
+Standalone lean/Audit/Cycle299Phase.lean PASS
+Standalone lean/Audit/Cycle299RankCore.lean PASS
+Standalone lean/Audit/Cycle299Rooted.lean PASS
+Standalone lean/Audit/Cycle299SemanticExact.lean PASS
+Audited 200 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
+Existing lean/Audit/Cycle298ConcreteBranches.lean PASS
+Existing lean/Audit/Cycle298GeneratedCurrent.lean PASS
+Existing lean/Audit/Cycle298NodeCompose.lean PASS
+Existing lean/Audit/Cycle298PackedAnswers.lean PASS
+Existing lean/Audit/Cycle298PackedDecisions.lean PASS
+Existing lean/Audit/Cycle298Program.lean PASS
+Existing lean/Audit/Cycle298RefreshedInstall.lean PASS
+Existing lean/Audit/Cycle298RowBasics.lean PASS
+Existing lean/Audit/Cycle298RowJournal.lean PASS
+Existing lean/Audit/Cycle298WeakWindow.lean PASS
+Existing lean/Audit/Cycle298WindowControls.lean PASS
+Existing lean/Audit/Cycle297DepthWitness.lean PASS
+Existing lean/Audit/Cycle297HistoryLimit.lean PASS
+Existing lean/Audit/Cycle297LegacyCases.lean PASS
+Existing lean/Audit/Cycle297PreInstall.lean PASS
+Existing lean/Audit/Cycle297RawDepth.lean PASS
+Existing lean/Audit/Cycle297RawObserver.lean PASS
+Existing lean/Audit/Cycle297SignedObserver.lean PASS
+Existing lean/Audit/Cycle297SignedSupport.lean PASS
+Existing lean/Audit/Cycle297WitnessProgram.lean PASS
+Existing lean/Audit/Cycle277CompiledInstall.lean PASS
+Existing lean/Audit/Cycle277CompiledEvidence.lean PASS
+Existing lean/Audit/Cycle277CompiledStable.lean PASS
+Existing lean/Audit/Cycle277CompiledExact.lean PASS
+Existing lean/Audit/Cycle285Display.lean PASS
+Existing lean/Audit/Cycle285Path.lean PASS
+Existing lean/Audit/Cycle285Sharp.lean PASS
+Existing lean/Audit/Cycle285SourceReads.lean PASS
+Yulang.GeneralGeneratedDictionaryFiniteCap299.check_length (read : GeneralGeneratedDictionaryRun299.Read)
+  (domain : List Nat) (closed : GeneralGeneratedDictionaryRun299.Closed read)
+  (known : GeneralGeneratedDictionaryRankCheck299.Known read domain) :
+  GeneralGeneratedDictionaryRankCheck299.check read domain domain.length = true ↔
+    ∀ (x : Nat), x ∈ domain → (∃ row, read x = some row) ∧ Acc (GeneralGeneratedDictionaryAcc299.Edge read) x
+Yulang.GeneralGeneratedDictionaryRankBook299.book_ranked (read : GeneralGeneratedDictionaryRun299.Read)
+  (domain : List Nat) (known : GeneralGeneratedDictionaryRankCheck299.Known read domain) (cap : Nat)
+  (pass : GeneralGeneratedDictionaryRankBook299.ready read domain cap = true) :
+  GeneralGeneratedDictionaryRun299.Ranked read (GeneralGeneratedDictionaryRankBook299.bookRank read domain cap)
+Yulang.GeneralGeneratedDictionaryCoherent299.cross_table.{u_1} {v : B4Target.Vocabulary}
+  {b : B4TargetV8.SourceBoundary v} {r : v.Registry} {s : v.State}
+  (first second : GeneralGeneratedDictionaryRun299.Read) (decode₁ decode₂ : Nat → v.Demand)
+  (check₁ : GeneralGeneratedDictionaryScope299.Faithful first decode₁)
+  (check₂ : GeneralGeneratedDictionaryScope299.Faithful second decode₂) (n m i j : Nat)
+  (a c : CommonRoleOutermostResolver.Dictionary) (same : decode₁ i = decode₂ j)
+  (one : GeneralGeneratedDictionaryRun299.run first n i = some a)
+  (two : GeneralGeneratedDictionaryRun299.run second m j = some c) : a = c
+Yulang.GeneralGeneratedMixedRooted299.after_halt {roles : Roles.RoleDecls} {registry : GeneralDeclarations.Registry}
+  {s : GeneralNominalVersionedJournal232.State roles} {root : GeneralSourceDictionaries.Occurrence roles}
+  (read : GeneralGeneratedDictionaryRun299.Read) (decode : Nat → GeneralSourceDictionaries.Occurrence roles) (i : Nat)
+  (origin : decode i = root) (rooted : GeneralGeneratedMixedRooted299.Rooted read i)
+  (route : B4TargetV8.Reachable (GeneralGeneratedMixedRooted299.B roles) registry root s)
+  (faith : GeneralGeneratedDictionaryScope299.Faithful read decode)
+  (available : GeneralGeneratedMixedCurrentNodes299.Providers registry s read decode)
+  (halted :
+    ∀ (next : (GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+      ¬(GeneralGeneratedMixedRooted299.B roles).Step registry root s next)
+  (fuel : Nat) (payload : CommonRoleOutermostResolver.Dictionary)
+  (runOk : GeneralGeneratedDictionaryRun299.run read fuel i = some payload) :
+  B4TargetV8.Classify (GeneralGeneratedMixedRooted299.B roles) registry s root
+      (CommonRoleOutermostResolver.Result.selected payload) ∧
+    ∀ (m : GeneralNominalCommonBridge.Assignment),
+      GeneralNominalVersionedJournal232.Models s m →
+        (GeneralGeneratedMixedRooted299.B roles).Evidence registry s m root payload
+Yulang.GeneralGeneratedDisplayPhase299.genuine_phase_change :
+  (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Step
+      GeneralNominalExamples.registry GeneralNominalExamples.displayRoot GeneralRebaseDisplayFrame276.before
+      GeneralRebaseCompiledDisplay277.after ∧
+    (∀ (m : GeneralNominalCommonBridge.Assignment),
+        GeneralNominalVersionedJournal232.Models GeneralRebaseCompiledDisplay277.after m ↔
+          GeneralNominalVersionedJournal232.Models GeneralRebaseDisplayFrame276.before m) ∧
+      (∀ (m : (GeneralNominalVersionedDiagnostic232.vocabulary GeneralDeclarationExamples.roles).Model)
+          (p : CommonRoleOutermostResolver.Dictionary),
+          ¬(GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Evidence
+              GeneralNominalExamples.registry GeneralRebaseDisplayFrame276.before m GeneralNominalExamples.displayRoot
+              p) ∧
+        ∀ (m : GeneralNominalCommonBridge.Assignment),
+          GeneralNominalVersionedJournal232.Models GeneralRebaseCompiledDisplay277.after m →
+            (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Evidence
+              GeneralNominalExamples.registry GeneralRebaseCompiledDisplay277.after m GeneralNominalExamples.displayRoot
+              (CommonRoleOutermostResolver.Dictionary.node 1 [CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralGeneratedRigidCompile299.matches_elaboration :
+  ∃ plan,
+    RoleDictionaries.elaborate Roles.Examples.goodImpls Roles.Examples.goodImpls_wellFormed
+          (GeneralGeneratedRigidNested299.decode 0) =
+        RoleDictionaries.Answer.resolved plan ∧
+      GeneralGeneratedDictionaryRun299.run
+          (GeneralGeneratedRigidCompile299.fromGoals Roles.Examples.goodImpls GeneralGeneratedRigidCompile299.source
+            GeneralGeneratedRigidCompile299.encode)
+          3 0 =
+        some (GeneralGeneratedRigidNested299.eraseKeys plan)
+Yulang.GeneralGeneratedDictionaryRootedFixtures299.actual_from_rooted :
+  B4TargetV8.Classify (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles)
+      GeneralNominalExamples.registry GeneralRebaseCompiledDisplay277.after GeneralNominalExamples.displayRoot
+      (CommonRoleOutermostResolver.Result.selected
+        (CommonRoleOutermostResolver.Dictionary.node 1 [CommonRoleOutermostResolver.Dictionary.node 3 []])) ∧
+    ∀ (m : GeneralNominalCommonBridge.Assignment),
+      GeneralNominalVersionedJournal232.Models GeneralRebaseCompiledDisplay277.after m →
+        (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Evidence
+          GeneralNominalExamples.registry GeneralRebaseCompiledDisplay277.after m GeneralNominalExamples.displayRoot
+          (CommonRoleOutermostResolver.Dictionary.node 1 [CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralGeneratedSelectedExact299.bounded_exact.{u_1} {v : B4Target.Vocabulary} {b : B4TargetV8.SourceBoundary v}
+  {r : v.Registry} {s : v.State} (read : GeneralGeneratedDictionaryRun299.Read) (decode : Nat → v.Demand)
+  (faith : GeneralGeneratedDictionaryScope299.Faithful read decode)
+  (closed : GeneralGeneratedDictionaryRun299.Closed read) (domain : List Nat)
+  (known : GeneralGeneratedDictionaryRankCheck299.Known read domain) (i : Nat)
+  {row : GeneralGeneratedDictionaryRun299.Entry} (hit : read i = some row)
+  (d : CommonRoleOutermostResolver.Dictionary) :
+  GeneralGeneratedDictionaryRun299.run read domain.length i = some d ↔
+    B4TargetV8.Classify b r s (decode i) (CommonRoleOutermostResolver.Result.selected d)
+Yulang.GeneralGeneratedDisplayComplete299.exact_and_modeled (i : Nat) (e : GeneralGeneratedDictionaryRun299.Entry)
+  (seen : GeneralGeneratedDisplayObserved299.observedTable i = some e) (d : CommonRoleOutermostResolver.Dictionary) :
+  GeneralGeneratedDictionaryRun299.run GeneralGeneratedDisplayObserved299.observedTable 2 i = some d ↔
+    B4TargetV8.Classify (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles)
+        GeneralNominalExamples.registry GeneralRebaseCompiledDisplay277.after (GeneralGeneratedDisplayTable299.decode i)
+        (CommonRoleOutermostResolver.Result.selected d) ∧
+      ∀ (m : GeneralNominalCommonBridge.Assignment),
+        GeneralNominalVersionedJournal232.Models GeneralRebaseCompiledDisplay277.after m →
+          (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Evidence
+            GeneralNominalExamples.registry GeneralRebaseCompiledDisplay277.after m
+            (GeneralGeneratedDisplayTable299.decode i) d
+Yulang.GeneralGeneratedNestedInitial299.grounded_reachable :
+  B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles)
+      GeneralNominalExamples.registry GeneralGeneratedNestedSource299.root GeneralGeneratedNestedSource299.initial ∧
+    GeneralNominalVersionedJournal232.Models GeneralGeneratedNestedSource299.initial
+      GeneralGeneratedNestedSource299.model
+Yulang.GeneralGeneratedNestedInstallInterface299.cascade
+  {e₁ e₂ : GeneralNominalVersionedJournal232.Effect GeneralDeclarationExamples.roles}
+  (shape : e₁.plan.packet = GeneralGeneratedNestedPredictions299.parentPacket)
+  (first :
+    GeneralNominalVersionedMixedKernel234.Installable GeneralGeneratedNestedPredictions299.compiled
+      GeneralGeneratedNestedSource299.initial e₁)
+  (focus : e₂.plan.packet.site.occurrence = GeneralGeneratedNestedPredictions299.middle)
+  (target : GeneralNominalVersionedFrame231.children e₂.plan.packet = [GeneralGeneratedNestedPredictions299.terminal])
+  (second :
+    GeneralNominalVersionedMixedKernel234.Installable GeneralGeneratedNestedPredictions299.compiled
+      (GeneralNominalVersionedInstall232.install GeneralGeneratedNestedSource299.initial e₁) e₂) :
+  B4Target.Steps
+      ((GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Step
+        GeneralNominalExamples.registry GeneralGeneratedNestedSource299.root)
+      GeneralGeneratedNestedSource299.initial
+      (GeneralNominalVersionedInstall232.install
+        (GeneralNominalVersionedInstall232.install GeneralGeneratedNestedSource299.initial e₁) e₂) ∧
+    B4TargetV8.Reachable (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles)
+        GeneralNominalExamples.registry GeneralGeneratedNestedSource299.root
+        (GeneralNominalVersionedInstall232.install
+          (GeneralNominalVersionedInstall232.install GeneralGeneratedNestedSource299.initial e₁) e₂) ∧
+      GeneralNominalSaturationState.Generated
+          (GeneralNominalVersionedInstall232.install
+                  (GeneralNominalVersionedInstall232.install GeneralGeneratedNestedSource299.initial e₁)
+                  e₂).core.erased.current
+          GeneralGeneratedNestedSource299.root GeneralGeneratedNestedPredictions299.terminal ∧
+        ∀ (m : GeneralNominalCommonBridge.Assignment),
+          GeneralNominalVersionedJournal232.Models
+              (GeneralNominalVersionedInstall232.install
+                (GeneralNominalVersionedInstall232.install GeneralGeneratedNestedSource299.initial e₁) e₂)
+              m →
+            GeneralNominalVersionedJournal232.Models GeneralGeneratedNestedSource299.initial m
+Focused barrel tail PASS
+Replay mixed-source byte-identical PASS
+Replay rigid-depth2 byte-identical PASS
+Replay failure-controls byte-identical PASS
+Replay rooted-rank byte-identical PASS
+Replay nested-source byte-identical PASS
+Isolated build: 33 modules; no whole Lake build or Rust execution.

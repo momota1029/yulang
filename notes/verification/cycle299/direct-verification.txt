@@ -1,0 +1,64 @@
+Standalone Lake lean/Audit/Cycle299ActualTables.lean: output identical
+Standalone Lake lean/Audit/Cycle299BothCurrent.lean: output identical
+Standalone Lake lean/Audit/Cycle299CheckedSource.lean: output identical
+Standalone Lake lean/Audit/Cycle299FiniteCap.lean: output identical
+Standalone Lake lean/Audit/Cycle299NestedSource.lean: output identical
+Standalone Lake lean/Audit/Cycle299ObservedMemo.lean: output identical
+Standalone Lake lean/Audit/Cycle299Phase.lean: output identical
+Standalone Lake lean/Audit/Cycle299RankCore.lean: output identical
+Standalone Lake lean/Audit/Cycle299Rooted.lean: output identical
+Standalone Lake lean/Audit/Cycle299SemanticExact.lean: output identical
+Lake execution mixed-source: output identical
+Lake execution rigid-depth2: output identical
+Lake execution failure-controls: output identical
+Lake execution rooted-rank: output identical
+Lake execution nested-source: output identical
+lean/Audit/Cycle299ActualTables.lean: OK
+lean/Audit/Cycle299BothCurrent.lean: OK
+lean/Audit/Cycle299CheckedSource.lean: OK
+lean/Audit/Cycle299FiniteCap.lean: OK
+lean/Audit/Cycle299NestedSource.lean: OK
+lean/Audit/Cycle299ObservedMemo.lean: OK
+lean/Audit/Cycle299Phase.lean: OK
+lean/Audit/Cycle299RankCore.lean: OK
+lean/Audit/Cycle299Rooted.lean: OK
+lean/Audit/Cycle299SemanticExact.lean: OK
+lean/Yulang.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryAcc299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryCoherent299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryControls299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryFiniteCap299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryHeight299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryMemo299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryMemoCheck299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryMinFuel299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryNodes299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryRankBook299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryRankCheck299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryRankExists299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryRootedFixtures299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryRun299.lean: OK
+lean/Yulang/GeneralGeneratedDictionaryScope299.lean: OK
+lean/Yulang/GeneralGeneratedDictionarySlice299.lean: OK
+lean/Yulang/GeneralGeneratedDisplayBothCurrent299.lean: OK
+lean/Yulang/GeneralGeneratedDisplayComplete299.lean: OK
+lean/Yulang/GeneralGeneratedDisplayObserved299.lean: OK
+lean/Yulang/GeneralGeneratedDisplayParentCurrent299.lean: OK
+lean/Yulang/GeneralGeneratedDisplayPhase299.lean: OK
+lean/Yulang/GeneralGeneratedDisplayTable299.lean: OK
+lean/Yulang/GeneralGeneratedFrontierReceipt299.lean: OK
+lean/Yulang/GeneralGeneratedMixedCurrentNodes299.lean: OK
+lean/Yulang/GeneralGeneratedMixedRooted299.lean: OK
+lean/Yulang/GeneralGeneratedNestedInitial299.lean: OK
+lean/Yulang/GeneralGeneratedNestedInstallInterface299.lean: OK
+lean/Yulang/GeneralGeneratedNestedPredictions299.lean: OK
+lean/Yulang/GeneralGeneratedNestedSource299.lean: OK
+lean/Yulang/GeneralGeneratedRigidCompile299.lean: OK
+lean/Yulang/GeneralGeneratedRigidNested299.lean: OK
+lean/Yulang/GeneralGeneratedSelectedExact299.lean: OK
+lean/Yulang/GeneralGeneratedSemanticAcc299.lean: OK
+notes/verification/cycle299/run-failure-controls.lean: OK
+notes/verification/cycle299/run-mixed-source.lean: OK
+notes/verification/cycle299/run-nested-source.lean: OK
+notes/verification/cycle299/run-rigid-depth2.lean: OK
+notes/verification/cycle299/run-rooted-rank.lean: OK

@@ -20,3 +20,28 @@ Generation of the middle and novelty of both effects then follow from
 the raw recorded edges, rather than being separate assumptions. Do
 not transport a frozen first-state candidate to the second state without
 checking its context-dependent fields.
+
+Concrete remaining field inventory for the next pass:
+
+1. Start with `GeneralGeneratedNestedPredictions299.root_report` and
+   `GeneralGeneratedNestedInitial299.initial_source`. The existing
+   `GeneralNominalUnaryCaptureFacts.private_models` applies at an
+   arbitrary nominal slot; compare its result with versioned
+   `HeadModels` / `Holds` (do not assert they coincide without the
+   retag or versioned transport). The seed bound proves the first
+   `Fresh` side condition by `GeneralNominalIdentities.source_above_seed`.
+2. For the first `Installable`, use the shape of
+   `GeneralRebaseCompiledInstall277.installable`, not its proof term:
+   separate raw structural K2 exclusion, actual position safety (the
+   tower rank lemma `GeneralRebaseTowerAcyclic276.acyclic` accepts an
+   arbitrary witness tower-model), the only other Display declaration
+   `intDisplay`, and common post-install assignment. Initial cache and
+   empty journal are standard; newly emitted child positions still have
+   to be justified as part of `InstallationModels`.
+3. The second certificate must use the generated middle's *actual* frame
+   in `install initial e₁`. Check `Current.snapshot_eq`, the bound
+   projection, and freshness against all now-allocated keys. Prove that
+   its current where emission identifies the expected terminal before
+   invoking `cascade`. A terminal third provider can then discharge
+   Evidence at the final state, whether or not a distinct leaf
+   installation is possible there.

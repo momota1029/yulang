@@ -81,10 +81,12 @@ done
   echo "#check GeneralGeneratedDictionaryRootedFixtures299.actual_from_rooted"
   echo "#check GeneralGeneratedSelectedExact299.bounded_exact"
   echo "#check GeneralGeneratedDisplayComplete299.exact_and_modeled"
+  echo "#check GeneralGeneratedNestedInitial299.grounded_reachable"
+  echo "#check GeneralGeneratedNestedInstallInterface299.cascade"
 } > "$scratch/barrel-tail.lean"
 (cd lean && lean "${opts[@]}" "$scratch/barrel-tail.lean")
 echo "Focused barrel tail PASS"
-for test in mixed-source rigid-depth2 failure-controls rooted-rank; do
+for test in mixed-source rigid-depth2 failure-controls rooted-rank nested-source; do
   (cd lean && timeout 140s lean "${opts[@]}" --run "$verify/run-$test.lean") > "$scratch/report"
   cmp "$scratch/report" "$verify/$test.txt"
   echo "Replay $test byte-identical PASS"
