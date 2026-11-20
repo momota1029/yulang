@@ -5936,3 +5936,7 @@ import Yulang.GeneralRebaseMergeWitnessFixture297
 import Yulang.GeneralRebaseSignedRefresh297
 import Yulang.GeneralRebasePreInstallReplay297
 import Yulang.GeneralRebaseSourceMetadata297
+import Yulang.GeneralRebaseExecutableJournal298
+import Yulang.GeneralRebaseSymbolicQuestions298
+import Yulang.GeneralRebaseLocalProgram298
+import Yulang.GeneralRebaseRevisitedTrace298
