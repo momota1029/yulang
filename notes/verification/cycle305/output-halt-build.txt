@@ -1,0 +1,11 @@
+✔ [2761/2763] Built Yulang.GeneralMixedReindexOutputFixture305 (6.1s)
+✔ [2762/2763] Built Yulang.GeneralMixedReindexOutputCompiler305 (3.0s)
+✔ [2763/2763] Built Yulang.GeneralMixedReindexOutputHalt305 (4.1s)
+Build completed successfully (2763 jobs).
+✔ [2764/2764] Built Yulang.GeneralMixedRawFanout305 (1.6s)
+Build completed successfully (2764 jobs).
+✔ [2042/2042] Built Yulang.GeneralNominalReportSwapFixture305 (1.7s)
+Build completed successfully (2042 jobs).
+✔ [1210/1210] Built Yulang.GeneralNominalReportBranchFixture305 (1.7s)
+Build completed successfully (1210 jobs).
+EXIT=0

@@ -1,0 +1,25 @@
+'Yulang.GeneralMixedRawSchedule305.lengths_realized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedRawSchedule305.exact_possible_lengths' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedRawSchedule305.finite_fanout_fails_after_early' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedScalarPartial305.seen_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedScalarPartial305.unseen_unknown' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedTaggedEarlyRefresh305.first_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedTaggedEarlyRefresh305.second_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedTaggedEarlyRefresh305.both_orders_arbitrary_labels' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedTaggedEarlyRefresh305.arbitrary_early_fanout' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedObserverNotRaw305.valid_on_any_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedObserverNotRaw305.observed_prefixes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedObserverNotRaw305.different_step_availability' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedIndexedEvidenceAt305.generated_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedEvidenceAt305.evidenceAt_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedClassify305.classify_forward' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedIndexedClassify305.classify_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0

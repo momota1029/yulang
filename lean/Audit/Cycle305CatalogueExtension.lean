@@ -1,0 +1,5 @@
+import Yulang.GeneralNominalCatalogueExtension305
+
+#print axioms Yulang.GeneralNominalCatalogueExtension305.head_term
+#print axioms Yulang.GeneralNominalCatalogueExtension305.head_node
+#print axioms Yulang.GeneralNominalCatalogueExtension305.equivalent

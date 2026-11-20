@@ -1,0 +1,18 @@
+import Yulang.GeneralMixedReindexObserver305
+import Yulang.GeneralMixedIndexedEvidence305
+
+#print axioms Yulang.GeneralMixedIndexedDiagnosticHeads305.safe_iff
+#print axioms Yulang.GeneralMixedIndexedDiagnosticOutputs305.output_iff
+#print axioms Yulang.GeneralMixedIndexedDiagnosticOutputs305.sharing_iff
+#print axioms Yulang.GeneralMixedIndexedDiagnosticOutputs305.merged_iff
+#print axioms Yulang.GeneralMixedIndexedDiagnosticLocal305.local_iff
+#print axioms Yulang.GeneralMixedIndexedDiagnosticLocal305.recursive_iff
+#print axioms Yulang.GeneralMixedIndexedDiagnosticLocal305.compiler_exact
+#print axioms Yulang.GeneralMixedReindexObserver305.models_iff
+#print axioms Yulang.GeneralMixedReindexObserver305.semantics
+#print axioms Yulang.GeneralMixedReindexObserver305.no_strict_observation
+#print axioms Yulang.GeneralMixedIndexedEvidence305.compilation_exact
+#print axioms Yulang.GeneralMixedIndexedEvidence305.witness_forward
+#print axioms Yulang.GeneralMixedIndexedEvidence305.certificate_forward
+#print axioms Yulang.GeneralMixedIndexedEvidence305.indexed_tree_iff
+#print axioms Yulang.GeneralMixedIndexedEvidence305.evidence_iff

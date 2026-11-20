@@ -1,0 +1,21 @@
+import Yulang.GeneralMixedReindexOutputHalt305
+import Yulang.GeneralMixedReindexOutputCompiler305
+import Yulang.GeneralNominalReportSwapFixture305
+
+#print axioms Yulang.GeneralMixedIndexedCommit305.committed_forward
+#print axioms Yulang.GeneralMixedIndexedCompiler305.valid_iff
+#print axioms Yulang.GeneralMixedReindexOutputFixture305.wideCert
+#print axioms Yulang.GeneralMixedReindexOutputFixture305.other_refresh
+#print axioms Yulang.GeneralMixedReindexOutputFixture305.different_successors
+#print axioms Yulang.GeneralMixedReindexOutputFixture305.requests_both
+#print axioms Yulang.GeneralMixedReindexOutputFixture305.selected_both
+#print axioms Yulang.GeneralMixedReindexOutputFixture305.evidence_exact
+#print axioms Yulang.GeneralMixedReindexOutputFixture305.checked_deep_payload
+#print axioms Yulang.GeneralMixedReindexOutputHalt305.widened_halted
+#print axioms Yulang.GeneralMixedReindexOutputHalt305.two_distinct_halts
+#print axioms Yulang.GeneralMixedReindexOutputCompiler305.actual_run
+#print axioms Yulang.GeneralMixedReindexOutputCompiler305.actual_compiler_shared
+#print axioms Yulang.GeneralNominalReportSwapFixture305.full_report
+#print axioms Yulang.GeneralNominalReportSwapFixture305.actual_output
+#print axioms Yulang.GeneralMixedReindexOutputFixture305.widened_injective
+#print axioms Yulang.GeneralMixedReindexOutputHalt305.many_actual_halts

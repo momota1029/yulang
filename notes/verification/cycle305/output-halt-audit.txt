@@ -1,0 +1,35 @@
+### Audit/Cycle305OutputHalt.lean
+'Yulang.GeneralMixedIndexedCommit305.committed_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedIndexedCompiler305.valid_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.wideCert' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.other_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.different_successors' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.requests_both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.selected_both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.evidence_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.checked_deep_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedReindexOutputHalt305.widened_halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputHalt305.two_distinct_halts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedReindexOutputCompiler305.actual_run' depends on axioms: [propext]
+'Yulang.GeneralMixedReindexOutputCompiler305.actual_compiler_shared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalReportSwapFixture305.full_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportSwapFixture305.actual_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedReindexOutputFixture305.widened_injective' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedReindexOutputHalt305.many_actual_halts' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle305MixedReportBranch.lean
+'Yulang.GeneralNominalReportBranchFixture305.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalReportBranchFixture305.both_branch_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+### Audit/Cycle305RawFanout.lean
+'Yulang.GeneralMixedRawFanout305.firstTag_widened' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedRawFanout305.beyond_any_finite_list' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0

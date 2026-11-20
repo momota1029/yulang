@@ -1,0 +1,7 @@
+import Yulang.GeneralNominalCandidateReplayModels305
+
+#print axioms Yulang.GeneralNominalCandidateReplayModels305.fresh_iff
+#print axioms Yulang.GeneralNominalCandidateReplayModels305.bindings_eq
+#print axioms Yulang.GeneralNominalCandidateReplayModels305.checks_eq
+#print axioms Yulang.GeneralNominalCandidateReplayModels305.private_iff
+#print axioms Yulang.GeneralNominalCandidateReplayModels305.head_model_iff

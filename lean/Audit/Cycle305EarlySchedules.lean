@@ -1,0 +1,19 @@
+import Yulang.GeneralMixedObserverNotRaw305
+import Yulang.GeneralMixedIndexedClassify305
+
+#print axioms Yulang.GeneralMixedRawSchedule305.lengths_realized
+#print axioms Yulang.GeneralMixedRawSchedule305.exact_possible_lengths
+#print axioms Yulang.GeneralMixedRawSchedule305.finite_fanout_fails_after_early
+#print axioms Yulang.GeneralMixedScalarPartial305.seen_known
+#print axioms Yulang.GeneralMixedScalarPartial305.unseen_unknown
+#print axioms Yulang.GeneralMixedTaggedEarlyRefresh305.first_actual
+#print axioms Yulang.GeneralMixedTaggedEarlyRefresh305.second_actual
+#print axioms Yulang.GeneralMixedTaggedEarlyRefresh305.both_orders_arbitrary_labels
+#print axioms Yulang.GeneralMixedTaggedEarlyRefresh305.arbitrary_early_fanout
+#print axioms Yulang.GeneralMixedObserverNotRaw305.valid_on_any_prefix
+#print axioms Yulang.GeneralMixedObserverNotRaw305.observed_prefixes
+#print axioms Yulang.GeneralMixedObserverNotRaw305.different_step_availability
+#print axioms Yulang.GeneralMixedIndexedEvidenceAt305.generated_iff
+#print axioms Yulang.GeneralMixedIndexedEvidenceAt305.evidenceAt_iff
+#print axioms Yulang.GeneralMixedIndexedClassify305.classify_forward
+#print axioms Yulang.GeneralMixedIndexedClassify305.classify_iff

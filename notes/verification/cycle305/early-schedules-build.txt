@@ -1,0 +1,13 @@
+✔ [2769/2769] Built Yulang.GeneralMixedRawSchedule305 (2.3s)
+Build completed successfully (2769 jobs).
+✔ [2770/2770] Built Yulang.GeneralMixedScalarPartial305 (2.0s)
+Build completed successfully (2770 jobs).
+✔ [2771/2771] Built Yulang.GeneralMixedTaggedEarlyRefresh305 (2.1s)
+Build completed successfully (2771 jobs).
+✔ [2775/2775] Built Yulang.GeneralMixedObserverNotRaw305 (2.2s)
+Build completed successfully (2775 jobs).
+✔ [2470/2470] Built Yulang.GeneralMixedIndexedEvidenceAt305 (1.7s)
+Build completed successfully (2470 jobs).
+✔ [2471/2471] Built Yulang.GeneralMixedIndexedClassify305 (2.6s)
+Build completed successfully (2471 jobs).
+EXIT=0
