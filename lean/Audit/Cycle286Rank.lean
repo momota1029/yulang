@@ -1,0 +1,21 @@
+import Yulang.GeneralRebaseDepthFullRank286
+
+#print axioms Yulang.GeneralRebaseDepthCrossAnchor286.output_equality_closed
+#print axioms Yulang.GeneralRebaseDepthCrossAnchor286.raw_check
+#print axioms Yulang.GeneralRebaseDepthCrossAnchor286.anchored
+#print axioms Yulang.GeneralRebaseDepthCrossAnchor286.known_iff
+#print axioms Yulang.GeneralRebaseDepthCrossWitness286.replay_refines
+#print axioms Yulang.GeneralRebaseDepthCrossWitness286.replay_retarget
+#print axioms Yulang.GeneralRebaseDepthCrossWitness286.witness
+#print axioms Yulang.GeneralRebaseDepthPhase286.exclusive
+#print axioms Yulang.GeneralRebaseDepthPhase286.pre_partition
+#print axioms Yulang.GeneralRebaseDepthPhase286.pre_refresh
+#print axioms Yulang.GeneralRebaseDepthPhase286.cross
+#print axioms Yulang.GeneralRebaseDepthPhase286.post_step
+#print axioms Yulang.GeneralRebaseDepthPhase286.path_covered
+#print axioms Yulang.GeneralRebaseDepthFullRank286.rank_le_three
+#print axioms Yulang.GeneralRebaseDepthFullRank286.scalar_same_at_install
+#print axioms Yulang.GeneralRebaseDepthFullRank286.drops
+#print axioms Yulang.GeneralRebaseDepthFullRank286.all_paths
+#print axioms Yulang.GeneralRebaseDepthFullRank286.complete_bound
+#print axioms Yulang.GeneralRebaseDepthFullRank286.initial_accessible
