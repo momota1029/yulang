@@ -6164,3 +6164,9 @@ import Yulang.GeneralMixedReindexOutputCompiler305
 import Yulang.GeneralNominalReportSwapFixture305
 import Yulang.GeneralNominalReportBranchFixture305
 import Yulang.GeneralMixedRawFanout305
+import Yulang.GeneralMixedRawSchedule305
+import Yulang.GeneralMixedScalarPartial305
+import Yulang.GeneralMixedTaggedEarlyRefresh305
+import Yulang.GeneralMixedObserverNotRaw305
+import Yulang.GeneralMixedIndexedEvidenceAt305
+import Yulang.GeneralMixedIndexedClassify305
