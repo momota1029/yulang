@@ -1,0 +1,5 @@
+import Yulang.GeneralObservedLadderCompilerLaws301
+
+#print axioms Yulang.GeneralObservedLadderCompilerLaws301.probe_unary
+#print axioms Yulang.GeneralObservedLadderCompilerLaws301.attached_sound
+#print axioms Yulang.GeneralObservedLadderCompilerLaws301.supports_actual_edge

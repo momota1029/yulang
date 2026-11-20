@@ -1,0 +1,60 @@
+Standalone Lake lean/Audit/Cycle301Compiler.lean: output identical
+Standalone Lake lean/Audit/Cycle301Evidence.lean: output identical
+Standalone Lake lean/Audit/Cycle301Exact.lean: output identical
+Standalone Lake lean/Audit/Cycle301Guard.lean: output identical
+Standalone Lake lean/Audit/Cycle301Install.lean: output identical
+Standalone Lake lean/Audit/Cycle301Journal.lean: output identical
+Standalone Lake lean/Audit/Cycle301Ladder.lean: output identical
+Standalone Lake lean/Audit/Cycle301Refresh.lean: output identical
+Standalone Lake lean/Audit/Cycle301Scope.lean: output identical
+Standalone Lake lean/Audit/Cycle301Stages.lean: output identical
+Lake execution ladder: output identical
+Lake execution journal: output identical
+Lake execution refresh: output identical
+lean/Audit/Cycle301Compiler.lean: OK
+lean/Audit/Cycle301Evidence.lean: OK
+lean/Audit/Cycle301Exact.lean: OK
+lean/Audit/Cycle301Guard.lean: OK
+lean/Audit/Cycle301Install.lean: OK
+lean/Audit/Cycle301Journal.lean: OK
+lean/Audit/Cycle301Ladder.lean: OK
+lean/Audit/Cycle301Refresh.lean: OK
+lean/Audit/Cycle301Scope.lean: OK
+lean/Audit/Cycle301Stages.lean: OK
+lean/Yulang.lean: OK
+lean/Yulang/GeneralObservedLadderAdvance301.lean: OK
+lean/Yulang/GeneralObservedLadderAvailability301.lean: OK
+lean/Yulang/GeneralObservedLadderBudget301.lean: OK
+lean/Yulang/GeneralObservedLadderCompilerLaws301.lean: OK
+lean/Yulang/GeneralObservedLadderEnabled301.lean: OK
+lean/Yulang/GeneralObservedLadderEvidence301.lean: OK
+lean/Yulang/GeneralObservedLadderExact301.lean: OK
+lean/Yulang/GeneralObservedLadderInitial301.lean: OK
+lean/Yulang/GeneralObservedLadderJournalCompiler301.lean: OK
+lean/Yulang/GeneralObservedLadderJournalRows301.lean: OK
+lean/Yulang/GeneralObservedLadderLeaf301.lean: OK
+lean/Yulang/GeneralObservedLadderLedger301.lean: OK
+lean/Yulang/GeneralObservedLadderLocal301.lean: OK
+lean/Yulang/GeneralObservedLadderNoAdmin301.lean: OK
+lean/Yulang/GeneralObservedLadderObserver301.lean: OK
+lean/Yulang/GeneralObservedLadderOnlyInstall301.lean: OK
+lean/Yulang/GeneralObservedLadderPlan301.lean: OK
+lean/Yulang/GeneralObservedLadderReadback301.lean: OK
+lean/Yulang/GeneralObservedLadderRefresh301.lean: OK
+lean/Yulang/GeneralObservedLadderRefreshChain301.lean: OK
+lean/Yulang/GeneralObservedLadderRefreshProgram301.lean: OK
+lean/Yulang/GeneralObservedLadderReport301.lean: OK
+lean/Yulang/GeneralObservedLadderRoot301.lean: OK
+lean/Yulang/GeneralObservedLadderRoute301.lean: OK
+lean/Yulang/GeneralObservedLadderSafety301.lean: OK
+lean/Yulang/GeneralObservedLadderScopedB4301.lean: OK
+lean/Yulang/GeneralObservedLadderSelection301.lean: OK
+lean/Yulang/GeneralObservedLadderSemanticGap301.lean: OK
+lean/Yulang/GeneralObservedLadderSemantics301.lean: OK
+lean/Yulang/GeneralObservedLadderSource301.lean: OK
+lean/Yulang/GeneralObservedLadderStage301.lean: OK
+notes/verification/cycle301/run-journal.lean: OK
+notes/verification/cycle301/run-ladder.lean: OK
+notes/verification/cycle301/run-refresh.lean: OK
+notes/verification/cycle301/theorem-index.py: OK
+notes/verification/cycle301/verify-focused.sh: OK

@@ -1,0 +1,5 @@
+PASS depth 1: exact raw edge/center prefixes, compiler minimum fuel, out-of-range rejected
+PASS depth 2: exact raw edge/center prefixes, compiler minimum fuel, out-of-range rejected
+PASS depth 3: exact raw edge/center prefixes, compiler minimum fuel, out-of-range rejected
+PASS depth 5: exact raw edge/center prefixes, compiler minimum fuel, out-of-range rejected
+PASS depth 8: exact raw edge/center prefixes, compiler minimum fuel, out-of-range rejected

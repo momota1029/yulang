@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 300
+- cycle: 301
 - status: completed
-- started: 2026-11-20T15:34:00Z
-- updated: 2026-11-20T16:24:07Z
-- elapsed_min: 50.12
-- activity: 深さ2の V8 実二段据付と全モデルの辞書、固定初期の厳密3相・停止を検証
-- last_local_commit: 496b725a85
-- report: notes/handoff/dots-cycle-300.md
-- resume_hint: 次周は最新統合 standing orders と inbox を再読。有限の候補観測を保ち、実 frame・所有キー輸送を別の到達 source へ。固定例の選択辺 rank や相順位を一般の raw 停止と混同しない。
+- started: 2026-11-20T16:30:32Z
+- updated: 2026-11-20T17:20:37Z
+- elapsed_min: 50.08
+- activity: 任意正深さの実 raw 据付と厳密停止、実 journal compiler、旧 source の strict refresh 経路を検証
+- last_local_commit: c7d4ee5ebe
+- report: notes/handoff/dots-cycle-301.md
+- resume_hint: 次周は統合 standing orders と inbox を再読。同じ入力 ID を使う異なる実 occurrence へ証明付き索引を広げる。既観測の厳密停止と旧 equation-only の refresh-first 存在経路を区別。

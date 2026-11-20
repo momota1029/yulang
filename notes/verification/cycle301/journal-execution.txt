@@ -1,0 +1,4 @@
+PASS journal depth 1: absent vs awaitingChild vs attached, actual-edge gated readback
+PASS journal depth 3: absent vs awaitingChild vs attached, actual-edge gated readback
+PASS journal depth 5: absent vs awaitingChild vs attached, actual-edge gated readback
+PASS journal depth 8: absent vs awaitingChild vs attached, actual-edge gated readback

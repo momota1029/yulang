@@ -1,0 +1,20 @@
+'Yulang.GeneralObservedLadderJournalRows301.site_count' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderJournalRows301.indexed_site' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderJournalRows301.raw_hit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalRows301.attached_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalRows301.all_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.probe_list' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.probe_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.checked_list' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.checked_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.unrecorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.exact_final' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.before_no_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.root_available_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderJournalCompiler301.semantic_at_final' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

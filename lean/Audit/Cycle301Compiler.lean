@@ -1,0 +1,36 @@
+import Yulang.GeneralObservedLadderLocal301
+import Yulang.GeneralObservedLadderObserver301
+import Yulang.GeneralObservedLadderReadback301
+
+#print axioms Yulang.GeneralObservedLadderLocal301.arbitrary_fresh
+#print axioms Yulang.GeneralObservedLadderLocal301.administrative
+#print axioms Yulang.GeneralObservedLadderLocal301.failed_int
+#print axioms Yulang.GeneralObservedLadderLocal301.safe
+#print axioms Yulang.GeneralObservedLadderLocal301.unique_list
+#print axioms Yulang.GeneralObservedLadderLocal301.not_merged
+#print axioms Yulang.GeneralObservedLadderLocal301.local_of
+#print axioms Yulang.GeneralObservedLadderLocal301.list_local
+#print axioms Yulang.GeneralObservedLadderLocal301.leaf_local
+#print axioms Yulang.GeneralObservedLadderObserver301.exact_list
+#print axioms Yulang.GeneralObservedLadderObserver301.exact_scalar
+#print axioms Yulang.GeneralObservedLadderObserver301.absent
+#print axioms Yulang.GeneralObservedLadderObserver301.observed
+#print axioms Yulang.GeneralObservedLadderObserver301.roundtrip
+#print axioms Yulang.GeneralObservedLadderObserver301.faithful
+#print axioms Yulang.GeneralObservedLadderObserver301.branch
+#print axioms Yulang.GeneralObservedLadderObserver301.leaf
+#print axioms Yulang.GeneralObservedLadderObserver301.out_of_range
+#print axioms Yulang.GeneralObservedLadderObserver301.entries
+#print axioms Yulang.GeneralObservedLadderObserver301.closed
+#print axioms Yulang.GeneralObservedLadderObserver301.rank
+#print axioms Yulang.GeneralObservedLadderObserver301.known
+#print axioms Yulang.GeneralObservedLadderObserver301.exact_on_present
+#print axioms Yulang.GeneralObservedLadderReadback301.run_branch
+#print axioms Yulang.GeneralObservedLadderReadback301.fuel_exact
+#print axioms Yulang.GeneralObservedLadderReadback301.first_success
+#print axioms Yulang.GeneralObservedLadderReadback301.computed
+#print axioms Yulang.GeneralObservedLadderReadback301.nodes
+#print axioms Yulang.GeneralObservedLadderReadback301.exact_compiled_root
+#print axioms Yulang.GeneralObservedLadderReadback301.compiler_sound
+#print axioms Yulang.GeneralObservedLadderReadback301.evidence_at
+#print axioms Yulang.GeneralObservedLadderReadback301.selection_graph_accessible

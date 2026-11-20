@@ -1,0 +1,44 @@
+'Yulang.GeneralObservedLadderSemanticGap301.same_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderSemanticGap301.unresolved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderSemanticGap301.old_int_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderSemanticGap301.old_list_report' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderSemanticGap301.no_observation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderSemanticGap301.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderSemanticGap301.strict_gap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.known_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.target_support' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.target_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.cache' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.endpoint_unknown' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.refresh_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefresh301.receipt_changes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.before_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.outer_atoms' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.keys_installed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.list_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.list_instance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshChain301.completed_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.old_source_support' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.earlier_known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.strict_focus' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.not_headless' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.counted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.no_edges_at_actual_refresh' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.terminal_table' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.computes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.nodes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.compiler_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralObservedLadderRefreshProgram301.actual_refresh_then_compile' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

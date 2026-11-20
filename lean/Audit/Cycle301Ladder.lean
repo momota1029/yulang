@@ -1,0 +1,29 @@
+import Yulang.GeneralObservedLadderSource301
+import Yulang.GeneralObservedLadderInitial301
+import Yulang.GeneralObservedLadderReport301
+
+#print axioms Yulang.GeneralObservedLadderSource301.nominal_at
+#print axioms Yulang.GeneralObservedLadderSource301.scalar_at
+#print axioms Yulang.GeneralObservedLadderSource301.scalar_model
+#print axioms Yulang.GeneralObservedLadderSource301.linear_model
+#print axioms Yulang.GeneralObservedLadderSource301.models_exact
+#print axioms Yulang.GeneralObservedLadderSource301.model_exists
+#print axioms Yulang.GeneralObservedLadderSource301.slot_model
+#print axioms Yulang.GeneralObservedLadderInitial301.translated
+#print axioms Yulang.GeneralObservedLadderInitial301.leafless
+#print axioms Yulang.GeneralObservedLadderInitial301.canonical
+#print axioms Yulang.GeneralObservedLadderInitial301.denotes
+#print axioms Yulang.GeneralObservedLadderInitial301.support
+#print axioms Yulang.GeneralObservedLadderInitial301.formed
+#print axioms Yulang.GeneralObservedLadderInitial301.ground
+#print axioms Yulang.GeneralObservedLadderInitial301.actual_initial
+#print axioms Yulang.GeneralObservedLadderInitial301.models
+#print axioms Yulang.GeneralObservedLadderInitial301.reached
+#print axioms Yulang.GeneralObservedLadderReport301.no_nominal
+#print axioms Yulang.GeneralObservedLadderReport301.display_query
+#print axioms Yulang.GeneralObservedLadderReport301.int_query
+#print axioms Yulang.GeneralObservedLadderReport301.display_report
+#print axioms Yulang.GeneralObservedLadderReport301.list_as_int
+#print axioms Yulang.GeneralObservedLadderReport301.int_as_list
+#print axioms Yulang.GeneralObservedLadderReport301.int_report
+#print axioms Yulang.GeneralObservedLadderReport301.exact_at
