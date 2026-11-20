@@ -1,0 +1,24 @@
+import Yulang.GeneralRebaseReceiptStampedCounts289
+
+#print axioms Yulang.GeneralRebaseReceiptTypedStamp289.port_renamed
+#print axioms Yulang.GeneralRebaseReceiptTypedStamp289.head_renamed
+#print axioms Yulang.GeneralRebaseReceiptTypedStamp289.retained_head
+#print axioms Yulang.GeneralRebaseReceiptStampMachine289.stale_exact
+#print axioms Yulang.GeneralRebaseReceiptStampMachine289.erases_tick
+#print axioms Yulang.GeneralRebaseReceiptStampedProduct289.paths_iff
+#print axioms Yulang.GeneralRebaseReceiptStampFixtures289.same_extracted_stamp
+#print axioms Yulang.GeneralRebaseReceiptStampFixtures289.wrong_row_stale
+#print axioms Yulang.GeneralRebaseReceiptStampFixtures289.added_point_invalidates_full_stamp
+#print axioms Yulang.GeneralRebaseReceiptStampedExport289.erased_reachable
+#print axioms Yulang.GeneralRebaseReceiptStampedExport289.exact_terminal
+#print axioms Yulang.GeneralRebaseReceiptStampedExport289.exact_old_diagnostic
+#print axioms Yulang.GeneralRebaseReceiptStampedExport289.marked_result
+#print axioms Yulang.GeneralRebaseReceiptStampedExport289.no_hypothetical_destination
+#print axioms Yulang.GeneralRebaseReceiptStampedEffects289.stamp_sent_implies_base
+#print axioms Yulang.GeneralRebaseReceiptStampedEffects289.actual_alias_excludes_typed_replay
+
+#eval Yulang.GeneralRebaseReceiptStampFixtures289.exampleRun
+#guard Yulang.GeneralRebaseReceiptStampFixtures289.exampleRun == ["published", "stale-typed-stamp"]
+#print axioms Yulang.GeneralRebaseReceiptStampedCounts289.erase_counts
+#print axioms Yulang.GeneralRebaseReceiptStampedCounts289.preserve_counts
+#print axioms Yulang.GeneralRebaseReceiptStampedCounts289.exact_terminal_counts

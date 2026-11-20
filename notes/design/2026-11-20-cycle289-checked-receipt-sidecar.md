@@ -63,3 +63,18 @@ against the actual edge and the actual matched producer; prove its
 injectivity at a fixed Roles environment. On the real initial/installed
 pair this changes no outcome. It does not prove global catalogue/context
 authenticity; the separate unobserved-key control still matters.
+
+## Make the cached stamp explicit about typed snapshot reads
+
+The old Offer stamp rechecks the current world/edge but is not itself a
+summary of snapshot ports. Add a separate saved stamp with complete up/down
+keys and the finite ordered recorded nominal descriptor list, with type
+and row endpoints encoded by the appropriate identity maps. Stamp
+comparison is conservative if an unrelated entry is appended or reordered.
+Prove one descriptor's code is unchanged by a typed slot embedding;
+do not assume all new entries disappeared. Expose an auxiliary tick taking
+a new capture each time and reject a carried stamp whose row endpoint or
+shape was changed, even when the Offer is unchanged. On the fixed actual
+raw paths, erase the added stamp evidence and recover the same raw
+transitions and terminal output. This does not authenticate all possible
+catalogue entries, role definitions, or arbitrary metadata callers.
