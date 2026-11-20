@@ -1,0 +1,20 @@
+import Yulang.GeneralGeneratedDisplayTable299
+import Yulang.GeneralGeneratedRigidNested299
+
+#print axioms Yulang.GeneralGeneratedDisplayTable299.rows
+#print axioms Yulang.GeneralGeneratedDisplayTable299.ranked
+#print axioms Yulang.GeneralGeneratedDisplayTable299.closed
+#print axioms Yulang.GeneralGeneratedDisplayTable299.faithful
+#print axioms Yulang.GeneralGeneratedDisplayTable299.in_scope
+#print axioms Yulang.GeneralGeneratedDisplayTable299.nodes
+#print axioms Yulang.GeneralGeneratedDisplayTable299.computed_child
+#print axioms Yulang.GeneralGeneratedDisplayTable299.computed_root
+#print axioms Yulang.GeneralGeneratedDisplayTable299.insufficient
+#print axioms Yulang.GeneralGeneratedDisplayTable299.actual_result
+#print axioms Yulang.GeneralGeneratedRigidNested299.rows
+#print axioms Yulang.GeneralGeneratedRigidNested299.faithful
+#print axioms Yulang.GeneralGeneratedRigidNested299.ranked
+#print axioms Yulang.GeneralGeneratedRigidNested299.closed
+#print axioms Yulang.GeneralGeneratedRigidNested299.full_nested
+#print axioms Yulang.GeneralGeneratedRigidNested299.computed_nested
+#print axioms Yulang.GeneralGeneratedRigidNested299.short_budget

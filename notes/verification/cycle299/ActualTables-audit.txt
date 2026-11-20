@@ -1,0 +1,17 @@
+'Yulang.GeneralGeneratedDisplayTable299.rows' does not depend on any axioms
+'Yulang.GeneralGeneratedDisplayTable299.ranked' depends on axioms: [propext]
+'Yulang.GeneralGeneratedDisplayTable299.closed' depends on axioms: [propext]
+'Yulang.GeneralGeneratedDisplayTable299.faithful' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayTable299.in_scope' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayTable299.nodes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayTable299.computed_child' does not depend on any axioms
+'Yulang.GeneralGeneratedDisplayTable299.computed_root' does not depend on any axioms
+'Yulang.GeneralGeneratedDisplayTable299.insufficient' does not depend on any axioms
+'Yulang.GeneralGeneratedDisplayTable299.actual_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedRigidNested299.rows' does not depend on any axioms
+'Yulang.GeneralGeneratedRigidNested299.faithful' depends on axioms: [propext]
+'Yulang.GeneralGeneratedRigidNested299.ranked' depends on axioms: [propext]
+'Yulang.GeneralGeneratedRigidNested299.closed' depends on axioms: [propext]
+'Yulang.GeneralGeneratedRigidNested299.full_nested' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedRigidNested299.computed_nested' does not depend on any axioms
+'Yulang.GeneralGeneratedRigidNested299.short_budget' does not depend on any axioms

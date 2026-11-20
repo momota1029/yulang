@@ -1,0 +1,6 @@
+PASS recorded C277 frontiers admit a computed rank at the two-row bound
+PASS C277 parent certificate requires exactly two fuel units
+PASS C277 generated child certificate requires one fuel unit
+PASS short budget does not emit an unsound partial dictionary
+PASS C277 ordered dictionary is node 1 with child node 3
+The separate Lean proofs attach evidence only at the actual post-install snapshot.

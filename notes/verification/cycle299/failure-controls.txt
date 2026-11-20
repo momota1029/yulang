@@ -1,0 +1,3 @@
+PASS cyclic and absent-child tables do not pass the bounded certificate check
+PASS repeat entry occurs twice in the actual ordered output
+PASS an unindexed selected child is not reported as semantic rejection
