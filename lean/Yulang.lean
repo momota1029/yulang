@@ -5965,3 +5965,8 @@ import Yulang.GeneralRebaseSilentFactor298
 import Yulang.GeneralRebaseExplicitWindow298
 import Yulang.GeneralRebaseWeakWindowLegacy298
 import Yulang.GeneralRebaseRequestMultiplicity298
+import Yulang.GeneralRebasePackedDecision298
+import Yulang.GeneralRebasePackedDepthDecision298
+import Yulang.GeneralRebaseAlignedScan298
+import Yulang.GeneralRebasePackedNonleaf298
+import Yulang.GeneralRebaseDepthWindowExact298

@@ -1,0 +1,9 @@
+'Yulang.GeneralRebasePackedNonleaf298.joint_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePackedNonleaf298.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePackedNonleaf298.model_and_tree_packed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePackedNonleaf298.witness_reified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePackedNonleaf298.actual_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebasePackedNonleaf298.hidden_by_no_output_projection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthWindowExact298.exact_window' depends on axioms: [propext, Classical.choice, Quot.sound]

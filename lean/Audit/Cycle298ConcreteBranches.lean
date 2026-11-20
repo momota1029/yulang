@@ -1,0 +1,10 @@
+import Yulang.GeneralRebasePackedNonleaf298
+import Yulang.GeneralRebaseDepthWindowExact298
+
+#print axioms Yulang.GeneralRebasePackedNonleaf298.joint_exact
+#print axioms Yulang.GeneralRebasePackedNonleaf298.stable
+#print axioms Yulang.GeneralRebasePackedNonleaf298.model_and_tree_packed
+#print axioms Yulang.GeneralRebasePackedNonleaf298.witness_reified
+#print axioms Yulang.GeneralRebasePackedNonleaf298.actual_generated
+#print axioms Yulang.GeneralRebasePackedNonleaf298.hidden_by_no_output_projection
+#print axioms Yulang.GeneralRebaseDepthWindowExact298.exact_window

@@ -1,0 +1,3 @@
+PASS compiled prior reads type columns [0,1,2] and row column [0] independently.
+PASS sparse reconstruction retains the nominal input kinds with a different padded assignment.
+The row-sensitive judgment and row-0 necessity are separately proved; this CLI does not decide arbitrary row predicates.
