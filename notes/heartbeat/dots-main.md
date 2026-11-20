@@ -2,9 +2,9 @@
 - cycle: 285
 - status: running
 - started: 2026-11-20T00:32:29Z
-- updated: 2026-11-20T00:51:18Z
-- elapsed_min: 18.82
-- activity: 復旧して実入れ子出力の最小型座標と正準射影、非葉Displayの有限型検査を独立監査済み。
+- updated: 2026-11-20T01:01:21Z
+- elapsed_min: 28.87
+- activity: 実入れ子例の raw 後続が存在し、scalar refresh 後はすべての実 mixed 遷移を排除できることを独立監査済み。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 8a66b9f8c
-- resume_hint: 新モジュールは個別で通った。次は実境界の任意割当での往復と追加の回帰を検証する。
+- last_local_commit: fcbeaa73f
+- resume_hint: 実経路と終点は検証済み。終点での同じ証拠 payload、および型付き新計算例を検査する。

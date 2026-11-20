@@ -1,0 +1,16 @@
+import Yulang.GeneralRebaseDepthHalt285
+
+#print axioms Yulang.GeneralRebaseDepthTerminalFrame285.raw_source
+#print axioms Yulang.GeneralRebaseDepthTerminalFrame285.high_model
+#print axioms Yulang.GeneralRebaseDepthTerminalFrame285.isolate_high
+#print axioms Yulang.GeneralRebaseDepthTerminalFrame285.equality_closed
+#print axioms Yulang.GeneralRebaseDepthTerminalFrame285.no_further_refresh
+#print axioms Yulang.GeneralRebaseDepthTerminalFrame285.point_closed
+#print axioms Yulang.GeneralRebaseDepthCommit285.exact_plan
+#print axioms Yulang.GeneralRebaseDepthCommit285.classes
+#print axioms Yulang.GeneralRebaseDepthCommit285.committed
+#print axioms Yulang.GeneralRebaseDepthCommit285.no_install
+#print axioms Yulang.GeneralRebaseDepthHalt285.halted
+#print axioms Yulang.GeneralRebaseDepthHalt285.stable
+#print axioms Yulang.GeneralRebaseDepthHalt285.actual_reaches_halt
+#print axioms Yulang.GeneralRebaseDepthHalt285.accessibility_at_endpoint
