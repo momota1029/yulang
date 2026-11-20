@@ -1,0 +1,3 @@
+12 archived/synthetic report controls match independent mixed-child traversal and UTF-8 spans.
+4 malformed/unknown/too-deep wire inputs rejected before producing any report.
+The matrix executes Lean only; separately supplied parser diagnostics are never marked checked.

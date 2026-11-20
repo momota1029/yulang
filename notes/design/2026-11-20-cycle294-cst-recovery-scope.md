@@ -81,3 +81,11 @@ rejects wrong paths or ranges. The archived `for x in xs: @` has a plain
 nested Error-token run at [0,0,9,0], 13..14, accepted by the stronger
 scope checker outside the pattern sibling. These are not role
 projections: they test scope and raw ownership on actual recorded structures.
+
+The optional portable grouping is maximal against its exact adjacent-bridge
+test (no two consecutive output groups have joinable last/first rows),
+not against the full Rust walk. Narrowing focus to a descendant preserves
+unrelatedness and the branch check for already anchored range and receipt
+evidence; it cannot produce a role at the new focus. If the stronger
+whole-file gate succeeds, the selected gate reuses the identical unresolved
+payload. This is a conservative gate relation, not new type checking.
