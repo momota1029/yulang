@@ -2,9 +2,9 @@
 - cycle: 300
 - status: running
 - started: 2026-11-20T15:34:00Z
-- updated: 2026-11-20T16:00:35Z
-- elapsed_min: 26.58
-- activity: 実二段後の三 occurrence に独立 Local.selected、表 reader と全原モデルの辞書を照合。中間の末端 evidence は不可
+- updated: 2026-11-20T16:06:23Z
+- elapsed_min: 32.38
+- activity: 最終固定状態で全 raw 操作が不可、三 Current と EvidenceAt を検証。根の辞書 1→1→3 を再計算
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: bd48be5151
-- resume_hint: 最終状態で追加 raw step が起きないかを固定 fixture で検証
+- last_local_commit: a5fcaaf462
+- resume_hint: 最後に初期と中間の別経路がないかを調べ、検証ログを固める
