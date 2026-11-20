@@ -1,0 +1,24 @@
+6
+[(false, Yulang.GeneralRebaseRoundMicro278.Phase.enter),
+ (false, Yulang.GeneralRebaseRoundMicro278.Phase.installed),
+ (false, Yulang.GeneralRebaseRoundMicro278.Phase.refreshed),
+ (true, Yulang.GeneralRebaseRoundMicro278.Phase.enter),
+ (true, Yulang.GeneralRebaseRoundMicro278.Phase.installed),
+ (true, Yulang.GeneralRebaseRoundMicro278.Phase.refreshed),
+ (true, Yulang.GeneralRebaseRoundMicro278.Phase.enter),
+ (true, Yulang.GeneralRebaseRoundMicro278.Phase.installed),
+ (true, Yulang.GeneralRebaseRoundMicro278.Phase.refreshed),
+ (true, Yulang.GeneralRebaseRoundMicro278.Phase.enter)]
+[(true, false, false), (false, false, false), (false, true, false), (true, false, true), (false, false, true),
+  (false, true, true), (true, false, true), (false, false, true), (false, true, true), (true, false, true)]
+none
+some [2, 4, 4]
+some [2, 2, 2]
+some [2, 4, 4]
+true
+0
+true
+true
+some (102, 1)
+true
+exit=0

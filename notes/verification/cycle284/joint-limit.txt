@@ -1,0 +1,13 @@
+'Yulang.GeneralRebaseNoLiteralTrim284.trim_all' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseNoLiteralTrim284.necessary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoLiteralTrim284.Version.necessary_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNoLiteralTrim284.Version.joint_counter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoLiteralTrim284.Version.necessary_joint' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseNoLiteralTrim284.Loose.necessary_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoLiteralTrim284.Loose.joint_counter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseNoLiteralTrim284.Loose.necessary_joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+exit=0
