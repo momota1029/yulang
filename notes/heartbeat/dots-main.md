@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 299
-- status: completed
-- started: 2026-11-20T14:31:16Z
-- updated: 2026-11-20T15:21:20Z
-- elapsed_min: 50.07
-- activity: 実 C277 の全選択行の同一モデル辞書再帰と、閉表の有限 fuel 完全性を検証
-- last_local_commit: 749ffc6465
-- report: notes/handoff/dots-cycle-299.md
-- resume_hint: 次周は最新統合 standing orders と inbox を再読。有限の候補観測を保ち、実選択の Current 被覆と、未コミットの生成子が続く深さ2の raw 例を調べる。選択辺の rank を raw 停止と混同しない。
+- cycle: 300
+- status: running
+- started: 2026-11-20T15:34:00Z
+- updated: 2026-11-20T15:34:00Z
+- elapsed_min: 0.00
+- activity: I-54 最新確認。深さ2の V8 初期から実 Installable を検証
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang
+- last_local_commit: 63efc528e4
+- resume_hint: 第299周の三 slot source・候補列・条件付き cascade を使用
