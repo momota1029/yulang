@@ -1,0 +1,10 @@
+'Yulang.GeneralRebaseReceiptCheckedReplay289.installed_tick_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.replay_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.positive_replay' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.pending_replay' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.actual_stale_row' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.observes_exact' depends on axioms: [propext, Classical.choice, Quot.sound]

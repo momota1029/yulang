@@ -2,9 +2,9 @@
 - cycle: 289
 - status: running
 - started: 2026-11-20T04:30:00Z
-- updated: 2026-11-20T05:08:11Z
-- elapsed_min: 38.18
-- activity: 型付き stamp 再検査を実行可能化。元 Step 射影、補助手数、別行古化、実 alias の拒否を単体で検証。
+- updated: 2026-11-20T05:13:19Z
+- elapsed_min: 43.32
+- activity: 二つの実据付端点で再生照合、出力 iff、焦点36・独立再構築36・監査7・旧回帰30を検証済み。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 2c6340178
-- resume_hint: 独立キャッシュ再検査・既存回帰・最終報告。
+- last_local_commit: baa3f3f00
+- resume_hint: 最終報告を 50–55 分内に公開し、報告・心拍 blob と全 tree を再照合。

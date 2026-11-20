@@ -5663,3 +5663,4 @@ import Yulang.GeneralRebaseReceiptStampFixtures289
 import Yulang.GeneralRebaseReceiptStampedExport289
 import Yulang.GeneralRebaseReceiptStampedEffects289
 import Yulang.GeneralRebaseReceiptStampedCounts289
+import Yulang.GeneralRebaseReceiptCheckedReplay289

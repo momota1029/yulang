@@ -78,3 +78,49 @@ shape was changed, even when the Offer is unchanged. On the fixed actual
 raw paths, erase the added stamp evidence and recover the same raw
 transitions and terminal output. This does not authenticate all possible
 catalogue entries, role definitions, or arbitrary metadata callers.
+
+## Replay check on both actual installed endpoints
+
+Separate the executable `installedTick` on a finite extracted wire/stamp
+from the Lean raw-journal wrapper, whose fixture registries are declared
+noncomputable. For every input phase and both installed endpoints,
+`installed_tick_exact` identifies their options exactly. Replay two ticks
+from scan: the whole-type branch returns receipt and published with mark
+`(2,0,1)`; the row branch returns inspection-pending and no second step
+or mark. The mismatched row stamp also rejects using the actual endpoint
+wrapper. This is an executable replay with a checked bridge, not an
+evaluation of arbitrary kernel journals or an integration into Yulang2.
+
+## 接続先と、次に狙う三つの補題
+
+I-52 の rebase 版 Step に向けては、今回の二枝の対応を「旧 raw と
+新しい公開観測が一致し、証拠が揃った場合だけ一つの source 出力を
+補助公開できる」という十分条件の特殊例と位置づける。大域的な Acc、
+B4 の四分類、主型性をこれから導くとは言わない。次の一般化の候補は
+`∀ old new p q, SourceReach old → SourceCheckedEdge old p q →
+Release old p q new → ∀ m, Models old m → Mark.Holds m`。
+`SourceCheckedEdge` は観察した catalogue の一致だけでなく、現行の
+要求・候補・所有効果に戻ることを要する。`Release` は文字列や ID の
+一致ではなく、検査済みの `Wire` と `Stamp` を受け取る補助操作の
+関係として定義する。今はこの量化された命題を証明していない。
+
+候補となる三本（一般停止性の残り本数ではない）:
+
+1. **実読取りの出所**: 任意の正の evidence に対し、実 generated edge、
+   同じ producer、matched argument の型端点と行端点、観測キーの
+   checked projection を証明できる形で切り出す。未観測 Metadata の
+   一致は結論にしない。
+2. **正の行読取り自体**: `GeneralRebaseRowHeadBoundary287.recursive_row_not_finished`
+   は既存 inspector が row-bearing nominal を分解しきれないことを
+   示す。この入口に fixture の registry を変えるだけでは正例にならない。
+   `RowDeferredDecisionGuard288.direct_read` は型 head の `ReadyAt` で
+   あって独立行の解決ではない。先に既存の行 atom を持つ別入口を探し、
+   そこで実ソース据付と二つの行割当の区別（型座標を固定）を示す。
+   `CommonPresenceInspectionRows.inspect_preserves_rows` と
+   `GeneralRebaseFiniteRowReads285.equation_iff` は行側の候補だが、
+   generated where 辺との接続は未証明。繋ぐには frozen な inspector
+   の規則を替えるしかないと分かったら、この箇所は設計質問で止める。
+3. **raw への影響を抑える**: 新しい読みが source fact を公開する場合に
+   公開射影の等価と、実 Step 射影／補助の stutter を二方向で示す。
+   point mark、raw の Known、独立行 evidence を混同しない。先に 1 と 2
+   が済まなければ全体の完全性や一般停止性を主張しない。
