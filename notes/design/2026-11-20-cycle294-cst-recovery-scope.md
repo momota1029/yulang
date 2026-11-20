@@ -29,3 +29,17 @@ use paths for error runs and recovery anchors that are not declaration
 occurrence paths. A future Rust caller must attest that the list is complete
 and the supplied locations come from the same retained parse. Here this is a
 named assumption of the exact theorem, not an implemented Rust bridge.
+
+The clean-producer proof uses the already verified wrapped head and direct
+member constructors. Filtered trivia is itself mark-free. A successful
+wrapped projection therefore implies no raw marks below its selected role
+in the supplied tree. Its extra selected-branch policy reduces to checking
+strict ancestors; an unguarded address can pick a structurally clean role
+inside a marked wrapper in a synthetic input. Siblings are reported but do
+not prevent selected-branch admission. Neither theorem clears independently
+collected Rust diagnostics.
+
+The optional token-run display groups only original wire Error tokens with
+a shared sibling owner, consecutive mixed ordinals, and touching byte
+extents; flattening retains the complete original marks. It is not a
+general reimplementation of Rust's ErrorGroup events.

@@ -1,0 +1,15 @@
+import Yulang.GeneralSourceRoleCstCleanBoundary294
+
+#print axioms Yulang.GeneralSourceRoleCstCleanMembers294.each_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanMembers294.trivia_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanMembers294.clean_full_from_visible
+#print axioms Yulang.GeneralSourceRoleCstCleanMembers294.declaration_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanMembers294.statement_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanProducer294.argument_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanProducer294.head_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanProducer294.role_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanProducer294.accepted_subtree_is_plain
+#print axioms Yulang.GeneralSourceRoleCstCleanBoundary294.projected_selects_plain
+#print axioms Yulang.GeneralSourceRoleCstCleanBoundary294.projected_no_selected_marks
+#print axioms Yulang.GeneralSourceRoleCstCleanBoundary294.branch_iff_ancestor_given_projection
+#print axioms Yulang.GeneralSourceRoleCstCleanBoundary294.exact_corridor
