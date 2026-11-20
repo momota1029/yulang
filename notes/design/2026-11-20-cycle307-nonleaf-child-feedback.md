@@ -22,3 +22,35 @@ equality feedback or refresh. Do not add the name as an unapproved language
 change. Continue instead with the genuinely reserved versioned upper
 aggregate (purpose 1), a valid empty-record observation from the retained
 input fact. C239 already gives actual child endpoint exposure independently.
+
+The checked bridge works in source-ID coordinates, not by adjoining all
+structural slots to the old table. From the C239 anchor the only possible
+new known source is the versioned parent upper aggregate. Full journal models
+are unchanged. For every certified refresh of that aggregate (including
+arbitrary cache coordinates and other sound recorded constraints), the root
+report erases to exactly the same ordered captures and anchors, the child
+report has the same one rejected row, and no Mixed234 constructor is enabled
+again. Refutation of reinstall uses the historical output-bearing packet and
+its child lower endpoint, not the child verdict alone. The only need for a
+new well-founded control bit on this tail is whether that aggregate has
+already been observed. A private actual center, although journal-readable,
+does not specify a supported source ID and cannot serve as that bit.
+
+For the earlier C238 reobserved point, the supported strict refreshes can
+gain only three identities: the child's two endpoints and the parent's
+upper aggregate. A three-bit gain count bounds all refresh-only schedules.
+This does not identify the earlier arbitrary Mixed234 installation/
+reobservation schedules with the two-state terminal tail.
+
+The bound can then be lifted from refresh-only schedules to every Mixed234
+step starting at this reobserved C238 point. Track the two actual nominal
+observations (both point at the same record slot) through arbitrary
+certificate embeddings. The rest of the support is discriminated by one
+full model with a freely chosen scalar at the administrative child ID. This
+separates nominal, record, optional record, top and the two variant classes.
+No equate is novel in the resulting support partition; no root reinstall can
+satisfy the retained child endpoint; and an unlocated, deferred or mismatched
+child cannot install. If child ports and upper aggregate are revealed
+separately or in batches, the verified stopping state takes 1, 2 or 3 raw
+steps after the point, with 3 sharp. The concrete and arbitrary C239-tail
+proofs are kept as a separately usable executable two-state interface.

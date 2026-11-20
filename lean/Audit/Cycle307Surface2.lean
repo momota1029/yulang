@@ -1,0 +1,61 @@
+import Yulang.GeneralMixedCompoundChildHidden307
+import Yulang.GeneralMixedCompoundHalfRun307
+import Yulang.GeneralMixedCompoundHalfView307
+import Yulang.GeneralMixedCompoundPointAcc307
+import Yulang.GeneralMixedCompoundPointChild307
+import Yulang.GeneralMixedCompoundPointEquality307
+
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.no_reservation
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.unsupported
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.child_center
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.generated_child
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.root_request_retained
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.actual_center_gap
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.no_feedback_pair
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.no_refresh_into_support
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.high
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.high_absent
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.halfRefines
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.first
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.alias_forward
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.settled_forward
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.discharged_forward
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.legacy_forward
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.versioned_forward
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.cached
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.second
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.half_run
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.hi_supported
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.step_by_two
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.by_three
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.by_two
+#print axioms Yulang.GeneralMixedCompoundHalfRun307.sharp
+#print axioms Yulang.GeneralMixedCompoundHalfView307.heads
+#print axioms Yulang.GeneralMixedCompoundHalfView307.view
+#print axioms Yulang.GeneralMixedCompoundHalfView307.snap
+#print axioms Yulang.GeneralMixedCompoundHalfView307.context
+#print axioms Yulang.GeneralMixedCompoundHalfView307.half
+#print axioms Yulang.GeneralMixedCompoundHalfView307.observed_back
+#print axioms Yulang.GeneralMixedCompoundHalfView307.same_slot
+#print axioms Yulang.GeneralMixedCompoundHalfView307.old_known
+#print axioms Yulang.GeneralMixedCompoundHalfView307.forward_known
+#print axioms Yulang.GeneralMixedCompoundHalfView307.lo_known
+#print axioms Yulang.GeneralMixedCompoundHalfView307.hi_unknown
+#print axioms Yulang.GeneralMixedCompoundHalfView307.hi_known
+#print axioms Yulang.GeneralMixedCompoundPointAcc307.remaining
+#print axioms Yulang.GeneralMixedCompoundPointAcc307.decreases
+#print axioms Yulang.GeneralMixedCompoundPointAcc307.accessible_at
+#print axioms Yulang.GeneralMixedCompoundPointAcc307.accessible
+#print axioms Yulang.GeneralMixedCompoundPointAcc307.saturated_from
+#print axioms Yulang.GeneralMixedCompoundPointAcc307.full_score_stable
+#print axioms Yulang.GeneralMixedCompoundPointChild307.no_nominal
+#print axioms Yulang.GeneralMixedCompoundPointChild307.known_of_enabled
+#print axioms Yulang.GeneralMixedCompoundPointChild307.no_prepared
+#print axioms Yulang.GeneralMixedCompoundPointChild307.no_frame
+#print axioms Yulang.GeneralMixedCompoundPointChild307.no_install
+#print axioms Yulang.GeneralMixedCompoundPointEquality307.source_restrict
+#print axioms Yulang.GeneralMixedCompoundPointEquality307.lower_raw
+#print axioms Yulang.GeneralMixedCompoundPointEquality307.upper_raw
+#print axioms Yulang.GeneralMixedCompoundPointEquality307.related_raw
+#print axioms Yulang.GeneralMixedCompoundPointEquality307.closed
+#print axioms Yulang.GeneralMixedCompoundPointEquality307.exact_pair
