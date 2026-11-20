@@ -78,3 +78,37 @@ slot embedding. If all actual prepared packets transport through that
 embedding, test absence of a further step from these refreshed states.
 This is a finite fixture proof, never a theorem about arbitrary source or
 about reachability of the supplemental ledger.
+
+## Scoped operational observation
+
+Try a three-state finite observation of the positive comparison family only:
+`original`, `supplemented`, and `refreshed (certificate, Known 2)`. Its
+executable fields are versioned plan count and the presence of the nominal
+descriptor for type name 2. Prove a two-sided simulation on that family,
+with one edge from supplemented to refreshed and no edge from the two
+terminal phases. Then test that the unscoped wrong-registry state has the
+same observations as supplemented. The observation is deliberately not a
+validity checker, a new operational kernel, or a successor for arbitrary
+source; membership in the guarded family does real work in its theorem.
+
+## A stronger invariant to falsify: fresh evidence after harmless refresh
+
+The definition of `Leaf` demands a full current-snapshot packet under
+every source-only assignment. Once an independent leaf enables the output
+mark, rechecking a **new** leaf certificate in the narrowed snapshot
+might incorrectly require the old source to already know the parent
+output. Try the assignment replacing only type(2) by Top. If the
+certificate disappears even though models and ordinary dictionary
+transport are preserved, do not claim Leaf is a persistent invariant.
+Keep historical source provenance separate from the retargeted packet;
+the historical witness is not a fresh witness at the new snapshot.
+
+The independent follow-up is to separate exact child reads from the global
+snapshot. The real opaque leaf reads root name 0 and makes no nested
+inspections. Prove that the retained nominal head for name 0 is justified by
+the original source even after any certified embedding, and that all leaf
+local equations still hold under those same assignments. This neither
+postulates fresh full packet evidence in that narrowed snapshot nor
+authorizes a new settlement rule. A local support proof must retain the
+Known/head guard, even when a variable-pattern packet's equations are
+trivial. The wrong-registry frame remains invalid.
