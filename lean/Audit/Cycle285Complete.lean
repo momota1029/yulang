@@ -1,0 +1,12 @@
+import Yulang.GeneralRebaseDepthPathComplete285
+
+#print axioms Yulang.GeneralRebaseDepthPathSelection285.semantic_clear
+#print axioms Yulang.GeneralRebaseDepthPathSelection285.raw_clear
+#print axioms Yulang.GeneralRebaseDepthPathSelection285.administrative
+#print axioms Yulang.GeneralRebaseDepthPathSelection285.safe
+#print axioms Yulang.GeneralRebaseDepthPathSelection285.aliases_empty
+#print axioms Yulang.GeneralRebaseDepthPathSelection285.no_merged
+#print axioms Yulang.GeneralRebaseDepthPathSelection285.selected
+#print axioms Yulang.GeneralRebaseDepthPathComplete285.concat
+#print axioms Yulang.GeneralRebaseDepthPathComplete285.terminates
+#print axioms Yulang.GeneralRebaseDepthPathComplete285.actual_total

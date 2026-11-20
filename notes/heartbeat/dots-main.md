@@ -2,9 +2,9 @@
 - cycle: 285
 - status: running
 - started: 2026-11-20T00:32:29Z
-- updated: 2026-11-20T01:10:42Z
-- elapsed_min: 38.22
-- activity: 実 install 後の全 raw 継続が高々2 refresh、2回で同じ終点に到達する鋭い例、任意経路で全 Models と payload 保存を監査済み。
+- updated: 2026-11-20T01:19:54Z
+- elapsed_min: 47.42
+- activity: 検証完了：30モジュール、15独立監査、143宣言、11適用例、旧回帰9。全 post-install と任意単項塔の即時 descriptor 条件を検証。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: e0be94633
-- resume_hint: 次は旧回帰・型付き適用例・静的範囲を再確認する。
+- last_local_commit: 8b14bab7d
+- resume_hint: 最終報告を50分点で固定し、expected head・tree・報告・完了心拍を再取得する。

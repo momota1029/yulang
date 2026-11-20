@@ -1,0 +1,36 @@
+verify-lean: . @ fcf7968c4 (base c2c00fa3e)
+ok: no removed lines in lean/ since c2c00fa3e
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+previous-cycle static exit 0
+verify-lean: . @ fcf7968c4 (base origin/integration/m1-final)
+ok: no removed lines in lean/ since origin/integration/m1-final
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+integration static exit 0
+git diff-check exit 0
+frozen paths untouched exit 0
+
+Additional tower snapshot (3c29e8f2), baseline local:
+verify-lean: . @ 3c29e8f2b (base c2c00fa3e)
+ok: no removed lines in lean/ since c2c00fa3e
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
+
+Additional tower snapshot (3c29e8f2), baseline int:
+verify-lean: . @ 3c29e8f2b (base origin/integration/m1-final)
+ok: no removed lines in lean/ since origin/integration/m1-final
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
