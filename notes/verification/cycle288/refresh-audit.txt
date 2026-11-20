@@ -1,0 +1,20 @@
+'Yulang.GeneralRebaseRowRefreshShape288.any_comparable_is_middle' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshShape288.only_descriptor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshShape288.actually_nominal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshClosed288.recognized_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshClosed288.point_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshClosed288.no_more_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshPackets288.parent_observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshPackets288.child_observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshPackets288.root_transported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshPackets288.child_transported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshPackets288.prepared_is_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowRefreshHalt288.no_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshHalt288.next_halts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshHalt288.every_path_one_or_zero' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowRefreshHalt288.maximal_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshHalt288.scoped_accessible' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseForeignLeaf288
+
+#print axioms Yulang.GeneralRebaseForeignLeaf288.same_occurrence
+#print axioms Yulang.GeneralRebaseForeignLeaf288.foreign_holds_on_source
+#print axioms Yulang.GeneralRebaseForeignLeaf288.models_eq
+#print axioms Yulang.GeneralRebaseForeignLeaf288.syntactically_discharged
+#print axioms Yulang.GeneralRebaseForeignLeaf288.parent_settled
+#print axioms Yulang.GeneralRebaseForeignLeaf288.no_correct_frame
+#print axioms Yulang.GeneralRebaseForeignLeaf288.still_no_dictionary
+#print axioms Yulang.GeneralRebaseForeignLeaf288.old_slice_accepts_foreign
+#print axioms Yulang.GeneralRebaseForeignLeaf288.semantic_shortcut_counterexample
+#print axioms Yulang.GeneralRebaseForeignLeaf288.no_raw_path
+#print axioms Yulang.GeneralRebaseForeignLeaf288.no_discharge_to_evidence_without_invariant

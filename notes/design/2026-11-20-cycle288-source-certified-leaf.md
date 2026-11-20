@@ -51,3 +51,30 @@ the real endpoint, and do not call the append an existing install action.
 The effect-free leaf is exactly the case where inventing an install could
 violate the original novelty requirement. A formal integration must account
 for history and queue scheduling, not just preservation of Models.
+
+## Guard falsification before considering any integration
+
+The two concrete registries use the same source/child identity, since the
+reservation derives from the same parent invocation key. Prove or disprove
+the tempting shortcut “record a plan from any registry if it holds in every
+full Model.” Attempt to transplant the opaque (positive) child into the
+row-destructuring state while retaining the latter's registry and graph.
+If full Models survive but the old syntactic ledger now discharges a still
+pending child, stop the unscoped shortcut. This tests a *static*, possibly
+malformed ledger only, not the soundness of any source-reachable state.
+A registry/current-frame check is not replaceable by model entailment or
+by agreement of child identity. Continue only the scoped certificate and
+its independent endpoint tests.
+
+## Bounded follow-through from the guarded hypothetical state
+
+A raw name listing includes actual reserved private addresses. A list bound
+of 0,1,2 is therefore false, even though only those three type sources can
+be certified Known: assign Top at an arbitrary larger identity without
+violating full equations. For any legal first refresh on the guarded state,
+invert invariant nominal subtyping in a single concrete model to show the
+new output descriptor must be the point F(source 1), up to the refinement's
+slot embedding. If all actual prepared packets transport through that
+embedding, test absence of a further step from these refreshed states.
+This is a finite fixture proof, never a theorem about arbitrary source or
+about reachability of the supplemental ledger.
