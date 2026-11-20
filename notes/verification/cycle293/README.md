@@ -53,3 +53,14 @@ The production interface should get the complete mixed child sequence from a
 retained Rust parse result, map actual tags, preserve all token text, and
 supply an independently fresh snapshot brand and selected ordinal path. The
 CST producer does not assign semantic IDs or decide source-language validity.
+
+The loader's small synthetic shape matrix can also be run:
+
+```sh
+python3 notes/verification/cycle293/test-cst-matrix.py
+```
+
+This is one Lean invocation over 42 supplied tag trees (visibility, trivia,
+ordinary required/default shapes, missing RHS, missing Equals, multiple
+direct children, and missing argument wrapper). It checks the allowed output
+shape and the exact resulting direct member path, not parser acceptance.
