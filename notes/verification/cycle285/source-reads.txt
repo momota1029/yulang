@@ -1,0 +1,13 @@
+'Yulang.GeneralRebaseSourceDemands285.exact_support' depends on axioms: [propext]
+'Yulang.GeneralRebaseSourceDemands285.covered_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseBodyReads285.program_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseBodyReads285.frame_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseBodyReads285.value_agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseBodyReads285.equation_agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthReads285.translated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthReads285.actualDemand' does not depend on any axioms
+'Yulang.GeneralRebaseDepthReads285.equation_emitted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthReads285.read_input' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthReads285.read_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthReads285.sameValue' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthReads285.real_readback' depends on axioms: [propext, Classical.choice, Quot.sound]

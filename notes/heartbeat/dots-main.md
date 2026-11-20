@@ -2,9 +2,9 @@
 - cycle: 285
 - status: running
 - started: 2026-11-20T00:32:29Z
-- updated: 2026-11-20T00:32:52Z
-- elapsed_min: 0.38
-- activity: 前周完了・統合版の現行指示・単独作業を確認。
+- updated: 2026-11-20T00:35:56Z
+- elapsed_min: 3.45
+- activity: 実252/271の入れ子名目型で入力読み [2] と生等式読み [3,2] を分離。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: c2c00fa3e
-- resume_hint: 非変数の出力を持つ実例で、型付き読みの被覆と正準化の境界を調べる。
+- last_local_commit: d4cd51801
+- resume_hint: 実journal全体の読みと公開観測の証明を分け、既定候補・効果行まで比較する。
