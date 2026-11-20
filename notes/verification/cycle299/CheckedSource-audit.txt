@@ -1,0 +1,7 @@
+'Yulang.GeneralGeneratedDisplayComplete299.observed_closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedDisplayComplete299.checked_all_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayComplete299.modeled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayComplete299.exact_and_modeled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedDisplayComplete299.actual_accessibility' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,11 @@
+import Yulang.GeneralGeneratedSemanticAcc299
+import Yulang.GeneralGeneratedSelectedExact299
+
+#print axioms Yulang.GeneralGeneratedSemanticAcc299.source_child_exact
+#print axioms Yulang.GeneralGeneratedSemanticAcc299.semantic_accessible
+#print axioms Yulang.GeneralGeneratedSemanticAcc299.semantic_iff
+#print axioms Yulang.GeneralGeneratedSemanticAcc299.bounded_semantic_iff
+#print axioms Yulang.GeneralGeneratedSelectedExact299.derivation_accessible
+#print axioms Yulang.GeneralGeneratedSelectedExact299.children_accessible
+#print axioms Yulang.GeneralGeneratedSelectedExact299.bounded_exact
+#print axioms Yulang.GeneralGeneratedSelectedExact299.no_result_iff

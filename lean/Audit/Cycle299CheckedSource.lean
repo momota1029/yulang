@@ -1,0 +1,7 @@
+import Yulang.GeneralGeneratedDisplayComplete299
+
+#print axioms Yulang.GeneralGeneratedDisplayComplete299.observed_closed
+#print axioms Yulang.GeneralGeneratedDisplayComplete299.checked_all_rows
+#print axioms Yulang.GeneralGeneratedDisplayComplete299.modeled
+#print axioms Yulang.GeneralGeneratedDisplayComplete299.exact_and_modeled
+#print axioms Yulang.GeneralGeneratedDisplayComplete299.actual_accessibility
