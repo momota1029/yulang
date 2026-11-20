@@ -1,0 +1,17 @@
+import Yulang.GeneralDeferredLadderBranch302
+import Yulang.GeneralDeferredLadderRefreshHead302
+
+#print axioms Yulang.GeneralDeferredLadderBranch302.padding_models
+#print axioms Yulang.GeneralDeferredLadderBranch302.variant_support
+#print axioms Yulang.GeneralDeferredLadderBranch302.variant_models
+#print axioms Yulang.GeneralDeferredLadderBranch302.variant_cache
+#print axioms Yulang.GeneralDeferredLadderBranch302.promotion
+#print axioms Yulang.GeneralDeferredLadderBranch302.actual
+#print axioms Yulang.GeneralDeferredLadderBranch302.length
+#print axioms Yulang.GeneralDeferredLadderBranch302.injective
+#print axioms Yulang.GeneralDeferredLadderBranch302.models_preserved
+#print axioms Yulang.GeneralDeferredLadderBranch302.infinite_successors
+#print axioms Yulang.GeneralDeferredLadderRefreshHead302.int_test
+#print axioms Yulang.GeneralDeferredLadderRefreshHead302.scalar_witness
+#print axioms Yulang.GeneralDeferredLadderRefreshHead302.terminal_scalar
+#print axioms Yulang.GeneralDeferredLadderRefreshHead302.terminal_has_no_nominal
