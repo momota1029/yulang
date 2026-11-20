@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 300
-- status: completed
-- started: 2026-11-20T15:34:00Z
-- updated: 2026-11-20T16:24:07Z
-- elapsed_min: 50.12
-- activity: 深さ2の V8 実二段据付と全モデルの辞書、固定初期の厳密3相・停止を検証
-- last_local_commit: 496b725a85
-- report: notes/handoff/dots-cycle-300.md
-- resume_hint: 次周は最新統合 standing orders と inbox を再読。有限の候補観測を保ち、実 frame・所有キー輸送を別の到達 source へ。固定例の選択辺 rank や相順位を一般の raw 停止と混同しない。
+- cycle: 301
+- status: running
+- started: 2026-11-20T16:30:32Z
+- updated: 2026-11-20T16:30:49Z
+- elapsed_min: 0.28
+- activity: 固定 V8 の実二段の局所前提を分解し、有限階層の実 compiler 条件へ
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang
+- last_local_commit: 027c0cdcb3
+- resume_hint: 第300周の完了と I-54 を確認。段ごとの有限証拠と raw 経路の条件を区別する。
