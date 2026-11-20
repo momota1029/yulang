@@ -2,9 +2,9 @@
 - cycle: 286
 - status: running
 - started: 2026-11-20T01:30:20Z
-- updated: 2026-11-20T01:48:52Z
-- elapsed_min: 18.53
-- activity: 実際の全経路を分解し、必ず一度だけインストール、最大3手を検証。インストールを最後にする3手例と任意の終点の同一割当て証拠を追加
+- updated: 2026-11-20T01:57:20Z
+- elapsed_min: 27.00
+- activity: 任意の実経路の終点条件、全6順序の実行、最大経路長が2または3、および観測同値な別の生終点を検証
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 36771dc81
-- resume_hint: 先行する実際の例に続き、任意の未認識スカラーについて認証可能な刷新を検討。新規モジュールのみを再検証する
+- last_local_commit: 26cb8e39f
+- resume_hint: 次は実経路と正準の観測の対応を整理し、新規モジュール・既存監査を再検証

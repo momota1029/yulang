@@ -1,0 +1,16 @@
+import Yulang.GeneralRebaseDepthNonunique286
+
+#print axioms Yulang.GeneralRebaseDepthRefreshTrust286.retained
+#print axioms Yulang.GeneralRebaseDepthScalarMark286.target_other
+#print axioms Yulang.GeneralRebaseDepthScalarOffer286.reached
+#print axioms Yulang.GeneralRebaseDepthScalarOffer286.offers
+#print axioms Yulang.GeneralRebaseDepthSchedule286.exact_terminal
+#print axioms Yulang.GeneralRebaseDepthSchedule286.realize
+#print axioms Yulang.GeneralRebaseDepthScheduleWord286.realizable
+#print axioms Yulang.GeneralRebaseDepthScheduleWord286.permutation
+#print axioms Yulang.GeneralRebaseDepthExactEnd286.exact_terminal_known
+#print axioms Yulang.GeneralRebaseDepthExactEnd286.maximal_lengths
+#print axioms Yulang.GeneralRebaseDepthExactEnd286.short_maximal
+#print axioms Yulang.GeneralRebaseDepthExactEnd286.output_gap
+#print axioms Yulang.GeneralRebaseDepthNonunique286.different
+#print axioms Yulang.GeneralRebaseDepthNonunique286.not_raw_unique
