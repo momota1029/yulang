@@ -1,0 +1,19 @@
+import Yulang.GeneralRebaseReceiptScopedTrace289
+
+#print axioms Yulang.GeneralRebaseReceiptWitness289.check_iff
+#print axioms Yulang.GeneralRebaseReceiptWitness289.only_actual_release
+#print axioms Yulang.GeneralRebaseReceiptControls289.not_using_plans
+#print axioms Yulang.GeneralRebaseReceiptControls289.foreign_stays_unfinished
+#print axioms Yulang.GeneralRebaseReceiptControls289.stale_offer_rejected
+#print axioms Yulang.GeneralRebaseReceiptControls289.override_registry_catches_producer
+#print axioms Yulang.GeneralRebaseReceiptControls289.wrong_target
+#print axioms Yulang.GeneralRebaseReceiptControls289.detached_rejected
+#print axioms Yulang.GeneralRebaseReceiptControls289.live_request_rejected
+#print axioms Yulang.GeneralRebaseReceiptMachine289.received_exact
+#print axioms Yulang.GeneralRebaseReceiptMachine289.published_exact
+#print axioms Yulang.GeneralRebaseReceiptMachine289.decreases
+#print axioms Yulang.GeneralRebaseReceiptRawProduct289.erase_path
+#print axioms Yulang.GeneralRebaseReceiptRawProduct289.lift_raw
+#print axioms Yulang.GeneralRebaseReceiptRawProduct289.path_iff
+#print axioms Yulang.GeneralRebaseReceiptScopedTrace289.family_iff
+#print axioms Yulang.GeneralRebaseReceiptScopedTrace289.terminal_config

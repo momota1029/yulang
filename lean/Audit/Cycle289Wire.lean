@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseReceiptFixture289
+
+#print axioms Yulang.GeneralRebaseReceiptWire289.matching_producer
+#print axioms Yulang.GeneralRebaseReceiptWire289.check_ready
+#print axioms Yulang.GeneralRebaseReceiptExtract289.diagnostic_finished
+#print axioms Yulang.GeneralRebaseReceiptFixture289.producer_exact
+#print axioms Yulang.GeneralRebaseReceiptFixture289.wire_exact
+#print axioms Yulang.GeneralRebaseReceiptFixture289.initial_no_producer
+#print axioms Yulang.GeneralRebaseReceiptFixture289.endpoint_decision

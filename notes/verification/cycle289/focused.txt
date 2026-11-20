@@ -1,0 +1,216 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+focused GeneralRebaseReceiptWire289 exit 0
+focused GeneralRebaseReceiptExtract289 exit 0
+focused GeneralRebaseReceiptFixture289 exit 0
+focused GeneralRebaseReceiptWitness289 exit 0
+focused GeneralRebaseReceiptControls289 exit 0
+focused GeneralRebaseReceiptMachine289 exit 0
+focused GeneralRebaseReceiptRawProduct289 exit 0
+focused GeneralRebaseReceiptScopedTrace289 exit 0
+focused GeneralRebaseReceiptCompile289 exit 0
+focused GeneralRebaseReceiptPoint289 exit 0
+focused GeneralRebaseReceiptPublic289 exit 0
+focused GeneralRebaseReceiptRuntime289 exit 0
+focused GeneralRebaseReceiptRank289 exit 0
+focused GeneralRebaseReceiptCounted289 exit 0
+focused GeneralRebaseReceiptExtractLaws289 exit 0
+focused GeneralRebaseReceiptCollision289 exit 0
+focused GeneralRebaseReceiptCatalogue289 exit 0
+focused GeneralRebaseReceiptCatalogueFixture289 exit 0
+focused GeneralRebaseReceiptGuardedProduct289 exit 0
+focused GeneralRebaseReceiptLiveEffects289 exit 0
+focused GeneralRebaseReceiptGuardedReadback289 exit 0
+focused GeneralRebaseReceiptAliasControl289 exit 0
+focused GeneralRebaseReceiptIdentityCollision289 exit 0
+focused GeneralRebaseReceiptOccurrence289 exit 0
+focused GeneralRebaseReceiptExactLink289 exit 0
+focused GeneralRebaseReceiptAnchorFixture289 exit 0
+focused GeneralRebaseReceiptAnchorProduct289 exit 0
+focused GeneralRebaseReceiptAnchorExport289 exit 0
+focused GeneralRebaseReceiptTypedStamp289 exit 0
+focused GeneralRebaseReceiptStampMachine289 exit 0
+focused GeneralRebaseReceiptStampedProduct289 exit 0
+focused GeneralRebaseReceiptStampFixtures289 exit 0
+focused GeneralRebaseReceiptStampedExport289 exit 0
+focused GeneralRebaseReceiptStampedEffects289 exit 0
+focused GeneralRebaseReceiptStampedCounts289 exit 0
+focused GeneralRebaseReceiptCheckedReplay289 exit 0
+'Yulang.GeneralRebaseReceiptGuardedProduct289.equivalent_paths' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptGuardedReadback289.terminal_raw_diagnostic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptLiveEffects289.cannot_publish_after_any_raw_growth' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptAliasControl289.actual_merge_gain' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptAliasControl289.actual_merge_excludes_even_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptIdentityCollision289.not_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptIdentityCollision289.no_current_emitted_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptIdentityCollision289.wire_collision' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptIdentityCollision289.registry_guard_still_collides' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptOccurrence289.injective' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptExactLink289.anchors_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptExactLink289.accept_has_actual_anchor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptAnchorFixture289.displaced_rejected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptAnchorFixture289.still_finite_metadata' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptAnchorProduct289.published_anchor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptAnchorProduct289.paths_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptAnchorProduct289.exact_terminals' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptAnchorExport289.released' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptAnchorExport289.same_terminal_diagnostic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptAnchorExport289.no_fabricated_destination' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle289Anchor.lean exit 0
+'Yulang.GeneralRebaseReceiptRank289.decreases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRank289.accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptCounted289.maximal_trace_counts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptExtractLaws289.owning_effect_exists' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptExtractLaws289.actual_edge_with_ids' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptExtractLaws289.no_effective_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptExtractLaws289.nonempty_alias_request_blocks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptExtractLaws289.actual_inspection_finished' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptCollision289.checked_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptCatalogue289.agreement_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptCatalogue289.guarded_provenance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptCatalogueFixture289.guarded_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptCatalogueFixture289.observed_collision_blocked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptCatalogueFixture289.finite_footprint_not_global' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle289Catalogue.lean exit 0
+'Yulang.GeneralRebaseReceiptCheckedReplay289.installed_tick_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.replay_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.positive_replay' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.pending_replay' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.actual_stale_row' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptCheckedReplay289.observes_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle289Replay.lean exit 0
+'Yulang.GeneralRebaseReceiptCompile289.concrete_compile' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptCompile289.compile_has_offered_target' depends on axioms: [propext]
+'Yulang.GeneralRebaseReceiptPoint289.release_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPoint289.published_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPoint289.not_old_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPoint289.noncircular_source_countermodel' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptPublic289.exact_raw_gate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPublic289.canonical_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptPublic289.minimal_typed_mark' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.normalized_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.exact_runtime' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.stale_normalized' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.keep_stamp_recheck' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRuntime289.exact_mark_output' depends on axioms: [propext, Quot.sound]
+["published", "inspection-pending", "no-producer", "not-generated", "has-effects", "stale-stamp", "wrong-registry"]
+standalone Audit/Cycle289Runtime.lean exit 0
+'Yulang.GeneralRebaseReceiptWitness289.check_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptWitness289.only_actual_release' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.not_using_plans' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.foreign_stays_unfinished' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.stale_offer_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.override_registry_catches_producer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.wrong_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.detached_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.live_request_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptMachine289.received_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptMachine289.published_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptMachine289.decreases' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptRawProduct289.erase_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRawProduct289.lift_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRawProduct289.path_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptScopedTrace289.family_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptScopedTrace289.terminal_config' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle289Scope.lean exit 0
+'Yulang.GeneralRebaseReceiptTypedStamp289.port_renamed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptTypedStamp289.head_renamed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptTypedStamp289.retained_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampMachine289.stale_exact' depends on axioms: [propext]
+'Yulang.GeneralRebaseReceiptStampMachine289.erases_tick' depends on axioms: [propext]
+'Yulang.GeneralRebaseReceiptStampedProduct289.paths_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampFixtures289.same_extracted_stamp' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampFixtures289.wrong_row_stale' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampFixtures289.added_point_invalidates_full_stamp' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.erased_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.exact_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.exact_old_diagnostic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.marked_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.no_hypothetical_destination' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedEffects289.stamp_sent_implies_base' depends on axioms: [propext]
+'Yulang.GeneralRebaseReceiptStampedEffects289.actual_alias_excludes_typed_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+["published", "stale-typed-stamp"]
+'Yulang.GeneralRebaseReceiptStampedCounts289.erase_counts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedCounts289.preserve_counts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedCounts289.exact_terminal_counts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+standalone Audit/Cycle289Stamp.lean exit 0
+'Yulang.GeneralRebaseReceiptWire289.matching_producer' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptWire289.check_ready' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptExtract289.diagnostic_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptFixture289.producer_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptFixture289.wire_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptFixture289.initial_no_producer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptFixture289.endpoint_decision' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle289Wire.lean exit 0
+Counts: focused 36
+Focused reverification result=0
+Wrapped axiom audit: 97 reports, 97 distinct declarations (7 parts), used: Classical.choice, Quot.sound, propext, disallowed: none.

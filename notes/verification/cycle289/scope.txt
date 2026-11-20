@@ -1,0 +1,21 @@
+'Yulang.GeneralRebaseReceiptWitness289.check_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptWitness289.only_actual_release' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.not_using_plans' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.foreign_stays_unfinished' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.stale_offer_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.override_registry_catches_producer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.wrong_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.detached_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptControls289.live_request_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptMachine289.received_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptMachine289.published_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptMachine289.decreases' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptRawProduct289.erase_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRawProduct289.lift_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptRawProduct289.path_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptScopedTrace289.family_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptScopedTrace289.terminal_config' depends on axioms: [propext, Classical.choice, Quot.sound]

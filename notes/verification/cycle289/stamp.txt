@@ -1,0 +1,34 @@
+'Yulang.GeneralRebaseReceiptTypedStamp289.port_renamed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptTypedStamp289.head_renamed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptTypedStamp289.retained_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampMachine289.stale_exact' depends on axioms: [propext]
+'Yulang.GeneralRebaseReceiptStampMachine289.erases_tick' depends on axioms: [propext]
+'Yulang.GeneralRebaseReceiptStampedProduct289.paths_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampFixtures289.same_extracted_stamp' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampFixtures289.wrong_row_stale' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampFixtures289.added_point_invalidates_full_stamp' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.erased_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.exact_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.exact_old_diagnostic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.marked_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedExport289.no_hypothetical_destination' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedEffects289.stamp_sent_implies_base' depends on axioms: [propext]
+'Yulang.GeneralRebaseReceiptStampedEffects289.actual_alias_excludes_typed_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+["published", "stale-typed-stamp"]
+'Yulang.GeneralRebaseReceiptStampedCounts289.erase_counts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedCounts289.preserve_counts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptStampedCounts289.exact_terminal_counts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

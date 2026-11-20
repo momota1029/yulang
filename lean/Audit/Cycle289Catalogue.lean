@@ -1,0 +1,16 @@
+import Yulang.GeneralRebaseReceiptCatalogueFixture289
+
+#print axioms Yulang.GeneralRebaseReceiptRank289.decreases
+#print axioms Yulang.GeneralRebaseReceiptRank289.accessible
+#print axioms Yulang.GeneralRebaseReceiptCounted289.maximal_trace_counts
+#print axioms Yulang.GeneralRebaseReceiptExtractLaws289.owning_effect_exists
+#print axioms Yulang.GeneralRebaseReceiptExtractLaws289.actual_edge_with_ids
+#print axioms Yulang.GeneralRebaseReceiptExtractLaws289.no_effective_requests
+#print axioms Yulang.GeneralRebaseReceiptExtractLaws289.nonempty_alias_request_blocks
+#print axioms Yulang.GeneralRebaseReceiptExtractLaws289.actual_inspection_finished
+#print axioms Yulang.GeneralRebaseReceiptCollision289.checked_collision
+#print axioms Yulang.GeneralRebaseReceiptCatalogue289.agreement_exact
+#print axioms Yulang.GeneralRebaseReceiptCatalogue289.guarded_provenance
+#print axioms Yulang.GeneralRebaseReceiptCatalogueFixture289.guarded_actual
+#print axioms Yulang.GeneralRebaseReceiptCatalogueFixture289.observed_collision_blocked
+#print axioms Yulang.GeneralRebaseReceiptCatalogueFixture289.finite_footprint_not_global

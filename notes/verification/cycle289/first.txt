@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseReceiptWire289.matching_producer' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptWire289.check_ready' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptExtract289.diagnostic_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseReceiptFixture289.producer_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptFixture289.wire_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptFixture289.initial_no_producer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseReceiptFixture289.endpoint_decision' depends on axioms: [propext, Classical.choice, Quot.sound]
