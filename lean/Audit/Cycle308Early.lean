@@ -1,0 +1,10 @@
+import Yulang.GeneralMixedCompoundEarlySquare308
+import Yulang.GeneralMixedCacheStatic308
+
+#print axioms Yulang.GeneralMixedCacheStatic308.cache_iff
+#print axioms Yulang.GeneralMixedCompoundEarlyBase308.refines
+#print axioms Yulang.GeneralMixedCompoundEarlyModels308.equal
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.step
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.models
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.square
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.early_not_point

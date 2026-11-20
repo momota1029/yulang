@@ -6245,3 +6245,8 @@ import Yulang.GeneralMixedCompoundPointExact307
 import Yulang.GeneralMixedCompoundPointRoot307
 import Yulang.GeneralMixedCompoundPointSpine307
 import Yulang.GeneralMixedCompoundRefreshBound307
+import Yulang.GeneralMixedCacheStatic308
+import Yulang.GeneralMixedCompoundEarlyBase308
+import Yulang.GeneralMixedCompoundEarlyModels308
+import Yulang.GeneralMixedCompoundEarlyRefresh308
+import Yulang.GeneralMixedCompoundEarlySquare308
