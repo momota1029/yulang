@@ -1,0 +1,4 @@
+'Yulang.GeneralSourceRoleCstMarks294.own_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstMarks294.marks_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMarks294.child_marks_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMarks294.no_marks_exact' depends on axioms: [propext, Quot.sound]
