@@ -1,6 +1,6 @@
 Exact integration source tree: b3a93e76ffc1f6caa739abe72a6c5f48a5ffb41c
-Prior work tree: 9d83154824158606f2b1ab1188a2e5b6acd263d8; candidate: 8b70d6be860167961a296a1e0bd46f358c7d3d85
-verify-lean: . @ bffabffcf8 (base c9d84e06fba1a3b4693839f4d121db533da3601a)
+Prior work tree: 9d83154824158606f2b1ab1188a2e5b6acd263d8; candidate: 73272f2f0c649dce6c2016b878132dce83635ea5
+verify-lean: . @ fc8db1b16c (base c9d84e06fba1a3b4693839f4d121db533da3601a)
 ok: no removed lines in lean/ since c9d84e06fba1a3b4693839f4d121db533da3601a
 ok: no sorry/native_decide/axiom-like constructs in added lines
 ok: lake config unchanged (or only SpecExamples*/Main* libs added)

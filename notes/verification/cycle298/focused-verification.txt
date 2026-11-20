@@ -1,5 +1,5 @@
 Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
-Base tree: 9d83154824158606f2b1ab1188a2e5b6acd263d8; tested data tree: 8b70d6be860167961a296a1e0bd46f358c7d3d85.
+Base tree: 9d83154824158606f2b1ab1188a2e5b6acd263d8; tested data tree: 73272f2f0c649dce6c2016b878132dce83635ea5.
 Isolated source GeneralRebaseExecutableJournal298 PASS
 Isolated source GeneralRebaseSymbolicQuestions298 PASS
 Isolated source GeneralRebaseLocalProgram298 PASS
@@ -35,7 +35,9 @@ Isolated source GeneralRebaseAlignedScan298 PASS
 Isolated source GeneralRebasePackedNonleaf298 PASS
 Isolated source GeneralRebaseDepthWindowExact298 PASS
 Isolated source GeneralRebasePackedNodeCompose298 PASS
+Isolated source GeneralRebaseGeneratedCurrent298 PASS
 Standalone lean/Audit/Cycle298ConcreteBranches.lean PASS
+Standalone lean/Audit/Cycle298GeneratedCurrent.lean PASS
 Standalone lean/Audit/Cycle298NodeCompose.lean PASS
 Standalone lean/Audit/Cycle298PackedAnswers.lean PASS
 Standalone lean/Audit/Cycle298PackedDecisions.lean PASS
@@ -45,7 +47,7 @@ Standalone lean/Audit/Cycle298RowBasics.lean PASS
 Standalone lean/Audit/Cycle298RowJournal.lean PASS
 Standalone lean/Audit/Cycle298WeakWindow.lean PASS
 Standalone lean/Audit/Cycle298WindowControls.lean PASS
-Audited 172 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
+Audited 183 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
 Existing lean/Audit/Cycle297DepthWitness.lean PASS
 Existing lean/Audit/Cycle297HistoryLimit.lean PASS
 Existing lean/Audit/Cycle297LegacyCases.lean PASS
@@ -133,6 +135,11 @@ Yulang.GeneralRebasePackedNodeCompose298.supplied_model_composes (fallback : Gen
         GeneralNominalExamples.registry GeneralRebaseCompiledDisplay277.after
         (GeneralRebasePackedNodeCompose298.complete v fallback) GeneralNominalExamples.displayRoot
         (CommonRoleOutermostResolver.Dictionary.node 1 [CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralRebaseGeneratedCurrent298.installable_but_committed :
+  GeneralNominalVersionedMixedKernel234.Installable GeneralRebaseCompiledDisplay277.compiled
+      GeneralRebaseCompiledDisplay277.after GeneralRebaseGeneratedCurrent298.certificate ∧
+    GeneralNominalVersionedMixedKernel234.Committed GeneralRebaseCompiledDisplay277.after
+      GeneralRebaseGeneratedCurrent298.certificate.plan
 Yulang.GeneralRebaseAlignedScan298.scan_exact {roles : Roles.RoleDecls}
   (s : GeneralNominalVersionedJournal232.State roles) (plans : List (GeneralNominalCenters.Plan roles))
   (head : GeneralNominalCenters.Plan roles → Option Bool) (reject joint : GeneralNominalCenters.Plan roles → Bool) :
@@ -143,4 +150,4 @@ Replay symbolic-program byte-identical PASS
 Replay row-vector byte-identical PASS
 Replay revisited-window byte-identical PASS
 Replay packed-decisions byte-identical PASS
-Isolated build: 35 modules; no whole Lake build or Rust execution.
+Isolated build: 36 modules; no whole Lake build or Rust execution.

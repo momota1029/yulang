@@ -201,8 +201,8 @@ ok: lean/Audit/SourceProducerClosure.lean only appended (plus top import lines)
 ok: lean/Audit/SourceSyntaxRefinement.lean only appended (plus top import lines)
 ok: lean/Audit/UniformCenteredProduction.lean only appended (plus top import lines)
 verify-lean: PASS (diff checks only, NO build)
-Append-only barrel and freeze check: 35 new modules, 10 standalone audit parts
-verify-lean: . @ 5e6e5189fe (base d3c4a90a4230fe2c6b0bd287107a72dacd1236c8)
+Append-only barrel and freeze check: 36 new modules, 11 standalone audit parts
+verify-lean: . @ ce952a4823 (base d3c4a90a4230fe2c6b0bd287107a72dacd1236c8)
 ok: no removed lines in lean/ since d3c4a90a4230fe2c6b0bd287107a72dacd1236c8
 ok: no sorry/native_decide/axiom-like constructs in added lines
 ok: lake config unchanged (or only SpecExamples*/Main* libs added)
