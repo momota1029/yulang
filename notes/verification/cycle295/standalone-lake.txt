@@ -1,0 +1,11 @@
+lake env lean --trust=0 -j 1 Audit/Cycle295Coverage.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295NamingBoundary.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295NamingPacket.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295SelectedControl.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295SelectedDefault.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295SelectedEnd.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295SelectedEntry.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295SelectedRow.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295SelectedSeal.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295SourceProvenance.lean: exit 0
+lake env lean --trust=0 -j 1 Audit/Cycle295SymbolicTotal.lean: exit 0
