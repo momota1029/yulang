@@ -1,0 +1,8 @@
+import Yulang.GeneralSourceRoleTrackFixture292
+
+#print axioms Yulang.GeneralSourceRoleTrack292.origin_exact
+#print axioms Yulang.GeneralSourceRoleTrack292.tracked_readback_exact
+#print axioms Yulang.GeneralSourceRoleTrackFixture292.handle_moves_leave_table
+#print axioms Yulang.GeneralSourceRoleTrackFixture292.carrying_positions
+#print axioms Yulang.GeneralSourceRoleTrackFixture292.non_type_handle_not_origin
+#print axioms Yulang.GeneralSourceRoleTrackFixture292.readback_preserved_after_handle_move

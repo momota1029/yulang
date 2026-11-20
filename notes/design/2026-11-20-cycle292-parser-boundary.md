@@ -135,3 +135,16 @@ argument classified as a bare binder, preserving their count; anything else
 is outside this adapter. This includes a synthetic model of a structured
 first argument before a valid second binder. It does not turn a parser test
 into a source type error.
+
+### Occurrence-carrying hand-off
+
+Do not replace source handles with semantic IDs. An optional tracked DTO can
+retain the source role handle and one handle per immediate statement while
+erasing them before existing role-table compilation. Under an independent
+well-formed producer, direct slot membership is preserved between tracked and
+plain lists. A scoped semantic pair (role ID, output ID) then recovers an actual
+tracked entry in that supplied DTO, not an arbitrary caller-synthesized span.
+Authenticity of these handles and completeness against Rust's retained CST
+are separate obligations; a producer that alters both inventory and alleged
+shell may pass the downstream checks. On recovery do not assume a raw
+parse-owned key can globally substitute for direct occurrence position.

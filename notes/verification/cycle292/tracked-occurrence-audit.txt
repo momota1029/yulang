@@ -1,0 +1,6 @@
+'Yulang.GeneralSourceRoleTrack292.origin_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrack292.tracked_readback_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.handle_moves_leave_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.carrying_positions' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleTrackFixture292.non_type_handle_not_origin' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleTrackFixture292.readback_preserved_after_handle_move' depends on axioms: [propext, Quot.sound]
