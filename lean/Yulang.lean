@@ -5927,3 +5927,9 @@ import Yulang.GeneralRebaseSourceWitnessProgram297
 import Yulang.GeneralRebaseWitnessContracts297
 import Yulang.GeneralRebaseRawInstallScan297
 import Yulang.GeneralRebaseRawObserver297
+import Yulang.GeneralRebaseRawDepthReplay297
+import Yulang.GeneralRebaseRawSafetyBits297
+import Yulang.GeneralRebaseWitnessExistence297
+import Yulang.GeneralRebaseSignedHistory297
+import Yulang.GeneralRebaseSignedOptional297
+import Yulang.GeneralRebaseMergeWitnessFixture297
