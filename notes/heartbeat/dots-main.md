@@ -2,9 +2,9 @@
 - cycle: 284
 - status: running
 - started: 2026-11-19T23:33:14Z
-- updated: 2026-11-20T00:03:17Z
-- elapsed_min: 30.05
-- activity: 履歴なしの閉包checker、相対port比較、Display非葉とoptional据付けの実有限watchを確認。
+- updated: 2026-11-20T00:13:17Z
+- elapsed_min: 40.05
+- activity: metadata条件付き全実経路・Eq/SameInputs・範囲内EvidenceAtを保持。実Display全経路、206既定出力のEq、optional回帰を確認。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: d5c9eaf3a
-- resume_hint: 未据付けの意味、stronger obstructions、および証拠を含む全経路の回帰を閉じる。
+- last_local_commit: 1ccc67597
+- resume_hint: ロックした再検証、実行probe、旧回帰、最終pin照合を行う。
