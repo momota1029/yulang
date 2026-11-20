@@ -40,6 +40,21 @@ focused GeneralSourceMetadataPermutation291 exit 0
 focused GeneralSourceMetadataRolePermutation291 exit 0
 focused GeneralSourceMetadataDiagnosticProvenance291 exit 0
 focused GeneralSourceMetadataBundlePermutation291 exit 0
+focused GeneralSourceMetadataBareRole291 exit 0
+focused GeneralSourceMetadataBuildRoles291 exit 0
+focused GeneralSourceMetadataBareBundle291 exit 0
+focused GeneralSourceMetadataBareFixture291 exit 0
+'Yulang.GeneralSourceMetadataBareRole291.bounded_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareRole291.row_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareRole291.list_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBuildRoles291.build_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBuildRoles291.compiled_manifest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareBundle291.preserves_input' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareBundle291.reassemble' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareFixture291.raw_role_controls' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareFixture291.well_scoped_not_coverage' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataBareFixture291.actual_exec' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle291BareInput.lean exit 0
 'Yulang.GeneralSourceMetadataApplication291.application_exact' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralSourceMetadataExprDomain291.translate_sound' depends on axioms: [propext]
 'Yulang.GeneralSourceMetadataExprDomain291.compiler_domain' depends on axioms: [propext, Quot.sound]
@@ -154,7 +169,7 @@ standalone Audit/Cycle291SourceCoverage.lean exit 0
 'Yulang.GeneralSourceMetadataBundlePermutation291.attached_reordered' depends on axioms: [propext, Quot.sound]
 'Yulang.GeneralSourceMetadataBundlePermutation291.whole_ready_unchanged' depends on axioms: [propext, Quot.sound]
 standalone Audit/Cycle291SourceEquivalence.lean exit 0
-Counts: focused 41
+Counts: focused 45
 Focused reverification result=0
-Wrapped axiom audit: 86 reports, 86 distinct declarations (8 parts), used: Classical.choice, Quot.sound, propext, disallowed: none.
-Exact audit name coverage: 86 unique declarations, including 0 axiom-free; 4 executable assertions compiled at their named standalone parts.
+Wrapped axiom audit: 96 reports, 96 distinct declarations (9 parts), used: Classical.choice, Quot.sound, propext, disallowed: none.
+Exact audit name coverage: 96 unique declarations, including 0 axiom-free; 7 executable assertions compiled at their named standalone parts.

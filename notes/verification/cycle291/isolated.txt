@@ -1,5 +1,5 @@
-Prepared shadow cache of prior modules only; excluded every one of 41 added modules.
-Independent rebuild candidate afe439e54b0d90e6a418d73dd2fb154813010f68
+Prepared shadow cache of prior modules only; excluded every one of 45 added modules.
+Independent rebuild candidate 6fd75fcbb0f571fe1629bf3c0d1cd3cc3357a007
 Isolated GeneralSourceMetadataRows291 exit 0
 Isolated GeneralSourceMetadataLookup291 exit 0
 Isolated GeneralSourceMetadataValidation291 exit 0
@@ -41,6 +41,11 @@ Isolated GeneralSourceMetadataPermutation291 exit 0
 Isolated GeneralSourceMetadataRolePermutation291 exit 0
 Isolated GeneralSourceMetadataDiagnosticProvenance291 exit 0
 Isolated GeneralSourceMetadataBundlePermutation291 exit 0
+Isolated GeneralSourceMetadataBareRole291 exit 0
+Isolated GeneralSourceMetadataBuildRoles291 exit 0
+Isolated GeneralSourceMetadataBareBundle291 exit 0
+Isolated GeneralSourceMetadataBareFixture291 exit 0
+Isolated lean/Audit/Cycle291BareInput.lean exit 0
 Isolated lean/Audit/Cycle291LiveDomain.lean exit 0
 Isolated lean/Audit/Cycle291ReportTransport.lean exit 0
 Isolated lean/Audit/Cycle291ResolvedRows.lean exit 0
@@ -50,4 +55,4 @@ Isolated lean/Audit/Cycle291SourceBundle.lean exit 0
 Isolated lean/Audit/Cycle291SourceCoverage.lean exit 0
 Isolated lean/Audit/Cycle291SourceEquivalence.lean exit 0
 Isolated rebuild and audit exit 0
-Focused vs isolated OLean SHA-256 identical for 41/41 added modules.
+Focused vs isolated OLean SHA-256 identical for 45/45 added modules.

@@ -107,4 +107,20 @@ Yulang.GeneralSourceMetadataBundlePermutation291.whole_ready_unchanged
   (t : Yulang.GeneralSourceMetadataBundlePermutation291.SourceValid old.snapshot)
   (roles : Yulang.GeneralSourceMetadataBundlePermutation291.RolesValid old.roles) :
   (Yulang.GeneralSourceMetadataBundle291.inspect old).ready = (Yulang.GeneralSourceMetadataBundle291.inspect new).ready
+Yulang.GeneralSourceMetadataBuildRoles291.build_exact (raw : Yulang.GeneralSourceMetadataBuildRoles291.Input)
+  (out : Yulang.GeneralSourceMetadataRoles291.RoleSource) :
+  Yulang.GeneralSourceMetadataBuildRoles291.build raw = some out ↔
+    Yulang.GeneralSourceMetadataBuildRoles291.forget out = raw ∧ Yulang.GeneralSourceMetadataRoles291.Valid out
+Yulang.GeneralSourceMetadataBareBundle291.preserves_input
+  (source : Yulang.GeneralSourceMetadataBareBundle291.InputBundle)
+  (assembled : Yulang.GeneralSourceMetadataBundle291.SourceBundle)
+  (found : Yulang.GeneralSourceMetadataBareBundle291.compile source = some assembled) :
+  Yulang.GeneralSourceMetadataBareBundle291.forget assembled = source ∧
+    Yulang.GeneralSourceMetadataRoles291.Valid assembled.roles
+Yulang.GeneralSourceMetadataBareFixture291.actual_exec (choice : Bool) :
+  Option.map Yulang.GeneralSourceMetadataBundle291.Certificate.ready
+      (Yulang.GeneralSourceMetadataBareBundle291.run
+        (Yulang.GeneralSourceMetadataBareBundle291.forget
+          (Yulang.GeneralSourceMetadataBundleFixture291.actual choice))) =
+    some choice
 Interface signature probe exit 0

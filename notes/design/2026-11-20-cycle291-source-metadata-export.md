@@ -125,3 +125,19 @@ output erases to exactly the supplied source fields and passes the
 previous role check. Test an out-of-scope default distinct from a
 coverage-unsupported (but well-scoped) default, and reassemble the
 actual fixture table. No source syntax parse or source names are guessed.
+
+## Next source bridge: what a real producer must prove
+
+The retained Rust source `crates/yu-syntax/src/declaration/role_decl.rs`
+starts a `SyntaxKind::RoleDeclaration` syntax node. It does not provide
+this Lean interface with resolved role IDs, constructor metadata, or
+complete defaults. A narrow next producer should preserve three facts:
+(1) one resolved role/name pair for each actual associated declaration,
+distinguishing required from default; (2) positional binder indices
+agree with the parsed role arity, without rewriting malformed/recovered
+input into a valid default; (3) both directions of default membership
+against the generated role table, including roles not referenced by
+ordinary declarations. The executable bare-row input prepared here
+discharges the old scope/duplicate checks once that data is supplied,
+not those source-resolution obligations. Do not connect this producer
+to a new raw resolver rule before proving its name/default trace.

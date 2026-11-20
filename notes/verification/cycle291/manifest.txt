@@ -1,6 +1,7 @@
 Local predecessor: 32bd5e870ad35532b6bbc361a81ba8077bf07ca3
 Integrated-content ancestor local: fc167a05d8ace9dcc15822e9bb50ff2023ccc658
-Current candidate content (before manifest and verification logs): afe439e54b0d90e6a418d73dd2fb154813010f68
+Current candidate content (before manifest and verification logs): f8cba1ffb953b9e176647a64f92194cf5bf7385a
+lean/Audit/Cycle291BareInput.lean 782209e2a4d2861d2d40e7408cc70b0e35ec668c 1194
 lean/Audit/Cycle291LiveDomain.lean af02e5a93def0beac23c72186147a2258fdd5940 869
 lean/Audit/Cycle291ReportTransport.lean be430ddde93a1ccc2f96c2f9780e8dba2ff581b7 847
 lean/Audit/Cycle291ResolvedRows.lean 97db650325d84fb3e2940af02e6041565184f1a5 519
@@ -10,6 +11,10 @@ lean/Audit/Cycle291SourceBundle.lean 7f7d757fe35b7aa020b4d3f4f38f90df7a2cbef7 10
 lean/Audit/Cycle291SourceCoverage.lean 397968df747957c2797eee8de5d9cd5c5be503a8 1075
 lean/Audit/Cycle291SourceEquivalence.lean 2c02f60caae61826e56153c33f54d859d4e46ccf 1055
 lean/Yulang/GeneralSourceMetadataApplication291.lean dfd1c33562fc00625583eedd36e4526022749d74 2446
+lean/Yulang/GeneralSourceMetadataBareBundle291.lean da5b0c0ab11ac69158342ceca09b39fd4f6eb421 1942
+lean/Yulang/GeneralSourceMetadataBareFixture291.lean b0abb6171a8e2c18e619b4c5392d5a9afbb00bf3 1797
+lean/Yulang/GeneralSourceMetadataBareRole291.lean b759a621430770c0dee09525e56872f1a8213938 3094
+lean/Yulang/GeneralSourceMetadataBuildRoles291.lean cd9085b0e47127dcc70b154b8040ba41580b11b9 2124
 lean/Yulang/GeneralSourceMetadataBundle291.lean 7c9614e809752cedeee2d6d04e6cad0a1b5cfc5b 3350
 lean/Yulang/GeneralSourceMetadataBundleFixture291.lean aa725d8a88295e76a0cca15231ca4f1dab323a53 2869
 lean/Yulang/GeneralSourceMetadataBundlePermutation291.lean 54242e88fa367e05c7ea5d523c5f05bdffed058d 2767
@@ -50,4 +55,4 @@ lean/Yulang/GeneralSourceMetadataSyntax291.lean 36566cd4a642f29545e7070da58c5420
 lean/Yulang/GeneralSourceMetadataTransportFixture291.lean 71e702e86584cd522e3909d93088be4d2e2d2721 3356
 lean/Yulang/GeneralSourceMetadataUse291.lean 298b4d7d0dd8802b2d836b6aa6cec3bf74109dba 2496
 lean/Yulang/GeneralSourceMetadataValidation291.lean dd79d8df7b15c54971839cfb9c0265360818f3fb 2491
-Checked focused rebuilds, baseline-only shadow dependencies, standalone audits, source replay, old regressions, interface signatures, static no-build. No full library rebuild.
+Checked focused rebuilds, baseline-only shadow dependencies, standalone audits, pure source replay, old regressions, interface signatures, static no-build. No full library rebuild.

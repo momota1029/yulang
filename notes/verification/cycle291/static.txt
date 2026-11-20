@@ -1,4 +1,4 @@
-verify-lean: . @ afe439e54 (base 32bd5e870ad35532b6bbc361a81ba8077bf07ca3)
+verify-lean: . @ 6fd75fcbb (base 32bd5e870ad35532b6bbc361a81ba8077bf07ca3)
 ok: no removed lines in lean/ since 32bd5e870ad35532b6bbc361a81ba8077bf07ca3
 ok: no sorry/native_decide/axiom-like constructs in added lines
 ok: lake config unchanged (or only SpecExamples*/Main* libs added)
@@ -1092,7 +1092,7 @@ ok: lean/Audit/SourceSyntaxRefinement.lean only appended (plus top import lines)
 ok: lean/Audit/UniformCenteredProduction.lean only appended (plus top import lines)
 verify-lean: PASS (diff checks only, NO build)
 exit=0 :: bash tools/verify-lean.sh . 32bd5e870ad35532b6bbc361a81ba8077bf07ca3 --no-build
-verify-lean: . @ afe439e54 (base fc167a05d8ace9dcc15822e9bb50ff2023ccc658)
+verify-lean: . @ 6fd75fcbb (base fc167a05d8ace9dcc15822e9bb50ff2023ccc658)
 ok: no removed lines in lean/ since fc167a05d8ace9dcc15822e9bb50ff2023ccc658
 ok: no sorry/native_decide/axiom-like constructs in added lines
 REVIEW: metaprogramming/#eval in added lines (a human must read these):
@@ -2176,5 +2176,5 @@ exit=0 :: bash tools/verify-lean.sh . fc167a05d8ace9dcc15822e9bb50ff2023ccc658 -
 exit=0 :: git diff --check 32bd5e870ad35532b6bbc361a81ba8077bf07ca3 HEAD
 exit=0 :: git merge-base --is-ancestor fc167a05d8ace9dcc15822e9bb50ff2023ccc658 HEAD
 exit=0 :: git diff --exit-code 32bd5e870ad35532b6bbc361a81ba8077bf07ca3 HEAD -- lean/Audit.lean lean/README.md lean/lakefile.lean lean/lean-toolchain notes/plan spec crates Cargo.toml Cargo.lock
-Append-only barrel and freeze check: 41 new modules, 8 standalone audit parts
+Append-only barrel and freeze check: 45 new modules, 9 standalone audit parts
 exit=0 :: python3 -
