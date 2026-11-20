@@ -2,9 +2,9 @@
 - cycle: 296
 - status: running
 - started: 2026-11-20T11:30:00Z
-- updated: 2026-11-20T11:30:26Z
-- elapsed_min: 0.43
-- activity: 統合版指示と295完了確認、選択型の名前証跡の生産者候補を点検
+- updated: 2026-11-20T11:35:31Z
+- elapsed_min: 5.52
+- activity: 有限観測表だけで選択 role を変換、必要出力の未観測と観測済み不存在を区別
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 98f83dbd1
-- resume_hint: 外部 compiler の名前 map と混同せず、有限宣言表の曖昧性拒否を検証する。
+- last_local_commit: 38b5eb2bd
+- resume_hint: 次は既存 lowering 結果から証跡を逆抽出し、反例・保存済み入力を確認する。
