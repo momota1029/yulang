@@ -1,0 +1,38 @@
+Static source trace only. Rust parser and existing Rust tests not executed.
+crates/yu-syntax/src/full_parse.rs unchanged blob e6573b9469b45c38c7d802d012520ec8bbf9c90b
+  lines 402 'pub fn parse_file('
+  lines 416 'crate::cursor::parse_root_with_depth(source.as_ref(), &operators)'
+  lines 429 'parse_identity: Arc::new(())'
+  lines 131 'Arc::ptr_eq(&self.parse, &other.parse)'
+  lines 132 'std::ptr::eq(&*self.green, &*other.green)'
+  lines 133 'self.start == other.start'
+  lines 176 'pub fn source_root(&self) -> SourceNode'
+  lines 444 'fn source_node_keys_preserve_clone_brand_and_reject_reused_green_root()'
+  lines 459 'assert_ne!(parsed.source_root().key(), foreign.source_root().key());'
+  lines 460 'assert!(!parsed.owns_source_key(&foreign.source_root().key()));'
+crates/yu-syntax/src/type_expr/mod.rs unchanged blob 23799253b73868d0fc4297bf8eb1f22392710e61
+  lines 2202 'start_node(SyntaxKind::TypeApplyArgument.into())'
+crates/yu-syntax/src/statement.rs unchanged blob b942d83abf60a1a179d141452afdabc0fba4fb84
+  lines 322 'return type_declaration_normalized('
+  lines 336 'return role_declaration_normalized('
+crates/yu-syntax/src/declaration/type_decl.rs unchanged blob 6a3bcedaf060594d80ad07922ef8557062905269
+  lines 94 'start_node(SyntaxKind::TypeDeclaration.into())'
+  lines 352 'TypeDeclarationForm::Nominal(boundary) =>'
+  lines 675 'if token_kind(item) == Some(TokenKind::Equals) && gtype_item_allowed(item, baseline)'
+  lines 699 'if item.payload_view().is_eof() || token_kind(item) == Some(TokenKind::Semicolon)'
+  lines 361,365,370 'emit_header_missing(i.rb(), &mut item, item_origin);'
+crates/yu-syntax/src/tests/declaration/type_decl.rs unchanged blob 001ac18c2c6d8c421f7f7738a53a36fc74a298a7
+  lines 613 'fn type_schema_equality_rhs_missing_uses_direct_rowan_order()'
+  lines 2024 'fn type_c14_commits_complete_nominal_headers_at_the_owned_terminal()'
+crates/yu-syntax/src/tests/declaration/role_decl.rs unchanged blob bc0fb3922703435eda9f97923d2688eacfd3594f
+  lines 935 'fn role_private_owner_builds_each_body_form_losslessly_with_flat_topology()'
+  lines 1048 'fn role_head_is_one_full_type_and_nested_body_punctuation_is_suspended()'
+notes/design/2026-08-20-yu-syntax-chasa-architecture.md unchanged blob 81e5fefa637b66f80999a4e3e4a0c84edae39171
+  lines 23186 'TypeExpression 9..30 "Index \'container \'key"'
+  lines 23191 'TypeDeclaration 36..46 "type value"'
+  lines 23199 'parser ASTはこれらをassociated type / methodへrelabelしない。'
+  lines 23489 'member semantics、inheritance / where / via、HIR / resolver / inference / formatterが未実装'
+AGENTS.md unchanged blob e22248f4fc6a4870945b81d205ac2c1157d5d11f
+  lines 12 '型推論・HIR・runtime・backend・playground・docs は、必要になった時点で'
+Active workspace members: crates/chasa-recover crates/yu-syntax tools/xtask
+Reviewed Rust boundary and documented CST ownership; no parser-authenticated shell proof implied.

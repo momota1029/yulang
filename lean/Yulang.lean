@@ -5763,3 +5763,8 @@ import Yulang.GeneralSourceRoleEnvCheck292
 import Yulang.GeneralSourceRoleEnvExact292
 import Yulang.GeneralSourceRoleCoveredShell292
 import Yulang.GeneralSourceRoleEnvFixture292
+import Yulang.GeneralSourceRoleDiagnosticLink292
+import Yulang.GeneralSourceRoleDiagnosticFixture292
+import Yulang.GeneralSourceRoleQualification292
+import Yulang.GeneralSourceRoleResolverUse292
+import Yulang.GeneralSourceRoleResolverFixture292
