@@ -1,0 +1,28 @@
+verify-lean: . @ 13c1173de (base aa3d3a680b6571faf60f1fdb18116de32af552fb)
+ok: no removed lines in lean/ since aa3d3a680b6571faf60f1fdb18116de32af552fb
+ok: no sorry/native_decide/axiom-like constructs in added lines
+REVIEW: metaprogramming/#eval in added lines (a human must read these):
+30:+#eval (run true).map Prod.snd
+31:+#eval (run false).map Prod.snd
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build) with 2 REVIEW item(s) above
+exit=0 :: bash tools/verify-lean.sh . aa3d3a680b6571faf60f1fdb18116de32af552fb --no-build
+verify-lean: . @ 13c1173de (base b9bb2a19d271447d6f03f8b99e8ec97c9ee50363)
+ok: no removed lines in lean/ since b9bb2a19d271447d6f03f8b99e8ec97c9ee50363
+ok: no sorry/native_decide/axiom-like constructs in added lines
+REVIEW: metaprogramming/#eval in added lines (a human must read these):
+568:+#eval (run true).map Prod.snd
+569:+#eval (run false).map Prod.snd
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+ok: lean/Audit.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build) with 2 REVIEW item(s) above
+exit=0 :: bash tools/verify-lean.sh . b9bb2a19d271447d6f03f8b99e8ec97c9ee50363 --no-build
+exit=0 :: git diff --check aa3d3a680b6571faf60f1fdb18116de32af552fb HEAD
+exit=0 :: git merge-base --is-ancestor b9bb2a19d271447d6f03f8b99e8ec97c9ee50363 HEAD
+exit=0 :: git diff --exit-code aa3d3a680b6571faf60f1fdb18116de32af552fb HEAD -- lean/Audit.lean lean/README.md lean/lakefile.lean lean/lean-toolchain notes/plan spec crates Cargo.toml Cargo.lock
+Append-only barrel and freeze check: 31 new modules, 9 standalone audit parts
+exit=0 :: python3 -
+Unchanged audit confirmation lines abbreviated: 2073

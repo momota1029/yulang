@@ -41,3 +41,26 @@ parameter of R. These are Lean fixtures, not new Yulang2 parser tests.
    on child evidence and alone cannot replace that observation.
 
 No spec, Rust implementation, parser, or existing kernel rule is changed.
+
+## Where to look before attempting the next bridge
+
+- In `GeneralNominalInspection.translate`, the nominal application branch
+  requires an all-type constructor layout; in
+  `GeneralNominalRecursiveInspection.typeArguments`, a row argument is
+  not projected as a type argument. Add a distinct typed readback
+  obligation if experimenting with row binders; do not weaken either
+  check in place.
+- `GeneralNominalFiniteMeaning.build` constructs nominal arguments using
+  `Sum.inl`. `RowClosedTerm287.wrapped_not_closed` separates the grammar
+  issue from the uniform-over-models issue in GroundRoots. Adding a row
+  premise that pins the input does not, by itself, add its closed
+  representation.
+- Existing `GeneralRebaseRowIrrelevance273` lemmas show that the actual
+  versioned expression environment, projection, emitted schemas and body
+  class effects depend only on the complete **type** fields of an
+  assignment. A type still contains the nested R row argument. To test a
+  new independent ambient-row read, identify a typed source equation
+  which genuinely accesses the row projection before proposing new
+  outcome rules. The mapped arrow calculation in
+  `GeneralRebaseSourceRowRegression285` is a useful regression for a
+  mapping, not such an installed child.

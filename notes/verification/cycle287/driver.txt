@@ -1,0 +1,6 @@
+'Yulang.GeneralRebaseRowFixtureDriver287.actually_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowFixtureDriver287.literal_result' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowFixtureDriver287.only_root_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowFixtureDriver287.exact_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+some (Yulang.CommonRoleOutermostResolver.Tree.selected 0 [Yulang.CommonRoleOutermostResolver.Tree.selected 1 []])
+some (Yulang.CommonRoleOutermostResolver.Tree.selected 0 [Yulang.CommonRoleOutermostResolver.Tree.pending])
