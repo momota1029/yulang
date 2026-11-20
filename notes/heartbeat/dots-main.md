@@ -2,9 +2,9 @@
 - cycle: 291
 - status: running
 - started: 2026-11-20T06:31:17Z
-- updated: 2026-11-20T06:54:05Z
-- elapsed_min: 22.80
-- activity: 旧出力compilerの必要十分・旧Readyの局所検査と補助出力同値、原状態を保つ source view を検証。
+- updated: 2026-11-20T07:01:07Z
+- elapsed_min: 29.83
+- activity: 有限 head 一致で retag view の report 全体・捕獲・projection model を保存。分類 flag だけ変える実境界対照も検証。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: b2a812baa
-- resume_hint: metadata-only view の report 搬送（型付き捕獲と projection conditions）を局所有限一致で検証。
+- last_local_commit: 05434384b
+- resume_hint: 有限 source の順序不変性と独立再構築・旧回帰を確認。

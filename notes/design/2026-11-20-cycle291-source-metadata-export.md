@@ -93,3 +93,15 @@ This is a view-level constructor, not installation, transport of an
 entire journal, or a claim that arbitrary retagged Contexts are reachable.
 The unused-key control should be accepted as a view while old full
 Metadata against the original registry still fails.
+
+## Transport the actual recursive report through the view
+
+The inspector's report is indexed by the entire observation state, not
+only by the common slot count. Compare it via an explicit conversion of
+the Capture wrapper; every slot pair, origin path, visit, test and
+failure is retained. For a fixed query, inspection only sees the unchanged
+state observations, so reindexing its result should recover the old
+report. Separately require finite agreement on the declaration's head
+keys so that the descriptor/interpretation view also produces the same
+queries. No whole raw State equality is required for this local theorem.
+Do not lift to Step/Frame for the retagged journal.
