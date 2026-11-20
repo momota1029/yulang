@@ -1,0 +1,14 @@
+'Yulang.GeneralRebaseDepthReachableReadback286.public_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthReachableReadback286.public_inflation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthReachableReadback286.canonical_from_initial' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthReachableReadback286.strict_raw_filter' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseDepthBatch286.pre_batch_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthBatch286.install_post_batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthTraceCost286.classify_counts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthTraceCost286.maximal_trace_exact' depends on axioms: [propext, Classical.choice, Quot.sound]

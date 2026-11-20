@@ -1,0 +1,5 @@
+import Yulang.GeneralRebaseDepthBudgetExact286
+
+#print axioms Yulang.GeneralRebaseDepthBudgetExact286.length
+#print axioms Yulang.GeneralRebaseDepthBudgetExact286.upper_from_prefix
+#print axioms Yulang.GeneralRebaseDepthBudgetExact286.attained_from_prefix

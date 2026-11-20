@@ -2,9 +2,9 @@
 - cycle: 286
 - status: running
 - started: 2026-11-20T01:30:20Z
-- updated: 2026-11-20T01:57:20Z
-- elapsed_min: 27.00
-- activity: 任意の実経路の終点条件、全6順序の実行、最大経路長が2または3、および観測同値な別の生終点を検証
+- updated: 2026-11-20T02:05:53Z
+- elapsed_min: 35.55
+- activity: 任意の実到達点で 271 ドライバとの厳密な対応、同じ割当ての証拠と正準補完、残り歩数の鋭い評価を証明
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 26cb8e39f
-- resume_hint: 次は実経路と正準の観測の対応を整理し、新規モジュール・既存監査を再検証
+- last_local_commit: 29114d983
+- resume_hint: 分割監査と focused 再検証を実施中。全体ビルドは実行しない。結果は notes/verification/cycle286 を参照
