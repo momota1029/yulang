@@ -2,9 +2,9 @@
 - cycle: 289
 - status: running
 - started: 2026-11-20T04:30:00Z
-- updated: 2026-11-20T04:30:20Z
-- elapsed_min: 0.33
-- activity: 前周完了を確認。統合の新しい pin を照合し、実生成に結び付いた provenance 検査を設計する
+- updated: 2026-11-20T04:39:34Z
+- elapsed_min: 9.57
+- activity: 実二枝の証拠と保留、別 registry の誤移植を照合。sidecar の全経路から元の生経路を復元
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: fc167a05d
-- resume_hint: 前周の foreign 台帳と deferred guard の反例は維持。実 Step・spec はそのまま。
+- last_local_commit: 509c44311
+- resume_hint: 次は公開 mark の型つき支持、実行対照およびその局所性を検証。元の実 Step はそのまま。

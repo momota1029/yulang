@@ -5631,3 +5631,8 @@ import Yulang.GeneralRebaseRowDeferredDecisionGuard288
 import Yulang.GeneralRebaseReceiptWire289
 import Yulang.GeneralRebaseReceiptExtract289
 import Yulang.GeneralRebaseReceiptFixture289
+import Yulang.GeneralRebaseReceiptWitness289
+import Yulang.GeneralRebaseReceiptControls289
+import Yulang.GeneralRebaseReceiptMachine289
+import Yulang.GeneralRebaseReceiptRawProduct289
+import Yulang.GeneralRebaseReceiptScopedTrace289
