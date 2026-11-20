@@ -2,9 +2,9 @@
 - cycle: 287
 - status: running
 - started: 2026-11-20T02:30:05Z
-- updated: 2026-11-20T02:30:22Z
-- elapsed_min: 0.28
-- activity: 実非葉の constructor・入れ子出力・子の row 条件を同じ例で検討
+- updated: 2026-11-20T02:36:46Z
+- elapsed_min: 6.68
+- activity: 行の引数を直接読む子は checked でも実検査では保留。型全体として捕捉する経路を別に進める
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: aa3d3a680
-- resume_hint: 286 完了を照合済み。まず既存例と役割宣言の表現範囲を確認し、固定する前提を設計に記録する
+- last_local_commit: 651f3ecd2
+- resume_hint: constructor F・R を同じ開始状態に置いた。次は実親 packet、据付の前提、実子 site を確認する

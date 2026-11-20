@@ -5564,3 +5564,6 @@ import Yulang.GeneralRebaseDepthBatch286
 import Yulang.GeneralRebaseDepthTraceCost286
 import Yulang.GeneralRebaseDepthBudgetExact286
 import Yulang.GeneralRebaseDepthSemanticTransitions286
+import Yulang.GeneralRebaseRowHeadBoundary287
+import Yulang.GeneralRebaseRowChildSource287
+import Yulang.GeneralRebaseRowChildPending287

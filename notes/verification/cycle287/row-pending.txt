@@ -1,0 +1,8 @@
+'Yulang.GeneralRebaseRowHeadBoundary287.translates_deferred' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowHeadBoundary287.recursive_row_not_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowHeadBoundary287.whole_capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildSource287.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildSource287.source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildSource287.raw_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildPending287.pending' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildPending287.whole_observed' depends on axioms: [propext, Quot.sound]

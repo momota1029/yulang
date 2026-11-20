@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseRowChildPending287
+#print axioms Yulang.GeneralRebaseRowHeadBoundary287.translates_deferred
+#print axioms Yulang.GeneralRebaseRowHeadBoundary287.recursive_row_not_finished
+#print axioms Yulang.GeneralRebaseRowHeadBoundary287.whole_capture
+#print axioms Yulang.GeneralRebaseRowChildSource287.checked
+#print axioms Yulang.GeneralRebaseRowChildSource287.source
+#print axioms Yulang.GeneralRebaseRowChildSource287.raw_model
+#print axioms Yulang.GeneralRebaseRowChildPending287.pending
+#print axioms Yulang.GeneralRebaseRowChildPending287.whole_observed
