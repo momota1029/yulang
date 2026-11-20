@@ -1,0 +1,5 @@
+✔ [2818/2823] Built Yulang.GeneralMixedCompoundPointEquality307 (24s)
+✔ [2821/2823] Built Yulang.GeneralMixedCompoundPointExact307 (12s)
+✔ [2822/2823] Built Yulang.GeneralMixedCompoundPointEvidence307 (28s)
+✔ [2823/2823] Built Yulang.GeneralMixedCompoundPointAcc307 (29s)
+Build completed successfully (2823 jobs).

@@ -1,0 +1,200 @@
+
+=== Cycle307Anchor ===
+'Yulang.GeneralMixedCompoundChildEquality307.historical_child_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.separation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.actual_center_gap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.no_feedback_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.no_refresh_into_support' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.root_request_retained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.reconstruct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.exact_successor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.canonical_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Cycle307Refresh ===
+'Yulang.GeneralMixedCompoundUpperSnapshot307.support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTrust307.aggregate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperRefresh307.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperRefresh307.models_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperChild307.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperChild307.failed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperChild307.no_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperChild307.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperChild307.same_request' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperRoot307.frame_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperObstruction307.no_current_packet' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+=== Cycle307Smoke ===
+
+=== Cycle307Surface1 ===
+'Yulang.GeneralMixedCompoundAnyChild307.located' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyChild307.no_nominal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyChild307.lower_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyChild307.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyChild307.no_prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyChild307.failed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyChild307.no_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyChild307.no_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.Ctx' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.known_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.can_gain_only_upper' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.all_known_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.no_further_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.nominal_class' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.nominal_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.point_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.emb' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.original_argument' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.located' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.rename_point' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.query' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.same_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.frame_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.no_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.no_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.alias_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.settled_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.discharged_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.legacy_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.versioned_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.cached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.by_one' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatch307.feasible_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatchBase307.embed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundBatchBase307.source_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatchBase307.atom_membership' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatchBase307.known_point' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundBatchBase307.refineBatch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.hi' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.mid' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.historical_child_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.equal_point' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.equal_refreshed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.altered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.mid_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.mid_not_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildEquality307.separation' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Cycle307Surface2 ===
+'Yulang.GeneralMixedCompoundChildHidden307.no_reservation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.unsupported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.child_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.generated_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.root_request_retained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.actual_center_gap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.no_feedback_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundChildHidden307.no_refresh_into_support' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.high' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.high_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.halfRefines' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.first' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.alias_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.settled_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.discharged_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.legacy_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.versioned_forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.cached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.second' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.half_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.hi_supported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.step_by_two' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.by_three' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.by_two' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfRun307.sharp' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.heads' depends on axioms: [propext]
+'Yulang.GeneralMixedCompoundHalfView307.view' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.snap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.context' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.half' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.observed_back' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.same_slot' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.old_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.forward_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.lo_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.hi_unknown' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundHalfView307.hi_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointAcc307.remaining' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointAcc307.decreases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointAcc307.accessible_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointAcc307.accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointAcc307.saturated_from' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointAcc307.full_score_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointChild307.no_nominal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointChild307.known_of_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointChild307.no_prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointChild307.no_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointChild307.no_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointEquality307.source_restrict' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointEquality307.lower_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointEquality307.upper_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointEquality307.related_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointEquality307.closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointEquality307.exact_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Cycle307Surface3 ===
+'Yulang.GeneralMixedCompoundPointEvidence307.no_child_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundPointEvidence307.no_root_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundPointEvidence307.evidenceAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointExact307.decompose' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointExact307.every_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointExact307.raw_score_lt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointExact307.RawRun' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointExact307.exact_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointExact307.arbitrary_raw_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundPointExact307.all_maximal_length_stop' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundPointExact307.exact_lengths_to_verified_halt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.located' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.query' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.packet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.plan' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.same_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.frame_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.no_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointRoot307.no_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.descriptor' does not depend on any axioms
+'Yulang.GeneralMixedCompoundPointSpine307.Slots' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.advance' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.spine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.raw_base' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.reach' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.sites' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.centers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.nominal_location' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundPointSpine307.point_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundRefreshBound307.k' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundRefreshBound307.pool' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundRefreshBound307.Run' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundRefreshBound307.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundRefreshBound307.models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundRefreshBound307.support' depends on axioms: [propext, Classical.choice, Quot.sound]

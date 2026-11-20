@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 307
-- status: running
+- status: completed
 - started: 2026-11-20T22:33:16Z
-- updated: 2026-11-20T23:19:18.395Z
-- elapsed_min: 46
-- activity: 再観測済み実 C238 の任意 raw 経路 max3・同一 halt への 1/2/3 手・Acc を独立監査で確認。
+- updated: 2026-11-20T23:23:17.001Z
+- elapsed_min: 50
+- activity: 再観測済み実 C238 の任意 raw 手を厳密に分類。最大3、実1/2/3手、Acc。C239 tail 最小2状態。35モジュール・340宣言・全 scoped 検証済み。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: af78d34de
-- resume_hint: 35モジュール、340公開宣言、standalone 10監査、diff-only PASS。最終報告と全 tree を照合中。
+- last_local_commit: 89edc6c8f
+- resume_hint: I54を再読。最初のreobserve以前への一般化、または出力つき真正 child の通るsourceに非空のEvidence再帰を接続する。
+- report: notes/handoff/dots-cycle-307.md
