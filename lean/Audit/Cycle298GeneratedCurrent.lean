@@ -1,0 +1,13 @@
+import Yulang.GeneralRebaseGeneratedCurrent298
+
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.noEmits
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.sameSites
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.noRequests
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.commonModel
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.alias_eq
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.compatible
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.inspection_length
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.positions
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.alternatives
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.current
+#print axioms Yulang.GeneralRebaseGeneratedCurrent298.installable_but_committed

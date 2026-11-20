@@ -1,0 +1,153 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Base tree: 9d83154824158606f2b1ab1188a2e5b6acd263d8; tested data tree: 73272f2f0c649dce6c2016b878132dce83635ea5.
+Isolated source GeneralRebaseExecutableJournal298 PASS
+Isolated source GeneralRebaseSymbolicQuestions298 PASS
+Isolated source GeneralRebaseLocalProgram298 PASS
+Isolated source GeneralRebaseRevisitedTrace298 PASS
+Isolated source GeneralRebaseRowBasis298 PASS
+Isolated source GeneralRebaseRowOrigin298 PASS
+Isolated source GeneralRebaseRowView298 PASS
+Isolated source GeneralRebaseRowLive298 PASS
+Isolated source GeneralRebaseRowProjection298 PASS
+Isolated source GeneralRebaseRowObserved298 PASS
+Isolated source GeneralRebaseRowSchema298 PASS
+Isolated source GeneralRebaseRowPacket298 PASS
+Isolated source GeneralRebaseRowClass298 PASS
+Isolated source GeneralRebaseRowJournal298 PASS
+Isolated source GeneralRebaseQuestionFootprint298 PASS
+Isolated source GeneralRebasePackedAnswers298 PASS
+Isolated source GeneralRebasePackedSource298 PASS
+Isolated source GeneralRebasePackedRowFixture298 PASS
+Isolated source GeneralRebaseRefreshSafety298 PASS
+Isolated source GeneralRebaseRefreshCode298 PASS
+Isolated source GeneralRebaseRefreshInstall298 PASS
+Isolated source GeneralRebaseRefreshPayload298 PASS
+Isolated source GeneralRebaseFiniteSublists298 PASS
+Isolated source GeneralRebaseWeakExit298 PASS
+Isolated source GeneralRebaseWeakWindow298 PASS
+Isolated source GeneralRebaseSilentFactor298 PASS
+Isolated source GeneralRebaseExplicitWindow298 PASS
+Isolated source GeneralRebaseWeakWindowLegacy298 PASS
+Isolated source GeneralRebaseRequestMultiplicity298 PASS
+Isolated source GeneralRebasePackedDecision298 PASS
+Isolated source GeneralRebasePackedDepthDecision298 PASS
+Isolated source GeneralRebaseAlignedScan298 PASS
+Isolated source GeneralRebasePackedNonleaf298 PASS
+Isolated source GeneralRebaseDepthWindowExact298 PASS
+Isolated source GeneralRebasePackedNodeCompose298 PASS
+Isolated source GeneralRebaseGeneratedCurrent298 PASS
+Standalone lean/Audit/Cycle298ConcreteBranches.lean PASS
+Standalone lean/Audit/Cycle298GeneratedCurrent.lean PASS
+Standalone lean/Audit/Cycle298NodeCompose.lean PASS
+Standalone lean/Audit/Cycle298PackedAnswers.lean PASS
+Standalone lean/Audit/Cycle298PackedDecisions.lean PASS
+Standalone lean/Audit/Cycle298Program.lean PASS
+Standalone lean/Audit/Cycle298RefreshedInstall.lean PASS
+Standalone lean/Audit/Cycle298RowBasics.lean PASS
+Standalone lean/Audit/Cycle298RowJournal.lean PASS
+Standalone lean/Audit/Cycle298WeakWindow.lean PASS
+Standalone lean/Audit/Cycle298WindowControls.lean PASS
+Audited 183 theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.
+Existing lean/Audit/Cycle297DepthWitness.lean PASS
+Existing lean/Audit/Cycle297HistoryLimit.lean PASS
+Existing lean/Audit/Cycle297LegacyCases.lean PASS
+Existing lean/Audit/Cycle297PreInstall.lean PASS
+Existing lean/Audit/Cycle297RawDepth.lean PASS
+Existing lean/Audit/Cycle297RawObserver.lean PASS
+Existing lean/Audit/Cycle297SignedObserver.lean PASS
+Existing lean/Audit/Cycle297SignedSupport.lean PASS
+Existing lean/Audit/Cycle297WitnessProgram.lean PASS
+Existing lean/Audit/Cycle285Minimal.lean PASS
+Existing lean/Audit/Cycle285Display.lean PASS
+Existing lean/Audit/Cycle285Path.lean PASS
+Existing lean/Audit/Cycle285Sharp.lean PASS
+Existing lean/Audit/Cycle285SourceReads.lean PASS
+Existing lean/Audit/Cycle284Driver.lean PASS
+Existing lean/Audit/Cycle284Window.lean PASS
+Existing lean/Audit/Cycle284Failure.lean PASS
+Existing lean/Audit/Cycle279InstallDelta.lean PASS
+Existing lean/Audit/Cycle279Witness.lean PASS
+Existing lean/Audit/Cycle279ReachableNovelty.lean PASS
+Existing lean/Audit/Cycle271ActualBoundary.lean PASS
+Existing lean/Audit/Cycle271SourceTraces.lean PASS
+Existing lean/Audit/Cycle267Observer.lean PASS
+Existing lean/Audit/Cycle267Install.lean PASS
+Yulang.GeneralRebasePackedSource298.source_question {roles : Roles.RoleDecls} {r : GeneralDeclarations.Registry}
+  {s : GeneralNominalVersionedJournal232.State roles} {root : GeneralSourceDictionaries.Occurrence roles}
+  (reached : B4TargetV8.Reachable (GeneralRebaseSourceSurvivor267.Boundary roles) r root s)
+  (q : GeneralRebaseSourceWitnessProgram297.Question roles) (fallback : GeneralNominalCommonBridge.Assignment) :
+  (∃ m, GeneralRebaseSourceWitnessProgram297.Holds s q m) ↔ ∃ v, GeneralRebasePackedSource298.reduced s q fallback v
+Yulang.GeneralRebaseWeakWindow298.target_codes_exact {roles : Roles.RoleDecls} {r : GeneralDeclarations.Registry}
+  {root : GeneralSourceDictionaries.Occurrence roles}
+  {checked : (GeneralRebaseSourceSurvivor267.Boundary roles).Checked r}
+  (codes : GeneralRebaseRevisitedTrace298.Family r root checked) (owners : List Nat)
+  (pool : List GeneralSourceState.Output) (s : GeneralNominalVersionedJournal232.State roles)
+  (seen : B4TargetV8.Reachable (GeneralRebaseSourceSurvivor267.Boundary roles) r root s)
+  (result : List GeneralRebaseStep258.Fact) :
+  result ∈
+      GeneralRebaseWeakWindow298.targetCodes codes owners pool s
+        (GeneralRebaseWeakWindow298.window codes owners pool s) ↔
+    ∃ after,
+      GeneralRebaseWeakProgress268.Weak (GeneralRebaseSourceSurvivor267.Encoded r) root owners pool s after ∧
+        (GeneralRebaseLiveProjection264.project owners pool after).remaining = result
+Yulang.GeneralRebaseSilentFactor298.Source.necessary_and_sufficient {roles : Roles.RoleDecls}
+  (r : GeneralDeclarations.Registry) (root : GeneralSourceDictionaries.Occurrence roles) (owners : List Nat)
+  (pool : List GeneralSourceState.Output) (s : GeneralNominalVersionedJournal232.State roles) :
+  Acc (fun next current => (GeneralRebaseSourceSurvivor267.Boundary roles).Step r root current next) s ↔
+    ∀ (a : (GeneralNominalVersionedDiagnostic232.vocabulary roles).State),
+      B4Target.Steps ((GeneralRebaseSourceSurvivor267.Boundary roles).Step r root) s a →
+        Acc
+          (fun next current =>
+            GeneralRebaseWeakProgress268.Stutter (GeneralRebaseSourceSurvivor267.Encoded r) root owners pool current
+              next)
+          a
+Yulang.GeneralRebaseRefreshPayload298.same_models_and_payload
+  {e : GeneralNominalVersionedJournal232.Effect GeneralDictionaryOutputDepth252.roles}
+  (same : e.plan = GeneralRebasePreInstallReplay297.candidate)
+  (enabled :
+    GeneralNominalVersionedMixedKernel234.Installable GeneralDictionaryOutputDepth252.registry
+      GeneralRebasePreInstallReplay297.after e)
+  (a : GeneralNominalCommonBridge.Assignment) (p : GeneralDictionaryReadback.Payload) :
+  GeneralNominalVersionedJournal232.Models
+        (GeneralNominalVersionedInstall232.install GeneralRebasePreInstallReplay297.after e) a ∧
+      GeneralNominalVersionedEvidence231.Evidence GeneralDictionaryOutputDepth252.registry
+        (GeneralNominalVersionedInstall232.install GeneralRebasePreInstallReplay297.after e).core a
+        GeneralDictionaryOutputDepth252.root p ↔
+    GeneralNominalVersionedJournal232.Models GeneralDictionaryOutputDepthInstall252.installed a ∧
+      GeneralNominalVersionedEvidence231.Evidence GeneralDictionaryOutputDepth252.registry
+        GeneralDictionaryOutputDepthInstall252.installed.core a GeneralDictionaryOutputDepth252.root p
+Yulang.GeneralRebasePackedNonleaf298.model_and_tree_packed (a fallback : GeneralNominalCommonBridge.Assignment)
+  (p d : GeneralDictionaryReadback.Payload) :
+  GeneralRebasePackedNonleaf298.joint
+      (GeneralRebasePackedAnswers298.fill GeneralRebasePackedNonleaf298.footprint
+        (GeneralRebasePackedAnswers298.pack GeneralRebasePackedNonleaf298.footprint a) fallback)
+      p d ↔
+    GeneralRebasePackedNonleaf298.joint a p d
+Yulang.GeneralRebasePackedNodeCompose298.supplied_model_composes (fallback : GeneralNominalCommonBridge.Assignment) :
+  have v := GeneralRebasePackedAnswers298.pack GeneralRebasePackedNonleaf298.footprint GeneralNominalExamples.model;
+  GeneralNominalVersionedJournal232.Models GeneralRebaseCompiledDisplay277.after
+      (GeneralRebasePackedNodeCompose298.complete v fallback) ∧
+    (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Evidence
+        GeneralNominalExamples.registry GeneralRebaseCompiledDisplay277.after
+        (GeneralRebasePackedNodeCompose298.complete v fallback) GeneralNominalExamples.displayChild
+        (CommonRoleOutermostResolver.Dictionary.node 3 []) ∧
+      (GeneralNominalVersionedMixedSourceBoundary234.boundary GeneralDeclarationExamples.roles).Evidence
+        GeneralNominalExamples.registry GeneralRebaseCompiledDisplay277.after
+        (GeneralRebasePackedNodeCompose298.complete v fallback) GeneralNominalExamples.displayRoot
+        (CommonRoleOutermostResolver.Dictionary.node 1 [CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralRebaseGeneratedCurrent298.installable_but_committed :
+  GeneralNominalVersionedMixedKernel234.Installable GeneralRebaseCompiledDisplay277.compiled
+      GeneralRebaseCompiledDisplay277.after GeneralRebaseGeneratedCurrent298.certificate ∧
+    GeneralNominalVersionedMixedKernel234.Committed GeneralRebaseCompiledDisplay277.after
+      GeneralRebaseGeneratedCurrent298.certificate.plan
+Yulang.GeneralRebaseAlignedScan298.scan_exact {roles : Roles.RoleDecls}
+  (s : GeneralNominalVersionedJournal232.State roles) (plans : List (GeneralNominalCenters.Plan roles))
+  (head : GeneralNominalCenters.Plan roles → Option Bool) (reject joint : GeneralNominalCenters.Plan roles → Bool) :
+  GeneralRebaseAlignedScan298.scan s (GeneralRebaseAlignedScan298.annotate plans head reject joint) =
+    GeneralRebaseInstallCandidates267.scan s head reject joint plans
+Focused barrel tail PASS
+Replay symbolic-program byte-identical PASS
+Replay row-vector byte-identical PASS
+Replay revisited-window byte-identical PASS
+Replay packed-decisions byte-identical PASS
+Isolated build: 36 modules; no whole Lake build or Rust execution.

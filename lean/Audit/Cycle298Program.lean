@@ -1,0 +1,27 @@
+import Yulang.GeneralRebaseExecutableJournal298
+import Yulang.GeneralRebaseSymbolicQuestions298
+import Yulang.GeneralRebaseLocalProgram298
+import Yulang.GeneralRebaseRevisitedTrace298
+
+#print axioms Yulang.GeneralRebaseExecutableJournal298.cls_exact
+#print axioms Yulang.GeneralRebaseExecutableJournal298.effect_exact
+#print axioms Yulang.GeneralRebaseExecutableJournal298.compile_exact
+#print axioms Yulang.GeneralRebaseExecutableJournal298.source_models
+#print axioms Yulang.GeneralRebaseExecutableJournal298.candidate_exact
+#print axioms Yulang.GeneralRebaseExecutableJournal298.journalReads_exact
+#print axioms Yulang.GeneralRebaseExecutableJournal298.candidateReads_exact
+#print axioms Yulang.GeneralRebaseSymbolicQuestions298.head_exact
+#print axioms Yulang.GeneralRebaseSymbolicQuestions298.merge_exact
+#print axioms Yulang.GeneralRebaseSymbolicQuestions298.compile_holds
+#print axioms Yulang.GeneralRebaseSymbolicQuestions298.length_exact
+#print axioms Yulang.GeneralRebaseSymbolicQuestions298.at_index
+#print axioms Yulang.GeneralRebaseLocalProgram298.current_code
+#print axioms Yulang.GeneralRebaseLocalProgram298.strict_exact
+#print axioms Yulang.GeneralRebaseLocalProgram298.represents
+#print axioms Yulang.GeneralRebaseLocalProgram298.reifies
+#print axioms Yulang.GeneralRebaseRevisitedTrace298.raw
+#print axioms Yulang.GeneralRebaseRevisitedTrace298.reachable_tail
+#print axioms Yulang.GeneralRebaseRevisitedTrace298.compile_path
+#print axioms Yulang.GeneralRebaseRevisitedTrace298.exact
+#print axioms Yulang.GeneralRebaseRevisitedTrace298.replay
+#print axioms Yulang.GeneralRebaseRevisitedTrace298.strict_budget

@@ -1,0 +1,3 @@
+PASS the actual earlier raw observation changes while both projected lists still contain two facts.
+PASS the verified local program at the new representative yields one strict exit with no remaining facts.
+A separate Lean proof supplies the actual raw install and exact model/leaf payload; the runtime replays the finite data only.

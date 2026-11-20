@@ -1,0 +1,4 @@
+PASS actual initial and refreshed programs enumerate head, install pass, install reject and merge failure.
+PASS missing index 4 stays absent in both programs.
+PASS repeated request data control retains [target 3, target 3], two equations and eight pair atoms.
+The repeated requests were supplied to a constructed test state; no extra raw source path is claimed.

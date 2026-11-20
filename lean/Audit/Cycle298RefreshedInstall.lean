@@ -1,0 +1,30 @@
+import Yulang.GeneralRebaseRefreshSafety298
+import Yulang.GeneralRebaseRefreshCode298
+import Yulang.GeneralRebaseRefreshInstall298
+import Yulang.GeneralRebaseRefreshPayload298
+
+#print axioms Yulang.GeneralRebaseRefreshSafety298.real_metadata
+#print axioms Yulang.GeneralRebaseRefreshSafety298.candidate_ready
+#print axioms Yulang.GeneralRebaseRefreshSafety298.prepared
+#print axioms Yulang.GeneralRebaseRefreshSafety298.raw_edge
+#print axioms Yulang.GeneralRebaseRefreshSafety298.raw_acyclic
+#print axioms Yulang.GeneralRebaseRefreshSafety298.semantic_acyclic
+#print axioms Yulang.GeneralRebaseRefreshSafety298.administrative
+#print axioms Yulang.GeneralRebaseRefreshSafety298.safe
+#print axioms Yulang.GeneralRebaseRefreshCode298.listed
+#print axioms Yulang.GeneralRebaseRefreshCode298.head_moves
+#print axioms Yulang.GeneralRebaseRefreshCode298.head_witness
+#print axioms Yulang.GeneralRebaseRefreshCode298.observed
+#print axioms Yulang.GeneralRebaseRefreshCode298.coverage
+#print axioms Yulang.GeneralRebaseRefreshInstall298.scan_exact
+#print axioms Yulang.GeneralRebaseRefreshInstall298.actual_effect
+#print axioms Yulang.GeneralRebaseRefreshInstall298.models_same
+#print axioms Yulang.GeneralRebaseRefreshInstall298.real_step
+#print axioms Yulang.GeneralRebaseRefreshInstall298.before_projection
+#print axioms Yulang.GeneralRebaseRefreshInstall298.writes_all
+#print axioms Yulang.GeneralRebaseRefreshInstall298.project_same
+#print axioms Yulang.GeneralRebaseRefreshInstall298.exact_two_steps
+#print axioms Yulang.GeneralRebaseRefreshPayload298.has_leaf
+#print axioms Yulang.GeneralRebaseRefreshPayload298.only_leaf
+#print axioms Yulang.GeneralRebaseRefreshPayload298.same_models_and_payload
+#print axioms Yulang.GeneralRebaseRefreshPayload298.actual_annotated

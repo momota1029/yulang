@@ -1,0 +1,4 @@
+PASS the refreshed candidate answers both signs over the same two checked packed rows.
+PASS unresolved packed rows give unknown, not a negative certificate.
+PASS aligned scan retains repeated plan rows and defers a lone unknown head.
+The duplicate list is deliberately supplied as a data control; the actual source enumerates one row.

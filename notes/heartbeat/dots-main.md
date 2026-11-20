@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 297
+- cycle: 298
 - status: completed
-- started: 2026-11-20T12:32:48Z
-- updated: 2026-11-20T13:22:52Z
-- elapsed_min: 50.07
-- activity: I-54 B4 の実 source に戻り、有限の候補証跡と raw observer の厳密一歩を証明、実 pre-install refresh を検証
-- last_local_commit: 8a9fb2d26d
-- report: notes/handoff/dots-cycle-297.md
-- resume_hint: 次周は最新統合 standing orders と inbox を再読。構成的な負例探索か source 安全 probe の被覆を優先。実 retain refresh と 239/240 の鋭い prefix 下界から再開。
+- started: 2026-11-20T13:33:24Z
+- updated: 2026-11-20T14:23:27Z
+- elapsed_min: 50.05
+- activity: I-54 B4 の有限 source コンパイラ、実 refresh→install、生成子の Current、辞書再構成を Lean で検証
+- last_local_commit: 3253d055de
+- report: notes/handoff/dots-cycle-298.md
+- resume_hint: 次周は最新統合 standing orders と inbox を再読。有限の候補観測を保ち、実生成子の Current を別の到達選択へ広げ、EvidenceNode の再帰合成を継続。raw 停止には silent accessibility が別途必要。

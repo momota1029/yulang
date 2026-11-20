@@ -1,0 +1,29 @@
+'Yulang.GeneralRebaseFiniteSublists298.choices_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseFiniteSublists298.choices_count' depends on axioms: [propext]
+'Yulang.GeneralRebaseFiniteSublists298.samples_sourced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakExit298.listed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakExit298.target_sublist' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakExit298.realizes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakExit298.completeness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakExit298.sound_window' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindow298.window_size' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindow298.genuine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindow298.enough' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindow298.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindow298.target_codes_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindow298.no_weak_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSilentFactor298.path_extend' does not depend on any axioms
+'Yulang.GeneralRebaseSilentFactor298.restrict_acc' does not depend on any axioms
+'Yulang.GeneralRebaseSilentFactor298.accessible_factor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseSilentFactor298.Source.monotone' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSilentFactor298.Source.silent_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSilentFactor298.Source.necessary_and_sufficient' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSilentFactor298.Source.stutter_no_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseSilentFactor298.Source.counted_quiet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseSilentFactor298.Source.accessible_if_visible_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

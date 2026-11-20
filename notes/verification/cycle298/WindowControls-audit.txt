@@ -1,0 +1,20 @@
+'Yulang.GeneralRebaseExplicitWindow298.agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseExplicitWindow298.safe_scan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseExplicitWindow298.Actual.only_one' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseExplicitWindow298.Actual.sole_target' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseExplicitWindow298.Actual.concrete_real_target' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseWeakWindowLegacy298.positive_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindowLegacy298.observed_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindowLegacy298.installed_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindowLegacy298.no_weak_after_first' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseWeakWindowLegacy298.no_raw_accessibility' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseWeakWindowLegacy298.empty_but_divergent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRequestMultiplicity298.repetitions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRequestMultiplicity298.literal_size' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRequestMultiplicity298.unchanged_semantics' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

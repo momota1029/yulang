@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseExplicitWindow298
+import Yulang.GeneralRebaseWeakWindowLegacy298
+import Yulang.GeneralRebaseRequestMultiplicity298
+
+#print axioms Yulang.GeneralRebaseExplicitWindow298.agrees
+#print axioms Yulang.GeneralRebaseExplicitWindow298.safe_scan
+#print axioms Yulang.GeneralRebaseExplicitWindow298.Actual.only_one
+#print axioms Yulang.GeneralRebaseExplicitWindow298.Actual.sole_target
+#print axioms Yulang.GeneralRebaseExplicitWindow298.Actual.concrete_real_target
+#print axioms Yulang.GeneralRebaseWeakWindowLegacy298.positive_initial
+#print axioms Yulang.GeneralRebaseWeakWindowLegacy298.observed_install
+#print axioms Yulang.GeneralRebaseWeakWindowLegacy298.installed_reachable
+#print axioms Yulang.GeneralRebaseWeakWindowLegacy298.no_weak_after_first
+#print axioms Yulang.GeneralRebaseWeakWindowLegacy298.no_raw_accessibility
+#print axioms Yulang.GeneralRebaseWeakWindowLegacy298.empty_but_divergent
+#print axioms Yulang.GeneralRebaseRequestMultiplicity298.repetitions
+#print axioms Yulang.GeneralRebaseRequestMultiplicity298.literal_size
+#print axioms Yulang.GeneralRebaseRequestMultiplicity298.unchanged_semantics
