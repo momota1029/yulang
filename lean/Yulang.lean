@@ -5542,3 +5542,10 @@ import Yulang.GeneralRebaseDepthCrossAnchor286
 import Yulang.GeneralRebaseDepthCrossWitness286
 import Yulang.GeneralRebaseDepthPhase286
 import Yulang.GeneralRebaseDepthFullRank286
+import Yulang.GeneralRebaseDepthEnableShape286
+import Yulang.GeneralRebaseDepthEnableSafety286
+import Yulang.GeneralRebaseDepthPreAvailable286
+import Yulang.GeneralRebaseDepthPostQueries286
+import Yulang.GeneralRebaseDepthFullTrace286
+import Yulang.GeneralRebaseDepthPreSharp286
+import Yulang.GeneralRebaseDepthConfluence286
