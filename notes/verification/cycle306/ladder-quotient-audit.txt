@@ -1,0 +1,10 @@
+'Yulang.GeneralLadderCompiledPresentation306.present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledPresentation306.any_bisim_level' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.abstract_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.raw_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.raw_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.exact_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.countdown_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledRun306.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledRun306.compiled_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0

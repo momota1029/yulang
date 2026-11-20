@@ -1,0 +1,7 @@
+'Yulang.GeneralMixedFullControlDistinctions306.blind_quotient_loses_model_observation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlDistinctions306.same_obligation_count_different_best_raw_length' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT=0

@@ -1,0 +1,28 @@
+import Yulang.GeneralFiniteColoredCycleExample306
+import Yulang.GeneralMixedFullControlPresentation306
+
+#print axioms Yulang.GeneralFiniteColoredRounds306.stable_sound
+#print axioms Yulang.GeneralFiniteColoredScore306.drop_count
+#print axioms Yulang.GeneralFiniteColoredScore306.fixed_exact
+#print axioms Yulang.GeneralFiniteColoredExact306.bounded_stationary
+#print axioms Yulang.GeneralFiniteColoredExact306.exact_checked
+#print axioms Yulang.GeneralFiniteColoredTable306.exact_materialized
+#print axioms Yulang.GeneralFiniteColoredEarlyStop306.exact_fast
+#print axioms Yulang.GeneralFiniteColoredEquivalence306.trans_on
+#print axioms Yulang.GeneralFiniteQuotientRepresentatives306.no_two
+#print axioms Yulang.GeneralFiniteColoredQuotient306.representative_fixed
+#print axioms Yulang.GeneralFiniteColoredQuotient306.exact_edges
+#print axioms Yulang.GeneralFiniteColoredQuotient306.projection_minimal
+#print axioms Yulang.GeneralFiniteColoredCertificate306.certificate_exact
+#print axioms Yulang.GeneralFiniteColoredCertificate306.verified_submission_refines_minimum
+#print axioms Yulang.GeneralFiniteColoredCycleExample306.cyclic_regression
+#print axioms Yulang.GeneralFiniteColoredCycleExample306.color_distinguishes
+#print axioms Yulang.GeneralFiniteRawPresentation306.raw_edges
+#print axioms Yulang.GeneralFiniteRawPresentation306.minimal
+#print axioms Yulang.GeneralFiniteRawPresentation306.stable
+#print axioms Yulang.GeneralMixedFullControlCompiledQuotient306.executed_counts
+#print axioms Yulang.GeneralMixedFullControlCertificate306.rejects_count_vs_accepts_class
+#print axioms Yulang.GeneralMixedFullControlCertificate306.phase_requires_extra_class
+#print axioms Yulang.GeneralMixedFullControlCertificate306.rejects_incomplete_domain
+#print axioms Yulang.GeneralMixedFullControlPresentation306.uncolored_exact
+#print axioms Yulang.GeneralMixedFullControlPresentation306.colored_exact
