@@ -1,0 +1,3 @@
+'Yulang.GeneralRebaseRowClosedTerm287.r_not_closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowClosedTerm287.child_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowClosedTerm287.wrapped_not_closed' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,13 @@
+'Yulang.GeneralRebaseRowWholeChild287.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowParentEvidence287.evidence_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowPayloadExact287.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowPayloadExact287.blocked_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowPayloadExact287.comparison' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowPublic287.public_arbitrary_unused_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowPublic287.no_new_ambient_row_test' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowMinimal287.after_minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowMinimal287.canonical_minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLocal287.positive_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLocal287.blocked_tree' depends on axioms: [propext, Classical.choice, Quot.sound]

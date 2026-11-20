@@ -1,0 +1,4 @@
+'Yulang.GeneralRebaseRowSemanticMark287.output_meaning' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowSemanticMark287.all_models_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowSemanticMark287.not_certified_mark' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowSemanticMark287.all_except_trust' depends on axioms: [propext, Classical.choice, Quot.sound]

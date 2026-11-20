@@ -1,0 +1,5 @@
+import Yulang.GeneralRebaseRowGeneratedChild287
+#print axioms Yulang.GeneralRebaseRowGeneratedChild287.raw_child
+#print axioms Yulang.GeneralRebaseRowGeneratedChild287.center_child
+#print axioms Yulang.GeneralRebaseRowGeneratedChild287.pending_actual
+#print axioms Yulang.GeneralRebaseRowGeneratedChild287.no_child_evidence

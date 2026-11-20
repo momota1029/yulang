@@ -1,0 +1,124 @@
+Lean Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+focused GeneralRebaseRowHeadBoundary287 exit 0
+focused GeneralRebaseRowChildSource287 exit 0
+focused GeneralRebaseRowChildPending287 exit 0
+focused GeneralRebaseRowParentPacket287 exit 0
+focused GeneralRebaseRowParentOutput287 exit 0
+focused GeneralRebaseRowParentInputs287 exit 0
+focused GeneralRebaseRowSpineCycles287 exit 0
+focused GeneralRebaseRowChildRaw287 exit 0
+focused GeneralRebaseRowGroundBoundary287 exit 0
+focused GeneralRebaseRowParentFrame287 exit 0
+focused GeneralRebaseRowParentStep287 exit 0
+focused GeneralRebaseRowGeneratedChild287 exit 0
+focused GeneralRebaseRowWholeChild287 exit 0
+focused GeneralRebaseRowParentEvidence287 exit 0
+focused GeneralRebaseRowPayloadExact287 exit 0
+focused GeneralRebaseRowPublic287 exit 0
+focused GeneralRebaseRowMinimal287 exit 0
+focused GeneralRebaseRowAfterSafety287 exit 0
+focused GeneralRebaseRowLocal287 exit 0
+focused GeneralRebaseRowSettlement287 exit 0
+focused GeneralRebaseRowTrustedBoundary287 exit 0
+focused GeneralRebaseRowSemanticMark287 exit 0
+focused GeneralRebaseRowAdministrative287 exit 0
+focused GeneralRebaseRowClosure287 exit 0
+focused GeneralRebaseRowProjection287 exit 0
+focused GeneralRebaseRowActualPaths287 exit 0
+focused GeneralRebaseRowEvidenceAt287 exit 0
+focused GeneralRebaseRowSourceLeaf287 exit 0
+focused GeneralRebaseRowOuterBoundary287 exit 0
+focused GeneralRebaseRowClosedTerm287 exit 0
+focused GeneralRebaseRowFixtureDriver287 exit 0
+'Yulang.GeneralRebaseRowClosedTerm287.r_not_closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowClosedTerm287.child_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowClosedTerm287.wrapped_not_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle287ClosedTerm.lean exit 0
+'Yulang.GeneralRebaseRowAdministrative287.equality_is_reflexive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowClosure287.no_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowActualPaths287.only_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowActualPaths287.maximal_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowActualPaths287.raw_accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowEvidenceAt287.evidence_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowEvidenceAt287.stable_pending_without_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowProjection287.actual_square' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowProjection287.materially_different_at_same_output_view' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowProjection287.no_dictionary_status_from_output_view' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowSourceLeaf287.source_verified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowSourceLeaf287.output_independent_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowOuterBoundary287.no_outer_reach' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle287Closure.lean exit 0
+'Yulang.GeneralRebaseRowFixtureDriver287.actually_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowFixtureDriver287.literal_result' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowFixtureDriver287.only_root_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowFixtureDriver287.exact_run' depends on axioms: [propext, Classical.choice, Quot.sound]
+some (Yulang.CommonRoleOutermostResolver.Tree.selected 0 [Yulang.CommonRoleOutermostResolver.Tree.selected 1 []])
+some (Yulang.CommonRoleOutermostResolver.Tree.selected 0 [Yulang.CommonRoleOutermostResolver.Tree.pending])
+standalone Audit/Cycle287Driver.lean exit 0
+'Yulang.GeneralRebaseRowGeneratedChild287.raw_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowGeneratedChild287.center_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowGeneratedChild287.pending_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowGeneratedChild287.no_child_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle287Generated.lean exit 0
+'Yulang.GeneralRebaseRowWholeChild287.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowParentEvidence287.evidence_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowPayloadExact287.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowPayloadExact287.blocked_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowPayloadExact287.comparison' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowPublic287.public_arbitrary_unused_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowPublic287.no_new_ambient_row_test' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowMinimal287.after_minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowMinimal287.canonical_minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLocal287.positive_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLocal287.blocked_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle287Payload.lean exit 0
+'Yulang.GeneralRebaseRowParentPacket287.sole_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowParentPacket287.emitted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowParentOutput287.outputs_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowParentInputs287.parent_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowChildRaw287.exact_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildRaw287.ambient_boundary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowChildRaw287.complete_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowGroundBoundary287.formed_but_not_ground' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowSpineCycles287.acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowParentFrame287.after_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowParentStep287.actual_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowParentStep287.generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle287RowParent.lean exit 0
+'Yulang.GeneralRebaseRowHeadBoundary287.translates_deferred' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowHeadBoundary287.recursive_row_not_finished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowHeadBoundary287.whole_capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildSource287.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildSource287.source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildSource287.raw_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildPending287.pending' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowChildPending287.whole_observed' depends on axioms: [propext, Quot.sound]
+standalone Audit/Cycle287RowPending.lean exit 0
+'Yulang.GeneralRebaseRowSemanticMark287.output_meaning' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowSemanticMark287.all_models_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowSemanticMark287.not_certified_mark' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowSemanticMark287.all_except_trust' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle287SemanticMark.lean exit 0
+'Yulang.GeneralRebaseRowSettlement287.evidence_without_discharge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowSettlement287.parent_not_settled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowTrustedBoundary287.raw_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowTrustedBoundary287.versioned_slice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowTrustedBoundary287.forbidden_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+standalone Audit/Cycle287Trust.lean exit 0
+Counts: focused 31
+Focused reverification result=0
+Wrapped axiom audit: 64 reports, 64 distinct declarations (9 parts), used: Classical.choice, Quot.sound, propext, disallowed: none.

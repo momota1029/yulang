@@ -1,0 +1,14 @@
+import Yulang.GeneralRebaseRowMinimal287
+import Yulang.GeneralRebaseRowLocal287
+
+#print axioms Yulang.GeneralRebaseRowWholeChild287.evidence
+#print axioms Yulang.GeneralRebaseRowParentEvidence287.evidence_root
+#print axioms Yulang.GeneralRebaseRowPayloadExact287.exact
+#print axioms Yulang.GeneralRebaseRowPayloadExact287.blocked_root
+#print axioms Yulang.GeneralRebaseRowPayloadExact287.comparison
+#print axioms Yulang.GeneralRebaseRowPublic287.public_arbitrary_unused_rows
+#print axioms Yulang.GeneralRebaseRowPublic287.no_new_ambient_row_test
+#print axioms Yulang.GeneralRebaseRowMinimal287.after_minimal
+#print axioms Yulang.GeneralRebaseRowMinimal287.canonical_minimal
+#print axioms Yulang.GeneralRebaseRowLocal287.positive_tree
+#print axioms Yulang.GeneralRebaseRowLocal287.blocked_tree

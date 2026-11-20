@@ -1,0 +1,6 @@
+import Yulang.GeneralRebaseRowSemanticMark287
+
+#print axioms Yulang.GeneralRebaseRowSemanticMark287.output_meaning
+#print axioms Yulang.GeneralRebaseRowSemanticMark287.all_models_support
+#print axioms Yulang.GeneralRebaseRowSemanticMark287.not_certified_mark
+#print axioms Yulang.GeneralRebaseRowSemanticMark287.all_except_trust
