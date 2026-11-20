@@ -1,10 +1,10 @@
 # dots-main heartbeat
 - cycle: 287
-- status: running
+- status: completed
 - started: 2026-11-20T02:30:05Z
-- updated: 2026-11-20T03:12:17Z
-- elapsed_min: 42.20
-- activity: 現行二項目の出力射影に実子検査1ビットを足した実行例が両診断木と厳密一致。31モジュールと独立監査・回帰確認済み
-- workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: a120391c8
-- resume_hint: 焦点検証済み成果を公開。次は時間窓内に報告と完了心拍、最終 tree と blob を照合する
+- updated: 2026-11-20T03:21:06Z
+- elapsed_min: 51.02
+- activity: 実の非葉据付、二つの診断木、行支持・信頼境界を検証済み
+- last_local_commit: 8ccc99ad5
+- report: notes/handoff/dots-cycle-287.md
+- resume_hint: 次周は統合先の standing orders と inbox を取得。行型の検査、GroundRoots、ledger と診断の境界を別に扱う。
