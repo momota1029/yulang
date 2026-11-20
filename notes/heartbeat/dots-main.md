@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 285
-- status: running
+- status: completed
 - started: 2026-11-20T00:32:29Z
-- updated: 2026-11-20T01:19:54Z
-- elapsed_min: 47.42
-- activity: 検証完了：30モジュール、15独立監査、143宣言、11適用例、旧回帰9。全 post-install と任意単項塔の即時 descriptor 条件を検証。
+- updated: 2026-11-20T01:22:30Z
+- elapsed_min: 50.02
+- activity: 実入れ子出力の有限型・行 support、全 raw post-install 停止・選択・証拠、単項塔の即時 descriptor 条件を検証。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 8b14bab7d
-- resume_hint: 最終報告を50分点で固定し、expected head・tree・報告・完了心拍を再取得する。
+- last_local_commit: 9c0895c03
+- resume_hint: install 前を広げる場合は型付き計画と raw/public 判定を分離する。239/240 の一般停止性には用いない。
+- report: dots-cycle-285.md
