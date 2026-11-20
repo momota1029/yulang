@@ -1,0 +1,28 @@
+import Yulang.GeneralDeferredLadderReport302
+import Yulang.GeneralDeferredLadderPlan302
+import Yulang.GeneralDeferredLadderSemantics302
+
+#print axioms Yulang.GeneralDeferredLadderReport302.nominal_at
+#print axioms Yulang.GeneralDeferredLadderReport302.display_query
+#print axioms Yulang.GeneralDeferredLadderReport302.int_query
+#print axioms Yulang.GeneralDeferredLadderReport302.display_report
+#print axioms Yulang.GeneralDeferredLadderReport302.list_as_int
+#print axioms Yulang.GeneralDeferredLadderReport302.list_finished
+#print axioms Yulang.GeneralDeferredLadderReport302.int_not_finished
+#print axioms Yulang.GeneralDeferredLadderPlan302.bindings
+#print axioms Yulang.GeneralDeferredLadderPlan302.captured
+#print axioms Yulang.GeneralDeferredLadderPlan302.center
+#print axioms Yulang.GeneralDeferredLadderPlan302.head_schema
+#print axioms Yulang.GeneralDeferredLadderPlan302.emitted_schema
+#print axioms Yulang.GeneralDeferredLadderPlan302.emitted_sites
+#print axioms Yulang.GeneralDeferredLadderPlan302.child_args
+#print axioms Yulang.GeneralDeferredLadderPlan302.child_center
+#print axioms Yulang.GeneralDeferredLadderPlan302.child_schema
+#print axioms Yulang.GeneralDeferredLadderPlan302.var_actual
+#print axioms Yulang.GeneralDeferredLadderPlan302.var_bounds
+#print axioms Yulang.GeneralDeferredLadderPlan302.child_occurrence
+#print axioms Yulang.GeneralDeferredLadderPlan302.child_id
+#print axioms Yulang.GeneralDeferredLadderPlan302.point_child_site
+#print axioms Yulang.GeneralDeferredLadderSemantics302.update_support
+#print axioms Yulang.GeneralDeferredLadderSemantics302.projected
+#print axioms Yulang.GeneralDeferredLadderSemantics302.holds
