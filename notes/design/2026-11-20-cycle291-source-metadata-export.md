@@ -44,3 +44,39 @@ existing raw role environment only given function equality. Closed
 controls: an unused finite role default must be enumerated even if no
 explicit declaration uses that role; a legal scoped but row-pattern
 unsupported default falsifies the shortcut "explicit scan is complete."
+
+## Actionable coverage failures without a language diagnostic change
+
+Attach a resolved origin to every application: declaration head,
+where-input, where-output equation, associated equation, or role default.
+An ordinary coverage failure should say absent constructor, wrong arity,
+primitive layout mismatch, missing classification, or unsupported nominal
+layout. Reflect each diagnosis with the old ConstructorUse predicate, so
+an empty failure list is exactly Coverage given the exact default manifest.
+No diagnostic in the frozen resolver gets changed; this list describes
+the finite source export's supported materialization fragment.
+
+## Removing an unnecessary common-fallback assumption for these two codes
+
+For this resolved source encoding, if one fallback is absent and the other
+is an identity/empty-layout entry, the generated constructor functions
+cannot be equal. Produce a numerical witness above the finite union of
+both key domains (maximum + 1), and prove both lookups use their fallback.
+The combined source checker can diagnose this case separately. If
+fallback codes agree, reuse the proven overlay certificate to obtain an
+iff with old Metadata, even for differently ordered source lists.
+Attaching data to existing registry/state is still a separately checked
+condition; neither an arbitrary frontend exporter nor a raw Step follows.
+
+## Local compiler-domain converse
+
+Full source Coverage is not a necessary condition for each old install.
+To give a sharper boundary, prove a converse for the unchanged centered
+output compiler: whenever explicit Pattern translation, or positional
+default Term translation, returns a value, every application it required
+satisfies ConstructorUse (and list lengths agree). Induction is on the
+source syntax; application success explicitly exposes constructor,
+arity and the appropriate primitive/nominal branch. Combine with the
+existing completeness theorem. A request-local decision can then check
+only looked-up live bodies, while a missing lookup remains failure.
+This is about actual output-class Ready, not preparation of a new Frame.

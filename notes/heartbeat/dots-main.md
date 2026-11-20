@@ -2,9 +2,9 @@
 - cycle: 291
 - status: running
 - started: 2026-11-20T06:31:17Z
-- updated: 2026-11-20T06:39:11Z
-- elapsed_min: 7.90
-- activity: 既存二枝の source 表を独立に復元、全 Metadata は両方・材料化Coverage は正枝のみと検証。
+- updated: 2026-11-20T06:46:27Z
+- elapsed_min: 15.17
+- activity: 有限 role 表の完全 default と source 由来診断・異なる既定の反証・実二枝の bundle を検証。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 6a7c50ec7
-- resume_hint: 有限 role 表から全 default を漏れなく抽出し、未使用 role の対照を閉じる。
+- last_local_commit: a27eda990
+- resume_hint: 既存 output compiler の domain 逆向きと、実 live request の局所全性を検証。
