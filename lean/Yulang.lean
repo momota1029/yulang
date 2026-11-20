@@ -5940,3 +5940,17 @@ import Yulang.GeneralRebaseExecutableJournal298
 import Yulang.GeneralRebaseSymbolicQuestions298
 import Yulang.GeneralRebaseLocalProgram298
 import Yulang.GeneralRebaseRevisitedTrace298
+import Yulang.GeneralRebaseRowBasis298
+import Yulang.GeneralRebaseRowOrigin298
+import Yulang.GeneralRebaseRowView298
+import Yulang.GeneralRebaseRowLive298
+import Yulang.GeneralRebaseRowProjection298
+import Yulang.GeneralRebaseRowObserved298
+import Yulang.GeneralRebaseRowSchema298
+import Yulang.GeneralRebaseRowPacket298
+import Yulang.GeneralRebaseRowClass298
+import Yulang.GeneralRebaseRowJournal298
+import Yulang.GeneralRebaseQuestionFootprint298
+import Yulang.GeneralRebasePackedAnswers298
+import Yulang.GeneralRebasePackedSource298
+import Yulang.GeneralRebasePackedRowFixture298

@@ -1,0 +1,20 @@
+import Yulang.GeneralRebaseRowProjection298
+import Yulang.GeneralRebaseRowObserved298
+import Yulang.GeneralRebaseRowSchema298
+import Yulang.GeneralRebaseRowPacket298
+import Yulang.GeneralRebaseRowClass298
+import Yulang.GeneralRebaseRowJournal298
+
+#print axioms Yulang.GeneralRebaseRowProjection298.bounds_iff
+#print axioms Yulang.GeneralRebaseRowProjection298.models_iff
+#print axioms Yulang.GeneralRebaseRowObserved298.argument_iff
+#print axioms Yulang.GeneralRebaseRowObserved298.holds_iff
+#print axioms Yulang.GeneralRebaseRowSchema298.requirement_iff
+#print axioms Yulang.GeneralRebaseRowSchema298.use_iff
+#print axioms Yulang.GeneralRebaseRowSchema298.schema_iff
+#print axioms Yulang.GeneralRebaseRowPacket298.equations_iff
+#print axioms Yulang.GeneralRebaseRowPacket298.child_iff
+#print axioms Yulang.GeneralRebaseRowPacket298.packet_iff
+#print axioms Yulang.GeneralRebaseRowClass298.holds_iff
+#print axioms Yulang.GeneralRebaseRowJournal298.effect_iff
+#print axioms Yulang.GeneralRebaseRowJournal298.models_iff

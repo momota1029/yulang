@@ -1,0 +1,31 @@
+import Yulang.GeneralRebaseQuestionFootprint298
+import Yulang.GeneralRebasePackedAnswers298
+import Yulang.GeneralRebasePackedSource298
+import Yulang.GeneralRebasePackedRowFixture298
+
+#print axioms Yulang.GeneralRebaseQuestionFootprint298.agrees_append
+#print axioms Yulang.GeneralRebaseQuestionFootprint298.typed_cut
+#print axioms Yulang.GeneralRebaseQuestionFootprint298.prior_exact
+#print axioms Yulang.GeneralRebaseQuestionFootprint298.head_exact
+#print axioms Yulang.GeneralRebaseQuestionFootprint298.candidate_exact
+#print axioms Yulang.GeneralRebaseQuestionFootprint298.atoms_exact
+#print axioms Yulang.GeneralRebaseQuestionFootprint298.question_exact
+#print axioms Yulang.GeneralRebasePackedAnswers298.unique_mem
+#print axioms Yulang.GeneralRebasePackedAnswers298.unique_nodup
+#print axioms Yulang.GeneralRebasePackedAnswers298.key_injective
+#print axioms Yulang.GeneralRebasePackedAnswers298.type_at
+#print axioms Yulang.GeneralRebasePackedAnswers298.row_at
+#print axioms Yulang.GeneralRebasePackedAnswers298.unpack_pack
+#print axioms Yulang.GeneralRebasePackedAnswers298.retain
+#print axioms Yulang.GeneralRebasePackedAnswers298.fallback_irrelevant
+#print axioms Yulang.GeneralRebasePackedAnswers298.check_same
+#print axioms Yulang.GeneralRebasePackedAnswers298.same_vector
+#print axioms Yulang.GeneralRebasePackedAnswers298.asked_iff
+#print axioms Yulang.GeneralRebasePackedAnswers298.valid_prior_iff
+#print axioms Yulang.GeneralRebasePackedSource298.source_question
+#print axioms Yulang.GeneralRebasePackedSource298.empty_source
+#print axioms Yulang.GeneralRebasePackedSource298.reduced_independent
+#print axioms Yulang.GeneralRebasePackedRowFixture298.before_exact
+#print axioms Yulang.GeneralRebasePackedRowFixture298.installed_exact
+#print axioms Yulang.GeneralRebasePackedRowFixture298.requires_row_zero
+#print axioms Yulang.GeneralRebasePackedRowFixture298.retained_after
