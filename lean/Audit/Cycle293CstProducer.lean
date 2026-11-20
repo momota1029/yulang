@@ -1,0 +1,17 @@
+import Yulang.GeneralSourceRoleCstFixture293
+
+#print axioms Yulang.GeneralSourceRoleCstBody293.classify_exact
+#print axioms Yulang.GeneralSourceRoleCstBody293.statement_exact
+#print axioms Yulang.GeneralSourceRoleCstBody293.members_exact
+#print axioms Yulang.GeneralSourceRoleCstProducer293.extract_exact
+#print axioms Yulang.GeneralSourceRoleCstPath293.follow_append
+#print axioms Yulang.GeneralSourceRoleCstPath293.body_at_ordinal
+#print axioms Yulang.GeneralSourceRoleCstPath293.extract_origin
+#print axioms Yulang.GeneralSourceRoleCstFixture293.required_roundtrip
+#print axioms Yulang.GeneralSourceRoleCstFixture293.binder_roundtrip
+#print axioms Yulang.GeneralSourceRoleCstFixture293.scalar_roundtrip
+#print axioms Yulang.GeneralSourceRoleCstFixture293.direct_handle_readback
+#print axioms Yulang.GeneralSourceRoleCstFixture293.nested_member_not_promoted
+#print axioms Yulang.GeneralSourceRoleCstFixture293.missing_rhs_rejected
+#print axioms Yulang.GeneralSourceRoleCstFixture293.unsupported_argument_not_dropped
+#print axioms Yulang.GeneralSourceRoleCstFixture293.recovery_in_method_rejected
