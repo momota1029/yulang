@@ -2,9 +2,9 @@
 - cycle: 299
 - status: running
 - started: 2026-11-20T14:31:16Z
-- updated: 2026-11-20T14:52:11Z
-- elapsed_min: 20.92
-- activity: C277 初期状態では親子 evidence が存在しないことと、実据付後の構成を独立証明。CLI 3件 PASS
+- updated: 2026-11-20T14:57:37Z
+- elapsed_min: 26.35
+- activity: 根付き選択表から実生成範囲を導出。切り出した表と最初の成功 rank を同一確認、C277 実例で再構成
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: ece392d2c0
-- resume_hint: 次は最小 rank の列を単一段階更新で保持し、verification 一式を固める
+- last_local_commit: 4b0ceb4888
+- resume_hint: 統合 C297 の最新 exact tree と焦点 Lean を確認し、残る一般化は証跡被覆の条件を分ける

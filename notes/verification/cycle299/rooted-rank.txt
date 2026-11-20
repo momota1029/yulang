@@ -1,0 +1,3 @@
+PASS one layered rank book retains first successful C277 values [2,1]
+PASS rooted slice retains its exact tree despite a disconnected cyclic row
+The disconnected-cycle example is synthetic and does not assert a new raw source step.

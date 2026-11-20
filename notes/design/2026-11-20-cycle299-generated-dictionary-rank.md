@@ -33,3 +33,13 @@ alias classes. Prove this explicitly, not by equating whole raw snapshots.
 Then the table can use only a scoped provider for both nodes, with no
 assumed root `EvidenceAt` theorem in the construction. This does not create
 a novel raw step or establish a provider for other reachable states.
+
+Derive the scope rather than requiring a proof of generated membership for
+each table row when the index table is rooted. Starting at the known root,
+each selected child generated edge is certified using that row's scoped
+`Current` and the mixed kernel's existing settled closure. One model
+inhabits the snapshot when needed to obtain that current candidate, but
+every recursive evidence proof uses the *given* model, not the candidate's
+existential witness. Require paths through actual selected table rows; a
+finite rank alone says nothing about generated membership or a halted raw
+state. For each model, construct the whole rooted dictionary after halt.

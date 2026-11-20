@@ -1,0 +1,33 @@
+import Yulang.GeneralGeneratedDictionaryRankBook299
+import Yulang.GeneralGeneratedMixedRooted299
+import Yulang.GeneralGeneratedDictionarySlice299
+import Yulang.GeneralGeneratedDictionaryRootedFixtures299
+
+#print axioms Yulang.GeneralGeneratedDictionaryRankBook299.get_present
+#print axioms Yulang.GeneralGeneratedDictionaryRankBook299.get_missing
+#print axioms Yulang.GeneralGeneratedDictionaryRankBook299.earliest_at_cap
+#print axioms Yulang.GeneralGeneratedDictionaryRankBook299.earliest_outside
+#print axioms Yulang.GeneralGeneratedDictionaryRankBook299.ranks_exact
+#print axioms Yulang.GeneralGeneratedDictionaryRankBook299.book_rank_exact
+#print axioms Yulang.GeneralGeneratedDictionaryRankBook299.book_check
+#print axioms Yulang.GeneralGeneratedDictionaryRankBook299.book_ranked
+#print axioms Yulang.GeneralGeneratedMixedRooted299.child_generated
+#print axioms Yulang.GeneralGeneratedMixedRooted299.along
+#print axioms Yulang.GeneralGeneratedMixedRooted299.scope_after_halt
+#print axioms Yulang.GeneralGeneratedMixedRooted299.after_halt
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.below_keys
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.keys_path
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.restricted_hit
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.retained_path
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.rooted
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.all_with_key
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.preserves
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.at_root
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.have_row
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.knows_children
+#print axioms Yulang.GeneralGeneratedDictionarySlice299.closed_slice
+#print axioms Yulang.GeneralGeneratedDictionaryRootedFixtures299.rooted_observed
+#print axioms Yulang.GeneralGeneratedDictionaryRootedFixtures299.actual_from_rooted
+#print axioms Yulang.GeneralGeneratedDictionaryRootedFixtures299.actual_rank_book
+#print axioms Yulang.GeneralGeneratedDictionaryRootedFixtures299.actual_keys
+#print axioms Yulang.GeneralGeneratedDictionaryRootedFixtures299.clean_slice

@@ -10,3 +10,9 @@ agree by construction; repeated edges and implementation IDs need not be
 unique. Store earliest successful per-key ranks from these Boolean layers,
 and compare with the original exhaustive readiness check, including a
 synthetic cyclic and missing-row table.
+
+For a reusable rank result, retain the **first** successful number alongside
+readiness in the previous-round table. This avoids `bitFirst`'s pedagogical
+recomputation of earlier Boolean rounds. Prove the retained value equals
+the original earliest successful fuel under the same domain assumption.
+No dictionary terms are needed by this rank-book computation.
