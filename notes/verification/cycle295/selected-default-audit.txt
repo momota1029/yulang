@@ -1,0 +1,11 @@
+'Yulang.GeneralSourceRoleCstSelectedCompile295.handoff_exact' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstSelectedCompile295.compile_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedCompile295.rejected_never_compiles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedCompile295.compile_origin' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedMembers295.member_prefix' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedMembers295.exported_member_prefix' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedMembers295.selected_member_is_exact_original' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedReadback295.exact_for_entry' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedReadback295.anchor_declaration' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstSelectedDefault295.old_read_omitted_exact' depends on axioms: [propext, Quot.sound]
