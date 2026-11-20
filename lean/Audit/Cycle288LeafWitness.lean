@@ -1,0 +1,15 @@
+import Yulang.GeneralRebaseRowLeafMark288
+
+#print axioms Yulang.GeneralRebaseInertLeaf288.source_evidence
+#print axioms Yulang.GeneralRebaseInertLeaf288.source_evidence_exists
+#print axioms Yulang.GeneralRebaseInertLeaf288.existing_selection
+#print axioms Yulang.GeneralRebaseLeafOutput288.old_settlement
+#print axioms Yulang.GeneralRebaseLeafOutput288.old_output
+#print axioms Yulang.GeneralRebaseLeafOutput288.output_iff
+#print axioms Yulang.GeneralRebaseLeafOutput288.output_models
+#print axioms Yulang.GeneralRebaseLeafOutput288.new_child_has_source_evidence
+#print axioms Yulang.GeneralRebaseRowLeafWitness288.source_exact
+#print axioms Yulang.GeneralRebaseRowLeafWitness288.leaf
+#print axioms Yulang.GeneralRebaseRowLeafWitness288.no_leaf
+#print axioms Yulang.GeneralRebaseRowLeafWitness288.child_iff
+#print axioms Yulang.GeneralRebaseRowLeafWitness288.parent_iff

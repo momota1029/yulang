@@ -1,0 +1,62 @@
+'Yulang.GeneralRebaseLeafLedger288.growth' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLeafLedger288.core_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLeafLedger288.effects_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLeafLedger288.record_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLeafLedger288.recorded_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLeafLedger288.singleton_settlement' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLeafLedger288.old_trust_in_static_ledger' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedger288.layouts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedger288.models_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedger288.old_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedger288.old_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedger288.old_trusted_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedger288.old_cache' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedger288.old_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedger288.unknown_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedgerStep288.real_refresh_at_hypothetical_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedgerStep288.refreshed_model_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedgerStep288.no_raw_path_to_supplement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedgerStep288.no_raw_path_from_endpoint' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedgerView288.no_enabledness_from_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedgerView288.raw_refresh_as_projection_stutter' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedgerFirst288.cannot_certify_private' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedgerFirst288.only_output_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedgerFirst288.all_steps_preserve_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedgerNames288.actual_listed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLedgerNames288.listed_not_recognizable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLedgerNames288.not_all_listed_public' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.same_occurrence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.foreign_holds_on_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.models_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.syntactically_discharged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.parent_settled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.no_correct_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.still_no_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.old_slice_accepts_foreign' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.semantic_shortcut_counterexample' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.no_raw_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseForeignLeaf288.no_discharge_to_evidence_without_invariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,20 @@
+'Yulang.GeneralRebaseRowLeafHeadSupport288.inner_denotes_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowLeafHeadSupport288.exact_head_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLeafHeadSupport288.typed_support_minimal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLeafHeadSupport288.source_never_loses_head' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowOutputHeadSupport288.actually_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowOutputHeadSupport288.prior_descriptor_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseRowOutputHeadSupport288.exact_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowOutputHeadSupport288.no_private_or_row_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLeafDecisionGuard288.ready_from_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLeafDecisionGuard288.actual_guard' depends on axioms: [propext, Classical.choice, Quot.sound]

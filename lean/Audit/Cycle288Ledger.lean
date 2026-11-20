@@ -1,0 +1,29 @@
+import Yulang.GeneralRebaseRowLedgerNames288
+
+#print axioms Yulang.GeneralRebaseLeafLedger288.growth
+#print axioms Yulang.GeneralRebaseLeafLedger288.core_eq
+#print axioms Yulang.GeneralRebaseLeafLedger288.effects_eq
+#print axioms Yulang.GeneralRebaseLeafLedger288.record_models
+#print axioms Yulang.GeneralRebaseLeafLedger288.recorded_child
+#print axioms Yulang.GeneralRebaseLeafLedger288.singleton_settlement
+#print axioms Yulang.GeneralRebaseLeafLedger288.old_trust_in_static_ledger
+#print axioms Yulang.GeneralRebaseRowLedger288.layouts
+#print axioms Yulang.GeneralRebaseRowLedger288.models_eq
+#print axioms Yulang.GeneralRebaseRowLedger288.old_child
+#print axioms Yulang.GeneralRebaseRowLedger288.old_parent
+#print axioms Yulang.GeneralRebaseRowLedger288.old_trusted_output
+#print axioms Yulang.GeneralRebaseRowLedger288.old_cache
+#print axioms Yulang.GeneralRebaseRowLedger288.old_refresh
+#print axioms Yulang.GeneralRebaseRowLedger288.unknown_output
+#print axioms Yulang.GeneralRebaseRowLedgerStep288.real_refresh_at_hypothetical_state
+#print axioms Yulang.GeneralRebaseRowLedgerStep288.refreshed_model_eq
+#print axioms Yulang.GeneralRebaseRowLedgerStep288.no_raw_path_to_supplement
+#print axioms Yulang.GeneralRebaseRowLedgerStep288.no_raw_path_from_endpoint
+#print axioms Yulang.GeneralRebaseRowLedgerView288.no_enabledness_from_output
+#print axioms Yulang.GeneralRebaseRowLedgerView288.raw_refresh_as_projection_stutter
+#print axioms Yulang.GeneralRebaseRowLedgerFirst288.cannot_certify_private
+#print axioms Yulang.GeneralRebaseRowLedgerFirst288.only_output_refresh
+#print axioms Yulang.GeneralRebaseRowLedgerFirst288.all_steps_preserve_models
+#print axioms Yulang.GeneralRebaseRowLedgerNames288.actual_listed
+#print axioms Yulang.GeneralRebaseRowLedgerNames288.listed_not_recognizable
+#print axioms Yulang.GeneralRebaseRowLedgerNames288.not_all_listed_public

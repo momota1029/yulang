@@ -1,0 +1,28 @@
+'Yulang.GeneralRebaseRowLeafWindow288.not_yet_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLeafWindow288.actual_activation_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLeafWindow288.post_mark_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshDiagnostics288.no_semantic_recurrence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowRefreshDiagnostics288.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshDiagnostics288.unique_from_role' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowRefreshDiagnostics288.selected_parent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowRefreshDiagnostics288.selected_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshDiagnostics288.fully_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowRefreshDiagnostics288.exact_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLeafReceipt288.strong_if_ambient' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseLeafReceipt288.instantiate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLeafReceipt288.receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLeafReceipt288.strong_and_weak_separate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowLeafReceipt288.no_foreign_receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowLeafReceipt288.no_pre_emission_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

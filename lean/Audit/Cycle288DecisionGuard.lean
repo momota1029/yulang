@@ -1,0 +1,6 @@
+import Yulang.GeneralRebaseRowDeferredDecisionGuard288
+
+#print axioms Yulang.GeneralRebaseRowDeferredDecisionGuard288.direct_read
+#print axioms Yulang.GeneralRebaseRowDeferredDecisionGuard288.deferred_query
+#print axioms Yulang.GeneralRebaseRowDeferredDecisionGuard288.known_but_deferred
+#print axioms Yulang.GeneralRebaseRowDeferredDecisionGuard288.not_a_settlement_criterion

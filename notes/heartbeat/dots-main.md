@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 287
+- cycle: 288
 - status: completed
-- started: 2026-11-20T02:30:05Z
-- updated: 2026-11-20T03:21:06Z
-- elapsed_min: 51.02
-- activity: 実の非葉据付、二つの診断木、行支持・信頼境界を検証済み
-- last_local_commit: 8ccc99ad5
-- report: notes/handoff/dots-cycle-287.md
-- resume_hint: 次周は統合先の standing orders と inbox を取得。行型の検査、GroundRoots、ledger と診断の境界を別に扱う。
+- started: 2026-11-20T03:35:05Z
+- updated: 2026-11-20T04:25:07Z
+- elapsed_min: 50.03
+- activity: 葉の局所 source 証拠・旧台帳と実 Step の境界・V8 診断を検証
+- last_local_commit: 4d8227a4a
+- report: notes/handoff/dots-cycle-288.md
+- resume_hint: 次周も統合 branch の standing orders と inbox を最初に再読。既存 Step 無変更。依存局所 receipt と直接の行観測を混同しない。

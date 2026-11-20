@@ -1,0 +1,19 @@
+import Yulang.GeneralRebaseRowLeafMark288
+
+#print axioms Yulang.GeneralRebaseRowLeafSlice288.input_readback
+#print axioms Yulang.GeneralRebaseRowLeafSlice288.prior_trusted
+#print axioms Yulang.GeneralRebaseRowLeafSlice288.prefix_exact
+#print axioms Yulang.GeneralRebaseRowLeafSlice288.class_readback
+#print axioms Yulang.GeneralRebaseRowLeafSlice288.extension_iff
+#print axioms Yulang.GeneralRebaseRowLeafSlice288.slice_exact
+#print axioms Yulang.GeneralRebaseRowLeafSlice288.same_models
+#print axioms Yulang.GeneralRebaseRowLeafSlice288.cannot_use_old_trust
+#print axioms Yulang.GeneralRebaseLeafObservation288.observation
+#print axioms Yulang.GeneralRebaseLeafObservation288.raw_sound
+#print axioms Yulang.GeneralRebaseLeafObservation288.transform_exact
+#print axioms Yulang.GeneralRebaseRowLeafMark288.cache_iff
+#print axioms Yulang.GeneralRebaseRowLeafMark288.auxiliary_iff
+#print axioms Yulang.GeneralRebaseRowLeafMark288.auxiliary_only
+#print axioms Yulang.GeneralRebaseRowLeafMark288.positive_transport
+#print axioms Yulang.GeneralRebaseRowLeafMark288.both_semantic_transports
+#print axioms Yulang.GeneralRebaseRowLeafMark288.both_entail_but_only_positive_certified

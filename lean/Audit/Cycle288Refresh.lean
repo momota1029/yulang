@@ -1,0 +1,18 @@
+import Yulang.GeneralRebaseRowRefreshHalt288
+
+#print axioms Yulang.GeneralRebaseRowRefreshShape288.any_comparable_is_middle
+#print axioms Yulang.GeneralRebaseRowRefreshShape288.only_descriptor
+#print axioms Yulang.GeneralRebaseRowRefreshShape288.actually_nominal
+#print axioms Yulang.GeneralRebaseRowRefreshClosed288.recognized_exact
+#print axioms Yulang.GeneralRebaseRowRefreshClosed288.point_closed
+#print axioms Yulang.GeneralRebaseRowRefreshClosed288.no_more_refresh
+#print axioms Yulang.GeneralRebaseRowRefreshPackets288.parent_observed
+#print axioms Yulang.GeneralRebaseRowRefreshPackets288.child_observed
+#print axioms Yulang.GeneralRebaseRowRefreshPackets288.root_transported
+#print axioms Yulang.GeneralRebaseRowRefreshPackets288.child_transported
+#print axioms Yulang.GeneralRebaseRowRefreshPackets288.prepared_is_committed
+#print axioms Yulang.GeneralRebaseRowRefreshHalt288.no_step
+#print axioms Yulang.GeneralRebaseRowRefreshHalt288.next_halts
+#print axioms Yulang.GeneralRebaseRowRefreshHalt288.every_path_one_or_zero
+#print axioms Yulang.GeneralRebaseRowRefreshHalt288.maximal_iff
+#print axioms Yulang.GeneralRebaseRowRefreshHalt288.scoped_accessible
