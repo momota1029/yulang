@@ -5933,3 +5933,6 @@ import Yulang.GeneralRebaseWitnessExistence297
 import Yulang.GeneralRebaseSignedHistory297
 import Yulang.GeneralRebaseSignedOptional297
 import Yulang.GeneralRebaseMergeWitnessFixture297
+import Yulang.GeneralRebaseSignedRefresh297
+import Yulang.GeneralRebasePreInstallReplay297
+import Yulang.GeneralRebaseSourceMetadata297

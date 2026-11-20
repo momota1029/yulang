@@ -34,7 +34,7 @@ def main : IO Unit := do
       run hazard == some false && run missing == none && run safe == some true do
     throw (IO.userError "B4 strict nested-output replay diverged")
   IO.println "PASS actual generated root: one candidate, one strict projected proposal; remaining facts 2 -> 0."
-  IO.println "PASS prior assignments agree on input coordinates and rows; candidate output returns both pass and reject."
+  IO.println "PASS the two checked prior assignments return both pass and reject (agreement on inputs and rows is proved separately)."
   IO.println "PASS replay lookup distinguishes index 0 pass/reject from absent index 1."
   IO.println "PASS disabling raw safety, omitting the semantic novelty witness or omitting the joint witness yields no install."
   IO.println "PASS independent SafeKnown replies distinguish all clear, unknown, and confirmed unsafe."

@@ -1,0 +1,5 @@
+PASS distinct literal centers with equal modeled input; checked no-counterexample comparison returns true.
+PASS distinct modeled inputs in the same structural shape; actual prior assignment returns a merge counterexample.
+PASS removing the necessary comparison witness produces a false positive in the raw Boolean reduction; coverage is essential.
+PASS the registered pair in the existing mixed-kernel merge stress fixture is listed.
+These first two pairs are comparison fixtures, not assertions of fully reachable merge steps.
