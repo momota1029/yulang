@@ -29,3 +29,18 @@ a scan of the candidate list cannot prove that. Test true source when
 row constructor is known but only captured opaquely, and false source
 where decomposing that row remains unsupported despite valid Metadata.
 No new parser, kernel, default policy, or termination claim.
+
+## Finite role defaults with an independent manifest
+
+To avoid asking callers to guess a complete default domain, provide an
+optional resolved role-table constructor. Each finite row has role key,
+arity, and a finite output list. An output entry `none` means required;
+an absent key is undeclared, and `some term` is a positional default.
+Role fallback is an explicit arity with no outputs. The constructor
+requires the existing positional scopedness evidence and distinct role
+IDs/output names. Prove that emitted defaults are exactly the OLD
+`RoleDecl.assoc` successes of the generated table. Transport to an
+existing raw role environment only given function equality. Closed
+controls: an unused finite role default must be enumerated even if no
+explicit declaration uses that role; a legal scoped but row-pattern
+unsupported default falsifies the shortcut "explicit scan is complete."
