@@ -37,3 +37,17 @@ cannot be the premise that declares the child settled.
 Existing Yulang2 audit X1 exhibits a nominal head and where (declaration
 check). It does not test the proposed ledger proof, the cycle 287 row
 fixtures, or any new semantics. No new Yulang2 run is claimed.
+
+## Second proof path: a static ledger extension
+
+In the exact one-child case, append the witness plan to the `plans` list
+only. For every old full model prove the leaf packet from the original
+SourceSlice; for every new model restrict the plan membership. Keep the
+core and effects byte-for-byte equal. Transport the old trusted input slice
+and obtain genuine old `Discharged` + `Trusted.output` in this static
+state. Here "genuine" describes the old judgments, not reachability:
+test that the existing raw Step has no path to the appended state from
+the real endpoint, and do not call the append an existing install action.
+The effect-free leaf is exactly the case where inventing an install could
+violate the original novelty requirement. A formal integration must account
+for history and queue scheduling, not just preservation of Models.
