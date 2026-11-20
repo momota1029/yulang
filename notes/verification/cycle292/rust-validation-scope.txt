@@ -1,0 +1,4 @@
+Rust toolchain availability; static Rust source trace is separate.
+cargo unavailable (command -v exit 1)
+rustc unavailable (command -v exit 1)
+No Rust build, test, Yulang2 executable replay or parser invocation was performed.

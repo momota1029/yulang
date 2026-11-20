@@ -1,0 +1,185 @@
+Yulang.GeneralSourceRoleBinderIndex292.index_exact (binders : List String) (unique : binders.Nodup) (s : String)
+  (slot : Nat) : Yulang.GeneralSourceRoleSpelling292.position s binders = some slot ↔ binders[slot]? = some s
+Yulang.GeneralSourceRoleChildCoverage292.member_exact {children : List Yulang.GeneralSourceRoleChildCoverage292.Child}
+  {members : List Yulang.GeneralSourceRoleSyntaxBoundary292.Shape}
+  (h : Yulang.GeneralSourceRoleChildCoverage292.Collects children members)
+  (shape : Yulang.GeneralSourceRoleSyntaxBoundary292.Shape) :
+  shape ∈ members ↔ Yulang.GeneralSourceRoleChildCoverage292.Child.typeDecl shape ∈ children
+Yulang.GeneralSourceRoleCoveredShell292.verify_exact (source : Yulang.GeneralSourceRoleCoveredShell292.Inventory)
+  (shell : Yulang.GeneralSourceRoleSyntaxBoundary292.Shell) :
+  Yulang.GeneralSourceRoleCoveredShell292.verify source shell = true ↔
+    Yulang.GeneralSourceRoleCoveredShell292.Checked source shell
+Yulang.GeneralSourceRoleSyntaxPipeline292.pipeline_exact (env : Yulang.GeneralSourceRoleSpelling292.Environment)
+  (fallback : Nat) (shells : List Yulang.GeneralSourceRoleSyntaxBoundary292.Shell)
+  (out : Yulang.GeneralSourceMetadataRoles291.RoleSource) :
+  Yulang.GeneralSourceRoleSyntaxPipeline292.applyShells env fallback shells = some out ↔
+    ∃ symbolic,
+      Yulang.GeneralSourceRoleExport292.Aligned Yulang.GeneralSourceRoleSyntaxPipeline292.ShellWitness shells symbolic ∧
+        out.fallbackArity = fallback ∧
+          Yulang.GeneralSourceRoleExport292.Aligned (Yulang.GeneralSourceRoleExport292.RowWitness env) symbolic
+              (List.map Yulang.GeneralSourceMetadataBareRole291.forgetRow out.rows) ∧
+            Yulang.GeneralSourceMetadataRoles291.Valid out
+Yulang.GeneralSourceRoleAssocRead292.assoc_exact {env : Yulang.GeneralSourceRoleSpelling292.Environment}
+  {fallback : Nat} {input : List Yulang.GeneralSourceRoleSpelling292.Role}
+  {out : Yulang.GeneralSourceMetadataRoles291.RoleSource}
+  (h : Yulang.GeneralSourceRoleExport292.lower env fallback input = some out) (r n : Nat)
+  (value : Option Yulang.Roles.Term) :
+  (Yulang.GeneralSourceMetadataRoles291.roleTable out r).assoc n = some value ↔
+    Yulang.GeneralSourceRoleAssocRead292.DeclaredAt env input r n value
+Yulang.GeneralSourceRoleSyntaxPipeline292.default_from_shells (env : Yulang.GeneralSourceRoleSpelling292.Environment)
+  (fallback : Nat) (shells : List Yulang.GeneralSourceRoleSyntaxBoundary292.Shell)
+  (out : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (h : Yulang.GeneralSourceRoleSyntaxPipeline292.applyShells env fallback shells = some out) (rid name : Nat)
+  (term : Yulang.Roles.Term) :
+  (Yulang.GeneralSourceMetadataRoles291.roleTable out rid).assoc name = some (some term) ↔
+    ∃ s,
+      s ∈ shells ∧
+        env.role s.name = some rid ∧
+          ∃ el,
+            el ∈ s.directTypeChildren ∧
+              ∃ o,
+                Yulang.GeneralSourceRoleSyntaxBoundary292.Admitted
+                    Yulang.GeneralSourceRoleSyntaxBoundary292.Owner.roleBodyDirect el o ∧
+                  env.output rid o.spelling = some name ∧
+                    Yulang.GeneralSourceRoleSpelling292.ResolvedBody env s.parameters o.body (some term)
+Yulang.GeneralSourceRoleEnvExact292.shell_at_success_exact (e f : Yulang.GeneralSourceRoleSpelling292.Environment)
+  (fallback : Nat) (inputs : List Yulang.GeneralSourceRoleSyntaxBoundary292.Shell)
+  (out : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (left : Yulang.GeneralSourceRoleSyntaxPipeline292.applyShells e fallback inputs = some out) :
+  Yulang.GeneralSourceRoleSyntaxPipeline292.applyShells f fallback inputs = some out ↔
+    Yulang.GeneralSourceRoleEnvCheck292.checkShells e f inputs = true
+Yulang.GeneralSourceRoleDiagnosticLink292.default_issue_exact {env : Yulang.GeneralSourceRoleSpelling292.Environment}
+  {input : Yulang.GeneralSourceRoleAttach292.Input} {out : Yulang.GeneralSourceMetadataBundle291.SourceBundle}
+  (accepted : Yulang.GeneralSourceRoleAttach292.compose env input = some out) (rid name : Nat)
+  (use : Yulang.GeneralSourceMetadataUse291.Use) (why : Yulang.GeneralSourceMetadataProblem291.Problem) :
+  { entry := { site := Yulang.GeneralSourceMetadataSites291.Site.roleDefault rid name, query := use },
+        details := why } ∈
+      (Yulang.GeneralSourceMetadataBundle291.inspect out).unsupported ↔
+    Yulang.GeneralSourceMetadataProblem291.problem (Yulang.GeneralSourceMetadataBundle291.registry out).constructors
+          (Yulang.GeneralSourceMetadataRows291.interpretation out.snapshot) use =
+        some why ∧
+      ∃ s,
+        s ∈ input.shells ∧
+          env.role s.name = some rid ∧
+            ∃ el,
+              el ∈ s.directTypeChildren ∧
+                ∃ o,
+                  Yulang.GeneralSourceRoleSyntaxBoundary292.Admitted
+                      Yulang.GeneralSourceRoleSyntaxBoundary292.Owner.roleBodyDirect el o ∧
+                    env.output rid o.spelling = some name ∧
+                      ∃ rhs,
+                        Yulang.GeneralSourceRoleSpelling292.ResolvedBody env s.parameters o.body (some rhs) ∧
+                          use ∈ Yulang.GeneralSourceMetadataSyntax291.terms rhs
+Yulang.GeneralSourceRoleDiagnosticFixture292.omitted_cannot_attach_full_roles
+  (full omitted : Yulang.GeneralSourceMetadataBundle291.SourceBundle) :
+  Yulang.GeneralSourceRoleAttach292.compose Yulang.GeneralSourceRoleDiagnosticFixture292.alternateEnv
+        (Yulang.GeneralSourceRoleDiagnosticFixture292.input false) =
+      some full →
+    Yulang.GeneralSourceRoleAttach292.compose Yulang.GeneralSourceRoleDiagnosticFixture292.alternateEnv
+          (Yulang.GeneralSourceRoleDiagnosticFixture292.input true) =
+        some omitted →
+      Yulang.GeneralSourceMetadataRoles291.roleTable full.roles ≠
+        Yulang.GeneralSourceMetadataRoles291.roleTable omitted.roles
+Yulang.GeneralSourceRoleResolverUse292.selected_omitted_exact
+  {frontend : Yulang.GeneralSourceRoleSpelling292.Environment} {arity : Nat}
+  {source : List Yulang.GeneralSourceRoleSyntaxBoundary292.Shell}
+  {out : Yulang.GeneralSourceMetadataRoles291.RoleSource}
+  (built : Yulang.GeneralSourceRoleSyntaxPipeline292.applyShells frontend arity source = some out)
+  (env : Yulang.Roles.AssocEnv) (wf : Yulang.Roles.WellFormed env.cores) (goal : Yulang.Roles.Goal) (name : Nat)
+  (resolved : Yulang.Roles.resolve env.cores wf goal = Yulang.Roles.Result.resolved) (impl : Yulang.Roles.AssocImpl)
+  (member : impl ∈ env.impls) (selected : Yulang.Roles.candidates env.cores goal = [impl.impl])
+  (omitted : List.lookup name impl.assoc = none) (value : Yulang.Roles.Term) :
+  Yulang.Roles.assocOf env (Yulang.GeneralSourceMetadataRoles291.roleTable out) wf goal name = some value ↔
+    ∃ rhs,
+      Yulang.GeneralSourceRoleResolverUse292.ShellDefault frontend source goal.role name rhs ∧
+        Yulang.Roles.Term.subst (Yulang.Roles.defaultSubst goal.args) rhs = value
+Yulang.GeneralSourceRoleOperationalRead292.resolved_declared_has_compiled_value
+  {frontend : Yulang.GeneralSourceRoleSpelling292.Environment} {fallback : Nat}
+  {shells : List Yulang.GeneralSourceRoleSyntaxBoundary292.Shell}
+  {table : Yulang.GeneralSourceMetadataRoles291.RoleSource}
+  (assembled : Yulang.GeneralSourceRoleSyntaxPipeline292.applyShells frontend fallback shells = some table)
+  (env : Yulang.Roles.AssocEnv) (wf : Yulang.Roles.WellFormed env.cores)
+  (allOK : Yulang.Roles.AssocWellFormed env (Yulang.GeneralSourceMetadataRoles291.roleTable table))
+  (g : Yulang.Roles.Goal) (n : Nat) (rightRole : Yulang.Roles.resolve env.cores wf g = Yulang.Roles.Result.resolved)
+  (rhs : Yulang.Roles.Term)
+  (source : Yulang.GeneralSourceRoleResolverUse292.ShellDefault frontend shells g.role n rhs) :
+  ∃ value,
+    Yulang.Roles.assocOf env (Yulang.GeneralSourceMetadataRoles291.roleTable table) wf g n = some value ∧
+      ∀ (v : Nat), 0 < Yulang.Roles.Term.occurrences v value → 0 < Yulang.Roles.argsOccurrences v g.args
+Yulang.GeneralSourceRoleRawAttach292.same_existing_strict_release (branch : Bool)
+  (bundle : Yulang.GeneralSourceMetadataBundle291.SourceBundle)
+  (built :
+    Yulang.GeneralSourceRoleAttach292.compose Yulang.GeneralSourceRoleActualAttach292.suppliedEnv
+        (Yulang.GeneralSourceRoleActualAttach292.attachInput branch) =
+      some bundle)
+  {s : Yulang.GeneralNominalVersionedJournal232.State Yulang.GeneralRebaseRowChildSource287.roles}
+  (path : Yulang.GeneralRebaseReceiptWitness289.ActualPath branch s)
+  (receiptToken : Yulang.GeneralObservedMetadataSeal290.Seal) (mark : Yulang.GeneralRebaseReceiptCompile289.Mark) :
+  Yulang.GeneralSourceMetadataPublication291.publish (Yulang.GeneralSourceMetadataBundle291.registry bundle) s
+        Yulang.GeneralRebaseRowChildSource287.root (Yulang.GeneralRebaseRowParentPacket287.child branch)
+        (Yulang.GeneralRebaseReceiptFixture289.request branch)
+        (Yulang.GeneralSourceMetadataRows291.interpretation bundle.snapshot) receiptToken =
+      Yulang.GeneralObservedMetadataPublication290.Output.released mark ↔
+    branch = true ∧
+      s = Yulang.GeneralRebaseRowParentFrame287.after true ∧
+        receiptToken = Yulang.GeneralObservedMetadataReleaseFixture290.normalized ∧
+          mark = Yulang.GeneralRebaseReceiptCompile289.actualMark
+Yulang.GeneralSourceRoleScopedShell292.source_scope_exact {Scope : Type}
+  {env : Scope → Yulang.GeneralSourceRoleSpelling292.Environment} {fallback : Nat}
+  {packets : List (Yulang.GeneralSourceRoleScopedShell292.Packet Scope)}
+  {out : Yulang.GeneralSourceMetadataRoles291.RoleSource}
+  (accepted : Yulang.GeneralSourceRoleScopedShell292.run env fallback packets = some out) (r n : Nat)
+  (term : Option Yulang.Roles.Term) :
+  (Yulang.GeneralSourceMetadataRoles291.roleTable out r).assoc n = some term ↔
+    ∃ p,
+      p ∈ packets ∧
+        (env p.scope).role p.source.name = some r ∧
+          ∃ el,
+            Yulang.GeneralSourceRoleChildCoverage292.Child.typeDecl el ∈ p.source.directChildren ∧
+              ∃ o,
+                Yulang.GeneralSourceRoleSyntaxBoundary292.Admitted
+                    Yulang.GeneralSourceRoleSyntaxBoundary292.Owner.roleBodyDirect el o ∧
+                  (env p.scope).output r o.spelling = some n ∧
+                    Yulang.GeneralSourceRoleSpelling292.ResolvedBody (env p.scope) p.source.parameters o.body term
+Yulang.GeneralSourceRoleArityRead292.fallback_readback {Scope : Type}
+  {env : Scope → Yulang.GeneralSourceRoleSpelling292.Environment}
+  {input : List (Yulang.GeneralSourceRoleScopedExport292.ScopedRole Scope)} {fallback : Nat}
+  {out : Yulang.GeneralSourceMetadataRoles291.RoleSource}
+  (assembled : Yulang.GeneralSourceRoleScopedExport292.lower env fallback input = some out) (key : Nat)
+  (unknown : ∀ (arity : Nat), ¬Yulang.GeneralSourceRoleArityRead292.Declares env input key arity) :
+  (Yulang.GeneralSourceMetadataRoles291.roleTable out key).arity = fallback ∧
+    ∀ (name : Nat), (Yulang.GeneralSourceMetadataRoles291.roleTable out key).assoc name = none
+Yulang.GeneralSourceRoleUniqueSource292.unique_packet_member {Scope : Type}
+  {env : Scope → Yulang.GeneralSourceRoleSpelling292.Environment} {fallback : Nat}
+  {input : List (Yulang.GeneralSourceRoleScopedShell292.Packet Scope)}
+  {out : Yulang.GeneralSourceMetadataRoles291.RoleSource}
+  (ok : Yulang.GeneralSourceRoleScopedShell292.run env fallback input = some out)
+  {p : Yulang.GeneralSourceRoleScopedShell292.Packet Scope} (inPackets : p ∈ input) {rid : Nat}
+  (key : (env p.scope).role p.source.name = some rid) {left right : Yulang.GeneralSourceRoleSyntaxBoundary292.Shape}
+  (l : Yulang.GeneralSourceRoleChildCoverage292.Child.typeDecl left ∈ p.source.directChildren)
+  (r : Yulang.GeneralSourceRoleChildCoverage292.Child.typeDecl right ∈ p.source.directChildren)
+  {first second : Yulang.GeneralSourceRoleSpelling292.Output}
+  (lshape :
+    Yulang.GeneralSourceRoleSyntaxBoundary292.Admitted Yulang.GeneralSourceRoleSyntaxBoundary292.Owner.roleBodyDirect
+      left first)
+  (rshape :
+    Yulang.GeneralSourceRoleSyntaxBoundary292.Admitted Yulang.GeneralSourceRoleSyntaxBoundary292.Owner.roleBodyDirect
+      right second)
+  (same : (env p.scope).output rid first.spelling = (env p.scope).output rid second.spelling) : left = right
+Yulang.GeneralSourceRoleHeadPacketRun292.assoc_exact {Scope : Type}
+  (env : Scope → Yulang.GeneralSourceRoleSpelling292.Environment) (fallback : Nat)
+  (files : List (Yulang.GeneralSourceRoleHeadPacketRun292.Source Scope))
+  (out : Yulang.GeneralSourceMetadataRoles291.RoleSource)
+  (h : Yulang.GeneralSourceRoleHeadPacketRun292.run env fallback files = some out) (rid name : Nat)
+  (term : Option Yulang.Roles.Term) :
+  (Yulang.GeneralSourceMetadataRoles291.roleTable out rid).assoc name = some term ↔
+    Yulang.GeneralSourceRoleHeadPacketRun292.Origin env files rid name term
+Yulang.GeneralSourceRoleHeadPacketFixture292.complete_packet_actual_old_consumer
+  (table : Yulang.GeneralSourceMetadataRoles291.RoleSource) :
+  Yulang.GeneralSourceRoleHeadPacketRun292.run Yulang.GeneralSourceRoleHeadPacketFixture292.view 2
+        [Yulang.GeneralSourceRoleHeadPacketFixture292.input] =
+      some table →
+    Yulang.Roles.assocOf (Yulang.Roles.AssocExamples.singletonEnv Yulang.Roles.AssocExamples.omittedImpl)
+        (Yulang.GeneralSourceMetadataRoles291.roleTable table) Yulang.Roles.AssocExamples.omitted_paterson
+        (Yulang.Roles.AssocExamples.index Yulang.Roles.Examples.str Yulang.Roles.Examples.int) 0 =
+      some Yulang.Roles.Examples.int

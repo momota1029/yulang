@@ -1,0 +1,3 @@
+bash notes/verification/cycle292/reproduce-focused.sh <preceding tree-equivalent commit>
+Verified 34 focused modules and 12 standalone audits.
+Exit 0; declaration-level output is recorded in focused.txt.
