@@ -91,3 +91,33 @@ on every byte of spelling but differ on whether a child is a TypeDeclaration.
 This is a synthetic counterexample to using byte equality as an authenticity
 certificate, not a parser failure. Preserve distinct snapshot brands, and keep
 the original wire if original unclassified labels are needed.
+
+## Exact current Rust golden: avoid a misleading shallow model
+
+The checked-in `role_method_signature_where_keeps_its_pre_wp17_recovery_cst`
+in `crates/yu-syntax/src/tests/declaration/act_decl/operation_where.rs`
+records the exact Rowan output from `syntax_guide_check --tree`. In that
+fixture, `TypeApplyArgument` wraps a `TypeExpression` node before the
+SigilIdentifier token. The earlier documentation describes the role argument
+without showing this inner node; treating it as a direct token is insufficient
+for real Rust topology. The final CLI therefore uses the strict wrapped
+head, while the earlier shallow proof modules remain separately named
+controls. The wrapped extractor does not rewrite the original tree or the
+ordinal addresses below it.
+
+The provided `rowan-debug-to-wire.py` reads the bounded format of this exact
+recorded golden, reconstructs each token from the specified UTF-8 byte
+range, checks token/debug text and node coverage, and emits the tagged JSON.
+The final CLI replays it as unresolved role `a`, binder `'x`, one
+non-type binding at `[0,4,2,0]`. That role is at `[0]`. There is recorded
+recovery after the role at the root, so successful *selected-role* extraction
+does not imply a clean source file. The golden contains no associated type;
+the required and default cases are independently reconstructed controls using
+the documented role plus the confirmed TypeExpression wrapper. No fresh
+Rust invocation or stable general-purpose debug API is asserted.
+
+With Cargo in a future workspace: run the exact existing Rust test first,
+capture one additionally selected source role with a required/default member,
+and compare the trusted owner walk with the CLI output. Keep direct
+`NodeOrToken` tags and order; do not implement the production handoff against
+a formatted Debug string.

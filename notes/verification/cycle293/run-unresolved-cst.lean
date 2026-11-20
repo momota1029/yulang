@@ -1,9 +1,9 @@
-import Yulang.GeneralSourceRoleCstJsonEntry293
+import Yulang.GeneralSourceRoleCstRustEntry293
 
 open Lean (Json)
 open Yulang
 open GeneralSourceRoleCstSnapshot293 (Address)
-open GeneralSourceRoleCstJsonEntry293 (extractText)
+open GeneralSourceRoleCstRustEntry293 (extractText)
 open GeneralSourceRoleHeadShape292 (Primary Argument)
 open GeneralSourceRoleChildCoverage292 (Child)
 open GeneralSourceRoleSyntaxBoundary292 (Rhs)

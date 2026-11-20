@@ -11,3 +11,5 @@ UTF-8 role and associated spelling retained
 duplicate unresolved spellings preserved as different occurrences
 trivia insertion changes the mixed occurrence path, not associated spelling
 explicit wire depth bound rejects input
+actual Rust regression's recorded Rowan golden replay: {"binders":["'x"],"directMembers":[{"kind":"nonType","path":[0,4,2,0]}],"path":[0],"role":"a"}
+Rust-topology entry rejects a shallow argument token without its wrapper

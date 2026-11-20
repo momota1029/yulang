@@ -1,0 +1,17 @@
+import Yulang.GeneralSourceRoleCstRustFixture293
+
+#print axioms Yulang.GeneralSourceRoleCstRustHead293.argument_exact_rust
+#print axioms Yulang.GeneralSourceRoleCstRustHead293.head_exact_rust
+#print axioms Yulang.GeneralSourceRoleCstRustHead293.direct_shallow_token_not_actual_argument
+#print axioms Yulang.GeneralSourceRoleCstRustRole293.extract_exact
+#print axioms Yulang.GeneralSourceRoleCstRustRole293.extract_origin
+#print axioms Yulang.GeneralSourceRoleCstRustSnapshot293.export_exact
+#print axioms Yulang.GeneralSourceRoleCstRustSnapshot293.declaration_member_roundtrip
+#print axioms Yulang.GeneralSourceRoleCstRustEntry293.value_exact
+#print axioms Yulang.GeneralSourceRoleCstRustEntry293.text_exact
+#print axioms Yulang.GeneralSourceRoleCstRustOrigin293.text_member_origin
+#print axioms Yulang.GeneralSourceRoleCstRustFixture293.wrapped_roles_export
+#print axioms Yulang.GeneralSourceRoleCstRustFixture293.previously_shallow_role_rejected
+#print axioms Yulang.GeneralSourceRoleCstRustFixture293.wrapped_roles_attach
+#print axioms Yulang.GeneralSourceRoleCstRustFixture293.wrapped_roles_actual_consumer
+#print axioms Yulang.GeneralSourceRoleCstRustFixture293.wrapper_paths_unique

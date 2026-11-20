@@ -89,3 +89,18 @@ with tempfile.TemporaryDirectory() as tmp:
     r=cli(deep,[])
     assert r.returncode==1 and "schemaOrDepth" in r.stderr,(r.returncode,r.stderr)
     print("explicit wire depth bound rejects input")
+    golden = Path(__file__).with_name("recorded-rust-cst.json")
+    converter = Path(__file__).with_name("rowan-debug-to-wire.py")
+    rust_test = repo/"crates/yu-syntax/src/tests/declaration/act_decl/operation_where.rs"
+    rebuilt = subprocess.check_output(["python3",str(converter),"--golden",str(rust_test)],text=True)
+    assert rebuilt==golden.read_text()
+    r=cli(rebuilt,["0"])
+    expected={"role":"a","path":[0],"binders":["'x"],
+              "directMembers":[{"kind":"nonType","path":[0,4,2,0]}]}
+    assert r.returncode==0 and json.loads(r.stdout)==expected,(r.returncode,r.stdout,r.stderr)
+    print("actual Rust regression's recorded Rowan golden replay:",r.stdout.strip())
+    x=copy()
+    x[2][0][2][4][2][1][2][-1]=["token","SigilIdentifier","'container"]
+    r=cli(x,["0"])
+    assert r.returncode==1 and "foreignOrUnsupportedRole" in r.stderr,(r.returncode,r.stderr)
+    print("Rust-topology entry rejects a shallow argument token without its wrapper")
