@@ -1,10 +1,10 @@
 # dots-main heartbeat
-- cycle: 302
+- cycle: 303
 - status: running
-- started: 2026-11-20T17:33:59Z
-- updated: 2026-11-20T18:03:59Z
-- elapsed_min: 30.00
-- activity: 任意の遅延 refresh 後の全 frame と証跡、厳密停止を証明。具体的な全相 promotion 経路も実行済み
+- started: 2026-11-20T18:31:06Z
+- updated: 2026-11-20T18:32:32.695Z
+- elapsed_min: 3
+- activity: cycle 302 の固定中間公開を復元し、据付前後の任意 context の残りを監査中
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 9131d74c65
-- resume_hint: 30分 pin。次は slot の並べ替えを伴う真の refresh を閉じた実例で検証、独立監査へ。
+- last_local_commit: none
+- resume_hint: C302 復旧記録と固定 78ffc88a を読む。現環境の checkout は旧版、Lean/Lake が見つからず、前環境の未公開分は確証なし。
