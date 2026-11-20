@@ -682,9 +682,11 @@ theorem Yulang.GeneralDepthTwoMiddleContext300.fresh (bs) : GeneralNominalVersio
 ## lean/Yulang/GeneralDepthTwoMiddleFrame300.lean
 
 ```lean
-theorem Yulang.GeneralDepthTwoMiddleFrame300.after_model : Models after model := (models model).mpr initial_model
+theorem Yulang.GeneralDepthTwoMiddleFrame300.after_model : Models after model
+```
 
-theorem metadata : GeneralNominalRecursiveCandidates.Metadata compiled env
+```lean
+theorem Yulang.GeneralDepthTwoMiddleFrame300.metadata : GeneralNominalRecursiveCandidates.Metadata compiled env
 ```
 
 ```lean
@@ -1143,9 +1145,11 @@ theorem Yulang.GeneralDepthTwoSecondInstall300.middle_observed : middleSite.obse
 ```
 
 ```lean
-theorem Yulang.GeneralDepthTwoSecondInstall300.middle_site : middleSite.occurrence = middle := GeneralDepthTwoRootPlan300.child_data.1
+theorem Yulang.GeneralDepthTwoSecondInstall300.middle_site : middleSite.occurrence = middle
+```
 
-theorem administrative : GeneralNominalVersionedDiagnostic232.AdministrativeReady after middle
+```lean
+theorem Yulang.GeneralDepthTwoSecondInstall300.administrative : GeneralNominalVersionedDiagnostic232.AdministrativeReady after middle
 ```
 
 ```lean
@@ -1311,4 +1315,4 @@ theorem Yulang.GeneralDepthTwoTerminalPlan300.head_schema : plan.headSchema = ‚ü
 theorem Yulang.GeneralDepthTwoTerminalPlan300.holds (m : Assignment) (valid : Models final m) : Holds plan m
 ```
 
-Indexed 265 theorem declarations. Each has one standalone audit.
+Indexed 267 theorem declarations. Each has one standalone audit.

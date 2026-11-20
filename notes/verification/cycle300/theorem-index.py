@@ -5,21 +5,36 @@ import sys
 
 repo = Path(__file__).resolve().parents[3]
 
+def signature_end(tail):
+    # Ignore assignments in record literals, named arguments, and explicit
+    # local let binders in a theorem type. The first top-level proof delimiter
+    # can introduce a tactic block or any same-line Lean proof term.
+    stack = []
+    closing = {"(": ")", "[": "]", "{": "}", "⟨": "⟩", "⦃": "⦄"}
+    for i, c in enumerate(tail):
+        if c in closing:
+            stack.append(closing[c])
+        elif stack and c == stack[-1]:
+            stack.pop()
+        elif not stack and tail.startswith(":=", i):
+            before = tail[:i].rsplit("\n", 1)[-1].lstrip()
+            if not before.startswith("let "):
+                return i
+    raise ValueError("Could not find the proof delimiter")
+
 def declarations(path):
     source = path.read_text()
-    # Every proof body here is indented; top-level namespaces may be nested.
     stack = []
-    # The declarations below use ":= by", ":= rfl", or a newline before
-    # their proof terms. Do not mistake a let binding in the type for the
-    # proof delimiter.
-    sem = r"^namespace (\S+)|^end (\S+)|^theorem (\w+)(.*?)(?=\s*:=[ \t]*(?:by\b|rfl\b|\n))"
-    for opened, ended, name, signature in re.findall(sem, source, re.M | re.S):
+    sem = r"^namespace (\S+)|^end (\S+)|^theorem (\w+)"
+    for match in re.finditer(sem, source, re.M):
+        opened, ended, name = match.groups()
         if opened:
             stack.append(opened)
         elif ended:
             assert stack and stack.pop() == ended, (path, ended)
         else:
-            yield ".".join([*stack, name]), signature.strip()
+            tail = source[match.end():]
+            yield ".".join([*stack, name]), tail[:signature_end(tail)].strip()
 
 def main():
     if len(sys.argv) > 1:

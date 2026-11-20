@@ -30,6 +30,7 @@ import Yulang.GeneralDepthTwoSecondInstall300
 #print axioms Yulang.GeneralDepthTwoMiddleContext300.source_support
 #print axioms Yulang.GeneralDepthTwoMiddleContext300.fresh
 #print axioms Yulang.GeneralDepthTwoMiddleFrame300.after_model
+#print axioms Yulang.GeneralDepthTwoMiddleFrame300.metadata
 #print axioms Yulang.GeneralDepthTwoMiddleFrame300.located
 #print axioms Yulang.GeneralDepthTwoMiddleFrame300.middle_role
 #print axioms Yulang.GeneralDepthTwoMiddleFrame300.input_bounds
@@ -52,6 +53,7 @@ import Yulang.GeneralDepthTwoSecondInstall300
 #print axioms Yulang.GeneralDepthTwoSecondInstall300.root_observed
 #print axioms Yulang.GeneralDepthTwoSecondInstall300.middle_observed
 #print axioms Yulang.GeneralDepthTwoSecondInstall300.middle_site
+#print axioms Yulang.GeneralDepthTwoSecondInstall300.administrative
 #print axioms Yulang.GeneralDepthTwoSecondInstall300.safe
 #print axioms Yulang.GeneralDepthTwoSecondInstall300.positions
 #print axioms Yulang.GeneralDepthTwoSecondInstall300.frame_unique

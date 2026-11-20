@@ -54,12 +54,14 @@ n=0
 allowed={'propext','Classical.choice','Quot.sound'}
 for p in pathlib.Path(sys.argv[1]).glob("*.txt"):
     t=p.read_text()
-    chunks=re.findall(r"depends on axioms: \[(.*?)\]", t, flags=re.S)
-    none=len(re.findall(r"does not depend on any axioms",t))
-    assert len(chunks)+none>0,p
-    for c in chunks:
-        assert set(a.strip() for a in c.split(",")).issubset(allowed),(p,c)
-    n+=len(chunks)+none
+    expected=re.findall(r"^#print axioms (\S+)", (pathlib.Path("lean/Audit") / p.name.removesuffix(".txt")).read_text(), re.M)
+    entries=re.findall(r"^'([^']+)'\s+(?:depends\s+on\s+axioms:\s*\[(.*?)\]|does\s+not\s+depend\s+on\s+any\s+axioms)", t, flags=re.M|re.S)
+    assert len(expected)==len(entries)>0,p
+    assert set(expected)=={name for name,_ in entries},(p,expected,entries)
+    for name,axioms in entries:
+        if axioms:
+            assert set(a.strip() for a in axioms.split(",")).issubset(allowed),(p,name,axioms)
+    n+=len(entries)
 print(f"Audited {n} theorem declarations; no axioms outside propext, Classical.choice, Quot.sound.")
 PY
 for f in lean/Audit/Cycle299*.lean \
