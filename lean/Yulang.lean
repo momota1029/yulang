@@ -5806,3 +5806,6 @@ import Yulang.GeneralSourceRoleCstJson293
 import Yulang.GeneralSourceRoleCstJsonEntry293
 import Yulang.GeneralSourceRoleCstJsonOrigin293
 import Yulang.GeneralSourceRoleCstJsonFixture293
+import Yulang.GeneralSourceRoleCstCoverage293
+import Yulang.GeneralSourceRoleCstDistinct293
+import Yulang.GeneralSourceRoleCstOccurrenceControls293
