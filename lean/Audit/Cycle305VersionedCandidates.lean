@@ -1,0 +1,8 @@
+import Yulang.GeneralNominalVersionedCandidateCoordinates305
+
+#print axioms Yulang.GeneralNominalVersionedCandidateCoordinates305.prepared_iff
+#print axioms Yulang.GeneralNominalVersionedCandidateCoordinates305.failed_iff
+#print axioms Yulang.GeneralNominalVersionedCandidateCoordinates305.children_exact
+#print axioms Yulang.GeneralNominalVersionedCandidateCoordinates305.survivor_iff
+#print axioms Yulang.GeneralNominalVersionedCandidateCoordinates305.unique_iff
+#print axioms Yulang.GeneralNominalVersionedCandidateCoordinates305.inspection_pending_iff

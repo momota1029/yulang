@@ -1,0 +1,6 @@
+'Yulang.GeneralNominalCandidateReplayModels305.fresh_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCandidateReplayModels305.bindings_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCandidateReplayModels305.checks_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCandidateReplayModels305.private_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalCandidateReplayModels305.head_model_iff' depends on axioms: [propext, Quot.sound]
+EXIT=0

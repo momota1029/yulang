@@ -1,0 +1,17 @@
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.prepared_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.failed_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.children_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.survivor_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.unique_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralNominalVersionedCandidateCoordinates305.inspection_pending_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT=0

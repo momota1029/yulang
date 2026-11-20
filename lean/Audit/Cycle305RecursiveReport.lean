@@ -1,0 +1,12 @@
+import Yulang.GeneralNominalReportContext305
+
+#print axioms Yulang.GeneralNominalReportCoordinates305.Coordinates.injective
+#print axioms Yulang.GeneralNominalReportCoordinates305.scalar_equation
+#print axioms Yulang.GeneralNominalReportCoordinates305.node_equation
+#print axioms Yulang.GeneralNominalReportCoordinates305.nominal_equation
+#print axioms Yulang.GeneralNominalReportRecompute305.inspect_exact
+#print axioms Yulang.GeneralNominalReportRecompute305.many_exact
+#print axioms Yulang.GeneralNominalReportContext305.report_exact
+#print axioms Yulang.GeneralNominalReportContext305.erase_report
+#print axioms Yulang.GeneralNominalReportContext305.arguments_exact
+#print axioms Yulang.GeneralNominalReportContext305.same_plan

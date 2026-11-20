@@ -1,0 +1,11 @@
+'Yulang.GeneralNominalReportCoordinates305.Coordinates.injective' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportCoordinates305.scalar_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportCoordinates305.node_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportCoordinates305.nominal_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportRecompute305.inspect_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportRecompute305.many_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportContext305.report_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportContext305.erase_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralNominalReportContext305.arguments_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralNominalReportContext305.same_plan' depends on axioms: [propext, Quot.sound]
+EXIT=0
