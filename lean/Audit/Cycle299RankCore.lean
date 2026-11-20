@@ -1,0 +1,24 @@
+import Yulang.GeneralGeneratedDictionaryRun299
+import Yulang.GeneralGeneratedDictionaryScope299
+import Yulang.GeneralGeneratedDictionaryNodes299
+import Yulang.GeneralGeneratedMixedCurrentNodes299
+import Yulang.GeneralGeneratedDictionaryCoherent299
+
+#print axioms Yulang.GeneralGeneratedDictionaryRun299.collect_exact
+#print axioms Yulang.GeneralGeneratedDictionaryRun299.collect_exists
+#print axioms Yulang.GeneralGeneratedDictionaryRun299.run_exact
+#print axioms Yulang.GeneralGeneratedDictionaryRun299.total_with_fuel
+#print axioms Yulang.GeneralGeneratedDictionaryRun299.rank_suffices
+#print axioms Yulang.GeneralGeneratedDictionaryScope299.map_all
+#print axioms Yulang.GeneralGeneratedDictionaryScope299.all_left
+#print axioms Yulang.GeneralGeneratedDictionaryScope299.run_has_row
+#print axioms Yulang.GeneralGeneratedDictionaryScope299.classifies
+#print axioms Yulang.GeneralGeneratedDictionaryScope299.same_model
+#print axioms Yulang.GeneralGeneratedDictionaryScope299.constructs
+#print axioms Yulang.GeneralGeneratedDictionaryNodes299.from_evidenceAt
+#print axioms Yulang.GeneralGeneratedDictionaryNodes299.same_model
+#print axioms Yulang.GeneralGeneratedDictionaryNodes299.constructs
+#print axioms Yulang.GeneralGeneratedMixedCurrentNodes299.scoped_nodes
+#print axioms Yulang.GeneralGeneratedDictionaryCoherent299.selected_unique
+#print axioms Yulang.GeneralGeneratedDictionaryCoherent299.ordered_unique
+#print axioms Yulang.GeneralGeneratedDictionaryCoherent299.cross_table
