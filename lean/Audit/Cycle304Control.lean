@@ -1,0 +1,6 @@
+import Yulang.GeneralDeferredLadderControl304
+
+#print axioms Yulang.GeneralDeferredLadderControl304.successors_exact
+#print axioms Yulang.GeneralDeferredLadderControl304.view_ref
+#print axioms Yulang.GeneralDeferredLadderControl304.view_relay
+#print axioms Yulang.GeneralDeferredLadderControl304.edge_consumes_one

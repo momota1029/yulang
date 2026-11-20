@@ -1,0 +1,5 @@
+PASS n=0, k=0; [{ index := 1, seen := false }, { index := 0, seen := true }] -> [{ index := 1, seen := true }] -> halt
+PASS n=3, k=2; [{ index := 3, seen := false }, { index := 2, seen := true }] -> [{ index := 3, seen := true }] -> halt
+PASS n=3, k=4; [{ index := 4, seen := true }] -> [] -> halt
+PASS n=6, k=1; [{ index := 2, seen := false }, { index := 1, seen := true }] -> [{ index := 2, seen := true }] -> halt
+EXIT=0
