@@ -5664,3 +5664,6 @@ import Yulang.GeneralRebaseReceiptStampedExport289
 import Yulang.GeneralRebaseReceiptStampedEffects289
 import Yulang.GeneralRebaseReceiptStampedCounts289
 import Yulang.GeneralRebaseReceiptCheckedReplay289
+import Yulang.GeneralObservedMetadataKeys290
+import Yulang.GeneralObservedMetadataEntry290
+import Yulang.GeneralObservedMetadataLocal290

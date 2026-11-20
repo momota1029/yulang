@@ -1,0 +1,6 @@
+'Yulang.GeneralObservedMetadataKeys290.app_nested' depends on axioms: [propext]
+'Yulang.GeneralObservedMetadataKeys290.candidate_key' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataEntry290.entry_exact' does not depend on any axioms
+'Yulang.GeneralObservedMetadataEntry290.agree_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataLocal290.primitiveOK_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralObservedMetadataLocal290.metadata_restricts' depends on axioms: [propext, Quot.sound]
