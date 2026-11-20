@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 282
+- cycle: 283
 - status: completed
-- started: 2026-11-19T21:35:10Z
-- updated: 2026-11-19T22:25:11Z
-- elapsed_min: 50.02
-- activity: 全 mixed journal・recursive evidence・最新 fixed 表の射影、compiled install guard と guarded path を確認。32モジュール、6独立監査259宣言 PASS。
+- started: 2026-11-19T22:30:00Z
+- updated: 2026-11-19T23:20:06Z
+- elapsed_min: 50.10
+- activity: actual install の差分再評価、全 evidence の slice、2行の履歴更新と索引の非有界性。39モジュール、6独立監査133宣言 PASS。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: e85769ee0
-- report: notes/handoff/dots-cycle-282.md
-- resume_hint: 新版定義が旧 compiled 支持に触れる場合と触れない場合を分け、prospective の差分 compiler を証明する。
+- last_local_commit: c350055ce
+- report: notes/handoff/dots-cycle-283.md
+- resume_hint: 固定 future read interface の閉包、Known と Local の exact transport を出してから版付き索引を消す。

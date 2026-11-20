@@ -1,0 +1,16 @@
+'Yulang.GeneralRebaseExactHistory283.equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseExactHistory283.unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseExactHistory283.order_independent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDirtyHistory283.subset' depends on axioms: [propext]
+'Yulang.GeneralRebaseDirtyHistory283.safe' depends on axioms: [propext]
+'Yulang.GeneralRebaseDirtyHistory283.skipped' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseIncrementalHistory283.exact_update' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseIncrementalHistory283.no_change' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseProspectiveDelta283.ext_history' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspectiveDelta283.coherent_history' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspectiveDelta283.replay_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspectiveDelta283.guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseProspectiveDelta283.supports_historical_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0
