@@ -63,3 +63,19 @@ existing signed witness can still be reused. Reuse cannot be inferred
 from the same selected key or projection. The 239/240 raw prefix bound
 precludes one arbitrary finite table for old complete raw traces, while
 independent fixed relative observations can still be useful.
+
+## Immediate executable data path
+
+Do not build a new alias-class enumerator. The current class view compiler
+is noncomputable precisely at its uses of `requests`; the equation and
+pair-equality list builders are existing data functions. Replace that
+input with `GeneralRebaseExecutableRequests262.requests` in a separate
+finite compiler. Its `requests_eq` gives literal list equality, preserving
+ordering and duplicates, so the existing `compile_exact` transfers.
+Do the same for the two class snapshots (historical and live) in each
+journal effect. Packet/raw view data may continue to use their existing
+compilers. This is a small verifiable syntactic precursor to model search;
+it does not turn `View.Models` or a missing witness into a decision.
+One useful fixture is duplicate output demands within an alias class:
+preserve their exact occurrences in each phase before comparing the
+effect equations by their typed support.
