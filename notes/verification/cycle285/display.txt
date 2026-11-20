@@ -1,0 +1,6 @@
+'Yulang.GeneralRebaseDisplayFrame285.source_check' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDisplayFrame285.final_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayFrame285.parent_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayFrame285.child_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayFrame285.parent_finite' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDisplayFrame285.child_finite' depends on axioms: [propext, Classical.choice, Quot.sound]

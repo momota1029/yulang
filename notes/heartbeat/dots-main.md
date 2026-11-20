@@ -2,9 +2,9 @@
 - cycle: 285
 - status: running
 - started: 2026-11-20T00:32:29Z
-- updated: 2026-11-20T00:42:31Z
-- elapsed_min: 10.03
-- activity: 有限の型・row読みを別々に計算。実入れ子出力の正準補完とraw反例、206既定出力の位置読みを検証。
+- updated: 2026-11-20T00:51:18Z
+- elapsed_min: 18.82
+- activity: 復旧して実入れ子出力の最小型座標と正準射影、非葉Displayの有限型検査を独立監査済み。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: bcfbd0ec1
-- resume_hint: 全rows仮定を実fixtureでどこまで外せるか、非葉証拠と全実経路を確認。
+- last_local_commit: 8a66b9f8c
+- resume_hint: 新モジュールは個別で通った。次は実境界の任意割当での往復と追加の回帰を検証する。

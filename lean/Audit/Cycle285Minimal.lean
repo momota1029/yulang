@@ -1,0 +1,9 @@
+import Yulang.GeneralRebaseDepthMinimal285
+
+#print axioms Yulang.GeneralRebaseDepthMinimal285.literal_agreement
+#print axioms Yulang.GeneralRebaseDepthMinimal285.scalar_ne_foo
+#print axioms Yulang.GeneralRebaseDepthMinimal285.scalar_ne_output
+#print axioms Yulang.GeneralRebaseDepthMinimal285.breaks_source
+#print axioms Yulang.GeneralRebaseDepthMinimal285.breaks_raw
+#print axioms Yulang.GeneralRebaseDepthMinimal285.minimal_raw
+#print axioms Yulang.GeneralRebaseDepthMinimal285.minimal_canonical

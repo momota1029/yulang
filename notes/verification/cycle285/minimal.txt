@@ -1,0 +1,7 @@
+'Yulang.GeneralRebaseDepthMinimal285.literal_agreement' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthMinimal285.scalar_ne_foo' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthMinimal285.scalar_ne_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthMinimal285.breaks_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralRebaseDepthMinimal285.breaks_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthMinimal285.minimal_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseDepthMinimal285.minimal_canonical' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,8 @@
+import Yulang.GeneralRebaseDisplayFrame285
+
+#print axioms Yulang.GeneralRebaseDisplayFrame285.source_check
+#print axioms Yulang.GeneralRebaseDisplayFrame285.final_check
+#print axioms Yulang.GeneralRebaseDisplayFrame285.parent_exact
+#print axioms Yulang.GeneralRebaseDisplayFrame285.child_exact
+#print axioms Yulang.GeneralRebaseDisplayFrame285.parent_finite
+#print axioms Yulang.GeneralRebaseDisplayFrame285.child_finite
