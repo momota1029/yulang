@@ -6210,3 +6210,6 @@ import Yulang.GeneralMixedFullControlCertificate306
 import Yulang.GeneralMixedFullControlCompiledQuotient306
 import Yulang.GeneralMixedFullControlDistinctions306
 import Yulang.GeneralMixedFullControlPresentation306
+import Yulang.GeneralMixedCompoundChildEquality307
+import Yulang.GeneralMixedCompoundChildHidden307
+import Yulang.GeneralMixedEqualityExact307
