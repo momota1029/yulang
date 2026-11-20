@@ -20,3 +20,13 @@ real role CST (method-only in the supported extractor) and a synthetic wrapped
 role with an associated output whose value is read by the existing solver.
 Do not claim a Rust parse, an authenticated diagnostic receipt, or a production
 name-resolution environment from either.
+
+Progress: at the archived role `[0]` the actual CST's binding comes from
+`[0,4,2,0]`, not an associated-type declaration. An explicit caller map
+`a → 7` produces a single arity-1 table row with no outputs; an empty name
+map refuses the same clean selected role. The closed synthetic pair uses
+one common role spelling and environment but different associated defaults,
+`'key` versus `char`. Both raw occurrences pass C294 independently. C295
+admits only the designated occurrence and the existing association reader
+observes `int` versus `char` when their receipts are separately issued.
+These are deliberately labeled different kinds of evidence.

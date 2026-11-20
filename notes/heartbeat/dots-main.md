@@ -2,9 +2,9 @@
 - cycle: 295
 - status: running
 - started: 2026-11-20T10:30:00Z
-- updated: 2026-11-20T10:30:32Z
-- elapsed_min: 0.53
-- activity: 統合版指示と294完了を確認、同一ソースに結び付いた role 射影の接続を点検中
+- updated: 2026-11-20T10:37:31Z
+- elapsed_min: 7.52
+- activity: 保存済み role a の一行公開と、合成 Index 二種の既存 reader 結果を確認
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 5f8db0637
-- resume_hint: 以前の公開 tree から開始。Rustの新規実行と保存済み fixture の再演を分ける。
+- last_local_commit: e8b7d0c6d
+- resume_hint: Rustの診断回収・名称環境は外部入力。次は失敗境界と出力発生場所を検証。
