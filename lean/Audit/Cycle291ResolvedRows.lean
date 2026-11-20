@@ -1,0 +1,8 @@
+import Yulang.GeneralSourceMetadataValidation291
+#print axioms Yulang.GeneralSourceMetadataRows291.exclusive
+#print axioms Yulang.GeneralSourceMetadataRows291.outside_constructor
+#print axioms Yulang.GeneralSourceMetadataRows291.outside_primitive
+#print axioms Yulang.GeneralSourceMetadataRows291.outside_invariant
+#print axioms Yulang.GeneralSourceMetadataLookup291.projected
+#print axioms Yulang.GeneralSourceMetadataValidation291.check_exact
+#print axioms Yulang.GeneralSourceMetadataValidation291.checked_primitive

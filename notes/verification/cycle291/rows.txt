@@ -1,0 +1,7 @@
+'Yulang.GeneralSourceMetadataRows291.exclusive' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataRows291.outside_constructor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRows291.outside_primitive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataRows291.outside_invariant' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataLookup291.projected' depends on axioms: [propext]
+'Yulang.GeneralSourceMetadataValidation291.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceMetadataValidation291.checked_primitive' depends on axioms: [propext, Quot.sound]
