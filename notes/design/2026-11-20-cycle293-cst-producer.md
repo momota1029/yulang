@@ -63,3 +63,10 @@ only when token-shaped. Unknown lexical tokens and NestingTooDeep are marked
 conservatively as recovery rather than passed as opaque method content.
 Nothing here resolves user names, parses source text, or supplies a Rust
 serializer already connected to ParsedFile.
+
+For a bounded portable wire reader, the proposed JSON data schema is exact:
+[`"token"`, Rust tag, token text] or [`"node"`, Rust tag, ordered child array].
+The depth limit is a transport resource bound, not part of Yulang grammar.
+Snapshot brand and selected path are explicit outside this data. A parser
+serializer can stream the ordered tags and raw token spellings; no numeric
+role ID belongs in the structure.

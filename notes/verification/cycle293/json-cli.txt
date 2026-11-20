@@ -1,0 +1,8 @@
+documented unresolved role: {"binders":["'container","'key"],"directMembers":[{"body":"required","name":"value","path":[0,6,1,0]},{"kind":"nonType","path":[0,6,3,0]}],"path":[0],"role":"Index"}
+exact named/positional RHS 'char': {"binders":["'container","'key"],"directMembers":[{"body":["unresolvedName","char"],"name":"value","path":[0,6,1,0]},{"kind":"nonType","path":[0,6,3,0]}],"path":[0],"role":"Index"}
+exact named/positional RHS "'key": {"binders":["'container","'key"],"directMembers":[{"body":["binder","'key"],"name":"value","path":[0,6,1,0]},{"kind":"nonType","path":[0,6,3,0]}],"path":[0],"role":"Index"}
+recovered RHS fails; not a required member
+unknown nested tag fails
+wrong mixed child path fails
+extra JSON field fails
+malformed JSON fails

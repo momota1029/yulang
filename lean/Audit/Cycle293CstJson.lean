@@ -1,0 +1,13 @@
+import Yulang.GeneralSourceRoleCstJsonFixture293
+
+#print axioms Yulang.GeneralSourceRoleCstJson293.depth_positive
+#print axioms Yulang.GeneralSourceRoleCstJson293.list_prop
+#print axioms Yulang.GeneralSourceRoleCstJson293.read_exact
+#print axioms Yulang.GeneralSourceRoleCstJsonEntry293.value_exact
+#print axioms Yulang.GeneralSourceRoleCstJsonEntry293.text_exact
+#print axioms Yulang.GeneralSourceRoleCstJsonOrigin293.text_member_origin
+#print axioms Yulang.GeneralSourceRoleCstJsonFixture293.exact_fixture_depth
+#print axioms Yulang.GeneralSourceRoleCstJsonFixture293.wire_at_depth
+#print axioms Yulang.GeneralSourceRoleCstJsonFixture293.shallow_input_declined
+#print axioms Yulang.GeneralSourceRoleCstJsonFixture293.exact_external_boundary
+#print axioms Yulang.GeneralSourceRoleCstJsonFixture293.outer_shape_errors_distinct
