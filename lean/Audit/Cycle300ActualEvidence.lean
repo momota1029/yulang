@@ -1,0 +1,49 @@
+import Yulang.GeneralDepthTwoFrameCarry300
+import Yulang.GeneralDepthTwoTerminalPlan300
+import Yulang.GeneralDepthTwoTerminalFrame300
+import Yulang.GeneralDepthTwoFinalParents300
+import Yulang.GeneralDepthTwoEvidence300
+
+#print axioms Yulang.GeneralDepthTwoFrameCarry300.prepared_carried
+#print axioms Yulang.GeneralDepthTwoFrameCarry300.frame_carried
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.leaf_exact
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.leaf_center
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.leaf_args
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.leaf_input
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.query
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.report_exact
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.bindings_empty
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.children_empty
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.schema_empty
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.ordinary
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.head_schema
+#print axioms Yulang.GeneralDepthTwoTerminalPlan300.holds
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.final_model
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.no_alias_terminal_root
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.source_support
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.terminal_fresh
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.located
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.terminal_role
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.point_bounds
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.linked
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.prepared
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.raw_sites
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.center_sites
+#print axioms Yulang.GeneralDepthTwoTerminalFrame300.frame
+#print axioms Yulang.GeneralDepthTwoFinalParents300.owns_previous_root
+#print axioms Yulang.GeneralDepthTwoFinalParents300.new_atoms
+#print axioms Yulang.GeneralDepthTwoFinalParents300.root_holds
+#print axioms Yulang.GeneralDepthTwoFinalParents300.root_frame
+#print axioms Yulang.GeneralDepthTwoFinalParents300.root_children
+#print axioms Yulang.GeneralDepthTwoFinalParents300.root_instance
+#print axioms Yulang.GeneralDepthTwoFinalParents300.middle_frame
+#print axioms Yulang.GeneralDepthTwoFinalParents300.middle_holds
+#print axioms Yulang.GeneralDepthTwoFinalParents300.middle_children
+#print axioms Yulang.GeneralDepthTwoFinalParents300.middle_instance
+#print axioms Yulang.GeneralDepthTwoEvidence300.terminal_instance
+#print axioms Yulang.GeneralDepthTwoEvidence300.terminal_evidence
+#print axioms Yulang.GeneralDepthTwoEvidence300.middle_evidence
+#print axioms Yulang.GeneralDepthTwoEvidence300.root_evidence
+#print axioms Yulang.GeneralDepthTwoEvidence300.final_models
+#print axioms Yulang.GeneralDepthTwoEvidence300.final_edges
+#print axioms Yulang.GeneralDepthTwoEvidence300.actual_dictionary

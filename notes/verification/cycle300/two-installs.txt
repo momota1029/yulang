@@ -1,0 +1,3 @@
+PASS actual raw edge data grows [] → [outer→inner] → [outer→inner, inner→leaf]
+PASS the exact fixed-source phase machine uses two installs and remaining rank [2,1,0]
+The separate Lean theorem covers every kernel successor of this fixed initial state.

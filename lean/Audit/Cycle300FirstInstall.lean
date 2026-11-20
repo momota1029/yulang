@@ -1,0 +1,45 @@
+import Yulang.GeneralDepthTwoSafety300
+import Yulang.GeneralDepthTwoRootPlan300
+import Yulang.GeneralDepthTwoRootFrame300
+import Yulang.GeneralDepthTwoFirstInstall300
+
+#print axioms Yulang.GeneralDepthTwoSafety300.towers
+#print axioms Yulang.GeneralDepthTwoSafety300.semantic
+#print axioms Yulang.GeneralDepthTwoSafety300.depth_exact
+#print axioms Yulang.GeneralDepthTwoSafety300.raw_edge
+#print axioms Yulang.GeneralDepthTwoSafety300.raw_acyclic
+#print axioms Yulang.GeneralDepthTwoRootPlan300.bindings
+#print axioms Yulang.GeneralDepthTwoRootPlan300.center
+#print axioms Yulang.GeneralDepthTwoRootPlan300.captured
+#print axioms Yulang.GeneralDepthTwoRootPlan300.head_schema
+#print axioms Yulang.GeneralDepthTwoRootPlan300.emitted_schema
+#print axioms Yulang.GeneralDepthTwoRootPlan300.emitted_sites
+#print axioms Yulang.GeneralDepthTwoRootPlan300.child_args
+#print axioms Yulang.GeneralDepthTwoRootPlan300.child_data
+#print axioms Yulang.GeneralDepthTwoRootPlan300.child_schema
+#print axioms Yulang.GeneralDepthTwoRootPlan300.var_actual
+#print axioms Yulang.GeneralDepthTwoRootPlan300.var_bounds
+#print axioms Yulang.GeneralDepthTwoRootPlan300.update_support
+#print axioms Yulang.GeneralDepthTwoRootPlan300.holds
+#print axioms Yulang.GeneralDepthTwoRootFrame300.metadata
+#print axioms Yulang.GeneralDepthTwoRootFrame300.root_known
+#print axioms Yulang.GeneralDepthTwoRootFrame300.root_fresh
+#print axioms Yulang.GeneralDepthTwoRootFrame300.root_located
+#print axioms Yulang.GeneralDepthTwoRootFrame300.prepared
+#print axioms Yulang.GeneralDepthTwoRootFrame300.wrong_failed
+#print axioms Yulang.GeneralDepthTwoRootFrame300.wrong_not_prepared
+#print axioms Yulang.GeneralDepthTwoRootFrame300.frame
+#print axioms Yulang.GeneralDepthTwoRootFrame300.survivor
+#print axioms Yulang.GeneralDepthTwoRootFrame300.unique
+#print axioms Yulang.GeneralDepthTwoRootFrame300.initial_requests
+#print axioms Yulang.GeneralDepthTwoRootFrame300.ready
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.administration
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.safe
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.positions
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.alternatives
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.requests
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.installation
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.enabled
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.actual
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.models
+#print axioms Yulang.GeneralDepthTwoFirstInstall300.actual_middle

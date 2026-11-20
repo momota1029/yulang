@@ -1,0 +1,2 @@
+PASS all three final current effects have the checked IDs and occurrence children
+The proofs distinguish a valid current effect from a novel install; all three effects are already committed.

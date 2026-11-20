@@ -1,0 +1,49 @@
+Standalone Lake lean/Audit/Cycle300ActualEvidence.lean: output identical
+Standalone Lake lean/Audit/Cycle300ExactRun.lean: output identical
+Standalone Lake lean/Audit/Cycle300FirstInstall.lean: output identical
+Standalone Lake lean/Audit/Cycle300SecondInstall.lean: output identical
+Standalone Lake lean/Audit/Cycle300Settled.lean: output identical
+Standalone Lake lean/Audit/Cycle300SourceObserved.lean: output identical
+Lake execution two-installs: output identical
+Lake execution where-read: output identical
+Lake execution phase-data: output identical
+Lake execution current-candidates: output identical
+lean/Audit/Cycle300ActualEvidence.lean: OK
+lean/Audit/Cycle300ExactRun.lean: OK
+lean/Audit/Cycle300FirstInstall.lean: OK
+lean/Audit/Cycle300SecondInstall.lean: OK
+lean/Audit/Cycle300Settled.lean: OK
+lean/Audit/Cycle300SourceObserved.lean: OK
+lean/Yulang.lean: OK
+lean/Yulang/GeneralDepthTwoCenters300.lean: OK
+lean/Yulang/GeneralDepthTwoCertifiedRead300.lean: OK
+lean/Yulang/GeneralDepthTwoEarlyShared300.lean: OK
+lean/Yulang/GeneralDepthTwoEvidence300.lean: OK
+lean/Yulang/GeneralDepthTwoFinalCurrent300.lean: OK
+lean/Yulang/GeneralDepthTwoFinalHalt300.lean: OK
+lean/Yulang/GeneralDepthTwoFinalNodes300.lean: OK
+lean/Yulang/GeneralDepthTwoFinalParents300.lean: OK
+lean/Yulang/GeneralDepthTwoFinalScope300.lean: OK
+lean/Yulang/GeneralDepthTwoFinalSelection300.lean: OK
+lean/Yulang/GeneralDepthTwoFinalSeparators300.lean: OK
+lean/Yulang/GeneralDepthTwoFirstInstall300.lean: OK
+lean/Yulang/GeneralDepthTwoFrameCarry300.lean: OK
+lean/Yulang/GeneralDepthTwoMachine300.lean: OK
+lean/Yulang/GeneralDepthTwoMiddleContext300.lean: OK
+lean/Yulang/GeneralDepthTwoMiddleFrame300.lean: OK
+lean/Yulang/GeneralDepthTwoMiddlePlan300.lean: OK
+lean/Yulang/GeneralDepthTwoObserved300.lean: OK
+lean/Yulang/GeneralDepthTwoOnlyFirst300.lean: OK
+lean/Yulang/GeneralDepthTwoOnlySecond300.lean: OK
+lean/Yulang/GeneralDepthTwoPhaseCut300.lean: OK
+lean/Yulang/GeneralDepthTwoRootAvailability300.lean: OK
+lean/Yulang/GeneralDepthTwoRootFrame300.lean: OK
+lean/Yulang/GeneralDepthTwoRootPlan300.lean: OK
+lean/Yulang/GeneralDepthTwoSafety300.lean: OK
+lean/Yulang/GeneralDepthTwoSecondInstall300.lean: OK
+lean/Yulang/GeneralDepthTwoTerminalFrame300.lean: OK
+lean/Yulang/GeneralDepthTwoTerminalPlan300.lean: OK
+notes/verification/cycle300/run-current-candidates.lean: OK
+notes/verification/cycle300/run-phase-data.lean: OK
+notes/verification/cycle300/run-two-installs.lean: OK
+notes/verification/cycle300/run-where-read.lean: OK
