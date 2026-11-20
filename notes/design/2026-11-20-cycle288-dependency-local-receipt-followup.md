@@ -56,3 +56,14 @@ request checks. An unscoped/stale receipt must not supply a parent fact.
 Then rerun 199–240 diagnostic regressions and the known cycle cases before
 any wider claim. Only after coverage and update preservation can an
 I-49/I-50 measure be justified for source-reachable states.
+
+### A narrow check must still test the V8 guards
+
+The positive receipt can prove the old DecisionGuard by supplying a
+source-supported root read. But the actual pending row-pattern branch
+also passes DecisionGuard: the known nominal root is present and a
+deferred query contributes no nested reads. Its inspection is nonetheless
+pending, with a nonempty model set and no dictionary. Lean's
+`RowDeferredDecisionGuard288.not_a_settlement_criterion` closes this
+counterexample. The proposal retains Frame/prepared, actual completion
+and the V8 guards; an empty read footprint cannot replace them.

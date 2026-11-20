@@ -1,0 +1,10 @@
+'Yulang.GeneralRebaseRowDeferredDecisionGuard288.direct_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralRebaseRowDeferredDecisionGuard288.deferred_query' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowDeferredDecisionGuard288.known_but_deferred' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralRebaseRowDeferredDecisionGuard288.not_a_settlement_criterion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

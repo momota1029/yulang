@@ -20,6 +20,7 @@ instantiate them; no existential placeholder supplies a missing condition.
 | Scoped leaf receipt vs strong whole-context witness | Source-read/local receipt exists after each guarded refresh; ordinary evidence uses full Models only for the ambient conjunct; the unscoped and pre-emission states cannot pass | `RowLeafReceipt288.strong_and_weak_separate/no_foreign_receipt/no_pre_emission_receipt` |
 | Actual V8 diagnosis after arbitrary guarded refresh | Exactly `.selected 0 [.selected 1 []]`, not merely propositional existence of a dictionary | `RowRefreshDiagnostics288.safe/selected_child/exact_tree` |
 | Exact typed dependencies of two actual recorded observations | Opaque child head uses type 0 and row 0 on arbitrary assignments; output mark needs only types 1 and 2 and no private type or ambient row | `RowLeafHeadSupport288.typed_support_minimal`, `RowOutputHeadSupport288.actually_recorded/no_private_or_row_read` |
+| Old matching guard on the opaque leaf and pending contrast | The receipt implies the retained root head is ready; the real row-pattern branch itself also passes the old DecisionGuard because deferred inspection contributes no nested reads. It remains pending with models and no dictionary | `RowLeafDecisionGuard288.actual_guard`, `RowDeferredDecisionGuard288.not_a_settlement_criterion` |
 
 The experiment neither installs a new rule nor changes spec, parser/Rust,
 legacy snapshots, existing module sources, or aggregate termination. The
