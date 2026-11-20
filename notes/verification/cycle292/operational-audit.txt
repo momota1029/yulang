@@ -1,0 +1,14 @@
+'Yulang.GeneralSourceRoleOperationalRead292.assocValue_one_read' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleOperationalRead292.selected_read_congr' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleOperationalRead292.one_read_weaker_than_declared_state' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleOperationalRead292.valid_selected_required_never_omitted' does not depend on any axioms
+'Yulang.GeneralSourceRoleOperationalRead292.resolved_declared_has_compiled_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleOperationalFixture292.old_index_decl_parameter_is_positional' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleOperationalFixture292.parameter_omission_wellformed' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleOperationalFixture292.parameter_default_source' does not depend on any axioms
+'Yulang.GeneralSourceRoleOperationalFixture292.parameter_value_old_total' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSourceRoleOperationalFixture292.scalar_omission_wellformed' depends on axioms: [propext]
