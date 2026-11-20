@@ -1,0 +1,10 @@
+✔ [2701/2703] Built Yulang.GeneralMixedFullControlScheduler306 (3.3s)
+✔ [2702/2703] Built Yulang.GeneralMixedFullControlMinimalRaw306 (1.5s)
+✔ [2703/2703] Built Yulang.GeneralMixedFullControlFinish306 (1.0s)
+Build completed successfully (2703 jobs).
+✔ [2720/2723] Built Yulang.GeneralMixedFullControlModelClasses306 (2.1s)
+✔ [2723/2821] Built Yulang.GeneralMixedFullControlCost306 (1.4s)
+Build completed successfully (2821 jobs).
+✔ [2818/2818] Built Yulang.GeneralMixedFullControlObserver306 (2.6s)
+Build completed successfully (2818 jobs).
+EXIT=0

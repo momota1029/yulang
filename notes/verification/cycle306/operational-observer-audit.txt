@@ -1,0 +1,37 @@
+'Yulang.GeneralMixedFullControlMinimalRaw306.any_raw_bisim_respects_classes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlMinimalRaw306.raw_classes_bisim' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlMinimalRaw306.each_class_reached' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlMinimalRaw306.raw_label_signature' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.exact_targets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.raw_targets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.phase_iff_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.necessary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.key_bisim' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.each_key_reached' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlScheduler306.schedules' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlScheduler306.exact_finishing_lengths' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlFinish306.terminal_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlFinish306.verified_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlFinish306.compiled_route' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlCost306.finishing_lengths' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlObserver306.uniform_bits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlObserver306.exact_diagnostic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlObserver306.exact_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlObserver306.evidence_covers_all_iff_installed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT=0
