@@ -1,0 +1,3 @@
+'Yulang.GeneralDeferredLadderTowerHead303.tower_no_probe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderTowerHead303.structural_not_tower' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderTowerHead303.no_structural_head' depends on axioms: [propext, Quot.sound]
