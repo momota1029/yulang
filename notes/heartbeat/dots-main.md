@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 284
-- status: running
+- status: completed
 - started: 2026-11-19T23:33:14Z
-- updated: 2026-11-20T00:13:17Z
-- elapsed_min: 40.05
-- activity: metadata条件付き全実経路・Eq/SameInputs・範囲内EvidenceAtを保持。実Display全経路、206既定出力のEq、optional回帰を確認。
+- updated: 2026-11-20T00:23:18Z
+- elapsed_min: 50.07
+- activity: 将来の型読みを閉じた watch 更新の厳密性と、実239/240の raw 圧縮限界・6状態相対窓を検証。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 1ccc67597
-- resume_hint: ロックした再検証、実行probe、旧回帰、最終pin照合を行う。
+- last_local_commit: cfa485ed7
+- report: notes/handoff/dots-cycle-284.md
+- resume_hint: 型付き source 由来の将来被覆を、単一変数の正規形を超える非葉・効果ありで証明する。
