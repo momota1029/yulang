@@ -1,0 +1,134 @@
+### Audit/Cycle306ControlCore.lean
+'Yulang.GeneralMixedControlAtoms306.atoms_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedControlAtoms306.install_cache' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlAtoms306.initial_basic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlAtoms306.refresh_basic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlAtoms306.reach_facts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCheckedPromotion306.known_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCheckedPromotion306.certify' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRealize306.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRealize306.exact_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlMask306.seen_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedControlMask306.fire_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedControlBisim306.raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlBisim306.lift_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlBisim306.labelled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlBisim306.unlabelled' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle306ControlLiveness.lean
+'Yulang.GeneralMixedControlLiveness306.label_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlLiveness306.raw_halts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlLiveness306.table' depends on axioms: [propext]
+'Yulang.GeneralMixedControlLiveness306.target_raw_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRank306.raw_rank_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRank306.rank_matches' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRank306.rank_bisim' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRank306.any_bisim_respects_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle306FullControl.lean
+'Yulang.GeneralMixedControlLabels306.any_label_bisim_is_equality' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedControlLabels306.labelled_agreement_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedControlTrace306.route_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlTrace306.length_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlCode306.marker' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlStep306.split' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlStep306.exact_labelled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlUnlabelled306.raw_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlUnlabelled306.raw_class_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteBisimRefinement306.retains' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteBisimRefinement306.descends' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlMinimal306.separated' does not depend on any axioms
+'Yulang.GeneralMixedFullControlMinimal306.each_bisim_respects_classes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlMinimal306.classes_bisim' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlMinimal306.counting_is_not_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedFullControlTrace306.exact_checker' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlTrace306.all_constructible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedPreInstallSigns306.signed_compiler_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedPreInstallSigns306.exact_on_any_prior_path' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+### Audit/Cycle306GenericQuotient.lean
+'Yulang.GeneralFiniteColoredRounds306.stable_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteColoredScore306.drop_count' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteColoredScore306.fixed_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteColoredExact306.bounded_stationary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredExact306.exact_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredTable306.exact_materialized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredEarlyStop306.exact_fast' does not depend on any axioms
+'Yulang.GeneralFiniteColoredEquivalence306.trans_on' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteQuotientRepresentatives306.no_two' depends on axioms: [propext]
+'Yulang.GeneralFiniteColoredQuotient306.representative_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredQuotient306.exact_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredQuotient306.projection_minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredCertificate306.certificate_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteColoredCertificate306.verified_submission_refines_minimum' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralFiniteColoredCycleExample306.cyclic_regression' does not depend on any axioms
+'Yulang.GeneralFiniteColoredCycleExample306.color_distinguishes' does not depend on any axioms
+'Yulang.GeneralFiniteRawPresentation306.raw_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteRawPresentation306.minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteRawPresentation306.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlCompiledQuotient306.executed_counts' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlCertificate306.rejects_count_vs_accepts_class' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlCertificate306.phase_requires_extra_class' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlCertificate306.rejects_incomplete_domain' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlPresentation306.uncolored_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlPresentation306.colored_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle306LadderQuotient.lean
+'Yulang.GeneralLadderCompiledPresentation306.present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledPresentation306.any_bisim_level' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.abstract_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.raw_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.raw_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.exact_count' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledMinimal306.countdown_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledRun306.run_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLadderCompiledRun306.compiled_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+### Audit/Cycle306OperationalObserver.lean
+'Yulang.GeneralMixedFullControlMinimalRaw306.any_raw_bisim_respects_classes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlMinimalRaw306.raw_classes_bisim' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlMinimalRaw306.each_class_reached' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlMinimalRaw306.raw_label_signature' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.exact_targets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.raw_targets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.phase_iff_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.necessary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.key_bisim' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlModelClasses306.each_key_reached' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlScheduler306.schedules' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlScheduler306.exact_finishing_lengths' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlFinish306.terminal_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlFinish306.verified_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlFinish306.compiled_route' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlCost306.finishing_lengths' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlObserver306.uniform_bits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlObserver306.exact_diagnostic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlObserver306.exact_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlObserver306.evidence_covers_all_iff_installed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+### Audit/Cycle306RawDistinctions.lean
+'Yulang.GeneralMixedFullControlDistinctions306.blind_quotient_loses_model_observation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlDistinctions306.same_obligation_count_different_best_raw_length' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXIT=0

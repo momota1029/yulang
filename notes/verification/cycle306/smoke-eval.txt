@@ -1,0 +1,30 @@
+Optional pure Lean execution smoke check (not Rust, not full build):
+lake env lean --trust=0 -DwarningAsError=true /tmp/Yulang306Smoke.lean
+Input:
+import Yulang.GeneralLadderCompiledRun306
+import Yulang.GeneralMixedFullControlDistinctions306
+
+open Yulang
+
+#eval [0, 1, 2, 3, 5, 8, 16].map fun n =>
+  (n, (GeneralLadderCompiledMinimal306.compile n).representatives.length)
+
+#eval (GeneralMixedFullControlCompiledQuotient306.uncolored.representatives.length,
+  GeneralMixedFullControlCompiledQuotient306.colored.representatives.length)
+
+#eval let initial := (⟨false, ⟨false, false⟩⟩ : GeneralMixedFullControlCode306.Code)
+  (GeneralMixedFullControlScheduler306.fast initial, GeneralMixedFullControlScheduler306.slow initial)
+Output:
+[(0, 3), (1, 4), (2, 5), (3, 6), (5, 8), (8, 11), (16, 19)]
+(5, 6)
+([(Yulang.GeneralMixedFullControlCode306.Event.scalar 0,
+   { installed := false, scalars := { zero := true, one := true } }),
+  (Yulang.GeneralMixedFullControlCode306.Event.install,
+   { installed := true, scalars := { zero := true, one := true } })],
+ [(Yulang.GeneralMixedFullControlCode306.Event.scalar 0,
+   { installed := false, scalars := { zero := true, one := false } }),
+  (Yulang.GeneralMixedFullControlCode306.Event.scalar 1,
+   { installed := false, scalars := { zero := true, one := true } }),
+  (Yulang.GeneralMixedFullControlCode306.Event.install,
+   { installed := true, scalars := { zero := true, one := true } })])
+EXIT=0
