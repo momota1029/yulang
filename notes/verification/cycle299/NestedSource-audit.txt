@@ -1,0 +1,35 @@
+'Yulang.GeneralGeneratedNestedSource299.snapshot_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedSource299.initial_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedInitial299.closed_label' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedInitial299.scalar' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedInitial299.one_level' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedInitial299.two_levels' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedInitial299.ground' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedInitial299.initial_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedInitial299.actual_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedInitial299.grounded_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.query' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.root_report' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.middle_report' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.terminal_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.one_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.parent_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.middle_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.terminal_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.middle_bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.terminal_bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedPredictions299.different_occurrences' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralGeneratedNestedInstallInterface299.root_edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralGeneratedNestedInstallInterface299.first_not_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedNestedInstallInterface299.middle_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedNestedInstallInterface299.only_first_edge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedNestedInstallInterface299.second_not_committed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralGeneratedNestedInstallInterface299.cascade' depends on axioms: [propext, Classical.choice, Quot.sound]
