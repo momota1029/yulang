@@ -12,3 +12,8 @@
 'Yulang.GeneralSourceRoleCstCleanBoundary294.branch_iff_ancestor_given_projection' depends on axioms: [propext,
  Quot.sound]
 'Yulang.GeneralSourceRoleCstCleanBoundary294.exact_corridor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCleanMembers294.class_clean' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstCleanMembers294.node_if_clean' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstCleanMembers294.rhs_clean' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstCleanProducer294.body_clean' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstCleanProducer294.reinsert_prefix' depends on axioms: [propext]

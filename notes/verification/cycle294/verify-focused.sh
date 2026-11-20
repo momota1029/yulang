@@ -27,6 +27,8 @@ while IFS= read -r f; do
 done < <(find "$(realpath "$prior/Yulang")" -maxdepth 1 -type f | sort)
 export LEAN_PATH="$scratch:$(lean --print-prefix)/lib/lean"
 opts=(--trust=0 -M 3200 -DwarningAsError=true)
+python3 "$verify/theorem-index.py" >"$scratch/index"
+cmp "$scratch/index" "$verify/theorem-index.md"
 echo "Lean $(lean --version)"
 echo "Base tree: $(git rev-parse "$base^{tree}"); tested data tree: $(git rev-parse 'HEAD^{tree}')."
 count=0

@@ -13,3 +13,8 @@ import Yulang.GeneralSourceRoleCstCleanBoundary294
 #print axioms Yulang.GeneralSourceRoleCstCleanBoundary294.projected_no_selected_marks
 #print axioms Yulang.GeneralSourceRoleCstCleanBoundary294.branch_iff_ancestor_given_projection
 #print axioms Yulang.GeneralSourceRoleCstCleanBoundary294.exact_corridor
+#print axioms Yulang.GeneralSourceRoleCstCleanMembers294.class_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanMembers294.node_if_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanMembers294.rhs_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanProducer294.body_clean
+#print axioms Yulang.GeneralSourceRoleCstCleanProducer294.reinsert_prefix

@@ -21,3 +21,5 @@
 'Yulang.GeneralSourceRoleCstMarkFixture294.unrelated_marks_survive_projection' depends on axioms: [propext]
 'Yulang.GeneralSourceRoleCstMarkFixture294.ancestor_really_blocks_selected_branch' depends on axioms: [propext]
 'Yulang.GeneralSourceRoleCstMarkFixture294.no_marks_not_same_as_valid_address' depends on axioms: [propext]
+'Yulang.GeneralSourceRoleCstMarkPolicy294.whole_implies_branch' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSourceRoleCstMarkReport294.entries_branch_exact' depends on axioms: [propext, Quot.sound]
