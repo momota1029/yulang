@@ -1,0 +1,4 @@
+Archived selected role consumed external versioned array evidence; no total resolver function supplied.
+Missing row, explicit null, and two conflicting rows remain distinct on the wire and in the pipeline.
+Eight malformed versions/forms, bad JSON in either channel, and insufficient CST depth rejected.
+No Rust parser or semantic catalog authority was executed or inferred.

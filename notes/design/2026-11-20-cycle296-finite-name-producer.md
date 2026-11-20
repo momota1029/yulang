@@ -41,3 +41,10 @@ literal entries queried by that successful output. Re-running from
 the shortened, coalesced catalog gives the identical trace and table.
 Among catalogs that produce the same selected resolved row, the
 occurrence trace is determined even if unused observations differ.
+
+For test transport only, use a versioned JSON array of rows, not a
+JSON object keyed by spelling: an object could erase duplicate evidence.
+Each row must decode in place, preserve its typed domain, and distinguish
+explicit null (observed absence) from an omitted row. The entry must
+reject malformed evidence before invoking the existing selected adapter.
+No Rust receipt schema is changed or adopted.
