@@ -1,0 +1,11 @@
+import Yulang.GeneralSourceRoleScopedShell292
+
+#print axioms Yulang.GeneralSourceRoleScopedExport292.lower_exact
+#print axioms Yulang.GeneralSourceRoleScopedExport292.constant_env
+#print axioms Yulang.GeneralSourceRoleScopedRead292.site_exact
+#print axioms Yulang.GeneralSourceRoleScopedFixture292.same_short_names_distinct_scoped_values
+#print axioms Yulang.GeneralSourceRoleScopedFixture292.same_semantic_id_rejected
+#print axioms Yulang.GeneralSourceRoleScopedFixture292.positive_source_scope
+#print axioms Yulang.GeneralSourceRoleScopedShell292.project_exact
+#print axioms Yulang.GeneralSourceRoleScopedShell292.run_exact
+#print axioms Yulang.GeneralSourceRoleScopedShell292.source_scope_exact

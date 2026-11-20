@@ -113,3 +113,14 @@ should not deduplicate recovery or count all necessary members by key alone.
 structural path, ordinal and direct-root ordinal. If needed, associate those
 with ownership in the original traversal; reusing a recovered node's range
 or identity does not turn recovery into a required association.
+
+### A scoped role lookup as an interface, not a language decision
+
+A scoped API can retain the checked bare role table without deciding how Rust
+selects scopes. Attach an arbitrary scope key to each supplied symbolic role
+and give a name-resolution environment for each key. Reuse each role's current
+binder/name checker, then validate the one combined numeric role table. This
+preserves parser-independent ID assignment: two scoped roles with equal short
+names can be tested using distinct independently supplied IDs, but a collision
+in those semantic IDs is still rejected. Neither qualified paths, shadowing,
+imports nor cross-file scope ownership are inferred by the helper.

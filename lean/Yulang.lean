@@ -5772,3 +5772,7 @@ import Yulang.GeneralSourceRoleOperationalRead292
 import Yulang.GeneralSourceRoleOperationalFixture292
 import Yulang.GeneralSourceRoleRawAttach292
 import Yulang.GeneralSourceRoleBinderIndex292
+import Yulang.GeneralSourceRoleScopedExport292
+import Yulang.GeneralSourceRoleScopedRead292
+import Yulang.GeneralSourceRoleScopedFixture292
+import Yulang.GeneralSourceRoleScopedShell292
