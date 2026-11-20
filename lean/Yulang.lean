@@ -5756,3 +5756,10 @@ import Yulang.GeneralSourceRoleSyntaxPipeline292
 import Yulang.GeneralSourceRoleSyntaxFixture292
 import Yulang.GeneralSourceRoleChildCoverage292
 import Yulang.GeneralSourceRoleAssocRead292
+import Yulang.GeneralSourceRoleAttach292
+import Yulang.GeneralSourceRoleActualAttach292
+import Yulang.GeneralSourceRoleLocalEnv292
+import Yulang.GeneralSourceRoleEnvCheck292
+import Yulang.GeneralSourceRoleEnvExact292
+import Yulang.GeneralSourceRoleCoveredShell292
+import Yulang.GeneralSourceRoleEnvFixture292
