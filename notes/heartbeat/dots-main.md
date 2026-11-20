@@ -1,10 +1,10 @@
 # dots-main heartbeat
 - cycle: 301
-- status: running
+- status: completed
 - started: 2026-11-20T16:30:32Z
-- updated: 2026-11-20T17:10:32Z
-- elapsed_min: 40.00
-- activity: 同じモデルでも読み取りが異なる旧 source に、実 refresh→全据付→辞書を証明。独立再検証中
-- workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: fb514c6c72
-- resume_hint: 2026-11-20 17:25 UTC上限。3実行回帰、全宣言監査、凍結差分と公開バイトを照合する。
+- updated: 2026-11-20T17:20:37Z
+- elapsed_min: 50.08
+- activity: 任意正深さの実 raw 据付と厳密停止、実 journal compiler、旧 source の strict refresh 経路を検証
+- last_local_commit: c7d4ee5ebe
+- report: notes/handoff/dots-cycle-301.md
+- resume_hint: 次周は統合 standing orders と inbox を再読。同じ入力 ID を使う異なる実 occurrence へ証明付き索引を広げる。既観測の厳密停止と旧 equation-only の refresh-first 存在経路を区別。
