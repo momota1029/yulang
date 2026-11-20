@@ -1,0 +1,36 @@
+import Yulang.GeneralDepthTwoEarlyShared300
+import Yulang.GeneralDepthTwoOnlyFirst300
+import Yulang.GeneralDepthTwoOnlySecond300
+import Yulang.GeneralDepthTwoMachine300
+import Yulang.GeneralDepthTwoRootAvailability300
+
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.headless_transfer
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.equality_transfer
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.headless_initial
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.headless_after
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.equality_initial
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.equality_after
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.closed_initial
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.closed_after
+#print axioms Yulang.GeneralDepthTwoEarlyShared300.same_effect
+#print axioms Yulang.GeneralDepthTwoOnlyFirst300.phase_frame
+#print axioms Yulang.GeneralDepthTwoOnlyFirst300.only_effect
+#print axioms Yulang.GeneralDepthTwoOnlyFirst300.generated_initial
+#print axioms Yulang.GeneralDepthTwoOnlyFirst300.only_step
+#print axioms Yulang.GeneralDepthTwoOnlyFirst300.exact_first
+#print axioms Yulang.GeneralDepthTwoOnlySecond300.after_scope
+#print axioms Yulang.GeneralDepthTwoOnlySecond300.recorded
+#print axioms Yulang.GeneralDepthTwoOnlySecond300.wrong_root
+#print axioms Yulang.GeneralDepthTwoOnlySecond300.root_frame
+#print axioms Yulang.GeneralDepthTwoOnlySecond300.only_step
+#print axioms Yulang.GeneralDepthTwoOnlySecond300.exact_second
+#print axioms Yulang.GeneralDepthTwoMachine300.distinct
+#print axioms Yulang.GeneralDepthTwoMachine300.exact_step
+#print axioms Yulang.GeneralDepthTwoMachine300.generate_next
+#print axioms Yulang.GeneralDepthTwoMachine300.phases_complete
+#print axioms Yulang.GeneralDepthTwoMachine300.remaining_decreases
+#print axioms Yulang.GeneralDepthTwoMachine300.source_accessible
+#print axioms Yulang.GeneralDepthTwoRootAvailability300.initial_middle_absent
+#print axioms Yulang.GeneralDepthTwoRootAvailability300.initial_root_absent
+#print axioms Yulang.GeneralDepthTwoRootAvailability300.after_root_absent
+#print axioms Yulang.GeneralDepthTwoRootAvailability300.exact_availability

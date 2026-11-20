@@ -1,0 +1,2 @@
+PASS the terminal frame's raw occurrence is absent before the second install
+PASS structural refresh with the later context does not reproduce either install's edge change

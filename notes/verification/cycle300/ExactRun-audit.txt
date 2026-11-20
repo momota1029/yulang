@@ -1,0 +1,36 @@
+'Yulang.GeneralDepthTwoEarlyShared300.headless_transfer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoEarlyShared300.equality_transfer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoEarlyShared300.headless_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoEarlyShared300.headless_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoEarlyShared300.equality_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoEarlyShared300.equality_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoEarlyShared300.closed_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoEarlyShared300.closed_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoEarlyShared300.same_effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlyFirst300.phase_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlyFirst300.only_effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlyFirst300.generated_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlyFirst300.only_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlyFirst300.exact_first' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlySecond300.after_scope' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlySecond300.recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlySecond300.wrong_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlySecond300.root_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlySecond300.only_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoOnlySecond300.exact_second' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoMachine300.distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoMachine300.exact_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoMachine300.generate_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoMachine300.phases_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoMachine300.remaining_decreases' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoMachine300.source_accessible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoRootAvailability300.initial_middle_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDepthTwoRootAvailability300.initial_root_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDepthTwoRootAvailability300.after_root_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDepthTwoRootAvailability300.exact_availability' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
