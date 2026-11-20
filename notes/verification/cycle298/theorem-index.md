@@ -305,6 +305,30 @@ theorem Yulang.GeneralRebasePackedDepthDecision298.exact_answer (sign : Sign) :
 ```
 
 
+## lean/Yulang/GeneralRebasePackedNodeCompose298.lean
+
+```lean
+theorem Yulang.GeneralRebasePackedNodeCompose298.no_second_raw_step (next : State roles) : ¬ (boundary roles).Step registry displayRoot after next
+```
+
+```lean
+theorem Yulang.GeneralRebasePackedNodeCompose298.child_of_answer (v : Vector footprint) (fallback : Assignment)
+    (valid : Models after (complete v fallback)) :
+    (boundary roles).Evidence registry after (complete v fallback) displayChild (.node 3 [])
+```
+
+```lean
+theorem Yulang.GeneralRebasePackedNodeCompose298.parent_of_answer (v : Vector footprint) (fallback : Assignment)
+    (valid : Models after (complete v fallback)) :
+    (boundary roles).Evidence registry after (complete v fallback) displayRoot (.node 1 [.node 3 []])
+```
+
+```lean
+theorem Yulang.GeneralRebasePackedNodeCompose298.supplied_model_composes (fallback : Assignment) :
+    let v
+```
+
+
 ## lean/Yulang/GeneralRebasePackedNonleaf298.lean
 
 ```lean
@@ -1088,4 +1112,4 @@ theorem Yulang.GeneralRebaseWeakWindowLegacy298.empty_but_divergent (checked : (
       ¬ Acc (fun next prev => Step registry root prev next) (installed 0)
 ```
 
-Indexed 168 theorem declarations. Each has one standalone audit.
+Indexed 172 theorem declarations. Each has one standalone audit.

@@ -1,0 +1,6 @@
+import Yulang.GeneralRebasePackedNodeCompose298
+
+#print axioms Yulang.GeneralRebasePackedNodeCompose298.no_second_raw_step
+#print axioms Yulang.GeneralRebasePackedNodeCompose298.child_of_answer
+#print axioms Yulang.GeneralRebasePackedNodeCompose298.parent_of_answer
+#print axioms Yulang.GeneralRebasePackedNodeCompose298.supplied_model_composes
