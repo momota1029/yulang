@@ -1,0 +1,2 @@
+'Yulang.GeneralDeferredLadderTowerModel303.edge_decreases' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderTowerModel303.raw_acyclic' depends on axioms: [propext, Quot.sound]

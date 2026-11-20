@@ -1,10 +1,11 @@
 # dots-main heartbeat
-- cycle: 301
+- cycle: 303
 - status: completed
-- started: 2026-11-20T16:30:32Z
-- updated: 2026-11-20T17:20:37Z
-- elapsed_min: 50.08
-- activity: 任意正深さの実 raw 据付と厳密停止、実 journal compiler、旧 source の strict refresh 経路を検証
-- last_local_commit: c7d4ee5ebe
-- report: notes/handoff/dots-cycle-301.md
-- resume_hint: 次周は統合 standing orders と inbox を再読。同じ入力 ID を使う異なる実 occurrence へ証明付き索引を広げる。既観測の厳密停止と旧 equation-only の refresh-first 存在経路を区別。
+- started: 2026-11-20T18:31:06Z
+- updated: 2026-11-20T19:20:00.708Z
+- elapsed_min: 48
+- activity: 12 の Lean モジュール、33 宣言の独立監査。公開済み33ファイルの blob ID を検証済み版と照合した。
+- workspace: /workspace/scratch/1d0b4aaa3394/yulang
+- last_local_commit: fe51a9275
+- resume_hint: 任意の早期 refresh 後、最初の実際の raw Step の存在・分類を検証する。未検証草稿は公開していない。
+- report: notes/handoff/dots-cycle-303.md

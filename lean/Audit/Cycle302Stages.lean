@@ -1,0 +1,57 @@
+import Yulang.GeneralDeferredLadderLedger302
+import Yulang.GeneralDeferredLadderStage302
+import Yulang.GeneralDeferredLadderEnabled302
+import Yulang.GeneralDeferredLadderAdvance302
+import Yulang.GeneralDeferredLadderRefresh302
+
+#print axioms Yulang.GeneralDeferredLadderLedger302.stage_held
+#print axioms Yulang.GeneralDeferredLadderLedger302.stage_bindings
+#print axioms Yulang.GeneralDeferredLadderLedger302.stage_atoms
+#print axioms Yulang.GeneralDeferredLadderLedger302.stage_atom_models
+#print axioms Yulang.GeneralDeferredLadderLedger302.stage_supported
+#print axioms Yulang.GeneralDeferredLadderLedger302.support
+#print axioms Yulang.GeneralDeferredLadderLedger302.fresh
+#print axioms Yulang.GeneralDeferredLadderStage302.model
+#print axioms Yulang.GeneralDeferredLadderStage302.metadata
+#print axioms Yulang.GeneralDeferredLadderStage302.located
+#print axioms Yulang.GeneralDeferredLadderStage302.linked
+#print axioms Yulang.GeneralDeferredLadderStage302.known
+#print axioms Yulang.GeneralDeferredLadderStage302.finished_iff
+#print axioms Yulang.GeneralDeferredLadderStage302.list_prepared
+#print axioms Yulang.GeneralDeferredLadderStage302.wrong_int
+#print axioms Yulang.GeneralDeferredLadderStage302.no_int
+#print axioms Yulang.GeneralDeferredLadderStage302.stage_emits
+#print axioms Yulang.GeneralDeferredLadderStage302.stage_children
+#print axioms Yulang.GeneralDeferredLadderStage302.unique
+#print axioms Yulang.GeneralDeferredLadderStage302.center_recorded
+#print axioms Yulang.GeneralDeferredLadderStage302.raw_recorded
+#print axioms Yulang.GeneralDeferredLadderStage302.frame
+#print axioms Yulang.GeneralDeferredLadderStage302.raw_is
+#print axioms Yulang.GeneralDeferredLadderStage302.current_requests
+#print axioms Yulang.GeneralDeferredLadderEnabled302.separates
+#print axioms Yulang.GeneralDeferredLadderEnabled302.administrative
+#print axioms Yulang.GeneralDeferredLadderEnabled302.safe
+#print axioms Yulang.GeneralDeferredLadderEnabled302.positions
+#print axioms Yulang.GeneralDeferredLadderEnabled302.alternatives
+#print axioms Yulang.GeneralDeferredLadderEnabled302.future_requests
+#print axioms Yulang.GeneralDeferredLadderEnabled302.ready
+#print axioms Yulang.GeneralDeferredLadderEnabled302.installation
+#print axioms Yulang.GeneralDeferredLadderEnabled302.enabled
+#print axioms Yulang.GeneralDeferredLadderEnabled302.not_committed
+#print axioms Yulang.GeneralDeferredLadderEnabled302.actual
+#print axioms Yulang.GeneralDeferredLadderAdvance302.reserved_exact
+#print axioms Yulang.GeneralDeferredLadderAdvance302.env_exact
+#print axioms Yulang.GeneralDeferredLadderAdvance302.edge_single
+#print axioms Yulang.GeneralDeferredLadderAdvance302.new_models
+#print axioms Yulang.GeneralDeferredLadderAdvance302.phase_step
+#print axioms Yulang.GeneralDeferredLadderAdvance302.path
+#print axioms Yulang.GeneralDeferredLadderAdvance302.terminal_reached
+#print axioms Yulang.GeneralDeferredLadderRefresh302.same_models
+#print axioms Yulang.GeneralDeferredLadderRefresh302.cache
+#print axioms Yulang.GeneralDeferredLadderRefresh302.tracked_terminal
+#print axioms Yulang.GeneralDeferredLadderRefresh302.unknown
+#print axioms Yulang.GeneralDeferredLadderRefresh302.strict
+#print axioms Yulang.GeneralDeferredLadderRefresh302.actual
+#print axioms Yulang.GeneralDeferredLadderRefresh302.retained_models
+#print axioms Yulang.GeneralDeferredLadderRefresh302.promoted_context_eq
+#print axioms Yulang.GeneralDeferredLadderRefresh302.generated_preserved

@@ -1,0 +1,16 @@
+'Yulang.GeneralDeferredLadderBranch302.padding_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.variant_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.variant_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.variant_cache' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.promotion' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.length' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.injective' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.models_preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderBranch302.infinite_successors' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRefreshHead302.int_test' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderRefreshHead302.scalar_witness' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderRefreshHead302.terminal_scalar' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderRefreshHead302.terminal_has_no_nominal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

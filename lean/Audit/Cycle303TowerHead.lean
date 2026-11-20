@@ -1,0 +1,5 @@
+import Yulang.GeneralDeferredLadderTowerHead303
+
+#print axioms Yulang.GeneralDeferredLadderTowerHead303.tower_no_probe
+#print axioms Yulang.GeneralDeferredLadderTowerHead303.structural_not_tower
+#print axioms Yulang.GeneralDeferredLadderTowerHead303.no_structural_head

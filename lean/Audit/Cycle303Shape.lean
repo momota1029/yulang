@@ -1,0 +1,5 @@
+import Yulang.GeneralDeferredLadderShape303
+
+#print axioms Yulang.GeneralDeferredLadderShape303.nominal_projection
+#print axioms Yulang.GeneralDeferredLadderShape303.path_rank
+#print axioms Yulang.GeneralDeferredLadderShape303.raw_acyclic

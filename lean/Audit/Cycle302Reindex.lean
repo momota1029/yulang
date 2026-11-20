@@ -1,0 +1,52 @@
+import Yulang.GeneralDeferredLadderTransport302
+import Yulang.GeneralDeferredLadderRetargetData302
+import Yulang.GeneralDeferredLadderRetargetFrames302
+import Yulang.GeneralDeferredLadderUniversalLeaf302
+
+#print axioms Yulang.GeneralDeferredLadderTransport302.capture_seed
+#print axioms Yulang.GeneralDeferredLadderTransport302.frame_eq
+#print axioms Yulang.GeneralDeferredLadderTransport302.capture_eq
+#print axioms Yulang.GeneralDeferredLadderTransport302.binder_eq
+#print axioms Yulang.GeneralDeferredLadderTransport302.variables_eq
+#print axioms Yulang.GeneralDeferredLadderTransport302.children_eq
+#print axioms Yulang.GeneralDeferredLadderTransport302.child_eq
+#print axioms Yulang.GeneralDeferredLadderTransport302.emitted_eq
+#print axioms Yulang.GeneralDeferredLadderTransport302.ordinary_iff
+#print axioms Yulang.GeneralDeferredLadderTransport302.inputs_iff
+#print axioms Yulang.GeneralDeferredLadderTransport302.held_of_reindex
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.id
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.recorded
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.argument_exact
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.list_report
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.wrong_int
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.scalar_report
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.wrong_list
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.list_erasure
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.int_erasure
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.list_same
+#print axioms Yulang.GeneralDeferredLadderRetargetData302.scalar_same
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.metadata
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.linked
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.reference_models
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.list_held
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.int_held
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.list_fresh
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.int_fresh
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.list_prepared
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.int_prepared
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.raw_recorded
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.center_recorded
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.list_frame
+#print axioms Yulang.GeneralDeferredLadderRetargetFrames302.int_frame
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.requests
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.list_children
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.int_children
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.frame_compare
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.list_only
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.int_only
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.committed
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.halted
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.list_instance
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.int_instance
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.evidence
+#print axioms Yulang.GeneralDeferredLadderUniversalLeaf302.every_delayed_promotion_completes

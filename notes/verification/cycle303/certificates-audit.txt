@@ -1,0 +1,11 @@
+'Yulang.GeneralDeferredLadderWiderView303.widenedHead' does not depend on any axioms
+'Yulang.GeneralDeferredLadderWiderView303.widened_term' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderView303.widened_node' does not depend on any axioms
+'Yulang.GeneralDeferredLadderWiderView303.same_graph' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderView303.known_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderView303.recorded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderView303.widen_refines' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderRefresh303.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderRefresh303.known' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderWiderRefresh303.nontrivial' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderInstalledCert303.lift_install' depends on axioms: [propext, Classical.choice, Quot.sound]

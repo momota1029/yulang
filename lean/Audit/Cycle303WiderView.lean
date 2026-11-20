@@ -1,0 +1,9 @@
+import Yulang.GeneralDeferredLadderWiderView303
+
+#print axioms Yulang.GeneralDeferredLadderWiderView303.widenedHead
+#print axioms Yulang.GeneralDeferredLadderWiderView303.widened_term
+#print axioms Yulang.GeneralDeferredLadderWiderView303.widened_node
+#print axioms Yulang.GeneralDeferredLadderWiderView303.same_graph
+#print axioms Yulang.GeneralDeferredLadderWiderView303.known_iff
+#print axioms Yulang.GeneralDeferredLadderWiderView303.recorded
+#print axioms Yulang.GeneralDeferredLadderWiderView303.widen_refines

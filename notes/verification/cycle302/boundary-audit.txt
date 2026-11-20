@@ -1,0 +1,53 @@
+'Yulang.GeneralDeferredLadderAfterPromotion302.all_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAfterPromotion302.headless' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAfterPromotion302.equality_closed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderAfterPromotion302.point_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAfterPromotion302.same_lists' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAfterPromotion302.reverse_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderAfterPromotion302.after_only_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.query_list' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.query_int' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.promotion_metadata' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.location' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.probe_exact_list' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.probe_list_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.probe_scalar_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.promoted_raw_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderReindexed302.promoted_attachment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.receipt_of_entry' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.receipt_of_no_entry' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.nominal_probe_before' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.scalar_probe_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.raw_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.attached_edge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.nominal_receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.scalar_receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.unavailable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.certified_promotion_table' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderCompiler302.delayed_compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAvailability302.not_recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderAvailability302.unobserved_empty' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderAvailability302.no_root_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderFirstPromotion302.trace_split' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeferredLadderFirstPromotion302.necessary_for_halt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeferredLadderFirstPromotion302.necessary_for_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

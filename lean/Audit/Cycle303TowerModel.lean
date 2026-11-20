@@ -1,0 +1,4 @@
+import Yulang.GeneralDeferredLadderTowerModel303
+
+#print axioms Yulang.GeneralDeferredLadderTowerModel303.edge_decreases
+#print axioms Yulang.GeneralDeferredLadderTowerModel303.raw_acyclic
