@@ -5954,3 +5954,7 @@ import Yulang.GeneralRebaseQuestionFootprint298
 import Yulang.GeneralRebasePackedAnswers298
 import Yulang.GeneralRebasePackedSource298
 import Yulang.GeneralRebasePackedRowFixture298
+import Yulang.GeneralRebaseRefreshSafety298
+import Yulang.GeneralRebaseRefreshCode298
+import Yulang.GeneralRebaseRefreshInstall298
+import Yulang.GeneralRebaseRefreshPayload298
