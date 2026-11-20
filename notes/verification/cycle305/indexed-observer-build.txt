@@ -1,0 +1,6 @@
+✔ [2468/2469] Built Yulang.GeneralMixedIndexedDiagnosticLocal305 (2.7s)
+✔ [2469/2469] Built Yulang.GeneralMixedReindexObserver305 (3.1s)
+Build completed successfully (2469 jobs).
+EXIT=0
+✔ [2464/2464] Built Yulang.GeneralMixedIndexedEvidence305 (2.1s)
+Build completed successfully (2464 jobs).

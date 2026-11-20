@@ -1,0 +1,6 @@
+import Yulang.GeneralMixedIndexedFrame305
+
+#print axioms Yulang.GeneralMixedIndexedFrame305.relocated_frame
+#print axioms Yulang.GeneralMixedIndexedFrame305.relocated_same
+#print axioms Yulang.GeneralMixedIndexedFrame305.inspection_move
+#print axioms Yulang.GeneralMixedIndexedFrame305.inspected_tests

@@ -1,0 +1,9 @@
+import Yulang.GeneralNominalK2Coordinates305
+
+#print axioms Yulang.GeneralNominalInverseCoordinates305.reverse
+#print axioms Yulang.GeneralNominalK2CoordinateEdges305.structural_forward
+#print axioms Yulang.GeneralNominalK2CoordinateEdges305.direct_argument_forward
+#print axioms Yulang.GeneralNominalK2CoordinateEdges305.actual_argument_forward
+#print axioms Yulang.GeneralNominalK2CoordinateEdges305.recurs_iff
+#print axioms Yulang.GeneralNominalK2Coordinates305.root_iff
+#print axioms Yulang.GeneralNominalK2Coordinates305.candidate_iff
