@@ -1,0 +1,3 @@
+import Yulang.GeneralDeferredLadderInstalledCert303
+
+#print axioms Yulang.GeneralDeferredLadderInstalledCert303.lift_install

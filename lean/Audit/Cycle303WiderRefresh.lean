@@ -1,0 +1,5 @@
+import Yulang.GeneralDeferredLadderWiderRefresh303
+
+#print axioms Yulang.GeneralDeferredLadderWiderRefresh303.certificate
+#print axioms Yulang.GeneralDeferredLadderWiderRefresh303.known
+#print axioms Yulang.GeneralDeferredLadderWiderRefresh303.nontrivial
