@@ -1,0 +1,39 @@
+import Yulang.GeneralWhereOriginRealInstall318
+import Yulang.GeneralWhereOriginReceipt318
+import Yulang.GeneralWhereOriginReservation318
+import Yulang.GeneralWhereOriginSchema318
+import Yulang.GeneralWhereOriginShadow318
+import Yulang.GeneralWhereOriginSingleCells318
+import Yulang.GeneralWhereOriginSingleCommon318
+
+#print axioms Yulang.GeneralWhereOriginRealInstall318.all_fresh
+#print axioms Yulang.GeneralWhereOriginRealInstall318.scoped_reads
+#print axioms Yulang.GeneralWhereOriginRealInstall318.source_sound
+#print axioms Yulang.GeneralWhereOriginRealInstall318.no_child_outputs
+#print axioms Yulang.GeneralWhereOriginRealInstall318.executed
+#print axioms Yulang.GeneralWhereOriginReceipt318.exact_receipt
+#print axioms Yulang.GeneralWhereOriginReservation318.recorded_target
+#print axioms Yulang.GeneralWhereOriginReservation318.cannot_write_after_record
+#print axioms Yulang.GeneralWhereOriginReservation318.placed_slot
+#print axioms Yulang.GeneralWhereOriginSchema318.row_ext
+#print axioms Yulang.GeneralWhereOriginSchema318.from_input
+#print axioms Yulang.GeneralWhereOriginSchema318.exact_schema
+#print axioms Yulang.GeneralWhereOriginShadow318.argument_fits_of_span
+#print axioms Yulang.GeneralWhereOriginShadow318.equivalent_span
+#print axioms Yulang.GeneralWhereOriginShadow318.shadow_span
+#print axioms Yulang.GeneralWhereOriginShadow318.checked_shadow_example
+#print axioms Yulang.GeneralWhereOriginShadow318.raw_read_not_needed
+#print axioms Yulang.GeneralWhereOriginSingleCells318.lower_moves
+#print axioms Yulang.GeneralWhereOriginSingleCells318.upper_kept
+#print axioms Yulang.GeneralWhereOriginSingleCells318.exact_old
+#print axioms Yulang.GeneralWhereOriginSingleCells318.exact_new
+#print axioms Yulang.GeneralWhereOriginSingleCells318.same_child_identity
+#print axioms Yulang.GeneralWhereOriginSingleCells318.unique_endpoint
+#print axioms Yulang.GeneralWhereOriginSingleCommon318.recorded_lo
+#print axioms Yulang.GeneralWhereOriginSingleCommon318.recorded_hi
+#print axioms Yulang.GeneralWhereOriginSingleCommon318.raw_agree_old
+#print axioms Yulang.GeneralWhereOriginSingleCommon318.raw_agree_new
+#print axioms Yulang.GeneralWhereOriginSingleCommon318.retains_rows
+#print axioms Yulang.GeneralWhereOriginSingleCommon318.current_rows
+#print axioms Yulang.GeneralWhereOriginSingleCommon318.common
+#print axioms Yulang.GeneralWhereOriginSingleCommon318.nonvacuous

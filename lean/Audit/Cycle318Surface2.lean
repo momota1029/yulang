@@ -1,0 +1,30 @@
+import Yulang.GeneralWhereOriginConfig318
+import Yulang.GeneralWhereOriginCurrent318
+import Yulang.GeneralWhereOriginDelta318
+import Yulang.GeneralWhereOriginDescriptor318
+import Yulang.GeneralWhereOriginEnumerate318
+import Yulang.GeneralWhereOriginFixture318
+import Yulang.GeneralWhereOriginFixtureCut318
+
+#print axioms Yulang.GeneralWhereOriginConfig318.step_config
+#print axioms Yulang.GeneralWhereOriginConfig318.fresh_record_context
+#print axioms Yulang.GeneralWhereOriginConfig318.history_config
+#print axioms Yulang.GeneralWhereOriginConfig318.already_holds
+#print axioms Yulang.GeneralWhereOriginCurrent318.reread_holds
+#print axioms Yulang.GeneralWhereOriginCurrent318.current_output
+#print axioms Yulang.GeneralWhereOriginDelta318.Cell.written
+#print axioms Yulang.GeneralWhereOriginDelta318.Cell.high
+#print axioms Yulang.GeneralWhereOriginDelta318.prior_lookup
+#print axioms Yulang.GeneralWhereOriginDescriptor318.argument
+#print axioms Yulang.GeneralWhereOriginEnumerate318.compound_iff
+#print axioms Yulang.GeneralWhereOriginEnumerate318.slot_exact
+#print axioms Yulang.GeneralWhereOriginEnumerate318.includes
+#print axioms Yulang.GeneralWhereOriginFixture318.initial_trace
+#print axioms Yulang.GeneralWhereOriginFixture318.actual_trace
+#print axioms Yulang.GeneralWhereOriginFixture318.authoritative_config
+#print axioms Yulang.GeneralWhereOriginFixtureCut318.legacy_cut
+#print axioms Yulang.GeneralWhereOriginFixtureCut318.private_cut
+#print axioms Yulang.GeneralWhereOriginFixtureCut318.captures_cut
+#print axioms Yulang.GeneralWhereOriginFixtureCut318.actual_cut
+#print axioms Yulang.GeneralWhereOriginFixtureCut318.child_cut
+#print axioms Yulang.GeneralWhereOriginFixtureCut318.current_guard

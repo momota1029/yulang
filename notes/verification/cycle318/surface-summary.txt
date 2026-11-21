@@ -1,0 +1,3 @@
+136 unique declarations checked in standalone axiom audits.
+Observed only propext, Classical.choice, and Quot.sound.
+exit=0
