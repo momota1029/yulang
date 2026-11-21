@@ -1,0 +1,7 @@
+'Yulang.GeneralDeclarativeOpaqueFixtureProbe328.no_cycles' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeOpaqueFixtureFrame328.child_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueFixtureResolve328.certified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueFixtureModels328.actual_reads' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeOpaqueFixtureModels328.exact_opaque_fixture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

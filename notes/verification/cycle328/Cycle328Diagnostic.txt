@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeOpaqueDiagnostic328.conservative' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueDiagnostic328.old_acyclic' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeOpaqueDiagnostic328.becomes_cycle' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeOpaqueDiagnostic328.separates' depends on axioms: [propext, Quot.sound]

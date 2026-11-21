@@ -1,0 +1,53 @@
+C328 scope and pinned-source integrity:
+Previous handoff: e53f11afe3fe80f4ab90980c39040f93730e5592
+Proof pin: 085558056ae2bcd0f3d42496e8288c27b85c1a2d; 46 exact source/early paths and 1 heartbeat, no extraneous paths.
+Lean 4.35.0; focused scope only, no full umbrella or Rust execution.
+All additions imported in the same change in lean/Yulang.lean; all standalone audits import only Yulang modules.
+I-57 successor remote metadata, protected bodies not fetched or written:
+lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+13	0	lean/Audit/Cycle328Batch.lean
+57	0	lean/Audit/Cycle328Crosscheck.lean
+6	0	lean/Audit/Cycle328Diagnostic.lean
+7	0	lean/Audit/Cycle328Fixture.lean
+7	0	lean/Audit/Cycle328Mixed.lean
+9	0	lean/Audit/Cycle328Names.lean
+10	0	lean/Audit/Cycle328Nested.lean
+6	0	lean/Audit/Cycle328Opaque.lean
+5	0	lean/Audit/Cycle328RepeatCut.lean
+35	0	lean/Yulang.lean
+90	0	lean/Yulang/GeneralDeclarativeNestedBatch328.lean
+88	0	lean/Yulang/GeneralDeclarativeNestedDecl328.lean
+54	0	lean/Yulang/GeneralDeclarativeNestedFrame328.lean
+103	0	lean/Yulang/GeneralDeclarativeNestedModels328.lean
+114	0	lean/Yulang/GeneralDeclarativeNestedProbe328.lean
+64	0	lean/Yulang/GeneralDeclarativeNestedResolve328.lean
+99	0	lean/Yulang/GeneralDeclarativeNestedState328.lean
+82	0	lean/Yulang/GeneralDeclarativeOpaqueAuditGraph328.lean
+125	0	lean/Yulang/GeneralDeclarativeOpaqueAuthority328.lean
+116	0	lean/Yulang/GeneralDeclarativeOpaqueBatch328.lean
+74	0	lean/Yulang/GeneralDeclarativeOpaqueCapture328.lean
+77	0	lean/Yulang/GeneralDeclarativeOpaqueChannel328.lean
+204	0	lean/Yulang/GeneralDeclarativeOpaqueCompress328.lean
+77	0	lean/Yulang/GeneralDeclarativeOpaqueConserve328.lean
+124	0	lean/Yulang/GeneralDeclarativeOpaqueDiagnostic328.lean
+77	0	lean/Yulang/GeneralDeclarativeOpaqueFixture328.lean
+53	0	lean/Yulang/GeneralDeclarativeOpaqueFixtureFrame328.lean
+87	0	lean/Yulang/GeneralDeclarativeOpaqueFixtureModels328.lean
+103	0	lean/Yulang/GeneralDeclarativeOpaqueFixtureProbe328.lean
+64	0	lean/Yulang/GeneralDeclarativeOpaqueFixtureResolve328.lean
+86	0	lean/Yulang/GeneralDeclarativeOpaqueGraph328.lean
+69	0	lean/Yulang/GeneralDeclarativeOpaqueGroup328.lean
+84	0	lean/Yulang/GeneralDeclarativeOpaqueIntervals328.lean
+99	0	lean/Yulang/GeneralDeclarativeOpaqueNames328.lean
+108	0	lean/Yulang/GeneralDeclarativeOpaqueNested328.lean
+52	0	lean/Yulang/GeneralDeclarativeOpaqueNominal328.lean
+108	0	lean/Yulang/GeneralDeclarativeOpaquePair328.lean
+98	0	lean/Yulang/GeneralDeclarativeOpaquePlan328.lean
+43	0	lean/Yulang/GeneralDeclarativeOpaquePrecision328.lean
+70	0	lean/Yulang/GeneralDeclarativeOpaqueRepeatCut328.lean
+108	0	lean/Yulang/GeneralDeclarativeOpaqueShared328.lean
+86	0	lean/Yulang/GeneralDeclarativeOpaqueSingle328.lean
+63	0	lean/Yulang/GeneralDeclarativeOpaqueTrace328.lean
+115	0	lean/Yulang/GeneralDeclarativeOpaqueVariant328.lean
+134	0	lean/Yulang/GeneralDeclarativeOpaqueVariantNames328.lean

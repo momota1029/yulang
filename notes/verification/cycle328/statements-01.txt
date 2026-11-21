@@ -1,0 +1,170 @@
+    d.role = Yulang.GeneralDeclarativeNestedDecl328.root.role → d = Yulang.GeneralDeclarativeNestedDecl328.impl
+Yulang.GeneralDeclarativeNestedResolve328.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeNestedDecl328.reg.declarations →
+    d.role = Yulang.GeneralDeclarativeNestedState328.child.role → d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeNestedResolve328.selected_root : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedResolve328.branch done Yulang.GeneralDeclarativeNestedDecl328.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeNestedDecl328.impl.id
+      [Yulang.GeneralDeclarativeNestedState328.child])
+Yulang.GeneralDeclarativeNestedResolve328.selected_child : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedResolve328.branch done Yulang.GeneralDeclarativeNestedState328.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeNestedResolve328.selected : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeNestedResolve328.branch done)
+    Yulang.GeneralDeclarativeNestedDecl328.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeNestedResolve328.dict)
+Yulang.GeneralDeclarativeNestedResolve328.declared : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativeNestedDecl328.reg Yulang.GeneralDeclarativeNestedDecl328.root
+Yulang.GeneralDeclarativeNestedResolve328.certified : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedState328.final m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeNestedDecl328.reg
+      Yulang.GeneralDeclarativeNestedDecl328.interpret m Yulang.GeneralDeclarativeNestedDecl328.root
+      Yulang.GeneralDeclarativeNestedResolve328.dict
+Yulang.GeneralDeclarativeNestedState328.exact_binds : Yulang.GeneralDeclarativeNestedState328.cooked.binds =
+  [(0, Yulang.GeneralDeclarativeNestedState328.left), (1, Yulang.GeneralDeclarativeNestedState328.right)]
+Yulang.GeneralDeclarativeNestedState328.first : Yulang.GeneralDeclarativeNestedState328.base 0 =
+  Yulang.GeneralDeclarativeNestedState328.left
+Yulang.GeneralDeclarativeNestedState328.last : Yulang.GeneralDeclarativeNestedState328.base 1 =
+  Yulang.GeneralDeclarativeNestedState328.right
+Yulang.GeneralDeclarativeNestedState328.positive : Yulang.GeneralDeclarativeOpaquePlan328.Read
+  Yulang.GeneralDeclarativeNestedState328.initial 0 2 Yulang.GeneralDeclarativeNestedState328.chosenPlan
+Yulang.GeneralDeclarativeNestedState328.original_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeNestedState328.initial Yulang.GeneralDeclarativeNestedDecl328.rootArg
+Yulang.GeneralDeclarativeNestedState328.built : Yulang.GeneralDeclarativeOpaqueNested328.Builds
+  Yulang.GeneralDeclarativeNestedState328.initial Yulang.GeneralDeclarativeNestedState328.keep
+  Yulang.GeneralDeclarativeNestedDecl328.rootArg Yulang.GeneralDeclarativeNestedState328.chosenPlan
+Yulang.GeneralDeclarativeNestedState328.old_projection : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedState328.initial m ↔
+    ∃ n,
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedState328.prepared n ∧
+        ∀ (v : Nat),
+          v ∈
+              Yulang.GeneralDeclarativeFootprint321.stateNames Yulang.GeneralDeclarativeNestedState328.initial ++
+                Yulang.GeneralDeclarativeNestedState328.keep →
+            n v = m v
+@Yulang.GeneralDeclarativeNestedState328.old_rows : ∀ {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈ Yulang.GeneralDeclarativeNestedState328.sourceRows →
+    e ∈ Yulang.GeneralDeclarativeNestedState328.prepared.equations
+Yulang.GeneralDeclarativeNestedState328.authorized : ∀ (done : Nat → Prop)
+  {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈ Yulang.GeneralDeclarativeNestedState328.sourceRows →
+    e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeNestedState328.support done)).equations
+Yulang.GeneralDeclarativeNestedState328.grow_tail : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeNestedState328.prepared Yulang.GeneralDeclarativeNestedState328.final
+Yulang.GeneralDeclarativeNestedState328.actual_center : Yulang.GeneralDeclarativeEqualities322.Derives
+  Yulang.GeneralDeclarativeNestedState328.final (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 1)
+  (Yulang.GeneralDeclarativePairCenters326.pair
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant 4
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 17))
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 0
+      [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 9]))
+Yulang.GeneralDeclarativeNestedState328.range_left : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeNestedState328.final Yulang.GeneralDeclarativeNestedState328.left
+Yulang.GeneralDeclarativeNestedState328.range_right : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeNestedState328.final Yulang.GeneralDeclarativeNestedState328.right
+Yulang.GeneralDeclarativeNestedState328.range_root : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeNestedState328.final Yulang.GeneralDeclarativeNestedDecl328.rootArg
+Yulang.GeneralDeclarativeNestedState328.center_absent : ¬∃ code,
+    { left := 1, right := code } ∈ Yulang.GeneralDeclarativeNestedState328.initial.equations
+Yulang.GeneralDeclarativeOpaqueAuditGraph328.root_fixed : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e root = root
+Yulang.GeneralDeclarativeOpaqueAuditGraph328.direct : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends) {a b : Nat},
+  Yulang.GeneralDeclarativeK2Graph321.Descends
+      (Yulang.GeneralDeclarativeGraphRows321.observed (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e))
+      a b →
+    Yulang.GeneralDeclarativeK2Graph321.Descends (Yulang.GeneralDeclarativeOpaqueAuditGraph328.upperView s root e)
+      (Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e a)
+      (Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e b)
+Yulang.GeneralDeclarativeOpaqueAuditGraph328.edge : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends) {a b : Nat},
+  Yulang.GeneralDeclarativeK2Graph321.Descends
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e)
+        (Yulang.GeneralDeclarativeGraphRows321.observed
+          (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e)))
+      a b →
+    Yulang.GeneralDeclarativeK2Graph321.Descends
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView (Yulang.GeneralDeclarativeOpaqueCompress328.small s e)
+        (Yulang.GeneralDeclarativeOpaqueAuditGraph328.upperView s root e))
+      (Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e a)
+      (Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e b)
+Yulang.GeneralDeclarativeOpaqueAuditGraph328.path : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends) {a b : Nat},
+  Yulang.GeneralDeclarativeK2Graph321.Path
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e)
+        (Yulang.GeneralDeclarativeGraphRows321.observed
+          (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e)))
+      a b →
+    Yulang.GeneralDeclarativeK2Graph321.Path
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView (Yulang.GeneralDeclarativeOpaqueCompress328.small s e)
+        (Yulang.GeneralDeclarativeOpaqueAuditGraph328.upperView s root e))
+      (Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e a)
+      (Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e b)
+Yulang.GeneralDeclarativeOpaqueAuditGraph328.cycle : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends) {n : Nat},
+  Yulang.GeneralDeclarativeK2Alias321.AliasCycle (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e)
+      (Yulang.GeneralDeclarativeGraphRows321.observed (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e))
+      n →
+    Yulang.GeneralDeclarativeK2Alias321.AliasCycle (Yulang.GeneralDeclarativeOpaqueCompress328.small s e)
+      (Yulang.GeneralDeclarativeOpaqueAuditGraph328.upperView s root e)
+      (Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e n)
+Yulang.GeneralDeclarativeOpaqueAuditGraph328.no_cycle : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends) {n : Nat},
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle (Yulang.GeneralDeclarativeOpaqueCompress328.small s e)
+        (Yulang.GeneralDeclarativeOpaqueAuditGraph328.upperView s root e)
+        (Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e n) →
+    ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e)
+        (Yulang.GeneralDeclarativeGraphRows321.observed
+          (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e))
+        n
+@Yulang.GeneralDeclarativeOpaqueAuthority328.before_fresh : ∀ {s : Yulang.GeneralDeclarativeHead320.State} {root : Nat}
+  {extra : List Nat} {n old : Nat},
+  Yulang.GeneralDeclarativeOpaqueAuthority328.FreshName s root extra n →
+    old ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s root extra → old < n
+@Yulang.GeneralDeclarativeOpaqueAuthority328.outside : ∀ {s : Yulang.GeneralDeclarativeHead320.State} {root : Nat}
+  {extra : List Nat} {n : Nat},
+  Yulang.GeneralDeclarativeOpaqueAuthority328.FreshName s root extra n →
+    ¬n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s
+@Yulang.GeneralDeclarativeOpaqueAuthority328.not_root : ∀ {s : Yulang.GeneralDeclarativeHead320.State} {root : Nat}
+  {extra : List Nat} {n : Nat}, Yulang.GeneralDeclarativeOpaqueAuthority328.FreshName s root extra n → n ≠ root
+Yulang.GeneralDeclarativeOpaqueAuthority328.new_row_not_old : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (root : Nat) (extra : List Nat), ¬Yulang.GeneralDeclarativeOpaqueNames328.row s root extra ∈ s.equations
+@Yulang.GeneralDeclarativeOpaqueAuthority328.exactly_old_support : ∀ {completed : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} (p : Yulang.GeneralDeclarativeOrigins321.Supported s completed)
+  (root : Nat) (extra : List Nat),
+  Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeOpaqueAuthority328.retain p root extra) =
+    Yulang.GeneralDeclarativeOrigins321.restriction p
+@Yulang.GeneralDeclarativeOpaqueAuthority328.unchanged_alias : ∀ {a b : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} (root : Nat) (extra : List Nat),
+  Yulang.GeneralDeclarativeLowerKnown321.Alias (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra) a b ↔
+    Yulang.GeneralDeclarativeLowerKnown321.Alias s a b
+@Yulang.GeneralDeclarativeOpaqueAuthority328.bound_places : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeBounds319.Bound s.normal a b →
+    a = b ∨
+      a ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ∧ b ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s
+@Yulang.GeneralDeclarativeOpaqueAuthority328.alias_places : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias s a b →
+    a = b ∨
+      a ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ∧ b ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s
+@Yulang.GeneralDeclarativeOpaqueAuthority328.fresh_alias : ∀ {root : Nat} {extra : List Nat} {a b : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOpaqueAuthority328.FreshName s root extra a →
+    Yulang.GeneralDeclarativeLowerKnown321.Alias (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra) a b →
+      a = b
+@Yulang.GeneralDeclarativeOpaqueBatch328.inject_map : ∀ {α : Type u_1} {β : Type u_2} {f : α → β},
+  Function.Injective f → Function.Injective (List.map f)
+Yulang.GeneralDeclarativeOpaqueBatch328.capture_code_inj : Function.Injective
+  Yulang.GeneralDeclarativeOpaqueBatch328.captureCode
+Yulang.GeneralDeclarativeOpaqueBatch328.output_code_inj : Function.Injective
+  Yulang.GeneralDeclarativeOpaqueBatch328.outputCode
+Yulang.GeneralDeclarativeOpaqueBatch328.demand_code_inj : Function.Injective
+  Yulang.GeneralDeclarativeOpaqueBatch328.demandCode
+@Yulang.GeneralDeclarativeOpaqueBatch328.check_exact : ∀
+  {generated proposed : List Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarativeOpaqueBatch328.check generated proposed = true ↔ generated = proposed
+@Yulang.GeneralDeclarativeOpaqueBatch328.accepted : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keep : List Nat}
+  {plan : Yulang.GeneralDeclarativeOpaquePlan328.Plan} {ports : List Yulang.GeneralDeclarativeClauseBatch327.Port}

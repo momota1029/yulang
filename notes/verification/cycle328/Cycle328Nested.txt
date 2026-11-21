@@ -1,0 +1,11 @@
+'Yulang.GeneralDeclarativeOpaqueAuthority328.exactly_old_support' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueGraph328.cycles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueVariant328.reconstruction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueTrace328.from_pair_match' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueVariantNames328.from_variant_match' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePlan328.extract' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueNested328.build' depends on axioms: [propext, Classical.choice, Quot.sound]
