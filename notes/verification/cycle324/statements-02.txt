@@ -1,0 +1,166 @@
+            ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+              Yulang.GeneralDeclarativeAssocRule323.SourceEquation r interp d impl names.input row →
+                Yulang.GeneralDeclarativeEntailment320.Holds m row
+@Yulang.GeneralDeclarativeApplyAssoc324.closure : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {s : Yulang.GeneralDeclarativeHead320.State} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {localRule :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {impl : Yulang.GeneralDeclarations.Declaration}
+  {names : Yulang.GeneralDeclarativeSourceEmission322.Names}
+  {place : Yulang.GeneralDeclarativeEmissionForest322.Placement}
+  {written : List Yulang.GeneralDeclarativeHead320.Equation},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeApplyAssoc324.Applies s r interp localRule d impl names place written →
+      Yulang.GeneralDeclarativeModelStable324.StableUnder (Yulang.GeneralDeclarativeEntailment320.appendFacts s written)
+        (Yulang.GeneralDeclarativeAssocRule323.SourceEquation r interp d impl names.input)
+Yulang.GeneralDeclarativeErasureRegression324.hidden_translation_now_available : Yulang.GeneralNominalCenteredHeadMatExpressions.translate
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeErasureRegression324.withErasedConstructor
+    Yulang.GeneralDeclarativeHiddenDecl324.raw =
+  some
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record 7
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record 7
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 9
+          [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 40])
+        Yulang.GeneralDeclarativeHiddenDecl324.empty))
+Yulang.GeneralDeclarativeErasureRegression324.same_after_erasure : Yulang.GeneralDeclarativeMetadata324.Same
+  Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.catalogue
+  Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+  Yulang.GeneralDeclarativeErasureRegression324.withErasedConstructor
+  (Yulang.GeneralDeclarativeMetadata324.keys
+    (Yulang.GeneralDeclarationPatterns.normalize Yulang.GeneralDeclarativeHiddenDecl324.raw))
+@Yulang.GeneralDeclarativeErasureRegression324.approved_observation_unchanged : ∀
+  {s : Yulang.GeneralDeclarativeHead320.State} {arg : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeEndpointProbe321.Matches s Yulang.GeneralDeclarativeHiddenDecl324.catalogue
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation arg Yulang.GeneralDeclarativeHiddenDecl324.raw ↔
+    Yulang.GeneralDeclarativeEndpointProbe321.Matches s Yulang.GeneralDeclarativeHiddenDecl324.catalogue
+      Yulang.GeneralDeclarativeErasureRegression324.withErasedConstructor arg Yulang.GeneralDeclarativeHiddenDecl324.raw
+Yulang.GeneralDeclarativeErasureRegression324.approved_head_value_unchanged : ∀
+  (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeDemand320.sourceValue Yulang.GeneralDeclarativeHiddenDecl324.catalogue
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation cap m Yulang.GeneralDeclarativeHiddenDecl324.raw =
+    Yulang.GeneralDeclarativeDemand320.sourceValue Yulang.GeneralDeclarativeHiddenDecl324.catalogue
+      Yulang.GeneralDeclarativeErasureRegression324.withErasedConstructor cap m
+      Yulang.GeneralDeclarativeHiddenDecl324.raw
+Yulang.GeneralDeclarativeErasureRegression324.whole_normal_batch : Yulang.GeneralDeclarativeNFComplete324.facts
+    Yulang.GeneralDeclarativeHiddenWhere324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeHiddenWhere324.capture.input Yulang.GeneralDeclarativeHiddenWhere324.parent
+    Yulang.GeneralDeclarativeHiddenWhere324.root [Yulang.GeneralDeclarativeHiddenWhere324.child] =
+  some
+    [{ left := 0, right := Yulang.GeneralDeclarativeHiddenState324.direct },
+      { left := 3, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+      { left := 3, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+      { left := 3, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+      Yulang.GeneralDeclarativeHiddenWhere324.row,
+      { left := 6, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 }]
+Yulang.GeneralDeclarativeErasureRegression324.whole_batch_entailed : Yulang.GeneralDeclarativeCompileLists321.Result
+  Yulang.GeneralDeclarativeHiddenWhere324.state
+  (Yulang.GeneralDeclarativeNFComplete324.facts Yulang.GeneralDeclarativeHiddenWhere324.registry
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenWhere324.capture.input
+    Yulang.GeneralDeclarativeHiddenWhere324.parent Yulang.GeneralDeclarativeHiddenWhere324.root
+    [Yulang.GeneralDeclarativeHiddenWhere324.child])
+Yulang.GeneralDeclarativeFollower324.restriction_rows : ∀ (completed : Nat → Prop)
+  (eq : Yulang.GeneralDeclarativeHead320.Equation),
+  eq ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeHiddenState324.support completed)).equations ↔
+    eq ∈ Yulang.GeneralDeclarativeHiddenState324.s0Rows ∨
+      eq = Yulang.GeneralDeclarativeHiddenState324.parentRow ∧ completed 1 ∨
+        eq = Yulang.GeneralDeclarativeHiddenState324.childRow ∧ completed 2
+@Yulang.GeneralDeclarativeFollower324.closed_alias : ∀ {x y : Nat} (done cut : Nat → Prop),
+  (∀ (a b : Nat),
+      { left := a, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable b } ∈
+          (Yulang.GeneralDeclarativeOrigins321.restriction
+              (Yulang.GeneralDeclarativeHiddenState324.support done)).equations →
+        (cut a ↔ cut b)) →
+    Yulang.GeneralDeclarativeLowerKnown321.Alias
+        (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeHiddenState324.support done)) x y →
+      (cut x ↔ cut y)
+Yulang.GeneralDeclarativeFollower324.ready_both : ∀ (done : Nat → Prop),
+  done 1 →
+    done 2 →
+      Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeHiddenState324.support done)
+        Yulang.GeneralDeclarativeFollower324.later
+Yulang.GeneralDeclarativeFollower324.exclude : ∀ (done cut : Nat → Prop),
+  (∀ (a b : Nat),
+      { left := a, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable b } ∈
+          (Yulang.GeneralDeclarativeOrigins321.restriction
+              (Yulang.GeneralDeclarativeHiddenState324.support done)).equations →
+        (cut a ↔ cut b)) →
+    cut 6 →
+      ¬cut 0 →
+        ¬cut 2 →
+          ¬cut 3 →
+            ¬Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeHiddenState324.support done)
+                Yulang.GeneralDeclarativeFollower324.later
+Yulang.GeneralDeclarativeFollower324.ready_iff : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeHiddenState324.support done)
+      Yulang.GeneralDeclarativeFollower324.later ↔
+    done 1 ∧ done 2
+Yulang.GeneralDeclarativeFollower324.ordinary_value : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 6).fst Yulang.GeneralDeclarativeExampleSource320.int
+Yulang.GeneralDeclarativeFollowerDerived324.parent_finished : Yulang.GeneralDeclarativeFollowerDerived324.completed 1
+Yulang.GeneralDeclarativeFollowerDerived324.child_finished : Yulang.GeneralDeclarativeFollowerDerived324.completed 2
+Yulang.GeneralDeclarativeFollowerDerived324.final_transition : Yulang.GeneralDeclarativeHiddenResolve324.branch
+    (fun x => False) Yulang.GeneralDeclarativeFollower324.later Yulang.CommonRoleOutermostResolver.Frontier.pending ∧
+  Yulang.CommonRoleOutermostResolver.Classify
+      (Yulang.GeneralDeclarativeHiddenResolve324.branch Yulang.GeneralDeclarativeFollowerDerived324.completed)
+      Yulang.GeneralDeclarativeFollower324.later
+      (Yulang.CommonRoleOutermostResolver.Result.selected
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDeclarativeExampleSource320.leaf.id [])) ∧
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final m →
+        Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeHiddenDecl324.registry
+          Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeFollower324.later
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeFollowerResolve324.blocked_without : ∀ (done : Nat → Prop),
+  ¬(done 1 ∧ done 2) →
+    Yulang.GeneralDeclarativeHiddenResolve324.branch done Yulang.GeneralDeclarativeFollower324.later
+      Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.GeneralDeclarativeFollowerResolve324.leaf_match : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeHiddenState324.support done))
+    Yulang.GeneralDeclarativeHiddenDecl324.registry.constructors Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeFollower324.later Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeFollowerResolve324.read_leaf : Yulang.GeneralDeclarativeNFNode324.Reads
+  Yulang.GeneralDeclarativeHiddenState324.final Yulang.GeneralDeclarativeHiddenDecl324.registry
+  Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeFollower324.later
+  Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeFollowerResolve324.names
+  Yulang.GeneralDeclarativeFollowerResolve324.place
+Yulang.GeneralDeclarativeFollowerResolve324.chosen_with : ∀ (done : Nat → Prop),
+  done 1 →
+    done 2 →
+      Yulang.GeneralDeclarativeHiddenResolve324.branch done Yulang.GeneralDeclarativeFollower324.later
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeFollowerResolve324.chosen_evidence : ∀ (done : Nat → Prop),
+  done 1 →
+    done 2 →
+      Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeHiddenResolve324.branch done)
+          Yulang.GeneralDeclarativeFollower324.later
+          (Yulang.CommonRoleOutermostResolver.Result.selected
+            (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDeclarativeExampleSource320.leaf.id [])) ∧
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final m →
+            Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeHiddenDecl324.registry
+              Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeFollower324.later
+              (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+@Yulang.GeneralDeclarativeFramePropagation324.after_rules : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {names : Yulang.GeneralDeclarativeSourceEmission322.Names}
+  {place : Yulang.GeneralDeclarativeEmissionForest322.Placement} {s : Yulang.GeneralDeclarativeHead320.State}
+  {written : List Yulang.GeneralDeclarativeHead320.Equation},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r interp →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            Yulang.GeneralDeclarativeRigidLocal323.RigidReads s r interp d impl names place →
+              (∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+                  Yulang.GeneralDeclarativeAssocRule323.SourceEquation r interp d impl names.input row →
+                    row ∈ written) →
+                Yulang.GeneralDeclarativeEntailment320.BatchRecipe
+                  (Yulang.GeneralDeclarativeEntailment320.appendFacts s written) r interp d impl.id
+                  (Yulang.GeneralDeclarativeEmissionForest322.children impl names place)
+@Yulang.GeneralDeclarativeFramePropagation324.produces_finite : ∀ {r : Yulang.GeneralDeclarations.Registry}

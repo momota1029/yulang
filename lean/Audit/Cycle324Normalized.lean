@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeMetadata324
+import Yulang.GeneralDeclarativeOutputIdentity324
+
+#print axioms Yulang.GeneralDeclarativeMetadata324.normalized_probe
+#print axioms Yulang.GeneralDeclarativeMetadata324.normal_meaning
+#print axioms Yulang.GeneralDeclarativeNFWhere324.clauses_sound
+#print axioms Yulang.GeneralDeclarativeNFEmit324.ordinary_forest
+#print axioms Yulang.GeneralDeclarativeNFComplete324.local_sound
+#print axioms Yulang.GeneralDeclarativeSharedNF324.shared_heads
+#print axioms Yulang.GeneralDeclarativeOutputIdentity324.output_identity
+#print axioms Yulang.GeneralDeclarativeOutputIdentity324.stable_reobserved

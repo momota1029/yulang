@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeNFClassify324.local_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNFClassify324.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRuleSequence324.exact_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRuleSequence324.remains_applied' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRuleSequence324.replay_sound' depends on axioms: [propext, Classical.choice, Quot.sound]

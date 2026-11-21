@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeAggregateResolve324
+import Yulang.GeneralDeclarativeAliasFixture324
+
+#print axioms Yulang.GeneralDeclarativeFreshTerms324.projection
+#print axioms Yulang.GeneralDeclarativeMergeCenters324.whole_cross
+#print axioms Yulang.GeneralDeclarativeAggregate324.assembled
+#print axioms Yulang.GeneralDeclarativeAggregate324.aggregate_model
+#print axioms Yulang.GeneralDeclarativeAggregatePoint324.observable_models
+#print axioms Yulang.GeneralDeclarativeAggregateResolve324.full_result
+#print axioms Yulang.GeneralDeclarativeAliasFixture324.changed_target_not_stable
+#print axioms Yulang.GeneralDeclarativeAliasFixture324.joined_inhabited
