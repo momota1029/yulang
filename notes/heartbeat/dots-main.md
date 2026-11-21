@@ -2,9 +2,9 @@
 - cycle: 309
 - status: running
 - started: 2026-11-21T00:29:54Z
-- updated: 2026-11-21T00:49:12.014Z
-- elapsed_min: 19
-- activity: 親出力・左右・根の同一モデル Evidence、異順 payload 棄却、実 solver 木と有限 readback の exactness を確認
+- updated: 2026-11-21T00:58:35.060Z
+- elapsed_min: 28
+- activity: 順序付き検査器・実 child の位置ごとの source 証明 trace、両 typed slots の必要性、据付前の二子未登録を検証
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: af2f0a7d5
-- resume_hint: 一般の current frame + Committed からの node 合成を actual trace と照合し、ledger の信頼と区別する
+- last_local_commit: 6947c2978
+- resume_hint: 実 raw 行の登録から、正しいスナップショットだけで取得する executable readback と全到達相の証明へ
