@@ -83,4 +83,76 @@ theorem reserve_owner (p : Packet roles) {k : GeneralNominalIdentities.Origin}
   obtain ⟨decl,_,inDecl⟩ := List.mem_flatMap.mp original
   exact declaration_owner _ inDecl
 
+
+theorem output_key (visible : decl ∈ registry.declarations) (output : name ∈ decl.outputNames) :
+    GeneralNominalAllocation.origin owner decl.id 2 name 0 ∈
+      GeneralNominalVersionedAllocation231.keys registry owner b :=
+  List.mem_flatMap.mpr ⟨decl,visible,List.mem_append_left _
+    (List.mem_append_right _ (List.mem_map.mpr ⟨name,output,rfl⟩))⟩
+
+theorem child_output_key (visible : decl ∈ registry.declarations)
+    (required : clause ∈ decl.requirements) (output : equation ∈ clause.outputs) :
+    GeneralNominalAllocation.origin owner decl.id 5 equation.id 0 ∈
+      GeneralNominalVersionedAllocation231.keys registry owner b :=
+  List.mem_flatMap.mpr ⟨decl,visible,List.mem_append_right _
+    (List.mem_flatMap.mpr ⟨clause,required,List.mem_cons_of_mem _ (List.mem_append_right _
+      (List.mem_map.mpr ⟨equation,output,rfl⟩))⟩)⟩
+
+theorem output_reserved (p : Plan roles) (visible : p.packet.declaration ∈ p.packet.registry.declarations)
+    (site : Site roles) (emitted : site ∈ GeneralNominalVersionedChildren232.emitted p)
+    (output : GeneralSourceState.Output) (requested : output ∈ site.occurrence.demand.outputs) :
+    output.target ∈ reserve p.packet := by
+  obtain ⟨clause,_,rfl⟩ := List.mem_map.mp emitted
+  have required : clause.val ∈ p.packet.declaration.requirements :=
+    (GeneralCanonicalChildOrder.canonicalRequirements_perm _).mem_iff.mpr clause.property
+  obtain ⟨equation,present,rfl⟩ := List.mem_map.mp requested
+  change GeneralDeclarationDemands.outputTarget p.packet.declaration
+    (GeneralNominalVersionedFrame231.capture p.packet)
+    ((GeneralNominalVersionedFrame231.frame p.packet).allocation p.packet.declaration.id clause.val).outputs equation ∈ reserve p.packet
+  unfold GeneralDeclarationDemands.outputTarget
+  split
+  · split
+    · rename_i name eq declared
+      exact GeneralNominalVersionedAllocation231.reserved_key (output_key visible declared)
+    · exact GeneralNominalVersionedAllocation231.reserved_key (child_output_key visible required present)
+  · exact GeneralNominalVersionedAllocation231.reserved_key (child_output_key visible required present)
+
+
+theorem declaration_purpose {k : GeneralNominalIdentities.Origin}
+    (member : k ∈ GeneralNominalVersionedAllocation231.declarationKeys owner decl b) : k.2.2.1 ≤ 6 := by
+  simp only [GeneralNominalVersionedAllocation231.declarationKeys,List.mem_append] at member
+  rcases member with (ins|outs)|kids
+  · obtain ⟨n,_,pair⟩ := List.mem_flatMap.mp ins
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at pair
+    rcases pair with rfl|rfl <;> simp [GeneralNominalAggregateVersion231.key,GeneralNominalAllocation.origin]
+  · obtain ⟨n,_,rfl⟩ := List.mem_map.mp outs
+    simp [GeneralNominalAllocation.origin]
+  · obtain ⟨clause,_,within⟩ := List.mem_flatMap.mp kids
+    simp only [List.mem_append,List.mem_cons] at within
+    rcases within with (rfl|arguments)|outputs
+    · simp [GeneralNominalAllocation.origin]
+    · obtain ⟨idx,_,atIndex⟩ := List.mem_flatMap.mp arguments
+      simp only [List.mem_cons,List.not_mem_nil,or_false] at atIndex
+      rcases atIndex with rfl|rfl <;> simp [GeneralNominalAllocation.origin]
+    · obtain ⟨eq,_,rfl⟩ := List.mem_map.mp outputs
+      simp [GeneralNominalAllocation.origin]
+
+theorem reserve_purpose (p : Packet roles) {k : GeneralNominalIdentities.Origin}
+    (inside : GeneralNominalIdentities.source p.context.state.seed k ∈ reserve p) : k.2.2.1 ≤ 6 := by
+  obtain ⟨origin,original,equal⟩ := List.mem_map.mp inside
+  have same := (GeneralNominalIdentities.source_identity p.context.state.seed origin k).mp equal
+  subst origin
+  obtain ⟨decl,_,inDecl⟩ := List.mem_flatMap.mp original
+  exact declaration_purpose inDecl
+
+theorem head_sources (p : Packet roles) (visible : p.declaration ∈ p.registry.declarations) :
+    (GeneralNominalVersionedInstallation231.atoms p).flatMap atomSources ⊆ pool p := by
+  intro n h
+  obtain ⟨atom,member,inside⟩ := List.mem_flatMap.mp h
+  rcases List.mem_append.mp member with before|last
+  · rcases List.mem_append.mp before with cross|merge
+    · exact cross_sources (extension_endpoints p) atom cross inside
+    · exact merge_atom p visible atom merge inside
+  · exact checks_sources _ _ (fun _ h => List.mem_append_left _ h) atom last inside
+
 end Yulang.GeneralVersionedInstallDomain313
