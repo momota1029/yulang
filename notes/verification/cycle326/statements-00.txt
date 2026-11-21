@@ -1,0 +1,175 @@
+@Yulang.GeneralDeclarativeAuthorizedCopy326.retained : ∀ {complete : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} (p : Yulang.GeneralDeclarativeOrigins321.Supported s complete)
+  (source : Nat) (keep : List Nat),
+  (Yulang.GeneralDeclarativeOrigins321.restriction p).equations ⊆
+    (Yulang.GeneralDeclarativeOrigins321.restriction
+        (Yulang.GeneralDeclarativeAuthorizedCopy326.copy p source keep)).equations
+@Yulang.GeneralDeclarativeAuthorizedCopy326.authorized : ∀ {complete : Nat → Prop}
+  {tag : Yulang.GeneralDeclarativeLowerKnown321.Tag} {s : Yulang.GeneralDeclarativeHead320.State}
+  (p : Yulang.GeneralDeclarativeOrigins321.Supported s complete) (source : Nat) (keep : List Nat),
+  Yulang.GeneralDeclarativeLowerKnown321.Knows (Yulang.GeneralDeclarativeOrigins321.restriction p) source tag →
+    Yulang.GeneralDeclarativeLowerKnown321.Knows
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeAuthorizedCopy326.copy p source keep))
+      (Yulang.GeneralDeclarativeAuthorizedCopy326.name s source keep) tag
+@Yulang.GeneralDeclarativeAuthorizedCopy326.no_new_origin : ∀ {complete : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} (p : Yulang.GeneralDeclarativeOrigins321.Supported s complete)
+  (source : Nat) (keep : List Nat),
+  (∀ (tag : Yulang.GeneralDeclarativeLowerKnown321.Tag),
+      ¬Yulang.GeneralDeclarativeLowerKnown321.Knows (Yulang.GeneralDeclarativeOrigins321.restriction p) source tag) →
+    ¬Yulang.GeneralDeclarativeAuthorizedCopy326.writing s source keep ∈ s.equations →
+      ¬Yulang.GeneralDeclarativeAuthorizedCopy326.writing s source keep ∈
+          (Yulang.GeneralDeclarativeOrigins321.restriction
+              (Yulang.GeneralDeclarativeAuthorizedCopy326.copy p source keep)).equations
+@Yulang.GeneralDeclarativeAuthorizedCopy326.fresh : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (source : Nat)
+  (keep : List Nat), ¬Yulang.GeneralDeclarativeAuthorizedCopy326.writing s source keep ∈ s.equations
+@Yulang.GeneralDeclarativeAuthorizedCopy326.conservative : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (source : Nat)
+  (keep : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models s m →
+    ∃ later,
+      Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep)
+          later ∧
+        ∀ (n : Nat), n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ++ keep → later n = m n
+@Yulang.GeneralDeclarativeCopiedPending326.no_backed : ∀ {e : Yulang.GeneralDeclarativeHead320.Equation},
+  ¬e ∈ (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeCopiedPending326.evidence).equations
+Yulang.GeneralDeclarativeCopiedPending326.copied_stays_unbacked : ¬Yulang.GeneralDeclarativeAuthorizedCopy326.writing
+      Yulang.GeneralDeclarativeCopiedPending326.state 1 [] ∈
+    (Yulang.GeneralDeclarativeOrigins321.restriction
+        (Yulang.GeneralDeclarativeAuthorizedCopy326.copy Yulang.GeneralDeclarativeCopiedPending326.evidence 1
+          [])).equations
+Yulang.GeneralDeclarativeCopiedPending326.ordinary_cycle_copied : Yulang.GeneralDeclarativeK2Alias321.AliasCycle
+  (Yulang.GeneralDeclarativeAuthorizedCopy326.extended Yulang.GeneralDeclarativeCopiedPending326.state 1 [])
+  (Yulang.GeneralDeclarativeGraphRows321.observed
+    (Yulang.GeneralDeclarativeAuthorizedCopy326.extended Yulang.GeneralDeclarativeCopiedPending326.state 1 []))
+  (Yulang.GeneralDeclarativeAuthorizedCopy326.name Yulang.GeneralDeclarativeCopiedPending326.state 1 [])
+@Yulang.GeneralDeclarativeCopyCollapse326.base_unchanged : ∀ {n : Nat} {s : Yulang.GeneralDeclarativeHead320.State}
+  (source : Nat) (keep : List Nat),
+  n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s →
+    Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep n = n
+Yulang.GeneralDeclarativeCopyCollapse326.chosen_unchanged : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (source : Nat) (keep : List Nat), Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep source = source
+Yulang.GeneralDeclarativeCopyCollapse326.copy_collapses : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (source : Nat)
+  (keep : List Nat),
+  Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep
+      (Yulang.GeneralDeclarativeAuthorizedCopy326.name s source keep) =
+    source
+@Yulang.GeneralDeclarativeCopyCollapse326.ordinary_eq_names : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  (row : Yulang.GeneralDeclarativeHead320.Equation),
+  row ∈ s.equations →
+    Yulang.GeneralDeclarativeFootprint321.equationNames row ⊆ Yulang.GeneralDeclarativeFootprint321.stateNames s
+@Yulang.GeneralDeclarativeCopyCollapse326.bound : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State}
+  (source : Nat) (keep : List Nat),
+  Yulang.GeneralDeclarativeBounds319.Bound s.normal a b →
+    Yulang.GeneralDeclarativeBounds319.Bound s.normal
+      (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep a)
+      (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep b)
+@Yulang.GeneralDeclarativeCopyCollapse326.alias : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State}
+  (source : Nat) (keep : List Nat),
+  Yulang.GeneralDeclarativeLowerKnown321.Alias (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep) a b →
+    Yulang.GeneralDeclarativeLowerKnown321.Alias s (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep a)
+      (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep b)
+Yulang.GeneralDeclarativeCopyFixture326.absent_before : ¬Yulang.GeneralDeclarativeAuthorizedCopy326.writing
+      Yulang.GeneralDeclarativeCovariantState326.final 3 Yulang.GeneralDeclarativeCopyFixture326.keep ∈
+    (Yulang.GeneralDeclarativeOrigins321.restriction
+        (Yulang.GeneralDeclarativeAuthorizedCopy326.copy
+          (Yulang.GeneralDeclarativeCovariantSupport326.controlled fun x => False) 3
+          Yulang.GeneralDeclarativeCopyFixture326.keep)).equations
+Yulang.GeneralDeclarativeCopyFixture326.after_real_owner : Yulang.GeneralDeclarativeLowerKnown321.Knows
+  (Yulang.GeneralDeclarativeOrigins321.restriction
+    (Yulang.GeneralDeclarativeAuthorizedCopy326.copy
+      (Yulang.GeneralDeclarativeCovariantSupport326.controlled Yulang.GeneralDeclarativeLateProvider326.completed) 3
+      Yulang.GeneralDeclarativeCopyFixture326.keep))
+  (Yulang.GeneralDeclarativeAuthorizedCopy326.name Yulang.GeneralDeclarativeCovariantState326.final 3
+    Yulang.GeneralDeclarativeCopyFixture326.keep)
+  (Yulang.GeneralDeclarativeLowerKnown321.Tag.primitive
+    (Yulang.GeneralCandidateInspection.Primitive.scalar Yulang.Inference.Base.int) 0)
+Yulang.GeneralDeclarativeCopyFixture326.same_models_for_copied_name : ∀ (swap : Bool),
+  ∃ later,
+    Yulang.GeneralDeclarativeHead320.Models
+        (Yulang.GeneralDeclarativeAuthorizedCopy326.extended Yulang.GeneralDeclarativeCovariantState326.final 3
+          Yulang.GeneralDeclarativeCopyFixture326.keep)
+        later ∧
+      later 5 = Yulang.GeneralDeclarativeCovariantState326.assignment swap 5 ∧
+        later 6 = Yulang.GeneralDeclarativeCovariantState326.assignment swap 6
+@Yulang.GeneralDeclarativeCopyK2326.ordinary_shape : ∀ {n : Nat} {head : Yulang.GeneralDeclarativeK2Graph321.Shape}
+  {s : Yulang.GeneralDeclarativeHead320.State} (source : Nat) (keep : List Nat),
+  Yulang.GeneralDeclarativeGraphRows321.observed (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep) n
+      head →
+    ∃ exp, { left := n, right := exp } ∈ s.equations ∧ Yulang.GeneralDeclarativeGraphRows321.shapeOf exp = some head
+@Yulang.GeneralDeclarativeCopyK2326.edge : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State} (source : Nat)
+  (keep : List Nat),
+  Yulang.GeneralDeclarativeK2Graph321.Descends
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep)
+        (Yulang.GeneralDeclarativeGraphRows321.observed
+          (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep)))
+      a b →
+    Yulang.GeneralDeclarativeK2Graph321.Descends
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView s (Yulang.GeneralDeclarativeGraphRows321.observed s))
+      (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep a)
+      (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep b)
+@Yulang.GeneralDeclarativeCopyK2326.path : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State} (source : Nat)
+  (keep : List Nat),
+  Yulang.GeneralDeclarativeK2Graph321.Path
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep)
+        (Yulang.GeneralDeclarativeGraphRows321.observed
+          (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep)))
+      a b →
+    Yulang.GeneralDeclarativeK2Graph321.Path
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView s (Yulang.GeneralDeclarativeGraphRows321.observed s))
+      (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep a)
+      (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep b)
+@Yulang.GeneralDeclarativeCopyK2326.exact : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (source : Nat)
+  (keep : List Nat) (root : Nat),
+  Yulang.GeneralDeclarativeK2Alias321.AliasCycle (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep)
+      (Yulang.GeneralDeclarativeGraphRows321.observed
+        (Yulang.GeneralDeclarativeAuthorizedCopy326.extended s source keep))
+      root ↔
+    Yulang.GeneralDeclarativeK2Alias321.AliasCycle s (Yulang.GeneralDeclarativeGraphRows321.observed s)
+      (Yulang.GeneralDeclarativeCopyCollapse326.collapse s source keep root)
+Yulang.GeneralDeclarativeCovariantFrame326.child_exact : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativePairDecl326.impl
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativePairDecl326.impl
+      Yulang.GeneralDeclarativeCovariantFrame326.placement Yulang.GeneralDeclarativeCovariantFrame326.parentBase)
+    Yulang.GeneralDeclarativeCovariantFrame326.placement =
+  [Yulang.GeneralDeclarativePairDecl326.child]
+Yulang.GeneralDeclarativeCovariantFrame326.parent_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeCovariantState326.final
+    Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+    (Yulang.GeneralDeclarativeCovariantState326.support2 done) Yulang.GeneralDeclarativePairDecl326.root
+    Yulang.GeneralDeclarativePairDecl326.impl Yulang.GeneralDeclarativeCovariantFrame326.parentBase
+    Yulang.GeneralDeclarativeCovariantFrame326.placement
+Yulang.GeneralDeclarativeCovariantFrame326.child_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeCovariantState326.final
+    Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+    (Yulang.GeneralDeclarativeCovariantState326.support2 done) Yulang.GeneralDeclarativePairDecl326.child
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeCovariantFrame326.leafBase
+    Yulang.GeneralDeclarativeCovariantFrame326.placement
+Yulang.GeneralDeclarativeCovariantLate326.no_recurs : ∀ (done : Nat → Prop)
+  (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeCovariantState326.final
+      Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+      (Yulang.GeneralDeclarativeCovariantLate326.tests done) d
+Yulang.GeneralDeclarativeCovariantLate326.parent_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeCovariantSupport326.controlled done)
+    Yulang.GeneralDeclarativePairDecl326.root
+Yulang.GeneralDeclarativeCovariantLate326.parent_matches : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCovariantSupport326.controlled done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativePairDecl326.interpret
+    Yulang.GeneralDeclarativePairDecl326.root Yulang.GeneralDeclarativePairDecl326.impl
+Yulang.GeneralDeclarativeCovariantLate326.child_matches : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCovariantSupport326.controlled done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativePairDecl326.interpret
+    Yulang.GeneralDeclarativePairDecl326.child Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeCovariantLate326.root_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeCovariantState326.final
+    Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+    (Yulang.GeneralDeclarativeCovariantSupport326.controlled done) Yulang.GeneralDeclarativePairDecl326.root
+    Yulang.GeneralDeclarativePairDecl326.impl Yulang.GeneralDeclarativeCovariantFrame326.parentBase
+    Yulang.GeneralDeclarativeCovariantFrame326.placement
+Yulang.GeneralDeclarativeCovariantLate326.leaf_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeCovariantState326.final
+    Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+    (Yulang.GeneralDeclarativeCovariantSupport326.controlled done) Yulang.GeneralDeclarativePairDecl326.child
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeCovariantFrame326.leafBase
+    Yulang.GeneralDeclarativeCovariantFrame326.placement

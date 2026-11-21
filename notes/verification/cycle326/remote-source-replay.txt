@@ -1,0 +1,24 @@
+Immutable source commit: c902195bb74957d10974f21a90c2df0889619b77
+'Yulang.GeneralDeclarativeLateWithProvider326.certified_transition' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCopyFixture326.absent_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCopyFixture326.after_real_owner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordResolve326.all_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCopiedPending326.ordinary_cycle_copied' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCopiedPending326.copied_stays_unbacked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeProjectInterval326.names_and_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeProjectedConsumer326.ordered_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectedConsumer326.fixed_left_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePrefix326.reconstruct_visible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePrefix326.visible_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePrefix326.no_visible_residue' depends on axioms: [propext, Classical.choice, Quot.sound]
+remote trust-zero replay: 0

@@ -1,0 +1,58 @@
+Only Yulang source modules and independent audits are included in source proof checks.
+Foundations: Lean 4.35.0, --trust=0, no full umbrella or Rust execution.
+Standalone audits: lean/Audit/Cycle326*.lean. New proof modules imported by lean/Yulang.lean in same commit.
+Frozen expected Git blob IDs (metadata only):
+lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Source proof modules: 38
+Changed proof paths and line counts:
+8	0	lean/Audit/Cycle326Bridge.lean
+4	0	lean/Audit/Cycle326Consumer.lean
+9	0	lean/Audit/Cycle326Covariant.lean
+49	0	lean/Audit/Cycle326Crosscheck.lean
+7	0	lean/Audit/Cycle326Graph.lean
+6	0	lean/Audit/Cycle326Interval.lean
+16	0	lean/Audit/Cycle326Opaque.lean
+7	0	lean/Audit/Cycle326Projection.lean
+12	0	lean/Audit/Cycle326Provider.lean
+12	0	lean/Audit/Cycle326Record.lean
+10	0	lean/Audit/Cycle326Visibility.lean
+38	0	lean/Yulang.lean
+83	0	lean/Yulang/GeneralDeclarativeAuthorizedCopy326.lean
+37	0	lean/Yulang/GeneralDeclarativeCopiedPending326.lean
+77	0	lean/Yulang/GeneralDeclarativeCopyCollapse326.lean
+40	0	lean/Yulang/GeneralDeclarativeCopyFixture326.lean
+66	0	lean/Yulang/GeneralDeclarativeCopyK2326.lean
+53	0	lean/Yulang/GeneralDeclarativeCovariantFrame326.lean
+110	0	lean/Yulang/GeneralDeclarativeCovariantLate326.lean
+93	0	lean/Yulang/GeneralDeclarativeCovariantProbe326.lean
+75	0	lean/Yulang/GeneralDeclarativeCovariantResolve326.lean
+125	0	lean/Yulang/GeneralDeclarativeCovariantState326.lean
+89	0	lean/Yulang/GeneralDeclarativeCovariantSupport326.lean
+68	0	lean/Yulang/GeneralDeclarativeFreshTail326.lean
+89	0	lean/Yulang/GeneralDeclarativeGraphFootprint326.lean
+94	0	lean/Yulang/GeneralDeclarativeJoinedSpan326.lean
+95	0	lean/Yulang/GeneralDeclarativeLateProvider326.lean
+79	0	lean/Yulang/GeneralDeclarativeLateProviderDecl326.lean
+126	0	lean/Yulang/GeneralDeclarativeLateWithProvider326.lean
+73	0	lean/Yulang/GeneralDeclarativeOpaquePrefix326.lean
+99	0	lean/Yulang/GeneralDeclarativeOrderedRecord326.lean
+55	0	lean/Yulang/GeneralDeclarativeOrderedTail326.lean
+48	0	lean/Yulang/GeneralDeclarativePairCenters326.lean
+90	0	lean/Yulang/GeneralDeclarativePairDecl326.lean
+71	0	lean/Yulang/GeneralDeclarativePairNames326.lean
+69	0	lean/Yulang/GeneralDeclarativePairProbe326.lean
+84	0	lean/Yulang/GeneralDeclarativePairSpan326.lean
+67	0	lean/Yulang/GeneralDeclarativePairUnion326.lean
+55	0	lean/Yulang/GeneralDeclarativeProjectCapture326.lean
+102	0	lean/Yulang/GeneralDeclarativeProjectInterval326.lean
+70	0	lean/Yulang/GeneralDeclarativeProjectPair326.lean
+81	0	lean/Yulang/GeneralDeclarativeProjectedConsumer326.lean
+130	0	lean/Yulang/GeneralDeclarativeProjectedFrame326.lean
+87	0	lean/Yulang/GeneralDeclarativeRecordDecl326.lean
+50	0	lean/Yulang/GeneralDeclarativeRecordFrame326.lean
+46	0	lean/Yulang/GeneralDeclarativeRecordK2326.lean
+89	0	lean/Yulang/GeneralDeclarativeRecordProbe326.lean
+74	0	lean/Yulang/GeneralDeclarativeRecordResolve326.lean
+89	0	lean/Yulang/GeneralDeclarativeRecordState326.lean
+46	0	lean/Yulang/GeneralDeclarativeVisibleRecord326.lean

@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeOpaquePrefix326.reconstruct_visible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePrefix326.visible_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePrefix326.no_visible_residue' depends on axioms: [propext, Classical.choice, Quot.sound]

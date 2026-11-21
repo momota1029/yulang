@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativePairCenters326.project_first' does not depend on any axioms
+'Yulang.GeneralDeclarativePairCenters326.coordinate_ranges' does not depend on any axioms
+'Yulang.GeneralDeclarativePairNames326.projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePairSpan326.both_named' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePairSpan326.projected_center' depends on axioms: [propext, Quot.sound]
