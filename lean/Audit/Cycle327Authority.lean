@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeAliasStatus327
+
+#print axioms Yulang.GeneralDeclarativeAliasAuthority327.equal_in_every_model
+#print axioms Yulang.GeneralDeclarativeAliasAuthority327.fits
+#print axioms Yulang.GeneralDeclarativeAliasStatus327.real_comparison

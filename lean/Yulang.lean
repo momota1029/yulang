@@ -6929,3 +6929,5 @@ import Yulang.GeneralDeclarativeEndpointAlias327
 import Yulang.GeneralDeclarativeRelationalCheck327
 import Yulang.GeneralDeclarativeFiniteCheck327
 import Yulang.GeneralDeclarativeFiniteTrees327
+import Yulang.GeneralDeclarativeAliasAuthority327
+import Yulang.GeneralDeclarativeAliasStatus327
