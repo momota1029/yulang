@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeProvisionalClosure323
+import Yulang.GeneralDeclarativeRootClosure323
+
+#print axioms Yulang.GeneralDeclarativeOutputExact323.root_exact
+#print axioms Yulang.GeneralDeclarativeRootClosure323.models_close
+#print axioms Yulang.GeneralDeclarativeProvisionalFailure323.provisional_counterexample
+#print axioms Yulang.GeneralDeclarativeProvisionalFailure323.not_compiles
+#print axioms Yulang.GeneralDeclarativeProvisionalClosure323.closure_inhabited
