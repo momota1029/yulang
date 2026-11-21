@@ -1,11 +1,8 @@
-# dots-main heartbeat
-- cycle: 309
-- status: completed
-- started: 2026-11-21T00:29:54Z
-- updated: 2026-11-21T01:17:47.531Z
-- elapsed_min: 47
-- activity: C309 完了: 二つの実 child の再帰辞書健全性
-- workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 3aa85fc3a
-- resume_hint: 次回は親出力を子が読む分岐で同一モデルの保持と現在クラス式を得る。一般停止性には進まない。
-- report: notes/handoff/dots-cycle-309.md
+# dot heartbeat
+
+- cycle: 310
+- status: running
+- started: 2026-11-21T01:30:00Z
+- updated: 2026-11-21T01:32:41.178Z
+- elapsed_min: 2
+- activity: C310 開始: I-55 再帰辞書の健全性・出力専用スロット共有
