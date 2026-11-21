@@ -1,8 +1,9 @@
 # dot heartbeat
 
 - cycle: 311
-- status: running
+- status: completed
 - started: 2026-11-21T02:30:00Z
-- updated: 2026-11-21T03:14:29.439Z
-- elapsed_min: 44
-- activity: C311: 未 replay の実 peer、辞書 3[2]、新規集約への履歴選択移送を検証
+- updated: 2026-11-21T03:16:46.589Z
+- elapsed_min: 46
+- activity: C311 完了: 実 alias の旧選択互換と同一モデルの再帰証拠を Lean 検証
+- report: notes/handoff/dots-cycle-311.md
