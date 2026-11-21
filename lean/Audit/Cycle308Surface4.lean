@@ -1,0 +1,63 @@
+import Yulang.GeneralMixedCompoundPointFirstSafety308
+import Yulang.GeneralMixedCompoundPointOutcome308
+import Yulang.GeneralMixedCompoundPointPorts308
+import Yulang.GeneralMixedCompoundPointRoot308
+import Yulang.GeneralMixedCompoundPointSafe308
+import Yulang.GeneralMixedCompoundPointSites308
+
+#print axioms Yulang.GeneralMixedCompoundPointFirstSafety308.raw_high
+#print axioms Yulang.GeneralMixedCompoundPointFirstSafety308.raw_edge
+#print axioms Yulang.GeneralMixedCompoundPointFirstSafety308.no_raw_cycle
+#print axioms Yulang.GeneralMixedCompoundPointFirstSafety308.no_semantic_cycle
+#print axioms Yulang.GeneralMixedCompoundPointFirstSafety308.ready
+#print axioms Yulang.GeneralMixedCompoundPointFirstSafety308.safe
+#print axioms Yulang.GeneralMixedCompoundPointFirstSafety308.positions
+#print axioms Yulang.GeneralMixedCompoundPointFirstSafety308.alternatives
+#print axioms Yulang.GeneralMixedCompoundPointOutcome308.output_clear
+#print axioms Yulang.GeneralMixedCompoundPointOutcome308.sharing_clear
+#print axioms Yulang.GeneralMixedCompoundPointOutcome308.merged_clear
+#print axioms Yulang.GeneralMixedCompoundPointOutcome308.local_root
+#print axioms Yulang.GeneralMixedCompoundPointOutcome308.local_child
+#print axioms Yulang.GeneralMixedCompoundPointOutcome308.tree
+#print axioms Yulang.GeneralMixedCompoundPointOutcome308.result
+#print axioms Yulang.GeneralMixedCompoundPointOutcome308.result_not_selected
+#print axioms Yulang.GeneralMixedCompoundPointPorts308.afterSnap
+#print axioms Yulang.GeneralMixedCompoundPointPorts308.current_pair
+#print axioms Yulang.GeneralMixedCompoundPointPorts308.ports
+#print axioms Yulang.GeneralMixedCompoundPointPorts308.equal
+#print axioms Yulang.GeneralMixedCompoundPointPorts308.old_not_equal
+#print axioms Yulang.GeneralMixedCompoundPointPorts308.lower_reserved
+#print axioms Yulang.GeneralMixedCompoundPointPorts308.upper_reserved
+#print axioms Yulang.GeneralMixedCompoundPointPorts308.lower_not_read
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.packet
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.plan
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.query
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.report_exact
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.bindings_exact
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.located
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.frame_plan
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.same_readback
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.models_observed
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.held
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.fresh
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.prepared
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.child_exact
+#print axioms Yulang.GeneralMixedCompoundPointRoot308.frame
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.leaf
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.nominalTree
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.canonical
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.model_origin
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.no_semantic
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.no_raw_zero
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.current_tests
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.known
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.source_at_zero
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.safe
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.survivor
+#print axioms Yulang.GeneralMixedCompoundPointSafe308.unique
+#print axioms Yulang.GeneralMixedCompoundPointSites308.child_site
+#print axioms Yulang.GeneralMixedCompoundPointSites308.emitted_exact
+#print axioms Yulang.GeneralMixedCompoundPointSites308.centers
+#print axioms Yulang.GeneralMixedCompoundPointSites308.raw_sites
+#print axioms Yulang.GeneralMixedCompoundPointSites308.request_exact
+#print axioms Yulang.GeneralMixedCompoundPointSites308.equal_outputs

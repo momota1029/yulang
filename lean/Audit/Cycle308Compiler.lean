@@ -1,0 +1,12 @@
+import Yulang.GeneralMixedCompoundPointSteps308
+
+open Yulang
+
+#print axioms GeneralMixedCompoundPointEvidence308.local_certificate
+#print axioms GeneralMixedCompoundPointEvidence308.witnessed_request
+#print axioms GeneralMixedCompoundPointEvidence308.no_recursive_root
+#print axioms GeneralMixedCompoundPointOutcome308.tree
+#print axioms GeneralMixedCompoundPointOutcome308.result
+#print axioms GeneralMixedCompoundPointCommit308.committed
+#print axioms GeneralMixedCompoundPointSteps308.exact_operations
+#print axioms GeneralMixedCompoundCompilerGap308.no_factorization

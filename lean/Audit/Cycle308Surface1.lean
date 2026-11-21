@@ -1,0 +1,57 @@
+import Yulang.GeneralMixedCacheStatic308
+import Yulang.GeneralMixedCompoundCompilerGap308
+import Yulang.GeneralMixedCompoundEarlyBase308
+import Yulang.GeneralMixedCompoundEarlyModels308
+import Yulang.GeneralMixedCompoundEarlyNoShortcut308
+import Yulang.GeneralMixedCompoundEarlyRefresh308
+
+#print axioms Yulang.GeneralMixedCacheStatic308.Static
+#print axioms Yulang.GeneralMixedCacheStatic308.reverse
+#print axioms Yulang.GeneralMixedCacheStatic308.from_refresh
+#print axioms Yulang.GeneralMixedCacheStatic308.alias
+#print axioms Yulang.GeneralMixedCacheStatic308.legacy_done
+#print axioms Yulang.GeneralMixedCacheStatic308.versioned_done
+#print axioms Yulang.GeneralMixedCacheStatic308.legacy_models
+#print axioms Yulang.GeneralMixedCacheStatic308.versioned_models
+#print axioms Yulang.GeneralMixedCacheStatic308.legacy
+#print axioms Yulang.GeneralMixedCacheStatic308.versioned
+#print axioms Yulang.GeneralMixedCacheStatic308.justified
+#print axioms Yulang.GeneralMixedCacheStatic308.cache
+#print axioms Yulang.GeneralMixedCacheStatic308.cache_iff
+#print axioms Yulang.GeneralMixedCompoundCompilerGap308.LocallyCertified
+#print axioms Yulang.GeneralMixedCompoundCompilerGap308.current_readback
+#print axioms Yulang.GeneralMixedCompoundCompilerGap308.public_same
+#print axioms Yulang.GeneralMixedCompoundCompilerGap308.point_cert
+#print axioms Yulang.GeneralMixedCompoundCompilerGap308.historical_not_cert
+#print axioms Yulang.GeneralMixedCompoundCompilerGap308.equal_readback_separates_local_cert
+#print axioms Yulang.GeneralMixedCompoundCompilerGap308.no_factorization
+#print axioms Yulang.GeneralMixedCompoundEarlyBase308.wideLoose
+#print axioms Yulang.GeneralMixedCompoundEarlyBase308.looseSnap
+#print axioms Yulang.GeneralMixedCompoundEarlyBase308.looseContext
+#print axioms Yulang.GeneralMixedCompoundEarlyBase308.same_domain
+#print axioms Yulang.GeneralMixedCompoundEarlyBase308.known_iff
+#print axioms Yulang.GeneralMixedCompoundEarlyBase308.old_known
+#print axioms Yulang.GeneralMixedCompoundEarlyBase308.refines
+#print axioms Yulang.GeneralMixedCompoundEarlyModels308.alias
+#print axioms Yulang.GeneralMixedCompoundEarlyModels308.lower
+#print axioms Yulang.GeneralMixedCompoundEarlyModels308.point_to_loose
+#print axioms Yulang.GeneralMixedCompoundEarlyModels308.old_zero
+#print axioms Yulang.GeneralMixedCompoundEarlyModels308.old_one
+#print axioms Yulang.GeneralMixedCompoundEarlyModels308.forced_zero
+#print axioms Yulang.GeneralMixedCompoundEarlyModels308.equal
+#print axioms Yulang.GeneralMixedCompoundEarlyNoShortcut308.slots
+#print axioms Yulang.GeneralMixedCompoundEarlyNoShortcut308.width
+#print axioms Yulang.GeneralMixedCompoundEarlyNoShortcut308.refresh_impossible
+#print axioms Yulang.GeneralMixedCompoundEarlyNoShortcut308.refresh_target_impossible
+#print axioms Yulang.GeneralMixedCompoundEarlyNoShortcut308.no_shortcut
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.early
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.static_point_installed
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.static_installed_early
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.cache_point
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.cache_loose
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.certificate
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.previously_unknown
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.early_known
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.step
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.models
+#print axioms Yulang.GeneralMixedCompoundEarlyRefresh308.reachable
