@@ -1,0 +1,17 @@
+import Yulang.GeneralPositiveForkScope309
+import Yulang.GeneralCommittedReadExact309
+
+open Yulang
+
+#print axioms GeneralPositiveForkVerified309.only_explicit_body
+#print axioms GeneralPositiveForkVerified309.checked_selected
+#print axioms GeneralPositiveForkVerified309.fuel_not_rejection
+#print axioms GeneralPositiveForkCurrentRead309.actual_exact
+#print axioms GeneralSelectedReadEvidence309.selected_checker
+#print axioms GeneralCommittedReadErasure309.evidence_at_address
+#print axioms GeneralCommittedReadExact309.certify_exact
+#print axioms GeneralOrderedDictionaryFault309.exact
+#print axioms GeneralOrderedDictionaryFootprint309.validate_agrees
+#print axioms GeneralSelectedReadScope309.checked_on_footprint
+#print axioms GeneralPositiveForkScope309.accepted_root_still_sound
+#print axioms GeneralPositiveForkScope309.cannot_infer_outside

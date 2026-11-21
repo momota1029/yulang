@@ -2,9 +2,9 @@
 - cycle: 309
 - status: running
 - started: 2026-11-21T00:29:54Z
-- updated: 2026-11-21T00:58:35.060Z
-- elapsed_min: 28
-- activity: 順序付き検査器・実 child の位置ごとの source 証明 trace、両 typed slots の必要性、据付前の二子未登録を検証
+- updated: 2026-11-21T01:08:06.646Z
+- elapsed_min: 38
+- activity: 実可到達の両相で同一モデルの再帰証拠、最初の失敗・証明住所・読んだ支持の exactness を検証
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 6947c2978
-- resume_hint: 実 raw 行の登録から、正しいスナップショットだけで取得する executable readback と全到達相の証明へ
+- last_local_commit: 468d68ad3
+- resume_hint: 独立監査とスコープ付き実行試験へ
