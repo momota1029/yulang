@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 308
-- status: running
+- status: completed
 - started: 2026-11-20T23:35:22Z
-- updated: 2026-11-21T00:19:45.613Z
-- elapsed_min: 44
-- activity: 31 modules の focused build / source trust=0、独立11監査と差分検証が完了。生成 child の pending→rejected 独立 trace を追加
+- updated: 2026-11-21T00:22:26.629Z
+- elapsed_min: 47
+- activity: C308 完了: 実 raw 分岐・実 child の保留から棄却・親局所証明と再帰辞書の分離を検証し、報告を公開
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 6e3ade9a6
-- resume_hint: 出力ログと全成果の固定 SHA 照合後、完了報告と心拍を公開
+- last_local_commit: 0dd4721e6
+- resume_hint: 次は先行側の任意 refresh/equate 後の支持と Committed の保存; 統合版と inbox を起動時に再読
+- report: notes/handoff/dots-cycle-308.md

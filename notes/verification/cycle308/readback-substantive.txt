@@ -1,0 +1,13 @@
+fixed GitHub ref: 128142cd80a5905c3695379a9ee02c647b660f12
+branch: work/dots-main
+GitHub head after publication: 128142cd80a5905c3695379a9ee02c647b660f12
+comparison base: previous pinned C307  abfa54cd3382d6d2b7fc9cb0961e71a10125ec0a
+comparison set: all 59 cumulative C308 substantive paths (code, audit parts, design, verification)
+result: 59/59 exact content matches; no missing or differing files
+barrel expected bytes: previous pinned GitHub barrel followed only by the 31 cycle import lines
+running heartbeat at same commit matched separately
+integration recheck, 2026-11-21 00:21 UTC:
+- integration/m1-final advanced to faf6b87900b6c446461b1d5f9133467abbb7dee912
+- standing orders and inbox were byte-identical with the pinned start versions; ACTIVE / I-54 still applies
+- all 47 added C306 Lean source/audit files were byte-identical to the carried local C307 base
+- all 40 new C306 built-module imports were already present locally
