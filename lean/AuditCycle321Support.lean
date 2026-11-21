@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeAliasMeaning321
+import Yulang.GeneralDeclarativeCenterEntails321
+import Yulang.GeneralDeclarativeGraphRows321
+import Yulang.GeneralDeclarativeK2Alias321
+import Yulang.GeneralDeclarativeSupportExample321
+
+#print axioms Yulang.GeneralDeclarativeOrigins321.backed_iff
+#print axioms Yulang.GeneralDeclarativeOrigins321.pending_only
+#print axioms Yulang.GeneralDeclarativeLowerKnown321.ready_iff_not_delayed
+#print axioms Yulang.GeneralDeclarativeAliasMeaning321.alias_sound
+#print axioms Yulang.GeneralDeclarativeCenterEntails321.actual_head_row
+#print axioms Yulang.GeneralDeclarativeGraphRows321.pending_nominal_self_cycle
+#print axioms Yulang.GeneralDeclarativeK2Alias321.alias_cycle_iff
+#print axioms Yulang.GeneralDeclarativeSupportExample321.unfinished_blocks_second
+#print axioms Yulang.GeneralDeclarativeSupportExample321.completed_restarts
+#print axioms Yulang.GeneralDeclarativeSupportExample321.alternate_origins
