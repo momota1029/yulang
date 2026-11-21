@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeInlineFixture331
+
+#print axioms Yulang.GeneralDeclarativeInlineAllocation331.name_walk
+#print axioms Yulang.GeneralDeclarativeInlineMaterial331.old_names_protected
+#print axioms Yulang.GeneralDeclarativeInlineMaterial331.read
+#print axioms Yulang.GeneralDeclarativeInlineGrowth331.extend
+#print axioms Yulang.GeneralDeclarativeExactFrame331.frame_after_exact
+#print axioms Yulang.GeneralDeclarativeInlineCompiler331.compile
+#print axioms Yulang.GeneralDeclarativeInlineFixture331.exact_material_logic
+#print axioms Yulang.GeneralDeclarativeInlineFixture331.actual_heads
+#print axioms Yulang.GeneralDeclarativeInlineFixture331.calc_children
