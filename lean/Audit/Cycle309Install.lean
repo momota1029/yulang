@@ -1,0 +1,11 @@
+import Yulang.GeneralPositiveForkInstall309
+
+open Yulang
+
+#print axioms GeneralPositiveForkSource309.actual_initial
+#print axioms GeneralPositiveForkPlan309.ordered_children
+#print axioms GeneralPositiveForkPlan309.holds
+#print axioms GeneralPositiveForkInstall309.step
+#print axioms GeneralPositiveForkInstall309.actual_low
+#print axioms GeneralPositiveForkInstall309.actual_high
+#print axioms GeneralPositiveForkInstall309.models
