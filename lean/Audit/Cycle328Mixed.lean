@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeNestedModels328
+import Yulang.GeneralDeclarativeOpaqueShared328
+
+#print axioms Yulang.GeneralDeclarativeNestedModels328.genuine_nested
+#print axioms Yulang.GeneralDeclarativeNestedResolve328.certified
+#print axioms Yulang.GeneralDeclarativeNestedState328.actual_center
+#print axioms Yulang.GeneralDeclarativeOpaqueShared328.complete

@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeOpaquePair328.reconstruction' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueVariant328.reconstruction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueFixtureModels328.exact_opaque_fixture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedModels328.genuine_nested' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueCompress328.alias_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueAuditGraph328.cycle' depends on axioms: [propext, Quot.sound]
+exact replay exit: 0

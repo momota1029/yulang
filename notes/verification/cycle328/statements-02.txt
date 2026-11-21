@@ -1,0 +1,172 @@
+  {ws rs : List Yulang.GeneralDeclarativeHead320.Equation} {proposed : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {s t current : Yulang.GeneralDeclarativeHead320.State} {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            impl.head = [pat] →
+              d.arguments = [arg] →
+                Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+                  Yulang.GeneralDeclarativeOpaqueNested328.Builds s keep arg plan →
+                    (Yulang.GeneralDeclarativeTraceNames321.names plan.code).Nodup →
+                      Yulang.GeneralNominalCenteredHeadMatExpressions.translate r.constructors i
+                            (Yulang.GeneralDeclarationPatterns.normalize pat) =
+                          some plan.code →
+                        ∀ (fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+                          (targets : Yulang.GeneralDeclarations.Clause → Nat → Nat) (protect : List Nat),
+                          Yulang.GeneralDeclarativeGrowth327.Extends
+                              (Yulang.GeneralDeclarativeOpaqueNested328.run keep s arg plan).state current →
+                            Yulang.GeneralDeclarativeGrowth327.Extends t current →
+                              Yulang.GeneralDeclarativeClauseBatch327.prepare r.constructors i protect
+                                    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                                        (Yulang.GeneralDeclarativeAppliedClause327.targetsOnly targets)
+                                        (Yulang.GeneralDeclarativeOpaqueSingle328.linear keep s arg plan
+                                          fallback)).input
+                                    (Yulang.GeneralDeclarativeOpaqueNested328.run keep s arg plan).state
+                                    impl.requirements =
+                                  some (t, ports) →
+                                Yulang.GeneralDeclarativeWhereOutputBatch327.whole r i impl
+                                      (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                                        (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports
+                                          targets)
+                                        (Yulang.GeneralDeclarativeOpaqueSingle328.linear keep s arg plan fallback))
+                                      targets =
+                                    some ws →
+                                  ws ⊆ current.equations →
+                                    Yulang.GeneralDeclarativeBatch320.collect
+                                          (Yulang.GeneralDeclarativeNormalizeAssoc324.one r i impl d
+                                            (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                                                (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements
+                                                  ports targets)
+                                                (Yulang.GeneralDeclarativeOpaqueSingle328.linear keep s arg plan
+                                                  fallback)).input)
+                                          d.outputs =
+                                        some rs →
+                                      rs ⊆ current.equations →
+                                        Yulang.GeneralDeclarativeOpaqueBatch328.check
+                                              (Yulang.GeneralDeclarativeEmissionForest322.children impl
+                                                (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                                                  (Yulang.GeneralDeclarativeClausePlacement327.placement
+                                                    impl.requirements ports targets)
+                                                  (Yulang.GeneralDeclarativeOpaqueSingle328.linear keep s arg plan
+                                                    fallback))
+                                                (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements
+                                                  ports targets))
+                                              proposed =
+                                            true →
+                                          have cap :=
+                                            (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                                                (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements
+                                                  ports targets)
+                                                (Yulang.GeneralDeclarativeOpaqueSingle328.linear keep s arg plan
+                                                  fallback)).input;
+                                          Yulang.GeneralDeclarativeCompileLists321.Result current
+                                              (Yulang.GeneralDeclarativeNFComplete324.facts r i cap impl d proposed) ∧
+                                            (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                                                Yulang.GeneralDeclarativeHead320.Models current m →
+                                                  Yulang.GeneralDeclarativeAssembly320.Meaning r i m d impl cap
+                                                    proposed) ∧
+                                              ∀ (child : Yulang.GeneralDeclarativeDemand320.Demand),
+                                                child ∈ proposed →
+                                                  Yulang.GeneralDeclarativeOutputSource323.Declared r child
+@Yulang.GeneralDeclarativeOpaqueCapture328.choice_exact : ∀
+  {captures : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {key : Nat}
+  {span : Yulang.GeneralDeclarativeWhere319.Capture} {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture},
+  (List.map Prod.fst captures).Nodup →
+    (key, span) ∈ captures → Yulang.GeneralDeclarativeOpaqueCapture328.choose fallback key captures = span
+@Yulang.GeneralDeclarativeOpaqueCapture328.actual_binds : ∀ {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {captures : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s : Yulang.GeneralDeclarativeHead320.State},
+  (List.map Prod.fst captures).Nodup →
+    Yulang.GeneralDeclarativeTermWalk322.Binds s
+      (fun n => Yulang.GeneralDeclarativeOpaqueCapture328.choose fallback n captures)
+      (Yulang.GeneralDeclarativeOpaqueNested328.occurrences captures)
+@Yulang.GeneralDeclarativeOpaqueCapture328.ordered_keys : ∀ {keep : List Nat}
+  {plan : Yulang.GeneralDeclarativeOpaquePlan328.Plan} {s : Yulang.GeneralDeclarativeHead320.State}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeOpaqueNested328.Builds s keep arg plan →
+    List.map Prod.fst (Yulang.GeneralDeclarativeOpaqueNested328.run keep s arg plan).binds =
+      Yulang.GeneralDeclarativeTraceNames321.names plan.code
+@Yulang.GeneralDeclarativeOpaqueCapture328.result : ∀ {keep : List Nat}
+  {plan : Yulang.GeneralDeclarativeOpaquePlan328.Plan} {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {pat : Yulang.GeneralDeclarationPatterns.Pattern}
+  {s : Yulang.GeneralDeclarativeHead320.State} {arg : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeOpaqueNested328.Builds s keep arg plan →
+    (Yulang.GeneralDeclarativeTraceNames321.names plan.code).Nodup →
+      Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i (Yulang.GeneralDeclarationPatterns.normalize pat) =
+          some plan.code →
+        ∀ (fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+          have built := Yulang.GeneralDeclarativeOpaqueNested328.run keep s arg plan;
+          have capture := fun n => Yulang.GeneralDeclarativeOpaqueCapture328.choose fallback n built.binds;
+          Yulang.GeneralDeclarativeCompileLists321.Result built.state
+              (Yulang.GeneralDeclarativeNFHead324.fact c i capture arg pat) ∧
+            ∀ (binder : Nat),
+              binder ∈ Yulang.GeneralDeclarativeTraceNames321.names plan.code →
+                Yulang.GeneralDeclarativeDemand320.Bounds built.state (capture binder)
+Yulang.GeneralDeclarativeOpaqueChannel328.tests_union : ∀ (d : Nat)
+  (env : Yulang.CommonNominalFullDemand.Environment Yulang.CommonNominalFullCarrier.Row)
+  (order :
+    Yulang.CommonNominalFullDemand.Ty Yulang.CommonNominalFullCarrier.Row →
+      Yulang.CommonNominalFullDemand.Ty Yulang.CommonNominalFullCarrier.Row → Prop)
+  (o : Yulang.CommonNominalFullDemand.Observation Yulang.CommonNominalFullCarrier.Row)
+  (a b : Option Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralDeclarativeOpaqueChannel328.tests d env order o (Yulang.GeneralDeclarativeOpaqueChannel328.union a b) ↔
+    Yulang.GeneralDeclarativeOpaqueChannel328.tests d env order o a ∧
+      Yulang.GeneralDeclarativeOpaqueChannel328.tests d env order o b
+Yulang.GeneralDeclarativeOpaqueChannel328.tests_meet : ∀ (d : Nat)
+  (env : Yulang.CommonNominalFullDemand.Environment Yulang.CommonNominalFullCarrier.Row)
+  (order :
+    Yulang.CommonNominalFullDemand.Ty Yulang.CommonNominalFullCarrier.Row →
+      Yulang.CommonNominalFullDemand.Ty Yulang.CommonNominalFullCarrier.Row → Prop)
+  (o : Yulang.CommonNominalFullDemand.Observation Yulang.CommonNominalFullCarrier.Row)
+  (a b : Option Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralDeclarativeOpaqueChannel328.tests d env order o (Yulang.GeneralDeclarativeOpaqueChannel328.meet a b) ↔
+    Yulang.GeneralDeclarativeOpaqueChannel328.tests d env order o a ∨
+      Yulang.GeneralDeclarativeOpaqueChannel328.tests d env order o b
+Yulang.GeneralDeclarativeOpaqueChannel328.probe_step : ∀ (last : Bool) (d : Nat)
+  (env : Yulang.CommonNominalFullDemand.Environment Yulang.Common.Row)
+  (order :
+    Yulang.CommonNominalFullDemand.Ty Yulang.Common.Row → Yulang.CommonNominalFullDemand.Ty Yulang.Common.Row → Prop)
+  (o : Yulang.CommonNominalFullDemand.Observation Yulang.CommonNominalFullCarrier.Row)
+  (shape : Yulang.CommonNominalFullCarrier.Ty) (hidden : List Nat),
+  Yulang.CommonNominalFullDemand.MaskedProbeStep Yulang.Common.rowLe env order hidden
+      (Yulang.CommonNominalFullCarrier.observeTy (d + 1) shape)
+      (Yulang.GeneralDeclarativeOpaqueChannel328.channel last o) ↔
+    Yulang.GeneralDeclarativeOpaqueChannel328.tests d env order o
+      (Yulang.GeneralDeclarativeOpaqueChannel328.project last shape)
+Yulang.GeneralDeclarativeOpaqueCompress328.keeps : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends) {n : Nat},
+  n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s root (Yulang.GeneralDeclarativeOpaqueIntervals328.protect keep e) →
+    Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e n = n
+Yulang.GeneralDeclarativeOpaqueCompress328.old_name : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends) {n : Nat},
+  n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s →
+    Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e n = n
+Yulang.GeneralDeclarativeOpaqueCompress328.left_center : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e
+      (Yulang.GeneralDeclarativeOpaqueNames328.first s root
+        (Yulang.GeneralDeclarativeOpaqueIntervals328.protect keep e)) =
+    e.firstLo
+Yulang.GeneralDeclarativeOpaqueCompress328.right_center : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e
+      (Yulang.GeneralDeclarativeOpaqueNames328.second s root
+        (Yulang.GeneralDeclarativeOpaqueIntervals328.protect keep e)) =
+    e.secondLo
+Yulang.GeneralDeclarativeOpaqueCompress328.oneLo : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e e.firstLo = e.firstLo
+Yulang.GeneralDeclarativeOpaqueCompress328.oneHi : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e e.firstHi = e.firstHi
+Yulang.GeneralDeclarativeOpaqueCompress328.twoLo : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e e.secondLo = e.secondLo
+Yulang.GeneralDeclarativeOpaqueCompress328.twoHi : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeOpaqueCompress328.squash s root keep e e.secondHi = e.secondHi
+Yulang.GeneralDeclarativeOpaqueCompress328.project_bound : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (keep : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends) {a b : Nat},
+  Yulang.GeneralDeclarativeBounds319.Bound (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root keep e).normal a
+      b →

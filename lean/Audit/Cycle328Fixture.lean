@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeOpaqueFixtureModels328
+
+#print axioms Yulang.GeneralDeclarativeOpaqueFixtureProbe328.no_cycles
+#print axioms Yulang.GeneralDeclarativeOpaqueFixtureFrame328.child_exact
+#print axioms Yulang.GeneralDeclarativeOpaqueFixtureResolve328.certified
+#print axioms Yulang.GeneralDeclarativeOpaqueFixtureModels328.actual_reads
+#print axioms Yulang.GeneralDeclarativeOpaqueFixtureModels328.exact_opaque_fixture

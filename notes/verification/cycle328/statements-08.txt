@@ -1,0 +1,131 @@
+Yulang.GeneralDeclarativeOpaqueVariant328.zero_tag : ∀ (tag rank : Nat)
+  (env : Yulang.CommonNominalFullDemand.Environment Yulang.CommonNominalFullCarrier.Row)
+  (o : Yulang.CommonNominalFullDemand.Observation Yulang.CommonNominalFullCarrier.Row)
+  (a : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullDemand.ProbeAt Yulang.Common.rowLe rank env
+    (Yulang.CommonNominalFullCarrier.observeTy 0 (Yulang.CommonNominalFullCarrier.variant tag a))
+    (Yulang.CommonNominalFinite.Observation.variant tag o)
+Yulang.GeneralDeclarativeOpaqueVariant328.present : ∀ (tag : Nat) (x a : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Subtype x (Yulang.CommonNominalFullCarrier.variant tag a) →
+    ∃ b, Yulang.GeneralDeclarativeOpaqueVariant328.project tag x = some b
+Yulang.GeneralDeclarativeOpaqueVariant328.reconstruction : ∀ (tag : Nat) (x lo hi : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Subtype (Yulang.CommonNominalFullCarrier.variant tag lo) x →
+    Yulang.CommonNominalFullCarrier.Subtype x (Yulang.CommonNominalFullCarrier.variant tag hi) →
+      ∃ a,
+        Yulang.GeneralDeclarativeOpaqueVariant328.project tag x = some a ∧
+          Yulang.CommonNominalFullCarrier.Equivalent x (Yulang.CommonNominalFullCarrier.variant tag a) ∧
+            Yulang.CommonNominalFullCarrier.Subtype lo a ∧ Yulang.CommonNominalFullCarrier.Subtype a hi
+Yulang.GeneralDeclarativeOpaqueVariantNames328.known_bounds : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (tag root low high : Nat) (extra : List Nat),
+  Yulang.GeneralDeclarativeDemand320.Bounds
+    (Yulang.GeneralDeclarativeOpaqueVariantNames328.ready s tag root low high extra)
+    (Yulang.GeneralDeclarativeOpaqueVariantNames328.names s root low high extra)
+Yulang.GeneralDeclarativeOpaqueVariantNames328.reads_center : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (tag root low high : Nat) (extra : List Nat),
+  Yulang.GeneralDeclarativeEqualities322.Derives
+    (Yulang.GeneralDeclarativeOpaqueVariantNames328.ready s tag root low high extra)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable root)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+        (Yulang.GeneralDeclarativeOpaqueVariantNames328.names s root low high extra).center))
+@Yulang.GeneralDeclarativeOpaqueVariantNames328.conserve_visible : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {tag lo hi : Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.lower,
+          right :=
+            Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+              (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable lo) } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := arg.upper,
+            right :=
+              Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+                (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable hi) } →
+        ∀ (extra : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m ↔
+            ∃ next,
+              Yulang.GeneralDeclarativeHead320.Models
+                  (Yulang.GeneralDeclarativeOpaqueVariantNames328.visible s tag arg.center lo hi extra) next ∧
+                ∀ (n : Nat),
+                  n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s arg.center (lo :: hi :: extra) → next n = m n
+@Yulang.GeneralDeclarativeOpaqueVariantNames328.unchanged_models : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {tag lo hi : Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.lower,
+          right :=
+            Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+              (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable lo) } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := arg.upper,
+            right :=
+              Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+                (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable hi) } →
+        ∀ (extra : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models
+              (Yulang.GeneralDeclarativeOpaqueVariantNames328.ready s tag arg.center lo hi extra) m ↔
+            Yulang.GeneralDeclarativeHead320.Models
+              (Yulang.GeneralDeclarativeOpaqueVariantNames328.visible s tag arg.center lo hi extra) m
+@Yulang.GeneralDeclarativeOpaqueVariantNames328.conservative : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {tag lo hi : Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.lower,
+          right :=
+            Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+              (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable lo) } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := arg.upper,
+            right :=
+              Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+                (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable hi) } →
+        ∀ (extra : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m ↔
+            ∃ next,
+              Yulang.GeneralDeclarativeHead320.Models
+                  (Yulang.GeneralDeclarativeOpaqueVariantNames328.ready s tag arg.center lo hi extra) next ∧
+                ∀ (n : Nat),
+                  n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s arg.center (lo :: hi :: extra) → next n = m n
+@Yulang.GeneralDeclarativeOpaqueVariantNames328.variant_trace : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {n tag : Nat}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTrace321.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeTrace321.Trace (Yulang.GeneralDeclarativeOrigins321.restriction p) mode n
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag code) used →
+    ∃ e,
+      Yulang.GeneralDeclarativeEqualities322.Derives s (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n)
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable e)) ∧
+        Yulang.GeneralDeclarativeTrace321.Trace (Yulang.GeneralDeclarativeOrigins321.restriction p) mode e code used
+@Yulang.GeneralDeclarativeOpaqueVariantNames328.from_variant_match : ∀ {done : Nat → Prop}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {tag : Nat}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i (Yulang.GeneralDeclarationPatterns.normalize pat) =
+      some (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag code) →
+    Yulang.GeneralDeclarativeEndpointProbe321.Matches (Yulang.GeneralDeclarativeOrigins321.restriction p) c i arg pat →
+      ∀ (extra : List Nat),
+        ∃ lo hi lowerUses upperUses,
+          Yulang.GeneralDeclarativeTrace321.Trace (Yulang.GeneralDeclarativeOrigins321.restriction p)
+              Yulang.GeneralNominalMaterialization.Mode.lower lo code lowerUses ∧
+            Yulang.GeneralDeclarativeTrace321.Trace (Yulang.GeneralDeclarativeOrigins321.restriction p)
+                Yulang.GeneralNominalMaterialization.Mode.upper hi code upperUses ∧
+              Yulang.GeneralDeclarativeDemand320.Bounds
+                  (Yulang.GeneralDeclarativeOpaqueVariantNames328.ready s tag arg.center lo hi extra)
+                  (Yulang.GeneralDeclarativeOpaqueVariantNames328.names s arg.center lo hi extra) ∧
+                Yulang.GeneralDeclarativeEqualities322.Derives
+                    (Yulang.GeneralDeclarativeOpaqueVariantNames328.ready s tag arg.center lo hi extra)
+                    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center)
+                    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+                      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+                        (Yulang.GeneralDeclarativeOpaqueVariantNames328.names s arg.center lo hi extra).center)) ∧
+                  ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralDeclarativeHead320.Models s m ↔
+                      ∃ next,
+                        Yulang.GeneralDeclarativeHead320.Models
+                            (Yulang.GeneralDeclarativeOpaqueVariantNames328.ready s tag arg.center lo hi extra) next ∧
+                          ∀ (n : Nat),
+                            n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s arg.center (lo :: hi :: extra) →
+                              next n = m n

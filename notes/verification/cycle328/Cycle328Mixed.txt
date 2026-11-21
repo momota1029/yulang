@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeNestedModels328.genuine_nested' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedResolve328.certified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedState328.actual_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueShared328.complete' depends on axioms: [propext, Quot.sound]

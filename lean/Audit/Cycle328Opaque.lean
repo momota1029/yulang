@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeOpaquePair328
+
+#print axioms Yulang.GeneralDeclarativeOpaqueChannel328.probe_step
+#print axioms Yulang.GeneralDeclarativeOpaquePair328.present
+#print axioms Yulang.GeneralDeclarativeOpaquePair328.reconstruction
+#print axioms Yulang.GeneralDeclarativeOpaquePair328.projected_intervals

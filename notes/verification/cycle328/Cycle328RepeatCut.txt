@@ -1,0 +1,3 @@
+'Yulang.GeneralDeclarativeOpaqueRepeatCut328.exact_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueRepeatCut328.no_sharing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueRepeatCut328.no_single_center' depends on axioms: [propext, Quot.sound]

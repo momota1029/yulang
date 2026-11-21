@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeOpaqueFixture328
+import Yulang.GeneralDeclarativeOpaquePrecision328
+
+#print axioms Yulang.GeneralDeclarativeOpaqueNames328.conservative
+#print axioms Yulang.GeneralDeclarativeOpaqueIntervals328.preserved
+#print axioms Yulang.GeneralDeclarativeOpaqueIntervals328.compiled
+#print axioms Yulang.GeneralDeclarativeOpaquePrecision328.precision
+#print axioms Yulang.GeneralDeclarativeOpaqueFixture328.no_old_center
+#print axioms Yulang.GeneralDeclarativeOpaqueFixture328.roots_exist

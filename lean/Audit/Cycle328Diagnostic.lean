@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeOpaqueDiagnostic328
+
+#print axioms Yulang.GeneralDeclarativeOpaqueDiagnostic328.conservative
+#print axioms Yulang.GeneralDeclarativeOpaqueDiagnostic328.old_acyclic
+#print axioms Yulang.GeneralDeclarativeOpaqueDiagnostic328.becomes_cycle
+#print axioms Yulang.GeneralDeclarativeOpaqueDiagnostic328.separates

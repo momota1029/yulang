@@ -1,0 +1,165 @@
+                (Yulang.GeneralDeclarativeOpaqueIntervals328.protect Yulang.GeneralDeclarativeOpaqueFixture328.keep
+                  Yulang.GeneralDeclarativeOpaqueFixture328.endpoints) →
+            n key = m key
+Yulang.GeneralDeclarativeOpaqueFixture328.no_old_center : ¬∃ exp,
+    { left := 1, right := exp } ∈ Yulang.GeneralDeclarativeOpaqueFixture328.initial.equations
+@Yulang.GeneralDeclarativeOpaqueFixture328.older : ∀ {eq : Yulang.GeneralDeclarativeHead320.Equation},
+  eq ∈ Yulang.GeneralDeclarativeOpaqueFixture328.oldRows →
+    eq ∈ Yulang.GeneralDeclarativeOpaqueFixture328.prepared.equations
+Yulang.GeneralDeclarativeOpaqueFixture328.authorized : ∀ (done : Nat → Prop)
+  {eq : Yulang.GeneralDeclarativeHead320.Equation},
+  eq ∈ Yulang.GeneralDeclarativeOpaqueFixture328.oldRows →
+    eq ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeOpaqueFixture328.support done)).equations
+Yulang.GeneralDeclarativeOpaqueFixture328.actual_center : Yulang.GeneralDeclarativeEqualities322.Derives
+  Yulang.GeneralDeclarativeOpaqueFixture328.final (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 1)
+  (Yulang.GeneralDeclarativePairCenters326.pair (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 8))
+Yulang.GeneralDeclarativeOpaqueFixture328.range_left : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeOpaqueFixture328.final Yulang.GeneralDeclarativeOpaqueFixture328.leftCapture
+Yulang.GeneralDeclarativeOpaqueFixture328.range_right : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeOpaqueFixture328.final Yulang.GeneralDeclarativeOpaqueFixture328.rightCapture
+Yulang.GeneralDeclarativeOpaqueFixture328.range_root : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeOpaqueFixture328.final Yulang.GeneralDeclarativePairDecl326.rootArg
+Yulang.GeneralDeclarativeOpaqueFixtureFrame328.child_exact : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativePairDecl326.impl
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativePairDecl326.impl
+      Yulang.GeneralDeclarativeOpaqueFixtureFrame328.placement
+      Yulang.GeneralDeclarativeOpaqueFixtureFrame328.parentBase)
+    Yulang.GeneralDeclarativeOpaqueFixtureFrame328.placement =
+  [Yulang.GeneralDeclarativeOpaqueFixture328.child]
+Yulang.GeneralDeclarativeOpaqueFixtureFrame328.parent_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeOpaqueFixture328.final
+    Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+    (Yulang.GeneralDeclarativeOpaqueFixture328.support done) Yulang.GeneralDeclarativePairDecl326.root
+    Yulang.GeneralDeclarativePairDecl326.impl Yulang.GeneralDeclarativeOpaqueFixtureFrame328.parentBase
+    Yulang.GeneralDeclarativeOpaqueFixtureFrame328.placement
+Yulang.GeneralDeclarativeOpaqueFixtureFrame328.child_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeOpaqueFixture328.final
+    Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+    (Yulang.GeneralDeclarativeOpaqueFixture328.support done) Yulang.GeneralDeclarativeOpaqueFixture328.child
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeOpaqueFixtureFrame328.leafBase
+    Yulang.GeneralDeclarativeOpaqueFixtureFrame328.placement
+Yulang.GeneralDeclarativeOpaqueFixtureModels328.hidden_equiv : ∀ (swap : Bool),
+  Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeOpaqueFixtureModels328.hidden swap)
+    (Yulang.CommonNominalFullCarrier.pair (Yulang.GeneralDeclarativeOpaqueFixtureModels328.a swap)
+      (Yulang.GeneralDeclarativeOpaqueFixtureModels328.b swap))
+Yulang.GeneralDeclarativeOpaqueFixtureModels328.actual_reads : ∀ (swap : Bool),
+  Yulang.GeneralDeclarativeOpaqueChannel328.project false
+        (Yulang.GeneralDeclarativeOpaqueFixtureModels328.hidden swap) =
+      some (Yulang.GeneralDeclarativeOpaqueFixtureModels328.a swap) ∧
+    Yulang.GeneralDeclarativeOpaqueChannel328.project true
+        (Yulang.GeneralDeclarativeOpaqueFixtureModels328.hidden swap) =
+      some (Yulang.GeneralDeclarativeOpaqueFixtureModels328.b swap)
+Yulang.GeneralDeclarativeOpaqueFixtureModels328.fitted : ∀ (swap : Bool),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeOpaqueFixture328.final
+    (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap)
+Yulang.GeneralDeclarativeOpaqueFixtureModels328.center_not_endpoint : ∀ (swap : Bool),
+  ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap 1).fst
+        (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap 0).fst ∧
+    ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap 1).fst
+        (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap 2).fst
+Yulang.GeneralDeclarativeOpaqueFixtureModels328.exact_opaque_fixture : ∀ (swap : Bool),
+  (¬∃ rhs, { left := 1, right := rhs } ∈ Yulang.GeneralDeclarativeOpaqueFixture328.initial.equations) ∧
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeOpaqueFixture328.final
+        (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap) ∧
+      Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativePairDecl326.reg
+          Yulang.GeneralDeclarativePairDecl326.interpret
+          (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap) Yulang.GeneralDeclarativePairDecl326.root
+          Yulang.GeneralDeclarativeOpaqueFixtureResolve328.dict ∧
+        ¬Yulang.CommonNominalFullCarrier.Equivalent
+              (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap 1).fst
+              (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap 0).fst ∧
+          ¬Yulang.CommonNominalFullCarrier.Equivalent
+              (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap 1).fst
+              (Yulang.GeneralDeclarativeOpaqueFixtureModels328.assignment swap 2).fst
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.lower_trace : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeTrace321.Trace
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeOpaqueFixture328.support done))
+    Yulang.GeneralNominalMaterialization.Mode.lower 0 Yulang.GeneralDeclarativePairDecl326.normalCode
+    [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.lower, argument := 3 },
+      { binder := 1, mode := Yulang.GeneralNominalMaterialization.Mode.lower, argument := 3 }]
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.upper_trace : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeTrace321.Trace
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeOpaqueFixture328.support done))
+    Yulang.GeneralNominalMaterialization.Mode.upper 2 Yulang.GeneralDeclarativePairDecl326.normalCode
+    [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.upper, argument := 4 },
+      { binder := 1, mode := Yulang.GeneralNominalMaterialization.Mode.upper, argument := 4 }]
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.root_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeOpaqueFixture328.support done)
+    Yulang.GeneralDeclarativePairDecl326.root
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.child_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeOpaqueFixture328.support done)
+    Yulang.GeneralDeclarativeOpaqueFixture328.child
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.root_probe : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeOpaqueFixture328.support done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativePairDecl326.interpret
+    Yulang.GeneralDeclarativePairDecl326.root Yulang.GeneralDeclarativePairDecl326.impl
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.child_probe : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeOpaqueFixture328.support done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativePairDecl326.interpret
+    Yulang.GeneralDeclarativeOpaqueFixture328.child Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.exact_rows : Yulang.GeneralDeclarativeOpaqueFixture328.final.equations =
+  [{ left := 0,
+      right := Yulang.GeneralDeclarativeOpaqueIntervals328.low Yulang.GeneralDeclarativeOpaqueFixture328.endpoints },
+    { left := 2,
+      right := Yulang.GeneralDeclarativeOpaqueIntervals328.high Yulang.GeneralDeclarativeOpaqueFixture328.endpoints },
+    Yulang.GeneralDeclarativeOpaqueFixture328.scalar,
+    { left := 1,
+      right :=
+        Yulang.GeneralDeclarativePairCenters326.pair (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7)
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 8) },
+    { left := 6, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 5 },
+    { left := 5, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7 }]
+@Yulang.GeneralDeclarativeOpaqueFixtureProbe328.alias_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias Yulang.GeneralDeclarativeOpaqueFixture328.final a b →
+    Yulang.GeneralDeclarativeOpaqueFixtureProbe328.rank a = Yulang.GeneralDeclarativeOpaqueFixtureProbe328.rank b
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.no_cycles : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeOpaqueFixture328.final
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeOpaqueFixture328.final) n
+Yulang.GeneralDeclarativeOpaqueFixtureProbe328.safe : ∀ (done : Nat → Prop)
+  (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeOpaqueFixture328.final
+      Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+      (Yulang.GeneralDeclarativeOpaqueFixtureProbe328.tests done) d
+Yulang.GeneralDeclarativeOpaqueFixtureResolve328.root_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativePairDecl326.reg.declarations →
+    d.role = Yulang.GeneralDeclarativePairDecl326.root.role → d = Yulang.GeneralDeclarativePairDecl326.impl
+Yulang.GeneralDeclarativeOpaqueFixtureResolve328.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativePairDecl326.reg.declarations →
+    d.role = Yulang.GeneralDeclarativeOpaqueFixture328.child.role → d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeOpaqueFixtureResolve328.selected_root : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeOpaqueFixtureResolve328.branch done Yulang.GeneralDeclarativePairDecl326.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativePairDecl326.impl.id
+      [Yulang.GeneralDeclarativeOpaqueFixture328.child])
+Yulang.GeneralDeclarativeOpaqueFixtureResolve328.selected_child : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeOpaqueFixtureResolve328.branch done Yulang.GeneralDeclarativeOpaqueFixture328.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeOpaqueFixtureResolve328.selected : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeOpaqueFixtureResolve328.branch done)
+    Yulang.GeneralDeclarativePairDecl326.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeOpaqueFixtureResolve328.dict)
+Yulang.GeneralDeclarativeOpaqueFixtureResolve328.declared : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.root
+Yulang.GeneralDeclarativeOpaqueFixtureResolve328.certified : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeOpaqueFixture328.final m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativePairDecl326.reg
+      Yulang.GeneralDeclarativePairDecl326.interpret m Yulang.GeneralDeclarativePairDecl326.root
+      Yulang.GeneralDeclarativeOpaqueFixtureResolve328.dict
+@Yulang.GeneralDeclarativeOpaqueGraph328.fresh_is_terminal : ∀ {root : Nat} {extra : List Nat} {n : Nat}
+  {shape : Yulang.GeneralDeclarativeK2Graph321.Shape} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOpaqueAuthority328.FreshName s root extra n →
+    ¬Yulang.GeneralDeclarativeGraphRows321.structural (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra) n
+        shape
+@Yulang.GeneralDeclarativeOpaqueGraph328.before_or_fresh : ∀ {root : Nat} {extra : List Nat} {n : Nat}
+  {shape : Yulang.GeneralDeclarativeK2Graph321.Shape} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGraphRows321.structural (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra) n
+      shape →
+    Yulang.GeneralDeclarativeGraphRows321.structural s n shape ∨
+      shape =
+        Yulang.GeneralDeclarativeK2Graph321.Shape.primitive Yulang.GeneralCandidateInspection.Primitive.pair
+          [Yulang.GeneralDeclarativeOpaqueNames328.first s root extra,
+            Yulang.GeneralDeclarativeOpaqueNames328.second s root extra]

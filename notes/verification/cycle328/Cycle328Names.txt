@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeOpaqueNames328.conservative' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueIntervals328.preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueIntervals328.compiled' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePrecision328.precision' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaqueFixture328.no_old_center' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeOpaqueFixture328.roots_exist' depends on axioms: [propext, Quot.sound]

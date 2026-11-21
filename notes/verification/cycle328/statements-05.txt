@@ -1,0 +1,184 @@
+@Yulang.GeneralDeclarativeOpaqueGraph328.edge : ∀ {root : Nat} {extra : List Nat} {a b : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeK2Graph321.Descends
+      (Yulang.GeneralDeclarativeGraphRows321.structural (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra)) a
+      b →
+    Yulang.GeneralDeclarativeK2Graph321.Descends (Yulang.GeneralDeclarativeGraphRows321.structural s) a b ∨
+      Yulang.GeneralDeclarativeOpaqueAuthority328.FreshName s root extra b
+@Yulang.GeneralDeclarativeOpaqueGraph328.path_from_fresh : ∀ {root : Nat} {extra : List Nat} {a b : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOpaqueAuthority328.FreshName s root extra a →
+    Yulang.GeneralDeclarativeK2Graph321.Path
+        (Yulang.GeneralDeclarativeGraphRows321.structural (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra))
+        a b →
+      a = b
+@Yulang.GeneralDeclarativeOpaqueGraph328.past_path : ∀ {root : Nat} {extra : List Nat} {a b : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeK2Graph321.Path
+      (Yulang.GeneralDeclarativeGraphRows321.structural (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra)) a
+      b →
+    ¬Yulang.GeneralDeclarativeOpaqueAuthority328.FreshName s root extra b →
+      Yulang.GeneralDeclarativeK2Graph321.Path (Yulang.GeneralDeclarativeGraphRows321.structural s) a b
+@Yulang.GeneralDeclarativeOpaqueGraph328.cycles : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (root : Nat)
+  (extra : List Nat) (atName : Nat),
+  Yulang.GeneralDeclarativeK2Alias321.AliasCycle (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra)
+      (Yulang.GeneralDeclarativeGraphRows321.observed (Yulang.GeneralDeclarativeOpaqueNames328.expose s root extra))
+      atName ↔
+    Yulang.GeneralDeclarativeK2Alias321.AliasCycle s (Yulang.GeneralDeclarativeGraphRows321.observed s) atName
+Yulang.GeneralDeclarativeOpaqueGroup328.group_exact : ∀ (key : Nat)
+  (uses : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture))
+  {selected : Yulang.GeneralDeclarativeWhere319.Capture},
+  selected ∈ Yulang.GeneralDeclarativeOpaqueGroup328.group key uses ↔ (key, selected) ∈ uses
+@Yulang.GeneralDeclarativeOpaqueGroup328.linked_group : ∀
+  {uses : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {key : Nat}
+  {seed : Yulang.GeneralDeclarativeWhere319.Capture} {rest : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOpaqueGroup328.Sharing s uses →
+    Yulang.GeneralDeclarativeOpaqueGroup328.group key uses = seed :: rest →
+      Yulang.GeneralDeclarativeMergeCenters324.Linked s seed rest
+Yulang.GeneralDeclarativeOpaqueGroup328.aggregate_grows : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (extra : List Nat) (seed : Yulang.GeneralDeclarativeWhere319.Capture)
+  (rest : List Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeGrowth327.Extends s (Yulang.GeneralDeclarativeAggregate324.ready s extra seed rest)
+@Yulang.GeneralDeclarativeOpaqueGroup328.form_group : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {seed : Yulang.GeneralDeclarativeWhere319.Capture} {rest : List Yulang.GeneralDeclarativeWhere319.Capture},
+  (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+      a ∈ seed :: rest → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+    Yulang.GeneralDeclarativeMergeCenters324.Linked s seed rest →
+      ∀ (keep : List Nat),
+        Yulang.GeneralDeclarativeOpaqueConserve328.Retains s
+          (Yulang.GeneralDeclarativeAggregate324.ready s keep seed rest) keep
+@Yulang.GeneralDeclarativeOpaqueGroup328.reading : ∀ {a : Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State} {seed : Yulang.GeneralDeclarativeWhere319.Capture}
+  {rest : List Yulang.GeneralDeclarativeWhere319.Capture},
+  (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+      a ∈ seed :: rest → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+    ∀ (keep : List Nat),
+      a ∈ seed :: rest →
+        Yulang.GeneralDeclarativeEqualities322.Derives (Yulang.GeneralDeclarativeAggregate324.ready s keep seed rest)
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable a.center)
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+            (Yulang.GeneralDeclarativeAggregate324.span s keep seed rest).center)
+@Yulang.GeneralDeclarativeOpaqueIntervals328.from_old : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.lower, right := Yulang.GeneralDeclarativeOpaqueIntervals328.low e } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := arg.upper, right := Yulang.GeneralDeclarativeOpaqueIntervals328.high e } →
+        ∀ (extra : List Nat),
+          Yulang.GeneralDeclarativeCovariantIntervals321.PairBounds
+            (Yulang.GeneralDeclarativeOpaqueNames328.expose s arg.center
+              (Yulang.GeneralDeclarativeOpaqueIntervals328.protect extra e))
+            arg (Yulang.GeneralDeclarativeOpaqueIntervals328.left s arg.center extra e)
+            (Yulang.GeneralDeclarativeOpaqueIntervals328.right s arg.center extra e)
+@Yulang.GeneralDeclarativeOpaqueIntervals328.preserved : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.lower, right := Yulang.GeneralDeclarativeOpaqueIntervals328.low e } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := arg.upper, right := Yulang.GeneralDeclarativeOpaqueIntervals328.high e } →
+        ∀ (extra : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m ↔
+            ∃ next,
+              Yulang.GeneralDeclarativeHead320.Models
+                  (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s arg.center extra e) next ∧
+                ∀ (n : Nat),
+                  n ∈
+                      Yulang.GeneralDeclarativeOpaqueNames328.kept s arg.center
+                        (Yulang.GeneralDeclarativeOpaqueIntervals328.protect extra e) →
+                    next n = m n
+@Yulang.GeneralDeclarativeOpaqueIntervals328.bounds : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (root : Nat)
+  (extra : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root extra e)
+      (Yulang.GeneralDeclarativeOpaqueIntervals328.left s root extra e) ∧
+    Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root extra e)
+      (Yulang.GeneralDeclarativeOpaqueIntervals328.right s root extra e)
+@Yulang.GeneralDeclarativeOpaqueIntervals328.actual : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (root : Nat)
+  (extra : List Nat) (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralDeclarativeEqualities322.Derives (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s root extra e)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable root)
+    (Yulang.GeneralDeclarativePairCenters326.pair
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+        (Yulang.GeneralDeclarativeOpaqueIntervals328.left s root extra e).center)
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+        (Yulang.GeneralDeclarativeOpaqueIntervals328.right s root extra e).center))
+@Yulang.GeneralDeclarativeOpaqueIntervals328.compiled : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {p : Yulang.GeneralDeclarationPatterns.Pattern} {l r : Nat}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State}
+  (arg : Yulang.GeneralDeclarativeWhere319.Capture) (extra : List Nat)
+  (e : Yulang.GeneralDeclarativeOpaqueIntervals328.Ends),
+  Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i (Yulang.GeneralDeclarationPatterns.normalize p) =
+      some
+        (Yulang.GeneralDeclarativePairCenters326.pair (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable l)
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable r)) →
+    cap l = Yulang.GeneralDeclarativeOpaqueIntervals328.left s arg.center extra e →
+      cap r = Yulang.GeneralDeclarativeOpaqueIntervals328.right s arg.center extra e →
+        Yulang.GeneralDeclarativeCompileLists321.Result
+          (Yulang.GeneralDeclarativeOpaqueIntervals328.ready s arg.center extra e)
+          (Yulang.GeneralDeclarativeNFHead324.fact c i cap arg p)
+@Yulang.GeneralDeclarativeOpaqueNames328.unchanged : ∀ {n : Nat} {s : Yulang.GeneralDeclarativeHead320.State}
+  {root : Nat} {protect : List Nat} (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (l r : Yulang.CommonNominalFullCarrier.Ty),
+  n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s root protect →
+    Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m l r n = m n
+Yulang.GeneralDeclarativeOpaqueNames328.unchanged_root : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (protect : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment) (l r : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m l r root = m root
+Yulang.GeneralDeclarativeOpaqueNames328.left_value : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (protect : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment) (l r : Yulang.CommonNominalFullCarrier.Ty),
+  (Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m l r
+        (Yulang.GeneralDeclarativeOpaqueNames328.first s root protect)).fst =
+    l
+Yulang.GeneralDeclarativeOpaqueNames328.right_value : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (protect : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment) (l r : Yulang.CommonNominalFullCarrier.Ty),
+  (Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m l r
+        (Yulang.GeneralDeclarativeOpaqueNames328.second s root protect)).fst =
+    r
+Yulang.GeneralDeclarativeOpaqueNames328.spelling : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (root : Nat)
+  (protect : List Nat),
+  Yulang.GeneralDeclarativeEqualities322.Derives (Yulang.GeneralDeclarativeOpaqueNames328.expose s root protect)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable root)
+    (Yulang.GeneralDeclarativePairCenters326.pair
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+        (Yulang.GeneralDeclarativeOpaqueNames328.first s root protect))
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+        (Yulang.GeneralDeclarativeOpaqueNames328.second s root protect)))
+@Yulang.GeneralDeclarativeOpaqueNames328.model_extension : ∀ {l r : Yulang.CommonNominalFullCarrier.Ty}
+  {s : Yulang.GeneralDeclarativeHead320.State} (root : Nat) (protect : List Nat)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models s m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m root).fst (Yulang.CommonNominalFullCarrier.pair l r) →
+      Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeOpaqueNames328.expose s root protect)
+          (Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m l r) ∧
+        ∀ (n : Nat),
+          n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s root protect →
+            Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m l r n = m n
+@Yulang.GeneralDeclarativeOpaqueNames328.conservative : ∀
+  {lowA lowB highA highB : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State} {arg : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.lower, right := Yulang.GeneralDeclarativePairCenters326.pair lowA lowB } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := arg.upper, right := Yulang.GeneralDeclarativePairCenters326.pair highA highB } →
+        ∀ (protect : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m ↔
+            ∃ next,
+              Yulang.GeneralDeclarativeHead320.Models
+                  (Yulang.GeneralDeclarativeOpaqueNames328.expose s arg.center protect) next ∧
+                ∀ (n : Nat), n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s arg.center protect → next n = m n
+@Yulang.GeneralDeclarativeOpaqueNested328.build : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (keep : List Nat)
+  (plan : Yulang.GeneralDeclarativeOpaquePlan328.Plan) (arg : Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeOpaquePlan328.Read s arg.lower arg.upper plan →
+      Yulang.GeneralDeclarativeOpaqueNested328.Builds s keep arg plan
+@Yulang.GeneralDeclarativeOpaqueNominal328.nominal_truth : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {tag a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.lower,
+          right :=
+            Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal tag
+              [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable a] } →

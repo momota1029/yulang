@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeOpaqueChannel328.probe_step' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePair328.present' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePair328.reconstruction' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpaquePair328.projected_intervals' depends on axioms: [propext, Quot.sound]
