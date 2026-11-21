@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativeInlineGuards331.no_new_input_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineGuards331.root_matches' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineGuards331.no_cycles' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineResult331.tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineResult331.all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineModels331.final_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineModels331.exact_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineModels331.checked_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]

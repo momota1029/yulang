@@ -1,0 +1,16 @@
+'Yulang.GeneralDeclarativeInlineLineage331.carries' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineGround331.origin_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineGround331.derived_backed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineGround331.no_forgery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlinePending331.no_pending_promotion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildFrame331.native_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildFrame331.calc_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildGuards331.output_not_promoted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildResult331.all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildModels331.checked_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

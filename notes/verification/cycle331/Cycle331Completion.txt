@@ -1,0 +1,21 @@
+'Yulang.GeneralDeclarativeInlineFieldProducer331.raw_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineFieldProducer331.independent_endpoints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineFieldProducer331.independent_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineBoundary331.visible_implies_known' does not depend on any axioms
+'Yulang.GeneralDeclarativeInlineBoundary331.missing_blocks_layout' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineReplay331.independent_readback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineRangedFrame331.calc_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRangedModels331.strictly_internal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRangedModels331.real_nonpoint_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineSingleOwner331.exact_backing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineSingleOwner331.no_retag' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineOwnerExample331.real_gate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineOwnerExample331.child_after' depends on axioms: [propext, Classical.choice, Quot.sound]
