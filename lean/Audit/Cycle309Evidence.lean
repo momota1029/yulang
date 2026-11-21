@@ -1,0 +1,15 @@
+import Yulang.GeneralPositiveForkCompiler309
+import Yulang.GeneralCommittedReadEvidence309
+import Yulang.GeneralPositiveForkMachine309
+
+open Yulang
+
+#print axioms GeneralPositiveForkEvidence309.both_same_model
+#print axioms GeneralPositiveForkNodes309.exact_frame
+#print axioms GeneralPositiveForkPayload309.iff_expected
+#print axioms GeneralPositiveForkPayload309.swapped_rejected
+#print axioms GeneralPositiveForkCompiler309.exact_root_tree
+#print axioms GeneralPositiveForkCompiler309.root_code_exact
+#print axioms GeneralPositiveForkCompiler309.nonvacuous
+#print axioms GeneralCommittedReadEvidence309.sound
+#print axioms GeneralPositiveForkMachine309.exact_initial
