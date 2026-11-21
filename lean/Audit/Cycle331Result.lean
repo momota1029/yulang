@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeInlineModels331
+
+#print axioms Yulang.GeneralDeclarativeInlineGuards331.no_new_input_origin
+#print axioms Yulang.GeneralDeclarativeInlineGuards331.root_matches
+#print axioms Yulang.GeneralDeclarativeInlineGuards331.no_cycles
+#print axioms Yulang.GeneralDeclarativeInlineResult331.tree
+#print axioms Yulang.GeneralDeclarativeInlineResult331.all_models
+#print axioms Yulang.GeneralDeclarativeInlineModels331.final_valid
+#print axioms Yulang.GeneralDeclarativeInlineModels331.exact_compiler
+#print axioms Yulang.GeneralDeclarativeInlineModels331.checked_dictionary

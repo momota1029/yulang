@@ -7052,3 +7052,6 @@ import Yulang.GeneralDeclarativeExactFrame331
 import Yulang.GeneralDeclarativeInlineCompiler331
 import Yulang.GeneralDeclarativeInlineDecl331
 import Yulang.GeneralDeclarativeInlineFixture331
+import Yulang.GeneralDeclarativeInlineGuards331
+import Yulang.GeneralDeclarativeInlineResult331
+import Yulang.GeneralDeclarativeInlineModels331
