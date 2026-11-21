@@ -6786,3 +6786,7 @@ import Yulang.GeneralDeclarativeProjectionCheck323
 import Yulang.GeneralDeclarativeRecordFixture323
 import Yulang.GeneralDeclarativeRecordHead323
 import Yulang.GeneralDeclarativeRecordResidual323
+import Yulang.GeneralDeclarativeFramePropagation324
+import Yulang.GeneralDeclarativeModelStable324
+import Yulang.GeneralDeclarativeNFHead324
+import Yulang.GeneralDeclarativeNormalizeAssoc324

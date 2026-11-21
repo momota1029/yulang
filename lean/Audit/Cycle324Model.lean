@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeFramePropagation324
+import Yulang.GeneralDeclarativeNFHead324
+
+#print axioms Yulang.GeneralDeclarativeModelStable324.closes_root
+#print axioms Yulang.GeneralDeclarativeNormalizeAssoc324.complete
+#print axioms Yulang.GeneralDeclarativeNormalizeAssoc324.applied_models
+#print axioms Yulang.GeneralDeclarativeFramePropagation324.produces_finite
+#print axioms Yulang.GeneralDeclarativeNFHead324.reads
+#print axioms Yulang.GeneralDeclarativeNFHead324.old_agrees

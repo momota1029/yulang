@@ -3,8 +3,8 @@
 - cycle: 324
 - status: running
 - started: 2026-11-21T15:32:00Z
-- updated: 2026-11-21T15:32:06.760Z
-- elapsed_min: 0
-- activity: C324 I-56: derive stable associated-output closure for actual successful source trees
-- last_local_commit: 82e62df96
+- updated: 2026-11-21T15:36:45.186Z
+- elapsed_min: 4
+- activity: C324 early: actual normalized ordinary rule applications and independent normalized-head soundness
+- last_local_commit: 08ef8a2a6
 - resume_hint: C324 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。
