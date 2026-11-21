@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeNamedHead325
+
+#print axioms Yulang.GeneralDeclarativeHeadOrigin325.by_equations
+#print axioms Yulang.GeneralDeclarativeNamedHead325.incidence
+#print axioms Yulang.GeneralDeclarativeNamedHead325.all_seen_have_anchors
+#print axioms Yulang.GeneralDeclarativeNamedHead325.named_ordered

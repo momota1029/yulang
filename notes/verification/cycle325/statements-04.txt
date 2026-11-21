@@ -1,0 +1,165 @@
+    Yulang.GeneralDeclarativeNFEmit324.Read s r i impl cl names (place.compound cl) (place.targets cl)
+@Yulang.GeneralDeclarativeFrameReadback325.observed : ∀ {complete : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {impl : Yulang.GeneralDeclarations.Declaration}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {base : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {place : Yulang.GeneralDeclarativeEmissionForest322.Placement} {s : Yulang.GeneralDeclarativeHead320.State}
+  {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.GeneralDeclarations.Checked r →
+    impl ∈ r.declarations →
+      Yulang.GeneralDeclarativeFrameReadback325.Frame s r i support d impl base place →
+        Yulang.GeneralDeclarativeNFComplete324.ReadBack s r i d impl
+          (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl place base) place
+@Yulang.GeneralDeclarativeFrameReadback325.complete_read : ∀ {complete : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {impl : Yulang.GeneralDeclarations.Declaration}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {base : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {place : Yulang.GeneralDeclarativeEmissionForest322.Placement} {s : Yulang.GeneralDeclarativeHead320.State}
+  {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.GeneralDeclarations.Checked r →
+    impl ∈ r.declarations →
+      Yulang.GeneralDeclarativeFrameReadback325.Recorded s r i support d impl base place →
+        Yulang.GeneralDeclarativeNFComplete324.ReadBack s r i d impl
+            (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl place base) place ∧
+          Yulang.GeneralDeclarativeNFNode324.BodyCoverage r i d impl ∧
+            Yulang.GeneralDeclarativeModelStable324.StableUnder s
+              (Yulang.GeneralDeclarativeAssocRule323.SourceEquation r i d impl
+                (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl place base).input)
+@Yulang.GeneralDeclarativeFreshInputs325.names_bounded : ∀
+  {jobs : List (Option Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {protect : List Nat}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State} {j : Nat},
+  jobs[j]? = some (some e) →
+    Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativeFreshInputs325.prepared s protect cap jobs)
+      (Yulang.GeneralDeclarativeSparseWhere325.atPosition
+        (Yulang.GeneralDeclarativeFreshWhere325.seed s protect cap jobs) jobs j)
+@Yulang.GeneralDeclarativeFreshInputs325.names_observed : ∀
+  {jobs : List (Option Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {protect : List Nat}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State} {j : Nat},
+  jobs[j]? = some (some e) →
+    have arg :=
+      Yulang.GeneralDeclarativeSparseWhere325.atPosition
+        (Yulang.GeneralDeclarativeFreshWhere325.seed s protect cap jobs) jobs j;
+    have t := Yulang.GeneralDeclarativeFreshInputs325.prepared s protect cap jobs;
+    Yulang.GeneralDeclarativeClauseOrigins325.Origin t arg.lower
+        (Yulang.GeneralDeclarativeSubstitution320.logical cap Yulang.GeneralNominalMaterialization.Mode.lower e) ∧
+      Yulang.GeneralDeclarativeClauseOrigins325.Origin t arg.center
+          (Yulang.GeneralDeclarativeSubstitution320.logical cap Yulang.GeneralNominalMaterialization.Mode.actual e) ∧
+        Yulang.GeneralDeclarativeClauseOrigins325.Origin t arg.upper
+          (Yulang.GeneralDeclarativeSubstitution320.logical cap Yulang.GeneralNominalMaterialization.Mode.upper e)
+@Yulang.GeneralDeclarativeFreshInputs325.models_equal : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {roles : Yulang.Roles.RoleDecls} {decl : Yulang.GeneralDeclarations.Declaration}
+  {clause : Yulang.GeneralDeclarations.Clause} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {codes : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.DeclarationChecked c roles decl →
+    clause ∈ decl.requirements →
+      Yulang.GeneralNominalCenteredHeadMatExpressions.translateMany c i
+            (List.map Yulang.GeneralDeclarationPatterns.normalize clause.arguments) =
+          some codes →
+        (∀ (key : Nat), key ∈ decl.inputNames → Yulang.GeneralDeclarativeDemand320.Bounds s (cap key)) →
+          ∀ (protect : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            have jobs := Yulang.GeneralDeclarativeSparseWhere325.plan clause.arguments codes;
+            Yulang.GeneralDeclarativeHead320.Models
+                (Yulang.GeneralDeclarativeFreshInputs325.prepared s protect cap jobs) m ↔
+              Yulang.GeneralDeclarativeHead320.Models
+                (Yulang.GeneralDeclarativeFreshWhere325.newState s protect cap jobs) m
+@Yulang.GeneralDeclarativeFreshInputs325.whole_input_projection : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {roles : Yulang.Roles.RoleDecls} {decl : Yulang.GeneralDeclarations.Declaration}
+  {clause : Yulang.GeneralDeclarations.Clause} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {codes : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.DeclarationChecked c roles decl →
+    clause ∈ decl.requirements →
+      Yulang.GeneralNominalCenteredHeadMatExpressions.translateMany c i
+            (List.map Yulang.GeneralDeclarationPatterns.normalize clause.arguments) =
+          some codes →
+        (∀ (key : Nat), key ∈ decl.inputNames → Yulang.GeneralDeclarativeDemand320.Bounds s (cap key)) →
+          ∀ (protect : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            have jobs := Yulang.GeneralDeclarativeSparseWhere325.plan clause.arguments codes;
+            Yulang.GeneralDeclarativeHead320.Models s m ↔
+              ∃ next,
+                Yulang.GeneralDeclarativeHead320.Models
+                    (Yulang.GeneralDeclarativeFreshInputs325.prepared s protect cap jobs) next ∧
+                  ∀ (n : Nat), n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ++ protect → next n = m n
+@Yulang.GeneralDeclarativeFreshWhere325.compound_reads : ∀ {ps : List Yulang.GeneralDeclarationPatterns.Pattern}
+  {j : Nat} {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  {es : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} (s : Yulang.GeneralDeclarativeHead320.State)
+  (protect : List Nat) (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  ps[j]? = some p →
+    es[j]? = some e →
+      Yulang.GeneralDeclarativeEmissionOperands322.Compound p →
+        have jobs := Yulang.GeneralDeclarativeSparseWhere325.plan ps es;
+        have a :=
+          Yulang.GeneralDeclarativeSparseWhere325.atPosition
+            (Yulang.GeneralDeclarativeFreshWhere325.seed s protect cap jobs) jobs j;
+        have t := Yulang.GeneralDeclarativeFreshWhere325.newState s protect cap jobs;
+        Yulang.GeneralDeclarativeClauseOrigins325.Origin t a.lower
+            (Yulang.GeneralDeclarativeSubstitution320.logical cap Yulang.GeneralNominalMaterialization.Mode.lower e) ∧
+          Yulang.GeneralDeclarativeClauseOrigins325.Origin t a.center
+              (Yulang.GeneralDeclarativeSubstitution320.logical cap Yulang.GeneralNominalMaterialization.Mode.actual
+                e) ∧
+            Yulang.GeneralDeclarativeClauseOrigins325.Origin t a.upper
+              (Yulang.GeneralDeclarativeSubstitution320.logical cap Yulang.GeneralNominalMaterialization.Mode.upper e)
+Yulang.GeneralDeclarativeFreshWhere325.projection : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (protect : List Nat)
+  (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+  (jobs : List (Option Yulang.GeneralNominalCenteredHeadMatExpressions.Expr))
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models s m ↔
+    ∃ next,
+      Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeFreshWhere325.newState s protect cap jobs)
+          next ∧
+        ∀ (n : Nat), n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ++ protect → next n = m n
+Yulang.GeneralDeclarativeFreshWhere325.count : ∀ (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+  (jobs : List (Option Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)),
+  (Yulang.GeneralDeclarativeSparseWhere325.bodies cap jobs).length = 3 * (List.filterMap id jobs).length
+@Yulang.GeneralDeclarativeGroupedProducer325.merged_tag : ∀ {p : Yulang.GeneralDeclarationPatterns.Pattern} {tag : Nat}
+  {payload : Yulang.GeneralDeclarationPatterns.Pattern} {binders : List Nat}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {payloadName : Nat}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarationPatterns.normalize p = Yulang.GeneralDeclarationPatterns.Pattern.variant tag payload →
+    Yulang.GeneralCandidateInspection.plainNames payload = some binders →
+      Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i payload = some code →
+        Yulang.GeneralDeclarativeClauseOrigins325.Origin s arg.center
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag
+              (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable payloadName)) →
+          (∀ (n : Nat), n ∈ binders → Yulang.GeneralDeclarativeLowerKnown321.Alias s (cap n).center payloadName) →
+            Yulang.GeneralDeclarativeCompileLists321.Result s (Yulang.GeneralDeclarativeNFHead324.fact c i cap arg p)
+@Yulang.GeneralDeclarativeHeadFrame325.each : ∀ {complete : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {s : Yulang.GeneralDeclarativeHead320.State}
+  {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeHeadFrame325.FromSource s c i support cap arg pat →
+      Yulang.GeneralDeclarativeCompileLists321.Result s (Yulang.GeneralDeclarativeNFHead324.fact c i cap arg pat)
+@Yulang.GeneralDeclarativeHeadFrame325.ordered : ∀ {complete : Nat → Prop}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {args : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {patterns : List Yulang.GeneralDeclarationPatterns.Pattern} {s : Yulang.GeneralDeclarativeHead320.State}
+  {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.CommonRoleOutermostResolver.All₂
+      (fun a p =>
+        Yulang.GeneralDeclarativeDemand320.Bounds s a ∧
+          Yulang.GeneralDeclarativeHeadFrame325.FromSource s c i support cap a p)
+      args patterns →
+    Yulang.CommonRoleOutermostResolver.All₂
+      (fun a p =>
+        Yulang.GeneralDeclarativeDemand320.Bounds s a ∧
+          Yulang.GeneralDeclarativeCompileLists321.Result s (Yulang.GeneralDeclarativeNFHead324.fact c i cap a p))
+      args patterns
+@Yulang.GeneralDeclarativeHeadOrigin325.observed_binders : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  {code actual : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i (Yulang.GeneralDeclarationPatterns.normalize p) =
+      some code →
+    Yulang.GeneralDeclarativeExactWalk323.Exact Yulang.GeneralNominalMaterialization.Mode.actual actual code uses →
+      List.map Yulang.GeneralDeclarativeTermWalk322.Occurrence.binder uses =
+          (Yulang.GeneralDeclarationPatterns.normalize p).variables ∧
+        ∀ (o : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+          o ∈ uses → o.mode = Yulang.GeneralNominalMaterialization.Mode.actual

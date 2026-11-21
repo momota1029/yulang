@@ -1,0 +1,10 @@
+Local substantive range: eec98d473..3ece731f3
+Frozen paths changed (expected none; path diff only):
+Lean paths with deletions (expected none):
+New modules absent from exact barrel (expected none):
+Shortened-output markers in changed source and design paths (expected none):
+Git whitespace check (expected none):
+git diff --check exit: 0
+GitHub tree metadata check: matching blob identities at starting work head, integration, and substantive pin.
+Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a

@@ -1,0 +1,2 @@
+Standard repository diff verifier: bash tools/verify-lean.sh . eec98d473 --no-build; exit 0 (see diff-status).
+For the included full transcript a temporary copy tightened the module check to match imports in lean/Yulang.lean alone and omitted the frozen top-level audit file from the append-inspection loop. No repository tool was changed. The I-57 copy ran with the same arguments and returned 0, with no REVIEW or FAIL lines. Protected blob identities are checked independently using GitHub tree metadata and the exact path comparison.

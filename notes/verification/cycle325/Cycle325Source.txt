@@ -1,0 +1,12 @@
+'Yulang.GeneralDeclarativeEndpointHead325.invariant_nominal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTraceTransfer325.ordinary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeForwardHead325.actual_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeForwardHead325.from_nominal_ends' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVisibleCode325.body_coverage_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAppliedSource325.output_read_and_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAppliedSource325.stable_after_written' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeClauseOrigins325.from_ordinary_rows' depends on axioms: [propext, Quot.sound]

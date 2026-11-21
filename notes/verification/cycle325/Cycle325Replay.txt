@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeClauseTransport325.read_reused' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeReplayFixture325.fixed_root_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeReplayFixture325.actual_reused_where' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeReplayFixture325.source_compiles_after' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativePlacedClause325.bound_to_producing_clause' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

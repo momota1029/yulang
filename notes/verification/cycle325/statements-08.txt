@@ -1,0 +1,151 @@
+                                (Yulang.GeneralDeclarativeFrameReadback325.sourceNames decl place base).input row →
+                              Yulang.GeneralDeclarativeEntailment320.Holds m row
+@Yulang.GeneralDeclarativeSourceAdvance325.recorded_is_pre : ∀ {complete : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {result : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.GeneralDeclarativeSourceSelection325.Rule s r i support tests d result →
+    Yulang.GeneralDeclarativeSourceAdvance325.Rule s r i support tests d result
+Yulang.GeneralDeclarativeSourceFixture325.exact_output : (Yulang.GeneralDeclarativeFrameReadback325.sourceNames
+        Yulang.GeneralDeclarativeHiddenDecl324.parent Yulang.GeneralDeclarativeSourceFixture325.placement
+        Yulang.GeneralDeclarativeSourceFixture325.base).output
+    1 =
+  5
+Yulang.GeneralDeclarativeSourceFixture325.root_emits : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeHiddenDecl324.parent
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeHiddenDecl324.parent
+      Yulang.GeneralDeclarativeSourceFixture325.placement Yulang.GeneralDeclarativeSourceFixture325.base)
+    Yulang.GeneralDeclarativeSourceFixture325.placement =
+  [Yulang.GeneralDeclarativeHiddenState324.child]
+Yulang.GeneralDeclarativeSourceFixture325.leaf_emits : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeExampleSource320.leaf
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeExampleSource320.leaf
+      Yulang.GeneralDeclarativeSourceFixture325.placement Yulang.GeneralDeclarativeSourceFixture325.base)
+    Yulang.GeneralDeclarativeSourceFixture325.placement =
+  []
+Yulang.GeneralDeclarativeSourceFixture325.root_frame : ∀ (phase : Yulang.GeneralDeclarativeHiddenStages324.Stage)
+  (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Frame phase.ordinary Yulang.GeneralDeclarativeHiddenDecl324.registry
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation (phase.equations done)
+    Yulang.GeneralDeclarativeHiddenState324.root Yulang.GeneralDeclarativeHiddenDecl324.parent
+    Yulang.GeneralDeclarativeSourceFixture325.base Yulang.GeneralDeclarativeSourceFixture325.placement
+Yulang.GeneralDeclarativeSourceFixture325.child_frame : ∀ (phase : Yulang.GeneralDeclarativeHiddenStages324.Stage)
+  (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Frame phase.ordinary Yulang.GeneralDeclarativeHiddenDecl324.registry
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation (phase.equations done)
+    Yulang.GeneralDeclarativeHiddenState324.child Yulang.GeneralDeclarativeExampleSource320.leaf
+    Yulang.GeneralDeclarativeSourceFixture325.base Yulang.GeneralDeclarativeSourceFixture325.placement
+Yulang.GeneralDeclarativeSourceFixture325.parent_recorded : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Recorded Yulang.GeneralDeclarativeHiddenState324.final
+    Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    (Yulang.GeneralDeclarativeHiddenState324.support done) Yulang.GeneralDeclarativeHiddenState324.root
+    Yulang.GeneralDeclarativeHiddenDecl324.parent Yulang.GeneralDeclarativeSourceFixture325.base
+    Yulang.GeneralDeclarativeSourceFixture325.placement
+Yulang.GeneralDeclarativeSourceFixture325.child_recorded : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Recorded Yulang.GeneralDeclarativeHiddenState324.final
+    Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    (Yulang.GeneralDeclarativeHiddenState324.support done) Yulang.GeneralDeclarativeHiddenState324.child
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeSourceFixture325.base
+    Yulang.GeneralDeclarativeSourceFixture325.placement
+Yulang.GeneralDeclarativeSourceFixture325.early_frame_but_unrecorded : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Frame Yulang.GeneralDeclarativeHiddenState324.initial
+      Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+      (Yulang.GeneralDeclarativeHiddenState324.sourceSupport done) Yulang.GeneralDeclarativeHiddenState324.root
+      Yulang.GeneralDeclarativeHiddenDecl324.parent Yulang.GeneralDeclarativeSourceFixture325.base
+      Yulang.GeneralDeclarativeSourceFixture325.placement ∧
+    ¬Yulang.GeneralDeclarativeFrameReadback325.Recorded Yulang.GeneralDeclarativeHiddenState324.initial
+        Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+        (Yulang.GeneralDeclarativeHiddenState324.sourceSupport done) Yulang.GeneralDeclarativeHiddenState324.root
+        Yulang.GeneralDeclarativeHiddenDecl324.parent Yulang.GeneralDeclarativeSourceFixture325.base
+        Yulang.GeneralDeclarativeSourceFixture325.placement
+Yulang.GeneralDeclarativeSourceFixture325.chooses_root : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeSourceFixture325.stableRule done Yulang.GeneralDeclarativeHiddenState324.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeHiddenDecl324.parent.id
+      [Yulang.GeneralDeclarativeHiddenState324.child])
+Yulang.GeneralDeclarativeSourceFixture325.chooses_child : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeSourceFixture325.stableRule done Yulang.GeneralDeclarativeHiddenState324.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeSourceFixture325.whole_selection : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeSourceFixture325.stableRule done)
+    Yulang.GeneralDeclarativeHiddenState324.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeHiddenResolve324.dictionary)
+Yulang.GeneralDeclarativeSourceFixture325.whole_evidence : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeHiddenDecl324.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeHiddenState324.root
+      Yulang.GeneralDeclarativeHiddenResolve324.dictionary
+Yulang.GeneralDeclarativeSourceFixture325.inhabited : ∃ m,
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final m ∧
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeHiddenDecl324.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeHiddenState324.root
+      Yulang.GeneralDeclarativeHiddenResolve324.dictionary
+@Yulang.GeneralDeclarativeSourceSelection325.map_generated : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {first last :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {completed : Nat → Prop} {support : Yulang.GeneralDeclarativeOrigins321.Supported s completed}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {result : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand},
+  (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand) (impl : Yulang.GeneralDeclarations.Declaration),
+      Yulang.GeneralDeclarativePriority321.Visible r d impl →
+        ∀ (kids : List Yulang.GeneralDeclarativeDemand320.Demand), first d impl kids → last d impl kids) →
+    Yulang.GeneralDeclarativePriority321.Local s r i support tests first d result →
+      Yulang.GeneralDeclarativePriority321.Local s r i support tests last d result
+@Yulang.GeneralDeclarativeSourceSelection325.agrees_if_covered : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {first last :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {completed : Nat → Prop} {support : Yulang.GeneralDeclarativeOrigins321.Supported s completed}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {result : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand},
+  (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand) (impl : Yulang.GeneralDeclarations.Declaration),
+      Yulang.GeneralDeclarativePriority321.Visible r d impl →
+        ∀ (kids : List Yulang.GeneralDeclarativeDemand320.Demand), first d impl kids ↔ last d impl kids) →
+    (Yulang.GeneralDeclarativePriority321.Local s r i support tests first d result ↔
+      Yulang.GeneralDeclarativePriority321.Local s r i support tests last d result)
+@Yulang.GeneralDeclarativeSourceSelection325.approved_priority_unchanged : ∀ {complete : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {result : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeSourceSelection325.Rule s r i support tests d result →
+      Yulang.GeneralDeclarativeNFClassify324.Rule s r i support tests d result
+@Yulang.GeneralDeclarativeSourceSelection325.actual_local_compiler : ∀ {complete : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {key : Nat} {kids : List Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+      Yulang.GeneralDeclarativeSourceSelection325.Rule s r i support tests d
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected key kids) →
+        ∃ impl names place,
+          impl.id = key ∧
+            impl ∈ r.declarations ∧
+              Yulang.GeneralDeclarativeEmissionForest322.children impl names place = kids ∧
+                Yulang.GeneralDeclarativeCompileLists321.Result s
+                  (Yulang.GeneralDeclarativeNFComplete324.facts r i names.input impl d kids)
+@Yulang.GeneralDeclarativeSourceSelection325.tree : ∀ {complete : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {s : Yulang.GeneralDeclarativeHead320.State} {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+      Yulang.GeneralDeclarativeHead320.Models s m →
+        ∀ (diag : Yulang.CommonRoleOutermostResolver.Tree) (dict : Yulang.CommonRoleOutermostResolver.Dictionary),
+          Yulang.CommonRoleOutermostResolver.Resolves
+              (Yulang.GeneralDeclarativeSourceSelection325.Rule s r i support tests) d diag →
+            Yulang.CommonRoleOutermostResolver.Summarizes diag
+                (Yulang.CommonRoleOutermostResolver.Result.selected dict) →
+              Yulang.GeneralDeclarativeEvidence320.Evidence r i m d dict
+@Yulang.GeneralDeclarativeSourceSelection325.forest : ∀ {complete : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {ds : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {s : Yulang.GeneralDeclarativeHead320.State}
+  {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete},
+  Yulang.GeneralDeclarations.Checked r →
+    (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand),

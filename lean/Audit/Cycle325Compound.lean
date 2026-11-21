@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeCompoundResolve325
+
+#print axioms Yulang.GeneralDeclarativeModeReads325.compiled_from_ends
+#print axioms Yulang.GeneralDeclarativeCompoundDecl325.impl_checked
+#print axioms Yulang.GeneralDeclarativeCompoundState325.absence_of_center_row
+#print axioms Yulang.GeneralDeclarativeCompoundFrame325.compound_origins
+#print axioms Yulang.GeneralDeclarativeCompoundFrame325.exact_emitted
+#print axioms Yulang.GeneralDeclarativeCompoundResolve325.every_model
+#print axioms Yulang.GeneralDeclarativeCompoundResolve325.genuine_compound

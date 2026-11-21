@@ -1,0 +1,130 @@
+@GeneralDeclarativeFrameReadback325.complete_read : ∀ {complete : Nat → Prop} {r : GeneralDeclarations.Registry}
+  {impl : GeneralDeclarations.Declaration} {i : GeneralNominalInspection.Interpretation}
+  {d : GeneralDeclarativeDemand320.Demand} {base : Nat → Capture}
+  {place : GeneralDeclarativeEmissionForest322.Placement} {s : GeneralDeclarativeHead320.State}
+  {support : GeneralDeclarativeOrigins321.Supported s complete},
+  GeneralDeclarations.Checked r →
+    impl ∈ r.declarations →
+      GeneralDeclarativeFrameReadback325.Recorded s r i support d impl base place →
+        GeneralDeclarativeNFComplete324.ReadBack s r i d impl
+            (GeneralDeclarativeFrameReadback325.sourceNames impl place base) place ∧
+          GeneralDeclarativeNFNode324.BodyCoverage r i d impl ∧
+            GeneralDeclarativeModelStable324.StableUnder s
+              (GeneralDeclarativeAssocRule323.SourceEquation r i d impl
+                (GeneralDeclarativeFrameReadback325.sourceNames impl place base).input)
+@GeneralDeclarativeSourceSelection325.actual_local_compiler : ∀ {complete : Nat → Prop}
+  {r : GeneralDeclarations.Registry} {d : GeneralDeclarativeDemand320.Demand}
+  {i : GeneralNominalInspection.Interpretation} {tests : GeneralDeclarativePriority321.Candidates} {key : Nat}
+  {kids : List GeneralDeclarativeDemand320.Demand} {s : GeneralDeclarativeHead320.State}
+  {support : GeneralDeclarativeOrigins321.Supported s complete},
+  GeneralDeclarations.Checked r →
+    GeneralDeclarativeOutputSource323.Declared r d →
+      GeneralDeclarativeSourceSelection325.Rule s r i support tests d
+          (CommonRoleOutermostResolver.Frontier.selected key kids) →
+        ∃ impl names place,
+          impl.id = key ∧
+            impl ∈ r.declarations ∧
+              GeneralDeclarativeEmissionForest322.children impl names place = kids ∧
+                GeneralDeclarativeCompileLists321.Result s
+                  (GeneralDeclarativeNFComplete324.facts r i names.input impl d kids)
+@GeneralDeclarativeSourceSelection325.sound : ∀ {complete : Nat → Prop} {r : GeneralDeclarations.Registry}
+  {d : GeneralDeclarativeDemand320.Demand} {m : GeneralNominalCommonBridge.Assignment}
+  {i : GeneralNominalInspection.Interpretation} {tests : GeneralDeclarativePriority321.Candidates}
+  {dict : CommonRoleOutermostResolver.Dictionary} {s : GeneralDeclarativeHead320.State}
+  {support : GeneralDeclarativeOrigins321.Supported s complete},
+  GeneralDeclarations.Checked r →
+    GeneralDeclarativeOutputSource323.Declared r d →
+      GeneralDeclarativeHead320.Models s m →
+        CommonRoleOutermostResolver.Classify (GeneralDeclarativeSourceSelection325.Rule s r i support tests) d
+            (CommonRoleOutermostResolver.Result.selected dict) →
+          GeneralDeclarativeEvidence320.Evidence r i m d dict
+GeneralDeclarativeSourceFixture325.early_frame_but_unrecorded : ∀ (done : Nat → Prop),
+  GeneralDeclarativeFrameReadback325.Frame GeneralDeclarativeHiddenState324.initial
+      GeneralDeclarativeHiddenDecl324.registry GeneralDeclarativeHiddenDecl324.interpretation
+      (GeneralDeclarativeHiddenState324.sourceSupport done) GeneralDeclarativeHiddenState324.root
+      GeneralDeclarativeHiddenDecl324.parent GeneralDeclarativeSourceFixture325.base
+      GeneralDeclarativeSourceFixture325.placement ∧
+    ¬GeneralDeclarativeFrameReadback325.Recorded GeneralDeclarativeHiddenState324.initial
+        GeneralDeclarativeHiddenDecl324.registry GeneralDeclarativeHiddenDecl324.interpretation
+        (GeneralDeclarativeHiddenState324.sourceSupport done) GeneralDeclarativeHiddenState324.root
+        GeneralDeclarativeHiddenDecl324.parent GeneralDeclarativeSourceFixture325.base
+        GeneralDeclarativeSourceFixture325.placement
+GeneralDeclarativeAdvanceFixture325.composed_actual : GeneralDeclarativeAdvanceFixture325.branch
+    GeneralDeclarativeHiddenStages324.Stage.initial (fun x => False) GeneralDeclarativeHiddenState324.root
+    (CommonRoleOutermostResolver.Frontier.selected GeneralDeclarativeHiddenDecl324.parent.id
+      [GeneralDeclarativeHiddenState324.child]) ∧
+  GeneralDeclarativeAdvanceFixture325.branch GeneralDeclarativeHiddenStages324.Stage.parentWritten (fun x => False)
+      GeneralDeclarativeHiddenState324.child
+      (CommonRoleOutermostResolver.Frontier.selected GeneralDeclarativeExampleSource320.leaf.id []) ∧
+    (∀ (m : GeneralNominalCommonBridge.Assignment),
+        GeneralDeclarativeHead320.Models GeneralDeclarativeHiddenState324.final m ↔
+          GeneralDeclarativeHead320.Models GeneralDeclarativeHiddenState324.initial m ∧
+            GeneralDeclarativeEntailment320.Holds m GeneralDeclarativeHiddenState324.parentRow ∧
+              GeneralDeclarativeEntailment320.Holds m GeneralDeclarativeHiddenState324.childRow) ∧
+      ∀ (m : GeneralNominalCommonBridge.Assignment),
+        GeneralDeclarativeHead320.Models GeneralDeclarativeHiddenState324.final m →
+          GeneralDeclarativeEvidence320.Evidence GeneralDeclarativeHiddenDecl324.registry
+            GeneralDeclarativeHiddenDecl324.interpretation m GeneralDeclarativeHiddenState324.root
+            GeneralDeclarativeHiddenResolve324.dictionary
+GeneralDeclarativeNamedAliasResolve325.real_nonliteral : ¬GeneralDeclarativeNamedAliasState325.rootOut ∈
+      GeneralDeclarativeNamedAliasState325.ordinary.equations ∧
+  ¬GeneralDeclarativeNamedAliasState325.childOut ∈ GeneralDeclarativeNamedAliasState325.ordinary.equations ∧
+    ∃ m,
+      GeneralDeclarativeHead320.Models GeneralDeclarativeNamedAliasState325.ordinary m ∧
+        GeneralDeclarativeEvidence320.Evidence GeneralDeclarativeHiddenWhere324.registry
+          GeneralDeclarativeHiddenDecl324.interpretation m GeneralDeclarativeHiddenWhere324.root
+          GeneralDeclarativeNamedAliasResolve325.dict
+GeneralDeclarativeCompoundResolve325.genuine_compound : (¬∃ rhs,
+      { left := 1, right := rhs } ∈ GeneralDeclarativeCompoundState325.final.equations) ∧
+  GeneralDeclarativeCompoundDecl325.call.arguments = [{ lower := 8, center := 9, upper := 10 }] ∧
+    CommonRoleOutermostResolver.Classify (GeneralDeclarativeCompoundResolve325.branch fun x => False)
+        GeneralDeclarativeCompoundDecl325.demand
+        (CommonRoleOutermostResolver.Result.selected GeneralDeclarativeCompoundResolve325.dict) ∧
+      ∃ m,
+        GeneralDeclarativeHead320.Models GeneralDeclarativeCompoundState325.final m ∧
+          GeneralDeclarativeEvidence320.Evidence GeneralDeclarativeCompoundDecl325.reg
+            GeneralDeclarativeCompoundDecl325.interpret m GeneralDeclarativeCompoundDecl325.demand
+            GeneralDeclarativeCompoundResolve325.dict
+@GeneralDeclarativeFreshInputs325.whole_input_projection : ∀ {c : GeneralDeclarationPatterns.Constructors}
+  {roles : Roles.RoleDecls} {decl : GeneralDeclarations.Declaration} {clause : GeneralDeclarations.Clause}
+  {i : GeneralNominalInspection.Interpretation} {codes : List GeneralNominalCenteredHeadMatExpressions.Expr}
+  {cap : Nat → Capture} {s : GeneralDeclarativeHead320.State},
+  GeneralDeclarations.DeclarationChecked c roles decl →
+    clause ∈ decl.requirements →
+      GeneralNominalCenteredHeadMatExpressions.translateMany c i
+            (List.map GeneralDeclarationPatterns.normalize clause.arguments) =
+          some codes →
+        (∀ (key : Nat), key ∈ decl.inputNames → GeneralDeclarativeDemand320.Bounds s (cap key)) →
+          ∀ (protect : List Nat) (m : GeneralNominalCommonBridge.Assignment),
+            have jobs := plan clause.arguments codes;
+            GeneralDeclarativeHead320.Models s m ↔
+              ∃ next,
+                GeneralDeclarativeHead320.Models (GeneralDeclarativeFreshInputs325.prepared s protect cap jobs) next ∧
+                  ∀ (n : Nat), n ∈ GeneralDeclarativeFootprint321.stateNames s ++ protect → next n = m n
+GeneralDeclarativeReplayFixture325.fixed_root_read : GeneralDeclarativeEntailment320.Entails
+  GeneralDeclarativeReplayFixture325.state
+  { left := 6, right := GeneralNominalCenteredHeadMatExpressions.Expr.variable 65 }
+GeneralDeclarativeReplayFixture325.source_compiles_after : GeneralDeclarativeCompileLists321.Result
+  GeneralDeclarativeReplayFixture325.state
+  (GeneralDeclarativeNFComplete324.facts GeneralDeclarativeHiddenWhere324.registry
+    GeneralDeclarativeHiddenDecl324.interpretation GeneralDeclarativeReplayFixture325.after.input
+    GeneralDeclarativeHiddenWhere324.parent GeneralDeclarativeHiddenWhere324.root
+    (GeneralDeclarativeEmissionForest322.children GeneralDeclarativeHiddenWhere324.parent
+      GeneralDeclarativeReplayFixture325.after GeneralDeclarativeHiddenWhere324.place))
+@GeneralDeclarativePlacedClause325.bound_to_producing_clause : ∀ {c : GeneralDeclarationPatterns.Constructors}
+  {roles : Roles.RoleDecls} {decl : GeneralDeclarations.Declaration} {binder : GeneralDeclarations.OutputBinder}
+  {base : Nat → Capture} {place : GeneralDeclarativeEmissionForest322.Placement},
+  GeneralDeclarations.DeclarationChecked c roles decl →
+    binder ∈ decl.outputBinders →
+      ∃ clause,
+        clause ∈ decl.requirements ∧
+          clause.id = binder.clause ∧
+            ∃ eq,
+              eq ∈ clause.outputs ∧
+                eq.id = binder.equation ∧
+                  (GeneralDeclarativeSourceEmission322.useOutput decl
+                        (GeneralDeclarativeFrameReadback325.sourceNames decl place base) (place.targets clause)
+                        eq).target =
+                    place.targets clause eq.id
+'fresh_clause_keeps_fixed_targets' depends on axioms: [propext, Classical.choice, Quot.sound]
+exact source exit: 0

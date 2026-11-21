@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeModeReads325.compiled_from_ends' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundDecl325.impl_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundState325.absence_of_center_row' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeCompoundFrame325.compound_origins' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeCompoundFrame325.exact_emitted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundResolve325.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundResolve325.genuine_compound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

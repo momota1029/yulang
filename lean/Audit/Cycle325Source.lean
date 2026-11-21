@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeForwardHead325
+import Yulang.GeneralDeclarativeAppliedSource325
+import Yulang.GeneralDeclarativeClauseOrigins325
+
+#print axioms Yulang.GeneralDeclarativeEndpointHead325.invariant_nominal
+#print axioms Yulang.GeneralDeclarativeTraceTransfer325.ordinary
+#print axioms Yulang.GeneralDeclarativeForwardHead325.actual_trace
+#print axioms Yulang.GeneralDeclarativeForwardHead325.from_nominal_ends
+#print axioms Yulang.GeneralDeclarativeVisibleCode325.body_coverage_exact
+#print axioms Yulang.GeneralDeclarativeAppliedSource325.output_read_and_exact
+#print axioms Yulang.GeneralDeclarativeAppliedSource325.stable_after_written
+#print axioms Yulang.GeneralDeclarativeClauseOrigins325.from_ordinary_rows
