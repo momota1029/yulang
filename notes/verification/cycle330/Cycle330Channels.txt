@@ -1,0 +1,7 @@
+'Yulang.GeneralDeclarativeArityFixture330.actual_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityResult330.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityModels330.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityModels330.exact_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordProbe330.probe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRecordIntervals330.sandwich' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRecordSplit330.obstruction' depends on axioms: [propext, Quot.sound]

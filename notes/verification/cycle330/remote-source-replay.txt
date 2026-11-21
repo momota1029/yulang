@@ -1,0 +1,90 @@
+Immutable source commit: ede743bf51399105f03a5f512adf157ee13643c2
+'Yulang.GeneralDeclarativeArityNominal330.truth' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeArityPlan330.extract' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityRun330.buildFields' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityRun330.build' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAritySource330.ordered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityCompiler330.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle330Arity.lean byte match / source replay 0
+'Yulang.GeneralDeclarativeArityFixture330.actual_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityResult330.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityModels330.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeArityModels330.exact_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordProbe330.probe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRecordIntervals330.sandwich' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRecordSplit330.obstruction' depends on axioms: [propext, Quot.sound]
+Cycle330Channels.lean byte match / source replay 0
+Yulang.GeneralDeclarativeRecordSplit330.obstruction (key : Nat) :
+  CommonNominalFullCarrier.Subtype (GeneralDeclarativeRecordSplit330.lo key)
+      (GeneralDeclarativeRecordSplit330.hidden key) ∧
+    CommonNominalFullCarrier.Subtype (GeneralDeclarativeRecordSplit330.hidden key)
+        (GeneralDeclarativeRecordSplit330.hi key) ∧
+      ∀ (payload tail : CommonNominalFullCarrier.Ty),
+        ¬CommonNominalFullCarrier.Equivalent (GeneralDeclarativeRecordSplit330.hidden key)
+            (CommonNominalFullCarrier.record key payload tail)
+Yulang.GeneralDeclarativeRecordReconstruct330.exact {key : Nat}
+  {x lo hi loRest hiRest req opt : CommonNominalFullCarrier.Ty}
+  (low : CommonNominalFullCarrier.Subtype (CommonNominalFullCarrier.record key lo loRest) x)
+  (high : CommonNominalFullCarrier.Subtype x (CommonNominalFullCarrier.record key hi hiRest))
+  (required : GeneralDeclarativeRecordChannel330.project key false [] x = some req)
+  (optional : GeneralDeclarativeRecordChannel330.project key true [] x = some opt) :
+  (∃ a tail, CommonNominalFullCarrier.Equivalent x (CommonNominalFullCarrier.record key a tail)) ↔
+    CommonNominalFullCarrier.Equivalent req opt
+Yulang.GeneralDeclarativeRecordTail330.does_not_fix_remainder (key root : Nat) (protect : List Nat) :
+  ∃ m n,
+    (GeneralDeclarativeHead320.Models
+          (GeneralDeclarativeRecordNames330.expose GeneralDeclarativeRecordTail330.clean root key protect) m ∧
+        GeneralDeclarativeHead320.Models
+          (GeneralDeclarativeRecordNames330.expose GeneralDeclarativeRecordTail330.clean root key protect) n) ∧
+      (∀ (q : Nat),
+          q ∈ GeneralDeclarativeOpaqueNames328.kept GeneralDeclarativeRecordTail330.clean root protect → m q = n q) ∧
+        ¬CommonNominalFullCarrier.Equivalent
+            (m (GeneralDeclarativeOpaqueNames328.second GeneralDeclarativeRecordTail330.clean root protect)).fst
+            (n (GeneralDeclarativeOpaqueNames328.second GeneralDeclarativeRecordTail330.clean root protect)).fst
+'Yulang.GeneralDeclarativeArityModels330.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.accepted_without_literal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRecordElection330.protected_tail' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordInline330.inline_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle330Crosscheck.lean byte match / source replay 0
+'Yulang.GeneralDeclarativeCurrentReceipt330.exact_proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.rejoined_old' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.receipt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.reverseReceipt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.accepted_without_literal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Cycle330Current.lean byte match / source replay 0
+'Yulang.GeneralDeclarativeRecordSpine330.head_known' does not depend on any axioms
+'Yulang.GeneralDeclarativeRecordPoints330.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordInline330.endpoint_gap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordPayloads330.all_mode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordPayloads330.opaque_payload' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeGuardView330.using_receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeGuardCurrent330.authorized_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeGuardCurrent330.actual_guards' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle330Inline.lean byte match / source replay 0
+'Yulang.GeneralDeclarativeRecordConsumption330.lookup_iff' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeRecordConsumption330.read_field' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRecordConsumption330.from_ordered_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Cycle330PayloadOrder.lean byte match / source replay 0
+'Yulang.GeneralDeclarativeRecordSpine330.ends' does not depend on any axioms
+'Yulang.GeneralDeclarativeRecordSpine330.exact_subtraction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordReplay330.actual_observation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordReplay330.user_readback' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordElection330.endpoint_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordElection330.protected_tail' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle330Record.lean byte match / source replay 0
+'Yulang.GeneralDeclarativeRecordSpine330.exact_subtraction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordMaterial330.preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordFieldRead330.one' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObserverGrowth330.backed_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObserverSource330.observe_all' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObserverSource330.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentReceipt330.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentReceipt330.dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle330Source.lean byte match / source replay 0

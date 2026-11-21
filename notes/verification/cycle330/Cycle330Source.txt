@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeRecordSpine330.exact_subtraction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordMaterial330.preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordFieldRead330.one' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObserverGrowth330.backed_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObserverSource330.observe_all' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObserverSource330.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentReceipt330.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentReceipt330.dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]

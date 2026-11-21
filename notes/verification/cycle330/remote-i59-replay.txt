@@ -1,0 +1,22 @@
+Immutable source 3e5b32c4b86a4e0dce17a11eb76317cf97c9dc76: GeneralDeclarativeUnfinishedRoot330.lean
+byte match and source replay exit: 0
+Immutable source 3e5b32c4b86a4e0dce17a11eb76317cf97c9dc76: Cycle330I59.lean
+'Yulang.GeneralDeclarativeUnfinishedRoot330.blocked_and_cyclic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeUnfinishedRoot330.priority' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeUnfinishedRoot330.reject_without_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeUnfinishedRoot330.selected_old_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeUnfinishedRoot330.dictionary_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeUnfinishedRoot330.actual_i59' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeUnfinishedRoot330.unchanged_without_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeUnfinishedRoot330.no_emission_needed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+byte match and source replay exit: 0
