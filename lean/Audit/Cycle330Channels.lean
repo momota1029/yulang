@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeArityModels330
+import Yulang.GeneralDeclarativeRecordSplit330
+
+#print axioms Yulang.GeneralDeclarativeArityFixture330.actual_source
+#print axioms Yulang.GeneralDeclarativeArityResult330.every_model
+#print axioms Yulang.GeneralDeclarativeArityModels330.nonvacuous
+#print axioms Yulang.GeneralDeclarativeArityModels330.exact_compiler
+#print axioms Yulang.GeneralDeclarativeRecordProbe330.probe
+#print axioms Yulang.GeneralDeclarativeRecordIntervals330.sandwich
+#print axioms Yulang.GeneralDeclarativeRecordSplit330.obstruction
