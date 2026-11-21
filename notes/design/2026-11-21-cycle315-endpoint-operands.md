@@ -45,7 +45,10 @@ semantics. No representation or language rule is changed here.
 - Diagnostic check (not yet a counterexample): the existing C307 source has
   one nominal root rule and a variant child with no matching rule. A minimal
   candidate for a genuinely child-evidenced test is a second terminal variant
-  rule with a fresh declaration key, in the same role. The first root install,
+  rule with a fresh declaration key, in the same role (give its required
+  associated name 0 a closed record definition, even though the concrete child
+  demands no associated output). Its head only inspects the variant tag, not
+  the optional-field payload as a constructor test. The first root install,
   exact checked reobservation, child local acceptance/certificate, actual child
   installation or commitment, and both stable/evidenced premises would all
   have to be reconstructed under the *extended* compiled registry. Its old
@@ -60,3 +63,13 @@ semantics. No representation or language rule is changed here.
 - For (4a), the child-restricted foreign-key condition has no general producer
   yet. The C307 lower-row case has no foreign numerical owner; it isolates
   the other bridge and must not be used to draw a conclusion about aliases.
+
+For the leaf test, split checks into (i) compiler disjointness at the root
+(nominal vs variant), (ii) lifting the first root installation with extra
+reservation names left unconstrained, and (iii) actual child acceptance
+after the existing structural refresh. Do not import the old stability
+theorem unchanged: the larger registry reserves extra IDs. After the leaf
+commit, prove that new unused reservations cannot support any additional
+refresh/equate certificate, or account for the actual extra actions. A
+leaf certificate without the stable/underlying trace premises would
+resolve neither RevisitRhs nor EvidenceNode.

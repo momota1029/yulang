@@ -27,5 +27,8 @@
   [06](diff-06.txt) · [07](diff-07.txt) · [08](diff-08.txt) ·
   [09](diff-09.txt) · [10](diff-10.txt) · [11](diff-11.txt) ·
   [12 / exit](diff-12.txt).
+- Independent statement smoke check for the old false contract, the
+  actual selected/stable counterexample, the corrected recursive cut and
+  allocator experiment: [exact statements](statement-check.txt), exit 0.
 - No Rust, CI, full Lake build, changes to language acceptance, or retrofit
   of the experimental allocator into source execution.
