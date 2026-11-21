@@ -6544,3 +6544,7 @@ import Yulang.GeneralWhereVersionEndpointChoice317
 import Yulang.GeneralWhereVersionReuseCertificate317
 import Yulang.GeneralWhereVersionStoredRow317
 import Yulang.GeneralWhereVersionRecordedReuse317
+import Yulang.GeneralWhereOriginCompiler318
+import Yulang.GeneralWhereOriginDelta318
+import Yulang.GeneralWhereOriginTrace318
+import Yulang.GeneralWhereOriginConfig318

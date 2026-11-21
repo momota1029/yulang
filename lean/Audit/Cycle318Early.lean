@@ -1,0 +1,8 @@
+import Yulang.GeneralWhereOriginConfig318
+
+#print axioms Yulang.GeneralWhereOriginCompiler318.materialized
+#print axioms Yulang.GeneralWhereOriginDelta318.Cell.written
+#print axioms Yulang.GeneralWhereOriginTrace318.source_origin
+#print axioms Yulang.GeneralWhereOriginTrace318.from_lookup
+#print axioms Yulang.GeneralWhereOriginConfig318.history_config
+#print axioms Yulang.GeneralWhereOriginConfig318.already_holds
