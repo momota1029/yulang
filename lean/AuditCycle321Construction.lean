@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeConstruct321
+import Yulang.GeneralDeclarativeFixtureClassify321
+import Yulang.GeneralDeclarativeOverlap321
+
+#print axioms Yulang.GeneralDeclarativeFixtureClassify321.root_selected
+#print axioms Yulang.GeneralDeclarativeFixtureClassify321.resolved
+#print axioms Yulang.GeneralDeclarativeFixtureClassify321.nonvacuous
+#print axioms Yulang.GeneralDeclarativeOverlap321.overlap
+#print axioms Yulang.GeneralDeclarativeFootprint321.preserves_models
+#print axioms Yulang.GeneralDeclarativeFresh321.old_model_projection
+#print axioms Yulang.GeneralDeclarativeNewNames321.old_plus_extra
+#print axioms Yulang.GeneralDeclarativeFreshForest321.all_children_extension
+#print axioms Yulang.GeneralDeclarativeSourceCodes321.forest_exact
+#print axioms Yulang.GeneralDeclarativeConstruct321.compiled_with_fresh_children

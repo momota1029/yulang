@@ -1,0 +1,15 @@
+Build completed successfully (1025 jobs).
+'Yulang.GeneralDeclarativeFixtureClassify321.root_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeFixtureClassify321.resolved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeFixtureClassify321.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOverlap321.overlap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeFootprint321.preserves_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFresh321.old_model_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNewNames321.old_plus_extra' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeFreshForest321.all_children_extension' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSourceCodes321.forest_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeConstruct321.compiled_with_fresh_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

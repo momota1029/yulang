@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 174944)
-Total output lines: 10934
+Warning: truncated output (original token count: 175118)
+Total output lines: 10945
 
 import Yulang.GeneralDictionaryNominalCandidateEvidenceExamples
 import Yulang.GeneralDictionaryNominalCandidateReadbackExamples
@@ -651,17 +651,7 @@ run_cmd do
 #print axioms Yulang.SourceConstraintSupport.closed_clauses_supported
 #print axioms Yulang.SourceConstraintSupport.closed_compiler_and_rows_supported
 #print axioms Yulang.SourcePrincipalInference.collect_instances_exact
-#print axioms…154944 tokens truncated…#print axioms Yulang.GeneralNominalProgressObstruction.exact_children
-#print axioms Yulang.GeneralNominalProgressObstruction.survivor
-#print axioms Yulang.GeneralNominalProgressObstruction.selected
-#print axioms Yulang.GeneralNominalProgressObstruction.child_not_accessible
-#print axioms Yulang.GeneralNominalRefinements.rename_kind
-#print axioms Yulang.GeneralNominalRefinements.assignment_transport
-#print axioms Yulang.GeneralNominalRefinements.fits_transport
-#print axioms Yulang.GeneralNominalRefinements.fitsAll_transport
-#print axioms Yulang.GeneralNominalRefinements.models
-#print axioms Yulang.GeneralNominalRefinements.pending_backwards
-#print axioms Yulang.GeneralNominalRefinements.sources
+#print axioms…155118 tokens truncated…urces
 #print axioms Yulang.GeneralNominalRefinements.linked
 #print axioms Yulang.GeneralNominalSaturationBoundary.stepModels
 #print axioms Yulang.GeneralNominalSaturationBoundary.closure
@@ -1227,3 +1217,14 @@ run_cmd do
 #print axioms Yulang.GeneralDeclarativeTraceCompiler321.classify_evidence
 #print axioms Yulang.GeneralDeclarativeNormalizedCompiler321.normalized_batch
 #print axioms Yulang.GeneralDeclarativeSupportCut321.no_bare_state_readiness
+
+#print axioms Yulang.GeneralDeclarativeFixtureClassify321.root_selected
+#print axioms Yulang.GeneralDeclarativeFixtureClassify321.resolved
+#print axioms Yulang.GeneralDeclarativeFixtureClassify321.nonvacuous
+#print axioms Yulang.GeneralDeclarativeOverlap321.overlap
+#print axioms Yulang.GeneralDeclarativeFootprint321.preserves_models
+#print axioms Yulang.GeneralDeclarativeFresh321.old_model_projection
+#print axioms Yulang.GeneralDeclarativeNewNames321.old_plus_extra
+#print axioms Yulang.GeneralDeclarativeFreshForest321.all_children_extension
+#print axioms Yulang.GeneralDeclarativeSourceCodes321.forest_exact
+#print axioms Yulang.GeneralDeclarativeConstruct321.compiled_with_fresh_children
