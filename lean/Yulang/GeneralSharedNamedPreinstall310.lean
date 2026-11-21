@@ -1,0 +1,118 @@
+import Yulang.GeneralSharedNamedPlan310
+import Yulang.GeneralNominalVersionedMixedReady235
+
+set_option backward.isDefEq.respectTransparency false
+set_option maxRecDepth 22000
+set_option maxHeartbeats 11500000
+namespace Yulang.GeneralSharedNamedPreinstall310
+open GeneralSharedNamedSource310
+open GeneralSharedNamedPlan310 (packet plan report ordered_children kids)
+open GeneralDeclarationExamples (roles)
+open GeneralNominalExamples (model context state state_models)
+open GeneralNominalVersionedCandidates231
+open GeneralNominalVersionedEvidence231 (Frame)
+open GeneralNominalVersionedJournal232 (Effect)
+open GeneralNominalVersionedPlans231 (head_models)
+open GeneralNominalCenters (Plan)
+open GeneralDeclarations
+open GeneralNominalRecursiveCandidates (Metadata arguments)
+open GeneralNominalVersionedMixedKernel234 (AlternativesSafe)
+open GeneralNominalVersionedCycles232 (Safe)
+open CommonNominalFullCarrier (Equivalent subtype_refl)
+
+theorem compiled_checked : Checked compiled :=
+  GeneralNominalCenteredHeadAllocEncoding.registry_checked checked
+
+theorem member_parent {d : Declaration} (h : d ∈ compiled.declarations) (role : d.role = root.demand.role) :
+    d = impl := by
+  change d ∈ [impl,leaf] at h
+  simp only [List.mem_cons,List.not_mem_nil,or_false] at h
+  rcases h with rfl|rfl
+  · rfl
+  · cases role
+
+theorem located : arguments (context true) (inputs root) = some [(0,0)] := by decide +kernel
+
+theorem known : ¬ GeneralNominalState.RootPending (state true) (inputs root).demand := by
+  rintro ⟨i,no⟩
+  exact no ⟨(0 : Fin 2),rfl,Or.inr ⟨_,rfl⟩⟩
+
+theorem fresh (owner : Nat) (bindings : GeneralNominalAllocation.Bindings) :
+    GeneralNominalVersionedAllocation231.Fresh (state true) compiled owner bindings := by
+  intro key _ hit
+  have bound := init_source.below_seed _ hit
+  exact False.elim (Nat.not_lt_of_ge bound (GeneralNominalIdentities.source_above_seed _ _))
+
+theorem initial_shared : Equivalent (model 1).1 (model GeneralSharedNamedPlan310.z).1 := by
+  have h : GeneralSharedNamedPlan310.z ≠ 0 := by decide +kernel
+  simp only [ite_eq_right h,ite_eq_right (by decide : (1 : Nat) ≠ 0)]
+  exact ⟨subtype_refl _,subtype_refl _⟩
+
+theorem prepared : Prepared compiled (context true) root impl := by
+  have linked : GeneralNominalState.Linked (state true) (inputs root).demand :=
+    ⟨init_source.linked.1,fun _ absent => nomatch absent⟩
+  refine ⟨⟨rfl,init_source.metadata.2⟩,linked,[(0,0)],located,fresh _ _,?_,
+    model,head_models (GeneralSharedNamedPlan310.holds model (state_models true) initial_shared)⟩
+  change GeneralNominalRecursiveInspection.Finished (GeneralNominalPacketSupport.report packet)
+  rw [report]; exact ⟨rfl,rfl,rfl⟩
+
+theorem frame : Frame compiled initial.core root impl.id plan :=
+  ⟨rfl,rfl,rfl,rfl,List.mem_singleton_self _,List.mem_singleton_self _,
+    List.mem_cons_self,rfl,located,prepared⟩
+
+theorem survivor : Survivor compiled (context true) root impl.id kids :=
+  ⟨known,impl,List.mem_cons_self,impl_checked,rfl,rfl,[(0,0)],located,
+    prepared,ordered_children.symm⟩
+
+theorem unique : Unique compiled (context true) root impl.id kids := by
+  refine ⟨survivor,?_⟩
+  intro k cs h
+  have copy := h
+  obtain ⟨_,d,mem,_,id,role,_⟩ := copy
+  cases member_parent mem role
+  subst k
+  exact ⟨rfl,survivor_children_functional compiled_checked h survivor⟩
+
+theorem ready : GeneralNominalCenteredHeadMatEffects.Ready initial.core root plan :=
+  GeneralNominalVersionedMixedReady235.ready ⟨rfl,checked⟩ init_reached frame
+
+theorem administrative : GeneralNominalVersionedDiagnostic232.AdministrativeReady initial root := by
+  refine ⟨⟨plan.input,List.mem_singleton_self _,rfl⟩,?_⟩
+  intro a one _ b two _
+  cases List.mem_singleton.mp one
+  cases List.mem_singleton.mp two
+  exact .refl _
+
+theorem safe : B4TargetV8.SafeKnown (GeneralNominalVersionedDiagnostic232.boundary roles)
+    compiled initial root := by
+  refine ⟨known,?_,?_,?_⟩
+  · rintro (raw | (⟨i,cyclic⟩ | ⟨site,_,_,i,cyclic⟩))
+    · obtain ⟨_,_,_,slot,_,cyclic⟩ := raw
+      exact GeneralRebaseDisplaySafety276.raw_acyclic (state true) rfl (state_models true) slot cyclic
+    · exact GeneralRebaseDisplaySafety276.semantic init_model _ cyclic
+    · exact GeneralRebaseDisplaySafety276.semantic init_model _ cyclic
+  · rintro (raw | ⟨p,_,entry,_,cyclic⟩)
+    · obtain ⟨_,_,_,_,_,_,_,_,visited,_,cyclic⟩ := raw
+      exact GeneralRebaseDisplaySafety276.raw_acyclic (state true) rfl (state_models true) visited.1 cyclic
+    · exact GeneralRebaseDisplaySafety276.semantic init_model _ cyclic
+  · rintro (⟨_,d,visible,role,_,notPrepared⟩ | pending)
+    · cases member_parent visible role
+      exact notPrepared prepared
+    · exact pending administrative
+
+theorem positions : Safe initial plan := by
+  refine ⟨?_,fun _ _ => GeneralRebaseDisplaySafety276.semantic init_model _⟩
+  exact GeneralRebaseDisplaySafety276.position_length
+
+theorem alternatives : AlternativesSafe compiled initial plan.input := by
+  intro p matched framed
+  have f : Frame compiled initial.core root p.packet.declaration.id p := framed
+  have raw : p.packet.site = plan.packet.site := List.mem_singleton.mp f.raw_recorded
+  have same := GeneralRebaseScopedFrame276.same_frame f frame (member_parent f.visible f.role_eq) raw matched
+  subst p
+  exact positions
+
+def effect : Effect roles :=
+  ⟨compiled,initial.core,plan,frame,ordered_children ▸ unique,ready⟩
+
+end Yulang.GeneralSharedNamedPreinstall310
