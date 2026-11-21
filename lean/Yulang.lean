@@ -6884,3 +6884,9 @@ import Yulang.GeneralDeclarativeCovariantLate326
 import Yulang.GeneralDeclarativeVisibleRecord326
 import Yulang.GeneralDeclarativeRecordK2326
 import Yulang.GeneralDeclarativeFreshTail326
+import Yulang.GeneralDeclarativeRecordDecl326
+import Yulang.GeneralDeclarativeRecordState326
+import Yulang.GeneralDeclarativeRecordProbe326
+import Yulang.GeneralDeclarativeRecordFrame326
+import Yulang.GeneralDeclarativeRecordResolve326
+import Yulang.GeneralDeclarativePairUnion326
