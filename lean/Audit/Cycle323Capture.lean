@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeRigidBatch323
+import Yulang.GeneralDeclarativeRigidObserve323
+import Yulang.GeneralDeclarativeOutputRequests323
+
+#print axioms Yulang.GeneralDeclarativeOutputRequests323.child_rows_generated
+#print axioms Yulang.GeneralDeclarativeOutputSplit323.batch_after_outputs
+#print axioms Yulang.GeneralDeclarativeOutputSplit323.batch_when_closed
+#print axioms Yulang.GeneralDeclarativeRepeatedActual323.rigid_exact
+#print axioms Yulang.GeneralDeclarativeRigidOccurrences323.exact_occurrences
+#print axioms Yulang.GeneralDeclarativeRigidObserve323.from_invariant
+#print axioms Yulang.GeneralDeclarativeSemanticSharing323.exact_shared
+#print axioms Yulang.GeneralDeclarativeRigidBatch323.fresh_head_iff
