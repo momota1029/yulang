@@ -6968,3 +6968,4 @@ import Yulang.GeneralDeclarativeNestedModels328
 import Yulang.GeneralDeclarativeOpaqueCapture328
 import Yulang.GeneralDeclarativeOpaqueGroup328
 import Yulang.GeneralDeclarativeOpaqueShared328
+import Yulang.GeneralDeclarativeOpaqueDiagnostic328
