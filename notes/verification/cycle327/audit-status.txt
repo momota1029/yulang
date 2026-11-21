@@ -1,0 +1,10 @@
+
+Audit/Cycle327Authority.lean 0
+Audit/Cycle327ClauseBatch.lean 0
+Audit/Cycle327Compound.lean 0
+Audit/Cycle327Crosscheck.lean 0
+Audit/Cycle327First.lean 0
+Audit/Cycle327Frontier.lean 0
+Audit/Cycle327Placement.lean 0
+Audit/Cycle327Selected.lean 0
+Audit/Cycle327Verifier.lean 0

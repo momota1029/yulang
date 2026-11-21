@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeFrontierView327
+import Yulang.GeneralDeclarativeAlternateNames327
+
+#print axioms Yulang.GeneralDeclarativeFrontierView327.exact
+#print axioms Yulang.GeneralDeclarativeFrontierView327.absent
+#print axioms Yulang.GeneralDeclarativeAlternateNames327.alternate_selected
+#print axioms Yulang.GeneralDeclarativeAlternateNames327.same_dictionary
+#print axioms Yulang.GeneralDeclarativeAlternateNames327.no_literal_producer

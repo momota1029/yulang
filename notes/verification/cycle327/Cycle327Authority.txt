@@ -1,0 +1,3 @@
+'Yulang.GeneralDeclarativeAliasAuthority327.equal_in_every_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAliasAuthority327.fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAliasStatus327.real_comparison' depends on axioms: [propext, Classical.choice, Quot.sound]

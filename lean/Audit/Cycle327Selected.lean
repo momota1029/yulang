@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeRepeatModels327
+
+#print axioms Yulang.GeneralDeclarativeRepeatProbe327.root_matches
+#print axioms Yulang.GeneralDeclarativeRepeatProbe327.child_support
+#print axioms Yulang.GeneralDeclarativeRepeatGraph327.no_cycle
+#print axioms Yulang.GeneralDeclarativeRepeatFrame327.parent_frame
+#print axioms Yulang.GeneralDeclarativeRepeatResolve327.frontier_coverage
+#print axioms Yulang.GeneralDeclarativeRepeatResolve327.every_model
+#print axioms Yulang.GeneralDeclarativeRepeatModels327.genuine_two_models
+#print axioms Yulang.GeneralDeclarativeRepeatModels327.no_center_row

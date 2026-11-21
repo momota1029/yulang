@@ -1,0 +1,179 @@
+  {ports : List Yulang.GeneralDeclarativeClauseBatch327.Port} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.DeclarationChecked c roles decl →
+    cs ⊆ decl.requirements →
+      (∀ (n : Nat), n ∈ decl.inputNames → Yulang.GeneralDeclarativeDemand320.Bounds s (cap n)) →
+        Yulang.GeneralDeclarativeClauseBatch327.prepare c i
+              (Yulang.GeneralDeclarativeFootprint321.stateNames s ++ protect) cap s cs =
+            some (t, ports) →
+          ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralDeclarativeHead320.Models s m ↔
+              ∃ next,
+                Yulang.GeneralDeclarativeHead320.Models t next ∧
+                  ∀ (n : Nat), n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ++ protect → next n = m n
+@Yulang.GeneralDeclarativeClausePlacement327.located : ∀ {cs : List Yulang.GeneralDeclarations.Clause}
+  {ports : List Yulang.GeneralDeclarativeClauseBatch327.Port} {cl : Yulang.GeneralDeclarations.Clause}
+  {relation : Yulang.GeneralDeclarations.Clause → Yulang.GeneralDeclarativeClauseBatch327.Port → Prop},
+  Yulang.CommonRoleOutermostResolver.All₂ relation cs ports →
+    (List.map Yulang.GeneralDeclarations.Clause.id cs).Nodup →
+      cl ∈ cs → ∃ port, Yulang.GeneralDeclarativeClausePlacement327.portAt cs ports cl = some port ∧ relation cl port
+@Yulang.GeneralDeclarativeClausePlacement327.checked_inputs : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {names : Yulang.GeneralDeclarativeSourceEmission322.Names} {impl : Yulang.GeneralDeclarations.Declaration}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {protect : List Nat}
+  {ports : List Yulang.GeneralDeclarativeClauseBatch327.Port} {cl : Yulang.GeneralDeclarations.Clause}
+  {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.DeclarationChecked r.constructors r.roles impl →
+    Yulang.GeneralDeclarativeClauseBatch327.prepare r.constructors i protect names.input s impl.requirements =
+        some (t, ports) →
+      cl ∈ impl.requirements →
+        ∃ port,
+          Yulang.GeneralDeclarativeClausePlacement327.portAt impl.requirements ports cl = some port ∧
+            Yulang.GeneralDeclarativeClauseBatch327.Input t r.constructors i names.input cl port ∧
+              ∀ (j : Nat),
+                (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports targets).compound cl j =
+                  port.input j
+@Yulang.GeneralDeclarativeClausePlacement327.frame_from_inputs : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {names : Yulang.GeneralDeclarativeSourceEmission322.Names} {impl : Yulang.GeneralDeclarations.Declaration}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {protect : List Nat}
+  {ports : List Yulang.GeneralDeclarativeClauseBatch327.Port} {cl : Yulang.GeneralDeclarations.Clause}
+  {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.DeclarationChecked r.constructors r.roles impl →
+    Yulang.GeneralDeclarativeClauseBatch327.prepare r.constructors i protect names.input s impl.requirements =
+        some (t, ports) →
+      cl ∈ impl.requirements →
+        (∀ (eq : Yulang.GeneralDeclarations.Equation),
+            eq ∈ cl.outputs →
+              ∃ e,
+                Yulang.GeneralNominalCenteredHeadMatExpressions.translate r.constructors i
+                      (Yulang.GeneralDeclarationPatterns.normalize eq.rhs) =
+                    some e ∧
+                  (¬Yulang.GeneralDeclarativeEmissionOutputs322.Direct impl eq →
+                    Yulang.GeneralDeclarativeClauseOrigins325.Origin t
+                      (Yulang.GeneralDeclarativeSourceEmission322.useOutput impl names (targets cl) eq).target
+                      (Yulang.GeneralDeclarativeSubstitution320.logical names.input
+                        Yulang.GeneralNominalMaterialization.Mode.actual e))) →
+          Yulang.GeneralDeclarativeFrameReadback325.ClauseFrame t r i impl cl names
+            (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports targets)
+@Yulang.GeneralDeclarativeEndpointAlias327.paired : ∀ {α : Type u_1} {β : Type u_2} {as : List α} {bs : List β} {a : α}
+  {relation : α → β → Prop},
+  Yulang.CommonRoleOutermostResolver.All₂ relation as bs → a ∈ as → ∃ b, b ∈ bs ∧ relation a b
+@Yulang.GeneralDeclarativeEndpointAlias327.indexed : ∀ {α : Type u_1} {β : Type u_2} {as : List α} {bs : List β} {a : α}
+  {relation : α → β → Prop},
+  Yulang.CommonRoleOutermostResolver.All₂ relation as bs →
+    ∀ (idx : Nat), as[idx]? = some a → ∃ b, bs[idx]? = some b ∧ relation a b
+@Yulang.GeneralDeclarativeEndpointAlias327.symm : ∀ {as bs : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeAliasProbe327.Ends s) as bs →
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeAliasProbe327.Ends s) bs as
+@Yulang.GeneralDeclarativeEndpointAlias327.ordinary_alias : ∀ {done : Nat → Prop} {a b : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias (Yulang.GeneralDeclarativeOrigins321.restriction p) a b →
+    Yulang.GeneralDeclarativeLowerKnown321.Alias s a b
+@Yulang.GeneralDeclarativeEndpointAlias327.enough : ∀ {done : Nat → Prop}
+  {a b : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDeclarativeAliasProbe327.Ends (Yulang.GeneralDeclarativeOrigins321.restriction p)) a.arguments
+      b.arguments →
+    (Yulang.GeneralDeclarativeLowerKnown321.Ready p a ↔ Yulang.GeneralDeclarativeLowerKnown321.Ready p b)
+@Yulang.GeneralDeclarativeEndpointAlias327.no_unauthorized_delay : ∀ {done : Nat → Prop}
+  {a b : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDeclarativeAliasProbe327.Ends (Yulang.GeneralDeclarativeOrigins321.restriction p)) a.arguments
+      b.arguments →
+    (Yulang.GeneralDeclarativeLowerKnown321.Delayed p a ↔ Yulang.GeneralDeclarativeLowerKnown321.Delayed p b)
+@Yulang.GeneralDeclarativeEndpointAlias327.roots : ∀ {done : Nat → Prop}
+  {a b : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDeclarativeAliasProbe327.Ends (Yulang.GeneralDeclarativeOrigins321.restriction p)) a.arguments
+      b.arguments →
+    (Yulang.GeneralDeclarativePriority321.RootRecurs s a ↔ Yulang.GeneralDeclarativePriority321.RootRecurs s b)
+@Yulang.GeneralDeclarativeEndpointAlias327.matches_for : ∀ {done : Nat → Prop}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {a : Yulang.GeneralDeclarativeDemand320.Demand}
+  {decl : Yulang.GeneralDeclarations.Declaration} {b : Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {r : Yulang.GeneralDeclarations.Registry},
+  Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDeclarativeAliasProbe327.Ends (Yulang.GeneralDeclarativeOrigins321.restriction p)) a.arguments
+      b.arguments →
+    (Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches (Yulang.GeneralDeclarativeOrigins321.restriction p)
+        r.constructors i a decl ↔
+      Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches (Yulang.GeneralDeclarativeOrigins321.restriction p)
+        r.constructors i b decl)
+@Yulang.GeneralDeclarativeEndpointAlias327.survives_for : ∀ {done : Nat → Prop}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {a : Yulang.GeneralDeclarativeDemand320.Demand} {decl : Yulang.GeneralDeclarations.Declaration}
+  {b : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} (r : Yulang.GeneralDeclarations.Registry),
+  Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDeclarativeAliasProbe327.Ends (Yulang.GeneralDeclarativeOrigins321.restriction p)) a.arguments
+      b.arguments →
+    a.role = b.role →
+      (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand) (decl : Yulang.GeneralDeclarations.Declaration),
+          tests.viable d decl ↔
+            Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches (Yulang.GeneralDeclarativeOrigins321.restriction p)
+              r.constructors i d decl) →
+        (Yulang.GeneralDeclarativePriority321.Survives r tests a decl ↔
+          Yulang.GeneralDeclarativePriority321.Survives r tests b decl)
+@Yulang.GeneralDeclarativeEndpointAlias327.candidates : ∀ {done : Nat → Prop}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {a b : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} (r : Yulang.GeneralDeclarations.Registry),
+  Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDeclarativeAliasProbe327.Ends (Yulang.GeneralDeclarativeOrigins321.restriction p)) a.arguments
+      b.arguments →
+    a.role = b.role →
+      (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand) (decl : Yulang.GeneralDeclarations.Declaration),
+          tests.viable d decl ↔
+            Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches (Yulang.GeneralDeclarativeOrigins321.restriction p)
+              r.constructors i d decl) →
+        (Yulang.GeneralDeclarativePriority321.CandidateRecurs s r i tests a ↔
+          Yulang.GeneralDeclarativePriority321.CandidateRecurs s r i tests b)
+@Yulang.GeneralDeclarativeEndpointAlias327.recur_exact : ∀ {done : Nat → Prop}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {a b : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} (r : Yulang.GeneralDeclarations.Registry),
+  Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.GeneralDeclarativeAliasProbe327.Ends (Yulang.GeneralDeclarativeOrigins321.restriction p)) a.arguments
+      b.arguments →
+    a.role = b.role →
+      (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand) (decl : Yulang.GeneralDeclarations.Declaration),
+          tests.viable d decl ↔
+            Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches (Yulang.GeneralDeclarativeOrigins321.restriction p)
+              r.constructors i d decl) →
+        (Yulang.GeneralDeclarativePriority321.Recurs s r i tests a ↔
+          Yulang.GeneralDeclarativePriority321.Recurs s r i tests b)
+@Yulang.GeneralDeclarativeFiniteCheck327.validates : ∀ {localCheck : Yulang.GeneralDeclarativeFiniteCheck327.Checker}
+  {rules : Yulang.GeneralDeclarativeFiniteCheck327.Rule},
+  (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand)
+      (f : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand),
+      localCheck d f = true ↔ rules d f) →
+    ∀ (d : Yulang.GeneralDeclarativeDemand320.Demand) (annotated : Yulang.GeneralDeclarativeFiniteCheck327.Annotated),
+      Yulang.GeneralDeclarativeFiniteCheck327.validate localCheck d annotated = true ↔
+        Yulang.GeneralDeclarativeFiniteCheck327.Justifies rules d annotated
+@Yulang.GeneralDeclarativeFiniteCheck327.validates_many : ∀
+  {localCheck : Yulang.GeneralDeclarativeFiniteCheck327.Checker} {rules : Yulang.GeneralDeclarativeFiniteCheck327.Rule},
+  (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand)
+      (f : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand),
+      localCheck d f = true ↔ rules d f) →
+    ∀ (demands : List Yulang.GeneralDeclarativeDemand320.Demand)
+      (annotated : List Yulang.GeneralDeclarativeFiniteCheck327.Annotated),
+      Yulang.GeneralDeclarativeFiniteCheck327.validateMany localCheck demands annotated = true ↔
+        Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeFiniteCheck327.Justifies rules) demands
+          annotated
+@Yulang.GeneralDeclarativeFiniteTrees327.read : ∀ {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {rules : Yulang.GeneralDeclarativeFiniteCheck327.Rule} (cert : Yulang.GeneralDeclarativeFiniteCheck327.Annotated),
+  Yulang.GeneralDeclarativeFiniteCheck327.Justifies rules d cert →
+    Yulang.CommonRoleOutermostResolver.Resolves rules d (Yulang.GeneralDeclarativeFiniteCheck327.erase cert)
+@Yulang.GeneralDeclarativeFiniteTrees327.read_many : ∀ {ds : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {rules : Yulang.GeneralDeclarativeFiniteCheck327.Rule}
+  (certs : List Yulang.GeneralDeclarativeFiniteCheck327.Annotated),
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeFiniteCheck327.Justifies rules) ds certs →
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.CommonRoleOutermostResolver.Resolves rules) ds
+      (Yulang.GeneralDeclarativeFiniteCheck327.eraseMany certs)
+@Yulang.GeneralDeclarativeFiniteTrees327.keep_calls : ∀ {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {rules :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  (tree : Yulang.CommonRoleOutermostResolver.Tree),

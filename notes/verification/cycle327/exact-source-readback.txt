@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeRepeatModels327.genuine_two_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAlternateNames327.no_literal_producer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAliasStatus327.real_comparison' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedClause327.fixed_selected_where' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFiniteTrees327.classifies_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInPlace327.current_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAliasChecker327.checked_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAliasChecker327.checked_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedReplay327.assembled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRelation327.no_functional_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+exact replay exit: 0

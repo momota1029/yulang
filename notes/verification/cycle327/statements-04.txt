@@ -1,0 +1,172 @@
+                    (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports targets) cap)
+                  targets =
+                some rows →
+              rows ⊆ current.equations →
+                cl ∈ impl.requirements →
+                  have place := Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports targets;
+                  Yulang.GeneralDeclarativeFrameReadback325.ClauseFrame current r i impl cl
+                    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl place cap) place
+@Yulang.GeneralDeclarativeInPlace327.current_sound : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {protect : List Nat}
+  {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat} {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {ports : List Yulang.GeneralDeclarativeClauseBatch327.Port} {wr rs : List Yulang.GeneralDeclarativeHead320.Equation}
+  {s t current : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            Yulang.GeneralDeclarativeClauseBatch327.prepare r.constructors i protect
+                  (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                      (Yulang.GeneralDeclarativeAppliedClause327.targetsOnly targets) cap).input
+                  s impl.requirements =
+                some (t, ports) →
+              Yulang.GeneralDeclarativeGrowth327.Extends t current →
+                Yulang.GeneralDeclarativeWhereOutputBatch327.whole r i impl
+                      (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                        (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports targets) cap)
+                      targets =
+                    some wr →
+                  wr ⊆ current.equations →
+                    Yulang.GeneralDeclarativeBatch320.collect
+                          (Yulang.GeneralDeclarativeNormalizeAssoc324.one r i impl d
+                            (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                                (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports targets)
+                                cap).input)
+                          d.outputs =
+                        some rs →
+                      rs ⊆ current.equations →
+                        (∀ (n : Nat), n ∈ impl.inputNames → Yulang.GeneralDeclarativeDemand320.Bounds current (cap n)) →
+                          Yulang.CommonRoleOutermostResolver.All₂
+                              (fun a p =>
+                                Yulang.GeneralDeclarativeDemand320.Bounds current a ∧
+                                  Yulang.GeneralDeclarativeCompileLists321.Result current
+                                    (Yulang.GeneralDeclarativeNFHead324.fact r.constructors i
+                                      (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                                          (Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports
+                                            targets)
+                                          cap).input
+                                      a p))
+                              d.arguments impl.head →
+                            have place :=
+                              Yulang.GeneralDeclarativeClausePlacement327.placement impl.requirements ports targets;
+                            have names := Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl place cap;
+                            Yulang.GeneralDeclarativeCompileLists321.Result current
+                                (Yulang.GeneralDeclarativeNFComplete324.facts r i names.input impl d
+                                  (Yulang.GeneralDeclarativeEmissionForest322.children impl names place)) ∧
+                              ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                                Yulang.GeneralDeclarativeHead320.Models current m →
+                                  Yulang.GeneralDeclarativeAssembly320.Meaning r i m d impl names.input
+                                    (Yulang.GeneralDeclarativeEmissionForest322.children impl names place)
+Yulang.GeneralDeclarativeMixedClause327.checked_impl : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralDeclarativeMixedClause327.impl
+Yulang.GeneralDeclarativeMixedClause327.checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralDeclarativeMixedClause327.reg
+Yulang.GeneralDeclarativeMixedClause327.successful : Yulang.GeneralDeclarativeMixedClause327.plan =
+  some (Yulang.GeneralDeclarativeMixedClause327.preparedSample, Yulang.GeneralDeclarativeMixedClause327.ports)
+Yulang.GeneralDeclarativeMixedClause327.ordered_child_names : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeMixedClause327.impl
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeMixedClause327.impl
+      Yulang.GeneralDeclarativeMixedClause327.placed Yulang.GeneralDeclarativeRepeatState327.base)
+    Yulang.GeneralDeclarativeMixedClause327.placed =
+  [{ role := 2, arguments := [{ lower := 20, center := 21, upper := 22 }], outputs := [{ name := 1, target := 5 }] },
+    { role := 2, arguments := [{ lower := 23, center := 24, upper := 25 }], outputs := [{ name := 1, target := 8 }] }]
+Yulang.GeneralDeclarativeMixedClause327.fixed_selected_where : Yulang.GeneralDeclarativeWhereOutputBatch327.whole
+    Yulang.GeneralDeclarativeMixedClause327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+    Yulang.GeneralDeclarativeMixedClause327.impl
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeMixedClause327.impl
+      Yulang.GeneralDeclarativeMixedClause327.placed Yulang.GeneralDeclarativeRepeatState327.base)
+    Yulang.GeneralDeclarativeMixedClause327.targets =
+  some
+    [{ left := 8,
+        right :=
+          Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant 4
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 13) }]
+Yulang.GeneralDeclarativeMixedClause327.fixed_parent : Yulang.GeneralDeclarativeBatch320.collect
+    (Yulang.GeneralDeclarativeNormalizeAssoc324.one Yulang.GeneralDeclarativeMixedClause327.reg
+      Yulang.GeneralDeclarativeRepeatDecl327.interp Yulang.GeneralDeclarativeMixedClause327.impl
+      Yulang.GeneralDeclarativeRepeatDecl327.root
+      (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeMixedClause327.impl
+          Yulang.GeneralDeclarativeMixedClause327.placed Yulang.GeneralDeclarativeRepeatState327.base).input)
+    Yulang.GeneralDeclarativeRepeatDecl327.root.outputs =
+  some [{ left := 6, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 5 }]
+Yulang.GeneralDeclarativeMixedReplay327.covered : Yulang.GeneralNominalCenteredHeadWFSource.Coverage
+  Yulang.GeneralDeclarativeMixedClause327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+Yulang.GeneralDeclarativeMixedReplay327.retains_actual_names : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRepeatState327.mergedState m ↔
+    ∃ next,
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeMixedClause327.preparedSample next ∧
+        ∀ (n : Nat), n ∈ Yulang.GeneralDeclarativeMixedClause327.keep → next n = m n
+Yulang.GeneralDeclarativeMixedReplay327.extensions : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeRepeatState327.mergedState Yulang.GeneralDeclarativeMixedReplay327.current
+Yulang.GeneralDeclarativeMixedReplay327.actual_head : Yulang.CommonRoleOutermostResolver.All₂
+  (fun a p =>
+    Yulang.GeneralDeclarativeDemand320.Bounds Yulang.GeneralDeclarativeMixedReplay327.current a ∧
+      Yulang.GeneralDeclarativeCompileLists321.Result Yulang.GeneralDeclarativeMixedReplay327.current
+        (Yulang.GeneralDeclarativeNFHead324.fact Yulang.GeneralDeclarativeMixedClause327.reg.constructors
+          Yulang.GeneralDeclarativeRepeatDecl327.interp Yulang.GeneralDeclarativeMixedReplay327.actualNames.input a p))
+  Yulang.GeneralDeclarativeRepeatDecl327.root.arguments Yulang.GeneralDeclarativeMixedClause327.impl.head
+Yulang.GeneralDeclarativeMixedReplay327.assembled : Yulang.GeneralDeclarativeCompileLists321.Result
+    Yulang.GeneralDeclarativeMixedReplay327.current
+    (Yulang.GeneralDeclarativeNFComplete324.facts Yulang.GeneralDeclarativeMixedClause327.reg
+      Yulang.GeneralDeclarativeRepeatDecl327.interp Yulang.GeneralDeclarativeMixedReplay327.actualNames.input
+      Yulang.GeneralDeclarativeMixedClause327.impl Yulang.GeneralDeclarativeRepeatDecl327.root
+      (Yulang.GeneralDeclarativeEmissionForest322.children Yulang.GeneralDeclarativeMixedClause327.impl
+        Yulang.GeneralDeclarativeMixedReplay327.actualNames Yulang.GeneralDeclarativeMixedClause327.placed)) ∧
+  ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeMixedReplay327.current m →
+      Yulang.GeneralDeclarativeAssembly320.Meaning Yulang.GeneralDeclarativeMixedClause327.reg
+        Yulang.GeneralDeclarativeRepeatDecl327.interp m Yulang.GeneralDeclarativeRepeatDecl327.root
+        Yulang.GeneralDeclarativeMixedClause327.impl Yulang.GeneralDeclarativeMixedReplay327.actualNames.input
+        (Yulang.GeneralDeclarativeEmissionForest322.children Yulang.GeneralDeclarativeMixedClause327.impl
+          Yulang.GeneralDeclarativeMixedReplay327.actualNames Yulang.GeneralDeclarativeMixedClause327.placed)
+Yulang.GeneralDeclarativePlacementEquiv327.span_refl : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (a : Yulang.GeneralDeclarativeWhere319.Capture), Yulang.GeneralDeclarativePlacementEquiv327.SpanSame m a a
+@Yulang.GeneralDeclarativePlacementEquiv327.same_origin : ∀ {n : Nat}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {j : Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeClauseOrigins325.Origin s n e →
+    Yulang.GeneralDeclarativeClauseOrigins325.Origin s j e →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models s m → Yulang.CommonNominalFullCarrier.Equivalent (m n).fst (m j).fst
+Yulang.GeneralDeclarativePlacementEquiv327.inputs_related : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (names : Yulang.GeneralDeclarativeSourceEmission322.Names)
+  (left right : Nat → Yulang.GeneralDeclarativeWhere319.Capture) (offset : Nat)
+  (patterns : List Yulang.GeneralDeclarationPatterns.Pattern),
+  (∀ (j : Nat) (p : Yulang.GeneralDeclarationPatterns.Pattern),
+      patterns[j]? = some p →
+        Yulang.GeneralDeclarativePlacementEquiv327.SpanSame m
+          (Yulang.GeneralDeclarativeSourceEmission322.useArg names (left (offset + j)) p)
+          (Yulang.GeneralDeclarativeSourceEmission322.useArg names (right (offset + j)) p)) →
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativePlacementEquiv327.SpanSame m)
+      (Yulang.GeneralDeclarativeSourceEmission322.inputs names left offset patterns)
+      (Yulang.GeneralDeclarativeSourceEmission322.inputs names right offset patterns)
+@Yulang.GeneralDeclarativePlacementEquiv327.placement_for_clause : ∀ {reg : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {decl : Yulang.GeneralDeclarations.Declaration}
+  {cl : Yulang.GeneralDeclarations.Clause} {names : Yulang.GeneralDeclarativeSourceEmission322.Names}
+  {s : Yulang.GeneralDeclarativeHead320.State} {left right : Yulang.GeneralDeclarativeEmissionForest322.Placement},
+  Yulang.GeneralDeclarativeFrameReadback325.ClauseFrame s reg i decl cl names left →
+    Yulang.GeneralDeclarativeFrameReadback325.ClauseFrame s reg i decl cl names right →
+      left.targets cl = right.targets cl →
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m →
+            Yulang.GeneralDeclarativePlacementEquiv327.RequestSame m
+              (Yulang.GeneralDeclarativeSourceEmission322.demand decl cl names (left.compound cl) (left.targets cl))
+              (Yulang.GeneralDeclarativeSourceEmission322.demand decl cl names (right.compound cl) (right.targets cl))
+@Yulang.GeneralDeclarativePlacementEquiv327.complete_ordered : ∀ {reg : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {decl : Yulang.GeneralDeclarations.Declaration}
+  {base : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State}
+  {left right : Yulang.GeneralDeclarativeEmissionForest322.Placement},
+  left.targets = right.targets →
+    (∀ (cl : Yulang.GeneralDeclarations.Clause),
+        cl ∈ decl.requirements →
+          Yulang.GeneralDeclarativeFrameReadback325.ClauseFrame s reg i decl cl
+            (Yulang.GeneralDeclarativeFrameReadback325.sourceNames decl left base) left) →
+      (∀ (cl : Yulang.GeneralDeclarations.Clause),
+          cl ∈ decl.requirements →
+            Yulang.GeneralDeclarativeFrameReadback325.ClauseFrame s reg i decl cl
+              (Yulang.GeneralDeclarativeFrameReadback325.sourceNames decl right base) right) →
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m →
+            Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativePlacementEquiv327.RequestSame m)

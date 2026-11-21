@@ -1,0 +1,7 @@
+'Yulang.GeneralDeclarativeFrontier327.coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCandidateScan327.single' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCandidateScan327.scan_blocked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedProjection327.same_from_actual_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedProjection327.merge_from_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

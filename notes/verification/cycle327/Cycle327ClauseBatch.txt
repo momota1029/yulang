@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeClauseBatch327.read_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeClauseBatch327.exact_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeClausePlacement327.checked_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereOutputBatch327.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAppliedClause327.compiled_frames' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedClause327.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedClause327.ordered_child_names' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedClause327.fixed_selected_where' depends on axioms: [propext, Quot.sound]

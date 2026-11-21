@@ -1,0 +1,167 @@
+Yulang.GeneralDeclarativeAliasAuthority327.literal : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeAliasAuthority327.scalar ∈
+    (Yulang.GeneralDeclarativeOrigins321.restriction
+        (Yulang.GeneralDeclarativeAliasAuthority327.support done)).equations
+@Yulang.GeneralDeclarativeAliasAuthority327.initial_only : ∀ {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeAliasAuthority327.support
+            Yulang.GeneralDeclarativeAliasAuthority327.emptyDone)).equations →
+    e = Yulang.GeneralDeclarativeAliasAuthority327.scalar
+@Yulang.GeneralDeclarativeAliasAuthority327.alias_restricted : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+        (Yulang.GeneralDeclarativeAliasAuthority327.support Yulang.GeneralDeclarativeAliasAuthority327.emptyDone))
+      a b →
+    a = b
+Yulang.GeneralDeclarativeAliasAuthority327.authorized_before : Yulang.GeneralDeclarativeLowerKnown321.Ready
+  (Yulang.GeneralDeclarativeAliasAuthority327.support Yulang.GeneralDeclarativeAliasAuthority327.emptyDone)
+  Yulang.GeneralDeclarativeAliasAuthority327.a
+Yulang.GeneralDeclarativeAliasAuthority327.not_before : Yulang.GeneralDeclarativeLowerKnown321.Delayed
+  (Yulang.GeneralDeclarativeAliasAuthority327.support Yulang.GeneralDeclarativeAliasAuthority327.emptyDone)
+  Yulang.GeneralDeclarativeAliasAuthority327.b
+Yulang.GeneralDeclarativeAliasAuthority327.authorized_later : Yulang.GeneralDeclarativeLowerKnown321.Ready
+  (Yulang.GeneralDeclarativeAliasAuthority327.support Yulang.GeneralDeclarativeAliasAuthority327.realDone)
+  Yulang.GeneralDeclarativeAliasAuthority327.b
+Yulang.GeneralDeclarativeAliasAuthority327.equal_in_every_model : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeAliasAuthority327.state m →
+    Yulang.GeneralDeclarativePlacementEquiv327.RequestSame m Yulang.GeneralDeclarativeAliasAuthority327.a
+      Yulang.GeneralDeclarativeAliasAuthority327.b
+Yulang.GeneralDeclarativeAliasAuthority327.fits : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeAliasAuthority327.state fun x =>
+  (Yulang.CommonNominalSyntax.Layer.base Yulang.Inference.Base.int, Yulang.Common.rowEmpty)
+@Yulang.GeneralDeclarativeAliasChecker327.exact_observation : ∀ {allowed : Bool} (done : Nat → Prop) (n : Nat),
+  (allowed = true ↔
+      Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeAliasAuthority327.support done)
+        (Yulang.GeneralDeclarativeAliasStatus327.run n)) →
+    Yulang.GeneralDeclarativeRelationalCheck327.Observes Yulang.GeneralDeclarativeAliasAuthority327.state
+      Yulang.GeneralDeclarativeAliasAuthority327.reg Yulang.GeneralDeclarativeAliasAuthority327.interp
+      (Yulang.GeneralDeclarativeAliasAuthority327.support done) (Yulang.GeneralDeclarativeAliasStatus327.tests done)
+      (Yulang.GeneralDeclarativeAliasStatus327.run n) (Yulang.GeneralDeclarativeAliasChecker327.observed allowed)
+Yulang.GeneralDeclarativeAliasChecker327.emits_exact : ∀ (done : Nat → Prop) (n : Nat),
+  Yulang.GeneralDeclarativeAliasStatus327.written n ∈ Yulang.GeneralDeclarativeAliasAuthority327.rows →
+    Yulang.GeneralDeclarativeRelationalCheck327.Verifies Yulang.GeneralDeclarativeAliasAuthority327.state
+      Yulang.GeneralDeclarativeAliasAuthority327.reg Yulang.GeneralDeclarativeAliasAuthority327.interp
+      (Yulang.GeneralDeclarativeAliasAuthority327.support done) (Yulang.GeneralDeclarativeAliasStatus327.tests done)
+      (Yulang.GeneralDeclarativeAliasStatus327.run n)
+      (Yulang.GeneralDeclarativeProjectedFrame326.Generated Yulang.GeneralDeclarativeAliasAuthority327.state
+        Yulang.GeneralDeclarativeAliasAuthority327.reg Yulang.GeneralDeclarativeAliasAuthority327.interp
+        (Yulang.GeneralDeclarativeAliasAuthority327.support done))
+      Yulang.GeneralDeclarativeAliasChecker327.emits
+Yulang.GeneralDeclarativeAliasChecker327.checked_before : ∀
+  (frontier : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand),
+  Yulang.GeneralDeclarativeRelationalCheck327.check Yulang.GeneralDeclarativeAliasAuthority327.reg
+        Yulang.GeneralDeclarativeAliasAuthority327.b (Yulang.GeneralDeclarativeAliasChecker327.observed false)
+        Yulang.GeneralDeclarativeAliasChecker327.emits frontier =
+      true ↔
+    Yulang.GeneralDeclarativeAliasStatus327.branch Yulang.GeneralDeclarativeAliasAuthority327.emptyDone
+      Yulang.GeneralDeclarativeAliasAuthority327.b frontier
+Yulang.GeneralDeclarativeAliasChecker327.checked_after : ∀
+  (frontier : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand),
+  Yulang.GeneralDeclarativeRelationalCheck327.check Yulang.GeneralDeclarativeAliasAuthority327.reg
+        Yulang.GeneralDeclarativeAliasAuthority327.b (Yulang.GeneralDeclarativeAliasChecker327.observed true)
+        Yulang.GeneralDeclarativeAliasChecker327.emits frontier =
+      true ↔
+    Yulang.GeneralDeclarativeAliasStatus327.branch Yulang.GeneralDeclarativeAliasAuthority327.realDone
+      Yulang.GeneralDeclarativeAliasAuthority327.b frontier
+@Yulang.GeneralDeclarativeAliasProbe327.trace : ∀ {to fromName : Nat} {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {uses : List Yulang.GeneralDeclarativeTrace321.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias s to fromName →
+    Yulang.GeneralDeclarativeTrace321.Trace s mode fromName code uses →
+      ∃ other, Yulang.GeneralDeclarativeTrace321.Trace s mode to code other
+@Yulang.GeneralDeclarativeAliasProbe327.one : ∀ {a b : Yulang.GeneralDeclarativeWhere319.Capture}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {p : Yulang.GeneralDeclarationPatterns.Pattern} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeAliasProbe327.Ends s a b →
+    (Yulang.GeneralDeclarativeEndpointProbe321.Matches s c i a p ↔
+      Yulang.GeneralDeclarativeEndpointProbe321.Matches s c i b p)
+@Yulang.GeneralDeclarativeAliasProbe327.replay : ∀ {as bs : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {pats : List Yulang.GeneralDeclarationPatterns.Pattern} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeAliasProbe327.Ends s) as bs →
+    (Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeEndpointProbe321.Matches s c i) as pats ↔
+      Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeEndpointProbe321.Matches s c i) bs pats)
+Yulang.GeneralDeclarativeAliasStatus327.checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralDeclarativeAliasAuthority327.reg
+Yulang.GeneralDeclarativeAliasStatus327.no_edges : ∀ (a b : Nat),
+  ¬Yulang.GeneralDeclarativeK2Graph321.Descends
+      (Yulang.GeneralDeclarativeGraphRows321.structural Yulang.GeneralDeclarativeAliasAuthority327.state) a b
+Yulang.GeneralDeclarativeAliasStatus327.no_cycles : ∀ (a : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeAliasAuthority327.state
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeAliasAuthority327.state) a
+Yulang.GeneralDeclarativeAliasStatus327.acyclic : ∀ (done : Nat → Prop) (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeAliasAuthority327.state
+      Yulang.GeneralDeclarativeAliasAuthority327.reg Yulang.GeneralDeclarativeAliasAuthority327.interp
+      (Yulang.GeneralDeclarativeAliasStatus327.tests done) d
+Yulang.GeneralDeclarativeAliasStatus327.probe : ∀ (n : Nat) (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeAliasAuthority327.support done))
+    Yulang.GeneralDeclarativeAliasAuthority327.reg.constructors Yulang.GeneralDeclarativeAliasAuthority327.interp
+    (Yulang.GeneralDeclarativeAliasStatus327.run n) Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeAliasStatus327.source_frame : ∀ (n : Nat) (done : Nat → Prop),
+  Yulang.GeneralDeclarativeAliasStatus327.written n ∈ Yulang.GeneralDeclarativeAliasAuthority327.rows →
+    Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeAliasAuthority327.state
+      Yulang.GeneralDeclarativeAliasAuthority327.reg Yulang.GeneralDeclarativeAliasAuthority327.interp
+      (Yulang.GeneralDeclarativeAliasAuthority327.support done) (Yulang.GeneralDeclarativeAliasStatus327.run n)
+      Yulang.GeneralDeclarativeExampleSource320.leaf (fun x => Yulang.GeneralDeclarativeExampleSource320.point n)
+      Yulang.GeneralDeclarativeAliasStatus327.place
+Yulang.GeneralDeclarativeAliasStatus327.can_select : ∀ (n : Nat) (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeAliasAuthority327.support done)
+      (Yulang.GeneralDeclarativeAliasStatus327.run n) →
+    Yulang.GeneralDeclarativeAliasStatus327.written n ∈ Yulang.GeneralDeclarativeAliasAuthority327.rows →
+      Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeAliasStatus327.branch done)
+        (Yulang.GeneralDeclarativeAliasStatus327.run n)
+        (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeAliasStatus327.dict)
+Yulang.GeneralDeclarativeAliasStatus327.pending_same_model_names : Yulang.CommonRoleOutermostResolver.Classify
+  (Yulang.GeneralDeclarativeAliasStatus327.branch Yulang.GeneralDeclarativeAliasAuthority327.emptyDone)
+  Yulang.GeneralDeclarativeAliasAuthority327.b Yulang.CommonRoleOutermostResolver.Result.pending
+Yulang.GeneralDeclarativeAliasStatus327.real_comparison : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeAliasAuthority327.state m →
+    Yulang.GeneralDeclarativePlacementEquiv327.RequestSame m Yulang.GeneralDeclarativeAliasAuthority327.a
+        Yulang.GeneralDeclarativeAliasAuthority327.b ∧
+      Yulang.CommonRoleOutermostResolver.Classify
+          (Yulang.GeneralDeclarativeAliasStatus327.branch Yulang.GeneralDeclarativeAliasAuthority327.emptyDone)
+          Yulang.GeneralDeclarativeAliasAuthority327.a
+          (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeAliasStatus327.dict) ∧
+        Yulang.CommonRoleOutermostResolver.Classify
+            (Yulang.GeneralDeclarativeAliasStatus327.branch Yulang.GeneralDeclarativeAliasAuthority327.emptyDone)
+            Yulang.GeneralDeclarativeAliasAuthority327.b Yulang.CommonRoleOutermostResolver.Result.pending ∧
+          Yulang.CommonRoleOutermostResolver.Classify
+            (Yulang.GeneralDeclarativeAliasStatus327.branch Yulang.GeneralDeclarativeAliasAuthority327.realDone)
+            Yulang.GeneralDeclarativeAliasAuthority327.b
+            (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeAliasStatus327.dict)
+@Yulang.GeneralDeclarativeAliasVisit327.structural_name : ∀ {fresh old : Nat}
+  {shape : Yulang.GeneralDeclarativeK2Graph321.Shape} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias s fresh old →
+    Yulang.GeneralDeclarativeGraphRows321.structural s old shape →
+      Yulang.GeneralDeclarativeGraphRows321.structural s fresh shape
+@Yulang.GeneralDeclarativeAliasVisit327.visit : ∀ {fresh old : Nat}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {site : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias s fresh old →
+    Yulang.GeneralDeclarativeInspect321.Visit (Yulang.GeneralDeclarativeGraphRows321.structural s) old code site →
+      ∃ newSite,
+        Yulang.GeneralDeclarativeInspect321.Visit (Yulang.GeneralDeclarativeGraphRows321.structural s) fresh code
+            newSite ∧
+          Yulang.GeneralDeclarativeLowerKnown321.Alias s newSite site
+@Yulang.GeneralDeclarativeAliasVisit327.pattern : ∀ {fresh old : Nat}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias s fresh old →
+    (Yulang.GeneralDeclarativeInspect321.PatternK2 s fresh code ↔
+      Yulang.GeneralDeclarativeInspect321.PatternK2 s old code)
+Yulang.GeneralDeclarativeAlternateNames327.different : Yulang.GeneralDeclarativeRepeatState327.child ≠
+  Yulang.GeneralDeclarativeAlternateNames327.alternate
+Yulang.GeneralDeclarativeAlternateNames327.alternate_emits : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeRepeatDecl327.impl
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeRepeatDecl327.impl
+      Yulang.GeneralDeclarativeAlternateNames327.alternatePlace Yulang.GeneralDeclarativeRepeatState327.base)
+    Yulang.GeneralDeclarativeAlternateNames327.alternatePlace =
+  [Yulang.GeneralDeclarativeAlternateNames327.alternate]
+Yulang.GeneralDeclarativeAlternateNames327.alternate_parent : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeRepeatState327.result
+    Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+    (Yulang.GeneralDeclarativeRepeatProbe327.supported done) Yulang.GeneralDeclarativeRepeatDecl327.root
+    Yulang.GeneralDeclarativeRepeatDecl327.impl Yulang.GeneralDeclarativeRepeatState327.base
+    Yulang.GeneralDeclarativeAlternateNames327.alternatePlace
+Yulang.GeneralDeclarativeAlternateNames327.alternate_selected : ∀ (done : Nat → Prop),

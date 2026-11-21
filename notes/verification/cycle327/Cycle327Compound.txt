@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeRepeatedHead327.compiled_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatDecl327.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatState327.shared_root' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeRepeatState327.child_named' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatState327.emitted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatState327.input_exact' depends on axioms: [propext, Quot.sound]

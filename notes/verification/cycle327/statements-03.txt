@@ -1,0 +1,175 @@
+  Yulang.CommonRoleOutermostResolver.Resolves rules d tree →
+    ∃ cert,
+      Yulang.GeneralDeclarativeFiniteCheck327.erase cert = tree ∧
+        Yulang.GeneralDeclarativeFiniteCheck327.Justifies rules d cert
+@Yulang.GeneralDeclarativeFiniteTrees327.keep_calls_many : ∀ {ds : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {rules :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  (trees : List Yulang.CommonRoleOutermostResolver.Tree),
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.CommonRoleOutermostResolver.Resolves rules) ds trees →
+    ∃ certs,
+      Yulang.GeneralDeclarativeFiniteCheck327.eraseMany certs = trees ∧
+        Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeFiniteCheck327.Justifies rules) ds certs
+@Yulang.GeneralDeclarativeFiniteTrees327.classifies_iff : ∀ {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {verdict : Yulang.CommonRoleOutermostResolver.Result}
+  {rules :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {localCheck : Yulang.GeneralDeclarativeFiniteCheck327.Checker},
+  (∀ (demand : Yulang.GeneralDeclarativeDemand320.Demand)
+      (f : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand),
+      localCheck demand f = true ↔ rules demand f) →
+    (Yulang.CommonRoleOutermostResolver.Classify rules d verdict ↔
+      ∃ cert,
+        Yulang.GeneralDeclarativeFiniteCheck327.validate localCheck d cert = true ∧
+          Yulang.CommonRoleOutermostResolver.Summarizes (Yulang.GeneralDeclarativeFiniteCheck327.erase cert) verdict)
+@Yulang.GeneralDeclarativeFrontier327.unique_declaration : ∀ {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {decl other : Yulang.GeneralDeclarations.Declaration} {r : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralDeclarations.Checked r →
+    ∀ (d : Yulang.GeneralDeclarativeDemand320.Demand),
+      Yulang.GeneralDeclarativeFrontier327.Unique r tests d decl →
+        Yulang.GeneralDeclarativePriority321.Survives r tests d other → other = decl
+@Yulang.GeneralDeclarativeFrontier327.coverage : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {generates :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    ((∃ f, Yulang.GeneralDeclarativePriority321.Local s r i p tests generates d f) ↔
+      Yulang.GeneralDeclarativeFrontier327.NoOverlap s r i p tests d ∧
+        Yulang.GeneralDeclarativeFrontier327.CanGenerate s r i p tests generates d)
+@Yulang.GeneralDeclarativeFrontierView327.false_iff : ∀ {prop : Prop} {b : Bool},
+  (b = true ↔ prop) → (b = false ↔ ¬prop)
+@Yulang.GeneralDeclarativeFrontierView327.two_differ : ∀ {passes : Yulang.GeneralDeclarations.Declaration → Bool}
+  {a b : Yulang.GeneralDeclarations.Declaration} {more : List Yulang.GeneralDeclarations.Declaration}
+  {r : Yulang.GeneralDeclarations.Registry} {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeCandidateScan327.viable r d passes = a :: b :: more → a.id ≠ b.id
+@Yulang.GeneralDeclarativeFrontierView327.sound : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {generates :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {hasLower recursive : Bool} {passes waiting : Yulang.GeneralDeclarations.Declaration → Bool}
+  {produce : Yulang.GeneralDeclarations.Declaration → Option (List Yulang.GeneralDeclarativeDemand320.Demand)}
+  {f : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeFrontierView327.ExactInputs s r i p tests d generates hasLower recursive passes waiting
+        produce →
+      Yulang.GeneralDeclarativeFrontierView327.decision r d hasLower recursive passes waiting produce = some f →
+        Yulang.GeneralDeclarativePriority321.Local s r i p tests generates d f
+@Yulang.GeneralDeclarativeFrontierView327.wait_empty : ∀ {waiting : Yulang.GeneralDeclarations.Declaration → Bool}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {r : Yulang.GeneralDeclarations.Registry}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  (∀ (decl : Yulang.GeneralDeclarations.Declaration),
+      decl ∈ r.declarations → decl.role = d.role → (waiting decl = true ↔ tests.unresolved d decl)) →
+    ¬Yulang.GeneralDeclarativePriority321.Blocked r tests d →
+      (Yulang.GeneralDeclarativeCandidateScan327.viable r d waiting).isEmpty = true
+@Yulang.GeneralDeclarativeFrontierView327.none_viable : ∀ {passes : Yulang.GeneralDeclarations.Declaration → Bool}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {r : Yulang.GeneralDeclarations.Registry}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  (∀ (decl : Yulang.GeneralDeclarations.Declaration),
+      decl ∈ r.declarations → decl.role = d.role → (passes decl = true ↔ tests.viable d decl)) →
+    (∀ (decl : Yulang.GeneralDeclarations.Declaration), ¬Yulang.GeneralDeclarativePriority321.Survives r tests d decl) →
+      Yulang.GeneralDeclarativeCandidateScan327.viable r d passes = []
+@Yulang.GeneralDeclarativeFrontierView327.complete : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {generates :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {hasLower recursive : Bool} {passes waiting : Yulang.GeneralDeclarations.Declaration → Bool}
+  {produce : Yulang.GeneralDeclarations.Declaration → Option (List Yulang.GeneralDeclarativeDemand320.Demand)}
+  {f : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeFrontierView327.ExactInputs s r i p tests d generates hasLower recursive passes waiting
+        produce →
+      Yulang.GeneralDeclarativePriority321.Local s r i p tests generates d f →
+        Yulang.GeneralDeclarativeFrontierView327.decision r d hasLower recursive passes waiting produce = some f
+@Yulang.GeneralDeclarativeFrontierView327.exact : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {generates :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {hasLower recursive : Bool} {passes waiting : Yulang.GeneralDeclarations.Declaration → Bool}
+  {produce : Yulang.GeneralDeclarations.Declaration → Option (List Yulang.GeneralDeclarativeDemand320.Demand)}
+  {f : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeFrontierView327.ExactInputs s r i p tests d generates hasLower recursive passes waiting
+        produce →
+      (Yulang.GeneralDeclarativeFrontierView327.decision r d hasLower recursive passes waiting produce = some f ↔
+        Yulang.GeneralDeclarativePriority321.Local s r i p tests generates d f)
+@Yulang.GeneralDeclarativeFrontierView327.absent : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {generates :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {hasLower recursive : Bool} {passes waiting : Yulang.GeneralDeclarations.Declaration → Bool}
+  {produce : Yulang.GeneralDeclarations.Declaration → Option (List Yulang.GeneralDeclarativeDemand320.Demand)}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeFrontierView327.ExactInputs s r i p tests d generates hasLower recursive passes waiting
+        produce →
+      (Yulang.GeneralDeclarativeFrontierView327.decision r d hasLower recursive passes waiting produce = none ↔
+        ¬(Yulang.GeneralDeclarativeFrontier327.NoOverlap s r i p tests d ∧
+            Yulang.GeneralDeclarativeFrontier327.CanGenerate s r i p tests generates d))
+@Yulang.GeneralDeclarativeGrowth327.trans : ∀ {a b c : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends a b →
+    Yulang.GeneralDeclarativeGrowth327.Extends b c → Yulang.GeneralDeclarativeGrowth327.Extends a c
+Yulang.GeneralDeclarativeGrowth327.facts : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (rows : List Yulang.GeneralDeclarativeHead320.Equation),
+  Yulang.GeneralDeclarativeGrowth327.Extends s (Yulang.GeneralDeclarativeEntailment320.appendFacts s rows)
+Yulang.GeneralDeclarativeGrowth327.ordinary : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (rows : List (Yulang.PresenceNormalForm.Atom Nat)),
+  Yulang.GeneralDeclarativeGrowth327.Extends s (Yulang.GeneralDeclarativeCaptureClosure320.withOrdinary s rows)
+Yulang.GeneralDeclarativeGrowth327.span : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (capture : Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeGrowth327.Extends s (Yulang.GeneralDeclarativeWhereIntervals325.withInterval s capture)
+@Yulang.GeneralDeclarativeGrowth327.boundsOne : ∀ {a b : Nat} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.GeneralDeclarativeBounds319.Bound s.normal a b → Yulang.GeneralDeclarativeBounds319.Bound t.normal a b
+@Yulang.GeneralDeclarativeGrowth327.fits : ∀ {a : Yulang.GeneralDeclarativeWhere319.Capture}
+  {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.GeneralDeclarativeDemand320.Bounds s a → Yulang.GeneralDeclarativeDemand320.Bounds t a
+@Yulang.GeneralDeclarativeGrowth327.aliases : ∀ {a b : Nat} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.GeneralDeclarativeLowerKnown321.Alias s a b → Yulang.GeneralDeclarativeLowerKnown321.Alias t a b
+@Yulang.GeneralDeclarativeGrowth327.congruent : ∀ {a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.GeneralDeclarativeCongruence322.Congruent s a b → Yulang.GeneralDeclarativeCongruence322.Congruent t a b
+@Yulang.GeneralDeclarativeGrowth327.derives : ∀ {a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.GeneralDeclarativeEqualities322.Derives s a b → Yulang.GeneralDeclarativeEqualities322.Derives t a b
+@Yulang.GeneralDeclarativeGrowth327.restrict : ∀ {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models t m → Yulang.GeneralDeclarativeHead320.Models s m
+@Yulang.GeneralDeclarativeInPlace327.clause_here : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {protect : List Nat} {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {ports : List Yulang.GeneralDeclarativeClauseBatch327.Port}
+  {rows : List Yulang.GeneralDeclarativeHead320.Equation} {cl : Yulang.GeneralDeclarations.Clause}
+  {s t current : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        Yulang.GeneralDeclarativeClauseBatch327.prepare r.constructors i protect
+              (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl
+                  (Yulang.GeneralDeclarativeAppliedClause327.targetsOnly targets) cap).input
+              s impl.requirements =
+            some (t, ports) →
+          Yulang.GeneralDeclarativeGrowth327.Extends t current →
+            Yulang.GeneralDeclarativeWhereOutputBatch327.whole r i impl
+                  (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl

@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeMixedClause327
+
+#print axioms Yulang.GeneralDeclarativeClauseBatch327.read_order
+#print axioms Yulang.GeneralDeclarativeClauseBatch327.exact_projection
+#print axioms Yulang.GeneralDeclarativeClausePlacement327.checked_inputs
+#print axioms Yulang.GeneralDeclarativeWhereOutputBatch327.exact
+#print axioms Yulang.GeneralDeclarativeAppliedClause327.compiled_frames
+#print axioms Yulang.GeneralDeclarativeMixedClause327.checked
+#print axioms Yulang.GeneralDeclarativeMixedClause327.ordered_child_names
+#print axioms Yulang.GeneralDeclarativeMixedClause327.fixed_selected_where

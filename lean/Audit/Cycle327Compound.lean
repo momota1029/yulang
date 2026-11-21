@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeRepeatState327
+
+#print axioms Yulang.GeneralDeclarativeRepeatedHead327.compiled_head
+#print axioms Yulang.GeneralDeclarativeRepeatDecl327.checked
+#print axioms Yulang.GeneralDeclarativeRepeatState327.shared_root
+#print axioms Yulang.GeneralDeclarativeRepeatState327.child_named
+#print axioms Yulang.GeneralDeclarativeRepeatState327.emitted
+#print axioms Yulang.GeneralDeclarativeRepeatState327.input_exact

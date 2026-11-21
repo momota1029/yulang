@@ -1,0 +1,27 @@
+Immutable source commit: 4d29cd23070d2e89574ce8bf5e71fbdba18dad22
+'Yulang.GeneralDeclarativeRepeatModels327.genuine_two_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAlternateNames327.no_literal_producer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAliasStatus327.real_comparison' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedClause327.fixed_selected_where' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFiniteTrees327.classifies_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInPlace327.current_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAliasChecker327.checked_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAliasChecker327.checked_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedReplay327.assembled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRelation327.no_functional_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeClauseBatch327.read_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeClauseBatch327.exact_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeClausePlacement327.checked_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereOutputBatch327.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAppliedClause327.compiled_frames' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedClause327.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedClause327.ordered_child_names' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedClause327.fixed_selected_where' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointAlias327.enough' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointAlias327.recur_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRelationalCheck327.exact_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRelationalCheck327.at_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeFiniteTrees327.classifies_iff' depends on axioms: [propext, Quot.sound]
+remote trust-zero replay: 0

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativePlacementEvidence327
+
+#print axioms Yulang.GeneralDeclarativePlacementEquiv327.placement_for_clause
+#print axioms Yulang.GeneralDeclarativePlacementEquiv327.complete_ordered
+#print axioms Yulang.GeneralDeclarativePlacementEvidence327.retarget
