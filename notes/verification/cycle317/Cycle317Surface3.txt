@@ -1,0 +1,61 @@
+'Yulang.GeneralWhereVersionLeafProof317.mid_value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafProof317.head_schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafProof317.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafProof317.schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafProof317.emitted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafProof317.terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafProof317.holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.corrected_not_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.corrected_not_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.descriptors' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.sites' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.found_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.found_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.same_role_owner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.administrative' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.unique_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.no_request' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.equal_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.classes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafRegistry317.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSafety317.width' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSafety317.lower_value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSafety317.center_value' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSafety317.no_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSafety317.no_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSafety317.no_raw_incoming' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSafety317.no_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSelect317.inherited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSelect317.safe_positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSelect317.first_arg' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSelect317.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionLeafSelect317.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionPreserve317.model_from_each_agrees' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralWhereVersionPreserve317.exact_legacy_projection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralWhereVersionPreserve317.no_legacy_model_lost_or_created' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.variable_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.footprints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.address' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.argument_allocation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.allocation_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.emissions_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.children_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.schema_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereVersionRecompile317.actual_after_observation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralWhereVersionRecordedReuse317.stored_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionRecordedReuse317.stored_upper' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionRecordedReuse317.present_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionRecordedReuse317.present_upper' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereVersionRecordedReuse317.from_recorded_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

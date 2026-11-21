@@ -1,0 +1,35 @@
+import Yulang.GeneralWhereVersionRootReport317
+import Yulang.GeneralWhereVersionRootSafety317
+import Yulang.GeneralWhereVersionRootSelect317
+import Yulang.GeneralWhereVersionSemantics317
+import Yulang.GeneralWhereVersionSnapshot317
+import Yulang.GeneralWhereVersionStoredRow317
+import Yulang.GeneralWhereVersionWitness317
+
+#print axioms Yulang.GeneralWhereVersionRootReport317.location
+#print axioms Yulang.GeneralWhereVersionRootReport317.query
+#print axioms Yulang.GeneralWhereVersionRootReport317.exact_report
+#print axioms Yulang.GeneralWhereVersionRootReport317.codes
+#print axioms Yulang.GeneralWhereVersionRootReport317.same
+#print axioms Yulang.GeneralWhereVersionRootSafety317.no_semantic
+#print axioms Yulang.GeneralWhereVersionRootSafety317.no_raw_incoming
+#print axioms Yulang.GeneralWhereVersionRootSafety317.no_raw
+#print axioms Yulang.GeneralWhereVersionRootSelect317.current_tests
+#print axioms Yulang.GeneralWhereVersionRootSelect317.safe
+#print axioms Yulang.GeneralWhereVersionRootSelect317.head_equations
+#print axioms Yulang.GeneralWhereVersionRootSelect317.reselected
+#print axioms Yulang.GeneralWhereVersionRootSelect317.root_and_leaf_on_reobservation
+#print axioms Yulang.GeneralWhereVersionSemantics317.actual_binders
+#print axioms Yulang.GeneralWhereVersionSemantics317.actual_child_schema
+#print axioms Yulang.GeneralWhereVersionSemantics317.same_model_child
+#print axioms Yulang.GeneralWhereVersionSemantics317.materialized
+#print axioms Yulang.GeneralWhereVersionSemantics317.full
+#print axioms Yulang.GeneralWhereVersionSemantics317.outputs
+#print axioms Yulang.GeneralWhereVersionSnapshot317.base_heads
+#print axioms Yulang.GeneralWhereVersionSnapshot317.sub_assignment
+#print axioms Yulang.GeneralWhereVersionSnapshot317.constrained
+#print axioms Yulang.GeneralWhereVersionStoredRow317.same_target_iff
+#print axioms Yulang.GeneralWhereVersionWitness317.both_values
+#print axioms Yulang.GeneralWhereVersionWitness317.actual_row
+#print axioms Yulang.GeneralWhereVersionWitness317.model_from_each
+#print axioms Yulang.GeneralWhereVersionWitness317.inhabited

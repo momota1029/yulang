@@ -1,0 +1,57 @@
+import Yulang.GeneralWhereVersionLeafProof317
+import Yulang.GeneralWhereVersionLeafRegistry317
+import Yulang.GeneralWhereVersionLeafSafety317
+import Yulang.GeneralWhereVersionLeafSelect317
+import Yulang.GeneralWhereVersionPreserve317
+import Yulang.GeneralWhereVersionRecompile317
+import Yulang.GeneralWhereVersionRecordedReuse317
+
+#print axioms Yulang.GeneralWhereVersionLeafProof317.mid_value
+#print axioms Yulang.GeneralWhereVersionLeafProof317.head_schema
+#print axioms Yulang.GeneralWhereVersionLeafProof317.observed
+#print axioms Yulang.GeneralWhereVersionLeafProof317.schema
+#print axioms Yulang.GeneralWhereVersionLeafProof317.emitted
+#print axioms Yulang.GeneralWhereVersionLeafProof317.terminal
+#print axioms Yulang.GeneralWhereVersionLeafProof317.holds
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.corrected_not_root
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.corrected_not_old
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.descriptors
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.sites
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.found_raw
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.found_center
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.same_role_owner
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.administrative
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.unique_frame
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.no_request
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.equal_outputs
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.classes
+#print axioms Yulang.GeneralWhereVersionLeafRegistry317.ready
+#print axioms Yulang.GeneralWhereVersionLeafSafety317.width
+#print axioms Yulang.GeneralWhereVersionLeafSafety317.lower_value
+#print axioms Yulang.GeneralWhereVersionLeafSafety317.center_value
+#print axioms Yulang.GeneralWhereVersionLeafSafety317.no_lower
+#print axioms Yulang.GeneralWhereVersionLeafSafety317.no_center
+#print axioms Yulang.GeneralWhereVersionLeafSafety317.no_raw_incoming
+#print axioms Yulang.GeneralWhereVersionLeafSafety317.no_raw
+#print axioms Yulang.GeneralWhereVersionLeafSelect317.inherited
+#print axioms Yulang.GeneralWhereVersionLeafSelect317.safe_positions
+#print axioms Yulang.GeneralWhereVersionLeafSelect317.first_arg
+#print axioms Yulang.GeneralWhereVersionLeafSelect317.safe
+#print axioms Yulang.GeneralWhereVersionLeafSelect317.selected
+#print axioms Yulang.GeneralWhereVersionPreserve317.model_from_each_agrees
+#print axioms Yulang.GeneralWhereVersionPreserve317.exact_legacy_projection
+#print axioms Yulang.GeneralWhereVersionPreserve317.no_legacy_model_lost_or_created
+#print axioms Yulang.GeneralWhereVersionRecompile317.variable_eq
+#print axioms Yulang.GeneralWhereVersionRecompile317.footprints
+#print axioms Yulang.GeneralWhereVersionRecompile317.address
+#print axioms Yulang.GeneralWhereVersionRecompile317.argument_allocation
+#print axioms Yulang.GeneralWhereVersionRecompile317.allocation_eq
+#print axioms Yulang.GeneralWhereVersionRecompile317.emissions_eq
+#print axioms Yulang.GeneralWhereVersionRecompile317.children_eq
+#print axioms Yulang.GeneralWhereVersionRecompile317.schema_eq
+#print axioms Yulang.GeneralWhereVersionRecompile317.actual_after_observation
+#print axioms Yulang.GeneralWhereVersionRecordedReuse317.stored_lower
+#print axioms Yulang.GeneralWhereVersionRecordedReuse317.stored_upper
+#print axioms Yulang.GeneralWhereVersionRecordedReuse317.present_lower
+#print axioms Yulang.GeneralWhereVersionRecordedReuse317.present_upper
+#print axioms Yulang.GeneralWhereVersionRecordedReuse317.from_recorded_rows

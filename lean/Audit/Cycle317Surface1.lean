@@ -1,0 +1,47 @@
+import Yulang.GeneralWhereVersionBase317
+import Yulang.GeneralWhereVersionBatchAgree317
+import Yulang.GeneralWhereVersionCase317
+import Yulang.GeneralWhereVersionCommit317
+import Yulang.GeneralWhereVersionCompiler317
+import Yulang.GeneralWhereVersionCurrentCert317
+import Yulang.GeneralWhereVersionEndpointChoice317
+
+#print axioms Yulang.GeneralWhereVersionBase317.lower_fresh
+#print axioms Yulang.GeneralWhereVersionBase317.upper_fresh
+#print axioms Yulang.GeneralWhereVersionBase317.source_old
+#print axioms Yulang.GeneralWhereVersionBase317.source_lo
+#print axioms Yulang.GeneralWhereVersionBase317.source_hi
+#print axioms Yulang.GeneralWhereVersionBase317.new_cases
+#print axioms Yulang.GeneralWhereVersionBase317.old_not_lo
+#print axioms Yulang.GeneralWhereVersionBase317.old_not_hi
+#print axioms Yulang.GeneralWhereVersionBase317.injective
+#print axioms Yulang.GeneralWhereVersionBatchAgree317.batch_agrees
+#print axioms Yulang.GeneralWhereVersionCase317.addresses_differ
+#print axioms Yulang.GeneralWhereVersionCase317.descriptor
+#print axioms Yulang.GeneralWhereVersionCase317.centers_preserved
+#print axioms Yulang.GeneralWhereVersionCase317.emission_exact
+#print axioms Yulang.GeneralWhereVersionCase317.ordered_children
+#print axioms Yulang.GeneralWhereVersionCase317.rows
+#print axioms Yulang.GeneralWhereVersionCommit317.ports
+#print axioms Yulang.GeneralWhereVersionCommit317.new_snapshot
+#print axioms Yulang.GeneralWhereVersionCommit317.corrected_site
+#print axioms Yulang.GeneralWhereVersionCommit317.raw_aliases
+#print axioms Yulang.GeneralWhereVersionCommit317.terminal_outputs
+#print axioms Yulang.GeneralWhereVersionCommit317.requests_iff
+#print axioms Yulang.GeneralWhereVersionCommit317.compiled_models
+#print axioms Yulang.GeneralWhereVersionCommit317.produced
+#print axioms Yulang.GeneralWhereVersionCompiler317.child_owner
+#print axioms Yulang.GeneralWhereVersionCompiler317.child_role
+#print axioms Yulang.GeneralWhereVersionCompiler317.child_outputs
+#print axioms Yulang.GeneralWhereVersionCompiler317.child_center
+#print axioms Yulang.GeneralWhereVersionCompiler317.original_bare
+#print axioms Yulang.GeneralWhereVersionCurrentCert317.child_site_eq
+#print axioms Yulang.GeneralWhereVersionCurrentCert317.child_site
+#print axioms Yulang.GeneralWhereVersionCurrentCert317.all_rows_and_sites
+#print axioms Yulang.GeneralWhereVersionCurrentCert317.outputs
+#print axioms Yulang.GeneralWhereVersionCurrentCert317.current_certified
+#print axioms Yulang.GeneralWhereVersionEndpointChoice317.slot_iff
+#print axioms Yulang.GeneralWhereVersionEndpointChoice317.fresh_iff
+#print axioms Yulang.GeneralWhereVersionEndpointChoice317.occupied_iff
+#print axioms Yulang.GeneralWhereVersionEndpointChoice317.first_install
+#print axioms Yulang.GeneralWhereVersionEndpointChoice317.reuses

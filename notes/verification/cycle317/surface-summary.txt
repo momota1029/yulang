@@ -1,0 +1,3 @@
+194 declarations printed independently in five standalone parts.
+Allowed and observed: propext, Classical.choice, Quot.sound.
+exit=0
