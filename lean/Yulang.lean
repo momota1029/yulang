@@ -6921,3 +6921,5 @@ import Yulang.GeneralDeclarativeRepeatResolve327
 import Yulang.GeneralDeclarativeRepeatModels327
 import Yulang.GeneralDeclarativeFrontierView327
 import Yulang.GeneralDeclarativeAlternateNames327
+import Yulang.GeneralDeclarativePlacementEquiv327
+import Yulang.GeneralDeclarativePlacementEvidence327
