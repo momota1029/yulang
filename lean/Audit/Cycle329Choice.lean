@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeStableRejected329
+import Yulang.GeneralDeclarativeStableGraph329
+import Yulang.GeneralDeclarativeStableMerge329
+
+#print axioms Yulang.GeneralDeclarativeStableCanonical329.exact
+#print axioms Yulang.GeneralDeclarativeStableCanonical329.permutation
+#print axioms Yulang.GeneralDeclarativeStableMerge329.compile_after
+#print axioms Yulang.GeneralDeclarativeStableOrigin329.candidate
+#print axioms Yulang.GeneralDeclarativeStableGraph329.cycles
+#print axioms Yulang.GeneralDeclarativeStableModels329.genuine
+#print axioms Yulang.GeneralDeclarativeStableAttempt329.reject_exact
+#print axioms Yulang.GeneralDeclarativeStableRejected329.actual_rejection
