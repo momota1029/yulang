@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeFreshInputs325
+import Yulang.GeneralDeclarativeReplayNames325
+
+#print axioms Yulang.GeneralDeclarativeSparseWhere325.direct_omitted
+#print axioms Yulang.GeneralDeclarativeFreshWhere325.count
+#print axioms Yulang.GeneralDeclarativeFreshWhere325.projection
+#print axioms Yulang.GeneralDeclarativeWhereIntervals325.preserve_with_interval
+#print axioms Yulang.GeneralDeclarativeFreshInputs325.names_observed
+#print axioms Yulang.GeneralDeclarativeFreshInputs325.whole_input_projection
+#print axioms Yulang.GeneralDeclarativeReplayNames325.replay
