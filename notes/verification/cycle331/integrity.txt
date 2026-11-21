@@ -1,0 +1,9 @@
+C331 pinned source provenance and scope:
+Previous complete handoff: f3118ca9e9a5faff5833617ab6dc6104ad08c49a
+Owner integration and revised I-59 inbox/spec: c35cb70b92e2c59b2bc0849e345a895282a67032
+Complete proof publication: 62a841a1f937e0144912391a78c590b50b35d30a
+The fixed proof point was live and matched 49 exact local paths plus the heartbeat. Comparison had no unrelated paths. The barrel has 39 same-change imports.
+Protected metadata only:
+lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Lean 4.35.0; run scoped Lake and standalone trust-zero checks. No whole Lean umbrella build or Rust execution. Only private work/dots-main was updated.

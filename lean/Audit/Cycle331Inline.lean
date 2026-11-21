@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeInlineEndpoint331
+
+#print axioms Yulang.GeneralDeclarativeInlineSpine331.spell
+#print axioms Yulang.GeneralDeclarativeInlineSpine331.split
+#print axioms Yulang.GeneralDeclarativeInlineTrace331.realize
+#print axioms Yulang.GeneralDeclarativeInlineEndpoint331.observed
+#print axioms Yulang.GeneralDeclarativeInlineEndpoint331.raw_source
+#print axioms Yulang.GeneralDeclarativeInlineEndpoint331.restores_positive_read

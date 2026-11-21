@@ -1,0 +1,10 @@
+✔ [1209/1215] Built Yulang.GeneralDeclarativeInlineChildFrame331 (1.5s)
+✔ [1210/1217] Built Yulang.GeneralDeclarativeInlineChildGuards331 (1.2s)
+✔ [1214/1217] Built Yulang.GeneralDeclarativeInlineGuards331 (1.2s)
+✔ [1215/1219] Built Yulang.GeneralDeclarativeInlineChildResult331 (1.2s)
+✔ [1216/1220] Built Yulang.GeneralDeclarativeInlineChildModels331 (1.4s)
+✔ [1217/1220] Built Yulang.GeneralDeclarativeInlineResult331 (1.3s)
+✔ [1220/1266] Built Yulang.GeneralDeclarativeInlineModels331 (1.3s)
+✔ [1265/1266] Built Yulang.GeneralDeclarativeInlineView331 (1.2s)
+Build completed successfully (1266 jobs).
+focused: 0

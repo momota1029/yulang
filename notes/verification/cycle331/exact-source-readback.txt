@@ -1,0 +1,25 @@
+Yulang.GeneralDeclarativeInlineRangedModels331.strictly_internal :
+  ¬CommonNominalFullCarrier.Equivalent
+        (GeneralDeclarativeInlineRangedModels331.model GeneralDeclarativeInlineRangedFrame331.interval.center).fst
+        (GeneralDeclarativeInlineRangedModels331.model GeneralDeclarativeInlineRangedFrame331.interval.lower).fst ∧
+    ¬CommonNominalFullCarrier.Equivalent
+        (GeneralDeclarativeInlineRangedModels331.model GeneralDeclarativeInlineRangedFrame331.interval.center).fst
+        (GeneralDeclarativeInlineRangedModels331.model GeneralDeclarativeInlineRangedFrame331.interval.upper).fst
+Yulang.GeneralDeclarativeInlinePhase331.real_pending (done : Nat → Prop) (missing : ¬(done 21 ∧ done 22))
+  (r : GeneralDeclarations.Registry) (i : GeneralNominalInspection.Interpretation)
+  (tests : GeneralDeclarativePriority321.Candidates)
+  (generate :
+    GeneralDeclarativeDemand320.Demand →
+      GeneralDeclarations.Declaration → List GeneralDeclarativeDemand320.Demand → Prop) :
+  CommonRoleOutermostResolver.Classify
+    (GeneralDeclarativeUnfinishedRoot330.Local59 GeneralDeclarativeInlineTwoOwners331.table r i
+      (GeneralDeclarativeInlineTwoOwners331.support done) tests generate)
+    GeneralDeclarativeInlinePhase331.goal CommonRoleOutermostResolver.Result.pending
+'Yulang.GeneralDeclarativeInlineChildModels331.checked_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineRangedModels331.real_nonpoint_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.actual_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+exact replay exit: 0

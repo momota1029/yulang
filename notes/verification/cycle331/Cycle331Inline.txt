@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeInlineSpine331.spell' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineSpine331.split' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineTrace331.realize' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineEndpoint331.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineEndpoint331.raw_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineEndpoint331.restores_positive_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

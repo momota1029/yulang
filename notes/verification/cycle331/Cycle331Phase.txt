@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativeInlineIntervals331.fixed_centers' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineIntervals331.read_with_ranges' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlinePhase331.real_pending' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeatDecl331.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.exact_tie' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.inhabited' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.actual_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeInlineExact331.capture_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineExact331.replace_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineNegative331.absent_requested' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineFootprint331.trace' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineOrigins331.exact_uses' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineOrigins331.allocation_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineTwoOwners331.lower_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineTwoOwners331.ordinary_satisfies' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineView331.exact_current_election' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

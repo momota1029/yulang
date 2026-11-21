@@ -1,0 +1,159 @@
+Immutable source commit: 62a841a1f937e0144912391a78c590b50b35d30a
+GeneralDeclarativeExactFrame331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineAllocation331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineBoundary331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineChildFrame331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineChildGuards331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineChildModels331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineChildResult331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineCompiler331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineDecl331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineEndpoint331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineExact331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineFieldProducer331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineFixture331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineFootprint331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineGround331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineGrowth331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineGuards331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineIntervals331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineLineage331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineMaterial331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineModels331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineNegative331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineOrigins331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineOwnerExample331.lean byte match / exact direct source 0
+GeneralDeclarativeInlinePending331.lean byte match / exact direct source 0
+GeneralDeclarativeInlinePhase331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineRangedFrame331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineRangedGuards331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineRangedModels331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineRangedResult331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineRepeat331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineRepeatDecl331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineReplay331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineResult331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineSingleOwner331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineSpine331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineTrace331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineTwoOwners331.lean byte match / exact direct source 0
+GeneralDeclarativeInlineView331.lean byte match / exact direct source 0
+'Yulang.GeneralDeclarativeInlineFieldProducer331.raw_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineFieldProducer331.independent_endpoints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineFieldProducer331.independent_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineBoundary331.visible_implies_known' does not depend on any axioms
+'Yulang.GeneralDeclarativeInlineBoundary331.missing_blocks_layout' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineReplay331.independent_readback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineRangedFrame331.calc_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRangedModels331.strictly_internal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRangedModels331.real_nonpoint_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineSingleOwner331.exact_backing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineSingleOwner331.no_retag' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineOwnerExample331.real_gate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineOwnerExample331.child_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle331Completion.lean byte match / exact direct source 0
+Yulang.GeneralDeclarativeInlineRangedModels331.strictly_internal :
+  ¬CommonNominalFullCarrier.Equivalent
+        (GeneralDeclarativeInlineRangedModels331.model GeneralDeclarativeInlineRangedFrame331.interval.center).fst
+        (GeneralDeclarativeInlineRangedModels331.model GeneralDeclarativeInlineRangedFrame331.interval.lower).fst ∧
+    ¬CommonNominalFullCarrier.Equivalent
+        (GeneralDeclarativeInlineRangedModels331.model GeneralDeclarativeInlineRangedFrame331.interval.center).fst
+        (GeneralDeclarativeInlineRangedModels331.model GeneralDeclarativeInlineRangedFrame331.interval.upper).fst
+Yulang.GeneralDeclarativeInlinePhase331.real_pending (done : Nat → Prop) (missing : ¬(done 21 ∧ done 22))
+  (r : GeneralDeclarations.Registry) (i : GeneralNominalInspection.Interpretation)
+  (tests : GeneralDeclarativePriority321.Candidates)
+  (generate :
+    GeneralDeclarativeDemand320.Demand →
+      GeneralDeclarations.Declaration → List GeneralDeclarativeDemand320.Demand → Prop) :
+  CommonRoleOutermostResolver.Classify
+    (GeneralDeclarativeUnfinishedRoot330.Local59 GeneralDeclarativeInlineTwoOwners331.table r i
+      (GeneralDeclarativeInlineTwoOwners331.support done) tests generate)
+    GeneralDeclarativeInlinePhase331.goal CommonRoleOutermostResolver.Result.pending
+'Yulang.GeneralDeclarativeInlineChildModels331.checked_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineRangedModels331.real_nonpoint_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.actual_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle331Crosscheck.lean byte match / exact direct source 0
+'Yulang.GeneralDeclarativeInlineSpine331.spell' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineSpine331.split' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineTrace331.realize' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineEndpoint331.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineEndpoint331.raw_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineEndpoint331.restores_positive_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Cycle331Inline.lean byte match / exact direct source 0
+'Yulang.GeneralDeclarativeInlineLineage331.carries' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineGround331.origin_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineGround331.derived_backed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineGround331.no_forgery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlinePending331.no_pending_promotion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildFrame331.native_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildFrame331.calc_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildGuards331.output_not_promoted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildResult331.all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineChildModels331.checked_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Cycle331Lineage.lean byte match / exact direct source 0
+'Yulang.GeneralDeclarativeInlineAllocation331.name_walk' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineMaterial331.old_names_protected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineMaterial331.read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineGrowth331.extend' does not depend on any axioms
+'Yulang.GeneralDeclarativeExactFrame331.frame_after_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineCompiler331.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineFixture331.exact_material_logic' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineFixture331.actual_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineFixture331.calc_children' depends on axioms: [propext, Quot.sound]
+Cycle331Material.lean byte match / exact direct source 0
+'Yulang.GeneralDeclarativeInlineExact331.capture_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineExact331.replace_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineNegative331.absent_requested' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineFootprint331.trace' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineOrigins331.exact_uses' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineOrigins331.allocation_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineTwoOwners331.lower_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineTwoOwners331.ordinary_satisfies' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineView331.exact_current_election' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Cycle331Origins.lean byte match / exact direct source 0
+'Yulang.GeneralDeclarativeInlineIntervals331.fixed_centers' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineIntervals331.read_with_ranges' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlinePhase331.real_pending' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeatDecl331.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.exact_tie' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.inhabited' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeInlineRepeat331.actual_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle331Phase.lean byte match / exact direct source 0
+'Yulang.GeneralDeclarativeInlineGuards331.no_new_input_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInlineGuards331.root_matches' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineGuards331.no_cycles' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeInlineResult331.tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineResult331.all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineModels331.final_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineModels331.exact_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInlineModels331.checked_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle331Result.lean byte match / exact direct source 0

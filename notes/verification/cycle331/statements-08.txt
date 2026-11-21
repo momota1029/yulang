@@ -1,0 +1,154 @@
+      (Yulang.GeneralDeclarativeOrigins321.restriction p)
+@Yulang.GeneralDeclarativeInlineSingleOwner331.exact_backing : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keep : List Nat}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {row : Yulang.GeneralDeclarativeHead320.Equation}
+  {s t : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  (old : Yulang.GeneralDeclarativeGrowth327.Extends s t)
+  (rows : Yulang.GeneralDeclarativeInlineMaterial331.ordinary s arg keep uses ⊆ t.equations) (owner : Nat),
+  row ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineSingleOwner331.certify p old owner arg keep uses rows)).equations ↔
+    row ∈ (Yulang.GeneralDeclarativeOrigins321.restriction p).equations ∨
+      Yulang.GeneralDeclarativeInlineSingleOwner331.Native p owner arg keep uses row ∧ done owner
+@Yulang.GeneralDeclarativeInlineSingleOwner331.expansion_after_owner : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keep : List Nat}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {owner : Nat}
+  {row : Yulang.GeneralDeclarativeHead320.Equation} {tag : Yulang.GeneralDeclarativeLowerKnown321.Tag}
+  {s t : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  (old : Yulang.GeneralDeclarativeGrowth327.Extends s t)
+  (rows : Yulang.GeneralDeclarativeInlineMaterial331.ordinary s arg keep uses ⊆ t.equations),
+  Yulang.GeneralDeclarativeInlineSingleOwner331.Native p owner arg keep uses row →
+    done owner →
+      Yulang.GeneralDeclarativeLowerKnown321.constructorTag row.right = some tag →
+        Yulang.GeneralDeclarativeLowerKnown321.Knows
+          (Yulang.GeneralDeclarativeOrigins321.restriction
+            (Yulang.GeneralDeclarativeInlineSingleOwner331.certify p old owner arg keep uses rows))
+          row.left tag
+@Yulang.GeneralDeclarativeInlineSingleOwner331.no_retag : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keep : List Nat}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {owner : Nat}
+  {row : Yulang.GeneralDeclarativeHead320.Equation} {s t : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} (old : Yulang.GeneralDeclarativeGrowth327.Extends s t)
+  (rows : Yulang.GeneralDeclarativeInlineMaterial331.ordinary s arg keep uses ⊆ t.equations),
+  (Yulang.GeneralDeclarativeInlineSingleOwner331.certify p old owner arg keep uses rows).derivesFrom row
+      Yulang.GeneralDeclarativeOrigins321.Origin.source →
+    p.derivesFrom row Yulang.GeneralDeclarativeOrigins321.Origin.source
+@Yulang.GeneralDeclarativeInlineSpine331.spell : ∀ {input : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeInlineSpine331.Closed s input raw terminal →
+    Yulang.GeneralDeclarativeEqualities322.Derives s input
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail raw terminal)
+@Yulang.GeneralDeclarativeInlineSpine331.ends : ∀ {input : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeInlineSpine331.Closed s input raw terminal →
+    Yulang.GeneralDeclarativeRecordSpine330.Terminal terminal
+@Yulang.GeneralDeclarativeInlineSpine331.split : ∀ {done : Nat → Prop}
+  {input : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {keys : List Nat}
+  {taken : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeInlineSpine331.Closed (Yulang.GeneralDeclarativeOrigins321.restriction p) input raw
+      terminal →
+    keys.Nodup →
+      Yulang.GeneralDeclarativeOrderedRecord326.order (Yulang.CommonRoleCanonicalRows.normalize raw) keys = some taken →
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m →
+            Yulang.GeneralDeclarativeRepeatedActual323.eqAt m input
+              (Yulang.GeneralDeclarativeRecordResidual323.withTail taken
+                (Yulang.GeneralDeclarativeRecordResidual323.withTail
+                  (Yulang.CommonRoleCanonicalRows.residual keys (Yulang.CommonRoleCanonicalRows.normalize raw))
+                  terminal))
+@Yulang.GeneralDeclarativeInlineTrace331.realize : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {raw code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeInlineTrace331.Read (Yulang.GeneralDeclarativeOrigins321.restriction p) mode raw code seen →
+    ∃ rebuilt,
+      (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m → Yulang.GeneralDeclarativeRepeatedActual323.eqAt m raw rebuilt) ∧
+        Yulang.GeneralDeclarativeTermWalk322.Walk mode rebuilt code seen
+Yulang.GeneralDeclarativeInlineTwoOwners331.stored_alias : ∀ (done : Nat → Prop),
+  done 21 →
+    Yulang.GeneralDeclarativeInlineTwoOwners331.aliasRow ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineTwoOwners331.support done)).equations
+Yulang.GeneralDeclarativeInlineTwoOwners331.stored_record : ∀ (done : Nat → Prop),
+  done 22 →
+    Yulang.GeneralDeclarativeInlineTwoOwners331.recordRow ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineTwoOwners331.support done)).equations
+Yulang.GeneralDeclarativeInlineTwoOwners331.raw_read : ∀ (done : Nat → Prop),
+  done 21 →
+    done 22 →
+      Yulang.GeneralDeclarativeInlineTrace331.Read
+        (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineTwoOwners331.support done))
+        Yulang.GeneralNominalMaterialization.Mode.actual
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+        Yulang.GeneralDeclarativeInlineTwoOwners331.pattern Yulang.GeneralDeclarativeInlineTwoOwners331.uses
+Yulang.GeneralDeclarativeInlineTwoOwners331.alias_only_after : ∀ (done : Nat → Prop),
+  ¬done 21 →
+    ∀ {a b : Nat},
+      Yulang.GeneralDeclarativeLowerKnown321.Alias
+          (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineTwoOwners331.support done)) a
+          b →
+        a = b
+Yulang.GeneralDeclarativeInlineTwoOwners331.lower_exact : ∀ (done : Nat → Prop),
+  (∃ tag,
+      Yulang.GeneralDeclarativeLowerKnown321.Knows
+        (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineTwoOwners331.support done)) 0
+        tag) ↔
+    done 21 ∧ done 22
+Yulang.GeneralDeclarativeInlineTwoOwners331.exact_old_requirements : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineOrigins331.fromOrigins (Yulang.GeneralDeclarativeInlineTwoOwners331.support done)
+      Yulang.GeneralDeclarativeInlineTwoOwners331.required ∧
+    (Yulang.GeneralDeclarativeInlineOrigins331.complete done Yulang.GeneralDeclarativeInlineTwoOwners331.required ↔
+      done 21 ∧ done 22)
+Yulang.GeneralDeclarativeInlineTwoOwners331.both_needed_for_fixed_read : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineOrigins331.complete done Yulang.GeneralDeclarativeInlineTwoOwners331.required →
+    Yulang.GeneralDeclarativeInlineTrace331.Read
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineTwoOwners331.support done))
+      Yulang.GeneralNominalMaterialization.Mode.actual (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+      Yulang.GeneralDeclarativeInlineTwoOwners331.pattern Yulang.GeneralDeclarativeInlineTwoOwners331.uses
+Yulang.GeneralDeclarativeInlineTwoOwners331.ordinary_satisfies : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeInlineTwoOwners331.table Yulang.GeneralDeclarativeInlineTwoOwners331.model
+@Yulang.GeneralDeclarativeInlineView331.match_grows : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {a : Yulang.GeneralDeclarativeWhere319.Capture}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.GeneralDeclarativeInlineEndpoint331.Matches s c i a pat →
+      Yulang.GeneralDeclarativeInlineEndpoint331.Matches t c i a pat
+@Yulang.GeneralDeclarativeInlineView331.ordered_growth : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {args : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {pats : List Yulang.GeneralDeclarationPatterns.Pattern} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeInlineEndpoint331.Matches s c i) args pats →
+      Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeInlineEndpoint331.Matches t c i) args pats
+@Yulang.GeneralDeclarativeInlineView331.positive_grows : ∀ {done later : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {awaits : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {impl : Yulang.GeneralDeclarations.Declaration}
+  {s t : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {q : Yulang.GeneralDeclarativeOrigins321.Supported t later},
+  Yulang.GeneralDeclarativeGrowth327.Extends (Yulang.GeneralDeclarativeOrigins321.restriction p)
+      (Yulang.GeneralDeclarativeOrigins321.restriction q) →
+    (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i awaits).viable d impl →
+      (Yulang.GeneralDeclarativeInlineEndpoint331.candidates q r i awaits).viable d impl
+@Yulang.GeneralDeclarativeInlineView331.exact_current_election : ∀ {done later : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {awaits : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {impl : Yulang.GeneralDeclarations.Declaration}
+  {s t : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {q : Yulang.GeneralDeclarativeOrigins321.Supported t later},
+  Yulang.GeneralDeclarativeGrowth327.Extends (Yulang.GeneralDeclarativeOrigins321.restriction p)
+      (Yulang.GeneralDeclarativeOrigins321.restriction q) →
+    Yulang.GeneralDeclarativeGrowth327.Extends (Yulang.GeneralDeclarativeOrigins321.restriction q)
+        (Yulang.GeneralDeclarativeOrigins321.restriction p) →
+      ¬Yulang.GeneralDeclarativePriority321.Recurs t r i
+            (Yulang.GeneralDeclarativeInlineEndpoint331.candidates q r i awaits) d →
+        Yulang.GeneralDeclarativeStableAttempt329.Elected s r i p
+            (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i awaits) d impl →
+          Yulang.GeneralDeclarativeStableAttempt329.Elected t r i q
+            (Yulang.GeneralDeclarativeInlineEndpoint331.candidates q r i awaits) d impl
