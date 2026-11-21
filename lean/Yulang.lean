@@ -6605,3 +6605,8 @@ import Yulang.GeneralWherePhysicalCurrentCycle319
 import Yulang.GeneralWherePhysicalCurrentPick319
 import Yulang.GeneralWherePhysicalCommit319
 import Yulang.GeneralWherePhysicalChildRead319
+import Yulang.GeneralWherePhysicalChildModel319
+import Yulang.GeneralWherePhysicalChildCert319
+import Yulang.GeneralWherePhysicalEvidence319
+import Yulang.GeneralDeclarativeWhere319
+import Yulang.GeneralDeclarativeBounds319

@@ -1,0 +1,66 @@
+import Yulang.GeneralWherePhysicalChildRead319
+import Yulang.GeneralWherePhysicalCommit319
+import Yulang.GeneralWherePhysicalCurrentCycle319
+import Yulang.GeneralWherePhysicalCurrentFrame319
+import Yulang.GeneralWherePhysicalCurrentModel319
+import Yulang.GeneralWherePhysicalCurrentPick319
+#print axioms Yulang.GeneralWherePhysicalChildRead319.locate
+#print axioms Yulang.GeneralWherePhysicalChildRead319.query
+#print axioms Yulang.GeneralWherePhysicalChildRead319.actual_report
+#print axioms Yulang.GeneralWherePhysicalChildRead319.binding
+#print axioms Yulang.GeneralWherePhysicalChildRead319.finished
+#print axioms Yulang.GeneralWherePhysicalCommit319.emission
+#print axioms Yulang.GeneralWherePhysicalCommit319.silent
+#print axioms Yulang.GeneralWherePhysicalCommit319.child_changed
+#print axioms Yulang.GeneralWherePhysicalCommit319.raw
+#print axioms Yulang.GeneralWherePhysicalCommit319.models
+#print axioms Yulang.GeneralWherePhysicalCommit319.legacy_choice
+#print axioms Yulang.GeneralWherePhysicalCommit319.step
+#print axioms Yulang.GeneralWherePhysicalCommit319.both_in_history
+#print axioms Yulang.GeneralWherePhysicalCommit319.produced
+#print axioms Yulang.GeneralWherePhysicalCommit319.physical_mixed_run
+#print axioms Yulang.GeneralWherePhysicalCurrentCycle319.no_struct
+#print axioms Yulang.GeneralWherePhysicalCurrentCycle319.nominal_sources
+#print axioms Yulang.GeneralWherePhysicalCurrentCycle319.no_incoming
+#print axioms Yulang.GeneralWherePhysicalCurrentCycle319.no_raw
+#print axioms Yulang.GeneralWherePhysicalCurrentCycle319.no_semantic
+#print axioms Yulang.GeneralWherePhysicalCurrentCycle319.current_tests
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.endpoints_or_original
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.no_reserved
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.linked
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.prepared
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.frame
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.no_pending
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.survivor
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.unique
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.capture_now
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.binder_now
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.captures
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.schema_code
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.root_value
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.width
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.sees
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.origin_actual
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.tests
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.one_emission
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.emitted_rows
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.complete
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.actual_n
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.current_lower
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.rows
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.exact_child
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.child_holds
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.full
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.old_emitted
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.raw_sites
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.centers
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.different_occ
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.root_frame
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.administrative
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.request_exact
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.equal_outputs
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.classes
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.ready
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.equations
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.safe
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.selected

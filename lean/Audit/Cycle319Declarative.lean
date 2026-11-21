@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeBounds319
+import Yulang.GeneralWherePhysicalEvidence319
+#check Yulang.GeneralDeclarativeWhere319.source_where
+#check Yulang.GeneralDeclarativeWhere319.ordered_arguments
+#check Yulang.GeneralDeclarativeWhere319.ordered_clauses
+#check Yulang.GeneralDeclarativeBounds319.bound_sound
+#check Yulang.GeneralDeclarativeBounds319.source_where
+#check Yulang.GeneralWherePhysicalEvidence319.recursive
+#check Yulang.GeneralWherePhysicalEvidence319.same_model
+#print axioms Yulang.GeneralDeclarativeWhere319.source_where
+#print axioms Yulang.GeneralDeclarativeWhere319.ordered_clauses
+#print axioms Yulang.GeneralDeclarativeBounds319.bound_sound
+#print axioms Yulang.GeneralDeclarativeBounds319.source_where
+#print axioms Yulang.GeneralWherePhysicalEvidence319.recursive
+#print axioms Yulang.GeneralWherePhysicalEvidence319.same_model

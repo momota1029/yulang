@@ -1,0 +1,61 @@
+import Yulang.GeneralWherePhysicalPast319
+import Yulang.GeneralWherePhysicalPatch319
+import Yulang.GeneralWherePhysicalPointLift319
+import Yulang.GeneralWherePhysicalReobserve319
+import Yulang.GeneralWherePhysicalTicket319
+import Yulang.GeneralWherePhysicalView319
+#print axioms Yulang.GeneralWherePhysicalPast319.apart
+#print axioms Yulang.GeneralWherePhysicalPast319.low_id
+#print axioms Yulang.GeneralWherePhysicalPast319.high_id
+#print axioms Yulang.GeneralWherePhysicalPast319.loose_slots
+#print axioms Yulang.GeneralWherePhysicalPast319.same_base
+#print axioms Yulang.GeneralWherePhysicalPast319.point_slots
+#print axioms Yulang.GeneralWherePhysicalPast319.equation_extra
+#print axioms Yulang.GeneralWherePhysicalPast319.extra_exact
+#print axioms Yulang.GeneralWherePhysicalPast319.loose_models
+#print axioms Yulang.GeneralWherePhysicalPast319.point_models
+#print axioms Yulang.GeneralWherePhysicalPast319.high_pending
+#print axioms Yulang.GeneralWherePhysicalPatch319.different_small
+#print axioms Yulang.GeneralWherePhysicalPatch319.different_ordinary
+#print axioms Yulang.GeneralWherePhysicalPatch319.different_binder
+#print axioms Yulang.GeneralWherePhysicalPatch319.different_mid
+#print axioms Yulang.GeneralWherePhysicalPatch319.child_site
+#print axioms Yulang.GeneralWherePhysicalPatch319.old_capture_sources
+#print axioms Yulang.GeneralWherePhysicalPatch319.exclude_plan
+#print axioms Yulang.GeneralWherePhysicalPatch319.patch_preserves
+#print axioms Yulang.GeneralWherePhysicalPatch319.ordinary_same
+#print axioms Yulang.GeneralWherePhysicalPatch319.old_holds
+#print axioms Yulang.GeneralWherePhysicalPatch319.prior_raw
+#print axioms Yulang.GeneralWherePhysicalPatch319.physical_raw
+#print axioms Yulang.GeneralWherePhysicalPatch319.prior_model
+#print axioms Yulang.GeneralWherePhysicalPatch319.prior_class
+#print axioms Yulang.GeneralWherePhysicalPatch319.compatible_update
+#print axioms Yulang.GeneralWherePhysicalPointLift319.domain
+#print axioms Yulang.GeneralWherePhysicalPointLift319.point_map
+#print axioms Yulang.GeneralWherePhysicalPointLift319.closed
+#print axioms Yulang.GeneralWherePhysicalPointLift319.historically_loose
+#print axioms Yulang.GeneralWherePhysicalPointLift319.snapshot_eq
+#print axioms Yulang.GeneralWherePhysicalPointLift319.improves
+#print axioms Yulang.GeneralWherePhysicalPointLift319.certificate
+#print axioms Yulang.GeneralWherePhysicalReobserve319.old_raw
+#print axioms Yulang.GeneralWherePhysicalReobserve319.revised_raw
+#print axioms Yulang.GeneralWherePhysicalReobserve319.accepted_revision
+#print axioms Yulang.GeneralWherePhysicalReobserve319.improves_revision
+#print axioms Yulang.GeneralWherePhysicalReobserve319.underlying_step
+#print axioms Yulang.GeneralWherePhysicalReobserve319.old_records
+#print axioms Yulang.GeneralWherePhysicalReobserve319.old_edges
+#print axioms Yulang.GeneralWherePhysicalReobserve319.old_sites
+#print axioms Yulang.GeneralWherePhysicalReobserve319.requests
+#print axioms Yulang.GeneralWherePhysicalReobserve319.models_unchanged
+#print axioms Yulang.GeneralWherePhysicalReobserve319.updated_model
+#print axioms Yulang.GeneralWherePhysicalReobserve319.exact_same_slots
+#print axioms Yulang.GeneralWherePhysicalTicket319.raw_ticket
+#print axioms Yulang.GeneralWherePhysicalTicket319.historical_row
+#print axioms Yulang.GeneralWherePhysicalTicket319.target_eq
+#print axioms Yulang.GeneralWherePhysicalTicket319.current_upper_stored
+#print axioms Yulang.GeneralWherePhysicalTicket319.upper_physical
+#print axioms Yulang.GeneralWherePhysicalView319.rewrites_rename
+#print axioms Yulang.GeneralWherePhysicalView319.record_rename
+#print axioms Yulang.GeneralWherePhysicalView319.deferred_term
+#print axioms Yulang.GeneralWherePhysicalView319.structural_term
+#print axioms Yulang.GeneralWherePhysicalView319.head_term
