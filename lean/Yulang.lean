@@ -6942,3 +6942,7 @@ import Yulang.GeneralDeclarativeMixedReplay327
 import Yulang.GeneralDeclarativeRelation327
 import Yulang.GeneralDeclarativeOpaqueChannel328
 import Yulang.GeneralDeclarativeOpaquePair328
+import Yulang.GeneralDeclarativeOpaqueNames328
+import Yulang.GeneralDeclarativeOpaqueIntervals328
+import Yulang.GeneralDeclarativeOpaquePrecision328
+import Yulang.GeneralDeclarativeOpaqueFixture328
