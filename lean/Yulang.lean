@@ -6979,3 +6979,6 @@ import Yulang.GeneralDeclarativeStableTies329
 import Yulang.GeneralDeclarativeStableReads329
 import Yulang.GeneralDeclarativeStableCompiler329
 import Yulang.GeneralDeclarativeStableSelect329
+import Yulang.GeneralDeclarativeStableFixture329
+import Yulang.GeneralDeclarativeStableProbe329
+import Yulang.GeneralDeclarativeStableResult329
