@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeRecordTail330
+
+#print axioms Yulang.GeneralDeclarativeRecordMask330.other
+#print axioms Yulang.GeneralDeclarativeRecordReconstruct330.reconstruct
+#print axioms Yulang.GeneralDeclarativeRecordReconstruct330.exact
+#print axioms Yulang.GeneralDeclarativeRecordNames330.model_exact
+#print axioms Yulang.GeneralDeclarativeRecordTail330.does_not_fix_remainder

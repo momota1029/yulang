@@ -7021,3 +7021,7 @@ import Yulang.GeneralDeclarativeRecordChannel330
 import Yulang.GeneralDeclarativeRecordProbe330
 import Yulang.GeneralDeclarativeRecordIntervals330
 import Yulang.GeneralDeclarativeRecordSplit330
+import Yulang.GeneralDeclarativeRecordMask330
+import Yulang.GeneralDeclarativeRecordReconstruct330
+import Yulang.GeneralDeclarativeRecordNames330
+import Yulang.GeneralDeclarativeRecordTail330
