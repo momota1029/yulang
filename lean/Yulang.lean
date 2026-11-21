@@ -6364,3 +6364,6 @@ import Yulang.GeneralLatePeerTransfer311
 import Yulang.GeneralLatePeerRecursive311
 import Yulang.GeneralVersionedAggregatePeer311
 import Yulang.GeneralLatePeerJoint311
+import Yulang.GeneralVersionedProtectedPeer312
+import Yulang.GeneralVersionedHistoricalTransport312
+import Yulang.GeneralVersionedProtectedLookup312
