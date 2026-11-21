@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeFreshTerms324.projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMergeCenters324.whole_cross' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAggregate324.assembled' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAggregate324.aggregate_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAggregatePoint324.observable_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAggregateResolve324.full_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAliasFixture324.changed_target_not_stable' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAliasFixture324.joined_inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]

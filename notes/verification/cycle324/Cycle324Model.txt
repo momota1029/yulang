@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeModelStable324.closes_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNormalizeAssoc324.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNormalizeAssoc324.applied_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFramePropagation324.produces_finite' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNFHead324.reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNFHead324.old_agrees' depends on axioms: [propext, Quot.sound]

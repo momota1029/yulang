@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativeMetadata324.normalized_probe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMetadata324.normal_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNFWhere324.clauses_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNFEmit324.ordinary_forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNFComplete324.local_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeSharedNF324.shared_heads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOutputIdentity324.output_identity' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOutputIdentity324.stable_reobserved' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

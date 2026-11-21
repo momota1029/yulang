@@ -1,0 +1,157 @@
+@Yulang.GeneralDeclarativeAggregate324.old_bounds : ∀ {a : Yulang.GeneralDeclarativeWhere319.Capture} {extra : List Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {seed : Yulang.GeneralDeclarativeWhere319.Capture}
+  {rest : List Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeDemand320.Bounds s a →
+    Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativeAggregate324.aggregates s extra seed rest) a
+@Yulang.GeneralDeclarativeAggregate324.assembled : ∀ {rest : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {extra : List Nat} {s : Yulang.GeneralDeclarativeHead320.State} {seed : Yulang.GeneralDeclarativeWhere319.Capture},
+  (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+      a ∈ seed :: rest → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+    Yulang.GeneralDeclarativeMerge320.Merge (Yulang.GeneralDeclarativeAggregate324.aggregates s extra seed rest) seed
+      rest (Yulang.GeneralDeclarativeAggregate324.span s extra seed rest)
+@Yulang.GeneralDeclarativeAggregate324.ready_iff : ∀ {rest : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {extra : List Nat} {s : Yulang.GeneralDeclarativeHead320.State} {seed : Yulang.GeneralDeclarativeWhere319.Capture},
+  (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+      a ∈ seed :: rest → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeAggregate324.ready s extra seed rest) m ↔
+        Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeAggregate324.aggregates s extra seed rest) m
+Yulang.GeneralDeclarativeAggregate324.now_bounds : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (extra : List Nat)
+  (seed : Yulang.GeneralDeclarativeWhere319.Capture) (rest : List Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativeAggregate324.ready s extra seed rest)
+    (Yulang.GeneralDeclarativeAggregate324.span s extra seed rest)
+@Yulang.GeneralDeclarativeAggregate324.keep_names : ∀ {extra : List Nat}
+  {rest : List Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State}
+  {seed : Yulang.GeneralDeclarativeWhere319.Capture} (n : Nat),
+  n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ++ Yulang.GeneralDeclarativeAggregate324.kept extra seed rest →
+    n ∈
+      Yulang.GeneralDeclarativeFreshTerms324.protectedNames (Yulang.GeneralDeclarativeAggregate324.aligned s seed rest)
+        (Yulang.GeneralDeclarativeAggregate324.kept extra seed rest) (Yulang.GeneralDeclarativeMerge320.lower seed rest)
+        (Yulang.GeneralDeclarativeMerge320.upper seed rest)
+@Yulang.GeneralDeclarativeAggregate324.aggregate_model : ∀ {rest : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {extra : List Nat} {s : Yulang.GeneralDeclarativeHead320.State} {seed : Yulang.GeneralDeclarativeWhere319.Capture},
+  (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+      a ∈ seed :: rest → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+    Yulang.GeneralDeclarativeMergeCenters324.Linked s seed rest →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models s m →
+          ∃ new,
+            Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeAggregate324.ready s extra seed rest)
+                new ∧
+              ∀ (n : Nat),
+                n ∈
+                    Yulang.GeneralDeclarativeFootprint321.stateNames s ++
+                      Yulang.GeneralDeclarativeAggregate324.kept extra seed rest →
+                  new n = m n
+Yulang.GeneralDeclarativeAggregateFixture324.computed : Yulang.GeneralDeclarativeAggregateFixture324.merged =
+  { lower := 33, center := 3, upper := 34 }
+Yulang.GeneralDeclarativeAggregateFixture324.points : Yulang.GeneralDeclarativeAggregatePoint324.Points
+  Yulang.GeneralDeclarativeAggregateFixture324.seed Yulang.GeneralDeclarativeAggregateFixture324.more
+Yulang.GeneralDeclarativeAggregateFixture324.each : ∀ (other : Yulang.GeneralDeclarativeWhere319.Capture),
+  other ∈ Yulang.GeneralDeclarativeAggregateFixture324.seed :: Yulang.GeneralDeclarativeAggregateFixture324.more →
+    Yulang.GeneralDeclarativeDemand320.Bounds Yulang.GeneralDeclarativeRepeatedSource323.state other
+Yulang.GeneralDeclarativeAggregateFixture324.shares : Yulang.GeneralDeclarativeMergeCenters324.Linked
+  Yulang.GeneralDeclarativeRepeatedSource323.state Yulang.GeneralDeclarativeAggregateFixture324.seed
+  Yulang.GeneralDeclarativeAggregateFixture324.more
+Yulang.GeneralDeclarativeAggregateFixture324.every_old_model : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRepeatedSource323.state m →
+    ∃ newer,
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeAggregateFixture324.newState newer ∧
+        ∀ (n : Nat),
+          n ∈
+              Yulang.GeneralDeclarativeFootprint321.stateNames Yulang.GeneralDeclarativeRepeatedSource323.state ++
+                Yulang.GeneralDeclarativeAggregate324.kept Yulang.GeneralDeclarativeAggregateFixture324.keepNames
+                  Yulang.GeneralDeclarativeAggregateFixture324.seed Yulang.GeneralDeclarativeAggregateFixture324.more →
+            newer n = m n
+Yulang.GeneralDeclarativeAggregateFixture324.inhabited : ∃ e,
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeAggregateFixture324.newState e
+Yulang.GeneralDeclarativeAggregateFixture324.current_old : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeAggregateFixture324.newState m →
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRepeatedSource323.state m
+Yulang.GeneralDeclarativeAggregateFixture324.exact_child : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeRepeatedSource323.parent Yulang.GeneralDeclarativeAggregateFixture324.actualNames
+    Yulang.GeneralDeclarativeRepeatedReads323.place =
+  [Yulang.GeneralDeclarativeAggregateFixture324.emitted]
+Yulang.GeneralDeclarativeAggregateFixture324.bounds : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeAggregateFixture324.newState Yulang.GeneralDeclarativeAggregateFixture324.merged
+@Yulang.GeneralDeclarativeAggregateFixture324.old_rows : ∀ {row : Yulang.GeneralDeclarativeHead320.Equation},
+  row ∈ Yulang.GeneralDeclarativeRepeatedSource323.eqs →
+    row ∈ Yulang.GeneralDeclarativeAggregateFixture324.newState.equations
+Yulang.GeneralDeclarativeAggregateFixture324.lower_alias : {
+    left := Yulang.GeneralDeclarativeAggregateFixture324.merged.lower,
+    right :=
+      Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+        Yulang.GeneralDeclarativeAggregateFixture324.merged.center } ∈
+  Yulang.GeneralDeclarativeAggregateFixture324.newState.equations
+Yulang.GeneralDeclarativeAggregateFixture324.supported_row : ∀ (completed : Nat → Prop)
+  {row : Yulang.GeneralDeclarativeHead320.Equation},
+  row ∈ Yulang.GeneralDeclarativeAggregateFixture324.newState.equations →
+    row ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeAggregateFixture324.support completed)).equations
+Yulang.GeneralDeclarativeAggregateFixture324.child_ready : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeAggregateFixture324.support completed)
+    Yulang.GeneralDeclarativeAggregateFixture324.emitted
+@Yulang.GeneralDeclarativeAggregatePoint324.point_aggregate : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {seed : Yulang.GeneralDeclarativeWhere319.Capture} {rest : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {combined : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeMerge320.Merge s seed rest combined →
+    Yulang.GeneralDeclarativeAggregatePoint324.Points seed rest →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models s m →
+          Yulang.CommonNominalFullCarrier.Equivalent (m combined.lower).fst (m combined.center).fst ∧
+            Yulang.CommonNominalFullCarrier.Equivalent (m combined.upper).fst (m combined.center).fst
+@Yulang.GeneralDeclarativeAggregatePoint324.aliases_proved : ∀ {protect : List Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {seed : Yulang.GeneralDeclarativeWhere319.Capture}
+  {rest : List Yulang.GeneralDeclarativeWhere319.Capture},
+  (∀ (occurrence : Yulang.GeneralDeclarativeWhere319.Capture),
+      occurrence ∈ seed :: rest → Yulang.GeneralDeclarativeDemand320.Bounds s occurrence) →
+    Yulang.GeneralDeclarativeAggregatePoint324.Points seed rest →
+      ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+        row ∈
+            Yulang.GeneralDeclarativeAggregatePoint324.aliases
+              (Yulang.GeneralDeclarativeAggregate324.span s protect seed rest) →
+          Yulang.GeneralDeclarativeEntailment320.Entails
+            (Yulang.GeneralDeclarativeAggregate324.ready s protect seed rest) row
+@Yulang.GeneralDeclarativeAggregatePoint324.observable_models : ∀
+  {rest : List Yulang.GeneralDeclarativeWhere319.Capture} {protect : List Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {seed : Yulang.GeneralDeclarativeWhere319.Capture},
+  (∀ (occurrence : Yulang.GeneralDeclarativeWhere319.Capture),
+      occurrence ∈ seed :: rest → Yulang.GeneralDeclarativeDemand320.Bounds s occurrence) →
+    Yulang.GeneralDeclarativeAggregatePoint324.Points seed rest →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models
+            (Yulang.GeneralDeclarativeAggregatePoint324.observable s protect seed rest) m ↔
+          Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeAggregate324.ready s protect seed rest) m
+Yulang.GeneralDeclarativeAggregateProbe324.ordinary_exact : Yulang.GeneralDeclarativeAggregateFixture324.newState.normal.ordinary =
+  Yulang.GeneralDeclarativeAggregateProbe324.extraAtoms
+@Yulang.GeneralDeclarativeAggregateProbe324.bound_level : ∀ {x y : Nat},
+  Yulang.GeneralDeclarativeBounds319.Bound Yulang.GeneralDeclarativeAggregateFixture324.newState.normal x y →
+    Yulang.GeneralDeclarativeRepeatedResolve323.level x = Yulang.GeneralDeclarativeRepeatedResolve323.level y
+@Yulang.GeneralDeclarativeAggregateProbe324.row_level : ∀ {x y : Nat},
+  { left := x, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable y } ∈
+      Yulang.GeneralDeclarativeAggregateFixture324.newState.equations →
+    Yulang.GeneralDeclarativeRepeatedResolve323.level x = Yulang.GeneralDeclarativeRepeatedResolve323.level y
+Yulang.GeneralDeclarativeAggregateProbe324.no_cycle : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeAggregateFixture324.newState
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeAggregateFixture324.newState) n
+Yulang.GeneralDeclarativeAggregateProbe324.parent_ready : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeAggregateFixture324.support completed)
+    Yulang.GeneralDeclarativeRepeatedSource323.goal
+Yulang.GeneralDeclarativeAggregateProbe324.parent_matches : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeAggregateFixture324.support completed))
+    Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+    Yulang.GeneralDeclarativeRepeatedSource323.goal Yulang.GeneralDeclarativeRepeatedSource323.parent
+Yulang.GeneralDeclarativeAggregateProbe324.child_matches : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeAggregateFixture324.support completed))
+    Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+    Yulang.GeneralDeclarativeAggregateFixture324.emitted Yulang.GeneralDeclarativeRepeatedSource323.child
+Yulang.GeneralDeclarativeAggregateProbe324.no_recurs : ∀ (completed : Nat → Prop)
+  (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeAggregateFixture324.newState
+      Yulang.GeneralDeclarativeRepeatedSource323.registry Yulang.GeneralDeclarativeExampleSource320.interp
+      (Yulang.GeneralDeclarativeAggregateProbe324.tests completed) d
+Yulang.GeneralDeclarativeAggregateReads324.a_bounds : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeAggregateFixture324.newState Yulang.GeneralDeclarativeRepeatedSource323.a

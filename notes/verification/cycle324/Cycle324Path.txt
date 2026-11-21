@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativeNFResolve324.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeApplyAssoc324.exact_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeApplyAssoc324.effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeK2Mono324.preserve' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeHiddenDecl324.declaration_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeHiddenProbe324.exact_k2_positions' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeHiddenPath324.full_source_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHiddenResolve324.old_producer_fails' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

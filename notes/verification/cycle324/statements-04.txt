@@ -1,0 +1,138 @@
+    Yulang.GeneralDeclarativeHiddenState324.root Yulang.GeneralDeclarativeHiddenDecl324.parent
+Yulang.GeneralDeclarativeHiddenProbe324.leaf_traces : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeHiddenState324.support completed))
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeHiddenState324.child Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeHiddenProbe324.ready_root : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeHiddenState324.support completed)
+    Yulang.GeneralDeclarativeHiddenState324.root
+Yulang.GeneralDeclarativeHiddenProbe324.ready_child : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeHiddenState324.support completed)
+    Yulang.GeneralDeclarativeHiddenState324.child
+@Yulang.GeneralDeclarativeHiddenProbe324.aliases : ∀ {x y : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias Yulang.GeneralDeclarativeHiddenState324.final x y →
+    Yulang.GeneralDeclarativeHiddenProbe324.weight x = Yulang.GeneralDeclarativeHiddenProbe324.weight y
+Yulang.GeneralDeclarativeHiddenProbe324.no_cycle : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeHiddenState324.final
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeHiddenState324.final) n
+Yulang.GeneralDeclarativeHiddenProbe324.safe : ∀ (completed : Nat → Prop)
+  (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeHiddenState324.final
+      Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+      (Yulang.GeneralDeclarativeHiddenProbe324.tests completed) d
+@Yulang.GeneralDeclarativeHiddenProbe324.exact_k2_positions : ∀ {name site : Nat}
+  {view : Yulang.GeneralDeclarativeK2Graph321.View},
+  Yulang.GeneralDeclarativeInspect321.Visit view name Yulang.GeneralDeclarativeHiddenDecl324.normCode site → site = name
+Yulang.GeneralDeclarativeHiddenReads324.root_scan : Yulang.GeneralDeclarativeNFHead324.Scan
+  Yulang.GeneralDeclarativeHiddenState324.final Yulang.GeneralDeclarativeHiddenDecl324.catalogue
+  Yulang.GeneralDeclarativeHiddenDecl324.interpretation (Yulang.GeneralDeclarativeExampleSource320.point 0)
+  Yulang.GeneralDeclarativeHiddenDecl324.raw Yulang.GeneralDeclarativeHiddenReads324.rootUses
+Yulang.GeneralDeclarativeHiddenReads324.body_root : Yulang.GeneralDeclarativeNFNode324.BodyCoverage
+  Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+  Yulang.GeneralDeclarativeHiddenState324.root Yulang.GeneralDeclarativeHiddenDecl324.parent
+Yulang.GeneralDeclarativeHiddenReads324.body_child : Yulang.GeneralDeclarativeNFNode324.BodyCoverage
+  Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+  Yulang.GeneralDeclarativeHiddenState324.child Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeHiddenReads324.declared_root : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenState324.root
+Yulang.GeneralDeclarativeHiddenReads324.declared_child : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenState324.child
+Yulang.GeneralDeclarativeHiddenReads324.root_reads : Yulang.GeneralDeclarativeNFNode324.Reads
+  Yulang.GeneralDeclarativeHiddenState324.final Yulang.GeneralDeclarativeHiddenDecl324.registry
+  Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenState324.root
+  Yulang.GeneralDeclarativeHiddenDecl324.parent Yulang.GeneralDeclarativeHiddenState324.names
+  Yulang.GeneralDeclarativeHiddenState324.place
+Yulang.GeneralDeclarativeHiddenReads324.leaf_reads : Yulang.GeneralDeclarativeNFNode324.Reads
+  Yulang.GeneralDeclarativeHiddenState324.final Yulang.GeneralDeclarativeHiddenDecl324.registry
+  Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenState324.child
+  Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeHiddenState324.leafNames
+  Yulang.GeneralDeclarativeHiddenState324.place
+Yulang.GeneralDeclarativeHiddenReads324.root_generated : Yulang.GeneralDeclarativeNFResolve324.Generates
+  Yulang.GeneralDeclarativeHiddenState324.final Yulang.GeneralDeclarativeHiddenDecl324.registry
+  Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenState324.root
+  Yulang.GeneralDeclarativeHiddenDecl324.parent [Yulang.GeneralDeclarativeHiddenState324.child]
+Yulang.GeneralDeclarativeHiddenReads324.child_generated : Yulang.GeneralDeclarativeNFResolve324.Generates
+  Yulang.GeneralDeclarativeHiddenState324.final Yulang.GeneralDeclarativeHiddenDecl324.registry
+  Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenState324.child
+  Yulang.GeneralDeclarativeExampleSource320.leaf []
+Yulang.GeneralDeclarativeHiddenResolve324.root_only : ∀ (decl : Yulang.GeneralDeclarations.Declaration),
+  decl ∈ Yulang.GeneralDeclarativeHiddenDecl324.registry.declarations →
+    decl.role = Yulang.GeneralDeclarativeHiddenState324.root.role → decl = Yulang.GeneralDeclarativeHiddenDecl324.parent
+Yulang.GeneralDeclarativeHiddenResolve324.child_only : ∀ (decl : Yulang.GeneralDeclarations.Declaration),
+  decl ∈ Yulang.GeneralDeclarativeHiddenDecl324.registry.declarations →
+    decl.role = Yulang.GeneralDeclarativeHiddenState324.child.role →
+      decl = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeHiddenResolve324.root_chosen : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeHiddenResolve324.branch completed Yulang.GeneralDeclarativeHiddenState324.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeHiddenDecl324.parent.id
+      [Yulang.GeneralDeclarativeHiddenState324.child])
+Yulang.GeneralDeclarativeHiddenResolve324.child_chosen : ∀ (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeHiddenResolve324.branch completed Yulang.GeneralDeclarativeHiddenState324.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeHiddenResolve324.final_selected : ∀ (completed : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeHiddenResolve324.branch completed)
+    Yulang.GeneralDeclarativeHiddenState324.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeHiddenResolve324.dictionary)
+Yulang.GeneralDeclarativeHiddenResolve324.root_meaning : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final m →
+    Yulang.GeneralDeclarativeAssembly320.Meaning Yulang.GeneralDeclarativeHiddenDecl324.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeHiddenState324.root
+      Yulang.GeneralDeclarativeHiddenDecl324.parent Yulang.GeneralDeclarativeHiddenState324.names.input
+      [Yulang.GeneralDeclarativeHiddenState324.child]
+Yulang.GeneralDeclarativeHiddenResolve324.child_meaning : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final m →
+    Yulang.GeneralDeclarativeAssembly320.Meaning Yulang.GeneralDeclarativeHiddenDecl324.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeHiddenState324.child
+      Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeHiddenState324.leafNames.input []
+Yulang.GeneralDeclarativeHiddenResolve324.final_evidence : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeHiddenDecl324.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeHiddenState324.root
+      Yulang.GeneralDeclarativeHiddenResolve324.dictionary
+Yulang.GeneralDeclarativeHiddenResolve324.final_inhabited : Yulang.CommonRoleOutermostResolver.Classify
+    (Yulang.GeneralDeclarativeHiddenResolve324.branch fun x => True) Yulang.GeneralDeclarativeHiddenState324.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeHiddenResolve324.dictionary) ∧
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeHiddenState324.final
+      (Yulang.GeneralDeclarativeHiddenState324.assignment true) ∧
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeHiddenDecl324.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation (Yulang.GeneralDeclarativeHiddenState324.assignment true)
+      Yulang.GeneralDeclarativeHiddenState324.root Yulang.GeneralDeclarativeHiddenResolve324.dictionary
+Yulang.GeneralDeclarativeHiddenResolve324.no_raw_recipe : ¬Yulang.GeneralDeclarativeAssembly320.ChosenRecipe
+    Yulang.GeneralDeclarativeHiddenState324.final Yulang.GeneralDeclarativeHiddenDecl324.registry
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenState324.root
+    Yulang.GeneralDeclarativeHiddenDecl324.parent.id [Yulang.GeneralDeclarativeHiddenState324.child]
+Yulang.GeneralDeclarativeHiddenResolve324.no_raw_batch : ¬Yulang.GeneralDeclarativeEntailment320.BatchRecipe
+    Yulang.GeneralDeclarativeHiddenState324.final Yulang.GeneralDeclarativeHiddenDecl324.registry
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenState324.root
+    Yulang.GeneralDeclarativeHiddenDecl324.parent.id [Yulang.GeneralDeclarativeHiddenState324.child]
+Yulang.GeneralDeclarativeHiddenResolve324.old_producer_fails : ∀ (completed : Nat → Prop),
+  ¬Yulang.GeneralDeclarativeCompilerTree320.Compiles Yulang.GeneralDeclarativeHiddenState324.final
+      Yulang.GeneralDeclarativeHiddenDecl324.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+      (Yulang.GeneralDeclarativeHiddenResolve324.branch completed)
+Yulang.GeneralDeclarativeHiddenStageReads324.scan_at : ∀ (phase : Yulang.GeneralDeclarativeHiddenStages324.Stage),
+  Yulang.GeneralDeclarativeNFHead324.Scan phase.ordinary Yulang.GeneralDeclarativeHiddenDecl324.catalogue
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation (Yulang.GeneralDeclarativeExampleSource320.point 0)
+    Yulang.GeneralDeclarativeHiddenDecl324.raw Yulang.GeneralDeclarativeHiddenReads324.rootUses
+Yulang.GeneralDeclarativeHiddenStageReads324.read_parent : ∀ (phase : Yulang.GeneralDeclarativeHiddenStages324.Stage),
+  Yulang.GeneralDeclarativeNFNode324.Reads phase.ordinary Yulang.GeneralDeclarativeHiddenDecl324.registry
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenState324.root
+    Yulang.GeneralDeclarativeHiddenDecl324.parent Yulang.GeneralDeclarativeHiddenState324.names
+    Yulang.GeneralDeclarativeHiddenState324.place
+Yulang.GeneralDeclarativeHiddenStageReads324.read_child : ∀ (phase : Yulang.GeneralDeclarativeHiddenStages324.Stage),
+  Yulang.GeneralDeclarativeNFNode324.Reads phase.ordinary Yulang.GeneralDeclarativeHiddenDecl324.registry
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeHiddenState324.child
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeHiddenState324.leafNames
+    Yulang.GeneralDeclarativeHiddenState324.place
+Yulang.GeneralDeclarativeHiddenStageReads324.selected_parent : ∀
+  (phase : Yulang.GeneralDeclarativeHiddenStages324.Stage) (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeHiddenStages324.localRule phase completed Yulang.GeneralDeclarativeHiddenState324.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeHiddenDecl324.parent.id
+      [Yulang.GeneralDeclarativeHiddenState324.child])
+Yulang.GeneralDeclarativeHiddenStageReads324.selected_child : ∀ (phase : Yulang.GeneralDeclarativeHiddenStages324.Stage)
+  (completed : Nat → Prop),
+  Yulang.GeneralDeclarativeHiddenStages324.localRule phase completed Yulang.GeneralDeclarativeHiddenState324.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeHiddenStages324.old_source : ∀ (phase : Yulang.GeneralDeclarativeHiddenStages324.Stage)
+  {row : Yulang.GeneralDeclarativeHead320.Equation},
+  row ∈ Yulang.GeneralDeclarativeHiddenState324.s0Rows → row ∈ phase.ordinary.equations

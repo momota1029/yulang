@@ -1,0 +1,114 @@
+GeneralDeclarativeHiddenState324.exact_child : GeneralDeclarativeEmissionForest322.children
+    GeneralDeclarativeHiddenDecl324.parent GeneralDeclarativeHiddenState324.names
+    GeneralDeclarativeHiddenState324.place =
+  [GeneralDeclarativeHiddenState324.child]
+GeneralDeclarativeHiddenPath324.parent_event : GeneralDeclarativeApplyAssoc324.Applies
+  GeneralDeclarativeHiddenState324.initial GeneralDeclarativeHiddenDecl324.registry
+  GeneralDeclarativeHiddenDecl324.interpretation
+  (GeneralDeclarativeHiddenStages324.localRule GeneralDeclarativeHiddenStages324.Stage.initial fun x => False)
+  GeneralDeclarativeHiddenState324.root GeneralDeclarativeHiddenDecl324.parent GeneralDeclarativeHiddenState324.names
+  GeneralDeclarativeHiddenState324.place [GeneralDeclarativeHiddenState324.parentRow]
+GeneralDeclarativeHiddenPath324.child_event : GeneralDeclarativeApplyAssoc324.Applies
+  GeneralDeclarativeHiddenState324.afterParent GeneralDeclarativeHiddenDecl324.registry
+  GeneralDeclarativeHiddenDecl324.interpretation
+  (GeneralDeclarativeHiddenStages324.localRule GeneralDeclarativeHiddenStages324.Stage.parentWritten fun x => False)
+  GeneralDeclarativeHiddenState324.child GeneralDeclarativeExampleSource320.leaf
+  GeneralDeclarativeHiddenState324.leafNames GeneralDeclarativeHiddenState324.place
+  [GeneralDeclarativeHiddenState324.childRow]
+GeneralDeclarativeHiddenPath324.full_source_path : GeneralDeclarativeApplyAssoc324.Applies
+    GeneralDeclarativeHiddenState324.initial GeneralDeclarativeHiddenDecl324.registry
+    GeneralDeclarativeHiddenDecl324.interpretation
+    (GeneralDeclarativeHiddenStages324.localRule GeneralDeclarativeHiddenStages324.Stage.initial fun x => False)
+    GeneralDeclarativeHiddenState324.root GeneralDeclarativeHiddenDecl324.parent GeneralDeclarativeHiddenState324.names
+    GeneralDeclarativeHiddenState324.place [GeneralDeclarativeHiddenState324.parentRow] ∧
+  GeneralDeclarativeApplyAssoc324.Applies GeneralDeclarativeHiddenState324.afterParent
+      GeneralDeclarativeHiddenDecl324.registry GeneralDeclarativeHiddenDecl324.interpretation
+      (GeneralDeclarativeHiddenStages324.localRule GeneralDeclarativeHiddenStages324.Stage.parentWritten fun x => False)
+      GeneralDeclarativeHiddenState324.child GeneralDeclarativeExampleSource320.leaf
+      GeneralDeclarativeHiddenState324.leafNames GeneralDeclarativeHiddenState324.place
+      [GeneralDeclarativeHiddenState324.childRow] ∧
+    CommonRoleOutermostResolver.Classify (GeneralDeclarativeHiddenResolve324.branch fun x => True)
+        GeneralDeclarativeHiddenState324.root
+        (CommonRoleOutermostResolver.Result.selected GeneralDeclarativeHiddenResolve324.dictionary) ∧
+      GeneralDeclarativeHead320.Models GeneralDeclarativeHiddenState324.final
+          (GeneralDeclarativeHiddenState324.assignment true) ∧
+        ∀ (m : GeneralNominalCommonBridge.Assignment),
+          GeneralDeclarativeHead320.Models GeneralDeclarativeHiddenState324.final m →
+            GeneralDeclarativeEvidence320.Evidence GeneralDeclarativeHiddenDecl324.registry
+              GeneralDeclarativeHiddenDecl324.interpretation m GeneralDeclarativeHiddenState324.root
+              GeneralDeclarativeHiddenResolve324.dictionary
+GeneralDeclarativeAggregateFixture324.exact_child : GeneralDeclarativeEmissionForest322.children
+    GeneralDeclarativeRepeatedSource323.parent GeneralDeclarativeAggregateFixture324.actualNames
+    GeneralDeclarativeRepeatedReads323.place =
+  [GeneralDeclarativeAggregateFixture324.emitted]
+GeneralDeclarativeRivalResolve324.rival_eliminated : ∀ (complete : Nat → Prop),
+  GeneralDeclarativePriority321.Visible GeneralDeclarativeRivalDecl324.wider GeneralDeclarativeRepeatedSource323.goal
+      GeneralDeclarativeRivalDecl324.rival ∧
+    ¬(GeneralDeclarativeRivalResolve324.assay complete).viable GeneralDeclarativeRepeatedSource323.goal
+          GeneralDeclarativeRivalDecl324.rival ∧
+      ¬(GeneralDeclarativeRivalResolve324.assay complete).unresolved GeneralDeclarativeRepeatedSource323.goal
+          GeneralDeclarativeRivalDecl324.rival
+GeneralDeclarativeRivalResolve324.successful_with_rival : CommonRoleOutermostResolver.Classify
+    (GeneralDeclarativeRivalResolve324.localRule fun x => False) GeneralDeclarativeRepeatedSource323.goal
+    (CommonRoleOutermostResolver.Result.selected GeneralDeclarativeAggregateReads324.dict) ∧
+  (∃ m, GeneralDeclarativeHead320.Models GeneralDeclarativeAggregateFixture324.newState m) ∧
+    ∀ (m : GeneralNominalCommonBridge.Assignment),
+      GeneralDeclarativeHead320.Models GeneralDeclarativeAggregateFixture324.newState m →
+        GeneralDeclarativeEvidence320.Evidence GeneralDeclarativeRivalDecl324.wider
+          GeneralDeclarativeRivalDecl324.richer m GeneralDeclarativeRepeatedSource323.goal
+          GeneralDeclarativeAggregateReads324.dict
+GeneralDeclarativeErasureRegression324.whole_normal_batch : GeneralDeclarativeNFComplete324.facts
+    GeneralDeclarativeHiddenWhere324.registry GeneralDeclarativeHiddenDecl324.interpretation
+    GeneralDeclarativeHiddenWhere324.capture.input GeneralDeclarativeHiddenWhere324.parent
+    GeneralDeclarativeHiddenWhere324.root [GeneralDeclarativeHiddenWhere324.child] =
+  some
+    [{ left := 0, right := GeneralDeclarativeHiddenState324.direct },
+      { left := 3, right := GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+      { left := 3, right := GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+      { left := 3, right := GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+      GeneralDeclarativeHiddenWhere324.row,
+      { left := 6, right := GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 }]
+GeneralDeclarativeFollowerDerived324.final_transition : GeneralDeclarativeHiddenResolve324.branch (fun x => False)
+    GeneralDeclarativeFollower324.later CommonRoleOutermostResolver.Frontier.pending ∧
+  CommonRoleOutermostResolver.Classify
+      (GeneralDeclarativeHiddenResolve324.branch GeneralDeclarativeFollowerDerived324.completed)
+      GeneralDeclarativeFollower324.later
+      (CommonRoleOutermostResolver.Result.selected
+        (CommonRoleOutermostResolver.Dictionary.node GeneralDeclarativeExampleSource320.leaf.id [])) ∧
+    ∀ (m : GeneralNominalCommonBridge.Assignment),
+      GeneralDeclarativeHead320.Models GeneralDeclarativeHiddenState324.final m →
+        GeneralDeclarativeEvidence320.Evidence GeneralDeclarativeHiddenDecl324.registry
+          GeneralDeclarativeHiddenDecl324.interpretation m GeneralDeclarativeFollower324.later
+          (CommonRoleOutermostResolver.Dictionary.node GeneralDeclarativeExampleSource320.leaf.id [])
+@GeneralDeclarativeNFClassify324.sound : ∀ {s : GeneralDeclarativeHead320.State} {r : GeneralDeclarations.Registry}
+  {interp : GeneralNominalInspection.Interpretation} {complete : Nat → Prop}
+  {support : GeneralDeclarativeOrigins321.Supported s complete} {tests : GeneralDeclarativePriority321.Candidates}
+  {d : GeneralDeclarativeDemand320.Demand} {m : GeneralNominalCommonBridge.Assignment}
+  {dict : CommonRoleOutermostResolver.Dictionary},
+  GeneralDeclarations.Checked r →
+    GeneralDeclarativeModelStable324.StableUnder s
+        (GeneralDeclarativeNFClassify324.SourceEnabled s r interp
+          (GeneralDeclarativeNFClassify324.Rule s r interp support tests)) →
+      GeneralDeclarativeOutputSource323.Declared r d →
+        GeneralDeclarativeHead320.Models s m →
+          CommonRoleOutermostResolver.Classify (GeneralDeclarativeNFClassify324.Rule s r interp support tests) d
+              (CommonRoleOutermostResolver.Result.selected dict) →
+            GeneralDeclarativeEvidence320.Evidence r interp m d dict
+@GeneralDeclarativeRuleSequence324.replay_sound : ∀ {r : GeneralDeclarations.Registry}
+  {i : GeneralNominalInspection.Interpretation}
+  {choices :
+    GeneralDeclarativeHead320.State →
+      GeneralDeclarativeDemand320.Demand →
+        CommonRoleOutermostResolver.Frontier GeneralDeclarativeDemand320.Demand → Prop}
+  {s : GeneralDeclarativeHead320.State} {frames : List GeneralDeclarativeRuleSequence324.Occurrence}
+  {t : GeneralDeclarativeHead320.State} {d : GeneralDeclarativeDemand320.Demand}
+  {impl : GeneralDeclarations.Declaration} {old new : Nat → GeneralDeclarativeWhere319.Capture},
+  GeneralDeclarations.Checked r →
+    GeneralDeclarativeRuleSequence324.AppliesInOrder r i choices s frames t →
+      { goal := d, declaration := impl, capture := old } ∈ frames →
+        impl ∈ r.declarations →
+          GeneralDeclarativeReobserve324.Reobserves t impl old new →
+            GeneralDeclarativeModelStable324.StableUnder t
+              (GeneralDeclarativeAssocRule323.SourceEquation r i d impl new)
+'conditional_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+exact source exit: 0

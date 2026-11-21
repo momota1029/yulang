@@ -1,0 +1,7 @@
+Local substantive range: 82e62df96..50e5d0e4e
+Frozen paths changed (expected none; path diff only):
+Lean paths with deletions (expected none):
+New modules absent from exact barrel (expected none):
+Shortened-output markers in changed source and design paths (expected none):
+Git whitespace check (expected none):
+git diff --check exit: 0
