@@ -6910,3 +6910,7 @@ import Yulang.GeneralDeclarativeProjectedConsumer326
 import Yulang.GeneralDeclarativeFrontier327
 import Yulang.GeneralDeclarativeCandidateScan327
 import Yulang.GeneralDeclarativeRepeatedProjection327
+import Yulang.GeneralDeclarativeGrowth327
+import Yulang.GeneralDeclarativeRepeatDecl327
+import Yulang.GeneralDeclarativeRepeatedHead327
+import Yulang.GeneralDeclarativeRepeatState327
