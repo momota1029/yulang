@@ -1,0 +1,15 @@
+import Yulang.GeneralWherePhysicalTicket319
+#check Yulang.GeneralWherePhysicalOldInstall319.step
+#check Yulang.GeneralWherePhysicalReobserve319.underlying_step
+#check Yulang.GeneralWherePhysicalReobserve319.exact_same_slots
+#check Yulang.GeneralWherePhysicalReobserve319.models_unchanged
+#check Yulang.GeneralWherePhysicalCurrentRead319.child_bounds
+#check Yulang.GeneralWherePhysicalTicket319.current_upper_stored
+#check Yulang.GeneralWherePhysicalTicket319.raw_ticket
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.step
+#print axioms Yulang.GeneralWherePhysicalReobserve319.underlying_step
+#print axioms Yulang.GeneralWherePhysicalReobserve319.exact_same_slots
+#print axioms Yulang.GeneralWherePhysicalReobserve319.models_unchanged
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.child_bounds
+#print axioms Yulang.GeneralWherePhysicalTicket319.current_upper_stored
+#print axioms Yulang.GeneralWherePhysicalTicket319.raw_ticket

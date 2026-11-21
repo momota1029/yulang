@@ -6592,3 +6592,8 @@ import Yulang.GeneralWherePhysicalOldPick319
 import Yulang.GeneralWherePhysicalOldModel319
 import Yulang.GeneralWherePhysicalOldInstall319
 import Yulang.GeneralWherePhysicalPointLift319
+import Yulang.GeneralWherePhysicalReobserve319
+import Yulang.GeneralWherePhysicalFresh319
+import Yulang.GeneralWherePhysicalActive319
+import Yulang.GeneralWherePhysicalCurrentRead319
+import Yulang.GeneralWherePhysicalTicket319

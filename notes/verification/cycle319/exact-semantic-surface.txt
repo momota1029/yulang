@@ -1,0 +1,44 @@
+Yulang.GeneralWherePhysicalOldInstall319.step :
+  Yulang.GeneralWhereVersionInstall317.InstallStep Yulang.GeneralWhereOriginSingleSource318.sourceRegistry
+    Yulang.GeneralWherePhysicalOldHead319.before Yulang.GeneralWherePhysicalOldInstall319.installed
+Yulang.GeneralWherePhysicalReobserve319.underlying_step :
+  Yulang.GeneralNominalVersionedMixedKernel234.Step Yulang.GeneralWhereOriginSingleSource318.registry
+    Yulang.GeneralDictionaryJournalRefinement228Source.root Yulang.GeneralWherePhysicalOldInstall319.installed.mixed
+    Yulang.GeneralWherePhysicalReobserve319.updated.mixed
+Yulang.GeneralWherePhysicalReobserve319.exact_same_slots :
+  Yulang.GeneralDictionaryBinderLocations.sourceSlot
+        Yulang.GeneralWherePhysicalOldInstall319.installed.mixed.core.erased.current.context.state.base
+        Yulang.GeneralWhereOriginSingleCells318.hi =
+      some Yulang.GeneralWherePhysicalPast319.savedHi ∧
+    Yulang.GeneralDictionaryBinderLocations.sourceSlot
+          Yulang.GeneralWherePhysicalReobserve319.updated.mixed.core.erased.current.context.state.base
+          Yulang.GeneralWhereOriginSingleCells318.hi =
+        some Yulang.GeneralWherePhysicalPast319.savedHi ∧
+      Yulang.GeneralDictionaryBinderLocations.sourceSlot
+          Yulang.GeneralWherePhysicalReobserve319.updated.mixed.core.erased.current.context.state.base
+          Yulang.GeneralWhereOriginSingleCells318.loOld =
+        some Yulang.GeneralWherePhysicalPast319.firstLo
+Yulang.GeneralWherePhysicalReobserve319.models_unchanged (n : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalReobserve319.updated n ↔
+    Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalOldInstall319.installed n
+Yulang.GeneralWherePhysicalCurrentRead319.child_bounds :
+  (Yulang.GeneralWhereVersionCompiler317.child Yulang.GeneralWherePhysicalCurrentRead319.plan
+              Yulang.GeneralLiveCompoundRegistry316.otherChild
+              Yulang.GeneralWhereOriginSingleCells318.sig).occurrence.demand.arguments
+      0 =
+    (Yulang.GeneralWhereOriginSingleCells318.loNow, Yulang.GeneralWhereOriginSingleCells318.hi)
+Yulang.GeneralWherePhysicalTicket319.current_upper_stored (n : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalReobserve319.updated n) :
+  Yulang.GeneralNominalCenteredHeadMatSchemas.Equation.Holds
+    (Yulang.GeneralNominalVersionedPlans231.variables Yulang.GeneralWherePhysicalCurrentRead319.plan n) n
+    Yulang.GeneralWherePhysicalCurrentRead319.high.row
+Yulang.GeneralWherePhysicalTicket319.raw_ticket :
+  Yulang.GeneralWhereOriginInstall318.RawTicket Yulang.GeneralWherePhysicalReobserve319.updated
+    Yulang.GeneralWherePhysicalCurrentRead319.plan Yulang.GeneralWherePhysicalActive319.ctx
+'Yulang.GeneralWherePhysicalOldInstall319.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalReobserve319.underlying_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalReobserve319.exact_same_slots' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalReobserve319.models_unchanged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalCurrentRead319.child_bounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalTicket319.current_upper_stored' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalTicket319.raw_ticket' depends on axioms: [propext, Classical.choice, Quot.sound]
