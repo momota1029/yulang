@@ -6583,3 +6583,12 @@ import Yulang.GeneralWhereOriginLayoutContract318
 import Yulang.GeneralWherePhysicalIndex319
 import Yulang.GeneralWherePhysicalBase319
 import Yulang.GeneralWherePhysicalView319
+import Yulang.GeneralWherePhysicalNominal319
+import Yulang.GeneralWherePhysicalDeferred319
+import Yulang.GeneralWherePhysicalPast319
+import Yulang.GeneralWherePhysicalOldValues319
+import Yulang.GeneralWherePhysicalOldHead319
+import Yulang.GeneralWherePhysicalOldPick319
+import Yulang.GeneralWherePhysicalOldModel319
+import Yulang.GeneralWherePhysicalOldInstall319
+import Yulang.GeneralWherePhysicalPointLift319
