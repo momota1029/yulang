@@ -1,0 +1,86 @@
+import Yulang.GeneralLiveCompoundPost316
+import Yulang.GeneralLiveCompoundPostFeedback316
+import Yulang.GeneralLiveCompoundPostFrames316
+import Yulang.GeneralLiveCompoundPostLeafCycles316
+import Yulang.GeneralLiveCompoundPostLeafSelect316
+import Yulang.GeneralLiveCompoundPostRootHead316
+import Yulang.GeneralLiveCompoundPostRootSelect316
+import Yulang.GeneralLiveCompoundPostSupport316
+
+/-! Standalone C316 audit. -/
+#print axioms Yulang.GeneralLiveCompoundPost316.no_emitted
+#print axioms Yulang.GeneralLiveCompoundPost316.raw_sites_after
+#print axioms Yulang.GeneralLiveCompoundPost316.centers_after
+#print axioms Yulang.GeneralLiveCompoundPost316.aliases_after
+#print axioms Yulang.GeneralLiveCompoundPost316.ordinary_exact
+#print axioms Yulang.GeneralLiveCompoundPost316.atoms_raw
+#print axioms Yulang.GeneralLiveCompoundPost316.raw_models
+#print axioms Yulang.GeneralLiveCompoundPost316.known_iff
+#print axioms Yulang.GeneralLiveCompoundPost316.point_closed
+#print axioms Yulang.GeneralLiveCompoundPost316.generated_after
+#print axioms Yulang.GeneralLiveCompoundPost316.leaf_replayed
+#print axioms Yulang.GeneralLiveCompoundPostFeedback316.old_valid
+#print axioms Yulang.GeneralLiveCompoundPostFeedback316.pointwise_headless
+#print axioms Yulang.GeneralLiveCompoundPostFeedback316.no_refresh
+#print axioms Yulang.GeneralLiveCompoundPostFeedback316.classifier_valid
+#print axioms Yulang.GeneralLiveCompoundPostFeedback316.classify_value
+#print axioms Yulang.GeneralLiveCompoundPostFeedback316.extra_cannot_equal
+#print axioms Yulang.GeneralLiveCompoundPostFeedback316.closed
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.frame_unique
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.root_frame_plan
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.leaf_frame_plan
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.leaf_held
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.leaf_committed
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.leaf_frame
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.leaf_evidence
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.no_root_packet
+#print axioms Yulang.GeneralLiveCompoundPostFrames316.no_root_evidence
+#print axioms Yulang.GeneralLiveCompoundPostLeafCycles316.earlier_edge
+#print axioms Yulang.GeneralLiveCompoundPostLeafCycles316.map_path
+#print axioms Yulang.GeneralLiveCompoundPostLeafCycles316.old_edge
+#print axioms Yulang.GeneralLiveCompoundPostLeafCycles316.no_raw
+#print axioms Yulang.GeneralLiveCompoundPostLeafCycles316.no_lo
+#print axioms Yulang.GeneralLiveCompoundPostLeafCycles316.no_mid
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.prepared
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.known
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.located
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.terminal
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.survivor
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.unique
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.center_child
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.inherited
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.report_exact
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.safe_positions
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.safe
+#print axioms Yulang.GeneralLiveCompoundPostLeafSelect316.selected
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.report_codes
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.ordinary_pre
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.projection_pre
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.head
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.fresh
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.prepared
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.frame
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.known
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.child_site
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.children_pre
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.root_children
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.chosen
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.unique
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.capture_eval
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.binder_eval
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.schema_pre
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.schema
+#print axioms Yulang.GeneralLiveCompoundPostRootHead316.head_equations
+#print axioms Yulang.GeneralLiveCompoundPostRootSelect316.no_semantic
+#print axioms Yulang.GeneralLiveCompoundPostRootSelect316.no_raw_zero
+#print axioms Yulang.GeneralLiveCompoundPostRootSelect316.current_tests
+#print axioms Yulang.GeneralLiveCompoundPostRootSelect316.located_zero
+#print axioms Yulang.GeneralLiveCompoundPostRootSelect316.safe
+#print axioms Yulang.GeneralLiveCompoundPostRootSelect316.classes
+#print axioms Yulang.GeneralLiveCompoundPostRootSelect316.selected
+#print axioms Yulang.GeneralLiveCompoundPostSupport316.base_supported
+#print axioms Yulang.GeneralLiveCompoundPostSupport316.extra_raw
+#print axioms Yulang.GeneralLiveCompoundPostSupport316.exact_leaf_support
+#print axioms Yulang.GeneralLiveCompoundPostSupport316.patch_after
+#print axioms Yulang.GeneralLiveCompoundPostSupport316.identity_outside
+#print axioms Yulang.GeneralLiveCompoundPostSupport316.identity_binder

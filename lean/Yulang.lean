@@ -6507,3 +6507,5 @@ import Yulang.GeneralLiveCompoundPostRootSelect316
 import Yulang.GeneralLiveCompoundPostLeafSelect316
 import Yulang.GeneralLiveCompoundCounterexample316
 import Yulang.GeneralLiveCompoundFullResult316
+import Yulang.GeneralLiveCompoundCulprit316
+import Yulang.GeneralLiveCompoundProposedRepair316
