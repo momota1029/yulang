@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeHeadOrigin325.by_equations' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNamedHead325.incidence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNamedHead325.all_seen_have_anchors' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNamedHead325.named_ordered' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,16 @@
+'Yulang.GeneralDeclarativeRecordProducer325.normalized_tail' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeGroupedProducer325.merged_tag' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProducedNames325.generated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFrameReadback325.complete_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeSourceSelection325.approved_priority_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSourceSelection325.actual_local_compiler' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSourceSelection325.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeSourceFixture325.exact_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeSourceFixture325.early_frame_but_unrecorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSourceFixture325.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]

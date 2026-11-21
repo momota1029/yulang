@@ -1,0 +1,153 @@
+                (¬Yulang.GeneralDeclarativeEmissionOutputs322.Direct impl eq →
+                  Yulang.GeneralDeclarativeClauseOrigins325.Origin s
+                    (Yulang.GeneralDeclarativeSourceEmission322.useOutput impl names targets eq).target
+                    (Yulang.GeneralDeclarativeSubstitution320.logical names.input
+                      Yulang.GeneralNominalMaterialization.Mode.actual e))) →
+        Yulang.GeneralDeclarativeNFEmit324.Read s r i impl cl names compound targets
+@Yulang.GeneralDeclarativeClauseTransport325.inferred : ∀ {name : Nat}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeClauseTransport325.At s name e →
+    Yulang.GeneralDeclarativeEqualities322.Derives s
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable name) e
+@Yulang.GeneralDeclarativeClauseTransport325.from_origin : ∀ {name : Nat}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeClauseOrigins325.Origin s name e →
+    Yulang.GeneralDeclarativeCongruence322.Congruent s e e → Yulang.GeneralDeclarativeClauseTransport325.At s name e
+@Yulang.GeneralDeclarativeClauseTransport325.read_reused : ∀ {i : Yulang.GeneralNominalInspection.Interpretation}
+  {codes : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {compound : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {targets : Nat → Nat}
+  {r : Yulang.GeneralDeclarations.Registry} {s : Yulang.GeneralDeclarativeHead320.State}
+  {cl : Yulang.GeneralDeclarations.Clause} {impl : Yulang.GeneralDeclarations.Declaration}
+  {names : Yulang.GeneralDeclarativeSourceEmission322.Names},
+  Yulang.GeneralNominalCenteredHeadMatExpressions.translateMany r.constructors i
+        (List.map Yulang.GeneralDeclarationPatterns.normalize cl.arguments) =
+      some codes →
+    (∀ (pos : Nat) (p : Yulang.GeneralDeclarationPatterns.Pattern)
+        (e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+        cl.arguments[pos]? = some p →
+          codes[pos]? = some e →
+            Yulang.GeneralDeclarativeEmissionOperands322.Compound p →
+              Yulang.GeneralDeclarativeClauseTransport325.At s (compound pos).lower
+                  (Yulang.GeneralDeclarativeSubstitution320.logical names.input
+                    Yulang.GeneralNominalMaterialization.Mode.lower e) ∧
+                Yulang.GeneralDeclarativeClauseTransport325.At s (compound pos).center
+                    (Yulang.GeneralDeclarativeSubstitution320.logical names.input
+                      Yulang.GeneralNominalMaterialization.Mode.actual e) ∧
+                  Yulang.GeneralDeclarativeClauseTransport325.At s (compound pos).upper
+                    (Yulang.GeneralDeclarativeSubstitution320.logical names.input
+                      Yulang.GeneralNominalMaterialization.Mode.upper e)) →
+      (∀ (eq : Yulang.GeneralDeclarations.Equation),
+          eq ∈ cl.outputs →
+            ∃ code,
+              Yulang.GeneralNominalCenteredHeadMatExpressions.translate r.constructors i
+                    (Yulang.GeneralDeclarationPatterns.normalize eq.rhs) =
+                  some code ∧
+                (¬Yulang.GeneralDeclarativeEmissionOutputs322.Direct impl eq →
+                  Yulang.GeneralDeclarativeClauseTransport325.At s
+                    (Yulang.GeneralDeclarativeSourceEmission322.useOutput impl names targets eq).target
+                    (Yulang.GeneralDeclarativeSubstitution320.logical names.input
+                      Yulang.GeneralNominalMaterialization.Mode.actual code))) →
+        Yulang.GeneralDeclarativeNFEmit324.Read s r i impl cl names compound targets
+Yulang.GeneralDeclarativeCompoundDecl325.inner_trans : Yulang.GeneralNominalCenteredHeadMatExpressions.translate
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeCompoundDecl325.interpret
+    (Yulang.GeneralDeclarationPatterns.normalize Yulang.GeneralDeclarativeCompoundDecl325.inner) =
+  some Yulang.GeneralDeclarativeCompoundDecl325.innerCode
+Yulang.GeneralDeclarativeCompoundDecl325.outer_trans : Yulang.GeneralNominalCenteredHeadMatExpressions.translate
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeCompoundDecl325.interpret
+    (Yulang.GeneralDeclarationPatterns.normalize Yulang.GeneralDeclarativeCompoundDecl325.outer) =
+  some Yulang.GeneralDeclarativeCompoundDecl325.outerCode
+Yulang.GeneralDeclarativeCompoundDecl325.impl_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralDeclarativeCompoundDecl325.impl
+Yulang.GeneralDeclarativeCompoundDecl325.checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralDeclarativeCompoundDecl325.reg
+Yulang.GeneralDeclarativeCompoundFrame325.exact_emitted : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeCompoundDecl325.impl
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeCompoundDecl325.impl
+      Yulang.GeneralDeclarativeCompoundFrame325.placement Yulang.GeneralDeclarativeCompoundFrame325.parentBase)
+    Yulang.GeneralDeclarativeCompoundFrame325.placement =
+  [Yulang.GeneralDeclarativeCompoundDecl325.call]
+Yulang.GeneralDeclarativeCompoundFrame325.compound_origins : Yulang.GeneralDeclarativeClauseOrigins325.Origin
+    Yulang.GeneralDeclarativeCompoundState325.final 8 Yulang.GeneralDeclarativeCompoundState325.openChild ∧
+  Yulang.GeneralDeclarativeClauseOrigins325.Origin Yulang.GeneralDeclarativeCompoundState325.final 9
+      Yulang.GeneralDeclarativeCompoundState325.openChild ∧
+    Yulang.GeneralDeclarativeClauseOrigins325.Origin Yulang.GeneralDeclarativeCompoundState325.final 10
+      Yulang.GeneralDeclarativeCompoundState325.openChild
+Yulang.GeneralDeclarativeCompoundFrame325.root_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Frame Yulang.GeneralDeclarativeCompoundState325.final
+    Yulang.GeneralDeclarativeCompoundDecl325.reg Yulang.GeneralDeclarativeCompoundDecl325.interpret
+    (Yulang.GeneralDeclarativeCompoundState325.support2 done) Yulang.GeneralDeclarativeCompoundDecl325.demand
+    Yulang.GeneralDeclarativeCompoundDecl325.impl Yulang.GeneralDeclarativeCompoundFrame325.parentBase
+    Yulang.GeneralDeclarativeCompoundFrame325.placement
+Yulang.GeneralDeclarativeCompoundFrame325.child_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Frame Yulang.GeneralDeclarativeCompoundState325.final
+    Yulang.GeneralDeclarativeCompoundDecl325.reg Yulang.GeneralDeclarativeCompoundDecl325.interpret
+    (Yulang.GeneralDeclarativeCompoundState325.support2 done) Yulang.GeneralDeclarativeCompoundDecl325.call
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeCompoundFrame325.childBase
+    Yulang.GeneralDeclarativeCompoundFrame325.placement
+Yulang.GeneralDeclarativeCompoundFrame325.root_recorded : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Recorded Yulang.GeneralDeclarativeCompoundState325.final
+    Yulang.GeneralDeclarativeCompoundDecl325.reg Yulang.GeneralDeclarativeCompoundDecl325.interpret
+    (Yulang.GeneralDeclarativeCompoundState325.support2 done) Yulang.GeneralDeclarativeCompoundDecl325.demand
+    Yulang.GeneralDeclarativeCompoundDecl325.impl Yulang.GeneralDeclarativeCompoundFrame325.parentBase
+    Yulang.GeneralDeclarativeCompoundFrame325.placement
+Yulang.GeneralDeclarativeCompoundFrame325.child_recorded : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeFrameReadback325.Recorded Yulang.GeneralDeclarativeCompoundState325.final
+    Yulang.GeneralDeclarativeCompoundDecl325.reg Yulang.GeneralDeclarativeCompoundDecl325.interpret
+    (Yulang.GeneralDeclarativeCompoundState325.support2 done) Yulang.GeneralDeclarativeCompoundDecl325.call
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeCompoundFrame325.childBase
+    Yulang.GeneralDeclarativeCompoundFrame325.placement
+Yulang.GeneralDeclarativeCompoundProbe325.inner_trace : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeTrace321.Trace
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCompoundState325.support2 done))
+    Yulang.GeneralNominalMaterialization.Mode.actual 7 Yulang.GeneralDeclarativeCompoundDecl325.innerCode
+    [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual, argument := 3 }]
+Yulang.GeneralDeclarativeCompoundProbe325.lower_trace : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeTrace321.Trace
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCompoundState325.support2 done))
+    Yulang.GeneralNominalMaterialization.Mode.lower 0 Yulang.GeneralDeclarativeCompoundDecl325.outerCode
+    [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual, argument := 3 }]
+Yulang.GeneralDeclarativeCompoundProbe325.upper_trace : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeTrace321.Trace
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCompoundState325.support2 done))
+    Yulang.GeneralNominalMaterialization.Mode.upper 2 Yulang.GeneralDeclarativeCompoundDecl325.outerCode
+    [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual, argument := 3 }]
+Yulang.GeneralDeclarativeCompoundProbe325.root_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeCompoundState325.support2 done)
+    Yulang.GeneralDeclarativeCompoundDecl325.demand
+Yulang.GeneralDeclarativeCompoundProbe325.child_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeCompoundState325.support2 done)
+    Yulang.GeneralDeclarativeCompoundDecl325.call
+Yulang.GeneralDeclarativeCompoundProbe325.root_probe : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCompoundState325.support2 done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeCompoundDecl325.interpret
+    Yulang.GeneralDeclarativeCompoundDecl325.demand Yulang.GeneralDeclarativeCompoundDecl325.impl
+Yulang.GeneralDeclarativeCompoundProbe325.child_probe : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCompoundState325.support2 done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeCompoundDecl325.interpret
+    Yulang.GeneralDeclarativeCompoundDecl325.call Yulang.GeneralDeclarativeExampleSource320.leaf
+@Yulang.GeneralDeclarativeCompoundProbe325.alias_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias Yulang.GeneralDeclarativeCompoundState325.final a b →
+    Yulang.GeneralDeclarativeCompoundProbe325.rank a = Yulang.GeneralDeclarativeCompoundProbe325.rank b
+Yulang.GeneralDeclarativeCompoundProbe325.no_cycle : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeCompoundState325.final
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeCompoundState325.final) n
+Yulang.GeneralDeclarativeCompoundProbe325.safe : ∀ (done : Nat → Prop) (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeCompoundState325.final
+      Yulang.GeneralDeclarativeCompoundDecl325.reg Yulang.GeneralDeclarativeCompoundDecl325.interpret
+      (Yulang.GeneralDeclarativeCompoundProbe325.tests done) d
+Yulang.GeneralDeclarativeCompoundResolve325.parent_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeCompoundDecl325.reg.declarations →
+    d.role = Yulang.GeneralDeclarativeCompoundDecl325.demand.role → d = Yulang.GeneralDeclarativeCompoundDecl325.impl
+Yulang.GeneralDeclarativeCompoundResolve325.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeCompoundDecl325.reg.declarations →
+    d.role = Yulang.GeneralDeclarativeCompoundDecl325.call.role → d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeCompoundResolve325.selected_parent : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeCompoundResolve325.branch done Yulang.GeneralDeclarativeCompoundDecl325.demand
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeCompoundDecl325.impl.id
+      [Yulang.GeneralDeclarativeCompoundDecl325.call])
+Yulang.GeneralDeclarativeCompoundResolve325.selected_child : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeCompoundResolve325.branch done Yulang.GeneralDeclarativeCompoundDecl325.call
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])

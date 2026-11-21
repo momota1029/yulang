@@ -1,0 +1,11 @@
+'Yulang.GeneralDeclarativeSparseWhere325.direct_omitted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFreshWhere325.count' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFreshWhere325.projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereIntervals325.preserve_with_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeFreshInputs325.names_observed' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeFreshInputs325.whole_input_projection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeReplayNames325.replay' depends on axioms: [propext, Classical.choice, Quot.sound]

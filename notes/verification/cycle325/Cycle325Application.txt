@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeOrdinaryIncrease325.derives' does not depend on any axioms
+'Yulang.GeneralDeclarativeFrameIncrease325.after_emit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeSourceAdvance325.selected_application' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAdvanceFixture325.composed_actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeDerivedSource325.ordinary_rules' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeDerivedSource325.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedAliasState325.literal_absent' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNamedAliasResolve325.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedAliasResolve325.real_nonliteral' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

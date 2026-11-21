@@ -1,0 +1,18 @@
+  {start : Nat} {jobs : List (Option Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)} {n : Nat},
+  jobs[n]? = some (some code) →
+    Yulang.GeneralDeclarativeWhereLayouts325.links (Yulang.GeneralDeclarativeSparseWhere325.atPosition start jobs n) ⊆
+      Yulang.GeneralDeclarativeWhereLayouts325.spans start jobs
+@Yulang.GeneralDeclarativeWhereLayouts325.of_compound : ∀ {start : Nat} {link : Nat × Nat}
+  {jobs : List (Option Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)},
+  link ∈ Yulang.GeneralDeclarativeWhereLayouts325.spans start jobs →
+    ∃ n code,
+      jobs[n]? = some (some code) ∧
+        link ∈
+          Yulang.GeneralDeclarativeWhereLayouts325.links
+            (Yulang.GeneralDeclarativeSparseWhere325.atPosition start jobs n)
+@Yulang.GeneralDeclarativeWhereLayouts325.find_position : ∀
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {ps : List Yulang.GeneralDeclarationPatterns.Pattern}
+  {es : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {n : Nat},
+  (Yulang.GeneralDeclarativeSparseWhere325.plan ps es)[n]? = some (some code) →
+    ∃ p, ps[n]? = some p ∧ es[n]? = some code ∧ Yulang.GeneralDeclarativeEmissionOperands322.Compound p
+index exit: 0

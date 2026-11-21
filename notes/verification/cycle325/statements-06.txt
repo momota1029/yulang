@@ -1,0 +1,166 @@
+          (Yulang.GeneralDeclarativeNamedAliasState325.sources completed)).equations
+Yulang.GeneralDeclarativeNamedAliasState325.literal_absent : ¬Yulang.GeneralDeclarativeNamedAliasState325.rootOut ∈
+      Yulang.GeneralDeclarativeNamedAliasState325.ordinary.equations ∧
+  ¬Yulang.GeneralDeclarativeNamedAliasState325.childOut ∈ Yulang.GeneralDeclarativeNamedAliasState325.ordinary.equations
+Yulang.GeneralDeclarativeNamedAliasState325.named_where_alias : Yulang.GeneralDeclarativeClauseOrigins325.Origin
+  Yulang.GeneralDeclarativeNamedAliasState325.ordinary 55 Yulang.GeneralDeclarativeHiddenState324.direct
+Yulang.GeneralDeclarativeNamedAliasState325.child_derived : Yulang.GeneralDeclarativeEqualities322.Derives
+  Yulang.GeneralDeclarativeNamedAliasState325.ordinary
+  (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+    Yulang.GeneralDeclarativeNamedAliasState325.childOut.left)
+  Yulang.GeneralDeclarativeNamedAliasState325.childOut.right
+Yulang.GeneralDeclarativeNamedAliasState325.parent_derived : Yulang.GeneralDeclarativeEqualities322.Derives
+  Yulang.GeneralDeclarativeNamedAliasState325.ordinary
+  (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+    Yulang.GeneralDeclarativeNamedAliasState325.rootOut.left)
+  Yulang.GeneralDeclarativeNamedAliasState325.rootOut.right
+Yulang.GeneralDeclarativeNamedAliasState325.populated : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeNamedAliasState325.ordinary Yulang.GeneralDeclarativeNamedAliasState325.assignment
+@Yulang.GeneralDeclarativeNamedHead325.incidence : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {args : List Yulang.GeneralDeclarativeWhere319.Capture} {ps : List Yulang.GeneralDeclarationPatterns.Pattern}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeNamedHead325.Ordered s c i args ps seen →
+    List.map Yulang.GeneralDeclarativeTermWalk322.Occurrence.binder seen =
+        Yulang.GeneralDeclarationPatterns.variablesArgs (Yulang.GeneralDeclarationPatterns.normalizeArgs ps) ∧
+      ∀ (o : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+        o ∈ seen → o.mode = Yulang.GeneralNominalMaterialization.Mode.actual
+@Yulang.GeneralDeclarativeNamedHead325.all_seen_have_anchors : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {args : List Yulang.GeneralDeclarativeWhere319.Capture} {ps : List Yulang.GeneralDeclarationPatterns.Pattern}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {binder : Nat},
+  Yulang.GeneralDeclarativeNamedHead325.Ordered s c i args ps seen →
+    binder ∈ Yulang.GeneralDeclarationPatterns.variablesArgs (Yulang.GeneralDeclarationPatterns.normalizeArgs ps) →
+      ∃ rep, Yulang.GeneralDeclarativeTermCapture322.first seen binder = some rep
+@Yulang.GeneralDeclarativeNamedHead325.named_ordered : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {args : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {ps : List Yulang.GeneralDeclarationPatterns.Pattern}
+  {seen all : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {pool : Nat → List Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeNamedHead325.Ordered s c i args ps seen →
+    seen ⊆ all →
+      Yulang.GeneralDeclarativeTermCapture322.Shared s all →
+        Yulang.GeneralDeclarativeTermCapture322.KnownNames s all pool →
+          ∀ (initial : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+            Yulang.CommonRoleOutermostResolver.All₂
+              (fun a p =>
+                Yulang.GeneralDeclarativeDemand320.Bounds s a ∧
+                  Yulang.GeneralDeclarativeCompileLists321.Result s
+                    (Yulang.GeneralDeclarativeNFHead324.fact c i
+                      (Yulang.GeneralDeclarativeTermCapture322.named s all pool initial) a p))
+              args ps
+Yulang.GeneralDeclarativeOrdinaryIncrease325.append : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (rows : List Yulang.GeneralDeclarativeHead320.Equation),
+  Yulang.GeneralDeclarativeOrdinaryIncrease325.Extends s (Yulang.GeneralDeclarativeEntailment320.appendFacts s rows)
+@Yulang.GeneralDeclarativeOrdinaryIncrease325.bounds : ∀ {cap : Yulang.GeneralDeclarativeWhere319.Capture}
+  {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOrdinaryIncrease325.Extends s t →
+    Yulang.GeneralDeclarativeDemand320.Bounds s cap → Yulang.GeneralDeclarativeDemand320.Bounds t cap
+@Yulang.GeneralDeclarativeOrdinaryIncrease325.alias : ∀ {a b : Nat} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOrdinaryIncrease325.Extends s t →
+    Yulang.GeneralDeclarativeLowerKnown321.Alias s a b → Yulang.GeneralDeclarativeLowerKnown321.Alias t a b
+@Yulang.GeneralDeclarativeOrdinaryIncrease325.congruent : ∀ {a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOrdinaryIncrease325.Extends s t →
+    Yulang.GeneralDeclarativeCongruence322.Congruent s a b → Yulang.GeneralDeclarativeCongruence322.Congruent t a b
+@Yulang.GeneralDeclarativeOrdinaryIncrease325.derives : ∀ {a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOrdinaryIncrease325.Extends s t →
+    Yulang.GeneralDeclarativeEqualities322.Derives s a b → Yulang.GeneralDeclarativeEqualities322.Derives t a b
+@Yulang.GeneralDeclarativeOrdinaryIncrease325.supported_trace : ∀ {prior current : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {n : Nat}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {uses : List Yulang.GeneralDeclarativeTrace321.Occurrence} {s t : Yulang.GeneralDeclarativeHead320.State}
+  {one : Yulang.GeneralDeclarativeOrigins321.Supported s prior}
+  {two : Yulang.GeneralDeclarativeOrigins321.Supported t current},
+  Yulang.GeneralDeclarativeOrdinaryIncrease325.Extends s t →
+    (Yulang.GeneralDeclarativeOrigins321.restriction one).equations ⊆
+        (Yulang.GeneralDeclarativeOrigins321.restriction two).equations →
+      Yulang.GeneralDeclarativeTrace321.Trace (Yulang.GeneralDeclarativeOrigins321.restriction one) mode n code uses →
+        Yulang.GeneralDeclarativeTrace321.Trace (Yulang.GeneralDeclarativeOrigins321.restriction two) mode n code uses
+@Yulang.GeneralDeclarativePlacedClause325.unique_clause : ∀ {c : Yulang.GeneralDeclarations.Clause}
+  {clauses : List Yulang.GeneralDeclarations.Clause},
+  (List.map Yulang.GeneralDeclarations.Clause.id clauses).Nodup →
+    c ∈ clauses → List.find? (fun x => x.id == c.id) clauses = some c
+@Yulang.GeneralDeclarativePlacedClause325.at_actual_clause : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {roles : Yulang.Roles.RoleDecls} {decl : Yulang.GeneralDeclarations.Declaration}
+  {clause : Yulang.GeneralDeclarations.Clause} {eq : Nat}
+  {place : Yulang.GeneralDeclarativeEmissionForest322.Placement},
+  Yulang.GeneralDeclarations.DeclarationChecked c roles decl →
+    clause ∈ decl.requirements →
+      Yulang.GeneralDeclarativeFrameReadback325.placeById decl place clause.id eq = place.targets clause eq
+@Yulang.GeneralDeclarativePlacedClause325.bound_to_producing_clause : ∀
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {roles : Yulang.Roles.RoleDecls}
+  {decl : Yulang.GeneralDeclarations.Declaration} {binder : Yulang.GeneralDeclarations.OutputBinder}
+  {base : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {place : Yulang.GeneralDeclarativeEmissionForest322.Placement},
+  Yulang.GeneralDeclarations.DeclarationChecked c roles decl →
+    binder ∈ decl.outputBinders →
+      ∃ clause,
+        clause ∈ decl.requirements ∧
+          clause.id = binder.clause ∧
+            ∃ eq,
+              eq ∈ clause.outputs ∧
+                eq.id = binder.equation ∧
+                  (Yulang.GeneralDeclarativeSourceEmission322.useOutput decl
+                        (Yulang.GeneralDeclarativeFrameReadback325.sourceNames decl place base) (place.targets clause)
+                        eq).target =
+                    place.targets clause eq.id
+@Yulang.GeneralDeclarativeProducedNames325.allocation_exact : ∀ {b : Yulang.GeneralDeclarations.OutputBinder}
+  {placed : Nat → Nat → Nat} {bs : List Yulang.GeneralDeclarations.OutputBinder},
+  (List.map Yulang.GeneralDeclarations.OutputBinder.name bs).Nodup →
+    b ∈ bs → Yulang.GeneralDeclarativeProducedNames325.locate bs placed b.name = some (placed b.clause b.equation)
+@Yulang.GeneralDeclarativeProducedNames325.exact_input : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {roles : Yulang.Roles.RoleDecls} {decl : Yulang.GeneralDeclarations.Declaration} {n : Nat} {placed : Nat → Nat → Nat}
+  {resolved : Nat → Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarations.DeclarationChecked c roles decl →
+    n ∈ decl.inputNames → (Yulang.GeneralDeclarativeProducedNames325.table decl placed resolved).input n = resolved n
+@Yulang.GeneralDeclarativeProducedNames325.enters_normal : ∀ {p : Yulang.GeneralDeclarationPatterns.Pattern} {n : Nat}
+  {ps : List Yulang.GeneralDeclarationPatterns.Pattern},
+  p ∈ ps →
+    Yulang.GeneralDeclarationPatterns.normalize p = Yulang.GeneralDeclarationPatterns.Pattern.var n →
+      n ∈ Yulang.GeneralDeclarationPatterns.variablesArgs (Yulang.GeneralDeclarationPatterns.normalizeArgs ps)
+@Yulang.GeneralDeclarativeProducedNames325.exact_clause_input : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {roles : Yulang.Roles.RoleDecls} {decl : Yulang.GeneralDeclarations.Declaration}
+  {clause : Yulang.GeneralDeclarations.Clause} {p : Yulang.GeneralDeclarationPatterns.Pattern} {n : Nat}
+  {placed : Nat → Nat → Nat} {resolved : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {fallback : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarations.DeclarationChecked c roles decl →
+    clause ∈ decl.requirements →
+      p ∈ clause.arguments →
+        Yulang.GeneralDeclarationPatterns.normalize p = Yulang.GeneralDeclarationPatterns.Pattern.var n →
+          Yulang.GeneralDeclarativeSourceEmission322.useArg
+              (Yulang.GeneralDeclarativeProducedNames325.table decl placed resolved) fallback p =
+            resolved n
+Yulang.GeneralDeclarativeProducedNames325.coherent : ∀ (decl : Yulang.GeneralDeclarations.Declaration)
+  (placed : Nat → Nat → Nat) (resolved : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeEmissionOutputs322.Agree decl
+    (Yulang.GeneralDeclarativeProducedNames325.table decl placed resolved)
+@Yulang.GeneralDeclarativeProducedNames325.generated : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {roles : Yulang.Roles.RoleDecls} {decl : Yulang.GeneralDeclarations.Declaration}
+  {binder : Yulang.GeneralDeclarations.OutputBinder} {placed : Nat → Nat → Nat}
+  {resolved : Nat → Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarations.DeclarationChecked c roles decl →
+    binder ∈ decl.outputBinders →
+      ∃ cl,
+        cl ∈ decl.requirements ∧
+          cl.id = binder.clause ∧
+            ∃ eq,
+              eq ∈ cl.outputs ∧
+                eq.id = binder.equation ∧
+                  (Yulang.GeneralDeclarativeSourceEmission322.useOutput decl
+                        (Yulang.GeneralDeclarativeProducedNames325.table decl placed resolved) (placed cl.id)
+                        eq).target =
+                    placed cl.id eq.id
+@Yulang.GeneralDeclarativeRecordProducer325.field_values : ∀
+  {actual normal : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeRecordProducer325.FieldDerives s) actual normal →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models s m →
+        Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeRecordHead323.FieldValue m) actual normal
+@Yulang.GeneralDeclarativeRecordProducer325.normalized_tail : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  {written : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {binder : Nat}
+  {actual : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
