@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeInlineNegative331
+import Yulang.GeneralDeclarativeInlineTwoOwners331
+import Yulang.GeneralDeclarativeInlineView331
+
+#print axioms Yulang.GeneralDeclarativeInlineExact331.capture_exact
+#print axioms Yulang.GeneralDeclarativeInlineExact331.replace_center
+#print axioms Yulang.GeneralDeclarativeInlineNegative331.absent_requested
+#print axioms Yulang.GeneralDeclarativeInlineFootprint331.trace
+#print axioms Yulang.GeneralDeclarativeInlineOrigins331.exact_uses
+#print axioms Yulang.GeneralDeclarativeInlineOrigins331.allocation_origins
+#print axioms Yulang.GeneralDeclarativeInlineTwoOwners331.lower_exact
+#print axioms Yulang.GeneralDeclarativeInlineTwoOwners331.ordinary_satisfies
+#print axioms Yulang.GeneralDeclarativeInlineView331.exact_current_election
