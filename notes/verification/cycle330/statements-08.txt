@@ -1,0 +1,180 @@
+                  (Yulang.CommonRoleCanonicalRows.residual keys (Yulang.CommonRoleCanonicalRows.normalize fields))
+                  terminal) }
+@Yulang.GeneralDeclarativeRecordSpine330.head_known : ∀ {root : Nat}
+  {row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {term : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {k : Yulang.GeneralDeclarativeLowerKnown321.Tag}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeRecordSpine330.Spine s root row term →
+    Yulang.GeneralDeclarativeLowerKnown321.constructorTag
+          (Yulang.GeneralDeclarativeRecordResidual323.withTail row term) =
+        some k →
+      Yulang.GeneralDeclarativeLowerKnown321.Knows s root k
+Yulang.GeneralDeclarativeRecordSplit330.bottom : ∀ (v : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Subtype Yulang.CommonNominalSyntax.Layer.bottom v
+Yulang.GeneralDeclarativeRecordSplit330.lower_agrees : ∀ (key : Nat),
+  Yulang.CommonNominalFullCarrier.Subtype (Yulang.GeneralDeclarativeRecordSplit330.lo key)
+    Yulang.CommonNominalFullCarrier.exactEmpty
+Yulang.GeneralDeclarativeRecordSplit330.interval : ∀ (key : Nat),
+  Yulang.CommonNominalFullCarrier.Subtype (Yulang.GeneralDeclarativeRecordSplit330.lo key)
+      (Yulang.GeneralDeclarativeRecordSplit330.hidden key) ∧
+    Yulang.CommonNominalFullCarrier.Subtype (Yulang.GeneralDeclarativeRecordSplit330.hidden key)
+      (Yulang.GeneralDeclarativeRecordSplit330.hi key)
+Yulang.GeneralDeclarativeRecordSplit330.required_top : ∀ (key : Nat),
+  Yulang.GeneralDeclarativeRecordChannel330.project key false [] (Yulang.GeneralDeclarativeRecordSplit330.hidden key) =
+    some Yulang.CommonNominalSyntax.Layer.top
+Yulang.GeneralDeclarativeRecordSplit330.optional_bottom : ∀ (key : Nat),
+  Yulang.GeneralDeclarativeRecordChannel330.project key true [] (Yulang.GeneralDeclarativeRecordSplit330.hidden key) =
+    some (Yulang.CommonNominalSyntax.Layer.top.inter Yulang.CommonNominalSyntax.Layer.bottom)
+Yulang.GeneralDeclarativeRecordSplit330.required_rejects : ∀ (key : Nat),
+  ¬Yulang.CommonNominalFullDemand.ProbeAt Yulang.Common.rowLe 0 Yulang.GeneralDeclarativeRecordSplit330.env
+      (Yulang.CommonNominalFullCarrier.observeTy 1 (Yulang.GeneralDeclarativeRecordSplit330.hidden key))
+      (Yulang.CommonNominalFinite.Observation.field key
+        (Yulang.CommonNominalFinite.Observation.base Yulang.Inference.Base.int))
+Yulang.GeneralDeclarativeRecordSplit330.optional_accepts : ∀ (key : Nat),
+  Yulang.CommonNominalFullDemand.ProbeAt Yulang.Common.rowLe 0 Yulang.GeneralDeclarativeRecordSplit330.env
+    (Yulang.CommonNominalFullCarrier.observeTy 1 (Yulang.GeneralDeclarativeRecordSplit330.hidden key))
+    (Yulang.CommonNominalFinite.Observation.optional key
+      (Yulang.CommonNominalFinite.Observation.base Yulang.Inference.Base.int))
+Yulang.GeneralDeclarativeRecordSplit330.no_literal : ∀ (key : Nat) (f rest : Yulang.CommonNominalFullCarrier.Ty),
+  ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeRecordSplit330.hidden key)
+      (Yulang.CommonNominalFullCarrier.record key f rest)
+Yulang.GeneralDeclarativeRecordSplit330.obstruction : ∀ (key : Nat),
+  Yulang.CommonNominalFullCarrier.Subtype (Yulang.GeneralDeclarativeRecordSplit330.lo key)
+      (Yulang.GeneralDeclarativeRecordSplit330.hidden key) ∧
+    Yulang.CommonNominalFullCarrier.Subtype (Yulang.GeneralDeclarativeRecordSplit330.hidden key)
+        (Yulang.GeneralDeclarativeRecordSplit330.hi key) ∧
+      ∀ (payload tail : Yulang.CommonNominalFullCarrier.Ty),
+        ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeRecordSplit330.hidden key)
+            (Yulang.CommonNominalFullCarrier.record key payload tail)
+@Yulang.GeneralDeclarativeRecordTail330.show_shadow : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (key root : Nat)
+  (protect : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (payload buried tail : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralDeclarativeHead320.Models s m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m root).fst (Yulang.CommonNominalFullCarrier.record key payload tail) →
+      (Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeRecordNames330.expose s root key protect)
+            (Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m payload tail) ∧
+          ∀ (n : Nat),
+            n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s root protect →
+              Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m payload tail n = m n) ∧
+        Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeRecordNames330.expose s root key protect)
+            (Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m payload
+              (Yulang.CommonNominalFullCarrier.record key buried tail)) ∧
+          ∀ (n : Nat),
+            n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s root protect →
+              Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m payload
+                  (Yulang.CommonNominalFullCarrier.record key buried tail) n =
+                m n
+Yulang.GeneralDeclarativeRecordTail330.distinct_tails : ∀ (key : Nat) (extra : Yulang.CommonNominalFullCarrier.Ty),
+  ¬Yulang.CommonNominalFullCarrier.Equivalent Yulang.CommonNominalFullCarrier.exactEmpty
+      (Yulang.CommonNominalFullCarrier.record key extra Yulang.CommonNominalFullCarrier.exactEmpty)
+Yulang.GeneralDeclarativeRecordTail330.incoming : ∀ (key : Nat),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRecordTail330.clean
+    (Yulang.GeneralDeclarativeRecordTail330.input key)
+Yulang.GeneralDeclarativeRecordTail330.does_not_fix_remainder : ∀ (key root : Nat) (protect : List Nat),
+  ∃ m n,
+    (Yulang.GeneralDeclarativeHead320.Models
+          (Yulang.GeneralDeclarativeRecordNames330.expose Yulang.GeneralDeclarativeRecordTail330.clean root key protect)
+          m ∧
+        Yulang.GeneralDeclarativeHead320.Models
+          (Yulang.GeneralDeclarativeRecordNames330.expose Yulang.GeneralDeclarativeRecordTail330.clean root key protect)
+          n) ∧
+      (∀ (q : Nat),
+          q ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept Yulang.GeneralDeclarativeRecordTail330.clean root protect →
+            m q = n q) ∧
+        ¬Yulang.CommonNominalFullCarrier.Equivalent
+            (m
+                (Yulang.GeneralDeclarativeOpaqueNames328.second Yulang.GeneralDeclarativeRecordTail330.clean root
+                  protect)).fst
+            (n
+                (Yulang.GeneralDeclarativeOpaqueNames328.second Yulang.GeneralDeclarativeRecordTail330.clean root
+                  protect)).fst
+@Yulang.GeneralDeclarativeUnfinishedRoot330.blocked_and_cyclic : ∀ {done : Nat → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeUnfinishedRoot330.UnfinishedRoot p d →
+    Yulang.GeneralDeclarativeLowerKnown321.Delayed p d ∧ Yulang.GeneralDeclarativePriority321.RootRecurs s d
+@Yulang.GeneralDeclarativeUnfinishedRoot330.priority : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {generate :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {out : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarativeUnfinishedRoot330.UnfinishedRoot p d →
+    Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 s r i p tests generate d out →
+      out = Yulang.CommonRoleOutermostResolver.Frontier.rejected
+@Yulang.GeneralDeclarativeUnfinishedRoot330.reject_without_children : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {generate :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarativeUnfinishedRoot330.UnfinishedRoot p d →
+    Yulang.CommonRoleOutermostResolver.Classify
+      (Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 s r i p tests generate) d
+      Yulang.CommonRoleOutermostResolver.Result.rejected
+@Yulang.GeneralDeclarativeUnfinishedRoot330.selected_old_exact : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {generate :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {key : Nat} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 s r i p tests generate d
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key kids) ↔
+    Yulang.GeneralDeclarativePriority321.Local s r i p tests generate d
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key kids)
+@Yulang.GeneralDeclarativeUnfinishedRoot330.receipt_witness : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeEvidenceFold325.LocalWitness r i s
+        (Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 s r i p tests
+          (Yulang.GeneralDeclarativeCurrentReceipt330.Staged s r i))
+@Yulang.GeneralDeclarativeUnfinishedRoot330.dictionary_sound : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {dictionary : Yulang.CommonRoleOutermostResolver.Dictionary}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+        Yulang.GeneralDeclarativeHead320.Models s m →
+          Yulang.CommonRoleOutermostResolver.Classify
+              (Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 s r i p tests
+                (Yulang.GeneralDeclarativeCurrentReceipt330.Staged s r i))
+              d (Yulang.CommonRoleOutermostResolver.Result.selected dictionary) →
+            Yulang.GeneralDeclarativeEvidence320.Evidence r i m d dictionary
+Yulang.GeneralDeclarativeUnfinishedRoot330.cycle321_exact : Yulang.GeneralDeclarativeUnfinishedRoot330.UnfinishedRoot
+  (Yulang.GeneralDeclarativeOverlap321.support False) Yulang.GeneralDeclarativeOverlap321.input
+Yulang.GeneralDeclarativeUnfinishedRoot330.actual_i59 : ∀ (r : Yulang.GeneralDeclarations.Registry)
+  (i : Yulang.GeneralNominalInspection.Interpretation) (tests : Yulang.GeneralDeclarativePriority321.Candidates),
+  Yulang.CommonRoleOutermostResolver.Classify
+    (Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 Yulang.GeneralDeclarativeOverlap321.state r i
+      (Yulang.GeneralDeclarativeOverlap321.support False) tests fun x x_1 x_2 => False)
+    Yulang.GeneralDeclarativeOverlap321.input Yulang.CommonRoleOutermostResolver.Result.rejected
+@Yulang.GeneralDeclarativeUnfinishedRoot330.unchanged_without_root : ∀ {done : Nat → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {generate :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {verdict : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  ¬Yulang.GeneralDeclarativePriority321.RootRecurs s d →
+    (Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 s r i p tests generate d verdict ↔
+      Yulang.GeneralDeclarativePriority321.Local s r i p tests generate d verdict)
+@Yulang.GeneralDeclarativeUnfinishedRoot330.no_emission_needed : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarativeUnfinishedRoot330.UnfinishedRoot p d →
+    Yulang.CommonRoleOutermostResolver.Classify
+      (Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 s r i p tests fun x x_1 x_2 => False) d
+      Yulang.CommonRoleOutermostResolver.Result.rejected
