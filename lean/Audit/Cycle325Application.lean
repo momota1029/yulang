@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeAdvanceFixture325
+import Yulang.GeneralDeclarativeNamedAliasResolve325
+
+#print axioms Yulang.GeneralDeclarativeOrdinaryIncrease325.derives
+#print axioms Yulang.GeneralDeclarativeFrameIncrease325.after_emit
+#print axioms Yulang.GeneralDeclarativeSourceAdvance325.selected_application
+#print axioms Yulang.GeneralDeclarativeAdvanceFixture325.composed_actual
+#print axioms Yulang.GeneralDeclarativeDerivedSource325.ordinary_rules
+#print axioms Yulang.GeneralDeclarativeDerivedSource325.sound
+#print axioms Yulang.GeneralDeclarativeNamedAliasState325.literal_absent
+#print axioms Yulang.GeneralDeclarativeNamedAliasResolve325.every_model
+#print axioms Yulang.GeneralDeclarativeNamedAliasResolve325.real_nonliteral
