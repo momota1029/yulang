@@ -1,0 +1,146 @@
+        Yulang.GeneralDeclarativeExampleSource320.root
+        (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeExampleTree320.dictionary) ∧
+      Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeExampleSource320.registry
+        Yulang.GeneralDeclarativeExampleSource320.interp m Yulang.GeneralDeclarativeExampleSource320.root
+        Yulang.GeneralDeclarativeExampleTree320.dictionary
+Yulang.GeneralDeclarativeProvisionalClosure323.closure_inhabited : Yulang.GeneralDeclarativeHead320.Models
+    Yulang.GeneralDeclarativeProvisionalClosure323.closed Yulang.GeneralDeclarativeExistingFixture322.model ∧
+  Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeExampleSource320.registry
+    Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeExistingFixture322.model
+    Yulang.GeneralDeclarativeExampleSource320.root Yulang.GeneralDeclarativeExampleTree320.dictionary
+Yulang.GeneralDeclarativeProvisionalFailure323.real_fixed_row : Yulang.GeneralDeclarativeOutputFacts320.rootFact
+    Yulang.GeneralDeclarativeExampleSource320.registry Yulang.GeneralDeclarativeExampleSource320.interp
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeExampleSource320.child
+    Yulang.GeneralDeclarativeEmissionFixture322.leafNames.input { name := 1, target := 5 } =
+  some [Yulang.GeneralDeclarativeProvisionalFixture323.row]
+Yulang.GeneralDeclarativeProvisionalFailure323.real_child_compiler : Yulang.GeneralDeclarativeNodeFacts320.nodeFacts
+    Yulang.GeneralDeclarativeExampleSource320.registry Yulang.GeneralDeclarativeExampleSource320.interp
+    Yulang.GeneralDeclarativeEmissionFixture322.leafNames.input Yulang.GeneralDeclarativeExampleSource320.leaf
+    Yulang.GeneralDeclarativeExampleSource320.child [] =
+  some
+    [{ left := 3, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+      Yulang.GeneralDeclarativeProvisionalFixture323.row]
+Yulang.GeneralDeclarativeProvisionalFailure323.root_output_already_holds : Yulang.GeneralDeclarativeOutputs320.OutputMeaning
+  Yulang.GeneralDeclarativeExampleSource320.registry.roles
+  Yulang.GeneralDeclarativeExampleSource320.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+  Yulang.GeneralDeclarationExamples.wrap Yulang.GeneralDeclarativeExampleSource320.root
+  Yulang.GeneralDeclarativeExistingFixture322.parentCapture Yulang.GeneralDeclarativeProvisionalFixture323.countermodel
+  { name := 0, target := 6 }
+Yulang.GeneralDeclarativeProvisionalFailure323.no_child_evidence : ¬Yulang.GeneralDeclarativeEvidence320.Evidence
+    Yulang.GeneralDeclarativeExampleSource320.registry Yulang.GeneralDeclarativeExampleSource320.interp
+    Yulang.GeneralDeclarativeProvisionalFixture323.countermodel Yulang.GeneralDeclarativeExampleSource320.child
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+@Yulang.GeneralDeclarativeProvisionalFailure323.nominal_payload : ∀ {x y : Yulang.CommonNominalFullCarrier.Ty},
+  Yulang.CommonNominalFullCarrier.Equivalent (Yulang.CommonNominalFullCarrier.nominal 0 [Sum.inl x])
+      (Yulang.CommonNominalFullCarrier.nominal 0 [Sum.inl y]) →
+    Yulang.CommonNominalFullCarrier.Equivalent x y
+Yulang.GeneralDeclarativeProvisionalFailure323.no_root_evidence : ¬Yulang.GeneralDeclarativeEvidence320.Evidence
+    Yulang.GeneralDeclarativeExampleSource320.registry Yulang.GeneralDeclarativeExampleSource320.interp
+    Yulang.GeneralDeclarativeProvisionalFixture323.countermodel Yulang.GeneralDeclarativeExampleSource320.root
+    Yulang.GeneralDeclarativeExampleTree320.dictionary
+Yulang.GeneralDeclarativeProvisionalFailure323.provisional_counterexample : Yulang.CommonRoleOutermostResolver.Classify
+    Yulang.GeneralDeclarativeProvisionalSelect323.localRule Yulang.GeneralDeclarativeExampleSource320.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeExampleTree320.dictionary) ∧
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeProvisionalFixture323.before
+      Yulang.GeneralDeclarativeProvisionalFixture323.countermodel ∧
+    ¬Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeExampleSource320.registry
+        Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeProvisionalFixture323.countermodel
+        Yulang.GeneralDeclarativeExampleSource320.root Yulang.GeneralDeclarativeExampleTree320.dictionary
+Yulang.GeneralDeclarativeProvisionalFailure323.not_compiles : ¬Yulang.GeneralDeclarativeCompilerTree320.Compiles
+    Yulang.GeneralDeclarativeProvisionalFixture323.before Yulang.GeneralDeclarativeExampleSource320.registry
+    Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeProvisionalSelect323.localRule
+Yulang.GeneralDeclarativeProvisionalFixture323.subsetOrdinary : Yulang.GeneralDeclarativeProvisionalFixture323.before.equations ⊆
+  Yulang.GeneralDeclarativeExistingFixture322.state.equations
+Yulang.GeneralDeclarativeProvisionalFixture323.before_model : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeProvisionalFixture323.before Yulang.GeneralDeclarativeProvisionalFixture323.countermodel
+Yulang.GeneralDeclarativeProvisionalFixture323.not_output : ¬Yulang.GeneralDeclarativeEntailment320.Holds
+    Yulang.GeneralDeclarativeProvisionalFixture323.countermodel Yulang.GeneralDeclarativeProvisionalFixture323.row
+Yulang.GeneralDeclarativeProvisionalFixture323.fixedVarying : ¬Yulang.GeneralDeclarativeEntailment320.Entails
+    Yulang.GeneralDeclarativeProvisionalFixture323.before Yulang.GeneralDeclarativeProvisionalFixture323.row
+Yulang.GeneralDeclarativeProvisionalFixture323.no_cycle_before : ∀ (name : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeProvisionalFixture323.before
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeProvisionalFixture323.before) name
+Yulang.GeneralDeclarativeProvisionalFixture323.supported_row : ∀ (n : Nat)
+  (e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  { left := n, right := e } ∈ Yulang.GeneralDeclarativeExistingFixture322.equations →
+    n ≠ 5 →
+      Yulang.GeneralDeclarativeExistingFixture322.inputOnly n →
+        { left := n, right := e } ∈
+          (Yulang.GeneralDeclarativeOrigins321.restriction
+              Yulang.GeneralDeclarativeProvisionalFixture323.inputSupport).equations
+Yulang.GeneralDeclarativeProvisionalFixture323.bottom : { left := 0,
+    right :=
+      Yulang.GeneralDeclarativeExistingFixture322.nominalCode
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3) } ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction
+      Yulang.GeneralDeclarativeProvisionalFixture323.inputSupport).equations
+Yulang.GeneralDeclarativeProvisionalFixture323.top : { left := 2,
+    right :=
+      Yulang.GeneralDeclarativeExistingFixture322.nominalCode
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 4) } ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction
+      Yulang.GeneralDeclarativeProvisionalFixture323.inputSupport).equations
+Yulang.GeneralDeclarativeProvisionalFixture323.pair : { left := 3,
+    right := Yulang.GeneralDeclarativeExistingFixture322.product } ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction
+      Yulang.GeneralDeclarativeProvisionalFixture323.inputSupport).equations
+Yulang.GeneralDeclarativeProvisionalFixture323.readyRoot : Yulang.GeneralDeclarativeLowerKnown321.Ready
+  Yulang.GeneralDeclarativeProvisionalFixture323.inputSupport Yulang.GeneralDeclarativeExampleSource320.root
+Yulang.GeneralDeclarativeProvisionalFixture323.readyChild : Yulang.GeneralDeclarativeLowerKnown321.Ready
+  Yulang.GeneralDeclarativeProvisionalFixture323.inputSupport Yulang.GeneralDeclarativeExampleSource320.child
+Yulang.GeneralDeclarativeProvisionalFixture323.no_recurs : ∀ (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeProvisionalFixture323.before
+      Yulang.GeneralDeclarativeExampleSource320.registry Yulang.GeneralDeclarativeExampleSource320.interp
+      Yulang.GeneralDeclarativeProvisionalFixture323.test d
+Yulang.GeneralDeclarativeProvisionalFixture323.root_matches : Yulang.GeneralDeclarativeProvisionalFixture323.test.viable
+  Yulang.GeneralDeclarativeExampleSource320.root Yulang.GeneralDeclarationExamples.wrap
+Yulang.GeneralDeclarativeProvisionalFixture323.leaf_matches : Yulang.GeneralDeclarativeProvisionalFixture323.test.viable
+  Yulang.GeneralDeclarativeExampleSource320.child Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeProvisionalSelect323.parent_selected : Yulang.GeneralDeclarativeProvisionalSelect323.localRule
+  Yulang.GeneralDeclarativeExampleSource320.root
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarationExamples.wrap.id
+    [Yulang.GeneralDeclarativeExampleSource320.child])
+Yulang.GeneralDeclarativeProvisionalSelect323.child_selected : Yulang.GeneralDeclarativeProvisionalSelect323.localRule
+  Yulang.GeneralDeclarativeExampleSource320.child
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeProvisionalSelect323.before_tree : Yulang.CommonRoleOutermostResolver.Classify
+  Yulang.GeneralDeclarativeProvisionalSelect323.localRule Yulang.GeneralDeclarativeExampleSource320.root
+  (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeExampleTree320.dictionary)
+Yulang.GeneralDeclarativeRecordFixture323.based_on_actual_remainder : Yulang.GeneralDeclarativeCompileLists321.Result
+  Yulang.GeneralDeclarativeRecordFixture323.state
+  (Yulang.GeneralDeclarativeArgumentFacts320.headFact Yulang.GeneralDeclarativeExampleSource320.registry.constructors
+    Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeRecordFixture323.capture
+    (Yulang.GeneralDeclarativeExampleSource320.point 0) Yulang.GeneralDeclarativeRecordFixture323.source)
+Yulang.GeneralDeclarativeRecordFixture323.fits : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeRecordFixture323.state Yulang.GeneralDeclarativeRecordFixture323.model
+Yulang.GeneralDeclarativeRecordFixture323.closed_nonempty : Yulang.GeneralDeclarativeHead320.Models
+    Yulang.GeneralDeclarativeRecordFixture323.state Yulang.GeneralDeclarativeRecordFixture323.model ∧
+  Yulang.GeneralDeclarativeCompileLists321.Result Yulang.GeneralDeclarativeRecordFixture323.state
+    (Yulang.GeneralDeclarativeArgumentFacts320.headFact Yulang.GeneralDeclarativeExampleSource320.registry.constructors
+      Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeRecordFixture323.capture
+      (Yulang.GeneralDeclarativeExampleSource320.point 0) Yulang.GeneralDeclarativeRecordFixture323.source)
+Yulang.GeneralDeclarativeRecordHead323.logical_spine : ∀ (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+  (mode : Yulang.GeneralNominalMaterialization.Mode)
+  (fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (tail : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeSubstitution320.logical cap mode
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail fields tail) =
+    Yulang.GeneralDeclarativeRecordResidual323.withTail
+      (Yulang.GeneralDeclarativeRecordWalk323.substFields cap mode fields)
+      (Yulang.GeneralDeclarativeSubstitution320.logical cap mode tail)
+@Yulang.GeneralDeclarativeRecordHead323.field_congr : ∀
+  {xs ys : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {forever actual : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeRecordHead323.FieldValue m) xs ys →
+    Yulang.GeneralDeclarativeRepeatedActual323.eqAt m forever actual →
+      Yulang.GeneralDeclarativeRepeatedActual323.eqAt m (Yulang.GeneralDeclarativeRecordResidual323.withTail xs forever)
+        (Yulang.GeneralDeclarativeRecordResidual323.withTail ys actual)
+Yulang.GeneralDeclarativeRecordHead323.selected_nodup : ∀
+  (actual : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (written : List Nat),
+  (List.map Prod.fst actual).Nodup → (List.map Prod.fst (Yulang.CommonRoleCanonicalRows.selected written actual)).Nodup
+@Yulang.GeneralDeclarativeRecordHead323.permuted_head : ∀ {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {inSourceOrder : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {binder : Nat} {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}

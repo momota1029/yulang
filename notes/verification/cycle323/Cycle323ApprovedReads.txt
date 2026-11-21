@@ -1,0 +1,12 @@
+'Yulang.GeneralDeclarativeStableRigid323.stable_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRigidLocal323.exact_batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePlainCapture323.tag_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativePlainFixture323.declaration_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativePlainFixture323.union_alone_does_not_give_whole' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRecordWalk323.closed_record' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOutputOrigins323.probing_unchanged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTraceExpand323.expands' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeRigidProbe323.nominal_probe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTraceCapture323.trace_shared' depends on axioms: [propext, Quot.sound]

@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeStableRigid323
+import Yulang.GeneralDeclarativePlainFixture323
+import Yulang.GeneralDeclarativeRecordWalk323
+import Yulang.GeneralDeclarativeOutputOrigins323
+import Yulang.GeneralDeclarativeRigidProbe323
+import Yulang.GeneralDeclarativeTraceCapture323
+
+#print axioms Yulang.GeneralDeclarativeStableRigid323.stable_sound
+#print axioms Yulang.GeneralDeclarativeRigidLocal323.exact_batch
+#print axioms Yulang.GeneralDeclarativePlainCapture323.tag_head
+#print axioms Yulang.GeneralDeclarativePlainFixture323.declaration_checked
+#print axioms Yulang.GeneralDeclarativePlainFixture323.union_alone_does_not_give_whole
+#print axioms Yulang.GeneralDeclarativeRecordWalk323.closed_record
+#print axioms Yulang.GeneralDeclarativeOutputOrigins323.probing_unchanged
+#print axioms Yulang.GeneralDeclarativeTraceExpand323.expands
+#print axioms Yulang.GeneralDeclarativeRigidProbe323.nominal_probe
+#print axioms Yulang.GeneralDeclarativeTraceCapture323.trace_shared

@@ -1,0 +1,150 @@
+  {xs ys : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeRecordWalk323.Fields mode xs ys seen →
+    (List.map Prod.fst xs).Nodup →
+      Yulang.GeneralDeclarativeRepeatedActual323.eqAt m (Yulang.GeneralDeclarativeRecordWalk323.recordExpr xs)
+          (Yulang.GeneralDeclarativeSubstitution320.logical cap mode
+            (Yulang.GeneralDeclarativeRecordWalk323.recordExpr ys)) →
+        ∀ (label : Nat) (first last : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+          (label, first) ∈ xs →
+            (label, last) ∈ ys →
+              Yulang.GeneralDeclarativeRepeatedActual323.eqAt m first
+                (Yulang.GeneralDeclarativeSubstitution320.logical cap mode last)
+@Yulang.GeneralDeclarativeRecordWalk323.from_payloads : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {xs ys : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeRecordWalk323.Fields mode xs ys seen →
+    (∀ (l : Nat) (a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+        (l, a) ∈ xs →
+          (l, b) ∈ ys →
+            Yulang.GeneralDeclarativeRepeatedActual323.eqAt m a
+              (Yulang.GeneralDeclarativeSubstitution320.logical cap mode b)) →
+      Yulang.GeneralDeclarativeRepeatedActual323.BindsAt m cap seen
+@Yulang.GeneralDeclarativeRecordWalk323.builds_record : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {xs ys : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeRecordWalk323.Fields mode xs ys seen →
+    Yulang.GeneralDeclarativeRepeatedActual323.BindsAt m cap seen →
+      Yulang.GeneralDeclarativeRepeatedActual323.eqAt m (Yulang.GeneralDeclarativeRecordWalk323.recordExpr xs)
+        (Yulang.GeneralDeclarativeSubstitution320.logical cap mode
+          (Yulang.GeneralDeclarativeRecordWalk323.recordExpr ys))
+@Yulang.GeneralDeclarativeRecordWalk323.closed_record : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {xs ys : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeRecordWalk323.Fields mode xs ys seen →
+    (List.map Prod.fst xs).Nodup →
+      Yulang.GeneralDeclarativeExactWalk323.Exact mode (Yulang.GeneralDeclarativeRecordWalk323.recordExpr xs)
+        (Yulang.GeneralDeclarativeRecordWalk323.recordExpr ys) seen
+Yulang.GeneralDeclarativeRepeatedActual323.split_binds : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+  (before after : List Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+  Yulang.GeneralDeclarativeRepeatedActual323.BindsAt m cap (before ++ after) ↔
+    Yulang.GeneralDeclarativeRepeatedActual323.BindsAt m cap before ∧
+      Yulang.GeneralDeclarativeRepeatedActual323.BindsAt m cap after
+Yulang.GeneralDeclarativeRepeatedActual323.pair_exact : ∀ (a b c d : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent (Yulang.CommonNominalFullCarrier.pair a b)
+      (Yulang.CommonNominalFullCarrier.pair c d) ↔
+    Yulang.CommonNominalFullCarrier.Equivalent a c ∧ Yulang.CommonNominalFullCarrier.Equivalent b d
+@Yulang.GeneralDeclarativeRepeatedActual323.aligned_exact : ∀ {xs ys : List Yulang.CommonNominalFullCarrier.Ty},
+  xs.length = ys.length →
+    (∀ (i : Nat) (x y : Yulang.CommonNominalFullCarrier.Ty),
+        xs[i]? = some x → ys[i]? = some y → Yulang.CommonNominalFullCarrier.Equivalent x y) →
+      Yulang.GeneralNominalMatchedAssembly.Aligned Yulang.CommonNominalFullCarrier.Equivalent xs ys
+Yulang.GeneralDeclarativeRepeatedActual323.nominal_exact : ∀ (tag : Nat)
+  (xs ys : List Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent (Yulang.CommonNominalFullCarrier.nominal tag (List.map Sum.inl xs))
+      (Yulang.CommonNominalFullCarrier.nominal tag (List.map Sum.inl ys)) ↔
+    Yulang.GeneralNominalMatchedAssembly.Aligned Yulang.CommonNominalFullCarrier.Equivalent xs ys
+@Yulang.GeneralDeclarativeRepeatedActual323.rigid_exact : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {term code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeRepeatedActual323.Rigid mode term code seen →
+    (Yulang.GeneralDeclarativeRepeatedActual323.eqAt m term
+        (Yulang.GeneralDeclarativeSubstitution320.logical cap mode code) ↔
+      Yulang.GeneralDeclarativeRepeatedActual323.BindsAt m cap seen)
+Yulang.GeneralDeclarativeRepeatedReads323.a_bounds : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeRepeatedSource323.state Yulang.GeneralDeclarativeRepeatedSource323.a
+Yulang.GeneralDeclarativeRepeatedReads323.b_bounds : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeRepeatedSource323.state Yulang.GeneralDeclarativeRepeatedSource323.b
+Yulang.GeneralDeclarativeRepeatedReads323.point_bounds : ∀ (n : Nat),
+  Yulang.GeneralDeclarativeDemand320.Bounds Yulang.GeneralDeclarativeRepeatedSource323.state
+    (Yulang.GeneralDeclarativeExampleSource320.point n)
+Yulang.GeneralDeclarativeRepeatedReads323.named_A : Yulang.GeneralDeclarativeTrace321.Trace
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeRepeatedSource323.support)
+  Yulang.GeneralNominalMaterialization.Mode.lower 0 Yulang.GeneralDeclarativeRepeatedReads323.code
+  [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual, argument := 3 }]
+Yulang.GeneralDeclarativeRepeatedReads323.named_A_hi : Yulang.GeneralDeclarativeTrace321.Trace
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeRepeatedSource323.support)
+  Yulang.GeneralNominalMaterialization.Mode.upper 2 Yulang.GeneralDeclarativeRepeatedReads323.code
+  [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual, argument := 4 }]
+Yulang.GeneralDeclarativeRepeatedReads323.named_B : Yulang.GeneralDeclarativeTrace321.Trace
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeRepeatedSource323.support)
+  Yulang.GeneralNominalMaterialization.Mode.lower 10 Yulang.GeneralDeclarativeRepeatedReads323.code
+  [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual, argument := 7 }]
+Yulang.GeneralDeclarativeRepeatedReads323.named_B_hi : Yulang.GeneralDeclarativeTrace321.Trace
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeRepeatedSource323.support)
+  Yulang.GeneralNominalMaterialization.Mode.upper 12 Yulang.GeneralDeclarativeRepeatedReads323.code
+  [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual, argument := 8 }]
+Yulang.GeneralDeclarativeRepeatedReads323.probes : Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeRepeatedSource323.support)
+  Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+  Yulang.GeneralDeclarativeRepeatedSource323.goal Yulang.GeneralDeclarativeRepeatedSource323.parent
+Yulang.GeneralDeclarativeRepeatedReads323.child_probe : Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeRepeatedSource323.support)
+  Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+  Yulang.GeneralDeclarativeRepeatedSource323.emitted Yulang.GeneralDeclarativeRepeatedSource323.child
+Yulang.GeneralDeclarativeRepeatedReads323.parent_ready : Yulang.GeneralDeclarativeLowerKnown321.Ready
+  Yulang.GeneralDeclarativeRepeatedSource323.support Yulang.GeneralDeclarativeRepeatedSource323.goal
+Yulang.GeneralDeclarativeRepeatedReads323.child_ready : Yulang.GeneralDeclarativeLowerKnown321.Ready
+  Yulang.GeneralDeclarativeRepeatedSource323.support Yulang.GeneralDeclarativeRepeatedSource323.emitted
+Yulang.GeneralDeclarativeRepeatedReads323.scanned : Yulang.GeneralDeclarativeRigidSource323.Ordered
+  Yulang.GeneralDeclarativeRepeatedSource323.state Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors
+  Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeRepeatedSource323.goal.arguments
+  Yulang.GeneralDeclarativeRepeatedSource323.parent.head
+  (List.map Yulang.GeneralDeclarativeTraceExpand323.convert Yulang.GeneralDeclarativeRepeatedReads323.observed)
+Yulang.GeneralDeclarativeRepeatedReads323.shared : Yulang.GeneralDeclarativeTraceCapture323.OrdinarySharing
+  Yulang.GeneralDeclarativeRepeatedSource323.state Yulang.GeneralDeclarativeRepeatedReads323.observed
+Yulang.GeneralDeclarativeRepeatedReads323.capture_exact : Yulang.GeneralDeclarativeRepeatedReads323.capA 0 =
+  Yulang.GeneralDeclarativeExampleSource320.point 3
+Yulang.GeneralDeclarativeRepeatedReads323.actual_child : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeRepeatedSource323.parent Yulang.GeneralDeclarativeRepeatedReads323.parentNames
+    Yulang.GeneralDeclarativeRepeatedReads323.place =
+  [Yulang.GeneralDeclarativeRepeatedSource323.emitted]
+Yulang.GeneralDeclarativeRepeatedReads323.parent_reads : Yulang.GeneralDeclarativeRigidLocal323.RigidReads
+  Yulang.GeneralDeclarativeRepeatedSource323.state Yulang.GeneralDeclarativeRepeatedSource323.registry
+  Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeRepeatedSource323.goal
+  Yulang.GeneralDeclarativeRepeatedSource323.parent Yulang.GeneralDeclarativeRepeatedReads323.parentNames
+  Yulang.GeneralDeclarativeRepeatedReads323.place
+Yulang.GeneralDeclarativeRepeatedReads323.child_reads : Yulang.GeneralDeclarativeRigidLocal323.RigidReads
+  Yulang.GeneralDeclarativeRepeatedSource323.state Yulang.GeneralDeclarativeRepeatedSource323.registry
+  Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeRepeatedSource323.emitted
+  Yulang.GeneralDeclarativeRepeatedSource323.child Yulang.GeneralDeclarativeRepeatedReads323.childNames
+  Yulang.GeneralDeclarativeRepeatedReads323.place
+@Yulang.GeneralDeclarativeRepeatedResolve323.monotonic_bound : ∀ {x y : Nat},
+  Yulang.GeneralDeclarativeBounds319.Bound Yulang.GeneralDeclarativeRepeatedSource323.state.normal x y →
+    Yulang.GeneralDeclarativeRepeatedResolve323.level x = Yulang.GeneralDeclarativeRepeatedResolve323.level y
+@Yulang.GeneralDeclarativeRepeatedResolve323.row_level : ∀ {a b : Nat},
+  { left := a, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable b } ∈
+      Yulang.GeneralDeclarativeRepeatedSource323.state.equations →
+    Yulang.GeneralDeclarativeRepeatedResolve323.level a = Yulang.GeneralDeclarativeRepeatedResolve323.level b
+Yulang.GeneralDeclarativeRepeatedResolve323.no_cycle : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeRepeatedSource323.state
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeRepeatedSource323.state) n
+Yulang.GeneralDeclarativeRepeatedResolve323.no_recurs : ∀ (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeRepeatedSource323.state
+      Yulang.GeneralDeclarativeRepeatedSource323.registry Yulang.GeneralDeclarativeExampleSource320.interp
+      Yulang.GeneralDeclarativeRepeatedResolve323.tests d
+Yulang.GeneralDeclarativeRepeatedResolve323.parent_only : ∀ (impl : Yulang.GeneralDeclarations.Declaration),
+  impl ∈ Yulang.GeneralDeclarativeRepeatedSource323.registry.declarations →
+    impl.role = Yulang.GeneralDeclarativeRepeatedSource323.goal.role →
+      impl = Yulang.GeneralDeclarativeRepeatedSource323.parent
+Yulang.GeneralDeclarativeRepeatedResolve323.child_only : ∀ (impl : Yulang.GeneralDeclarations.Declaration),
+  impl ∈ Yulang.GeneralDeclarativeRepeatedSource323.registry.declarations →
+    impl.role = Yulang.GeneralDeclarativeRepeatedSource323.emitted.role →
+      impl = Yulang.GeneralDeclarativeRepeatedSource323.child
+Yulang.GeneralDeclarativeRepeatedResolve323.root_selected : Yulang.GeneralDeclarativeRepeatedResolve323.chosen
+  Yulang.GeneralDeclarativeRepeatedSource323.goal

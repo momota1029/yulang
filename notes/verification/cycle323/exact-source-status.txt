@@ -1,0 +1,2 @@
+cd lean && lake env lean --trust=0 -DwarningAsError=true ../notes/verification/cycle323/exact-source-readback.lean
+source-name check exit: 0
