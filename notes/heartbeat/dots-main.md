@@ -1,9 +1,8 @@
 # dot heartbeat
 
-- cycle: 313
-- status: completed
-- started: 2026-11-21T04:30:00Z
-- updated: 2026-11-21T05:20:12.143Z
-- elapsed_min: 50
-- activity: C313 完了: 初回の実 selected 据付・計算 where 出力と同一モデルの辞書枝を検証
-- report: notes/handoff/dots-cycle-313.md
+- cycle: 314
+- status: running
+- started: 2026-11-21T05:30:00Z
+- updated: 2026-11-21T05:29:16.313Z
+- elapsed_min: -1
+- activity: C314 開始: 履歴あり実到達状態の所有権と同一モデル構成を検証
