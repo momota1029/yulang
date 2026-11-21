@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeExistingLocal322
+
+#print axioms Yulang.GeneralDeclarativeCongruence322.sound
+#print axioms Yulang.GeneralDeclarativeEqualities322.entails
+#print axioms Yulang.GeneralDeclarativeTermWalk322.substitute
+#print axioms Yulang.GeneralDeclarativeTermHead322.actual_result
+#print axioms Yulang.GeneralDeclarativeExistingClause322.existing_result
+#print axioms Yulang.GeneralDeclarativeExistingReturn322.settled_result
+#print axioms Yulang.GeneralDeclarativeExistingLocal322.actual_batch
+#print axioms Yulang.GeneralDeclarativeExistingLocal322.sound
