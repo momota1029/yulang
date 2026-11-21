@@ -7042,3 +7042,6 @@ import Yulang.GeneralDeclarativeGuardCurrent330
 import Yulang.GeneralDeclarativeRecordPayloads330
 import Yulang.GeneralDeclarativeRecordConsumption330
 import Yulang.GeneralDeclarativeUnfinishedRoot330
+import Yulang.GeneralDeclarativeInlineSpine331
+import Yulang.GeneralDeclarativeInlineTrace331
+import Yulang.GeneralDeclarativeInlineEndpoint331
