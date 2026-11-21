@@ -1,0 +1,60 @@
+import Yulang.GeneralVersionedChildDemandCut315
+import Yulang.GeneralVersionedChildEndpointCut315
+import Yulang.GeneralVersionedCompleteInModel315
+import Yulang.GeneralVersionedEndpointAddress315
+import Yulang.GeneralVersionedEndpointBadRow315
+import Yulang.GeneralVersionedEndpointBatch315
+
+#print axioms Yulang.GeneralVersionedChildDemandCut315.ChildDemand
+#print axioms Yulang.GeneralVersionedChildDemandCut315.ForeignKeys
+#print axioms Yulang.GeneralVersionedChildDemandCut315.EndpointReads
+#print axioms Yulang.GeneralVersionedChildDemandCut315.installable
+#print axioms Yulang.GeneralVersionedChildDemandCut315.node_and_edges
+#print axioms Yulang.GeneralVersionedChildDemandCut315.evidenceNode
+#print axioms Yulang.GeneralVersionedChildDemandCut315.old_foreign
+#print axioms Yulang.GeneralVersionedChildDemandCut315.old_endpoint
+#print axioms Yulang.GeneralVersionedChildEndpointCut315.BaseReady
+#print axioms Yulang.GeneralVersionedChildEndpointCut315.base_ready
+#print axioms Yulang.GeneralVersionedChildEndpointCut315.EndpointModel
+#print axioms Yulang.GeneralVersionedChildEndpointCut315.from_operand_producer
+#print axioms Yulang.GeneralVersionedChildEndpointCut315.installable
+#print axioms Yulang.GeneralVersionedChildEndpointCut315.node_and_edges
+#print axioms Yulang.GeneralVersionedChildEndpointCut315.evidenceNode
+#print axioms Yulang.GeneralVersionedCompleteInModel315.fill
+#print axioms Yulang.GeneralVersionedCompleteInModel315.preserved
+#print axioms Yulang.GeneralVersionedCompleteInModel315.shared
+#print axioms Yulang.GeneralVersionedCompleteInModel315.joint
+#print axioms Yulang.GeneralVersionedEndpointAddress315.Side
+#print axioms Yulang.GeneralVersionedEndpointAddress315.Side.purpose
+#print axioms Yulang.GeneralVersionedEndpointAddress315.Side.mode
+#print axioms Yulang.GeneralVersionedEndpointAddress315.footprint
+#print axioms Yulang.GeneralVersionedEndpointAddress315.version
+#print axioms Yulang.GeneralVersionedEndpointAddress315.encode_names
+#print axioms Yulang.GeneralVersionedEndpointAddress315.version_injective
+#print axioms Yulang.GeneralVersionedEndpointAddress315.key
+#print axioms Yulang.GeneralVersionedEndpointAddress315.atCell
+#print axioms Yulang.GeneralVersionedEndpointAddress315.footprint_read
+#print axioms Yulang.GeneralVersionedEndpointAddress315.fields
+#print axioms Yulang.GeneralVersionedEndpointAddress315.coherent
+#print axioms Yulang.GeneralVersionedEndpointAddress315.outside_legacy
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.lowerRow
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.upperRow
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.both_rows
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.where_member
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.endpoint
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.previous
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.protected_row
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.new_operand
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.old_operand
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.operands_differ
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.cannot_preserve
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.raw_upper_projections
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.upper_preserved
+#print axioms Yulang.GeneralVersionedEndpointBadRow315.only_lower_fails
+#print axioms Yulang.GeneralVersionedEndpointBatch315.Proposal
+#print axioms Yulang.GeneralVersionedEndpointBatch315.Proposal.target
+#print axioms Yulang.GeneralVersionedEndpointBatch315.Proposal.rhs
+#print axioms Yulang.GeneralVersionedEndpointBatch315.Proposal.write
+#print axioms Yulang.GeneralVersionedEndpointBatch315.compatible
+#print axioms Yulang.GeneralVersionedEndpointBatch315.outside
+#print axioms Yulang.GeneralVersionedEndpointBatch315.batch

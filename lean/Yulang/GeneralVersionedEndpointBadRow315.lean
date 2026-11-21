@@ -30,12 +30,17 @@ open GeneralNominalVersionedJournalFrame236 (sources)
 abbrev lowerRow : GeneralNominalCenteredHeadMatSchemas.Equation :=
   ⟨GeneralDictionaryCompoundModel238.names 0,.lower,.variant 0 (.variable 0)⟩
 
-theorem where_member : lowerRow ∈ whereRows plan := by
+abbrev upperRow : GeneralNominalCenteredHeadMatSchemas.Equation :=
+  ⟨GeneralDictionaryCompoundModel238.names 1,.upper,.variant 0 (.variable 0)⟩
+
+theorem both_rows : whereRows plan = [lowerRow,upperRow] := by
   unfold whereRows GeneralVersionedRootWrites312.whereRequests
   simp only [GeneralCanonicalChildOrder.canonicalEmit,GeneralCanonicalChildOrder.canonicalDeclaration,
     GeneralCanonicalChildOrder.canonicalRequirements,List.mergeSort_singleton]
-  change lowerRow ∈ [lowerRow,⟨GeneralDictionaryCompoundModel238.names 1,.upper,.variant 0 (.variable 0)⟩]
-  exact List.mem_cons_self
+  rfl
+
+theorem where_member : lowerRow ∈ whereRows plan :=
+  both_rows.symm ▸ List.mem_cons_self
 
 theorem endpoint : Endpoint plan lowerRow := by
   refine ⟨child,List.mem_singleton_self _,0,3,.variant 0 (.var 0),.inl rfl,rfl,?_,rfl,rfl,rfl⟩
@@ -88,5 +93,53 @@ theorem cannot_preserve (m : Assignment) (valid : Models upperState m) (head : H
   obtain ⟨ab,ba⟩ := transitive (symmetric old) new
   exact operands_differ m valid head
     ⟨(common_variant_iff ..).mp ab,(common_variant_iff ..).mp ba⟩
+
+
+theorem raw_upper_projections (m : Assignment) (valid : Models upperState m) (head : HeadModels plan.packet m) :
+    Equivalent (variables oldPlan m .upper 0) (m 2).1 ∧ Equivalent (variables plan m .upper 0) (m 2).1 := by
+  have past := valid.2.1 oldPlan original_plan_retained
+  have oldEq : merged oldPlan.packet m := past.2.1.1.2.1
+  have newEq : merged plan.packet m :=
+    ((GeneralNominalVersionedPlans231.private_models_iff ..).mp head.1).2.2.1
+  have oldRaw : occurs oldPlan.packet 0 = [(4,2),(4,2)] := by
+    rw [occurs,GeneralDictionaryCompoundPacket238.bindings_exact]
+    rfl
+  have newRaw : occurs plan.packet 0 = [(2,2),(2,2)] := by rw [occurs,bindings_exact]; rfl
+  have oldCut (a : Ty) := GeneralVersionedEndpointCuts315.upper_cut oldPlan.packet m 0
+    (by decide +kernel) oldEq (by rw [oldRaw]; decide +kernel) a
+  have newCut (a : Ty) := GeneralVersionedEndpointCuts315.upper_cut plan.packet m 0
+    (by decide +kernel) newEq (by rw [newRaw]; decide +kernel) a
+  simp only [oldRaw,newRaw,List.mem_cons,List.not_mem_nil,or_false,or_self,forall_eq] at oldCut newCut
+  change Equivalent (m ((capture oldPlan.packet).inputs 0).2).1 (m 2).1 ∧
+    Equivalent (m ((capture plan.packet).inputs 0).2).1 (m 2).1
+  exact ⟨⟨(oldCut _).mp (subtype_refl _),(oldCut _).mpr (subtype_refl _)⟩,
+    ⟨(newCut _).mp (subtype_refl _),(newCut _).mpr (subtype_refl _)⟩⟩
+
+theorem upper_preserved (m : Assignment) (valid : Models upperState m) (head : HeadModels plan.packet m) :
+    upperRow.Holds (variables plan m) m := by
+  have cell : Endpoint plan upperRow := by
+    refine ⟨child,List.mem_singleton_self _,0,4,.variant 0 (.var 0),.inr rfl,rfl,?_,rfl,rfl,rfl⟩
+    intro n no
+    cases no
+  have f : GeneralNominalVersionedEvidence231.Frame
+      (GeneralVersionedHistoryEvidence310.Compiled sourceRegistry) upperState.core root declaration.id plan := frame
+  have earlier := GeneralVersionedEndpointLedger314.previous_of_endpoint reachable f original_plan_retained rfl rfl cell
+  have old := (valid.2.1 oldPlan original_plan_retained).2.2 upperRow earlier
+  obtain ⟨a,b⟩ := raw_upper_projections m valid head
+  exact transitive old (GeneralNominalCenteredHeadMatPatternSemantics.variant_congr 0
+    (transitive a (symmetric b)))
+
+theorem only_lower_fails (m : Assignment) (valid : Models upperState m) (head : HeadModels plan.packet m) :
+    ∀ row ∈ whereRows plan, ¬ row.Holds (variables plan m) m ↔ row = lowerRow := by
+  intro row seen
+  rw [both_rows] at seen
+  rcases List.mem_cons.mp seen with rfl|member
+  · exact ⟨fun _ => rfl,fun _ => cannot_preserve m valid head⟩
+  · cases List.mem_singleton.mp member
+    constructor
+    · exact fun bad => False.elim (bad (upper_preserved m valid head))
+    · intro same
+      have impossible := congrArg GeneralNominalCenteredHeadMatSchemas.Equation.mode same
+      cases impossible
 
 end Yulang.GeneralVersionedEndpointBadRow315

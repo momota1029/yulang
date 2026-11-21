@@ -1,0 +1,36 @@
+import Yulang.GeneralVersionedHighOrigins315
+import Yulang.GeneralVersionedHighPacket315
+import Yulang.GeneralVersionedHistoricalClasses315
+import Yulang.GeneralVersionedRevisitCut315
+import Yulang.GeneralVersionedTightOperands315
+
+#print axioms Yulang.GeneralVersionedHighOrigins315.distinct
+#print axioms Yulang.GeneralVersionedHighOrigins315.raw_absent
+#print axioms Yulang.GeneralVersionedHighOrigins315.Absent
+#print axioms Yulang.GeneralVersionedHighOrigins315.historical_absent
+#print axioms Yulang.GeneralVersionedHighOrigins315.input_domain
+#print axioms Yulang.GeneralVersionedHighOrigins315.input_ne
+#print axioms Yulang.GeneralVersionedHighOrigins315.binder_domain
+#print axioms Yulang.GeneralVersionedHighOrigins315.binder_absent
+#print axioms Yulang.GeneralVersionedHighOrigins315.child
+#print axioms Yulang.GeneralVersionedHighPacket315.registered
+#print axioms Yulang.GeneralVersionedHighPacket315.registered_raw
+#print axioms Yulang.GeneralVersionedHighPacket315.outputs_ne
+#print axioms Yulang.GeneralVersionedHighPacket315.packet_head
+#print axioms Yulang.GeneralVersionedHighPacket315.variable_read_explains
+#print axioms Yulang.GeneralVersionedHighPacket315.roots
+#print axioms Yulang.GeneralVersionedHighPacket315.schema
+#print axioms Yulang.GeneralVersionedHighPacket315.emitted_target
+#print axioms Yulang.GeneralVersionedHighPacket315.expression_sources
+#print axioms Yulang.GeneralVersionedHighPacket315.stored_sources
+#print axioms Yulang.GeneralVersionedHistoricalClasses315.same_requests
+#print axioms Yulang.GeneralVersionedHistoricalClasses315.body
+#print axioms Yulang.GeneralVersionedHistoricalClasses315.live
+#print axioms Yulang.GeneralVersionedHistoricalClasses315.residual_iff
+#print axioms Yulang.GeneralVersionedRevisitCut315.RevisitRhs
+#print axioms Yulang.GeneralVersionedRevisitCut315.role_cut
+#print axioms Yulang.GeneralVersionedRevisitCut315.evidenceNode
+#print axioms Yulang.GeneralVersionedTightOperands315.TightSide
+#print axioms Yulang.GeneralVersionedTightOperands315.of_fits
+#print axioms Yulang.GeneralVersionedTightOperands315.of_point
+#print axioms Yulang.GeneralVersionedTightOperands315.operand
