@@ -1,0 +1,35 @@
+import Yulang.GeneralDeclarativePoint320
+import Yulang.GeneralDeclarativeReadScope320
+import Yulang.GeneralDeclarativeRepeat320
+import Yulang.GeneralDeclarativeRepeatedHead320
+import Yulang.GeneralDeclarativeRepeatedNode320
+import Yulang.GeneralDeclarativeSubstitution320
+#print axioms Yulang.GeneralDeclarativePoint320.semantic_point
+#print axioms Yulang.GeneralDeclarativePoint320.actual_of_endpoints
+#print axioms Yulang.GeneralDeclarativePoint320.normalized_head_of_endpoints
+#print axioms Yulang.GeneralDeclarativePoint320.frozen_nominal
+#print axioms Yulang.GeneralDeclarativePoint320.invariant_nominal_actual
+#print axioms Yulang.GeneralDeclarativeReadScope320.application_reads
+#print axioms Yulang.GeneralDeclarativeReadScope320.compiled_reads
+#print axioms Yulang.GeneralDeclarativeReadScope320.compiled_reads_many
+#print axioms Yulang.GeneralDeclarativeReadScope320.normalize_member
+#print axioms Yulang.GeneralDeclarativeReadScope320.variable_of_member
+#print axioms Yulang.GeneralDeclarativeReadScope320.tracked_from_declared_inputs
+#print axioms Yulang.GeneralDeclarativeRepeat320.int_top
+#print axioms Yulang.GeneralDeclarativeRepeat320.top_not_int
+#print axioms Yulang.GeneralDeclarativeRepeat320.fits
+#print axioms Yulang.GeneralDeclarativeRepeat320.endpoints_compatible
+#print axioms Yulang.GeneralDeclarativeRepeat320.known_lower
+#print axioms Yulang.GeneralDeclarativeRepeat320.feasible_shared
+#print axioms Yulang.GeneralDeclarativeRepeat320.realization_not_universal
+#print axioms Yulang.GeneralDeclarativeRepeat320.no_shared_read
+#print axioms Yulang.GeneralDeclarativeRepeatedHead320.representative
+#print axioms Yulang.GeneralDeclarativeRepeatedHead320.occurrence_iff
+#print axioms Yulang.GeneralDeclarativeRepeatedHead320.exists_binding
+#print axioms Yulang.GeneralDeclarativeRepeatedHead320.repeated_head
+#print axioms Yulang.GeneralDeclarativeRepeatedHead320.repeated_origins
+#print axioms Yulang.GeneralDeclarativeRepeatedNode320.downstream_sound
+#print axioms Yulang.GeneralDeclarativeRepeatedNode320.repeated_source_node
+#print axioms Yulang.GeneralDeclarativeSubstitution320.logical_value
+#print axioms Yulang.GeneralDeclarativeSubstitution320.logical_values
+#print axioms Yulang.GeneralDeclarativeSubstitution320.equation_read

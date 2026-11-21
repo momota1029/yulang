@@ -1,0 +1,31 @@
+import Yulang.GeneralDeclarativeMergeAgreement320
+import Yulang.GeneralDeclarativeNamedAgreement320
+import Yulang.GeneralDeclarativeNamedTree320
+import Yulang.GeneralDeclarativeNodeFacts320
+import Yulang.GeneralDeclarativeNormalized320
+import Yulang.GeneralDeclarativeOutputFacts320
+import Yulang.GeneralDeclarativeOutputs320
+#print axioms Yulang.GeneralDeclarativeMergeAgreement320.merge_agrees
+#print axioms Yulang.GeneralDeclarativeMergeAgreement320.same_compiled_value
+#print axioms Yulang.GeneralDeclarativeNamedAgreement320.same_named
+#print axioms Yulang.GeneralDeclarativeNamedTree320.position
+#print axioms Yulang.GeneralDeclarativeNamedTree320.linked_output
+#print axioms Yulang.GeneralDeclarativeNodeFacts320.compiled_clause
+#print axioms Yulang.GeneralDeclarativeNodeFacts320.compiled_clauses
+#print axioms Yulang.GeneralDeclarativeNodeFacts320.batch_node_sound
+#print axioms Yulang.GeneralDeclarativeNodeFacts320.batch_chosen
+#print axioms Yulang.GeneralDeclarativeNormalized320.center_sound
+#print axioms Yulang.GeneralDeclarativeNormalized320.normalized_where
+#print axioms Yulang.GeneralDeclarativeNormalized320.ordered_map
+#print axioms Yulang.GeneralDeclarativeNormalized320.normalized_where_clause
+#print axioms Yulang.GeneralDeclarativeOutputFacts320.child_fact
+#print axioms Yulang.GeneralDeclarativeOutputFacts320.root_fact
+#print axioms Yulang.GeneralDeclarativeOutputFacts320.compiled_child_outputs
+#print axioms Yulang.GeneralDeclarativeOutputFacts320.compiled_root_outputs
+#print axioms Yulang.GeneralDeclarativeOutputs320.default_translation
+#print axioms Yulang.GeneralDeclarativeOutputs320.defaults_translation
+#print axioms Yulang.GeneralDeclarativeOutputs320.positional_exact
+#print axioms Yulang.GeneralDeclarativeOutputs320.compile_exact
+#print axioms Yulang.GeneralDeclarativeOutputs320.child_output
+#print axioms Yulang.GeneralDeclarativeOutputs320.child_outputs
+#print axioms Yulang.GeneralDeclarativeOutputs320.root_output

@@ -1,0 +1,127 @@
+Yulang.GeneralDeclarativeRepeatedHead320.representative
+  {entries : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {name : Nat}
+  (known : ∃ arg, (name, arg) ∈ entries) : (name, Yulang.GeneralDeclarativeLinear320.captures entries name) ∈ entries
+Yulang.GeneralDeclarativeRepeatedHead320.repeated_head {s : Yulang.GeneralDeclarativeHead320.State}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {names : List Nat} {args : List Yulang.GeneralDeclarativeWhere319.Capture} {lo hi : Nat → Nat}
+  (length : names.length = args.length)
+  (bounded :
+    ∀ (a : Yulang.GeneralDeclarativeWhere319.Capture), a ∈ args → Yulang.GeneralDeclarativeDemand320.Bounds s a)
+  (shared :
+    Yulang.GeneralDeclarativeRepeatedHead320.CentersAgree s (Yulang.GeneralDeclarativeLinear320.table names args)) :
+  Yulang.CommonRoleOutermostResolver.All₂
+    (Yulang.GeneralDeclarativeDemand320.HeadArg s c interp
+      (Yulang.GeneralDeclarativeRepeatedHead320.capture (Yulang.GeneralDeclarativeLinear320.table names args) lo hi))
+    args (List.map Yulang.GeneralDeclarationPatterns.Pattern.var names)
+Yulang.GeneralDeclarativeRepeatedHead320.repeated_origins {s : Yulang.GeneralDeclarativeHead320.State}
+  {names : List Nat} {args : List Yulang.GeneralDeclarativeWhere319.Capture} {lo hi : Nat → Nat}
+  (length : names.length = args.length)
+  (bounded :
+    ∀ (a : Yulang.GeneralDeclarativeWhere319.Capture), a ∈ args → Yulang.GeneralDeclarativeDemand320.Bounds s a)
+  (shared :
+    Yulang.GeneralDeclarativeRepeatedHead320.CentersAgree s (Yulang.GeneralDeclarativeLinear320.table names args))
+  (merged :
+    ∀ (name : Nat),
+      name ∈ names →
+        ∀ (first : Yulang.GeneralDeclarativeWhere319.Capture) (rest : List Yulang.GeneralDeclarativeWhere319.Capture),
+          Yulang.GeneralDeclarativeRepeatedHead320.occurrences (Yulang.GeneralDeclarativeLinear320.table names args)
+                name =
+              first :: rest →
+            Yulang.GeneralDeclarativeMerge320.EqualTerm s (lo name)
+                (Yulang.GeneralDeclarativeMerge320.lower first rest) ∧
+              Yulang.GeneralDeclarativeMerge320.EqualTerm s (hi name)
+                (Yulang.GeneralDeclarativeMerge320.upper first rest))
+  (name : Nat) :
+  name ∈ names →
+    Yulang.GeneralDeclarativeCaptureClosure320.Origin s
+      (Yulang.GeneralDeclarativeRepeatedHead320.capture (Yulang.GeneralDeclarativeLinear320.table names args) lo hi
+        name)
+Yulang.GeneralDeclarativeRepeatedNode320.downstream_sound {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {decl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {facts : List Yulang.GeneralDeclarativeHead320.Equation} (checked : Yulang.GeneralDeclarations.Checked r)
+  (visible : decl ∈ r.declarations) (role : decl.role = d.role)
+  (origins : ∀ (n : Nat), n ∈ decl.inputNames → Yulang.GeneralDeclarativeCaptureClosure320.Origin s (capture n))
+  (head :
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeDemand320.HeadArg s r.constructors interp capture)
+      d.arguments decl.head)
+  (generated : Yulang.GeneralDeclarativeRepeatedNode320.afterHeadFacts r interp capture decl d kids = some facts)
+  (settled :
+    ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+      row ∈ facts → Yulang.GeneralDeclarativeEntailment320.Entails s row)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeAssembly320.Meaning r interp m d decl capture kids
+Yulang.GeneralDeclarativeRepeatedNode320.repeated_source_node {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {decl : Yulang.GeneralDeclarations.Declaration} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {kids : List Yulang.GeneralDeclarativeDemand320.Demand} {names : List Nat} {lo hi : Nat → Nat}
+  {facts : List Yulang.GeneralDeclarativeHead320.Equation} (checked : Yulang.GeneralDeclarations.Checked r)
+  (visible : decl ∈ r.declarations) (role : decl.role = d.role)
+  (head : decl.head = List.map Yulang.GeneralDeclarationPatterns.Pattern.var names)
+  (arity : names.length = d.arguments.length)
+  (bound :
+    ∀ (arg : Yulang.GeneralDeclarativeWhere319.Capture),
+      arg ∈ d.arguments → Yulang.GeneralDeclarativeDemand320.Bounds s arg)
+  (shared :
+    Yulang.GeneralDeclarativeRepeatedHead320.CentersAgree s
+      (Yulang.GeneralDeclarativeLinear320.table names d.arguments))
+  (merges :
+    ∀ (name : Nat),
+      name ∈ names →
+        ∀ (first : Yulang.GeneralDeclarativeWhere319.Capture) (rest : List Yulang.GeneralDeclarativeWhere319.Capture),
+          Yulang.GeneralDeclarativeRepeatedHead320.occurrences
+                (Yulang.GeneralDeclarativeLinear320.table names d.arguments) name =
+              first :: rest →
+            Yulang.GeneralDeclarativeMerge320.EqualTerm s (lo name)
+                (Yulang.GeneralDeclarativeMerge320.lower first rest) ∧
+              Yulang.GeneralDeclarativeMerge320.EqualTerm s (hi name)
+                (Yulang.GeneralDeclarativeMerge320.upper first rest))
+  (generated :
+    Yulang.GeneralDeclarativeRepeatedNode320.afterHeadFacts r interp
+        (Yulang.GeneralDeclarativeRepeatedHead320.capture (Yulang.GeneralDeclarativeLinear320.table names d.arguments)
+          lo hi)
+        decl d kids =
+      some facts)
+  (settled :
+    ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+      row ∈ facts → Yulang.GeneralDeclarativeEntailment320.Entails s row)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeAssembly320.Meaning r interp m d decl
+    (Yulang.GeneralDeclarativeRepeatedHead320.capture (Yulang.GeneralDeclarativeLinear320.table names d.arguments) lo
+      hi)
+    kids
+Yulang.GeneralDeclarativeMergeAgreement320.merge_agrees {s : Yulang.GeneralDeclarativeHead320.State}
+  {first second : Yulang.GeneralDeclarativeWhere319.Capture}
+  {left right : List Yulang.GeneralDeclarativeWhere319.Capture} {one two : Yulang.GeneralDeclarativeWhere319.Capture}
+  (a : Yulang.GeneralDeclarativeMerge320.Merge s first left one)
+  (b : Yulang.GeneralDeclarativeMerge320.Merge s second right two)
+  (same : ∀ (entry : Yulang.GeneralDeclarativeWhere319.Capture), entry ∈ first :: left ↔ entry ∈ second :: right)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.CommonNominalFullCarrier.Equivalent (m one.lower).fst (m two.lower).fst ∧
+    Yulang.CommonNominalFullCarrier.Equivalent (m one.center).fst (m two.center).fst ∧
+      Yulang.CommonNominalFullCarrier.Equivalent (m one.upper).fst (m two.upper).fst
+Yulang.GeneralDeclarativeMergeAgreement320.same_compiled_value {s : Yulang.GeneralDeclarativeHead320.State}
+  {first last : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {exp : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  (common :
+    ∀ (n : Nat),
+      n ∈ Yulang.GeneralNominalCenteredHeadMatExtension.names exp →
+        ∃ a b left right,
+          Yulang.GeneralDeclarativeMerge320.Merge s a left (first n) ∧
+            Yulang.GeneralDeclarativeMerge320.Merge s b right (last n) ∧
+              ∀ (entry : Yulang.GeneralDeclarativeWhere319.Capture), entry ∈ a :: left ↔ entry ∈ b :: right)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m)
+  (mode : Yulang.GeneralNominalMaterialization.Mode) :
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeWhere319.variables first m) mode
+      exp)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeWhere319.variables last m) mode
+      exp)
+'Yulang.GeneralDeclarativeRepeatedHead320.repeated_head' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeRepeatedHead320.repeated_origins' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedNode320.repeated_source_node' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMergeAgreement320.merge_agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMergeAgreement320.same_compiled_value' depends on axioms: [propext, Quot.sound]

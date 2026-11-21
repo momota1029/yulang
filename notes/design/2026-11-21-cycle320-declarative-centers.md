@@ -48,3 +48,32 @@ result cannot use only endpoint overlap or one feasible matching model to
 justify a repeated actual binder. The approved delayed handling of unresolved
 dependent outputs and the promise not to add a refusal merely because an
 implementation lost a center identity both remain untouched.
+
+## Repeated binder hand-off
+
+For a variable-only head, no new semantic substitution is supplied by hand.
+The logical declaration/argument table chooses the first actual occurrence as
+a representative. Mutual ordinary inequalities link each occurrence to that
+one center. The join/meet equations supply the exact combined bounds, and a
+conservative ordinary closure makes them available to the downstream
+where/output compiler. Different occurrence orders induce equivalent captures
+in all three modes when both merge facts are valid, but this is not an
+order-independence theorem for resolver decisions.
+
+Next work should build the *independent accepted local frontier*, not add
+a readiness test to make the proof automatic. Separate these obligations:
+1. The logical lower-head/K2/readiness derivations, preserving the approved
+   delayed treatment of only-unfinished-output support. Ordinary output
+   equations may still constrain all models; don't equate semantic entailment
+   with a license to unfold a pending child.
+2. From the surviving declared head, produce actual capture-origin facts
+   and the ordered logical names of child demands. Invariant nominal or
+   mode-insensitive branches need no explicit center equation; open
+   covariant branches still need genuine actual projections.
+3. For each selected local branch, show ordinary entailment of the concrete
+   compiler's generated head/where/named-result equations, or the corresponding
+   direct read recipe. A satisfiable candidate is not this assertion, and a
+   materialized parent is not a completed dictionary.
+
+All three are facets of the one source-side `Compiles` cut remaining in (4).
+Neither a theorem of rejection nor a solver-state projection has been stated.

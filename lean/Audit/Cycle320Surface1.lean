@@ -1,0 +1,38 @@
+import Yulang.GeneralDeclarativeArgumentFacts320
+import Yulang.GeneralDeclarativeAssembly320
+import Yulang.GeneralDeclarativeBatch320
+import Yulang.GeneralDeclarativeCanonicalRead320
+import Yulang.GeneralDeclarativeCaptureClosure320
+import Yulang.GeneralDeclarativeCompilerTree320
+import Yulang.GeneralDeclarativeDefaultScope320
+#print axioms Yulang.GeneralDeclarativeArgumentFacts320.head_fact
+#print axioms Yulang.GeneralDeclarativeArgumentFacts320.where_fact
+#print axioms Yulang.GeneralDeclarativeArgumentFacts320.compiled_head
+#print axioms Yulang.GeneralDeclarativeArgumentFacts320.compiled_where
+#print axioms Yulang.GeneralDeclarativeAssembly320.head_sound
+#print axioms Yulang.GeneralDeclarativeAssembly320.named_sound
+#print axioms Yulang.GeneralDeclarativeAssembly320.prepared_sound
+#print axioms Yulang.GeneralDeclarativeAssembly320.chosen_sound
+#print axioms Yulang.GeneralDeclarativeBatch320.zip_sound
+#print axioms Yulang.GeneralDeclarativeBatch320.collect_sound
+#print axioms Yulang.GeneralDeclarativeCanonicalRead320.field_values
+#print axioms Yulang.GeneralDeclarativeCanonicalRead320.embed_actual
+#print axioms Yulang.GeneralDeclarativeCanonicalRead320.captures_agree
+#print axioms Yulang.GeneralDeclarativeCanonicalRead320.associated_agrees
+#print axioms Yulang.GeneralDeclarativeCaptureClosure320.ordinary_models
+#print axioms Yulang.GeneralDeclarativeCaptureClosure320.preserve_bound
+#print axioms Yulang.GeneralDeclarativeCaptureClosure320.capture_fits
+#print axioms Yulang.GeneralDeclarativeCaptureClosure320.all_capture_atoms
+#print axioms Yulang.GeneralDeclarativeCaptureClosure320.conservative_capture
+#print axioms Yulang.GeneralDeclarativeCaptureClosure320.available_bounds
+#print axioms Yulang.GeneralDeclarativeCaptureClosure320.batch_from_origins
+#print axioms Yulang.GeneralDeclarativeCompilerTree320.tree
+#print axioms Yulang.GeneralDeclarativeCompilerTree320.forest
+#print axioms Yulang.GeneralDeclarativeCompilerTree320.compile_classify
+#print axioms Yulang.GeneralDeclarativeDefaultScope320.term_uses
+#print axioms Yulang.GeneralDeclarativeDefaultScope320.terms_use
+#print axioms Yulang.GeneralDeclarativeDefaultScope320.normal_term
+#print axioms Yulang.GeneralDeclarativeDefaultScope320.normal_terms
+#print axioms Yulang.GeneralDeclarativeDefaultScope320.inside_arity
+#print axioms Yulang.GeneralDeclarativeDefaultScope320.ordered_length
+#print axioms Yulang.GeneralDeclarativeDefaultScope320.default_never_falls_back

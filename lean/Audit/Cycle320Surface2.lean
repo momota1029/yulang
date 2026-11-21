@@ -1,0 +1,55 @@
+import Yulang.GeneralDeclarativeDemand320
+import Yulang.GeneralDeclarativeEntailment320
+import Yulang.GeneralDeclarativeEvidence320
+import Yulang.GeneralDeclarativeExampleFacts320
+import Yulang.GeneralDeclarativeExampleRead320
+import Yulang.GeneralDeclarativeExampleSource320
+import Yulang.GeneralDeclarativeExampleTree320
+#print axioms Yulang.GeneralDeclarativeDemand320.bounds_sound
+#print axioms Yulang.GeneralDeclarativeDemand320.head_arg
+#print axioms Yulang.GeneralDeclarativeDemand320.head_args
+#print axioms Yulang.GeneralDeclarativeDemand320.where_arg
+#print axioms Yulang.GeneralDeclarativeDemand320.where_args
+#print axioms Yulang.GeneralDeclarativeEntailment320.literal
+#print axioms Yulang.GeneralDeclarativeEntailment320.model_append
+#print axioms Yulang.GeneralDeclarativeEntailment320.conservative_append
+#print axioms Yulang.GeneralDeclarativeEntailment320.entailed_batch_sound
+#print axioms Yulang.GeneralDeclarativeEntailment320.batch_recipe_sound
+#print axioms Yulang.GeneralDeclarativeEvidence320.tree_sound
+#print axioms Yulang.GeneralDeclarativeEvidence320.forest_sound
+#print axioms Yulang.GeneralDeclarativeEvidence320.classify_sound
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.root_batch
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.leaf_batch
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.reflexive_eq
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.center_consequence
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.root_settled
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.leaf_settled
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.batch_root_recipe
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.batch_leaf_recipe
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.compiler_produces
+#print axioms Yulang.GeneralDeclarativeExampleFacts320.compiled_evidence
+#print axioms Yulang.GeneralDeclarativeExampleRead320.root_only
+#print axioms Yulang.GeneralDeclarativeExampleRead320.leaf_only
+#print axioms Yulang.GeneralDeclarativeExampleRead320.root_head_read
+#print axioms Yulang.GeneralDeclarativeExampleRead320.argument
+#print axioms Yulang.GeneralDeclarativeExampleRead320.child_out
+#print axioms Yulang.GeneralDeclarativeExampleRead320.issued
+#print axioms Yulang.GeneralDeclarativeExampleRead320.root_output
+#print axioms Yulang.GeneralDeclarativeExampleRead320.root_prepared
+#print axioms Yulang.GeneralDeclarativeExampleRead320.leaf_prepared
+#print axioms Yulang.GeneralDeclarativeExampleRead320.root_recipe
+#print axioms Yulang.GeneralDeclarativeExampleRead320.leaf_recipe
+#print axioms Yulang.GeneralDeclarativeExampleSource320.leaf_checked
+#print axioms Yulang.GeneralDeclarativeExampleSource320.checked
+#print axioms Yulang.GeneralDeclarativeExampleSource320.valid
+#print axioms Yulang.GeneralDeclarativeExampleSource320.input_bounds
+#print axioms Yulang.GeneralDeclarativeExampleSource320.point_bounds
+#print axioms Yulang.GeneralDeclarativeExampleSource320.no_center_equation
+#print axioms Yulang.GeneralDeclarativeExampleTree320.leaf_choice
+#print axioms Yulang.GeneralDeclarativeExampleTree320.local_producer
+#print axioms Yulang.GeneralDeclarativeExampleTree320.resolves
+#print axioms Yulang.GeneralDeclarativeExampleTree320.completes
+#print axioms Yulang.GeneralDeclarativeExampleTree320.accepted
+#print axioms Yulang.GeneralDeclarativeExampleTree320.evidence
+#print axioms Yulang.GeneralDeclarativeExampleTree320.requested_item_link
+#print axioms Yulang.GeneralDeclarativeExampleTree320.inhabited

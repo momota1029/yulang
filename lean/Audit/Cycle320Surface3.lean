@@ -1,0 +1,43 @@
+import Yulang.GeneralDeclarativeExampleUnsettled320
+import Yulang.GeneralDeclarativeHead320
+import Yulang.GeneralDeclarativeHeadDetermines320
+import Yulang.GeneralDeclarativeLeaf320
+import Yulang.GeneralDeclarativeLinear320
+import Yulang.GeneralDeclarativeLocal320
+import Yulang.GeneralDeclarativeMerge320
+#print axioms Yulang.GeneralDeclarativeExampleUnsettled320.valid_before
+#print axioms Yulang.GeneralDeclarativeExampleUnsettled320.missing_child_consequence
+#print axioms Yulang.GeneralDeclarativeExampleUnsettled320.not_all_child_facts
+#print axioms Yulang.GeneralDeclarativeExampleUnsettled320.old_center
+#print axioms Yulang.GeneralDeclarativeExampleUnsettled320.parent_local
+#print axioms Yulang.GeneralDeclarativeExampleUnsettled320.child_not_evidence
+#print axioms Yulang.GeneralDeclarativeHead320.old_models
+#print axioms Yulang.GeneralDeclarativeHead320.variables_eq
+#print axioms Yulang.GeneralDeclarativeHead320.values_ofFn
+#print axioms Yulang.GeneralDeclarativeHead320.aligned_ofFn
+#print axioms Yulang.GeneralDeclarativeHead320.read_sound
+#print axioms Yulang.GeneralDeclarativeHead320.source_head
+#print axioms Yulang.GeneralDeclarativeHeadDetermines320.at_source
+#print axioms Yulang.GeneralDeclarativeHeadDetermines320.same_readback
+#print axioms Yulang.GeneralDeclarativeHeadDetermines320.visible_capture
+#print axioms Yulang.GeneralDeclarativeHeadDetermines320.pattern_congruent
+#print axioms Yulang.GeneralDeclarativeHeadDetermines320.patterns_congruent
+#print axioms Yulang.GeneralDeclarativeHeadDetermines320.normalized_output_determined
+#print axioms Yulang.GeneralDeclarativeLeaf320.variable_inputs
+#print axioms Yulang.GeneralDeclarativeLeaf320.supplied_output
+#print axioms Yulang.GeneralDeclarativeLeaf320.selected_leaf
+#print axioms Yulang.GeneralDeclarativeLinear320.lookup
+#print axioms Yulang.GeneralDeclarativeLinear320.keys
+#print axioms Yulang.GeneralDeclarativeLinear320.argument_mem
+#print axioms Yulang.GeneralDeclarativeLinear320.table_order
+#print axioms Yulang.GeneralDeclarativeLinear320.map_right
+#print axioms Yulang.GeneralDeclarativeLinear320.produce
+#print axioms Yulang.GeneralDeclarativeLocal320.child_sound
+#print axioms Yulang.GeneralDeclarativeLocal320.children_sound
+#print axioms Yulang.GeneralDeclarativeLocal320.node_sound
+#print axioms Yulang.GeneralDeclarativeMerge320.lower_exact
+#print axioms Yulang.GeneralDeclarativeMerge320.upper_exact
+#print axioms Yulang.GeneralDeclarativeMerge320.equality_sound
+#print axioms Yulang.GeneralDeclarativeMerge320.interval_exact
+#print axioms Yulang.GeneralDeclarativeMerge320.shared_center
+#print axioms Yulang.GeneralDeclarativeMerge320.occurrence_read

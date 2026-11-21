@@ -6640,3 +6640,7 @@ import Yulang.GeneralDeclarativeMerge320
 import Yulang.GeneralDeclarativeCaptureClosure320
 import Yulang.GeneralDeclarativeCanonicalRead320
 import Yulang.GeneralDeclarativeDefaultScope320
+import Yulang.GeneralDeclarativeRepeatedHead320
+import Yulang.GeneralDeclarativeRepeatedNode320
+import Yulang.GeneralDeclarativeMergeAgreement320
+import Yulang.GeneralDeclarativeNamedAgreement320
