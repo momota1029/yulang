@@ -1,0 +1,9 @@
+Yulang.GeneralDeclarativeNamedAgreement320.same_named {r : Yulang.GeneralDeclarations.Registry}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {decl : Yulang.GeneralDeclarations.Declaration}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  (checked : Yulang.GeneralDeclarations.Checked r)
+  (node : Yulang.GeneralDeclarativeAssembly320.Meaning r interp m d decl capture kids)
+  {first last : Yulang.GeneralSourceState.Output} (one : first ∈ d.outputs) (two : last ∈ d.outputs)
+  (same : first.name = last.name) : Yulang.CommonNominalFullCarrier.Equivalent (m first.target).fst (m last.target).fst
+'Yulang.GeneralDeclarativeNamedAgreement320.same_named' depends on axioms: [propext, Classical.choice, Quot.sound]

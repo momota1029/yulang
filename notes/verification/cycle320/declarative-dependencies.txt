@@ -1,0 +1,2 @@
+DECLARATIVE-DEPENDENCY-PASS: 685 C320 constants, 4851 transitive type/value dependencies
+status=0
