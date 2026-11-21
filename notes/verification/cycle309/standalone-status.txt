@@ -1,0 +1,11 @@
+Cycle309Evidence exit=0
+Cycle309Install exit=0
+Cycle309Replay exit=0
+Cycle309Scope exit=0
+Cycle309Surface1 exit=0
+Cycle309Surface2 exit=0
+Cycle309Surface3 exit=0
+Cycle309Surface4 exit=0
+Cycle309Surface5 exit=0
+Cycle309Surface6 exit=0
+printed=374 unique=334 axiom_free=27 axes=['Classical.choice', 'Quot.sound', 'propext'] forbidden=[]

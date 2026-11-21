@@ -1,0 +1,8 @@
+Initial integration/m1-final: faf6b87900b6c446461b1d5f9133467abbb7dee9
+Later integration/m1-final: b5b1ddc44f670e24537b8d8ffe39d6ecfef21ab8
+Beginning/in-progress integration instructions were read; latest standing-orders and inbox bytes are unchanged.
+standing-orders blob: 7ae4d68d2ac7df80d1eadbd061dadd2296faf4c4
+inbox blob: 7be17cd17cf833b0118910d443d21ab9cb1869bb
+GitHub comparison: 65 changed paths; all named C307 except import barrel and heartbeat.
+45/45 changed non-barrel Lean files already match the exact blobs in the local checked baseline.
+No integration write. Publication target: work/dots-main only.
