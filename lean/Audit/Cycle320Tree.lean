@@ -1,0 +1,19 @@
+import Yulang.GeneralDeclarativeExampleTree320
+#check Yulang.GeneralDeclarativeLeaf320.selected_leaf
+#check Yulang.GeneralDeclarativeAssembly320.prepared_sound
+#check Yulang.GeneralDeclarativeEvidence320.classify_sound
+#check Yulang.GeneralDeclarativeNamedTree320.linked_output
+#check Yulang.GeneralDeclarativeExampleSource320.no_center_equation
+#check Yulang.GeneralDeclarativeExampleTree320.accepted
+#check Yulang.GeneralDeclarativeExampleTree320.evidence
+#check Yulang.GeneralDeclarativeExampleTree320.requested_item_link
+#check Yulang.GeneralDeclarativeExampleTree320.inhabited
+#print axioms Yulang.GeneralDeclarativeLeaf320.selected_leaf
+#print axioms Yulang.GeneralDeclarativeAssembly320.prepared_sound
+#print axioms Yulang.GeneralDeclarativeEvidence320.classify_sound
+#print axioms Yulang.GeneralDeclarativeNamedTree320.linked_output
+#print axioms Yulang.GeneralDeclarativeExampleSource320.no_center_equation
+#print axioms Yulang.GeneralDeclarativeExampleTree320.accepted
+#print axioms Yulang.GeneralDeclarativeExampleTree320.evidence
+#print axioms Yulang.GeneralDeclarativeExampleTree320.requested_item_link
+#print axioms Yulang.GeneralDeclarativeExampleTree320.inhabited

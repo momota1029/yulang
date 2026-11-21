@@ -6621,3 +6621,10 @@ import Yulang.GeneralDeclarativeNormalized320
 import Yulang.GeneralDeclarativeRepeat320
 import Yulang.GeneralDeclarativeHeadDetermines320
 import Yulang.GeneralDeclarativeLinear320
+import Yulang.GeneralDeclarativeLeaf320
+import Yulang.GeneralDeclarativeAssembly320
+import Yulang.GeneralDeclarativeEvidence320
+import Yulang.GeneralDeclarativeExampleSource320
+import Yulang.GeneralDeclarativeExampleRead320
+import Yulang.GeneralDeclarativeNamedTree320
+import Yulang.GeneralDeclarativeExampleTree320

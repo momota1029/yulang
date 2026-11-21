@@ -1,0 +1,98 @@
+Yulang.GeneralDeclarativeLeaf320.selected_leaf {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {key : Nat} {decl : Yulang.GeneralDeclarations.Declaration}
+  {names : List Nat} (checked : Yulang.GeneralDeclarations.Checked r)
+  (selected : Yulang.GeneralDeclarativeLeaf320.LeafSelection s r interp d key decl names)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeLocal320.NodeMeaning r interp m d decl
+    (Yulang.GeneralDeclarativeLinear320.captures (Yulang.GeneralDeclarativeLinear320.table names d.arguments)) []
+Yulang.GeneralDeclarativeAssembly320.prepared_sound {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {decl : Yulang.GeneralDeclarations.Declaration} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {children : List Yulang.GeneralDeclarativeDemand320.Demand} (checked : Yulang.GeneralDeclarations.Checked r)
+  (prepared : Yulang.GeneralDeclarativeAssembly320.Prepared s r interp decl d capture children)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeAssembly320.Meaning r interp m d decl capture children
+Yulang.GeneralDeclarativeEvidence320.classify_sound {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {localRule : Yulang.GeneralDeclarativeEvidence320.Local} (checked : Yulang.GeneralDeclarations.Checked r)
+  (producer : Yulang.GeneralDeclarativeEvidence320.Produces s r interp localRule)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m)
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {dict : Yulang.CommonRoleOutermostResolver.Dictionary}
+  (accepted :
+    Yulang.CommonRoleOutermostResolver.Classify localRule d (Yulang.CommonRoleOutermostResolver.Result.selected dict)) :
+  Yulang.GeneralDeclarativeEvidence320.Evidence r interp m d dict
+Yulang.GeneralDeclarativeNamedTree320.linked_output {r : Yulang.GeneralDeclarations.Registry}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {parent : Yulang.GeneralDeclarativeDemand320.Demand} {decl : Yulang.GeneralDeclarations.Declaration}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {children : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {dicts : List Yulang.CommonRoleOutermostResolver.Dictionary}
+  (root : Yulang.GeneralDeclarativeAssembly320.Meaning r interp m parent decl capture children)
+  (kids :
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeEvidence320.Evidence r interp m) children dicts)
+  {i j : Nat} {clause : Yulang.GeneralDeclarations.Clause} {child : Yulang.GeneralDeclarativeDemand320.Demand}
+  {key : Nat} {tail : List Yulang.CommonRoleOutermostResolver.Dictionary}
+  {equation : Yulang.GeneralDeclarations.Equation} {out : Yulang.GeneralSourceState.Output}
+  (listed : decl.requirements[i]? = some clause) (generated : children[i]? = some child)
+  (selected : dicts[i]? = some (Yulang.CommonRoleOutermostResolver.Dictionary.node key tail))
+  (wrote : clause.outputs[j]? = some equation) (asked : child.outputs[j]? = some out) :
+  ∃ childDecl childCapture body,
+    childDecl.id = key ∧
+      childDecl ∈ r.declarations ∧
+        childDecl.role = clause.role ∧
+          out.name = equation.name ∧
+            Yulang.GeneralDictionaryAssociatedProvenance.Supplies r.roles childDecl out.name body ∧
+              Yulang.CommonNominalFullCarrier.Equivalent
+                (Yulang.GeneralDeclarativeDemand320.sourceValue r.constructors interp capture m equation.rhs)
+                (Yulang.GeneralDeclarativeDemand320.sourceValue r.constructors interp
+                  (Yulang.GeneralDeclarativeOutputs320.bodyCapture child childCapture body) m
+                  (Yulang.GeneralDeclarativeOutputs320.bodyPattern body))
+Yulang.GeneralDeclarativeExampleSource320.no_center_equation (eq : Yulang.GeneralDeclarativeHead320.Equation) :
+  eq ∈ Yulang.GeneralDeclarativeExampleSource320.state.equations →
+    eq.left ≠ Yulang.GeneralDeclarativeExampleSource320.input.center
+Yulang.GeneralDeclarativeExampleTree320.accepted :
+  Yulang.CommonRoleOutermostResolver.Classify Yulang.GeneralDeclarativeExampleTree320.FixtureLocal
+    Yulang.GeneralDeclarativeExampleSource320.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeExampleTree320.dictionary)
+Yulang.GeneralDeclarativeExampleTree320.evidence (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeExampleSource320.state m) :
+  Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeExampleSource320.registry
+    Yulang.GeneralDeclarativeExampleSource320.interp m Yulang.GeneralDeclarativeExampleSource320.root
+    Yulang.GeneralDeclarativeExampleTree320.dictionary
+Yulang.GeneralDeclarativeExampleTree320.requested_item_link (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeExampleSource320.state m) :
+  ∃ chosen values body,
+    chosen.id = Yulang.GeneralDeclarativeExampleSource320.leaf.id ∧
+      chosen ∈ Yulang.GeneralDeclarativeExampleSource320.registry.declarations ∧
+        chosen.role = Yulang.GeneralDeclarationExamples.containerChild.role ∧
+          1 = Yulang.GeneralDeclarationExamples.itemEquation.name ∧
+            Yulang.GeneralDictionaryAssociatedProvenance.Supplies
+                Yulang.GeneralDeclarativeExampleSource320.registry.roles chosen 1 body ∧
+              Yulang.CommonNominalFullCarrier.Equivalent
+                (Yulang.GeneralDeclarativeDemand320.sourceValue
+                  Yulang.GeneralDeclarativeExampleSource320.registry.constructors
+                  Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeExampleSource320.capture m
+                  Yulang.GeneralDeclarationExamples.itemEquation.rhs)
+                (Yulang.GeneralDeclarativeDemand320.sourceValue
+                  Yulang.GeneralDeclarativeExampleSource320.registry.constructors
+                  Yulang.GeneralDeclarativeExampleSource320.interp
+                  (Yulang.GeneralDeclarativeOutputs320.bodyCapture Yulang.GeneralDeclarativeExampleSource320.child
+                    values body)
+                  m (Yulang.GeneralDeclarativeOutputs320.bodyPattern body))
+Yulang.GeneralDeclarativeExampleTree320.inhabited :
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeExampleSource320.state
+      Yulang.GeneralDeclarativeExampleSource320.model ∧
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeExampleSource320.registry
+      Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeExampleSource320.model
+      Yulang.GeneralDeclarativeExampleSource320.root Yulang.GeneralDeclarativeExampleTree320.dictionary
+'Yulang.GeneralDeclarativeLeaf320.selected_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAssembly320.prepared_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEvidence320.classify_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedTree320.linked_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExampleSource320.no_center_equation' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeExampleTree320.accepted' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeExampleTree320.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExampleTree320.requested_item_link' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExampleTree320.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
