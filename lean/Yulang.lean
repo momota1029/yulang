@@ -6869,3 +6869,6 @@ import Yulang.GeneralDeclarativeReplayNames325
 import Yulang.GeneralDeclarativeClauseTransport325
 import Yulang.GeneralDeclarativeReplayFixture325
 import Yulang.GeneralDeclarativePlacedClause325
+import Yulang.GeneralDeclarativePairCenters326
+import Yulang.GeneralDeclarativePairNames326
+import Yulang.GeneralDeclarativePairSpan326
