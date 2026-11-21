@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 174668)
-Total output lines: 10918
+Warning: truncated output (original token count: 174944)
+Total output lines: 10934
 
 import Yulang.GeneralDictionaryNominalCandidateEvidenceExamples
 import Yulang.GeneralDictionaryNominalCandidateReadbackExamples
@@ -651,22 +651,7 @@ run_cmd do
 #print axioms Yulang.SourceConstraintSupport.closed_clauses_supported
 #print axioms Yulang.SourceConstraintSupport.closed_compiler_and_rows_supported
 #print axioms Yulang.SourcePrincipalInference.collect_instances_exact
-#print axioms…154668 tokens truncated…ominalAssociatedDeterminationScope.overlapping_registry_checked
-#print axioms Yulang.GeneralNominalAssociatedDeterminationScope.same_head_different_associated
-#print axioms Yulang.GeneralNominalDemandMerging.source_same
-#print axioms Yulang.GeneralNominalDemandMerging.same_inputs_denote
-#print axioms Yulang.GeneralNominalDemandMerging.different_inputs_prevent_merge
-#print axioms Yulang.GeneralNominalDemandMerging.unknown_input_prevents_merge
-#print axioms Yulang.GeneralNominalDemandMerging.output_atoms_exact
-#print axioms Yulang.GeneralNominalDemandMerging.dictionary_outputs_preserved
-#print axioms Yulang.GeneralNominalDemandMerging.merge_preserves_dictionary_models
-#print axioms Yulang.GeneralNominalDemandMerging.checked_associated_equation
-#print axioms Yulang.GeneralNominalProgressObstruction.equation
-#print axioms Yulang.GeneralNominalProgressObstruction.state_models
-#print axioms Yulang.GeneralNominalProgressObstruction.actual_self_edge
-#print axioms Yulang.GeneralNominalProgressObstruction.root_not_recursive
-#print axioms Yulang.GeneralNominalProgressObstruction.registry_checked
-#print axioms Yulang.GeneralNominalProgressObstruction.exact_children
+#print axioms…154944 tokens truncated…#print axioms Yulang.GeneralNominalProgressObstruction.exact_children
 #print axioms Yulang.GeneralNominalProgressObstruction.survivor
 #print axioms Yulang.GeneralNominalProgressObstruction.selected
 #print axioms Yulang.GeneralNominalProgressObstruction.child_not_accessible
@@ -1226,3 +1211,19 @@ run_cmd do
 #print axioms Yulang.GeneralDeclarativeSupportExample321.unfinished_blocks_second
 #print axioms Yulang.GeneralDeclarativeSupportExample321.completed_restarts
 #print axioms Yulang.GeneralDeclarativeSupportExample321.alternate_origins
+
+#print axioms Yulang.GeneralDeclarativeInspect321.nominal_variable_visits_only_root
+#print axioms Yulang.GeneralDeclarativePriority321.delayed_pending_only
+#print axioms Yulang.GeneralDeclarativePriority321.recursive_over_viable
+#print axioms Yulang.GeneralDeclarativePriority321.overlap_outside_fragment
+#print axioms Yulang.GeneralDeclarativeOrdinaryReads321.entails_read
+#print axioms Yulang.GeneralDeclarativeWhereProducer321.child_result
+#print axioms Yulang.GeneralDeclarativeNodeProducer321.derivation_batch
+#print axioms Yulang.GeneralDeclarativeTrace321.trace_model
+#print axioms Yulang.GeneralDeclarativeRepresentatives321.chosen_entails
+#print axioms Yulang.GeneralDeclarativeTraceNames321.trace_actual_chosen
+#print axioms Yulang.GeneralDeclarativeSourceNames321.actual_source_occurrences
+#print axioms Yulang.GeneralDeclarativeTraceCompiler321.local_compiles
+#print axioms Yulang.GeneralDeclarativeTraceCompiler321.classify_evidence
+#print axioms Yulang.GeneralDeclarativeNormalizedCompiler321.normalized_batch
+#print axioms Yulang.GeneralDeclarativeSupportCut321.no_bare_state_readiness
