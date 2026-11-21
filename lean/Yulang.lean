@@ -6866,3 +6866,6 @@ import Yulang.GeneralDeclarativeWhereIntervals325
 import Yulang.GeneralDeclarativeWhereLayouts325
 import Yulang.GeneralDeclarativeFreshInputs325
 import Yulang.GeneralDeclarativeReplayNames325
+import Yulang.GeneralDeclarativeClauseTransport325
+import Yulang.GeneralDeclarativeReplayFixture325
+import Yulang.GeneralDeclarativePlacedClause325

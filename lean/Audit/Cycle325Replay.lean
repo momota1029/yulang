@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeReplayFixture325
+import Yulang.GeneralDeclarativePlacedClause325
+
+#print axioms Yulang.GeneralDeclarativeClauseTransport325.read_reused
+#print axioms Yulang.GeneralDeclarativeReplayFixture325.fixed_root_read
+#print axioms Yulang.GeneralDeclarativeReplayFixture325.actual_reused_where
+#print axioms Yulang.GeneralDeclarativeReplayFixture325.source_compiles_after
+#print axioms Yulang.GeneralDeclarativePlacedClause325.bound_to_producing_clause
