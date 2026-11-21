@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeEndpointAlias327
+import Yulang.GeneralDeclarativeFiniteTrees327
+
+#print axioms Yulang.GeneralDeclarativeEndpointAlias327.enough
+#print axioms Yulang.GeneralDeclarativeEndpointAlias327.recur_exact
+#print axioms Yulang.GeneralDeclarativeRelationalCheck327.exact_guard
+#print axioms Yulang.GeneralDeclarativeRelationalCheck327.at_exact
+#print axioms Yulang.GeneralDeclarativeFiniteTrees327.classifies_iff
