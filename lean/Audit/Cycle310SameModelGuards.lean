@@ -1,0 +1,10 @@
+import Yulang.GeneralSharedNamedCurrentGuards310
+import Yulang.GeneralVersionedSelectedSoundness310
+
+#print axioms Yulang.GeneralSharedNamedCurrentGuards310.compatible_root
+#print axioms Yulang.GeneralSharedNamedCurrentGuards310.compatible
+#print axioms Yulang.GeneralSharedNamedCurrentGuards310.joint
+#print axioms Yulang.GeneralSharedNamedCurrentGuards310.current
+#print axioms Yulang.GeneralSharedNamedCurrentGuards310.all_installable
+#print axioms Yulang.GeneralVersionedSelectedSoundness310.dictionary
+#print axioms Yulang.GeneralVersionedSelectedSoundness310.dictionaries

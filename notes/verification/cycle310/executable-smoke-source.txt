@@ -1,0 +1,23 @@
+import Yulang.GeneralSharedNamedDiagnostic310
+import Yulang.GeneralSharedNamedTrace310
+open Yulang
+open GeneralSharedNamedCompiler310 (read)
+open GeneralSharedNamedEvidence310 (payload)
+open GeneralSharedNamedDiagnostic310 (sawMerge atState complete)
+open GeneralSharedNamedPremerge310 (before)
+open GeneralSharedNamedInstall310 (after)
+open GeneralSharedNamedMerge310 (merged)
+#eval GeneralGeneratedDictionaryRun299.run read 2 0
+#eval GeneralGeneratedDictionaryRun299.run read 1 0
+#eval GeneralOrderedDictionaryCheck309.validate read 2 0 payload
+#eval GeneralOrderedDictionaryCheck309.validate read 2 0 (.node 1 [.node 2 []])
+#eval GeneralOrderedDictionaryCheck309.validate read 2 0 (.node 1 [.node 2 [],.node 3 []])
+#eval GeneralCommittedReadAddress309.cursor read 0 [0]
+#eval GeneralCommittedReadAddress309.cursor read 0 [1]
+#eval GeneralCommittedReadAddress309.cursor read 0 [2]
+#eval (sawMerge after,sawMerge merged)
+#eval GeneralPartialDiagnosticRead310.check (atState after) 2 0 before
+#eval GeneralPartialDiagnosticRead310.check (atState after) 2 0 .rejected
+#eval GeneralPartialDiagnosticRead310.check (atState after) 2 0 complete
+#eval GeneralPartialDiagnosticRead310.check (atState merged) 2 0 before
+#eval GeneralPartialDiagnosticRead310.check (atState merged) 2 0 complete

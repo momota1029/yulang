@@ -1,0 +1,33 @@
+'Yulang.GeneralVersionedOrdinaryFrame310.Supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOrdinaryFrame310.fresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOrdinaryFrame310.revalidate' depends on axioms: [propext, Quot.sound]
+
+=== Audit/Cycle310Surface6.lean ===
+'Yulang.GeneralVersionedOutputFlow310.input_excludes_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.namedTarget' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.named_request' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.witness_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.equivalent_through' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.paired_certificates' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputHandoff310.parent_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedOutputHandoff310.parent_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.ReplayFrame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.CurrentCandidate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.PendingCase' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.ChoiceBridge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.JointBridge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.node_and_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.evidenceNode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedReplayComposition310.context' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedReplayComposition310.compose' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedHistoryReplay310.composed_parent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedHistoryReplay310.coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedHistoryReplay310.replayed_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSelectedSoundness310.children_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedSelectedSoundness310.invert' does not depend on any axioms
+'Yulang.GeneralVersionedSelectedSoundness310.on_returned_snapshot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

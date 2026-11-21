@@ -1,0 +1,14 @@
+Cycle310ActualNamed exit=0
+Cycle310FullSemantics exit=0
+Cycle310OutputFlow exit=0
+Cycle310PartialReturn exit=0
+Cycle310Receivers exit=0
+Cycle310SameModelGuards exit=0
+Cycle310Selected exit=0
+Cycle310Surface1 exit=0
+Cycle310Surface2 exit=0
+Cycle310Surface3 exit=0
+Cycle310Surface4 exit=0
+Cycle310Surface5 exit=0
+Cycle310Surface6 exit=0
+printed=435 unique=373 axiom_free=32 axioms=['Classical.choice', 'Quot.sound', 'propext'] forbidden=[]
