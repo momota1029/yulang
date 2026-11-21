@@ -3,8 +3,8 @@
 - cycle: 316
 - status: running
 - started: 2026-11-21T07:30:00Z
-- updated: 2026-11-21T08:00:01.383Z
-- elapsed_min: 30
-- activity: C316 30分: 選択葉の実 install、両節点安定、葉の据付後辞書証拠と親の辞書不能まで checked。最終の親選択診断を組み立て中。
-- last_local_commit: ce4fd78da
+- updated: 2026-11-21T08:09:54.887Z
+- elapsed_min: 39
+- activity: C316 40分: 現 B4 EvidenceNode の非空虚な反例を Lean 検証。親・葉とも選択安定、同モデルで葉証拠あり・親証拠なし。RevisitRhs も反証。
+- last_local_commit: 848b56de1
 - resume_hint: C316 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。
