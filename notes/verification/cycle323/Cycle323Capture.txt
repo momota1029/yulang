@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativeOutputRequests323.child_rows_generated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOutputSplit323.batch_after_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOutputSplit323.batch_when_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedActual323.rigid_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRigidOccurrences323.exact_occurrences' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRigidObserve323.from_invariant' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeSemanticSharing323.exact_shared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRigidBatch323.fresh_head_iff' depends on axioms: [propext, Quot.sound]

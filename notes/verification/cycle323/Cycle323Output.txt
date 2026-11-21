@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeOutputExact323.root_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRootClosure323.models_close' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeProvisionalFailure323.provisional_counterexample' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeProvisionalFailure323.not_compiles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeProvisionalClosure323.closure_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

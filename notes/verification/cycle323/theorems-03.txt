@@ -1,0 +1,162 @@
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeWhere319.variables cap m)
+            Yulang.GeneralNominalMaterialization.Mode.actual code)
+          entire
+@Yulang.GeneralDeclarativePlainCapture323.tag_head : ∀ {tag : Nat} {merged : Yulang.GeneralDeclarationPatterns.Pattern}
+  {which : List Nat} {catalogue : Yulang.GeneralDeclarationPatterns.Constructors}
+  {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {code raw sourcePayload : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarationPatterns.Pattern},
+  Yulang.GeneralDeclarationPatterns.normalize p = Yulang.GeneralDeclarationPatterns.Pattern.variant tag merged →
+    Yulang.GeneralCandidateInspection.plainNames merged = some which →
+      Yulang.GeneralNominalCenteredHeadMatExpressions.translate catalogue interp merged = some code →
+        Yulang.GeneralNominalCenteredHeadMatExpressions.translate catalogue interp p = some raw →
+          Yulang.GeneralDeclarativeEntailment320.Entails s
+              { left := arg.center,
+                right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag sourcePayload } →
+            Yulang.GeneralDeclarativePlainCapture323.WholeNames s cap sourcePayload which →
+              Yulang.GeneralDeclarativeCompileLists321.Result s
+                (Yulang.GeneralDeclarativeArgumentFacts320.headFact catalogue interp cap arg p)
+Yulang.GeneralDeclarativePlainFixture323.normalized : Yulang.GeneralDeclarationPatterns.normalize
+    Yulang.GeneralDeclarativePlainFixture323.source =
+  Yulang.GeneralDeclarationPatterns.Pattern.variant 7 Yulang.GeneralDeclarativePlainFixture323.merged
+Yulang.GeneralDeclarativePlainFixture323.actual_source_lowering : Yulang.GeneralNominalInspection.translate
+    Yulang.GeneralDeclarativeExampleSource320.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+    (Yulang.GeneralDeclarationPatterns.normalize Yulang.GeneralDeclarativePlainFixture323.source) =
+  Yulang.GeneralNominalInspection.Query.node (Yulang.GeneralNormalizedObservation.Shape.variant 7)
+    [Yulang.GeneralNominalInspection.Query.variables [0, 1]]
+Yulang.GeneralDeclarativePlainFixture323.declaration_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarativeExampleSource320.registry.constructors
+  Yulang.GeneralDeclarativeExampleSource320.registry.roles Yulang.GeneralDeclarativePlainFixture323.decl
+Yulang.GeneralDeclarativePlainFixture323.fits : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativePlainFixture323.state Yulang.GeneralDeclarativePlainFixture323.model
+Yulang.GeneralDeclarativePlainFixture323.both_actual : Yulang.GeneralDeclarativePlainCapture323.WholeNames
+  Yulang.GeneralDeclarativePlainFixture323.state Yulang.GeneralDeclarativePlainFixture323.both
+  Yulang.GeneralDeclarativePlainFixture323.logicalPayload [0, 1]
+Yulang.GeneralDeclarativePlainFixture323.real_head : Yulang.GeneralDeclarativeCompileLists321.Result
+  Yulang.GeneralDeclarativePlainFixture323.state
+  (Yulang.GeneralDeclarativeArgumentFacts320.headFact Yulang.GeneralDeclarativeExampleSource320.registry.constructors
+    Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativePlainFixture323.both
+    (Yulang.GeneralDeclarativeExampleSource320.point 0) Yulang.GeneralDeclarativePlainFixture323.source)
+Yulang.GeneralDeclarativePlainFixture323.union_alone_does_not_give_whole : Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.CommonNominalSyntax.Layer.union
+      (Yulang.GeneralDeclarativePlainFixture323.model (Yulang.GeneralDeclarativePlainFixture323.split 0).center).fst
+      (Yulang.GeneralDeclarativePlainFixture323.model (Yulang.GeneralDeclarativePlainFixture323.split 1).center).fst)
+    (Yulang.GeneralDeclarativePlainFixture323.model 5).fst ∧
+  ¬Yulang.GeneralDeclarativePlainCapture323.WholeNames Yulang.GeneralDeclarativePlainFixture323.state
+      Yulang.GeneralDeclarativePlainFixture323.split Yulang.GeneralDeclarativePlainFixture323.logicalPayload [0, 1]
+@Yulang.GeneralDeclarativePlainK2323.plain_code_no_visit : ∀ {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  {seen : List Nat} {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {view : Yulang.GeneralDeclarativeK2Graph321.View}
+  {root site : Nat},
+  Yulang.GeneralCandidateInspection.plainNames p = some seen →
+    Yulang.GeneralNominalCenteredHeadMatExpressions.translate c interp p = some code →
+      ¬Yulang.GeneralDeclarativeInspect321.Visit view root code site
+@Yulang.GeneralDeclarativePlainK2323.visits_only_outer : ∀ {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  {seen : List Nat} {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {view : Yulang.GeneralDeclarativeK2Graph321.View}
+  {root tag site : Nat},
+  Yulang.GeneralCandidateInspection.plainNames p = some seen →
+    Yulang.GeneralNominalCenteredHeadMatExpressions.translate c interp p = some code →
+      Yulang.GeneralDeclarativeInspect321.Visit view root
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag code) site →
+        site = root
+@Yulang.GeneralDeclarativePlainK2323.k2_exact : ∀ {p : Yulang.GeneralDeclarationPatterns.Pattern} {seen : List Nat}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {root tag : Nat}
+  (s : Yulang.GeneralDeclarativeHead320.State),
+  Yulang.GeneralCandidateInspection.plainNames p = some seen →
+    Yulang.GeneralNominalCenteredHeadMatExpressions.translate c interp p = some code →
+      (Yulang.GeneralDeclarativeInspect321.PatternK2 s root
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variant tag code) ↔
+        Yulang.GeneralDeclarativeK2Alias321.AliasCycle s (Yulang.GeneralDeclarativeGraphRows321.observed s) root)
+@Yulang.GeneralDeclarativeProjectedSharing323.nominal_payload : ∀
+  {xs : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {a : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {ys : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {tag : Nat}
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) {i : Nat},
+  xs[i]? = some a →
+    ys[i]? = some b →
+      Yulang.GeneralDeclarativeProjectedSharing323.subAt m
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal tag xs)
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal tag ys) →
+        Yulang.GeneralDeclarativeRepeatedActual323.eqAt m a b
+@Yulang.GeneralDeclarativeProjectedSharing323.step_forward : ∀
+  {a b x y : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {locked : Bool}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment},
+  Yulang.GeneralDeclarativeProjectedSharing323.Step a b x y locked →
+    Yulang.GeneralDeclarativeProjectedSharing323.subAt m a b →
+      Yulang.GeneralDeclarativeProjectedSharing323.Compared m locked x y
+@Yulang.GeneralDeclarativeProjectedSharing323.reverse : ∀
+  {a b x y : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {locked : Bool},
+  Yulang.GeneralDeclarativeProjectedSharing323.Step a b x y locked →
+    Yulang.GeneralDeclarativeProjectedSharing323.Step b a y x locked
+@Yulang.GeneralDeclarativeProjectedSharing323.path_backward : ∀
+  {lhs rhs x y : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {locks : Bool}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment},
+  Yulang.GeneralDeclarativeProjectedSharing323.Path lhs rhs x y locks →
+    Yulang.GeneralDeclarativeProjectedSharing323.subAt m rhs lhs →
+      Yulang.GeneralDeclarativeProjectedSharing323.subAt m y x
+@Yulang.GeneralDeclarativeProjectedSharing323.path_forward : ∀
+  {lhs rhs x y : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {locks : Bool}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment},
+  Yulang.GeneralDeclarativeProjectedSharing323.Path lhs rhs x y locks →
+    Yulang.GeneralDeclarativeProjectedSharing323.subAt m lhs rhs →
+      Yulang.GeneralDeclarativeProjectedSharing323.Compared m locks x y
+@Yulang.GeneralDeclarativeProjectedSharing323.share : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  (∀ (x : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+      x ∈ seen →
+        ∀ (y : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+          y ∈ seen →
+            x.binder = y.binder →
+              ∃ lhs rhs,
+                Yulang.GeneralDeclarativeInequality322.Le s lhs rhs ∧
+                  Yulang.GeneralDeclarativeProjectedSharing323.Path lhs rhs x.term y.term true) →
+    Yulang.GeneralDeclarativeSemanticSharing323.SameBinder s seen
+@Yulang.GeneralDeclarativeProjectionCheck323.nested : ∀ {tag : Nat}
+  {x other extra1 y last extra2 : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeInequality322.Le s
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.primitive Yulang.GeneralCandidateInspection.Primitive.pair
+        [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal tag
+            [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.primitive
+                Yulang.GeneralCandidateInspection.Primitive.pair [x, other]],
+          extra1])
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.primitive Yulang.GeneralCandidateInspection.Primitive.pair
+        [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal tag
+            [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.primitive
+                Yulang.GeneralCandidateInspection.Primitive.pair [y, last]],
+          extra2]) →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models s m → Yulang.GeneralDeclarativeRepeatedActual323.eqAt m x y
+Yulang.GeneralDeclarativeProjectionCheck323.ordinary_covariant_comparison : Yulang.GeneralDeclarativeInequality322.Le
+  Yulang.GeneralDeclarativeRepeat320.weak Yulang.GeneralDeclarativeProjectionCheck323.lhs
+  Yulang.GeneralDeclarativeProjectionCheck323.rhs
+Yulang.GeneralDeclarativeProjectionCheck323.covariant_not_shared : Yulang.GeneralDeclarativeProjectedSharing323.subAt
+    (Yulang.GeneralDeclarativeRepeat320.model true) Yulang.GeneralDeclarativeProjectionCheck323.x
+    Yulang.GeneralDeclarativeProjectionCheck323.y ∧
+  ¬Yulang.GeneralDeclarativeRepeatedActual323.eqAt (Yulang.GeneralDeclarativeRepeat320.model true)
+      Yulang.GeneralDeclarativeProjectionCheck323.x Yulang.GeneralDeclarativeProjectionCheck323.y
+Yulang.GeneralDeclarativeProvisionalClosure323.split_row : ∀ (e : Yulang.GeneralDeclarativeHead320.Equation),
+  e ∈ Yulang.GeneralDeclarativeExistingFixture322.state.equations →
+    e ∈ Yulang.GeneralDeclarativeProvisionalFixture323.before.equations ∨
+      e = Yulang.GeneralDeclarativeProvisionalFixture323.row
+Yulang.GeneralDeclarativeProvisionalClosure323.row_in_state : Yulang.GeneralDeclarativeProvisionalFixture323.row ∈
+  Yulang.GeneralDeclarativeExistingFixture322.state.equations
+Yulang.GeneralDeclarativeProvisionalClosure323.closed_model_iff : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeProvisionalClosure323.closed m ↔
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeExistingFixture322.state m
+Yulang.GeneralDeclarativeProvisionalClosure323.closure_exact : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeProvisionalClosure323.closed m ↔
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeProvisionalFixture323.before m ∧
+      Yulang.GeneralDeclarativeOutputs320.OutputMeaning Yulang.GeneralDeclarativeExampleSource320.registry.roles
+        Yulang.GeneralDeclarativeExampleSource320.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+        Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeExampleSource320.child
+        Yulang.GeneralDeclarativeEmissionFixture322.leafNames.input m { name := 1, target := 5 }
+Yulang.GeneralDeclarativeProvisionalClosure323.contrast : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeProvisionalClosure323.closed m →
+    Yulang.CommonRoleOutermostResolver.Classify Yulang.GeneralDeclarativeProvisionalSelect323.localRule

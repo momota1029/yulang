@@ -1,0 +1,178 @@
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  (actual written : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  (List.map Prod.fst actual).Nodup →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.center, right := Yulang.GeneralDeclarativeRecordResidual323.withTail actual terminal } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := (capture binder).center,
+            right :=
+              Yulang.GeneralDeclarativeRecordResidual323.withTail
+                (Yulang.CommonRoleCanonicalRows.residual (List.map Prod.fst written) actual) terminal } →
+        List.Perm (Yulang.CommonRoleCanonicalRows.selected (List.map Prod.fst written) actual) inSourceOrder →
+          (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralDeclarativeHead320.Models s m →
+                Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeRecordHead323.FieldValue m)
+                  inSourceOrder
+                  (Yulang.GeneralDeclarativeRecordWalk323.substFields capture
+                    Yulang.GeneralNominalMaterialization.Mode.actual written)) →
+            Yulang.GeneralNominalCenteredHeadMatExpressions.translate c interp
+                  (Yulang.GeneralDeclarationPatterns.normalize p) =
+                some
+                  (Yulang.GeneralDeclarativeRecordResidual323.withTail written
+                    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable binder)) →
+              Yulang.GeneralNominalCenteredHeadMatExpressions.translate c interp p = some raw →
+                Yulang.GeneralDeclarativeCompileLists321.Result s
+                  (Yulang.GeneralDeclarativeArgumentFacts320.headFact c interp capture arg p)
+@Yulang.GeneralDeclarativeRecordHead323.head : ∀ {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {binder : Nat} {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  (actual written : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  (List.map Prod.fst actual).Nodup →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := arg.center, right := Yulang.GeneralDeclarativeRecordResidual323.withTail actual terminal } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := (capture binder).center,
+            right :=
+              Yulang.GeneralDeclarativeRecordResidual323.withTail
+                (Yulang.CommonRoleCanonicalRows.residual (List.map Prod.fst written) actual) terminal } →
+        (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralDeclarativeHead320.Models s m →
+              Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeRecordHead323.FieldValue m)
+                (Yulang.CommonRoleCanonicalRows.selected (List.map Prod.fst written) actual)
+                (Yulang.GeneralDeclarativeRecordWalk323.substFields capture
+                  Yulang.GeneralNominalMaterialization.Mode.actual written)) →
+          Yulang.GeneralNominalCenteredHeadMatExpressions.translate c interp
+                (Yulang.GeneralDeclarationPatterns.normalize p) =
+              some
+                (Yulang.GeneralDeclarativeRecordResidual323.withTail written
+                  (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable binder)) →
+            Yulang.GeneralNominalCenteredHeadMatExpressions.translate c interp p = some raw →
+              Yulang.GeneralDeclarativeCompileLists321.Result s
+                (Yulang.GeneralDeclarativeArgumentFacts320.headFact c interp capture arg p)
+Yulang.GeneralDeclarativeRecordResidual323.prefix_append : ∀
+  (xs ys : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeRecordResidual323.withTail xs (Yulang.GeneralDeclarativeRecordWalk323.recordExpr ys) =
+    Yulang.GeneralDeclarativeRecordWalk323.recordExpr (xs ++ ys)
+@Yulang.GeneralDeclarativeRecordResidual323.prefix_congr : ∀
+  {a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (xs : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeRepeatedActual323.eqAt m a b →
+    Yulang.GeneralDeclarativeRepeatedActual323.eqAt m (Yulang.GeneralDeclarativeRecordResidual323.withTail xs a)
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail xs b)
+Yulang.GeneralDeclarativeRecordResidual323.withTail_append : ∀
+  (xs ys : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeRecordResidual323.withTail xs
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail ys terminal) =
+    Yulang.GeneralDeclarativeRecordResidual323.withTail (xs ++ ys) terminal
+Yulang.GeneralDeclarativeRecordResidual323.permute_fields : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  {xs ys : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  List.Perm xs ys →
+    (List.map Prod.fst xs).Nodup →
+      Yulang.GeneralDeclarativeRepeatedActual323.eqAt m
+        (Yulang.GeneralDeclarativeRecordResidual323.withTail xs terminal)
+        (Yulang.GeneralDeclarativeRecordResidual323.withTail ys terminal)
+Yulang.GeneralDeclarativeRecordResidual323.partition_permutation : ∀ (names : List Nat)
+  (fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  List.Perm
+    (Yulang.CommonRoleCanonicalRows.selected names fields ++ Yulang.CommonRoleCanonicalRows.residual names fields)
+    fields
+Yulang.GeneralDeclarativeRecordResidual323.reconstruct_with_terminal : ∀
+  (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (written : List Nat) (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  (List.map Prod.fst fields).Nodup →
+    Yulang.GeneralDeclarativeRepeatedActual323.eqAt m
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail fields terminal)
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail (Yulang.CommonRoleCanonicalRows.selected written fields)
+        (Yulang.GeneralDeclarativeRecordResidual323.withTail (Yulang.CommonRoleCanonicalRows.residual written fields)
+          terminal))
+Yulang.GeneralDeclarativeRecordResidual323.empty_terminal : ∀
+  (fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeRecordResidual323.withTail fields
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.primitive
+        Yulang.GeneralCandidateInspection.Primitive.emptyRecord []) =
+    Yulang.GeneralDeclarativeRecordWalk323.recordExpr fields
+Yulang.GeneralDeclarativeRecordResidual323.reconstruct : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (written : List Nat),
+  (List.map Prod.fst fields).Nodup →
+    Yulang.GeneralDeclarativeRepeatedActual323.eqAt m (Yulang.GeneralDeclarativeRecordWalk323.recordExpr fields)
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail (Yulang.CommonRoleCanonicalRows.selected written fields)
+        (Yulang.GeneralDeclarativeRecordWalk323.recordExpr (Yulang.CommonRoleCanonicalRows.residual written fields)))
+@Yulang.GeneralDeclarativeRecordResidual323.reconstruct_at_actual : ∀ {root tailName : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State}
+  (fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (written : List Nat),
+  (List.map Prod.fst fields).Nodup →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := root, right := Yulang.GeneralDeclarativeRecordWalk323.recordExpr fields } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := tailName,
+            right :=
+              Yulang.GeneralDeclarativeRecordWalk323.recordExpr
+                (Yulang.CommonRoleCanonicalRows.residual written fields) } →
+        Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := root,
+            right :=
+              Yulang.GeneralDeclarativeRecordResidual323.withTail
+                (Yulang.CommonRoleCanonicalRows.selected written fields)
+                (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable tailName) }
+@Yulang.GeneralDeclarativeRecordResidual323.fresh_remainder : ∀ {root : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State}
+  (fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (written keepNames : List Nat),
+  (List.map Prod.fst fields).Nodup →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := root, right := Yulang.GeneralDeclarativeRecordWalk323.recordExpr fields } →
+      ∃ row,
+        row.right =
+            Yulang.GeneralDeclarativeRecordWalk323.recordExpr (Yulang.CommonRoleCanonicalRows.residual written fields) ∧
+          (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralDeclarativeHead320.Models s m →
+                ∃ m',
+                  Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeEntailment320.appendFacts s [row])
+                      m' ∧
+                    ∀ (n : Nat),
+                      n ∈
+                          Yulang.GeneralDeclarativeFootprint321.stateNames s ++
+                            (keepNames ++
+                              root ::
+                                Yulang.GeneralDeclarativeTraceNames321.names
+                                  (Yulang.GeneralDeclarativeRecordWalk323.recordExpr fields)) →
+                        m' n = m n) ∧
+            Yulang.GeneralDeclarativeEntailment320.Entails (Yulang.GeneralDeclarativeEntailment320.appendFacts s [row])
+              { left := root,
+                right :=
+                  Yulang.GeneralDeclarativeRecordResidual323.withTail
+                    (Yulang.CommonRoleCanonicalRows.selected written fields)
+                    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable row.left) }
+Yulang.GeneralDeclarativeRecordWalk323.eval_record : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (fields : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)),
+  Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeHead320.environment m)
+      Yulang.GeneralNominalMaterialization.Mode.actual (Yulang.GeneralDeclarativeRecordWalk323.recordExpr fields) =
+    Yulang.GeneralNominalStructuralReadback.recordValues (Yulang.GeneralDeclarativeRecordWalk323.valuesOf m fields)
+Yulang.GeneralDeclarativeRecordWalk323.logical_record : ∀ (cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+  (mode : Yulang.GeneralNominalMaterialization.Mode)
+  (fields : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)),
+  Yulang.GeneralDeclarativeSubstitution320.logical cap mode (Yulang.GeneralDeclarativeRecordWalk323.recordExpr fields) =
+    Yulang.GeneralDeclarativeRecordWalk323.recordExpr
+      (Yulang.GeneralDeclarativeRecordWalk323.substFields cap mode fields)
+@Yulang.GeneralDeclarativeRecordWalk323.fields_walk : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {xs ys : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeRecordWalk323.Fields mode xs ys seen →
+    Yulang.GeneralDeclarativeTermWalk322.Walk mode (Yulang.GeneralDeclarativeRecordWalk323.recordExpr xs)
+      (Yulang.GeneralDeclarativeRecordWalk323.recordExpr ys) seen
+@Yulang.GeneralDeclarativeRecordWalk323.same_labels : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {xs ys : List (Nat × Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeRecordWalk323.Fields mode xs ys seen → List.map Prod.fst xs = List.map Prod.fst ys
+@Yulang.GeneralDeclarativeRecordWalk323.fields_have_exact_payloads : ∀
+  {mode : Yulang.GeneralNominalMaterialization.Mode}

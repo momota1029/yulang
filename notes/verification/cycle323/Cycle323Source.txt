@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeAssocRule323.from_source_closure' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAssocModel323.compiler_models_iff_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRuleExact323.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAppliedTree323.rule_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedResolve323.genuine_repeated_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedResolve323.evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeActualPoint323.at_point' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStructuralScan323.head_row_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStructuralScan323.recipe' depends on axioms: [propext, Quot.sound]

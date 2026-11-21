@@ -1,0 +1,26 @@
+  Yulang.GeneralDeclarativeSemanticSharing323.FirstNames s
+    (List.map Yulang.GeneralDeclarativeTraceExpand323.convert raw)
+    (Yulang.GeneralDeclarativeTraceCapture323.reuse raw range)
+@Yulang.GeneralDeclarativeTraceCapture323.aliases_suffice : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {raw : List Yulang.GeneralDeclarativeTrace321.Occurrence},
+  Yulang.GeneralDeclarativeTraceCapture323.OrdinarySharing s raw →
+    Yulang.GeneralDeclarativeSemanticSharing323.SameBinder s
+      (List.map Yulang.GeneralDeclarativeTraceExpand323.convert raw)
+@Yulang.GeneralDeclarativeTraceCapture323.trace_shared : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {raw : List Yulang.GeneralDeclarativeTrace321.Occurrence},
+  (∀ (o : Yulang.GeneralDeclarativeTrace321.Occurrence),
+      o ∈ raw → o.mode = Yulang.GeneralNominalMaterialization.Mode.actual) →
+    Yulang.GeneralDeclarativeTraceCapture323.OrdinarySharing s raw →
+      ∀ (range : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+        Yulang.GeneralDeclarativeSemanticSharing323.SharedAt s
+          (List.map Yulang.GeneralDeclarativeTraceExpand323.convert raw)
+          (Yulang.GeneralDeclarativeTraceCapture323.reuse raw range)
+@Yulang.GeneralDeclarativeTraceExpand323.expands : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode} {name : Nat}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {raw : List Yulang.GeneralDeclarativeTrace321.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeTrace321.Trace s mode name code raw →
+    ∃ term,
+      Yulang.GeneralDeclarativeEqualities322.Derives s
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable name) term ∧
+        Yulang.GeneralDeclarativeTermWalk322.Walk mode term code
+          (List.map Yulang.GeneralDeclarativeTraceExpand323.convert raw)

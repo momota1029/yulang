@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativePlainK2323.k2_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectedSharing323.share' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectionCheck323.nested' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectionCheck323.covariant_not_shared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRecordResidual323.reconstruct_with_terminal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRecordResidual323.fresh_remainder' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordHead323.permuted_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRecordFixture323.closed_nonempty' depends on axioms: [propext, Quot.sound]

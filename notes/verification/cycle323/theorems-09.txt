@@ -1,0 +1,161 @@
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {rows : List Yulang.GeneralDeclarativeHead320.Equation} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.Checked r →
+    decl ∈ r.declarations →
+      Yulang.GeneralDeclarativeRootClosure323.DeclaredRows r interp decl d capture →
+        Yulang.GeneralDeclarativeBatch320.collect
+              (Yulang.GeneralDeclarativeOutputFacts320.rootFact r interp decl d capture) d.outputs =
+            some rows →
+          ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeEntailment320.appendFacts s rows) m ↔
+              Yulang.GeneralDeclarativeHead320.Models s m ∧
+                ∀ (out : Yulang.GeneralSourceState.Output),
+                  out ∈ d.outputs →
+                    Yulang.GeneralDeclarativeOutputs320.OutputMeaning r.roles r.constructors interp decl d capture m out
+@Yulang.GeneralDeclarativeRootClosure323.ordinary_sufficient : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {decl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {rows : List Yulang.GeneralDeclarativeHead320.Equation} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeBatch320.collect (Yulang.GeneralDeclarativeOutputFacts320.rootFact r interp decl d capture)
+        d.outputs =
+      some rows →
+    (∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+        row ∈ rows → Yulang.GeneralDeclarativeEntailment320.Entails s row) →
+      Yulang.GeneralDeclarativeCompileLists321.Result s
+        (Yulang.GeneralDeclarativeBatch320.collect
+          (Yulang.GeneralDeclarativeOutputFacts320.rootFact r interp decl d capture) d.outputs)
+@Yulang.GeneralDeclarativeRuleExact323.exact : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r interp →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            (Yulang.GeneralDeclarativeRigidLocal323.RootClosed s r interp d impl capture ↔
+              ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+                Yulang.GeneralDeclarativeAssocRule323.SourceEquation r interp d impl capture row →
+                  Yulang.GeneralDeclarativeEntailment320.Entails s row)
+@Yulang.GeneralDeclarativeSemanticSharing323.necessary : ∀ {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State} {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  (∀ (o : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+      o ∈ seen → o.mode = Yulang.GeneralNominalMaterialization.Mode.actual) →
+    Yulang.GeneralDeclarativeSemanticSharing323.SharedAt s seen capture →
+      Yulang.GeneralDeclarativeSemanticSharing323.SameBinder s seen
+@Yulang.GeneralDeclarativeSemanticSharing323.sufficient : ∀ {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State} {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  (∀ (o : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+      o ∈ seen → o.mode = Yulang.GeneralNominalMaterialization.Mode.actual) →
+    Yulang.GeneralDeclarativeSemanticSharing323.SameBinder s seen →
+      Yulang.GeneralDeclarativeSemanticSharing323.FirstNames s seen capture →
+        Yulang.GeneralDeclarativeSemanticSharing323.SharedAt s seen capture
+@Yulang.GeneralDeclarativeSemanticSharing323.exact_shared : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {args : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {pats : List Yulang.GeneralDeclarationPatterns.Pattern} {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeRigidSource323.Ordered s c interp args pats seen →
+    Yulang.GeneralDeclarativeSemanticSharing323.FirstNames s seen capture →
+      (Yulang.GeneralDeclarativeSemanticSharing323.SharedAt s seen capture ↔
+        Yulang.GeneralDeclarativeSemanticSharing323.SameBinder s seen)
+@Yulang.GeneralDeclarativeSemanticSharing323.by_bounds : ∀ {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State} {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  (∀ (o : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+      o ∈ seen →
+        ∃ n,
+          o.term = Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n ∧
+            Yulang.GeneralDeclarativeBounds319.Bound s.normal n (capture o.binder).center ∧
+              Yulang.GeneralDeclarativeBounds319.Bound s.normal (capture o.binder).center n) →
+    (∀ (o : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+        o ∈ seen → o.mode = Yulang.GeneralNominalMaterialization.Mode.actual) →
+      Yulang.GeneralDeclarativeSemanticSharing323.SharedAt s seen capture
+@Yulang.GeneralDeclarativeStableRigid323.literal_closure : ∀
+  {rule :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand) (impl : Yulang.GeneralDeclarations.Declaration)
+      (names : Yulang.GeneralDeclarativeSourceEmission322.Names)
+      (place : Yulang.GeneralDeclarativeEmissionForest322.Placement),
+      rule d
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected impl.id
+            (Yulang.GeneralDeclarativeEmissionForest322.children impl names place)) →
+        Yulang.GeneralDeclarativeRigidLocal323.RigidReads s r interp d impl names place →
+          ∀ (out : Yulang.GeneralSourceState.Output),
+            out ∈ d.outputs →
+              ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+                Yulang.GeneralDeclarativeOutputFacts320.rootFact r interp impl d names.input out = some [row] →
+                  row ∈ s.equations) →
+    Yulang.GeneralDeclarativeStableRigid323.Closed s r interp rule
+@Yulang.GeneralDeclarativeStableRigid323.certify : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {complete : Nat → Prop} {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarativeStableRigid323.Closed s r interp
+      (Yulang.GeneralDeclarativeStableRigid323.Rule support tests) →
+    ∀ (tree : Yulang.CommonRoleOutermostResolver.Tree) (dict : Yulang.CommonRoleOutermostResolver.Dictionary),
+      Yulang.CommonRoleOutermostResolver.Resolves (Yulang.GeneralDeclarativeStableRigid323.Rule support tests) d tree →
+        Yulang.CommonRoleOutermostResolver.Summarizes tree (Yulang.CommonRoleOutermostResolver.Result.selected dict) →
+          Yulang.GeneralDeclarativeClosedTree323.Certified s r interp d tree
+@Yulang.GeneralDeclarativeStableRigid323.certify_children : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {complete : Nat → Prop} {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {ds : List Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarativeStableRigid323.Closed s r interp
+      (Yulang.GeneralDeclarativeStableRigid323.Rule support tests) →
+    ∀ (trees : List Yulang.CommonRoleOutermostResolver.Tree)
+      (dicts : List Yulang.CommonRoleOutermostResolver.Dictionary),
+      Yulang.CommonRoleOutermostResolver.All₂
+          (Yulang.CommonRoleOutermostResolver.Resolves (Yulang.GeneralDeclarativeStableRigid323.Rule support tests)) ds
+          trees →
+        Yulang.CommonRoleOutermostResolver.All₂ Yulang.CommonRoleOutermostResolver.Summarizes trees
+            (List.map Yulang.CommonRoleOutermostResolver.Result.selected dicts) →
+          Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeClosedTree323.Certified s r interp) ds trees
+@Yulang.GeneralDeclarativeStableRigid323.stable_sound : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {complete : Nat → Prop} {support : Yulang.GeneralDeclarativeOrigins321.Supported s complete}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment} {dict : Yulang.CommonRoleOutermostResolver.Dictionary},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r interp →
+      Yulang.GeneralDeclarativeStableRigid323.Closed s r interp
+          (Yulang.GeneralDeclarativeStableRigid323.Rule support tests) →
+        Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+          Yulang.GeneralDeclarativeHead320.Models s m →
+            Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeStableRigid323.Rule support tests) d
+                (Yulang.CommonRoleOutermostResolver.Result.selected dict) →
+              Yulang.GeneralDeclarativeEvidence320.Evidence r interp m d dict
+@Yulang.GeneralDeclarativeStructuralScan323.actual_binders : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  {observed : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeStructuralScan323.ReadBack s c interp arg p observed →
+    List.map Yulang.GeneralDeclarativeTermWalk322.Occurrence.binder observed =
+        (Yulang.GeneralDeclarationPatterns.normalize p).variables ∧
+      ∀ (o : Yulang.GeneralDeclarativeTermWalk322.Occurrence),
+        o ∈ observed → o.mode = Yulang.GeneralNominalMaterialization.Mode.actual
+@Yulang.GeneralDeclarativeStructuralScan323.head_row_exact : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {p : Yulang.GeneralDeclarationPatterns.Pattern} {observed : List Yulang.GeneralDeclarativeTermWalk322.Occurrence}
+  {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeStructuralScan323.ReadBack s c interp arg p observed →
+    Yulang.GeneralNominalCenteredHeadMatExpressions.translate c interp p = some raw →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models s m →
+          (Yulang.GeneralDeclarativeEntailment320.Holds m
+              { left := arg.center,
+                right :=
+                  Yulang.GeneralDeclarativeSubstitution320.logical cap Yulang.GeneralNominalMaterialization.Mode.actual
+                    raw } ↔
+            Yulang.GeneralDeclarativeRepeatedActual323.BindsAt m cap observed)
+@Yulang.GeneralDeclarativeStructuralScan323.recipe : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeStructuralScan323.Read s c interp capture arg p →
+    Yulang.GeneralDeclarativeCompileLists321.Result s
+      (Yulang.GeneralDeclarativeArgumentFacts320.headFact c interp capture arg p)
+Yulang.GeneralDeclarativeTraceCapture323.anchored : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (raw : List Yulang.GeneralDeclarativeTrace321.Occurrence) (range : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
