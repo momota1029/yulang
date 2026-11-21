@@ -6940,3 +6940,5 @@ import Yulang.GeneralDeclarativeAliasChecker327
 import Yulang.GeneralDeclarativeInPlace327
 import Yulang.GeneralDeclarativeMixedReplay327
 import Yulang.GeneralDeclarativeRelation327
+import Yulang.GeneralDeclarativeOpaqueChannel328
+import Yulang.GeneralDeclarativeOpaquePair328
