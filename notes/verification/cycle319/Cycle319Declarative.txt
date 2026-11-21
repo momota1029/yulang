@@ -1,0 +1,66 @@
+Yulang.GeneralDeclarativeWhere319.source_where {state : Yulang.GeneralDeclarativeWhere319.State}
+  {catalogue : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {pattern : Yulang.GeneralDeclarationPatterns.Pattern}
+  {exp : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  (compiled : Yulang.GeneralNominalCenteredHeadMatExpressions.translate catalogue interp pattern = some exp)
+  (tracked : Yulang.GeneralDeclarativeWhere319.Tracks state capture exp)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeWhere319.Models state m) :
+  Yulang.GeneralDeclarativeWhere319.SourceWhere catalogue interp capture m pattern exp
+Yulang.GeneralDeclarativeWhere319.ordered_arguments {state : Yulang.GeneralDeclarativeWhere319.State}
+  {catalogue : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralDeclarativeWhere319.Models state m) {patterns : List Yulang.GeneralDeclarationPatterns.Pattern}
+  {expressions : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  (compiled :
+    Yulang.GeneralNominalCenteredHeadMatExpressions.translateMany catalogue interp patterns = some expressions)
+  (tracked :
+    ∀ (exp : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+      exp ∈ expressions → Yulang.GeneralDeclarativeWhere319.Tracks state capture exp) :
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeWhere319.SourceWhere catalogue interp capture m)
+    patterns expressions
+Yulang.GeneralDeclarativeWhere319.ordered_clauses {state : Yulang.GeneralDeclarativeWhere319.State}
+  {catalogue : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralDeclarativeWhere319.Models state m) {clauses : List Yulang.GeneralDeclarations.Clause}
+  {args : List (List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)}
+  (compiled :
+    Yulang.CommonRoleOutermostResolver.All₂
+      (fun clause exps =>
+        Yulang.GeneralNominalCenteredHeadMatExpressions.translateMany catalogue interp clause.arguments = some exps ∧
+          ∀ (exp : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+            exp ∈ exps → Yulang.GeneralDeclarativeWhere319.Tracks state capture exp)
+      clauses args) :
+  Yulang.CommonRoleOutermostResolver.All₂
+    (fun clause exps =>
+      Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeWhere319.SourceWhere catalogue interp capture m)
+        clause.arguments exps)
+    clauses args
+Yulang.GeneralDeclarativeBounds319.bound_sound {s : Yulang.GeneralDeclarativeWhere319.State}
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeWhere319.Models s m) {a b : Nat}
+  (bound : Yulang.GeneralDeclarativeBounds319.Bound s a b) : Yulang.CommonNominalFullCarrier.Subtype (m a).fst (m b).fst
+Yulang.GeneralDeclarativeBounds319.source_where {s : Yulang.GeneralDeclarativeWhere319.State}
+  {catalogue : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {pattern : Yulang.GeneralDeclarationPatterns.Pattern}
+  {exp : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  (compiled : Yulang.GeneralNominalCenteredHeadMatExpressions.translate catalogue interp pattern = some exp)
+  (tracked : Yulang.GeneralDeclarativeBounds319.Tracks s capture exp) (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralDeclarativeWhere319.Models s m) :
+  Yulang.GeneralDeclarativeWhere319.SourceWhere catalogue interp capture m pattern exp
+Yulang.GeneralWherePhysicalEvidence319.recursive (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalCommit319.final m) :
+  Yulang.GeneralWherePhysicalEvidence319.Evidence m Yulang.GeneralDictionaryJournalRefinement228Source.root
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralWhereOriginSingleSource318.declaration.id
+      [Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralLiveCompoundRegistry316.leaf.id []])
+Yulang.GeneralWherePhysicalEvidence319.same_model :
+  Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalCommit319.final
+      Yulang.GeneralWherePhysicalPatch319.n ∧
+    Yulang.GeneralWherePhysicalEvidence319.Evidence Yulang.GeneralWherePhysicalPatch319.n
+      Yulang.GeneralDictionaryJournalRefinement228Source.root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralWhereOriginSingleSource318.declaration.id
+        [Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralLiveCompoundRegistry316.leaf.id []])
+'Yulang.GeneralDeclarativeWhere319.source_where' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhere319.ordered_clauses' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeBounds319.bound_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeBounds319.source_where' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWherePhysicalEvidence319.recursive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalEvidence319.same_model' depends on axioms: [propext, Classical.choice, Quot.sound]

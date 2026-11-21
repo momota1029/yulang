@@ -1,0 +1,5 @@
+'Yulang.GeneralWherePhysicalIndex319.old_locate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalIndex319.join_injective' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWherePhysicalBase319.base_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWherePhysicalView319.rewrites_rename' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWherePhysicalView319.head_term' depends on axioms: [propext, Quot.sound]

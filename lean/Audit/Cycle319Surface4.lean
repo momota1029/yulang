@@ -1,0 +1,62 @@
+import Yulang.GeneralWherePhysicalNominal319
+import Yulang.GeneralWherePhysicalOldHead319
+import Yulang.GeneralWherePhysicalOldInstall319
+import Yulang.GeneralWherePhysicalOldModel319
+import Yulang.GeneralWherePhysicalOldPick319
+import Yulang.GeneralWherePhysicalOldValues319
+#print axioms Yulang.GeneralWherePhysicalNominal319.fitsAll_reverse
+#print axioms Yulang.GeneralWherePhysicalNominal319.denotes_iff
+#print axioms Yulang.GeneralWherePhysicalNominal319.models_iff
+#print axioms Yulang.GeneralWherePhysicalOldHead319.prepared
+#print axioms Yulang.GeneralWherePhysicalOldHead319.frame
+#print axioms Yulang.GeneralWherePhysicalOldHead319.survivor
+#print axioms Yulang.GeneralWherePhysicalOldHead319.unique
+#print axioms Yulang.GeneralWherePhysicalOldHead319.schema_code
+#print axioms Yulang.GeneralWherePhysicalOldHead319.test
+#print axioms Yulang.GeneralWherePhysicalOldHead319.sees
+#print axioms Yulang.GeneralWherePhysicalOldHead319.actual_same
+#print axioms Yulang.GeneralWherePhysicalOldHead319.schema_holds
+#print axioms Yulang.GeneralWherePhysicalOldHead319.all_captures
+#print axioms Yulang.GeneralWherePhysicalOldHead319.before_models
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.legacy_trace
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.silent
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.prior_model
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.old_raw
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.old_class
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.old_installed_model
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.step
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.origin_trace
+#print axioms Yulang.GeneralWherePhysicalOldInstall319.produced
+#print axioms Yulang.GeneralWherePhysicalOldModel319.raw_same
+#print axioms Yulang.GeneralWherePhysicalOldModel319.source_value
+#print axioms Yulang.GeneralWherePhysicalOldModel319.same_small
+#print axioms Yulang.GeneralWherePhysicalOldModel319.binder_same
+#print axioms Yulang.GeneralWherePhysicalOldModel319.private_head
+#print axioms Yulang.GeneralWherePhysicalOldModel319.saved_captures
+#print axioms Yulang.GeneralWherePhysicalOldModel319.saved_schema
+#print axioms Yulang.GeneralWherePhysicalOldModel319.compiled_emission
+#print axioms Yulang.GeneralWherePhysicalOldModel319.emitted_rows
+#print axioms Yulang.GeneralWherePhysicalOldModel319.complete
+#print axioms Yulang.GeneralWherePhysicalOldModel319.actual_m
+#print axioms Yulang.GeneralWherePhysicalOldModel319.rows
+#print axioms Yulang.GeneralWherePhysicalOldModel319.child_row
+#print axioms Yulang.GeneralWherePhysicalOldModel319.center_saved
+#print axioms Yulang.GeneralWherePhysicalOldModel319.child_holds
+#print axioms Yulang.GeneralWherePhysicalOldModel319.full
+#print axioms Yulang.GeneralWherePhysicalOldPick319.all_requests
+#print axioms Yulang.GeneralWherePhysicalOldPick319.equal_outputs
+#print axioms Yulang.GeneralWherePhysicalOldPick319.ready
+#print axioms Yulang.GeneralWherePhysicalOldPick319.actual_output
+#print axioms Yulang.GeneralWherePhysicalOldPick319.class_effects
+#print axioms Yulang.GeneralWherePhysicalOldPick319.administrative
+#print axioms Yulang.GeneralWherePhysicalOldPick319.safe
+#print axioms Yulang.GeneralWherePhysicalOldPick319.equations
+#print axioms Yulang.GeneralWherePhysicalOldPick319.selected
+#print axioms Yulang.GeneralWherePhysicalOldValues319.old_capture
+#print axioms Yulang.GeneralWherePhysicalOldValues319.old_binder
+#print axioms Yulang.GeneralWherePhysicalOldValues319.binder_value
+#print axioms Yulang.GeneralWherePhysicalOldValues319.baseline_raw
+#print axioms Yulang.GeneralWherePhysicalOldValues319.old_head
+#print axioms Yulang.GeneralWherePhysicalOldValues319.head_value
+#print axioms Yulang.GeneralWherePhysicalOldValues319.width_value
+#print axioms Yulang.GeneralWherePhysicalOldValues319.bounded

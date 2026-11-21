@@ -1,0 +1,46 @@
+import Yulang.GeneralDeclarativeBounds319
+import Yulang.GeneralDeclarativeWhere319
+import Yulang.GeneralWherePhysicalActive319
+import Yulang.GeneralWherePhysicalBase319
+import Yulang.GeneralWherePhysicalChildCert319
+import Yulang.GeneralWherePhysicalChildModel319
+#print axioms Yulang.GeneralDeclarativeBounds319.bound_sound
+#print axioms Yulang.GeneralDeclarativeBounds319.tracked_literal
+#print axioms Yulang.GeneralDeclarativeBounds319.source_where
+#print axioms Yulang.GeneralDeclarativeWhere319.center_in_interval
+#print axioms Yulang.GeneralDeclarativeWhere319.source_where
+#print axioms Yulang.GeneralDeclarativeWhere319.declaration_where
+#print axioms Yulang.GeneralDeclarativeWhere319.ordered_arguments
+#print axioms Yulang.GeneralDeclarativeWhere319.ordered_clauses
+#print axioms Yulang.GeneralWherePhysicalActive319.recorded_two
+#print axioms Yulang.GeneralWherePhysicalActive319.old_eqs
+#print axioms Yulang.GeneralWherePhysicalActive319.lower_shape
+#print axioms Yulang.GeneralWherePhysicalActive319.upper_shape
+#print axioms Yulang.GeneralWherePhysicalActive319.archived_shape
+#print axioms Yulang.GeneralWherePhysicalActive319.nominal_origin
+#print axioms Yulang.GeneralWherePhysicalActive319.opaque_heads
+#print axioms Yulang.GeneralWherePhysicalActive319.active_models
+#print axioms Yulang.GeneralWherePhysicalBase319.assignment_old
+#print axioms Yulang.GeneralWherePhysicalBase319.base_models
+#print axioms Yulang.GeneralWherePhysicalChildCert319.final_sources
+#print axioms Yulang.GeneralWherePhysicalChildCert319.no_reserved
+#print axioms Yulang.GeneralWherePhysicalChildCert319.linked
+#print axioms Yulang.GeneralWherePhysicalChildCert319.prepared
+#print axioms Yulang.GeneralWherePhysicalChildCert319.frame
+#print axioms Yulang.GeneralWherePhysicalChildCert319.terminal
+#print axioms Yulang.GeneralWherePhysicalChildCert319.certificate
+#print axioms Yulang.GeneralWherePhysicalChildCert319.leaf_evidence
+#print axioms Yulang.GeneralWherePhysicalChildModel319.child_center
+#print axioms Yulang.GeneralWherePhysicalChildModel319.capture_at
+#print axioms Yulang.GeneralWherePhysicalChildModel319.binder_at
+#print axioms Yulang.GeneralWherePhysicalChildModel319.ports
+#print axioms Yulang.GeneralWherePhysicalChildModel319.projection
+#print axioms Yulang.GeneralWherePhysicalChildModel319.ordinary
+#print axioms Yulang.GeneralWherePhysicalChildModel319.head
+#print axioms Yulang.GeneralWherePhysicalChildModel319.mid_value
+#print axioms Yulang.GeneralWherePhysicalChildModel319.site_holds
+#print axioms Yulang.GeneralWherePhysicalChildModel319.head_schema
+#print axioms Yulang.GeneralWherePhysicalChildModel319.observed
+#print axioms Yulang.GeneralWherePhysicalChildModel319.schema
+#print axioms Yulang.GeneralWherePhysicalChildModel319.emitted
+#print axioms Yulang.GeneralWherePhysicalChildModel319.held

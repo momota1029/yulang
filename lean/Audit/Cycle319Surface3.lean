@@ -1,0 +1,43 @@
+import Yulang.GeneralWherePhysicalCurrentRead319
+import Yulang.GeneralWherePhysicalDeferred319
+import Yulang.GeneralWherePhysicalEvidence319
+import Yulang.GeneralWherePhysicalFresh319
+import Yulang.GeneralWherePhysicalHead319
+import Yulang.GeneralWherePhysicalIndex319
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.locate
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.query
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.nominal0
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.exact_report
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.same
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.bindings
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.reads
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.address_lo
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.address_hi
+#print axioms Yulang.GeneralWherePhysicalCurrentRead319.child_bounds
+#print axioms Yulang.GeneralWherePhysicalDeferred319.noAdded
+#print axioms Yulang.GeneralWherePhysicalDeferred319.known_term
+#print axioms Yulang.GeneralWherePhysicalDeferred319.observations_from_old
+#print axioms Yulang.GeneralWherePhysicalEvidence319.compiled_child
+#print axioms Yulang.GeneralWherePhysicalEvidence319.recorded
+#print axioms Yulang.GeneralWherePhysicalEvidence319.ready
+#print axioms Yulang.GeneralWherePhysicalEvidence319.outputs
+#print axioms Yulang.GeneralWherePhysicalEvidence319.recursive
+#print axioms Yulang.GeneralWherePhysicalEvidence319.same_model
+#print axioms Yulang.GeneralWherePhysicalFresh319.fresh_sources
+#print axioms Yulang.GeneralWherePhysicalFresh319.old_lookup_absent
+#print axioms Yulang.GeneralWherePhysicalFresh319.upper_id
+#print axioms Yulang.GeneralWherePhysicalFresh319.lower_id
+#print axioms Yulang.GeneralWherePhysicalFresh319.final_slots
+#print axioms Yulang.GeneralWherePhysicalFresh319.archived_lower
+#print axioms Yulang.GeneralWherePhysicalFresh319.oldTwo_id
+#print axioms Yulang.GeneralWherePhysicalFresh319.raw_models
+#print axioms Yulang.GeneralWherePhysicalHead319.now_at_w
+#print axioms Yulang.GeneralWherePhysicalHead319.new_head
+#print axioms Yulang.GeneralWherePhysicalHead319.current_head
+#print axioms Yulang.GeneralWherePhysicalIndex319.old_injective
+#print axioms Yulang.GeneralWherePhysicalIndex319.new_injective
+#print axioms Yulang.GeneralWherePhysicalIndex319.join_injective
+#print axioms Yulang.GeneralWherePhysicalIndex319.shape_arity
+#print axioms Yulang.GeneralWherePhysicalIndex319.shape_rename_term
+#print axioms Yulang.GeneralWherePhysicalIndex319.head_rename_term
+#print axioms Yulang.GeneralWherePhysicalIndex319.old_locate
