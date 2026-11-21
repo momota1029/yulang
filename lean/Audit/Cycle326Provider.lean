@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeCopyFixture326
+import Yulang.GeneralDeclarativeProjectPair326
+
+#print axioms Yulang.GeneralDeclarativeLateProvider326.selected_without_own_output
+#print axioms Yulang.GeneralDeclarativeLateWithProvider326.certified_transition
+#print axioms Yulang.GeneralDeclarativeAuthorizedCopy326.authorized
+#print axioms Yulang.GeneralDeclarativeAuthorizedCopy326.no_new_origin
+#print axioms Yulang.GeneralDeclarativeCopyFixture326.absent_before
+#print axioms Yulang.GeneralDeclarativeCopyFixture326.after_real_owner
+#print axioms Yulang.GeneralDeclarativeJoinedSpan326.named_join
+#print axioms Yulang.GeneralDeclarativeJoinedSpan326.named_actual
+#print axioms Yulang.GeneralDeclarativeProjectPair326.exact
