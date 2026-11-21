@@ -6580,3 +6580,6 @@ import Yulang.GeneralWhereOriginReceipt318
 import Yulang.GeneralWhereOriginCurrent318
 import Yulang.GeneralWhereOriginHeadAgree318
 import Yulang.GeneralWhereOriginLayoutContract318
+import Yulang.GeneralWherePhysicalIndex319
+import Yulang.GeneralWherePhysicalBase319
+import Yulang.GeneralWherePhysicalView319

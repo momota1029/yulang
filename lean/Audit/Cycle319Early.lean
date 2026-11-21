@@ -1,0 +1,7 @@
+import Yulang.GeneralWherePhysicalView319
+
+#print axioms Yulang.GeneralWherePhysicalIndex319.old_locate
+#print axioms Yulang.GeneralWherePhysicalIndex319.join_injective
+#print axioms Yulang.GeneralWherePhysicalBase319.base_models
+#print axioms Yulang.GeneralWherePhysicalView319.rewrites_rename
+#print axioms Yulang.GeneralWherePhysicalView319.head_term
