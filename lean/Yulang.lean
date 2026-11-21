@@ -6975,3 +6975,7 @@ import Yulang.GeneralDeclarativeOpaqueSingle328
 import Yulang.GeneralDeclarativeOpaqueBatch328
 import Yulang.GeneralDeclarativeNestedBatch328
 import Yulang.GeneralDeclarativeOpaqueRepeatCut328
+import Yulang.GeneralDeclarativeStableTies329
+import Yulang.GeneralDeclarativeStableReads329
+import Yulang.GeneralDeclarativeStableCompiler329
+import Yulang.GeneralDeclarativeStableSelect329
