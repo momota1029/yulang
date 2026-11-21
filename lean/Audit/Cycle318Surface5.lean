@@ -1,0 +1,45 @@
+import Yulang.GeneralWhereOriginSingleHead318
+import Yulang.GeneralWhereOriginSingleModel318
+import Yulang.GeneralWhereOriginSingleRead318
+import Yulang.GeneralWhereOriginSingleSource318
+import Yulang.GeneralWhereOriginSuccessor318
+import Yulang.GeneralWhereOriginSupport318
+import Yulang.GeneralWhereOriginTrace318
+
+#print axioms Yulang.GeneralWhereOriginSingleHead318.independent_projection
+#print axioms Yulang.GeneralWhereOriginSingleHead318.compatible
+#print axioms Yulang.GeneralWhereOriginSingleHead318.old_head
+#print axioms Yulang.GeneralWhereOriginSingleHead318.new_head
+#print axioms Yulang.GeneralWhereOriginSingleModel318.old_lo_ne_hi
+#print axioms Yulang.GeneralWhereOriginSingleModel318.new_lo_ne_hi
+#print axioms Yulang.GeneralWhereOriginSingleModel318.older_absent
+#print axioms Yulang.GeneralWhereOriginSingleModel318.newer_absent
+#print axioms Yulang.GeneralWhereOriginSingleModel318.previous_outside
+#print axioms Yulang.GeneralWhereOriginSingleModel318.patched_outside
+#print axioms Yulang.GeneralWhereOriginSingleModel318.old_oldSources
+#print axioms Yulang.GeneralWhereOriginSingleModel318.old_newSources
+#print axioms Yulang.GeneralWhereOriginSingleModel318.patch_oldSources
+#print axioms Yulang.GeneralWhereOriginSingleModel318.patch_newSources
+#print axioms Yulang.GeneralWhereOriginSingleModel318.two_writes
+#print axioms Yulang.GeneralWhereOriginSingleModel318.new_write
+#print axioms Yulang.GeneralWhereOriginSingleRead318.old_query
+#print axioms Yulang.GeneralWhereOriginSingleRead318.new_query
+#print axioms Yulang.GeneralWhereOriginSingleRead318.old_report
+#print axioms Yulang.GeneralWhereOriginSingleRead318.new_report
+#print axioms Yulang.GeneralWhereOriginSingleRead318.old_bindings
+#print axioms Yulang.GeneralWhereOriginSingleRead318.new_bindings
+#print axioms Yulang.GeneralWhereOriginSingleRead318.old_reads
+#print axioms Yulang.GeneralWhereOriginSingleRead318.new_reads
+#print axioms Yulang.GeneralWhereOriginSingleSource318.declaration_checked
+#print axioms Yulang.GeneralWhereOriginSingleSource318.checked
+#print axioms Yulang.GeneralWhereOriginSingleSource318.boundary_checked
+#print axioms Yulang.GeneralWhereOriginSuccessor318.alias_copy
+#print axioms Yulang.GeneralWhereOriginSuccessor318.requests_unchanged
+#print axioms Yulang.GeneralWhereOriginSuccessor318.existing_models
+#print axioms Yulang.GeneralWhereOriginSuccessor318.with_parent
+#print axioms Yulang.GeneralWhereOriginSupport318.child_transport
+#print axioms Yulang.GeneralWhereOriginSupport318.plan_holds
+#print axioms Yulang.GeneralWhereOriginSupport318.journal_models
+#print axioms Yulang.GeneralWhereOriginTrace318.source_origin
+#print axioms Yulang.GeneralWhereOriginTrace318.from_lookup
+#print axioms Yulang.GeneralWhereOriginTrace318.existing_has_equation

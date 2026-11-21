@@ -1,0 +1,30 @@
+import Yulang.GeneralWhereOriginFreshRead318
+import Yulang.GeneralWhereOriginHeadAgree318
+import Yulang.GeneralWhereOriginInstall318
+import Yulang.GeneralWhereOriginJoint318
+import Yulang.GeneralWhereOriginLayout318
+import Yulang.GeneralWhereOriginPartition318
+import Yulang.GeneralWhereOriginReady318
+
+#print axioms Yulang.GeneralWhereOriginFreshRead318.read_capture
+#print axioms Yulang.GeneralWhereOriginFreshRead318.read_binder
+#print axioms Yulang.GeneralWhereOriginFreshRead318.read_operand
+#print axioms Yulang.GeneralWhereOriginFreshRead318.fresh_not_read
+#print axioms Yulang.GeneralWhereOriginFreshRead318.common_without_read_assumption
+#print axioms Yulang.GeneralWhereOriginHeadAgree318.head_not_written
+#print axioms Yulang.GeneralWhereOriginHeadAgree318.scopes
+#print axioms Yulang.GeneralWhereOriginHeadAgree318.preserve_heads
+#print axioms Yulang.GeneralWhereOriginHeadAgree318.exact_observations
+#print axioms Yulang.GeneralWhereOriginInstall318.generated_append
+#print axioms Yulang.GeneralWhereOriginInstall318.executes
+#print axioms Yulang.GeneralWhereOriginJoint318.child_rows_transport
+#print axioms Yulang.GeneralWhereOriginJoint318.new_certificate
+#print axioms Yulang.GeneralWhereOriginLayout318.mem_fresh
+#print axioms Yulang.GeneralWhereOriginLayout318.source_iff
+#print axioms Yulang.GeneralWhereOriginLayout318.check_spec
+#print axioms Yulang.GeneralWhereOriginPartition318.existing_iff
+#print axioms Yulang.GeneralWhereOriginPartition318.fresh_iff
+#print axioms Yulang.GeneralWhereOriginPartition318.classified_iff
+#print axioms Yulang.GeneralWhereOriginPartition318.checked_batch
+#print axioms Yulang.GeneralWhereOriginReady318.headReady_frame
+#print axioms Yulang.GeneralWhereOriginReady318.preinstall_semantics

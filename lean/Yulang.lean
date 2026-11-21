@@ -6576,3 +6576,7 @@ import Yulang.GeneralWhereOriginInstall318
 import Yulang.GeneralWhereOriginFixtureCut318
 import Yulang.GeneralWhereOriginRealInstall318
 import Yulang.GeneralWhereOriginShadow318
+import Yulang.GeneralWhereOriginReceipt318
+import Yulang.GeneralWhereOriginCurrent318
+import Yulang.GeneralWhereOriginHeadAgree318
+import Yulang.GeneralWhereOriginLayoutContract318

@@ -49,3 +49,33 @@ have a common model. The common model changes only the new lower
 coordinate after the previous pair; it does not rewrite the old row.
 This does not by itself realize the combined split-source path as
 kernel transitions or select the new child.
+
+## Next minimal physical mixed transition
+
+The checked partition and layout now agree on exactly which cells are
+inserted. Treat that as an address theorem only. A model of the new raw
+snapshot still has to be derived. In the split-capture fixture, construct
+an older physical snapshot with the two earlier endpoint slots and its
+recorded generating packet, and move both slot identities unchanged
+through the real nominal reobservation. The present compiler should
+locate that same upper slot directly and check its provenance receipt;
+only the new lower slot is added. Keep the old lower constraint because
+the historical packet still needs it. The existing trace's Keeps rule
+takes a standard Refines proof; if the actual nominal reobservation
+replaces a loose descriptor rather than satisfying that Refines, add a
+separately justified observation rule that preserves high source IDs,
+seed and interpretation, not an arbitrary assumption of trace membership.
+Never replace a known point descriptor just to make the fixture pass.
+
+For the final insertion, derive the raw shape and equation of the new
+lower slot from its actual materialized compiler row. Its semantic
+certificate must be a RawTicket for all old-journal models satisfying
+the corrected parent, not merely evidence from one chosen assignment.
+The genuinely generated descriptor contains the reused upper and fresh
+lower together; after placement, read it again to prove the selected
+child's Frame and recursive certificate in that same model. Address
+integrity alone does not establish this. The current executes theorem
+also needs its explicit prior-choice, visible-read and silent-child
+hypotheses. For general where scopes, use semantic span arguments
+(the shadowed-record step is now proved) rather than insisting that
+every raw expression read still occur in the normalized pattern.

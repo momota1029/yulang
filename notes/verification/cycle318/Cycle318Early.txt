@@ -1,0 +1,6 @@
+'Yulang.GeneralWhereOriginCompiler318.materialized' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereOriginDelta318.Cell.written' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralWhereOriginTrace318.source_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereOriginTrace318.from_lookup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereOriginConfig318.history_config' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWhereOriginConfig318.already_holds' depends on axioms: [propext, Classical.choice, Quot.sound]

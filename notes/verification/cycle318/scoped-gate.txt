@@ -1,0 +1,2 @@
+AXIOM-GATE-PASS: 94715 declarations
+exit=0

@@ -1,0 +1,30 @@
+import Yulang.GeneralWhereOriginActualShift318
+import Yulang.GeneralWhereOriginAssemble318
+import Yulang.GeneralWhereOriginBatch318
+import Yulang.GeneralWhereOriginCheckedFixture318
+import Yulang.GeneralWhereOriginCheckedLayout318
+import Yulang.GeneralWhereOriginChild318
+import Yulang.GeneralWhereOriginCompiler318
+
+#print axioms Yulang.GeneralWhereOriginActualShift318.oldBindings
+#print axioms Yulang.GeneralWhereOriginActualShift318.newBindings
+#print axioms Yulang.GeneralWhereOriginActualShift318.old_lower_id
+#print axioms Yulang.GeneralWhereOriginActualShift318.old_upper_id
+#print axioms Yulang.GeneralWhereOriginActualShift318.new_lower_id
+#print axioms Yulang.GeneralWhereOriginActualShift318.new_upper_id
+#print axioms Yulang.GeneralWhereOriginActualShift318.different_aggregate
+#print axioms Yulang.GeneralWhereOriginActualShift318.both_move
+#print axioms Yulang.GeneralWhereOriginAssemble318.actual_transport
+#print axioms Yulang.GeneralWhereOriginAssemble318.all_rows
+#print axioms Yulang.GeneralWhereOriginAssemble318.compiler_complete
+#print axioms Yulang.GeneralWhereOriginAssemble318.modeled_preinstall
+#print axioms Yulang.GeneralWhereOriginBatch318.common
+#print axioms Yulang.GeneralWhereOriginCheckedFixture318.only_current
+#print axioms Yulang.GeneralWhereOriginCheckedFixture318.full_classification
+#print axioms Yulang.GeneralWhereOriginCheckedFixture318.rechecked
+#print axioms Yulang.GeneralWhereOriginCheckedLayout318.only_cells
+#print axioms Yulang.GeneralWhereOriginCheckedLayout318.validates
+#print axioms Yulang.GeneralWhereOriginCheckedLayout318.enumerated_trace
+#print axioms Yulang.GeneralWhereOriginChild318.endpoint_requests
+#print axioms Yulang.GeneralWhereOriginChild318.argument_fits
+#print axioms Yulang.GeneralWhereOriginCompiler318.materialized

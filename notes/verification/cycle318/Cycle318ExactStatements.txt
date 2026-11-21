@@ -1,0 +1,2 @@
+Audit/Cycle318ExactStatements.lean produced no warnings or errors.
+exit=0

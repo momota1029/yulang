@@ -1,0 +1,4 @@
+import Yulang.GeneralWhereOriginLayoutContract318
+
+#print axioms Yulang.GeneralWhereOriginLayoutContract318.writer_exact
+#print axioms Yulang.GeneralWhereOriginLayoutContract318.exact_insertion
