@@ -6936,3 +6936,7 @@ import Yulang.GeneralDeclarativeClausePlacement327
 import Yulang.GeneralDeclarativeWhereOutputBatch327
 import Yulang.GeneralDeclarativeAppliedClause327
 import Yulang.GeneralDeclarativeMixedClause327
+import Yulang.GeneralDeclarativeAliasChecker327
+import Yulang.GeneralDeclarativeInPlace327
+import Yulang.GeneralDeclarativeMixedReplay327
+import Yulang.GeneralDeclarativeRelation327
