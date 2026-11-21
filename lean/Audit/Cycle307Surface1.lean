@@ -1,0 +1,58 @@
+import Yulang.GeneralMixedCompoundAnyChild307
+import Yulang.GeneralMixedCompoundAnyRefresh307
+import Yulang.GeneralMixedCompoundAnyRoot307
+import Yulang.GeneralMixedCompoundBatch307
+import Yulang.GeneralMixedCompoundBatchBase307
+import Yulang.GeneralMixedCompoundChildEquality307
+
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.located
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.no_nominal
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.lower_known
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.report_exact
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.no_prepared
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.failed
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.no_frame
+#print axioms Yulang.GeneralMixedCompoundAnyChild307.no_install
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.Ctx
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.known_origin
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.can_gain_only_upper
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.all_known_covered
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.no_further_refresh
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.nominal_class
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.nominal_read
+#print axioms Yulang.GeneralMixedCompoundAnyRefresh307.point_closed
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.emb
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.original_argument
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.located
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.rename_point
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.query
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.report_exact
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.packet
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.plan
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.same_read
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.frame_plan
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.no_packet
+#print axioms Yulang.GeneralMixedCompoundAnyRoot307.no_install
+#print axioms Yulang.GeneralMixedCompoundBatch307.alias_forward
+#print axioms Yulang.GeneralMixedCompoundBatch307.settled_forward
+#print axioms Yulang.GeneralMixedCompoundBatch307.discharged_forward
+#print axioms Yulang.GeneralMixedCompoundBatch307.legacy_forward
+#print axioms Yulang.GeneralMixedCompoundBatch307.versioned_forward
+#print axioms Yulang.GeneralMixedCompoundBatch307.cached
+#print axioms Yulang.GeneralMixedCompoundBatch307.batch
+#print axioms Yulang.GeneralMixedCompoundBatch307.by_one
+#print axioms Yulang.GeneralMixedCompoundBatch307.feasible_exact
+#print axioms Yulang.GeneralMixedCompoundBatchBase307.embed
+#print axioms Yulang.GeneralMixedCompoundBatchBase307.source_eq
+#print axioms Yulang.GeneralMixedCompoundBatchBase307.atom_membership
+#print axioms Yulang.GeneralMixedCompoundBatchBase307.known_point
+#print axioms Yulang.GeneralMixedCompoundBatchBase307.refineBatch
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.hi
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.mid
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.historical_child_center
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.equal_point
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.equal_refreshed
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.altered
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.mid_distinct
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.mid_not_read
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.separation

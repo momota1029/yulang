@@ -1,0 +1,18 @@
+Command: lake env lean --trust=0 -DwarningAsError=true /tmp/Cycle307ConcreteTable.lean
+Exit: 0
+
+Exact standalone input:
+import Yulang.GeneralMixedCompoundTailPresentation307
+namespace Yulang.Cycle307ConcreteTable
+open GeneralFiniteColoredQuotient306 (fastQuotient)
+open GeneralMixedCompoundTailPresentation307 (targets nodes)
+abbrev graph := fastQuotient targets (fun _ => ()) nodes
+theorem computed :
+    graph.representatives = [false,true] ∧
+    graph.project false = some false ∧ graph.project true = some true ∧
+    graph.edges false = [true] ∧ graph.edges true = [] := by decide +kernel
+#print axioms computed
+end Yulang.Cycle307ConcreteTable
+
+Exact stdout:
+'Yulang.Cycle307ConcreteTable.computed' does not depend on any axioms

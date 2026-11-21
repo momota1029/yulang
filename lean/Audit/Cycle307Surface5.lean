@@ -1,0 +1,58 @@
+import Yulang.GeneralMixedCompoundUpperEqClosed307
+import Yulang.GeneralMixedCompoundUpperHalt307
+import Yulang.GeneralMixedCompoundUpperObstruction307
+import Yulang.GeneralMixedCompoundUpperOutcome307
+import Yulang.GeneralMixedCompoundUpperRefresh307
+import Yulang.GeneralMixedCompoundUpperRoot307
+
+#print axioms Yulang.GeneralMixedCompoundUpperEqClosed307.Related
+#print axioms Yulang.GeneralMixedCompoundUpperEqClosed307.classify
+#print axioms Yulang.GeneralMixedCompoundUpperEqClosed307.source_restrict
+#print axioms Yulang.GeneralMixedCompoundUpperEqClosed307.upper_raw
+#print axioms Yulang.GeneralMixedCompoundUpperEqClosed307.lower_raw
+#print axioms Yulang.GeneralMixedCompoundUpperEqClosed307.related_raw
+#print axioms Yulang.GeneralMixedCompoundUpperEqClosed307.equality_closed
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.raw_sites
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.centers
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.reached_cases
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.point_closed
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.w
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.rSite
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.root_denotes
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.child_denotes
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.different
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.no_merge_forward
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.no_merge_backward
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.halted
+#print axioms Yulang.GeneralMixedCompoundUpperHalt307.stable
+#print axioms Yulang.GeneralMixedCompoundUpperObstruction307.currentPlan
+#print axioms Yulang.GeneralMixedCompoundUpperObstruction307.current_lower
+#print axioms Yulang.GeneralMixedCompoundUpperObstruction307.no_current_packet
+#print axioms Yulang.GeneralMixedCompoundUpperObstruction307.no_common
+#print axioms Yulang.GeneralMixedCompoundUpperObstruction307.no_install_root
+#print axioms Yulang.GeneralMixedCompoundUpperObstruction307.no_install_child
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.generated
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.admin_ready
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.no_sharing
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.rejected_child
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.exact_child
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.child_site
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.child_history_shape
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.root_local_children
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.no_selected_tree
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.no_root_evidence
+#print axioms Yulang.GeneralMixedCompoundUpperOutcome307.evidenceAt
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.assignment
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.read_base
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.cache
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.cert
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.upperState
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.step
+#print axioms Yulang.GeneralMixedCompoundUpperRefresh307.models_iff
+#print axioms Yulang.GeneralMixedCompoundUpperRoot307.packet
+#print axioms Yulang.GeneralMixedCompoundUpperRoot307.plan
+#print axioms Yulang.GeneralMixedCompoundUpperRoot307.query
+#print axioms Yulang.GeneralMixedCompoundUpperRoot307.report_exact
+#print axioms Yulang.GeneralMixedCompoundUpperRoot307.bindings_exact
+#print axioms Yulang.GeneralMixedCompoundUpperRoot307.located
+#print axioms Yulang.GeneralMixedCompoundUpperRoot307.frame_plan

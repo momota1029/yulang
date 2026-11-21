@@ -1,0 +1,12 @@
+import Yulang.GeneralMixedCompoundChildHidden307
+import Yulang.GeneralMixedEqualityExact307
+
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.historical_child_center
+#print axioms Yulang.GeneralMixedCompoundChildEquality307.separation
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.actual_center_gap
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.no_feedback_pair
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.no_refresh_into_support
+#print axioms Yulang.GeneralMixedCompoundChildHidden307.root_request_retained
+#print axioms Yulang.GeneralMixedEqualityExact307.reconstruct
+#print axioms Yulang.GeneralMixedEqualityExact307.exact_successor
+#print axioms Yulang.GeneralMixedEqualityExact307.canonical_terminal

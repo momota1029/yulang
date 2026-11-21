@@ -1,0 +1,74 @@
+import Yulang.GeneralMixedCompoundUpperSnapshot307
+import Yulang.GeneralMixedCompoundUpperSupport307
+import Yulang.GeneralMixedCompoundUpperTrust307
+import Yulang.GeneralMixedCompoundUpperTypes307
+import Yulang.GeneralMixedEqualityExact307
+
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.desc
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.snap
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.context
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.base_transport
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.base_known
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.view_known
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.nominals
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.refineRaw
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.upper_high
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.upper_not_old
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.upper_unknown
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.upper_known
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.upper_reserved
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.upper_supported
+#print axioms Yulang.GeneralMixedCompoundUpperSnapshot307.support
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.lower
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.identity
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.reserved_exact
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.ordinary_subset
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.base_subset
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.support_subset
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.known_0
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.known_1
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.known_2
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.known_lo
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.known_hi
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.unknown_cases
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.putId
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.outside
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.putId_models
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.witness
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.child_history
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.lower_read
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.headless
+#print axioms Yulang.GeneralMixedCompoundUpperSupport307.impossible_further_refresh
+#print axioms Yulang.GeneralMixedCompoundUpperTrust307.retained
+#print axioms Yulang.GeneralMixedCompoundUpperTrust307.input_trusted
+#print axioms Yulang.GeneralMixedCompoundUpperTrust307.aggregate
+#print axioms Yulang.GeneralMixedCompoundUpperTrust307.ports
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.Kind
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.optional
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.meaning
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.tag
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.tagged
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.top_tag_conflict
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.tag_preserved
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.equiv_kind
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.kind
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.at_known
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.classifierModel
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.classifier_model
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.model_class
+#print axioms Yulang.GeneralMixedCompoundUpperTypes307.entailed_kind
+#print axioms Yulang.GeneralMixedEqualityExact307.raw
+#print axioms Yulang.GeneralMixedEqualityExact307.support
+#print axioms Yulang.GeneralMixedEqualityExact307.entails
+#print axioms Yulang.GeneralMixedEqualityExact307.raw_step
+#print axioms Yulang.GeneralMixedEqualityExact307.reconstruct
+#print axioms Yulang.GeneralMixedEqualityExact307.ObservesSame
+#print axioms Yulang.GeneralMixedEqualityExact307.SameRaw
+#print axioms Yulang.GeneralMixedEqualityExact307.exact_code
+#print axioms Yulang.GeneralMixedEqualityExact307.EqStep
+#print axioms Yulang.GeneralMixedEqualityExact307.extend
+#print axioms Yulang.GeneralMixedEqualityExact307.actual
+#print axioms Yulang.GeneralMixedEqualityExact307.copy_pair
+#print axioms Yulang.GeneralMixedEqualityExact307.exact_successor
+#print axioms Yulang.GeneralMixedEqualityExact307.terminal_formula
+#print axioms Yulang.GeneralMixedEqualityExact307.canonical_terminal

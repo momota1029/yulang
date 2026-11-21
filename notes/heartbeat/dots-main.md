@@ -1,11 +1,11 @@
 # dots-main heartbeat
-- cycle: 306
+- cycle: 307
 - status: completed
-- started: 2026-11-20T21:25:41.449Z
-- updated: 2026-11-20T22:15:55.200Z
+- started: 2026-11-20T22:33:16Z
+- updated: 2026-11-20T23:23:17.001Z
 - elapsed_min: 50
-- activity: 40 Lean モジュール・98 宣言監査。実二スカラーの最小5/6/8、任意深さ実 ladder の n+3、汎用色付き商を検証完了。
+- activity: 再観測済み実 C238 の任意 raw 手を厳密に分類。最大3、実1/2/3手、Acc。C239 tail 最小2状態。35モジュール・340宣言・全 scoped 検証済み。
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 8204610a5
-- resume_hint: 次周は I54 を再読し、C238 の出力と実 child を持つ source で独立の history/class slice と有限 edge lift を試す。
-- report: notes/handoff/dots-cycle-306.md
+- last_local_commit: 89edc6c8f
+- resume_hint: I54を再読。最初のreobserve以前への一般化、または出力つき真正 child の通るsourceに非空のEvidence再帰を接続する。
+- report: notes/handoff/dots-cycle-307.md

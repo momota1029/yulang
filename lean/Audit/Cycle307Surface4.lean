@@ -1,0 +1,66 @@
+import Yulang.GeneralMixedCompoundTailChildOutcome307
+import Yulang.GeneralMixedCompoundTailEq307
+import Yulang.GeneralMixedCompoundTailFan307
+import Yulang.GeneralMixedCompoundTailPresentation307
+import Yulang.GeneralMixedCompoundUpperBase307
+import Yulang.GeneralMixedCompoundUpperChild307
+
+#print axioms Yulang.GeneralMixedCompoundTailChildOutcome307.chosen_child
+#print axioms Yulang.GeneralMixedCompoundTailChildOutcome307.at_anchor
+#print axioms Yulang.GeneralMixedCompoundTailChildOutcome307.at_refresh
+#print axioms Yulang.GeneralMixedCompoundTailChildOutcome307.unchanged
+#print axioms Yulang.GeneralMixedCompoundTailChildOutcome307.silent_but_operationally_strict
+#print axioms Yulang.GeneralMixedCompoundTailEq307.source_restrict
+#print axioms Yulang.GeneralMixedCompoundTailEq307.lower_raw
+#print axioms Yulang.GeneralMixedCompoundTailEq307.upper_raw
+#print axioms Yulang.GeneralMixedCompoundTailEq307.related_raw
+#print axioms Yulang.GeneralMixedCompoundTailEq307.at_anchor
+#print axioms Yulang.GeneralMixedCompoundTailEq307.at_refresh
+#print axioms Yulang.GeneralMixedCompoundTailFan307.extra
+#print axioms Yulang.GeneralMixedCompoundTailFan307.fresh
+#print axioms Yulang.GeneralMixedCompoundTailFan307.wide
+#print axioms Yulang.GeneralMixedCompoundTailFan307.coordinates
+#print axioms Yulang.GeneralMixedCompoundTailFan307.recorded_term
+#print axioms Yulang.GeneralMixedCompoundTailFan307.recorded_back
+#print axioms Yulang.GeneralMixedCompoundTailFan307.widthCert
+#print axioms Yulang.GeneralMixedCompoundTailFan307.tail
+#print axioms Yulang.GeneralMixedCompoundTailFan307.raw_halt
+#print axioms Yulang.GeneralMixedCompoundTailFan307.injective
+#print axioms Yulang.GeneralMixedCompoundTailFan307.infinitely_many_halts
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.bit
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.targets
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.nodes
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.anchor_bit
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.next_bit
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.upper_bit
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.terminal_bit
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.all
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.present
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.has_next
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.two_necessary
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.actual_two
+#print axioms Yulang.GeneralMixedCompoundTailPresentation307.exact_tail_minimum
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.upper
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.embed
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.source
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.source_old
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.source_new
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.injective
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.shapes
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.heads
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.base
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.viewHeads
+#print axioms Yulang.GeneralMixedCompoundUpperBase307.view
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.located
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.query
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.report_exact
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.fresh
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.failed
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.known
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.no_inspection_pending
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.no_prepared
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.no_survivor
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.no_frame
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.no_evidence
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.reachable
+#print axioms Yulang.GeneralMixedCompoundUpperChild307.same_request

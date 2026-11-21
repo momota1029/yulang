@@ -1,0 +1,8 @@
+== GeneralMixedCompoundPointExact307 ==
+GeneralMixedCompoundPointExact307 exit=0
+== GeneralMixedCompoundPointAcc307 ==
+GeneralMixedCompoundPointAcc307 exit=0
+== GeneralMixedCompoundPointEvidence307 ==
+GeneralMixedCompoundPointEvidence307 exit=0
+== GeneralMixedCompoundTailPresentation307 ==
+GeneralMixedCompoundTailPresentation307 exit=0

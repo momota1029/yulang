@@ -1,0 +1,53 @@
+'Yulang.GeneralMixedCompoundUpperTypes307.tag' does not depend on any axioms
+'Yulang.GeneralMixedCompoundUpperTypes307.tagged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.top_tag_conflict' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.tag_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.equiv_kind' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.kind' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.at_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.classifierModel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.classifier_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.model_class' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperTypes307.entailed_kind' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.entails' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.raw_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.reconstruct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.ObservesSame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.SameRaw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.exact_code' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.EqStep' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.extend' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.copy_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.exact_successor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.terminal_formula' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedEqualityExact307.canonical_terminal' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Cycle307Tail ===
+'Yulang.GeneralMixedCompoundUpperHalt307.halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperOutcome307.no_selected_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperOutcome307.no_root_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundUpperOutcome307.evidenceAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.can_gain_only_upper' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.no_further_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRefresh307.point_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.same_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyRoot307.no_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundAnyChild307.report_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundTailEq307.at_anchor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundTailEq307.at_refresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundTail307.exact_anchor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundTail307.every_successor_halted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundTailPresentation307.present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundTailPresentation307.exact_tail_minimum' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundTailChildOutcome307.unchanged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedCompoundTailChildOutcome307.silent_but_operationally_strict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedCompoundTailFan307.infinitely_many_halts' depends on axioms: [propext, Classical.choice, Quot.sound]
