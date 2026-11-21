@@ -6802,3 +6802,10 @@ import Yulang.GeneralDeclarativeHiddenState324
 import Yulang.GeneralDeclarativeK2Mono324
 import Yulang.GeneralDeclarativeNFNode324
 import Yulang.GeneralDeclarativeNFResolve324
+import Yulang.GeneralDeclarativeMetadata324
+import Yulang.GeneralDeclarativeNFComplete324
+import Yulang.GeneralDeclarativeNFEmit324
+import Yulang.GeneralDeclarativeNFWhere324
+import Yulang.GeneralDeclarativeOutputIdentity324
+import Yulang.GeneralDeclarativeReobserve324
+import Yulang.GeneralDeclarativeSharedNF324
