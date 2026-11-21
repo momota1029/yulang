@@ -1,0 +1,48 @@
+Yulang.GeneralWherePhysicalPatch319.exclude_plan :
+  ¬Yulang.GeneralWhereOriginSingleCells318.loNow ∈
+      Yulang.GeneralWhereOriginSupport318.planSources Yulang.GeneralWhereOriginSingleSource318.oldPlan
+Yulang.GeneralWherePhysicalPatch319.compatible_update :
+  Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalReobserve319.updated
+    Yulang.GeneralWherePhysicalPatch319.n
+Yulang.GeneralWherePhysicalCurrentModel319.full :
+  Yulang.GeneralWhereVersionSemantics317.Holds Yulang.GeneralWherePhysicalCurrentRead319.plan
+    Yulang.GeneralWherePhysicalPatch319.n
+Yulang.GeneralWherePhysicalCurrentFrame319.frame :
+  Yulang.GeneralNominalVersionedEvidence231.Frame Yulang.GeneralWhereOriginSingleSource318.registry
+    Yulang.GeneralWherePhysicalReobserve319.updated.mixed.core Yulang.GeneralDictionaryJournalRefinement228Source.root
+    Yulang.GeneralWhereOriginSingleSource318.declaration.id Yulang.GeneralWherePhysicalCurrentRead319.plan
+Yulang.GeneralWherePhysicalCurrentPick319.selected :
+  Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local Yulang.GeneralWhereOriginSingleSource318.sourceRegistry
+    Yulang.GeneralWherePhysicalReobserve319.updated.mixed Yulang.GeneralDictionaryJournalRefinement228Source.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralWhereOriginSingleSource318.declaration.id
+      (Yulang.GeneralNominalVersionedFrame231.children Yulang.GeneralWherePhysicalCurrentRead319.packet))
+Yulang.GeneralWherePhysicalCommit319.child_changed :
+  Yulang.GeneralWhereOriginSingleCells318.oldChild.occurrence ≠ Yulang.GeneralWherePhysicalCommit319.newChild.occurrence
+Yulang.GeneralWherePhysicalCommit319.physical_mixed_run :
+  Yulang.GeneralWhereVersionInstall317.InstallStep Yulang.GeneralWhereOriginSingleSource318.sourceRegistry
+      Yulang.GeneralWherePhysicalOldHead319.before Yulang.GeneralWherePhysicalOldInstall319.installed ∧
+    Yulang.GeneralNominalVersionedMixedKernel234.Step Yulang.GeneralWhereOriginSingleSource318.registry
+        Yulang.GeneralDictionaryJournalRefinement228Source.root Yulang.GeneralWherePhysicalOldInstall319.installed.mixed
+        Yulang.GeneralWherePhysicalReobserve319.updated.mixed ∧
+      Yulang.GeneralWhereVersionInstall317.InstallStep Yulang.GeneralWhereOriginSingleSource318.sourceRegistry
+          Yulang.GeneralWherePhysicalReobserve319.updated Yulang.GeneralWherePhysicalCommit319.final ∧
+        Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalOldInstall319.installed
+            Yulang.GeneralWherePhysicalPatch319.n ∧
+          Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalReobserve319.updated
+              Yulang.GeneralWherePhysicalPatch319.n ∧
+            Yulang.GeneralWhereVersionInstall317.Models Yulang.GeneralWherePhysicalCommit319.final
+                Yulang.GeneralWherePhysicalPatch319.n ∧
+              (∀ (p : Yulang.GeneralNominalCenters.Plan Yulang.GeneralDictionaryJournalRefinement228Source.roles),
+                  p ∈ Yulang.GeneralWherePhysicalCommit319.final.versionedWhere →
+                    Yulang.GeneralWhereVersionSemantics317.Holds p Yulang.GeneralWherePhysicalPatch319.n) ∧
+                Yulang.GeneralNominalSaturationState.Generated
+                  Yulang.GeneralWherePhysicalCommit319.final.mixed.core.erased.current
+                  Yulang.GeneralDictionaryJournalRefinement228Source.root
+                  Yulang.GeneralWherePhysicalCommit319.newChild.occurrence
+'Yulang.GeneralWherePhysicalPatch319.exclude_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalPatch319.compatible_update' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalCurrentModel319.full' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalCurrentFrame319.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalCurrentPick319.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalCommit319.child_changed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralWherePhysicalCommit319.physical_mixed_run' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,15 @@
+import Yulang.GeneralWherePhysicalCommit319
+#check Yulang.GeneralWherePhysicalPatch319.exclude_plan
+#check Yulang.GeneralWherePhysicalPatch319.compatible_update
+#check Yulang.GeneralWherePhysicalCurrentModel319.full
+#check Yulang.GeneralWherePhysicalCurrentFrame319.frame
+#check Yulang.GeneralWherePhysicalCurrentPick319.selected
+#check Yulang.GeneralWherePhysicalCommit319.child_changed
+#check Yulang.GeneralWherePhysicalCommit319.physical_mixed_run
+#print axioms Yulang.GeneralWherePhysicalPatch319.exclude_plan
+#print axioms Yulang.GeneralWherePhysicalPatch319.compatible_update
+#print axioms Yulang.GeneralWherePhysicalCurrentModel319.full
+#print axioms Yulang.GeneralWherePhysicalCurrentFrame319.frame
+#print axioms Yulang.GeneralWherePhysicalCurrentPick319.selected
+#print axioms Yulang.GeneralWherePhysicalCommit319.child_changed
+#print axioms Yulang.GeneralWherePhysicalCommit319.physical_mixed_run
