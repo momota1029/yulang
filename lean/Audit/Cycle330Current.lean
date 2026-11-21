@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeCurrentResult330
+
+#print axioms Yulang.GeneralDeclarativeCurrentReceipt330.exact_proposal
+#print axioms Yulang.GeneralDeclarativeCurrentResult330.rejoined_old
+#print axioms Yulang.GeneralDeclarativeCurrentResult330.receipt
+#print axioms Yulang.GeneralDeclarativeCurrentResult330.reverseReceipt
+#print axioms Yulang.GeneralDeclarativeCurrentResult330.every_model
+#print axioms Yulang.GeneralDeclarativeCurrentResult330.accepted_without_literal

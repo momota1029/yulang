@@ -7031,3 +7031,5 @@ import Yulang.GeneralDeclarativeRecordFieldRead330
 import Yulang.GeneralDeclarativeObserverGrowth330
 import Yulang.GeneralDeclarativeObserverSource330
 import Yulang.GeneralDeclarativeCurrentReceipt330
+import Yulang.GeneralDeclarativeCurrentProbe330
+import Yulang.GeneralDeclarativeCurrentResult330
