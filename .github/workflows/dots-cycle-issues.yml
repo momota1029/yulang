@@ -1,0 +1,77 @@
+name: dots cycle issues
+
+# Open one issue per new dots report on work/dots-main.
+# Scheduled workflows run from the default branch, so this file lives on main
+# and reads work/dots-main by checkout. dots itself needs no change.
+#
+# An issue is opened for every notes/handoff/dots-cycle-<N>.md with
+# N >= DOTS_FIRST_CYCLE that has no issue titled "dots cycle <N>" yet.
+# The receiver integrates (tools/dots-integrate.sh on yulang3), comments the
+# result, and closes the issue.
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dots-cycle-issues
+  cancel-in-progress: false
+
+env:
+  DOTS_BRANCH: work/dots-main
+  DOTS_FIRST_CYCLE: "313"
+  DOTS_LABEL: dots-cycle
+
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DOTS_BRANCH }}
+          fetch-depth: 200
+      - name: Open issues for new reports
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh label create "$DOTS_LABEL" --color 1d76db \
+            --description "dots proof cycle report to verify and integrate" 2>/dev/null || true
+          existing=$(gh issue list --label "$DOTS_LABEL" --state all --limit 500 \
+            --json title -q '.[].title')
+          for f in notes/handoff/dots-cycle-*.md; do
+            [ -e "$f" ] || continue
+            n=$(basename "$f" .md); n=${n#dots-cycle-}
+            case "$n" in ''|*[!0-9]*) continue ;; esac
+            [ "$n" -ge "$DOTS_FIRST_CYCLE" ] || continue
+            title="dots cycle $n"
+            if printf '%s\n' "$existing" | grep -qxF "$title"; then continue; fi
+            sha=$(git log -1 --format=%H -- "$f")
+            heading=$(head -1 "$f")
+            {
+              echo "$heading"
+              echo
+              echo "Report: [\`$f\` at ${sha:0:9}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/$sha/$f)"
+              echo "Report commit: \`$sha\`"
+              echo
+              echo "## Receiver checklist"
+              echo
+              echo "- [ ] Read the report. Note conditional results and remaining bridges."
+              echo "- [ ] No \`import Audit.\` added under \`lean/Audit/\`; every new \`lean/Yulang/*.lean\` is imported by \`lean/Yulang.lean\`."
+              echo "- [ ] \`git branch -f dots/$n $sha\`, then \`tools/dots-integrate.sh <repo> dots/$n dots-$n\` (or integrate a later cycle instead: it contains this one)."
+              echo "- [ ] verify-lean PASS; read every REVIEW line."
+              echo "- [ ] PUSHED and SYNCED; comment the result here and close."
+              echo
+              echo "<details><summary>First 60 lines of the report</summary>"
+              echo
+              head -60 "$f"
+              echo
+              echo "</details>"
+            } > body.md
+            gh issue create --title "$title" --label "$DOTS_LABEL" --body-file body.md
+          done
