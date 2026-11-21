@@ -3,6 +3,6 @@
 - cycle: 312
 - status: running
 - started: 2026-11-21T03:30:00Z
-- updated: 2026-11-21T03:46:50.310Z
-- elapsed_min: 16
-- activity: C312: 実 alias/refresh から旧選択の観測前提を除去、残りは保護集約の履歴照合
+- updated: 2026-11-21T03:59:29.872Z
+- elapsed_min: 29
+- activity: C312: 現 Frame の一意性と同一モデルの合成（実履歴、有限出力・子書込み）を検証

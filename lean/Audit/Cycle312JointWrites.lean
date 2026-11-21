@@ -1,0 +1,16 @@
+import Yulang.GeneralVersionedSelectedJointWrites312
+import Yulang.GeneralVersionedAliasHeadWrites312
+import Yulang.GeneralVersionedSemanticPeer312
+import Yulang.GeneralVersionedHistoricalJoint312
+#print axioms Yulang.GeneralVersionedCurrentFrame312.frame_exact
+#print axioms Yulang.GeneralVersionedSelectedJointHead312.effects_for_frame
+#print axioms Yulang.GeneralFiniteTypedWrites312.exact
+#print axioms Yulang.GeneralVersionedJointWrites312.complete
+#print axioms Yulang.GeneralVersionedJointWriteExact312.exact
+#print axioms Yulang.GeneralVersionedRootWrites312.outer_live
+#print axioms Yulang.GeneralVersionedSelectedJointWrites312.joint_from_internal
+#print axioms Yulang.GeneralVersionedAliasHeadWrites312.complete
+#print axioms Yulang.GeneralVersionedSemanticPeer312.full_head_of_trace
+#print axioms Yulang.GeneralVersionedSemanticPeer312.choice
+#print axioms Yulang.GeneralVersionedHistoricalJoint312.head_from_history
+#print axioms Yulang.GeneralVersionedHistoricalJoint312.joint
