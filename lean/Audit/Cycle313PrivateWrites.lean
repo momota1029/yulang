@@ -1,0 +1,42 @@
+import Yulang.GeneralVersionedPrivateWriteNames313
+import Yulang.GeneralVersionedFirstFootprint313
+import Yulang.GeneralVersionedNormalizedVariable313
+import Yulang.GeneralVersionedCompoundRows313
+import Yulang.GeneralVersionedFirstInternal313
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.tag
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.transfer_small
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.endpoints
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.output
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.binder_name
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.rhs_read
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.head_atom
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.head_read
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.excludes
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.actual_to_safe
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.actual_binder
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.aggregate_not_actual
+#print axioms Yulang.GeneralVersionedFirstFootprint313.center_get_small
+#print axioms Yulang.GeneralVersionedFirstFootprint313.requests_small
+#print axioms Yulang.GeneralVersionedFirstFootprint313.body_reads
+#print axioms Yulang.GeneralVersionedFirstFootprint313.classes
+#print axioms Yulang.GeneralVersionedFirstFootprint313.schema_reads
+#print axioms Yulang.GeneralVersionedFirstFootprint313.protected_names
+#print axioms Yulang.GeneralVersionedFirstFootprint313.class_aggregate_free
+#print axioms Yulang.GeneralVersionedNormalizedVariable313.row_not_var
+#print axioms Yulang.GeneralVersionedNormalizedVariable313.merge_variable
+#print axioms Yulang.GeneralVersionedNormalizedVariable313.normalized_value
+#print axioms Yulang.GeneralVersionedCompoundRows313.materializes
+#print axioms Yulang.GeneralVersionedCompoundRows313.key_unique
+#print axioms Yulang.GeneralVersionedCompoundRows313.coherent_address
+#print axioms Yulang.GeneralVersionedCompoundRows313.clause_arg
+#print axioms Yulang.GeneralVersionedCompoundRows313.lower_or_upper
+#print axioms Yulang.GeneralVersionedCompoundRows313.center
+#print axioms Yulang.GeneralVersionedCompoundRows313.emitted
+#print axioms Yulang.GeneralVersionedCompoundRows313.classifies
+#print axioms Yulang.GeneralVersionedFirstInternal313.taut_reads
+#print axioms Yulang.GeneralVersionedFirstInternal313.taut_protected
+#print axioms Yulang.GeneralVersionedFirstInternal313.cell_free
+#print axioms Yulang.GeneralVersionedFirstInternal313.internal
+#print axioms Yulang.GeneralVersionedFirstInternal313.sites_covered
+#print axioms Yulang.GeneralVersionedFirstInternal313.joint
+#print axioms Yulang.GeneralVersionedFirstInternal313.installable

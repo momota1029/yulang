@@ -6406,3 +6406,8 @@ import Yulang.GeneralVersionedSchemaOrigins313
 import Yulang.GeneralVersionedFirstHead313
 import Yulang.GeneralVersionedFiniteInspectionTests313
 import Yulang.GeneralVersionedFirstGroundHead313
+import Yulang.GeneralVersionedPrivateWriteNames313
+import Yulang.GeneralVersionedFirstFootprint313
+import Yulang.GeneralVersionedNormalizedVariable313
+import Yulang.GeneralVersionedCompoundRows313
+import Yulang.GeneralVersionedFirstInternal313
