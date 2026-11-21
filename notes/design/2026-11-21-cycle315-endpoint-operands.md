@@ -30,3 +30,33 @@ force identical whole RHS under any common assignment; the current source
 reachability relation, stable child identity contract, and old committed
 child demand must still be connected before this could replace any source
 semantics. No representation or language rule is changed here.
+
+## Exact next checks
+
+- Main-line theorem: GeneralVersionedRevisitCut315.evidenceNode uses only
+  ChildDemandCut315.ForeignKeys and RevisitRhs. A common head assignment for
+  a revisit can be built with CompleteInModel315.fill from any old live
+  assignment while preserving every journal coordinate and report read.
+  HistoricalClasses315.live supplies actual/default class outputs in that
+  same completed model. For every compound where endpoint, the old equation
+  is already in the journal and its target is protected; the remaining
+  global question is whether whole RHS equivalence can be obtained in one
+  such assignment when all real child certificates are present.
+- Diagnostic check (not yet a counterexample): the existing C307 source has
+  one nominal root rule and a variant child with no matching rule. A minimal
+  candidate for a genuinely child-evidenced test is a second terminal variant
+  rule with a fresh declaration key, in the same role. The first root install,
+  exact checked reobservation, child local acceptance/certificate, actual child
+  installation or commitment, and both stable/evidenced premises would all
+  have to be reconstructed under the *extended* compiled registry. Its old
+  registry-wide reservations change, so simply assuming the previous trace
+  still applies would not establish a source counterexample.
+- Address experiment: EndpointAddress315, EndpointSourceKey315, and
+  EndpointBatch315 give disjoint namespaces and exact RHS reuse when encoded
+  footprints match, including nominal mode resets. A revised implementation
+  must specify how new endpoint identities appear in a new child occurrence,
+  whether the numeric child owner is retained, and how an old certificate is
+  linked to the new child. This cannot be inferred from a model-only patch.
+- For (4a), the child-restricted foreign-key condition has no general producer
+  yet. The C307 lower-row case has no foreign numerical owner; it isolates
+  the other bridge and must not be used to draw a conclusion about aliases.

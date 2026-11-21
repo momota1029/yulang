@@ -1,0 +1,36 @@
+$ lake env lean --trust=0 -DwarningAsError=true Audit/Cycle315Surface3.lean
+'Yulang.GeneralVersionedEndpointPatchCase315.narrowed_address_changes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointPatchCase315.preserves_old_and_sets_new' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointReadTest315.nonempty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointReadTest315.Test' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointReadTest315.operand' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointReadTest315.Certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointReadTest315.readback' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointSourceKey315.Row' does not depend on any axioms
+'Yulang.GeneralVersionedEndpointSourceKey315.SourceRow' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointSourceKey315.from_endpoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointSourceKey315.coherent_on_trace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointWholeRhs315.Row' does not depend on any axioms
+'Yulang.GeneralVersionedEndpointWholeRhs315.target_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointWholeRhs315.AgreeRhs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointWholeRhs315.endpoint_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointWholeRhs315.joint_with_rhs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighClass315.default_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighClass315.reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighClass315.class_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighClass315.effect_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighJournal315.legacy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighJournal315.all' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighJournal315.unused' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighJournal315.patch' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedHighJournal315.patch_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHighJournal315.proposed_patch_preserves' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit 0
