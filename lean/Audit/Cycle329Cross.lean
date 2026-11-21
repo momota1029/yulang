@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeStableCrossCut329
+import Yulang.GeneralDeclarativeStableAnchor329
+
+#print axioms Yulang.GeneralDeclarativeStableCrossSource329.real_heads
+#print axioms Yulang.GeneralDeclarativeStableCrossSource329.no_original_eleven
+#print axioms Yulang.GeneralDeclarativeStableCrossCompile329.exact_child
+#print axioms Yulang.GeneralDeclarativeStableCrossCompile329.untied_model
+#print axioms Yulang.GeneralDeclarativeStableCrossBridge329.conserves
+#print axioms Yulang.GeneralDeclarativeStableCrossResolve329.tree
+#print axioms Yulang.GeneralDeclarativeStableCrossResolve329.nonvacuous
+#print axioms Yulang.GeneralDeclarativeStableCrossCut329.exact_cut
+#print axioms Yulang.GeneralDeclarativeStableAnchor329.anchored
