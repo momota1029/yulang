@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeCandidateScan327
+import Yulang.GeneralDeclarativeRepeatedProjection327
+
+#print axioms Yulang.GeneralDeclarativeFrontier327.coverage
+#print axioms Yulang.GeneralDeclarativeCandidateScan327.single
+#print axioms Yulang.GeneralDeclarativeCandidateScan327.scan_blocked
+#print axioms Yulang.GeneralDeclarativeRepeatedProjection327.same_from_actual_source
+#print axioms Yulang.GeneralDeclarativeRepeatedProjection327.merge_from_source

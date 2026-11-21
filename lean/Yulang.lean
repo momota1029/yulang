@@ -6907,3 +6907,6 @@ import Yulang.GeneralDeclarativeProjectInterval326
 import Yulang.GeneralDeclarativeProjectCapture326
 import Yulang.GeneralDeclarativeOpaquePrefix326
 import Yulang.GeneralDeclarativeProjectedConsumer326
+import Yulang.GeneralDeclarativeFrontier327
+import Yulang.GeneralDeclarativeCandidateScan327
+import Yulang.GeneralDeclarativeRepeatedProjection327
