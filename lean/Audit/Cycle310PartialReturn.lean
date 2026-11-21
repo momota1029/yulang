@@ -1,0 +1,11 @@
+import Yulang.GeneralSharedNamedDiagnostic310
+import Yulang.GeneralVersionedCheckedReturn310
+
+#print axioms Yulang.GeneralPartialDiagnosticRead310.sound
+#print axioms Yulang.GeneralPartialDiagnosticRead310.returned
+#print axioms Yulang.GeneralVersionedCheckedReturn310.exact_tree
+#print axioms Yulang.GeneralSharedNamedPremerge310.preserves_pending_children
+#print axioms Yulang.GeneralSharedNamedPremerge310.not_flattened
+#print axioms Yulang.GeneralSharedNamedDiagnostic310.real_checkpoints
+#print axioms Yulang.GeneralSharedNamedDiagnostic310.distinguishes
+#print axioms Yulang.GeneralSharedNamedDiagnostic310.verified_after
