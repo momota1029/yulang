@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeRuleExact323
+import Yulang.GeneralDeclarativeAppliedTree323
+import Yulang.GeneralDeclarativeRepeatedResolve323
+import Yulang.GeneralDeclarativeActualPoint323
+import Yulang.GeneralDeclarativeStructuralScan323
+
+#print axioms Yulang.GeneralDeclarativeAssocRule323.from_source_closure
+#print axioms Yulang.GeneralDeclarativeAssocModel323.compiler_models_iff_source
+#print axioms Yulang.GeneralDeclarativeRuleExact323.exact
+#print axioms Yulang.GeneralDeclarativeAppliedTree323.rule_sound
+#print axioms Yulang.GeneralDeclarativeRepeatedResolve323.genuine_repeated_inhabited
+#print axioms Yulang.GeneralDeclarativeRepeatedResolve323.evidence
+#print axioms Yulang.GeneralDeclarativeActualPoint323.at_point
+#print axioms Yulang.GeneralDeclarativeStructuralScan323.head_row_exact
+#print axioms Yulang.GeneralDeclarativeStructuralScan323.recipe
