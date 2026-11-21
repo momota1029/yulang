@@ -1,0 +1,8 @@
+Substantive fixed GitHub commit: 3c6514f5b87e085e6adf7e12ecc7a761bd913986
+Previous cycle verified GitHub base: 0efd81e8c4e38ae34b798cac1475aa7830d45e06
+At readback, live work/dots-main head matched the fixed substantive commit.
+64/64 paths changed this cycle matched fixed commit contents byte-for-byte.
+Heartbeat readback: running, elapsed_min=46.
+Remote import barrel = prior fixed C308 canonical bytes + exactly the 34 new C309 import lines.
+The latest integration barrel's 5,641 imports were also present in that prior canonical C308 barrel.
+All actual writes used the expected prior HEAD and force=false on work/dots-main.

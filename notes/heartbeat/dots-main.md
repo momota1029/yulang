@@ -1,10 +1,11 @@
 # dots-main heartbeat
 - cycle: 309
-- status: running
+- status: completed
 - started: 2026-11-21T00:29:54Z
-- updated: 2026-11-21T01:16:42.684Z
-- elapsed_min: 46
-- activity: C309: checked recursive evidence audit and design
+- updated: 2026-11-21T01:17:47.531Z
+- elapsed_min: 47
+- activity: C309 完了: 二つの実 child の再帰辞書健全性
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 4a7065382
-- resume_hint: 34 module, 334 named declarations and 12 actual executable probe evaluations checked; fixed-readback before final report.
+- last_local_commit: 3aa85fc3a
+- resume_hint: 次回は親出力を子が読む分岐で同一モデルの保持と現在クラス式を得る。一般停止性には進まない。
+- report: notes/handoff/dots-cycle-309.md
