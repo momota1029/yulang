@@ -1,0 +1,10 @@
+import Yulang.GeneralLatePeerJoint311
+import Yulang.GeneralVersionedAggregatePeer311
+#print axioms Yulang.GeneralLatePeerRecursive311.classifies
+#print axioms Yulang.GeneralLatePeerRecursive311.actual_recursive
+#print axioms Yulang.GeneralLatePeerJoint311.not_locally_represented
+#print axioms Yulang.GeneralLatePeerJoint311.jointly
+#print axioms Yulang.GeneralLatePeerJoint311.enabled
+#print axioms Yulang.GeneralVersionedAggregatePeer311.apart_of_unallocated
+#print axioms Yulang.GeneralVersionedAggregatePeer311.prepared_at_fresh_peer
+#print axioms Yulang.GeneralVersionedAggregatePeer311.choice

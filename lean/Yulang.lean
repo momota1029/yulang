@@ -6358,3 +6358,9 @@ import Yulang.GeneralLatePeerRouteInstall311
 import Yulang.GeneralPeerInstallationOrder311
 import Yulang.GeneralVersionedCenteredReplay311
 import Yulang.GeneralLatePeerMerge311
+import Yulang.GeneralLatePeerFinalPeerPlan311
+import Yulang.GeneralLatePeerCurrent311
+import Yulang.GeneralLatePeerTransfer311
+import Yulang.GeneralLatePeerRecursive311
+import Yulang.GeneralVersionedAggregatePeer311
+import Yulang.GeneralLatePeerJoint311
