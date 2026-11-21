@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeProjectedFrame326
+import Yulang.GeneralDeclarativeCopiedPending326
+
+#print axioms Yulang.GeneralDeclarativeProjectedFrame326.ordered_record_fact
+#print axioms Yulang.GeneralDeclarativeProjectedFrame326.head_fact
+#print axioms Yulang.GeneralDeclarativeProjectedFrame326.sound
+#print axioms Yulang.GeneralDeclarativeCopiedPending326.copied_stays_unbacked
+#print axioms Yulang.GeneralDeclarativeCopiedPending326.ordinary_cycle_copied

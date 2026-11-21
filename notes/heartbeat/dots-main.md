@@ -3,8 +3,8 @@
 - cycle: 326
 - status: running
 - started: 2026-11-21T17:30:00Z
-- updated: 2026-11-21T18:05:14.292Z
-- elapsed_min: 35
-- activity: C326 18:06 UTC: checked exact requested visible-record ordering and fresh ordinary alias collapse; K2 cycles iff the collapsed source already has one. Focused Lake and independent source audit passed; preparing final cross-checks.
-- last_local_commit: 653108f41
+- updated: 2026-11-21T18:07:02.083Z
+- elapsed_min: 37
+- activity: C326 18:07 UTC: verified constructive joined-center head compilation, ordered closed-tail head batch, and an ordinary K2 self-cycle that survives copying while the unavailable output authorizes no lower observation.
+- last_local_commit: b39bd4620
 - resume_hint: C326 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。

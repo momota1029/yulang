@@ -6902,3 +6902,4 @@ import Yulang.GeneralDeclarativeCopyK2326
 import Yulang.GeneralDeclarativeGraphFootprint326
 import Yulang.GeneralDeclarativeOrderedRecord326
 import Yulang.GeneralDeclarativeOrderedTail326
+import Yulang.GeneralDeclarativeCopiedPending326

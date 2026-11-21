@@ -1,4 +1,6 @@
 import Yulang.GeneralDeclarativePairProbe326
+import Yulang.GeneralDeclarativeProjectPair326
+import Yulang.GeneralDeclarativeOrderedTail326
 import Yulang.GeneralDeclarativeFrameReadback325
 import Yulang.GeneralDeclarativeEvidenceFold325
 
@@ -42,11 +44,43 @@ inductive Head (s : State) (c : Constructors) (i : Interpretation)
       Walk .actual left leftCode firstUses → Walk .actual right rightCode lastUses →
       Binds s cap (firstUses ++ lastUses) → Head s c i p cap arg pat
 
+  | joined : translate c i (normalize pat) = some (pair leftCode rightCode) →
+      Derives s (.variable arg.center) center →
+      GeneralDeclarativeProjectPair326.project center = some (left,right) →
+      Walk .actual left leftCode firstUses → Walk .actual right rightCode lastUses →
+      Binds s cap (firstUses ++ lastUses) → Head s c i p cap arg pat
+
 theorem head_fact {s : State} {p : Supported s complete} (bounds : Bounds s arg)
     (evidence : Head s c i p cap arg pat) : Result s (fact c i cap arg pat) := by
   cases evidence with
   | ordinary h => exact each bounds h
   | projected src center l r shared => exact normalized_center src center l r shared
+  | joined src center seen l r shared =>
+    exact GeneralDeclarativePairUnion326.with_joined_centers src center
+      (GeneralDeclarativeProjectPair326.recorded seen) l r shared
+
+/-- Exactly the usual normalized head batch for a known closed record
+spine when visible labels appear in a different storage order. The
+remaining names are produced by the ordinary fresh-tail constructor. -/
+theorem ordered_record_fact {s : State} (kept : List Nat)
+    (arg : Capture) (raw : CommonRoleCanonicalRows.Row Expr)
+    (labelOrder : keys.Nodup)
+    (read : GeneralDeclarativeOrderedRecord326.order (CommonRoleCanonicalRows.normalize raw) keys =
+      some printed)
+    (terminalKnown : GeneralDeclarativeFreshTail326.Closed terminal)
+    (visible : Derives s (.variable arg.center)
+      (GeneralDeclarativeRecordResidual323.withTail raw terminal))
+    (source : translate c i (normalize pat) = some code)
+    (walk : Walk .actual (GeneralDeclarativeRecordResidual323.withTail printed
+        (.variable (GeneralDeclarativeFreshTail326.tailRow s kept arg.center raw keys terminal).left))
+      code links)
+    (captures : Binds (GeneralDeclarativeFreshTail326.extended s kept arg.center raw keys terminal)
+      cap links) :
+    Result (GeneralDeclarativeFreshTail326.extended s kept arg.center raw keys terminal)
+      (fact c i cap arg pat) :=
+  GeneralDeclarativeForwardHead325.by_walk source
+    (GeneralDeclarativeOrderedTail326.actual_decl_order kept raw labelOrder read terminalKnown visible)
+    walk captures
 
 structure Frame (s : State) (r : Registry) (i : Interpretation)
     {complete : Nat → Prop} (p : Supported s complete) (d : Demand) (decl : Declaration)
