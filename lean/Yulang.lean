@@ -6509,3 +6509,5 @@ import Yulang.GeneralLiveCompoundCounterexample316
 import Yulang.GeneralLiveCompoundFullResult316
 import Yulang.GeneralLiveCompoundCulprit316
 import Yulang.GeneralLiveCompoundProposedRepair316
+import Yulang.GeneralWhereVersionCompiler317
+import Yulang.GeneralWhereVersionCase317
