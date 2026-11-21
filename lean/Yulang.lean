@@ -6614,3 +6614,10 @@ import Yulang.GeneralDeclarativeHead320
 import Yulang.GeneralDeclarativeDemand320
 import Yulang.GeneralDeclarativeOutputs320
 import Yulang.GeneralDeclarativeLocal320
+import Yulang.GeneralDeclarativePoint320
+import Yulang.GeneralDeclarativeReadScope320
+import Yulang.GeneralDeclarativeSubstitution320
+import Yulang.GeneralDeclarativeNormalized320
+import Yulang.GeneralDeclarativeRepeat320
+import Yulang.GeneralDeclarativeHeadDetermines320
+import Yulang.GeneralDeclarativeLinear320
