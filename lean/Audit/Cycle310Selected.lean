@@ -1,0 +1,6 @@
+import Yulang.GeneralSharedNamedSelection310
+
+#print axioms Yulang.GeneralSharedNamedSelection310.admin
+#print axioms Yulang.GeneralSharedNamedSelection310.no_merged
+#print axioms Yulang.GeneralSharedNamedSelection310.certificate
+#print axioms Yulang.GeneralSharedNamedSelection310.actual_pick

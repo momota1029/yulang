@@ -1,0 +1,7 @@
+Initial integration/m1-final: 5df350afcf817a22337ffae5d5409eef5dd85c52
+Previous cycle's verified integration: b5b1ddc44f670e24537b8d8ffe39d6ecfef21ab8
+GitHub compare: ahead 1, behind 0; only notes/plan/dots-inbox.md changed.
+Standing orders: 7ae4d68d2ac7df80d1eadbd061dadd2296faf4c4.
+Inbox: e08ce448cfac4b5bd6b96cbddb75c472276ff53b (I-55).
+No integration write. Publication was only to work/dots-main with expected HEAD and force=false.
+Source verification was scoped; prior C309 checked workspace baseline was reused.

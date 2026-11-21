@@ -1,0 +1,10 @@
+import Yulang.GeneralVersionedOutputFlow310
+import Yulang.GeneralVersionedOutputHandoff310
+
+#print axioms Yulang.GeneralVersionedOutputFlow310.input_excludes_output
+#print axioms Yulang.GeneralVersionedOutputFlow310.named_request
+#print axioms Yulang.GeneralVersionedOutputFlow310.witness_value
+#print axioms Yulang.GeneralVersionedOutputFlow310.equivalent_through
+#print axioms Yulang.GeneralVersionedOutputFlow310.paired_certificates
+#print axioms Yulang.GeneralVersionedOutputHandoff310.parent_output
+#print axioms Yulang.GeneralVersionedOutputHandoff310.parent_child

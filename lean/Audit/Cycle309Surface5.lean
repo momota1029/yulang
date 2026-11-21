@@ -1,0 +1,84 @@
+import Yulang.GeneralPositiveForkPayload309
+import Yulang.GeneralPositiveForkPlan309
+import Yulang.GeneralPositiveForkPreinstall309
+import Yulang.GeneralPositiveForkScope309
+import Yulang.GeneralPositiveForkSelection309
+import Yulang.GeneralPositiveForkSettlement309
+
+#print axioms Yulang.GeneralPositiveForkPayload309.expected
+#print axioms Yulang.GeneralPositiveForkPayload309.instance_shape
+#print axioms Yulang.GeneralPositiveForkPayload309.payload_exact
+#print axioms Yulang.GeneralPositiveForkPayload309.iff_expected
+#print axioms Yulang.GeneralPositiveForkPayload309.swapped_rejected
+#print axioms Yulang.GeneralPositiveForkPayload309.duplicated_rejected
+#print axioms Yulang.GeneralPositiveForkPayload309.truncated_rejected
+#print axioms Yulang.GeneralPositiveForkPlan309.packet
+#print axioms Yulang.GeneralPositiveForkPlan309.plan
+#print axioms Yulang.GeneralPositiveForkPlan309.origin
+#print axioms Yulang.GeneralPositiveForkPlan309.loSig
+#print axioms Yulang.GeneralPositiveForkPlan309.hiSig
+#print axioms Yulang.GeneralPositiveForkPlan309.loSite
+#print axioms Yulang.GeneralPositiveForkPlan309.hiSite
+#print axioms Yulang.GeneralPositiveForkPlan309.kids
+#print axioms Yulang.GeneralPositiveForkPlan309.query
+#print axioms Yulang.GeneralPositiveForkPlan309.report
+#print axioms Yulang.GeneralPositiveForkPlan309.bindings
+#print axioms Yulang.GeneralPositiveForkPlan309.center
+#print axioms Yulang.GeneralPositiveForkPlan309.capture_exact
+#print axioms Yulang.GeneralPositiveForkPlan309.canonical_clauses
+#print axioms Yulang.GeneralPositiveForkPlan309.emitted
+#print axioms Yulang.GeneralPositiveForkPlan309.ordered_children
+#print axioms Yulang.GeneralPositiveForkPlan309.args_low
+#print axioms Yulang.GeneralPositiveForkPlan309.args_high
+#print axioms Yulang.GeneralPositiveForkPlan309.center_low
+#print axioms Yulang.GeneralPositiveForkPlan309.center_high
+#print axioms Yulang.GeneralPositiveForkPlan309.vars
+#print axioms Yulang.GeneralPositiveForkPlan309.head_schema
+#print axioms Yulang.GeneralPositiveForkPlan309.output_schema
+#print axioms Yulang.GeneralPositiveForkPlan309.child_schema
+#print axioms Yulang.GeneralPositiveForkPlan309.ordinary
+#print axioms Yulang.GeneralPositiveForkPlan309.holds
+#print axioms Yulang.GeneralPositiveForkPreinstall309.compiled_checked
+#print axioms Yulang.GeneralPositiveForkPreinstall309.member_parent
+#print axioms Yulang.GeneralPositiveForkPreinstall309.located
+#print axioms Yulang.GeneralPositiveForkPreinstall309.known
+#print axioms Yulang.GeneralPositiveForkPreinstall309.fresh
+#print axioms Yulang.GeneralPositiveForkPreinstall309.prepared
+#print axioms Yulang.GeneralPositiveForkPreinstall309.frame
+#print axioms Yulang.GeneralPositiveForkPreinstall309.survivor
+#print axioms Yulang.GeneralPositiveForkPreinstall309.unique
+#print axioms Yulang.GeneralPositiveForkPreinstall309.ready
+#print axioms Yulang.GeneralPositiveForkPreinstall309.administrative
+#print axioms Yulang.GeneralPositiveForkPreinstall309.safe
+#print axioms Yulang.GeneralPositiveForkPreinstall309.positions
+#print axioms Yulang.GeneralPositiveForkPreinstall309.alternatives
+#print axioms Yulang.GeneralPositiveForkPreinstall309.effect
+#print axioms Yulang.GeneralPositiveForkScope309.withExtra
+#print axioms Yulang.GeneralPositiveForkScope309.need_exact
+#print axioms Yulang.GeneralPositiveForkScope309.agree
+#print axioms Yulang.GeneralPositiveForkScope309.unchanged_at_root
+#print axioms Yulang.GeneralPositiveForkScope309.accepted_root_still_sound
+#print axioms Yulang.GeneralPositiveForkScope309.spare_accepted
+#print axioms Yulang.GeneralPositiveForkScope309.extra_not_faithful
+#print axioms Yulang.GeneralPositiveForkScope309.cannot_infer_outside
+#print axioms Yulang.GeneralPositiveForkSelection309.registered
+#print axioms Yulang.GeneralPositiveForkSelection309.merge_already
+#print axioms Yulang.GeneralPositiveForkSelection309.admin
+#print axioms Yulang.GeneralPositiveForkSelection309.recorded_decl
+#print axioms Yulang.GeneralPositiveForkSelection309.known
+#print axioms Yulang.GeneralPositiveForkSelection309.safe
+#print axioms Yulang.GeneralPositiveForkSelection309.survivor
+#print axioms Yulang.GeneralPositiveForkSelection309.unique
+#print axioms Yulang.GeneralPositiveForkSelection309.holds
+#print axioms Yulang.GeneralPositiveForkSelection309.ready
+#print axioms Yulang.GeneralPositiveForkSelection309.classes
+#print axioms Yulang.GeneralPositiveForkSelection309.no_merged
+#print axioms Yulang.GeneralPositiveForkSelection309.actual_pick
+#print axioms Yulang.GeneralPositiveForkSettlement309.committed_read
+#print axioms Yulang.GeneralPositiveForkSettlement309.certified_via_commitment
+#print axioms Yulang.GeneralPositiveForkSettlement309.only_parent_recorded
+#print axioms Yulang.GeneralPositiveForkSettlement309.discharge_owner
+#print axioms Yulang.GeneralPositiveForkSettlement309.unrecorded_side
+#print axioms Yulang.GeneralPositiveForkSettlement309.not_settled
+#print axioms Yulang.GeneralPositiveForkSettlement309.no_trusted_output
+#print axioms Yulang.GeneralPositiveForkSettlement309.sound_without_settlement

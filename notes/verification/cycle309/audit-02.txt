@@ -1,0 +1,62 @@
+'Yulang.GeneralPositiveForkSelection309.recorded_decl' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.classes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.no_merged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSelection309.actual_pick' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.committed_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.certified_via_commitment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.only_parent_recorded' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.discharge_owner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.unrecorded_side' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.not_settled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.no_trusted_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.sound_without_settlement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+=== Audit/Cycle309Surface6.lean ===
+'Yulang.GeneralPositiveForkSource309.loClause' does not depend on any axioms
+'Yulang.GeneralPositiveForkSource309.hiClause' does not depend on any axioms
+'Yulang.GeneralPositiveForkSource309.associated' does not depend on any axioms
+'Yulang.GeneralPositiveForkSource309.parent' does not depend on any axioms
+'Yulang.GeneralPositiveForkSource309.left' does not depend on any axioms
+'Yulang.GeneralPositiveForkSource309.right' does not depend on any axioms
+'Yulang.GeneralPositiveForkSource309.registry' does not depend on any axioms
+'Yulang.GeneralPositiveForkSource309.compiled' does not depend on any axioms
+'Yulang.GeneralPositiveForkSource309.root' depends on axioms: [propext]
+'Yulang.GeneralPositiveForkSource309.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.parent_signature' depends on axioms: [propext]
+'Yulang.GeneralPositiveForkSource309.parent_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.left_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.right_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.coverage' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.init_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.ground' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.actual_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.init_reached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSource309.init_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.certified_reader' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.checked_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.certificates_for_every_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.only_explicit_body' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.evidence_at_low' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.evidence_at_high' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.fuel_not_rejection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSelectedReadEvidence309.SelectionRow' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSelectedReadEvidence309.SelectedRead' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSelectedReadEvidence309.local_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSelectedReadEvidence309.faithful' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSelectedReadEvidence309.selected_checker' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSelectedReadScope309.checked_on_footprint' depends on axioms: [propext, Classical.choice, Quot.sound]

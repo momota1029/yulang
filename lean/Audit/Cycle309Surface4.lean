@@ -1,0 +1,76 @@
+import Yulang.GeneralPositiveForkLeaf309
+import Yulang.GeneralPositiveForkLeafFrame309
+import Yulang.GeneralPositiveForkMachine309
+import Yulang.GeneralPositiveForkNodes309
+import Yulang.GeneralPositiveForkPacked309
+import Yulang.GeneralPositiveForkPackedMinimum309
+
+#print axioms Yulang.GeneralPositiveForkLeaf309.Side
+#print axioms Yulang.GeneralPositiveForkLeaf309.site
+#print axioms Yulang.GeneralPositiveForkLeaf309.decl
+#print axioms Yulang.GeneralPositiveForkLeaf309.sideChecked
+#print axioms Yulang.GeneralPositiveForkLeaf309.ctx
+#print axioms Yulang.GeneralPositiveForkLeaf309.one
+#print axioms Yulang.GeneralPositiveForkLeaf309.packet
+#print axioms Yulang.GeneralPositiveForkLeaf309.plan
+#print axioms Yulang.GeneralPositiveForkLeaf309.args
+#print axioms Yulang.GeneralPositiveForkLeaf309.center
+#print axioms Yulang.GeneralPositiveForkLeaf309.query
+#print axioms Yulang.GeneralPositiveForkLeaf309.report
+#print axioms Yulang.GeneralPositiveForkLeaf309.bindings_empty
+#print axioms Yulang.GeneralPositiveForkLeaf309.no_children
+#print axioms Yulang.GeneralPositiveForkLeaf309.emitted_empty
+#print axioms Yulang.GeneralPositiveForkLeaf309.head_schema
+#print axioms Yulang.GeneralPositiveForkLeaf309.ordinary
+#print axioms Yulang.GeneralPositiveForkLeaf309.holds
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.parentPacket
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.invocations
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.atom_bound
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.support
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.fresh
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.located
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.known
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.linked
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.prepared
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.declaration_eq
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.frame
+#print axioms Yulang.GeneralPositiveForkLeafFrame309.unique
+#print axioms Yulang.GeneralPositiveForkMachine309.initial_headless
+#print axioms Yulang.GeneralPositiveForkMachine309.initial_equality
+#print axioms Yulang.GeneralPositiveForkMachine309.same_effect
+#print axioms Yulang.GeneralPositiveForkMachine309.exact_initial
+#print axioms Yulang.GeneralPositiveForkMachine309.distinct
+#print axioms Yulang.GeneralPositiveForkMachine309.Phase
+#print axioms Yulang.GeneralPositiveForkMachine309.raw
+#print axioms Yulang.GeneralPositiveForkMachine309.next
+#print axioms Yulang.GeneralPositiveForkMachine309.next_exact
+#print axioms Yulang.GeneralPositiveForkMachine309.all_reachable
+#print axioms Yulang.GeneralPositiveForkMachine309.accessible
+#print axioms Yulang.GeneralPositiveForkNodes309.Node
+#print axioms Yulang.GeneralPositiveForkNodes309.plan
+#print axioms Yulang.GeneralPositiveForkNodes309.focus
+#print axioms Yulang.GeneralPositiveForkNodes309.key
+#print axioms Yulang.GeneralPositiveForkNodes309.site
+#print axioms Yulang.GeneralPositiveForkNodes309.links
+#print axioms Yulang.GeneralPositiveForkNodes309.child_list
+#print axioms Yulang.GeneralPositiveForkNodes309.current_frame
+#print axioms Yulang.GeneralPositiveForkNodes309.raw_site
+#print axioms Yulang.GeneralPositiveForkNodes309.role_key
+#print axioms Yulang.GeneralPositiveForkNodes309.role_injective
+#print axioms Yulang.GeneralPositiveForkNodes309.center_known
+#print axioms Yulang.GeneralPositiveForkNodes309.raw_known
+#print axioms Yulang.GeneralPositiveForkNodes309.exact_frame
+#print axioms Yulang.GeneralPositiveForkNodes309.generated_nodes
+#print axioms Yulang.GeneralPositiveForkPacked309.footprint
+#print axioms Yulang.GeneralPositiveForkPacked309.Joint
+#print axioms Yulang.GeneralPositiveForkPacked309.model_exact
+#print axioms Yulang.GeneralPositiveForkPacked309.exact_joint
+#print axioms Yulang.GeneralPositiveForkPacked309.framing
+#print axioms Yulang.GeneralPositiveForkPacked309.exact_packed
+#print axioms Yulang.GeneralPositiveForkPacked309.arbitrary_fallback
+#print axioms Yulang.GeneralPositiveForkPackedMinimum309.poison
+#print axioms Yulang.GeneralPositiveForkPackedMinimum309.genuine
+#print axioms Yulang.GeneralPositiveForkPackedMinimum309.poison_fails
+#print axioms Yulang.GeneralPositiveForkPackedMinimum309.FramesJoint
+#print axioms Yulang.GeneralPositiveForkPackedMinimum309.dependency
+#print axioms Yulang.GeneralPositiveForkPackedMinimum309.minimum

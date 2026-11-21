@@ -1,0 +1,7 @@
+import Yulang.GeneralVersionedPeerChoice311
+
+#print axioms Yulang.GeneralVersionedPeerChoice311.linear_empty
+#print axioms Yulang.GeneralVersionedPeerChoice311.head_transport
+#print axioms Yulang.GeneralVersionedPeerChoice311.linear_head_iff
+#print axioms Yulang.GeneralVersionedPeerChoice311.prepared_at_peer
+#print axioms Yulang.GeneralVersionedPeerChoice311.choice

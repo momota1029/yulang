@@ -1,0 +1,82 @@
+import Yulang.GeneralSharedNamedEvidence310
+import Yulang.GeneralSharedNamedFinalFlow310
+import Yulang.GeneralSharedNamedHeadSeparation310
+import Yulang.GeneralSharedNamedInstall310
+import Yulang.GeneralSharedNamedLeaf310
+import Yulang.GeneralSharedNamedLeafFrame310
+
+#print axioms Yulang.GeneralSharedNamedEvidence310.parentPlan
+#print axioms Yulang.GeneralSharedNamedEvidence310.parent_frame
+#print axioms Yulang.GeneralSharedNamedEvidence310.parent_children
+#print axioms Yulang.GeneralSharedNamedEvidence310.parent_ready
+#print axioms Yulang.GeneralSharedNamedEvidence310.parent_certificate
+#print axioms Yulang.GeneralSharedNamedEvidence310.output
+#print axioms Yulang.GeneralSharedNamedEvidence310.alias_identity
+#print axioms Yulang.GeneralSharedNamedEvidence310.siblings_different
+#print axioms Yulang.GeneralSharedNamedEvidence310.side_request
+#print axioms Yulang.GeneralSharedNamedEvidence310.classes
+#print axioms Yulang.GeneralSharedNamedEvidence310.leaf_ready
+#print axioms Yulang.GeneralSharedNamedEvidence310.leaf_certificate
+#print axioms Yulang.GeneralSharedNamedEvidence310.leaf_evidence
+#print axioms Yulang.GeneralSharedNamedEvidence310.payload
+#print axioms Yulang.GeneralSharedNamedEvidence310.root_evidence
+#print axioms Yulang.GeneralSharedNamedEvidence310.both_same_model
+#print axioms Yulang.GeneralSharedNamedFinalFlow310.current_occurrence_low
+#print axioms Yulang.GeneralSharedNamedFinalFlow310.current_occurrence_high
+#print axioms Yulang.GeneralSharedNamedFinalFlow310.current_outputs
+#print axioms Yulang.GeneralSharedNamedFinalFlow310.same_output_by_actual_body
+#print axioms Yulang.GeneralSharedNamedFinalFlow310.child_without_live_assumption
+#print axioms Yulang.GeneralSharedNamedFinalFlow310.certified_package
+#print axioms Yulang.GeneralSharedNamedHeadSeparation310.implied
+#print axioms Yulang.GeneralSharedNamedHeadSeparation310.observer_exact
+#print axioms Yulang.GeneralSharedNamedHeadSeparation310.both_have_real_candidate
+#print axioms Yulang.GeneralSharedNamedHeadSeparation310.equal_observations_different_selection
+#print axioms Yulang.GeneralSharedNamedInstall310.after
+#print axioms Yulang.GeneralSharedNamedInstall310.request_exact
+#print axioms Yulang.GeneralSharedNamedInstall310.class_effects
+#print axioms Yulang.GeneralSharedNamedInstall310.installation
+#print axioms Yulang.GeneralSharedNamedInstall310.installable
+#print axioms Yulang.GeneralSharedNamedInstall310.novel
+#print axioms Yulang.GeneralSharedNamedInstall310.step
+#print axioms Yulang.GeneralSharedNamedInstall310.reachable
+#print axioms Yulang.GeneralSharedNamedInstall310.installed_equality
+#print axioms Yulang.GeneralSharedNamedInstall310.models
+#print axioms Yulang.GeneralSharedNamedInstall310.inhabited
+#print axioms Yulang.GeneralSharedNamedInstall310.edges
+#print axioms Yulang.GeneralSharedNamedInstall310.actual_low
+#print axioms Yulang.GeneralSharedNamedInstall310.actual_high
+#print axioms Yulang.GeneralSharedNamedInstall310.centers
+#print axioms Yulang.GeneralSharedNamedInstall310.raw_sites
+#print axioms Yulang.GeneralSharedNamedLeaf310.Side
+#print axioms Yulang.GeneralSharedNamedLeaf310.site
+#print axioms Yulang.GeneralSharedNamedLeaf310.decl
+#print axioms Yulang.GeneralSharedNamedLeaf310.sideChecked
+#print axioms Yulang.GeneralSharedNamedLeaf310.ctx
+#print axioms Yulang.GeneralSharedNamedLeaf310.one
+#print axioms Yulang.GeneralSharedNamedLeaf310.packet
+#print axioms Yulang.GeneralSharedNamedLeaf310.plan
+#print axioms Yulang.GeneralSharedNamedLeaf310.args
+#print axioms Yulang.GeneralSharedNamedLeaf310.center
+#print axioms Yulang.GeneralSharedNamedLeaf310.query
+#print axioms Yulang.GeneralSharedNamedLeaf310.report
+#print axioms Yulang.GeneralSharedNamedLeaf310.bindings_empty
+#print axioms Yulang.GeneralSharedNamedLeaf310.no_children
+#print axioms Yulang.GeneralSharedNamedLeaf310.named_requests
+#print axioms Yulang.GeneralSharedNamedLeaf310.emitted_exact
+#print axioms Yulang.GeneralSharedNamedLeaf310.sharing_scalar
+#print axioms Yulang.GeneralSharedNamedLeaf310.head_schema
+#print axioms Yulang.GeneralSharedNamedLeaf310.ordinary
+#print axioms Yulang.GeneralSharedNamedLeaf310.holds
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.parentPacket
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.invocations
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.atom_bound
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.support
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.fresh
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.located
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.known
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.z_available
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.linked
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.prepared
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.declaration_eq
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.frame
+#print axioms Yulang.GeneralSharedNamedLeafFrame310.unique

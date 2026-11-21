@@ -1,11 +1,9 @@
-# dots-main heartbeat
-- cycle: 308
+# dot heartbeat
+
+- cycle: 311
 - status: completed
-- started: 2026-11-20T23:35:22Z
-- updated: 2026-11-21T00:22:26.629Z
-- elapsed_min: 47
-- activity: C308 完了: 実 raw 分岐・実 child の保留から棄却・親局所証明と再帰辞書の分離を検証し、報告を公開
-- workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 0dd4721e6
-- resume_hint: 次は先行側の任意 refresh/equate 後の支持と Committed の保存; 統合版と inbox を起動時に再読
-- report: notes/handoff/dots-cycle-308.md
+- started: 2026-11-21T02:30:00Z
+- updated: 2026-11-21T03:16:46.589Z
+- elapsed_min: 46
+- activity: C311 完了: 実 alias の旧選択互換と同一モデルの再帰証拠を Lean 検証
+- report: notes/handoff/dots-cycle-311.md

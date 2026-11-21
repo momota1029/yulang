@@ -1,0 +1,180 @@
+
+=== Audit/Cycle309Evidence.lean ===
+'Yulang.GeneralPositiveForkEvidence309.both_same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkNodes309.exact_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkPayload309.iff_expected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkPayload309.swapped_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.exact_root_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.root_code_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadEvidence309.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkMachine309.exact_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle309Install.lean ===
+'Yulang.GeneralPositiveForkSource309.actual_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkPlan309.ordered_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkPlan309.holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkInstall309.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkInstall309.actual_low' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkInstall309.actual_high' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkInstall309.models' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle309Replay.lean ===
+'Yulang.GeneralCommittedReadTrace309.verified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadAddress309.address' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkAddresses309.left_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkAddresses309.right_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralOrderedDictionaryCheck309.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.accepts_all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.reversed_error' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkSettlement309.sound_without_settlement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkPackedMinimum309.minimum' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCertifiedTrace309.packed_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.actual_boundary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.wrong_phase_not_faithful' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+=== Audit/Cycle309Scope.lean ===
+'Yulang.GeneralPositiveForkVerified309.only_explicit_body' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.checked_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkVerified309.fuel_not_rejection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.actual_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSelectedReadEvidence309.selected_checker' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadErasure309.evidence_at_address' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadExact309.certify_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralOrderedDictionaryFault309.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralOrderedDictionaryFootprint309.validate_agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSelectedReadScope309.checked_on_footprint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkScope309.accepted_root_still_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkScope309.cannot_infer_outside' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle309Surface1.lean ===
+'Yulang.GeneralCommittedReadAddress309.cursor' depends on axioms: [propext]
+'Yulang.GeneralCommittedReadAddress309.subtree' depends on axioms: [propext]
+'Yulang.GeneralCommittedReadAddress309.there_left' depends on axioms: [propext]
+'Yulang.GeneralCommittedReadAddress309.there_right' depends on axioms: [propext]
+'Yulang.GeneralCommittedReadAddress309.address' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadAddress309.subtrace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadAddress309.here' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadErasure309.evidence_at_address' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadEvidence309.CommittedRow' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadEvidence309.CommittedRead' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadEvidence309.node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadEvidence309.child_generated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadEvidence309.nodes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadEvidence309.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadExact309.certify_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadTrace309.FrameProof' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadTrace309.Trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadTrace309.frameProof' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadTrace309.strengthen' does not depend on any axioms
+'Yulang.GeneralCommittedReadTrace309.construct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralCommittedReadTrace309.verified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralOrderedDictionaryCheck309.Error' does not depend on any axioms
+'Yulang.GeneralOrderedDictionaryCheck309.ordered' depends on axioms: [propext]
+'Yulang.GeneralOrderedDictionaryCheck309.validate' depends on axioms: [propext]
+'Yulang.GeneralOrderedDictionaryCheck309.ordered_exact' depends on axioms: [propext]
+'Yulang.GeneralOrderedDictionaryCheck309.map_relation' does not depend on any axioms
+'Yulang.GeneralOrderedDictionaryCheck309.length_equal' does not depend on any axioms
+'Yulang.GeneralOrderedDictionaryCheck309.exact' depends on axioms: [propext, Quot.sound]
+
+=== Audit/Cycle309Surface2.lean ===
+'Yulang.GeneralOrderedDictionaryFault309.Earlier' depends on axioms: [propext]
+'Yulang.GeneralOrderedDictionaryFault309.Explains' depends on axioms: [propext]
+'Yulang.GeneralOrderedDictionaryFault309.ordered_failure' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralOrderedDictionaryFault309.explains' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralOrderedDictionaryFault309.ordered_reports' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralOrderedDictionaryFault309.reports' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralOrderedDictionaryFault309.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralOrderedDictionaryFootprint309.need' does not depend on any axioms
+'Yulang.GeneralOrderedDictionaryFootprint309.AgreeOn' does not depend on any axioms
+'Yulang.GeneralOrderedDictionaryFootprint309.ordered_congr' depends on axioms: [propext]
+'Yulang.GeneralOrderedDictionaryFootprint309.validate_agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralOrderedDictionaryFootprint309.run_agrees' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkAddresses309.left_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkAddresses309.right_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkAddresses309.invalid_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkAddresses309.left_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkAddresses309.right_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.not_root' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.absent_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.no_leaf_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.no_leaf_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.pre_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.no_root_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.no_merged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.known_initial' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.pending_side' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.picked_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.initial_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.wrong_phase_not_faithful' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkBefore309.actual_boundary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCertifiedTrace309.exact_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCertifiedTrace309.packed_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.accepted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.accepts_all_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.actual_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.missing_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.read_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.read_low' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.read_high' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.reversed_error' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.duplicate_error' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.truncated_error' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCheck309.short_fuel' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle309Surface3.lean ===
+'Yulang.GeneralPositiveForkCompiler309.encode' does not depend on any axioms
+'Yulang.GeneralPositiveForkCompiler309.lookup' does not depend on any axioms
+'Yulang.GeneralPositiveForkCompiler309.decode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.identify' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.exact_identity' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.decode_encode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.row_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.lookup_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.projected_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.faithful' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.nodes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.all_fuel_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.root_computed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.root_code_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.exact_root_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.source_evidenceAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCompiler309.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.readAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.initial_seen' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.after_seen' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.initial_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.initial_low' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.initial_high' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.after_table' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.initial_child_fails' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.initial_compilation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.initial_error' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.actual_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentRead309.one_install_unlocks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPositiveForkCurrentSoundness309.occurrence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentSoundness309.effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentSoundness309.common' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentSoundness309.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentSoundness309.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentSoundness309.alternatives' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentSoundness309.current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPositiveForkCurrentSoundness309.installable' depends on axioms: [propext, Classical.choice, Quot.sound]

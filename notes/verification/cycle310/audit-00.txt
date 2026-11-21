@@ -1,0 +1,160 @@
+
+=== Audit/Cycle310ActualNamed.lean ===
+'Yulang.GeneralSharedNamedInstall310.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedInstall310.models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.same_model_bundle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.makes_no_input_claim' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedMerge310.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedMerge310.models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.current_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.current_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.root_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedOrdinaryFrame310.revalidate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedHistoryEvidence310.from_recorded_extension' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.node_and_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveBridge310.evidenceNode' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle310FullSemantics.lean ===
+'Yulang.GeneralSharedNamedCompiler310.source_evidenceAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.all_fuel_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.exact_root_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedModelSeparation310.live_model_strict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSharedNamedObserverGap310.anchored_separation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedObserverGap310.no_blind_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedExplicitFromHolds310.output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedExplicitFromHolds310.live_from_represented' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedCheckedResidual310.installable_of_explicit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedReplayComposition310.compose' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedHistoryReplay310.replayed_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSelectedSoundness310.on_returned_snapshot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+=== Audit/Cycle310OutputFlow.lean ===
+'Yulang.GeneralVersionedOutputFlow310.input_excludes_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.named_request' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.witness_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.equivalent_through' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputFlow310.paired_certificates' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedOutputHandoff310.parent_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedOutputHandoff310.parent_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle310PartialReturn.lean ===
+'Yulang.GeneralPartialDiagnosticRead310.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPartialDiagnosticRead310.returned' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCheckedReturn310.exact_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedPremerge310.preserves_pending_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSharedNamedPremerge310.not_flattened' depends on axioms: [propext]
+'Yulang.GeneralSharedNamedDiagnostic310.real_checkpoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.distinguishes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.verified_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle310Receivers.lean ===
+'Yulang.GeneralSharedNamedFinalFlow310.current_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedFinalFlow310.child_without_live_assumption' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralSharedNamedFinalFlow310.certified_package' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedNoHistory310.witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedTrace310.exact_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedTrace310.both_addresses' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedTrace310.not_deduplicated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedTrace310.distinct_occurrence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHistoryChoice310.historical_prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHistoryChoice310.choice_of_rechecked_history' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedCandidateReplay310.survivor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedHeadSeparation310.equal_observations_different_selection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+=== Audit/Cycle310SameModelGuards.lean ===
+'Yulang.GeneralSharedNamedCurrentGuards310.compatible_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.all_installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSelectedSoundness310.dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSelectedSoundness310.dictionaries' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle310Selected.lean ===
+'Yulang.GeneralSharedNamedSelection310.admin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedSelection310.no_merged' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedSelection310.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedSelection310.actual_pick' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+=== Audit/Cycle310Surface1.lean ===
+'Yulang.GeneralPartialDiagnosticRead310.Read' does not depend on any axioms
+'Yulang.GeneralPartialDiagnosticRead310.mapFrontier' does not depend on any axioms
+'Yulang.GeneralPartialDiagnosticRead310.check' depends on axioms: [propext]
+'Yulang.GeneralPartialDiagnosticRead310.rows_exact' depends on axioms: [propext]
+'Yulang.GeneralPartialDiagnosticRead310.Faithful' does not depend on any axioms
+'Yulang.GeneralPartialDiagnosticRead310.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralPartialDiagnosticRead310.returned' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.encode' does not depend on any axioms
+'Yulang.GeneralSharedNamedCompiler310.lookup' does not depend on any axioms
+'Yulang.GeneralSharedNamedCompiler310.decode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.identify' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.exact_identity' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.decode_encode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.row_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.lookup_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.projected_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.faithful' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.nodes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.all_fuel_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.root_computed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.root_code_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.exact_root_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.source_evidenceAt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCompiler310.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.advance' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.parent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.receiver' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.raw_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.centers_same' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.revalidate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.current_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.current_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.parent_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.receiver_request' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.receiver_classes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.receiver_certificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrent310.root_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.candidate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.compatible_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedCurrentGuards310.all_installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.actual_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.child_body' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.parent_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.parent_receiver' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.actual_shared_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.same_model_bundle' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDependence310.makes_no_input_claim' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.afterTable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.sawMerge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.atState' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.event_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.event_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.chosen_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.chosen_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralSharedNamedDiagnostic310.after_faithful' depends on axioms: [propext, Classical.choice, Quot.sound]

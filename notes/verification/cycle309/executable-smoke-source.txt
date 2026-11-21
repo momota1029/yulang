@@ -1,0 +1,23 @@
+import Yulang.GeneralPositiveForkScope309
+import Yulang.GeneralPositiveForkAddresses309
+
+open Yulang.GeneralPositiveForkEvidence309
+open Yulang.GeneralGeneratedDictionaryRun299
+open Yulang.GeneralOrderedDictionaryCheck309
+open Yulang.GeneralCommittedReadAddress309
+open Yulang.GeneralPositiveForkCurrentRead309
+open Yulang.GeneralPositiveForkScope309
+open Yulang.GeneralPositiveForkCompiler309 (read)
+
+#eval run (readAt Yulang.GeneralPositiveForkSource309.initial) 2 0
+#eval validate (readAt Yulang.GeneralPositiveForkSource309.initial) 2 0 payload
+#eval run (readAt Yulang.GeneralPositiveForkInstall309.after) 2 0
+#eval validate read 2 0 payload
+#eval validate read 2 0 (.node 1 [.node 3 [],.node 2 []])
+#eval validate read 2 0 (.node 1 [.node 2 [],.node 2 []])
+#eval validate read 2 0 (.node 1 [.node 2 []])
+#eval validate read 1 0 payload
+#eval validate read 2 19 payload
+#eval (cursor read 0 [0],cursor read 0 [1],cursor read 0 [2])
+#eval validate withExtra 2 0 payload
+#eval validate withExtra 1 19 (.node 777 [])

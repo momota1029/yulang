@@ -1,0 +1,34 @@
+import Yulang.GeneralVersionedCheckedResidual310
+import Yulang.GeneralVersionedCheckedReturn310
+import Yulang.GeneralVersionedExplicitFromHolds310
+import Yulang.GeneralVersionedHistoryChoice310
+import Yulang.GeneralVersionedHistoryEvidence310
+import Yulang.GeneralVersionedOrdinaryFrame310
+
+#print axioms Yulang.GeneralVersionedCheckedResidual310.UnrecordedClass
+#print axioms Yulang.GeneralVersionedCheckedResidual310.choice_fresh
+#print axioms Yulang.GeneralVersionedCheckedResidual310.Represented
+#print axioms Yulang.GeneralVersionedCheckedResidual310.represented_of_same_requests
+#print axioms Yulang.GeneralVersionedCheckedResidual310.equal_by_shared_target
+#print axioms Yulang.GeneralVersionedCheckedResidual310.installation
+#print axioms Yulang.GeneralVersionedCheckedResidual310.installable_of_explicit
+#print axioms Yulang.GeneralVersionedCheckedReturn310.exact_tree
+#print axioms Yulang.GeneralVersionedExplicitFromHolds310.emits
+#print axioms Yulang.GeneralVersionedExplicitFromHolds310.evaluated
+#print axioms Yulang.GeneralVersionedExplicitFromHolds310.output
+#print axioms Yulang.GeneralVersionedExplicitFromHolds310.Explicit
+#print axioms Yulang.GeneralVersionedExplicitFromHolds310.certificate
+#print axioms Yulang.GeneralVersionedExplicitFromHolds310.recursive
+#print axioms Yulang.GeneralVersionedExplicitFromHolds310.live_from_represented
+#print axioms Yulang.GeneralVersionedHistoryChoice310.historical_effect
+#print axioms Yulang.GeneralVersionedHistoryChoice310.OrdinaryOwner
+#print axioms Yulang.GeneralVersionedHistoryChoice310.historical_prepared
+#print axioms Yulang.GeneralVersionedHistoryChoice310.choice_of_rechecked_history
+#print axioms Yulang.GeneralVersionedHistoryEvidence310.Compiled
+#print axioms Yulang.GeneralVersionedHistoryEvidence310.recorded
+#print axioms Yulang.GeneralVersionedHistoryEvidence310.recorded_extension
+#print axioms Yulang.GeneralVersionedHistoryEvidence310.from_recorded_extension
+#print axioms Yulang.GeneralVersionedOrdinaryFrame310.Atoms
+#print axioms Yulang.GeneralVersionedOrdinaryFrame310.Supported
+#print axioms Yulang.GeneralVersionedOrdinaryFrame310.fresh
+#print axioms Yulang.GeneralVersionedOrdinaryFrame310.revalidate

@@ -1,0 +1,62 @@
+'Yulang.GeneralLatePeerSource311.atLeft' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.atRoute' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.makePeer' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.parent' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.receiver' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.route' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.registry' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.compiled' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.parentCode' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.leftCode' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.routeCode' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.root' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerSource311.parent_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralLatePeerSource311.receiver_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralLatePeerSource311.route_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralLatePeerSource311.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralLatePeerSource311.coverage' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralLatePeerSource311.labels' does not depend on any axioms
+'Yulang.GeneralLatePeerSource311.initial_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerSource311.ground' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerSource311.actual_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerSource311.init_reached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerSource311.initial_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.route' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.recorded_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.owner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.direct_observation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.actual_peer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.alias_old_only' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.compatible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.no_recorded_focus' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.genuinely_not_replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLatePeerTransfer311.nontrivial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPeerInstallationOrder311.administrative' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralPeerInstallationOrder311.registered_peer_alias' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralPeerInstallationOrder311.no_install_before_join' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedAggregatePeer311.probe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedAggregatePeer311.Apart' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedAggregatePeer311.apart_of_unallocated' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedAggregatePeer311.prepared_at_fresh_peer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedAggregatePeer311.FreshPeerCertificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedAggregatePeer311.choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCenteredReplay311.emitted_extended' depends on axioms: [propext, Quot.sound]
+=== Audit/Cycle311Surface4.lean ===
+'Yulang.GeneralVersionedPeerChoice311.reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPeerChoice311.Linear' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPeerChoice311.linear_empty' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPeerChoice311.head_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPeerChoice311.linear_head_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPeerChoice311.prepared_at_peer' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPeerChoice311.PeerCertificate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPeerChoice311.choice' depends on axioms: [propext, Classical.choice, Quot.sound]

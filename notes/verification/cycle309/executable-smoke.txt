@@ -1,0 +1,28 @@
+lake env lean --trust=0 /tmp/C309FinalProbe.lean
+none
+Except.error (Yulang.GeneralOrderedDictionaryCheck309.Error.child
+  0
+  0
+  (Yulang.GeneralOrderedDictionaryCheck309.Error.missing 1))
+some (Yulang.CommonRoleOutermostResolver.Dictionary.node
+  1
+  [Yulang.CommonRoleOutermostResolver.Dictionary.node 2 [], Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+Except.ok ()
+Except.error (Yulang.GeneralOrderedDictionaryCheck309.Error.child
+  0
+  0
+  (Yulang.GeneralOrderedDictionaryCheck309.Error.wrongKey 1 2 3))
+Except.error (Yulang.GeneralOrderedDictionaryCheck309.Error.child
+  0
+  1
+  (Yulang.GeneralOrderedDictionaryCheck309.Error.wrongKey 2 3 2))
+Except.error (Yulang.GeneralOrderedDictionaryCheck309.Error.wrongArity 0 2 1)
+Except.error (Yulang.GeneralOrderedDictionaryCheck309.Error.child
+  0
+  0
+  (Yulang.GeneralOrderedDictionaryCheck309.Error.fuel 1))
+Except.error (Yulang.GeneralOrderedDictionaryCheck309.Error.missing 19)
+(some 1, some 2, none)
+Except.ok ()
+Except.ok ()
+exit=0
