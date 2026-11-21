@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeCurrentReceipt330
+
+#print axioms Yulang.GeneralDeclarativeRecordSpine330.exact_subtraction
+#print axioms Yulang.GeneralDeclarativeRecordMaterial330.preserved
+#print axioms Yulang.GeneralDeclarativeRecordFieldRead330.one
+#print axioms Yulang.GeneralDeclarativeObserverGrowth330.backed_same
+#print axioms Yulang.GeneralDeclarativeObserverSource330.observe_all
+#print axioms Yulang.GeneralDeclarativeObserverSource330.compile
+
+#print axioms Yulang.GeneralDeclarativeCurrentReceipt330.complete
+#print axioms Yulang.GeneralDeclarativeCurrentReceipt330.dictionary
