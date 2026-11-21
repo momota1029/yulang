@@ -1,0 +1,50 @@
+import Yulang.GeneralVersionedEssentialAggregates313
+import Yulang.GeneralVersionedEssentialSupport313
+import Yulang.GeneralVersionedFiniteInspectionTests313
+import Yulang.GeneralVersionedFirstComputed313
+import Yulang.GeneralVersionedFirstFootprint313
+import Yulang.GeneralVersionedFirstGroundHead313
+
+#print axioms Yulang.GeneralVersionedEssentialAggregates313.Historical
+#print axioms Yulang.GeneralVersionedEssentialAggregates313.Active
+#print axioms Yulang.GeneralVersionedEssentialAggregates313.Covers
+#print axioms Yulang.GeneralVersionedEssentialAggregates313.protected_iff
+#print axioms Yulang.GeneralVersionedEssentialAggregates313.sufficient_iff
+#print axioms Yulang.GeneralVersionedEssentialAggregates313.from_exclusion
+#print axioms Yulang.GeneralVersionedEssentialAggregates313.harmless_keeps
+#print axioms Yulang.GeneralVersionedEssentialAggregates313.harmless_not_protected
+#print axioms Yulang.GeneralVersionedEssentialSupport313.Apart
+#print axioms Yulang.GeneralVersionedEssentialSupport313.Inert
+#print axioms Yulang.GeneralVersionedEssentialSupport313.Essential
+#print axioms Yulang.GeneralVersionedEssentialSupport313.outside
+#print axioms Yulang.GeneralVersionedEssentialSupport313.must_mem
+#print axioms Yulang.GeneralVersionedEssentialSupport313.trim
+#print axioms Yulang.GeneralVersionedEssentialSupport313.mem_trim
+#print axioms Yulang.GeneralVersionedEssentialSupport313.patch_agreement
+#print axioms Yulang.GeneralVersionedEssentialSupport313.clear
+#print axioms Yulang.GeneralVersionedEssentialSupport313.trimmed
+#print axioms Yulang.GeneralVersionedEssentialSupport313.support_iff
+#print axioms Yulang.GeneralVersionedEssentialSupport313.observation
+#print axioms Yulang.GeneralVersionedFiniteInspectionTests313.Tests
+#print axioms Yulang.GeneralVersionedFiniteInspectionTests313.actual_constructor
+#print axioms Yulang.GeneralVersionedFiniteInspectionTests313.inspect_tests
+#print axioms Yulang.GeneralVersionedFiniteInspectionTests313.many_tests
+#print axioms Yulang.GeneralVersionedFirstComputed313.Compatible
+#print axioms Yulang.GeneralVersionedFirstComputed313.proper_keys
+#print axioms Yulang.GeneralVersionedFirstComputed313.output_free
+#print axioms Yulang.GeneralVersionedFirstComputed313.table
+#print axioms Yulang.GeneralVersionedFirstComputed313.residual_compatible
+#print axioms Yulang.GeneralVersionedFirstComputed313.exact
+#print axioms Yulang.GeneralVersionedFirstComputed313.joint
+#print axioms Yulang.GeneralVersionedFirstComputed313.installable
+#print axioms Yulang.GeneralVersionedFirstFootprint313.center_get_small
+#print axioms Yulang.GeneralVersionedFirstFootprint313.requests_small
+#print axioms Yulang.GeneralVersionedFirstFootprint313.body_reads
+#print axioms Yulang.GeneralVersionedFirstFootprint313.classes
+#print axioms Yulang.GeneralVersionedFirstFootprint313.schema_reads
+#print axioms Yulang.GeneralVersionedFirstFootprint313.protected_names
+#print axioms Yulang.GeneralVersionedFirstFootprint313.class_aggregate_free
+#print axioms Yulang.GeneralVersionedFirstGroundHead313.tests_of_registered_ground
+#print axioms Yulang.GeneralVersionedFirstGroundHead313.source_ground
+#print axioms Yulang.GeneralVersionedFirstGroundHead313.tests
+#print axioms Yulang.GeneralVersionedFirstGroundHead313.head

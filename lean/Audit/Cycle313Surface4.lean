@@ -1,0 +1,49 @@
+import Yulang.GeneralVersionedObservedEssential313
+import Yulang.GeneralVersionedPrivateWriteNames313
+import Yulang.GeneralVersionedRawReportDomain313
+import Yulang.GeneralVersionedReachableRootGround313
+import Yulang.GeneralVersionedSchemaOrigins313
+import Yulang.GeneralVersionedSemanticEntryChoice313
+
+#print axioms Yulang.GeneralVersionedObservedEssential313.replaceType
+#print axioms Yulang.GeneralVersionedObservedEssential313.unchanged
+#print axioms Yulang.GeneralVersionedObservedEssential313.cannot_substitute
+#print axioms Yulang.GeneralVersionedObservedEssential313.scalar
+#print axioms Yulang.GeneralVersionedObservedEssential313.structural
+#print axioms Yulang.GeneralVersionedObservedEssential313.scalar_not_nominal
+#print axioms Yulang.GeneralVersionedObservedEssential313.nominal
+#print axioms Yulang.GeneralVersionedObservedEssential313.known
+#print axioms Yulang.GeneralVersionedObservedEssential313.refreshed_essential
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.Safe
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.tag
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.transfer_small
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.endpoints
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.output
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.binder_name
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.rhs_read
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.head_atom
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.head_read
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.excludes
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.ActualSafe
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.actual_to_safe
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.actual_binder
+#print axioms Yulang.GeneralVersionedPrivateWriteNames313.aggregate_not_actual
+#print axioms Yulang.GeneralVersionedRawReportDomain313.reads_slots
+#print axioms Yulang.GeneralVersionedRawReportDomain313.raw_membership
+#print axioms Yulang.GeneralVersionedRawReportDomain313.unread
+#print axioms Yulang.GeneralVersionedReachableRootGround313.ground
+#print axioms Yulang.GeneralVersionedReachableRootGround313.tests
+#print axioms Yulang.GeneralVersionedSchemaOrigins313.Contained
+#print axioms Yulang.GeneralVersionedSchemaOrigins313.appended
+#print axioms Yulang.GeneralVersionedSchemaOrigins313.one
+#print axioms Yulang.GeneralVersionedSchemaOrigins313.many
+#print axioms Yulang.GeneralVersionedSchemaOrigins313.centers
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.Entry
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.EquationAt
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.ProtectedEquations
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.Certificates
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.sound
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.complete
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.Coverage
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.prepared
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.choice
