@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeInlineRepeat331
+import Yulang.GeneralDeclarativeInlinePhase331
+
+#print axioms Yulang.GeneralDeclarativeInlineIntervals331.fixed_centers
+#print axioms Yulang.GeneralDeclarativeInlineIntervals331.read_with_ranges
+#print axioms Yulang.GeneralDeclarativeInlinePhase331.real_pending
+#print axioms Yulang.GeneralDeclarativeInlineRepeatDecl331.checked
+#print axioms Yulang.GeneralDeclarativeInlineRepeat331.proposal
+#print axioms Yulang.GeneralDeclarativeInlineRepeat331.exact_tie
+#print axioms Yulang.GeneralDeclarativeInlineRepeat331.inhabited
+#print axioms Yulang.GeneralDeclarativeInlineRepeat331.actual_rejected

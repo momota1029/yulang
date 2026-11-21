@@ -2,6 +2,7 @@ import Yulang.GeneralDeclarativeInlineGrowth331
 import Yulang.GeneralDeclarativeInlineEndpoint331
 import Yulang.GeneralDeclarativeCurrentReceipt330
 import Yulang.GeneralDeclarativeExactFrame331
+import Yulang.GeneralDeclarativeInlineIntervals331
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeInlineCompiler331
@@ -41,6 +42,11 @@ inductive Source {s : State} (p : Supported s done) (c : Constructors) (i : Inte
     Read (restriction p) .actual (.variable a.center) code occurrences →
     Source p c i args pats → Source p c i (a::args) (pat::pats)
 
+  | inlineRanged : Bounds s a → translate c i (normalize pat) = some code →
+    Read (restriction p) .actual (.variable a.center) code occurrences →
+    GeneralDeclarativeInlineIntervals331.Existing s existing occurrences →
+    Source p c i args pats → Source p c i (a::args) (pat::pats)
+
 theorem heads {s t : State} {p : Supported s done}
     (fromSource : Source p c i args pats) (grows : Extends s t) (keep : List Nat) :
     ∃ out uses, Retains t out keep ∧ Heads out c i args pats uses ∧
@@ -55,6 +61,15 @@ theorem heads {s t : State} {p : Supported s done}
   | inline box printed traced _ tail =>
     obtain ⟨mid,kept,one,_,known⟩ :=
       read (p := preserve p grows) (fits grows box) printed (extend (sources_grow p grows) traced) keep
+    obtain ⟨out,rest,safe,seen,bounds⟩ := tail (trans grows kept.grows)
+    exact ⟨out,_,chain kept safe,.cons (transport_one safe.grows one) seen,
+      fun x h => (List.mem_append.mp h).elim (fun member => fits safe.grows (known _ member)) (bounds x)⟩
+
+  | inlineRanged box printed traced located _ tail =>
+    obtain ⟨mid,kept,one,_,known⟩ :=
+      GeneralDeclarativeInlineIntervals331.read_with_ranges (p := preserve p grows)
+        (fits grows box) printed (extend (sources_grow p grows) traced)
+        (GeneralDeclarativeInlineIntervals331.carries_ranges grows located) keep
     obtain ⟨out,rest,safe,seen,bounds⟩ := tail (trans grows kept.grows)
     exact ⟨out,_,chain kept safe,.cons (transport_one safe.grows one) seen,
       fun x h => (List.mem_append.mp h).elim (fun member => fits safe.grows (known _ member)) (bounds x)⟩

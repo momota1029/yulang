@@ -7068,3 +7068,7 @@ import Yulang.GeneralDeclarativeInlineFootprint331
 import Yulang.GeneralDeclarativeInlineOrigins331
 import Yulang.GeneralDeclarativeInlineTwoOwners331
 import Yulang.GeneralDeclarativeInlineView331
+import Yulang.GeneralDeclarativeInlineIntervals331
+import Yulang.GeneralDeclarativeInlinePhase331
+import Yulang.GeneralDeclarativeInlineRepeatDecl331
+import Yulang.GeneralDeclarativeInlineRepeat331
