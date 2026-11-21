@@ -1,0 +1,158 @@
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeInlineRangedFrame331.final
+        Yulang.GeneralDeclarativeInlineRangedModels331.model ∧
+      Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeInlineDecl331.registry
+        Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeInlineRangedModels331.model
+        Yulang.GeneralDeclarativeInlineDecl331.root Yulang.GeneralDeclarativeInlineRangedResult331.dict
+Yulang.GeneralDeclarativeInlineRangedResult331.root_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeInlineDecl331.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeInlineDecl331.root.role → d = Yulang.GeneralDeclarativeInlineDecl331.decl
+Yulang.GeneralDeclarativeInlineRangedResult331.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeInlineDecl331.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeInlineRangedFrame331.child.role →
+      d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeInlineRangedResult331.root_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineRangedResult331.branch done Yulang.GeneralDeclarativeInlineDecl331.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeInlineDecl331.decl.id
+      [Yulang.GeneralDeclarativeInlineRangedFrame331.child])
+Yulang.GeneralDeclarativeInlineRangedResult331.child_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineRangedResult331.branch done Yulang.GeneralDeclarativeInlineRangedFrame331.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeInlineRangedResult331.tree : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeInlineRangedResult331.branch done)
+    Yulang.GeneralDeclarativeInlineDecl331.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeInlineRangedResult331.dict)
+Yulang.GeneralDeclarativeInlineRangedResult331.all_models : ∀ (_m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeInlineRangedFrame331.final _m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeInlineDecl331.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation _m Yulang.GeneralDeclarativeInlineDecl331.root
+      Yulang.GeneralDeclarativeInlineRangedResult331.dict
+Yulang.GeneralDeclarativeInlineRepeat331.closed : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeRecordSpine330.Spine
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineRepeat331.support0 done)) 0
+    Yulang.GeneralDeclarativeInlineRepeat331.raw Yulang.GeneralDeclarativeInlineRepeat331.terminal
+Yulang.GeneralDeclarativeInlineRepeat331.input : ∀ (done : Nat → Prop)
+  (mode : Yulang.GeneralNominalMaterialization.Mode),
+  Yulang.GeneralDeclarativeInlineTrace331.Read
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineRepeat331.support0 done)) mode
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+    Yulang.GeneralDeclarativeInlineRepeatDecl331.normalizedExpr
+    (Yulang.GeneralDeclarativeInlineRepeat331.occurrences mode)
+Yulang.GeneralDeclarativeInlineRepeat331.named_actual : Yulang.GeneralDeclarativeOpaqueConserve328.Retains
+    Yulang.GeneralDeclarativeInlineRepeat331.initial Yulang.GeneralDeclarativeInlineRepeat331.stage
+    Yulang.GeneralDeclarativeInlineRepeat331.keep ∧
+  Yulang.GeneralDeclarativeStableReads329.One Yulang.GeneralDeclarativeInlineRepeat331.stage
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    (Yulang.GeneralDeclarativeOpaqueNominal328.point 0) Yulang.GeneralDeclarativeInlineRepeatDecl331.pat
+    Yulang.GeneralDeclarativeInlineRepeat331.spans
+Yulang.GeneralDeclarativeInlineRepeat331.lower_known : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeInlineRepeat331.view done)
+    Yulang.GeneralDeclarativeInlineRepeatDecl331.root
+Yulang.GeneralDeclarativeInlineRepeat331.probes : ∀ (done : Nat → Prop),
+  (Yulang.GeneralDeclarativeInlineRepeat331.tests done).viable Yulang.GeneralDeclarativeInlineRepeatDecl331.root
+    Yulang.GeneralDeclarativeInlineRepeatDecl331.decl
+Yulang.GeneralDeclarativeInlineRepeat331.no_cycles : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeInlineRepeat331.stage
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeInlineRepeat331.stage) n
+Yulang.GeneralDeclarativeInlineRepeat331.no_recurs : ∀ (done : Nat → Prop),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeInlineRepeat331.stage
+      Yulang.GeneralDeclarativeInlineRepeatDecl331.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+      (Yulang.GeneralDeclarativeInlineRepeat331.tests done) Yulang.GeneralDeclarativeInlineRepeatDecl331.root
+Yulang.GeneralDeclarativeInlineRepeat331.one_candidate : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeInlineRepeatDecl331.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeInlineRepeatDecl331.root.role →
+      d = Yulang.GeneralDeclarativeInlineRepeatDecl331.decl
+Yulang.GeneralDeclarativeInlineRepeat331.proposal : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeStableAttempt329.Elected Yulang.GeneralDeclarativeInlineRepeat331.stage
+    Yulang.GeneralDeclarativeInlineRepeatDecl331.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    (Yulang.GeneralDeclarativeInlineRepeat331.view done) (Yulang.GeneralDeclarativeInlineRepeat331.tests done)
+    Yulang.GeneralDeclarativeInlineRepeatDecl331.root Yulang.GeneralDeclarativeInlineRepeatDecl331.decl
+Yulang.GeneralDeclarativeInlineRepeat331.exact_tie : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeStableTies329.rows (Yulang.GeneralDeclarativeInlineRepeat331.attempt done).center
+      (List.map Yulang.GeneralDeclarativeStableTies329.pairOf Yulang.GeneralDeclarativeInlineRepeat331.spans) =
+    [{ left := 7, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 8 }]
+Yulang.GeneralDeclarativeInlineRepeat331.at_start : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeInlineRepeat331.initial Yulang.GeneralDeclarativeInlineRepeat331.witness
+Yulang.GeneralDeclarativeInlineRepeat331.inhabited : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeInlineRepeat331.stage Yulang.GeneralDeclarativeInlineRepeat331.witness
+Yulang.GeneralDeclarativeInlineRepeat331.values_incompatible : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeStableAttempt329.RejectedByWrite (Yulang.GeneralDeclarativeInlineRepeat331.attempt done)
+Yulang.GeneralDeclarativeInlineRepeat331.actual_rejected : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify
+      (Yulang.GeneralDeclarativeStableWriteVerdict329.Rejection (Yulang.GeneralDeclarativeInlineRepeat331.attempt done))
+      Yulang.GeneralDeclarativeInlineRepeatDecl331.root Yulang.CommonRoleOutermostResolver.Result.rejected ∧
+    ¬Yulang.GeneralDeclarativeStableWriteVerdict329.Rejection (Yulang.GeneralDeclarativeInlineRepeat331.attempt done)
+        Yulang.GeneralDeclarativeInlineRepeatDecl331.root Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.GeneralDeclarativeInlineRepeatDecl331.normal : Yulang.GeneralNominalCenteredHeadMatExpressions.translate
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    (Yulang.GeneralDeclarationPatterns.normalize Yulang.GeneralDeclarativeInlineRepeatDecl331.pat) =
+  some Yulang.GeneralDeclarativeInlineRepeatDecl331.normalizedExpr
+Yulang.GeneralDeclarativeInlineRepeatDecl331.checked_decl : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralDeclarativeInlineRepeatDecl331.decl
+Yulang.GeneralDeclarativeInlineRepeatDecl331.checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralDeclarativeInlineRepeatDecl331.registry
+@Yulang.GeneralDeclarativeInlineReplay331.independent_readback : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {impl : Yulang.GeneralDeclarations.Declaration} {s : Yulang.GeneralDeclarativeHead320.State}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            Yulang.GeneralDeclarativeInlineCompiler331.Source p r.constructors i d.arguments impl.head →
+              ∀ (keep : List Nat) (fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+                (targets : Yulang.GeneralDeclarations.Clause → Nat → Nat),
+                ∃ expected actualKids frame,
+                  Yulang.GeneralDeclarativeGrowth327.Extends s expected ∧
+                    frame.targets = targets ∧
+                      expected =
+                          Yulang.GeneralDeclarativeEntailment320.appendFacts
+                            (Yulang.GeneralDeclarativeEntailment320.appendFacts frame.prepared frame.whereRows)
+                            frame.rootRows ∧
+                        ∀ (current : Yulang.GeneralDeclarativeHead320.State) {settled : Nat → Prop}
+                          (origin : Yulang.GeneralDeclarativeOrigins321.Supported current settled)
+                          (tests : Yulang.GeneralDeclarativePriority321.Candidates),
+                          Yulang.GeneralDeclarativeCurrentReceipt330.Receipt expected current →
+                            Yulang.GeneralDeclarativeStableAttempt329.Elected current r i origin tests d impl →
+                              ∀ (proposed : List Yulang.GeneralDeclarativeDemand320.Demand),
+                                (Yulang.GeneralDeclarativeOpaqueBatch328.check actualKids proposed = true ↔
+                                    proposed = actualKids) ∧
+                                  (Yulang.GeneralDeclarativeOpaqueBatch328.check actualKids proposed = true →
+                                    Yulang.GeneralDeclarativeUnfinishedRoot330.Local59 current r i origin tests
+                                        (Yulang.GeneralDeclarativeCurrentReceipt330.Staged current r i) d
+                                        (Yulang.CommonRoleOutermostResolver.Frontier.selected impl.id proposed) ∧
+                                      Yulang.GeneralDeclarativeCompileLists321.Result current
+                                          (Yulang.GeneralDeclarativeNFComplete324.facts r i frame.capture impl d
+                                            proposed) ∧
+                                        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                                          Yulang.GeneralDeclarativeHead320.Models current m →
+                                            Yulang.GeneralDeclarativeAssembly320.Meaning r i m d impl frame.capture
+                                              proposed)
+Yulang.GeneralDeclarativeInlineResult331.root_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeInlineDecl331.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeInlineDecl331.root.role → d = Yulang.GeneralDeclarativeInlineDecl331.decl
+Yulang.GeneralDeclarativeInlineResult331.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeInlineDecl331.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeInlineDecl331.child.role → d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeInlineResult331.root_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineResult331.branch done Yulang.GeneralDeclarativeInlineDecl331.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeInlineDecl331.decl.id
+      [Yulang.GeneralDeclarativeInlineDecl331.child])
+Yulang.GeneralDeclarativeInlineResult331.child_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineResult331.branch done Yulang.GeneralDeclarativeInlineDecl331.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeInlineResult331.tree : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeInlineResult331.branch done)
+    Yulang.GeneralDeclarativeInlineDecl331.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeInlineResult331.dict)
+Yulang.GeneralDeclarativeInlineResult331.all_models : ∀ (_m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeInlineFixture331.final _m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeInlineDecl331.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation _m Yulang.GeneralDeclarativeInlineDecl331.root
+      Yulang.GeneralDeclarativeInlineResult331.dict
+@Yulang.GeneralDeclarativeInlineSingleOwner331.only_lifts : ∀ {done : Nat → Prop} {owner : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} (p : Yulang.GeneralDeclarativeOrigins321.Supported s done),
+  done owner →
+    Yulang.GeneralDeclarativeGrowth327.Extends
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineSingleOwner331.only p owner))

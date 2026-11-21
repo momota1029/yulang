@@ -1,0 +1,157 @@
+          (Yulang.GeneralDeclarativeInlineTwoOwners331.support done) tests generate)
+        Yulang.GeneralDeclarativeInlinePhase331.goal Yulang.CommonRoleOutermostResolver.Result.pending
+Yulang.GeneralDeclarativeInlineRangedFrame331.raw_closed : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeRecordSpine330.Spine
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineRangedFrame331.before done)) 0
+    Yulang.GeneralDeclarativeInlineRangedFrame331.raw Yulang.GeneralDeclarativeInlineRangedFrame331.terminal
+Yulang.GeneralDeclarativeInlineRangedFrame331.original : ∀ (done : Nat → Prop)
+  (mode : Yulang.GeneralNominalMaterialization.Mode),
+  Yulang.GeneralDeclarativeInlineTrace331.Read
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineRangedFrame331.before done)) mode
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+    Yulang.GeneralDeclarativeInlineDecl331.normalizedExpr (Yulang.GeneralDeclarativeInlineRangedFrame331.seen mode)
+Yulang.GeneralDeclarativeInlineRangedFrame331.original_bounds : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeInlineRangedFrame331.sourceState Yulang.GeneralDeclarativeInlineRangedFrame331.interval
+Yulang.GeneralDeclarativeInlineRangedFrame331.original_locations : Yulang.GeneralDeclarativeInlineIntervals331.Existing
+  Yulang.GeneralDeclarativeInlineRangedFrame331.sourceState Yulang.GeneralDeclarativeInlineRangedFrame331.locate
+  (Yulang.GeneralDeclarativeInlineRangedFrame331.seen Yulang.GeneralNominalMaterialization.Mode.actual)
+Yulang.GeneralDeclarativeInlineRangedFrame331.original_source : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineCompiler331.Source (Yulang.GeneralDeclarativeInlineRangedFrame331.before done)
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeInlineDecl331.root.arguments Yulang.GeneralDeclarativeInlineDecl331.decl.head
+Yulang.GeneralDeclarativeInlineRangedFrame331.exact_material_logic : Yulang.GeneralDeclarativeInlineMaterial331.ordinary
+      Yulang.GeneralDeclarativeInlineRangedFrame331.sourceState (Yulang.GeneralDeclarativeOpaqueNominal328.point 0)
+      Yulang.GeneralDeclarativeInlineRangedFrame331.keep
+      (Yulang.GeneralDeclarativeInlineRangedFrame331.seen Yulang.GeneralNominalMaterialization.Mode.actual) =
+    [{ left := 18, right := Yulang.GeneralDeclarativeInlineRangedFrame331.compound },
+      { left := 19,
+        right :=
+          Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record 9
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 15)
+            Yulang.GeneralDeclarativeInlineRangedFrame331.terminal }] ∧
+  Yulang.GeneralDeclarativeInlineIntervals331.captureWith Yulang.GeneralDeclarativeInlineRangedFrame331.locate
+      (Yulang.GeneralDeclarativeInlineMaterial331.seed Yulang.GeneralDeclarativeInlineRangedFrame331.sourceState
+        (Yulang.GeneralDeclarativeOpaqueNominal328.point 0) Yulang.GeneralDeclarativeInlineRangedFrame331.keep
+        (Yulang.GeneralDeclarativeInlineRangedFrame331.seen Yulang.GeneralNominalMaterialization.Mode.actual))
+      (Yulang.GeneralDeclarativeInlineRangedFrame331.seen Yulang.GeneralNominalMaterialization.Mode.actual) =
+    Yulang.GeneralDeclarativeInlineRangedFrame331.spans
+Yulang.GeneralDeclarativeInlineRangedFrame331.actual_heads : Yulang.GeneralDeclarativeOpaqueConserve328.Retains
+    Yulang.GeneralDeclarativeInlineRangedFrame331.sourceState Yulang.GeneralDeclarativeInlineRangedFrame331.rebuilt
+    Yulang.GeneralDeclarativeInlineRangedFrame331.keep ∧
+  Yulang.GeneralDeclarativeStableReads329.Heads Yulang.GeneralDeclarativeInlineRangedFrame331.rebuilt
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeInlineDecl331.root.arguments Yulang.GeneralDeclarativeInlineDecl331.decl.head
+    Yulang.GeneralDeclarativeInlineRangedFrame331.spans
+Yulang.GeneralDeclarativeInlineRangedFrame331.calc_children : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeInlineDecl331.decl Yulang.GeneralDeclarativeInlineRangedFrame331.named
+    Yulang.GeneralDeclarativeInlineRangedFrame331.place =
+  [Yulang.GeneralDeclarativeInlineRangedFrame331.child]
+Yulang.GeneralDeclarativeInlineRangedFrame331.only_output : Yulang.GeneralDeclarativeBatch320.collect
+    (Yulang.GeneralDeclarativeNormalizeAssoc324.one Yulang.GeneralDeclarativeInlineDecl331.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeInlineDecl331.decl
+      Yulang.GeneralDeclarativeInlineDecl331.root Yulang.GeneralDeclarativeInlineRangedFrame331.named.input)
+    Yulang.GeneralDeclarativeInlineDecl331.root.outputs =
+  some [Yulang.GeneralDeclarativeInlineRangedFrame331.rootWrite]
+Yulang.GeneralDeclarativeInlineRangedFrame331.prepare_exact : Yulang.GeneralDeclarativeClauseBatch327.prepare
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeInlineRangedFrame331.keep Yulang.GeneralDeclarativeInlineRangedFrame331.cap
+    Yulang.GeneralDeclarativeInlineRangedFrame331.rebuilt Yulang.GeneralDeclarativeInlineDecl331.decl.requirements =
+  some (Yulang.GeneralDeclarativeInlineRangedFrame331.rebuilt, Yulang.GeneralDeclarativeInlineRangedFrame331.ports)
+Yulang.GeneralDeclarativeInlineRangedFrame331.grows : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeInlineRangedFrame331.rebuilt Yulang.GeneralDeclarativeInlineRangedFrame331.final
+Yulang.GeneralDeclarativeInlineRangedFrame331.current_bounds : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeInlineRangedFrame331.final Yulang.GeneralDeclarativeInlineRangedFrame331.interval
+Yulang.GeneralDeclarativeInlineRangedFrame331.literal_frame : Yulang.GeneralDeclarativeInlineRangedFrame331.final.equations =
+  Yulang.GeneralDeclarativeInlineRangedFrame331.sourceRows ++
+      Yulang.GeneralDeclarativeInlineRangedFrame331.storedReads ++
+    [Yulang.GeneralDeclarativeInlineRangedFrame331.rootWrite, Yulang.GeneralDeclarativeInlineRangedFrame331.leafWrite]
+Yulang.GeneralDeclarativeInlineRangedFrame331.covered : Yulang.GeneralNominalCenteredHeadWFSource.Coverage
+  Yulang.GeneralDeclarativeInlineDecl331.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+Yulang.GeneralDeclarativeInlineRangedFrame331.declared : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativeInlineDecl331.registry Yulang.GeneralDeclarativeInlineDecl331.root
+Yulang.GeneralDeclarativeInlineRangedGuards331.source_kept : ∀ (done : Nat → Prop)
+  (eq : Yulang.GeneralDeclarativeHead320.Equation),
+  eq ∈ Yulang.GeneralDeclarativeInlineRangedFrame331.sourceRows →
+    eq ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineRangedGuards331.current done)).equations
+Yulang.GeneralDeclarativeInlineRangedGuards331.no_new_input_origin : ∀ (e : Yulang.GeneralDeclarativeHead320.Equation),
+  e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineRangedGuards331.current fun x => False)).equations ↔
+    e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineRangedFrame331.before fun x => False)).equations
+Yulang.GeneralDeclarativeInlineRangedGuards331.raw_current : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeGrowth327.Extends
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineRangedFrame331.before done))
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineRangedGuards331.current done))
+Yulang.GeneralDeclarativeInlineRangedGuards331.root_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeInlineRangedGuards331.current done)
+    Yulang.GeneralDeclarativeInlineDecl331.root
+Yulang.GeneralDeclarativeInlineRangedGuards331.child_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeInlineRangedGuards331.current done)
+    Yulang.GeneralDeclarativeInlineRangedFrame331.child
+Yulang.GeneralDeclarativeInlineRangedGuards331.root_matches : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineEndpoint331.Heads
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineRangedGuards331.current done))
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeInlineDecl331.root Yulang.GeneralDeclarativeInlineDecl331.decl
+Yulang.GeneralDeclarativeInlineRangedGuards331.child_matches : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineEndpoint331.Heads
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineRangedGuards331.current done))
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeInlineRangedFrame331.child Yulang.GeneralDeclarativeExampleSource320.leaf
+@Yulang.GeneralDeclarativeInlineRangedGuards331.same_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias Yulang.GeneralDeclarativeInlineRangedFrame331.final a b →
+    Yulang.GeneralDeclarativeInlineRangedGuards331.rank a = Yulang.GeneralDeclarativeInlineRangedGuards331.rank b
+Yulang.GeneralDeclarativeInlineRangedGuards331.no_cycles : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeInlineRangedFrame331.final
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeInlineRangedFrame331.final) n
+Yulang.GeneralDeclarativeInlineRangedGuards331.safe : ∀ (done : Nat → Prop)
+  (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeInlineRangedFrame331.final
+      Yulang.GeneralDeclarativeInlineDecl331.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+      (Yulang.GeneralDeclarativeInlineRangedGuards331.tests done) d
+Yulang.GeneralDeclarativeInlineRangedModels331.initial_valid : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeInlineRangedFrame331.sourceState Yulang.GeneralDeclarativeInlineRangedModels331.model
+Yulang.GeneralDeclarativeInlineRangedModels331.actual_names : Yulang.GeneralDeclarativeHead320.Models
+  (Yulang.GeneralDeclarativeRecordPoints330.named Yulang.GeneralDeclarativeInlineRangedFrame331.sourceState 0
+    Yulang.GeneralDeclarativeInlineRangedFrame331.keep Yulang.GeneralDeclarativeInlineRangedFrame331.chosen
+    Yulang.GeneralDeclarativeInlineRangedFrame331.remainder)
+  Yulang.GeneralDeclarativeInlineRangedModels331.model
+Yulang.GeneralDeclarativeInlineRangedModels331.head_row : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeInlineRangedFrame331.rebuilt Yulang.GeneralDeclarativeInlineRangedModels331.model
+Yulang.GeneralDeclarativeInlineRangedModels331.final_valid : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeInlineRangedFrame331.final Yulang.GeneralDeclarativeInlineRangedModels331.model
+Yulang.GeneralDeclarativeInlineRangedModels331.exact_compiler : Yulang.GeneralDeclarativeCompileLists321.Result
+  Yulang.GeneralDeclarativeInlineRangedFrame331.final
+  (Yulang.GeneralDeclarativeNFComplete324.facts Yulang.GeneralDeclarativeInlineDecl331.registry
+    Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeInlineRangedFrame331.frame.capture
+    Yulang.GeneralDeclarativeInlineDecl331.decl Yulang.GeneralDeclarativeInlineDecl331.root
+    [Yulang.GeneralDeclarativeInlineRangedFrame331.child])
+Yulang.GeneralDeclarativeInlineRangedModels331.checked_dictionary : Yulang.GeneralDeclarativeInlineRangedFrame331.frame.capture
+      0 =
+    Yulang.GeneralDeclarativeInlineRangedFrame331.interval ∧
+  Yulang.GeneralDeclarativeInlineRangedFrame331.frame.capture 3 = Yulang.GeneralDeclarativeOpaqueNominal328.point 18 ∧
+    Yulang.GeneralDeclarativeInlineRangedFrame331.frame.capture 1 = Yulang.GeneralDeclarativeOpaqueNominal328.point 19 ∧
+      Yulang.GeneralDeclarativeInlineRangedFrame331.frame.rootRows =
+          [{ left := 6, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 19 }] ∧
+        Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeInlineRangedFrame331.final
+            Yulang.GeneralDeclarativeInlineRangedModels331.model ∧
+          Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeInlineDecl331.registry
+            Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeInlineRangedModels331.model
+            Yulang.GeneralDeclarativeInlineDecl331.root Yulang.GeneralDeclarativeInlineRangedResult331.dict
+Yulang.GeneralDeclarativeInlineRangedModels331.strictly_internal : ¬Yulang.CommonNominalFullCarrier.Equivalent
+      (Yulang.GeneralDeclarativeInlineRangedModels331.model
+          Yulang.GeneralDeclarativeInlineRangedFrame331.interval.center).fst
+      (Yulang.GeneralDeclarativeInlineRangedModels331.model
+          Yulang.GeneralDeclarativeInlineRangedFrame331.interval.lower).fst ∧
+  ¬Yulang.CommonNominalFullCarrier.Equivalent
+      (Yulang.GeneralDeclarativeInlineRangedModels331.model
+          Yulang.GeneralDeclarativeInlineRangedFrame331.interval.center).fst
+      (Yulang.GeneralDeclarativeInlineRangedModels331.model
+          Yulang.GeneralDeclarativeInlineRangedFrame331.interval.upper).fst
+Yulang.GeneralDeclarativeInlineRangedModels331.real_nonpoint_child : Yulang.GeneralDeclarativeInlineRangedFrame331.child.arguments =
+    [{ lower := 1, center := 3, upper := 2 }] ∧
+  Yulang.GeneralDeclarativeInlineRangedFrame331.frame.capture 0 = { lower := 1, center := 3, upper := 2 } ∧
