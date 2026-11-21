@@ -21,10 +21,12 @@
 #     hold a mid-cycle snapshot that dots later edits, which breaks the
 #     append-only gate.
 #   - Never run two integrations in the same verify clone at once.
-#   - One run takes about an hour. If several reports are waiting, integrate
+#   - One run takes over two hours as of cycle 315 (about 1300 audit files are
+#     re-run) and grows each cycle. If several reports are waiting, integrate
 #     only the newest one: it contains the earlier cycles.
-#   - Do not chain a long wait and an integration in one background job with a
-#     hard time limit; start the integration when the previous one has ended.
+#   - If your job runner kills jobs after a fixed time, start this detached
+#     (e.g. `setsid nohup ... > log 2>&1 &`) and wait on the log for the
+#     final line, instead of chaining a wait and an integration in one job.
 set -u
 src=$1; br=$2; label=$3
 R=${DOTS_MAIN_DIR:-$(cd "$(dirname "$0")/.." && pwd)}
