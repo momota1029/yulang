@@ -23,3 +23,28 @@ provides the certificate is a separate obligation. In particular, neither
 a potentially satisfiable candidate nor merely matching interval endpoints
 is assumed to justify evidence in every model. Do not insert a new guard
 into Classify just to make a proof hold.
+
+## Finite compiler and the real cut
+
+The separate pure compiler emits finite logical equations from a source
+declaration, its ordered children and its logical names. Nominal arguments
+use actual-mode names even inside a lower/upper expression. A checked role
+default reads positional centers, not impl-capture identifiers. An equation
+need not be textually present if it follows from ordinary constraints. Adding
+only such equations or derived capture bounds leaves the set of models equal.
+
+The two checked `wrap` examples separate the local-versus-completed boundary:
+the real parent uses a nominal head whose actual center has no stored equation,
+requests `item` from a genuine child, and uses that named result in its own
+compound output. If only the child's `item = actual-arg` equation is removed,
+all parent equations are still entailed and there is still a normal model,
+but the child dictionary fails in that model. This is not a claim about an
+approved rejection case. The type rule must not confuse candidate survival,
+or even parent local materialization, with a completed successful dictionary.
+
+After C320 the cut is `selected local front -> ChosenRecipe or BatchRecipe`
+with genuine source capture/where/out constraints. In particular a successful
+result cannot use only endpoint overlap or one feasible matching model to
+justify a repeated actual binder. The approved delayed handling of unresolved
+dependent outputs and the promise not to add a refusal merely because an
+implementation lost a center identity both remain untouched.
