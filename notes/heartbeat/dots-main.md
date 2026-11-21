@@ -3,6 +3,6 @@
 - cycle: 312
 - status: running
 - started: 2026-11-21T03:30:00Z
-- updated: 2026-11-21T03:38:12.210Z
-- elapsed_min: 8
-- activity: C312: 既存集約の実履歴 ID 検査から旧選択互換への一般削減を検証
+- updated: 2026-11-21T03:46:50.310Z
+- elapsed_min: 16
+- activity: C312: 実 alias/refresh から旧選択の観測前提を除去、残りは保護集約の履歴照合

@@ -6367,3 +6367,9 @@ import Yulang.GeneralLatePeerJoint311
 import Yulang.GeneralVersionedProtectedPeer312
 import Yulang.GeneralVersionedHistoricalTransport312
 import Yulang.GeneralVersionedProtectedLookup312
+import Yulang.GeneralVersionedSiteOrigins312
+import Yulang.GeneralVersionedIdentityCenters312
+import Yulang.GeneralVersionedAliasCenters312
+import Yulang.GeneralVersionedAliasReadback312
+import Yulang.GeneralVersionedAliasReport312
+import Yulang.GeneralVersionedAliasChoice312
