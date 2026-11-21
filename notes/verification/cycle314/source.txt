@@ -1,0 +1,64 @@
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedAggregateClass314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedAggregateClassNow314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedAggregateJournal314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedAggregateOrigins314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedAggregatePacket314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointLedger314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointModes314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointReduction314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedForeignCollision314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedHistoricalHead314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedHistoricalSupport314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedNewOwnerHead314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedNewOwnerInstall314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedOwnedClassFrame314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedOwnedCoordinates314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedOwnedPacketFrame314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedOwnerEnvelope314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedPrivateClass314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedPrivateJournal314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedPrivateOrigins314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedPrivatePacket314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedProspectiveFootprint314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedProspectiveNames314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedReachableTests314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedRecursiveCut314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedRemainingWrites314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedReservedPersistence314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedReservedVersion314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedRevisitActual314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedRevisitEndpoints314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedSameOwnerChoice314.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedStoredOwnerKeys314.lean
+exit 0

@@ -1,0 +1,49 @@
+import Yulang.GeneralVersionedPrivateJournal314
+import Yulang.GeneralVersionedPrivateOrigins314
+import Yulang.GeneralVersionedPrivatePacket314
+import Yulang.GeneralVersionedProspectiveFootprint314
+import Yulang.GeneralVersionedProspectiveNames314
+import Yulang.GeneralVersionedReachableTests314
+
+#print axioms Yulang.GeneralVersionedPrivateJournal314.legacy
+#print axioms Yulang.GeneralVersionedPrivateJournal314.all
+#print axioms Yulang.GeneralVersionedPrivateJournal314.prospective_head_absent
+#print axioms Yulang.GeneralVersionedPrivateJournal314.prospective
+#print axioms Yulang.GeneralVersionedPrivateJournal314.matching
+#print axioms Yulang.GeneralVersionedPrivateJournal314.owned
+#print axioms Yulang.GeneralVersionedPrivateOrigins314.distinct
+#print axioms Yulang.GeneralVersionedPrivateOrigins314.raw_absent
+#print axioms Yulang.GeneralVersionedPrivateOrigins314.Witness
+#print axioms Yulang.GeneralVersionedPrivateOrigins314.Explains
+#print axioms Yulang.GeneralVersionedPrivateOrigins314.historical_absent
+#print axioms Yulang.GeneralVersionedPrivateOrigins314.input_ne
+#print axioms Yulang.GeneralVersionedPrivateOrigins314.binder_witness
+#print axioms Yulang.GeneralVersionedPrivateOrigins314.child
+#print axioms Yulang.GeneralVersionedPrivatePacket314.registered
+#print axioms Yulang.GeneralVersionedPrivatePacket314.registered_raw
+#print axioms Yulang.GeneralVersionedPrivatePacket314.outputs_ne
+#print axioms Yulang.GeneralVersionedPrivatePacket314.packet_head
+#print axioms Yulang.GeneralVersionedPrivatePacket314.variable_read_explains
+#print axioms Yulang.GeneralVersionedPrivatePacket314.roots
+#print axioms Yulang.GeneralVersionedPrivatePacket314.schema
+#print axioms Yulang.GeneralVersionedPrivatePacket314.emitted_target
+#print axioms Yulang.GeneralVersionedPrivatePacket314.expression_sources
+#print axioms Yulang.GeneralVersionedPrivatePacket314.stored_sources
+#print axioms Yulang.GeneralVersionedProspectiveFootprint314.head_atom
+#print axioms Yulang.GeneralVersionedProspectiveFootprint314.head_read
+#print axioms Yulang.GeneralVersionedProspectiveFootprint314.body_reads
+#print axioms Yulang.GeneralVersionedProspectiveFootprint314.classes
+#print axioms Yulang.GeneralVersionedProspectiveFootprint314.schema_reads
+#print axioms Yulang.GeneralVersionedProspectiveFootprint314.all
+#print axioms Yulang.GeneralVersionedProspectiveFootprint314.aggregate_class_free
+#print axioms Yulang.GeneralVersionedProspectiveNames314.ReadTag
+#print axioms Yulang.GeneralVersionedProspectiveNames314.LocalTag
+#print axioms Yulang.GeneralVersionedProspectiveNames314.Read
+#print axioms Yulang.GeneralVersionedProspectiveNames314.Actual
+#print axioms Yulang.GeneralVersionedProspectiveNames314.weaken
+#print axioms Yulang.GeneralVersionedProspectiveNames314.raw_read
+#print axioms Yulang.GeneralVersionedProspectiveNames314.endpoint_reads
+#print axioms Yulang.GeneralVersionedProspectiveNames314.actual_binder
+#print axioms Yulang.GeneralVersionedProspectiveNames314.rhs_reads
+#print axioms Yulang.GeneralVersionedProspectiveNames314.excludes
+#print axioms Yulang.GeneralVersionedReachableTests314.tests

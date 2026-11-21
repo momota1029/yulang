@@ -1,0 +1,36 @@
+import Yulang.GeneralVersionedEndpointModes314
+import Yulang.GeneralVersionedEndpointReduction314
+import Yulang.GeneralVersionedForeignCollision314
+import Yulang.GeneralVersionedHistoricalHead314
+import Yulang.GeneralVersionedHistoricalSupport314
+import Yulang.GeneralVersionedNewOwnerHead314
+
+#print axioms Yulang.GeneralVersionedEndpointModes314.value_agrees
+#print axioms Yulang.GeneralVersionedEndpointModes314.values_agree
+#print axioms Yulang.GeneralVersionedEndpointModes314.reuse_exact
+#print axioms Yulang.GeneralVersionedEndpointReduction314.Readback
+#print axioms Yulang.GeneralVersionedEndpointReduction314.reused
+#print axioms Yulang.GeneralVersionedEndpointReduction314.closed_reads
+#print axioms Yulang.GeneralVersionedEndpointReduction314.installable
+#print axioms Yulang.GeneralVersionedEndpointReduction314.node_and_edges
+#print axioms Yulang.GeneralVersionedForeignCollision314.Collision
+#print axioms Yulang.GeneralVersionedForeignCollision314.wrong_key
+#print axioms Yulang.GeneralVersionedForeignCollision314.choice_if_no_collision
+#print axioms Yulang.GeneralVersionedForeignCollision314.same_version
+#print axioms Yulang.GeneralVersionedHistoricalHead314.declaration
+#print axioms Yulang.GeneralVersionedHistoricalHead314.ledger
+#print axioms Yulang.GeneralVersionedHistoricalHead314.of_history
+#print axioms Yulang.GeneralVersionedHistoricalHead314.head
+#print axioms Yulang.GeneralVersionedHistoricalSupport314.legacy
+#print axioms Yulang.GeneralVersionedHistoricalSupport314.all
+#print axioms Yulang.GeneralVersionedHistoricalSupport314.absent
+#print axioms Yulang.GeneralVersionedHistoricalSupport314.inert
+#print axioms Yulang.GeneralVersionedHistoricalSupport314.package
+#print axioms Yulang.GeneralVersionedNewOwnerHead314.UnseenPacket
+#print axioms Yulang.GeneralVersionedNewOwnerHead314.entry_address
+#print axioms Yulang.GeneralVersionedNewOwnerHead314.entry_unprotected
+#print axioms Yulang.GeneralVersionedNewOwnerHead314.coverage
+#print axioms Yulang.GeneralVersionedNewOwnerHead314.aggregate
+#print axioms Yulang.GeneralVersionedNewOwnerHead314.binder_outside
+#print axioms Yulang.GeneralVersionedNewOwnerHead314.head
+#print axioms Yulang.GeneralVersionedNewOwnerHead314.choice

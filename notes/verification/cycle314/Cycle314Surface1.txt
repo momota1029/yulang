@@ -1,0 +1,48 @@
+$ lake env lean --trust=0 -DwarningAsError=true Audit/Cycle314Surface1.lean
+'Yulang.GeneralVersionedAggregateClass314.default_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateClass314.reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateClass314.class_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateClass314.effect_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateClassNow314.reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateClassNow314.current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateClassNow314.ledger' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateJournal314.legacy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateJournal314.all' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateJournal314.entry' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateJournal314.journal_subset' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateJournal314.full_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.Declared' does not depend on any axioms
+'Yulang.GeneralVersionedAggregateOrigins314.RawIf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.small' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.historical' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.install_reserve' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.wrong_kind' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.stored_slot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.binder_of_domain' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregateOrigins314.binder_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.registered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.registered_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.outputs_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.packet_head_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.variable_read_explains' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.roots' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.emitted_target' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.expression_sources' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedAggregatePacket314.stored_sources' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointLedger314.previous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointLedger314.on_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointLedger314.Row' does not depend on any axioms
+'Yulang.GeneralVersionedEndpointLedger314.Endpoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointLedger314.endpoint_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointLedger314.exact_where' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointLedger314.previous_of_endpoint' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit 0

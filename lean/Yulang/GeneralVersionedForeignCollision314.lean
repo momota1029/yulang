@@ -104,4 +104,46 @@ theorem choice_if_no_collision {s : State roles} {p : Packet roles}
   intro diff
   exact exclude old present alias (wrong_key checked actual selected valid present alias (Ne.symm diff)).2
 
+
+/-- The reserve collision carries the exact ordered endpoint observation
+    per input name. It cannot be caused by a different observation version. -/
+theorem same_version {s : State roles} {probe : Packet roles} {p : Plan roles}
+    (actual : Reachable registry root s)
+    (aligned : probe.context = context s) (stored : p ∈ s.plans)
+    (row : GeneralNominalFiniteEquationRealization236.Entry)
+    (listed : row ∈ packetEntries probe) (reserved : row.1 ∈ reserve p.packet) :
+    ∃ name ∈ probe.declaration.inputNames,
+      GeneralNominalAllocation.occurrences p.packet.bindings name =
+        GeneralNominalAllocation.occurrences probe.bindings name ∧
+      (GeneralNominalAllocation.occurrences probe.bindings name).length ≠ 1 := by
+  obtain ⟨name,named,multi,which⟩ := (GeneralNominalVersionedAggregateRealization236.member_iff ..).mp listed
+  obtain ⟨k,member,eq⟩ := List.mem_map.mp reserved
+  obtain ⟨decl,_,keyMember⟩ := List.mem_flatMap.mp member
+  have pastSeed : p.packet.context.state.seed = probe.context.state.seed := by
+    rw [aligned]
+    exact GeneralNominalVersionedMixedSeedLedger237.reachable actual p stored
+  refine ⟨name,named,?_,multi⟩
+  have atSlot (mode : Nat) (polarity : mode = 0 ∨ mode = 1)
+      (h : row.1 = GeneralNominalAggregateVersion231.slot probe.context.state.seed
+        probe.site.occurrence.identity probe.declaration.id mode name probe.bindings) :
+      GeneralNominalAllocation.occurrences p.packet.bindings name =
+        GeneralNominalAllocation.occurrences probe.bindings name := by
+    have keyEq : k = GeneralNominalAggregateVersion231.key probe.site.occurrence.identity
+        probe.declaration.id mode name probe.bindings := by
+      apply (GeneralNominalIdentities.source_identity probe.context.state.seed _ _).mp
+      rw [← pastSeed]
+      exact eq.trans (by rw [pastSeed]; exact h)
+    have rightKind : k.2.2.1 = 0 ∨ k.2.2.1 = 1 := keyEq.symm ▸ polarity
+    obtain ⟨oldName,_,slotInfo | slotInfo⟩ :=
+      GeneralVersionedReservedVersion314.name_key rightKind keyMember
+    all_goals
+      have same := slotInfo.symm.trans keyEq
+      have namesEq : oldName = name := congrArg (fun x : GeneralNominalIdentities.Origin => x.2.2.2.1) same
+      have codeEq := congrArg (fun x : GeneralNominalIdentities.Origin => x.2.2.2.2) same
+      have perName := GeneralNominalAggregateVersion231.code_injective (Nat.succ.inj codeEq)
+      rw [namesEq] at perName
+      exact perName
+  exact which.elim (fun h => atSlot 0 (.inl rfl) (congrArg Prod.fst h))
+    (fun h => atSlot 1 (.inr rfl) (congrArg Prod.fst h))
+
 end Yulang.GeneralVersionedForeignCollision314

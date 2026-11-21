@@ -1,0 +1,47 @@
+import Yulang.GeneralVersionedAggregateClass314
+import Yulang.GeneralVersionedAggregateClassNow314
+import Yulang.GeneralVersionedAggregateJournal314
+import Yulang.GeneralVersionedAggregateOrigins314
+import Yulang.GeneralVersionedAggregatePacket314
+import Yulang.GeneralVersionedEndpointLedger314
+
+#print axioms Yulang.GeneralVersionedAggregateClass314.default_origin
+#print axioms Yulang.GeneralVersionedAggregateClass314.reads
+#print axioms Yulang.GeneralVersionedAggregateClass314.class_frame
+#print axioms Yulang.GeneralVersionedAggregateClass314.effect_frame
+#print axioms Yulang.GeneralVersionedAggregateClassNow314.reads
+#print axioms Yulang.GeneralVersionedAggregateClassNow314.current
+#print axioms Yulang.GeneralVersionedAggregateClassNow314.ledger
+#print axioms Yulang.GeneralVersionedAggregateJournal314.legacy
+#print axioms Yulang.GeneralVersionedAggregateJournal314.all
+#print axioms Yulang.GeneralVersionedAggregateJournal314.entry
+#print axioms Yulang.GeneralVersionedAggregateJournal314.journal_subset
+#print axioms Yulang.GeneralVersionedAggregateJournal314.full_support
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.Declared
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.RawIf
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.small
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.historical
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.install_reserve
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.wrong_kind
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.stored_slot
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.input
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.binder_of_domain
+#print axioms Yulang.GeneralVersionedAggregateOrigins314.binder_raw
+#print axioms Yulang.GeneralVersionedAggregatePacket314.child
+#print axioms Yulang.GeneralVersionedAggregatePacket314.registered
+#print axioms Yulang.GeneralVersionedAggregatePacket314.registered_raw
+#print axioms Yulang.GeneralVersionedAggregatePacket314.outputs_raw
+#print axioms Yulang.GeneralVersionedAggregatePacket314.packet_head_raw
+#print axioms Yulang.GeneralVersionedAggregatePacket314.variable_read_explains
+#print axioms Yulang.GeneralVersionedAggregatePacket314.roots
+#print axioms Yulang.GeneralVersionedAggregatePacket314.schema
+#print axioms Yulang.GeneralVersionedAggregatePacket314.emitted_target
+#print axioms Yulang.GeneralVersionedAggregatePacket314.expression_sources
+#print axioms Yulang.GeneralVersionedAggregatePacket314.stored_sources
+#print axioms Yulang.GeneralVersionedEndpointLedger314.previous
+#print axioms Yulang.GeneralVersionedEndpointLedger314.on_reads
+#print axioms Yulang.GeneralVersionedEndpointLedger314.Row
+#print axioms Yulang.GeneralVersionedEndpointLedger314.Endpoint
+#print axioms Yulang.GeneralVersionedEndpointLedger314.endpoint_row
+#print axioms Yulang.GeneralVersionedEndpointLedger314.exact_where
+#print axioms Yulang.GeneralVersionedEndpointLedger314.previous_of_endpoint

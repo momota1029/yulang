@@ -1,0 +1,50 @@
+import Yulang.GeneralVersionedNewOwnerInstall314
+import Yulang.GeneralVersionedOwnedClassFrame314
+import Yulang.GeneralVersionedOwnedCoordinates314
+import Yulang.GeneralVersionedOwnedPacketFrame314
+import Yulang.GeneralVersionedOwnerEnvelope314
+import Yulang.GeneralVersionedPrivateClass314
+
+#print axioms Yulang.GeneralVersionedNewOwnerInstall314.taut_protected
+#print axioms Yulang.GeneralVersionedNewOwnerInstall314.cell_free
+#print axioms Yulang.GeneralVersionedNewOwnerInstall314.output_free
+#print axioms Yulang.GeneralVersionedNewOwnerInstall314.table
+#print axioms Yulang.GeneralVersionedNewOwnerInstall314.joint
+#print axioms Yulang.GeneralVersionedNewOwnerInstall314.installable
+#print axioms Yulang.GeneralVersionedNewOwnerInstall314.node_and_edges
+#print axioms Yulang.GeneralVersionedOwnedClassFrame314.Retained
+#print axioms Yulang.GeneralVersionedOwnedClassFrame314.step
+#print axioms Yulang.GeneralVersionedOwnedClassFrame314.snapshots
+#print axioms Yulang.GeneralVersionedOwnedClassFrame314.default_origin
+#print axioms Yulang.GeneralVersionedOwnedClassFrame314.reads
+#print axioms Yulang.GeneralVersionedOwnedClassFrame314.class_frame
+#print axioms Yulang.GeneralVersionedOwnedClassFrame314.effect_frame
+#print axioms Yulang.GeneralVersionedOwnedCoordinates314.Owned
+#print axioms Yulang.GeneralVersionedOwnedCoordinates314.input_endpoints
+#print axioms Yulang.GeneralVersionedOwnedCoordinates314.output
+#print axioms Yulang.GeneralVersionedOwnedCoordinates314.variable_read
+#print axioms Yulang.GeneralVersionedOwnedCoordinates314.where_endpoints
+#print axioms Yulang.GeneralVersionedOwnedCoordinates314.child_footprint
+#print axioms Yulang.GeneralVersionedOwnedCoordinates314.equation_reads
+#print axioms Yulang.GeneralVersionedOwnedCoordinates314.where_target
+#print axioms Yulang.GeneralVersionedOwnedPacketFrame314.head_owned
+#print axioms Yulang.GeneralVersionedOwnedPacketFrame314.roots
+#print axioms Yulang.GeneralVersionedOwnedPacketFrame314.schema
+#print axioms Yulang.GeneralVersionedOwnedPacketFrame314.emitted_target
+#print axioms Yulang.GeneralVersionedOwnedPacketFrame314.expression_sources
+#print axioms Yulang.GeneralVersionedOwnedPacketFrame314.stored_sources
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.Envelope
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.never
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.raw_or_outputs
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.current
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.history
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.owned
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.initial_source_subset
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.registered
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.raw_site_subset
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.registered_raw
+#print axioms Yulang.GeneralVersionedOwnerEnvelope314.outputs
+#print axioms Yulang.GeneralVersionedPrivateClass314.default_origin
+#print axioms Yulang.GeneralVersionedPrivateClass314.reads
+#print axioms Yulang.GeneralVersionedPrivateClass314.class_frame
+#print axioms Yulang.GeneralVersionedPrivateClass314.effect_frame
