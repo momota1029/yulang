@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeStableReplay329
+import Yulang.GeneralDeclarativeStablePoint329
+
+#print axioms Yulang.GeneralDeclarativeStableActual329.evidence
+#print axioms Yulang.GeneralDeclarativeStablePoint329.distinct
+#print axioms Yulang.GeneralDeclarativeStableTrace329.from_trace
+#print axioms Yulang.GeneralDeclarativeStableHybrid329.ordered
+#print axioms Yulang.GeneralDeclarativeStableReplay329.from_sources
+#print axioms Yulang.GeneralDeclarativeStableReplay329.replay

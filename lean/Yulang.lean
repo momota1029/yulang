@@ -6992,3 +6992,8 @@ import Yulang.GeneralDeclarativeStableOrigin329
 import Yulang.GeneralDeclarativeStableRejected329
 import Yulang.GeneralDeclarativeStableInputs329
 import Yulang.GeneralDeclarativeStableAssemble329
+import Yulang.GeneralDeclarativeStableActual329
+import Yulang.GeneralDeclarativeStablePoint329
+import Yulang.GeneralDeclarativeStableTrace329
+import Yulang.GeneralDeclarativeStableHybrid329
+import Yulang.GeneralDeclarativeStableReplay329
