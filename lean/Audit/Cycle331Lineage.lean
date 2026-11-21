@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeInlineChildModels331
+
+#print axioms Yulang.GeneralDeclarativeInlineLineage331.carries
+#print axioms Yulang.GeneralDeclarativeInlineGround331.origin_path
+#print axioms Yulang.GeneralDeclarativeInlineGround331.derived_backed
+#print axioms Yulang.GeneralDeclarativeInlineGround331.no_forgery
+#print axioms Yulang.GeneralDeclarativeInlinePending331.no_pending_promotion
+#print axioms Yulang.GeneralDeclarativeInlineChildFrame331.native_path
+#print axioms Yulang.GeneralDeclarativeInlineChildFrame331.calc_children
+#print axioms Yulang.GeneralDeclarativeInlineChildGuards331.output_not_promoted
+#print axioms Yulang.GeneralDeclarativeInlineChildResult331.all_models
+#print axioms Yulang.GeneralDeclarativeInlineChildModels331.checked_dictionary
