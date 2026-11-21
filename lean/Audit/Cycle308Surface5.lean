@@ -1,0 +1,62 @@
+import Yulang.GeneralMixedCompoundPointSteps308
+import Yulang.GeneralMixedCompoundPointTrace308
+import Yulang.GeneralMixedCompoundPointView308
+import Yulang.GeneralMixedCompoundPointViewBase308
+import Yulang.GeneralMixedCompoundPointViewTrust308
+import Yulang.GeneralMixedCompoundSourceFork308
+
+#print axioms Yulang.GeneralMixedCompoundPointSteps308.point_closed
+#print axioms Yulang.GeneralMixedCompoundPointSteps308.StrictRefreshTo
+#print axioms Yulang.GeneralMixedCompoundPointSteps308.NovelEqualityTo
+#print axioms Yulang.GeneralMixedCompoundPointSteps308.exact_operations
+#print axioms Yulang.GeneralMixedCompoundPointTrace308.child_waits
+#print axioms Yulang.GeneralMixedCompoundPointTrace308.pending_child
+#print axioms Yulang.GeneralMixedCompoundPointTrace308.resolver_waits
+#print axioms Yulang.GeneralMixedCompoundPointTrace308.resolver_rejects
+#print axioms Yulang.GeneralMixedCompoundPointTrace308.actual_prefix
+#print axioms Yulang.GeneralMixedCompoundPointTrace308.actual_emission_observation
+#print axioms Yulang.GeneralMixedCompoundPointView308.snap
+#print axioms Yulang.GeneralMixedCompoundPointView308.context
+#print axioms Yulang.GeneralMixedCompoundPointView308.nominals
+#print axioms Yulang.GeneralMixedCompoundPointView308.base_head
+#print axioms Yulang.GeneralMixedCompoundPointView308.view_head
+#print axioms Yulang.GeneralMixedCompoundPointView308.embedded_source
+#print axioms Yulang.GeneralMixedCompoundPointView308.slots7
+#print axioms Yulang.GeneralMixedCompoundPointView308.old_not_port
+#print axioms Yulang.GeneralMixedCompoundPointView308.refines
+#print axioms Yulang.GeneralMixedCompoundPointView308.upper_reserved_new
+#print axioms Yulang.GeneralMixedCompoundPointView308.support
+#print axioms Yulang.GeneralMixedCompoundPointView308.previously_unknown
+#print axioms Yulang.GeneralMixedCompoundPointView308.seen_lo
+#print axioms Yulang.GeneralMixedCompoundPointView308.seen_hi
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.upper
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.embed
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.source
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.source_old
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.source_new
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.injective
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.shapes
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.heads
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.base
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.viewHeads
+#print axioms Yulang.GeneralMixedCompoundPointViewBase308.view
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.retained
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.trusted
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.slice_input
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.aggregate
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.assign
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.constraints
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.nominal
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.cache
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.cert
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.observed
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.step
+#print axioms Yulang.GeneralMixedCompoundPointViewTrust308.models
+#print axioms Yulang.GeneralMixedCompoundSourceFork308.point_exactCopy
+#print axioms Yulang.GeneralMixedCompoundSourceFork308.old_one
+#print axioms Yulang.GeneralMixedCompoundSourceFork308.occupied
+#print axioms Yulang.GeneralMixedCompoundSourceFork308.both
+#print axioms Yulang.GeneralMixedCompoundSourceFork308.actual_entry
+#print axioms Yulang.GeneralMixedCompoundSourceFork308.entries_exact
+#print axioms Yulang.GeneralMixedCompoundSourceFork308.revision_eq
+#print axioms Yulang.GeneralMixedCompoundSourceFork308.exact_fork

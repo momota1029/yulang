@@ -1,0 +1,18 @@
+import Yulang.GeneralMixedCompoundSourcePrefix308
+
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.initial_model
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.initial_names
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.classified
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.full_same
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.equality_closed
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.known_0
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.known_1
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.known_2
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.headless
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.identified_effect
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.firstRevision
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.pointBefore
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.early_reobservation
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.reobserve_models
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.two_steps
+#print axioms Yulang.GeneralMixedCompoundSourcePrefix308.exact_operation

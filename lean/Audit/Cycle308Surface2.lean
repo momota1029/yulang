@@ -1,0 +1,57 @@
+import Yulang.GeneralMixedCompoundEarlySquare308
+import Yulang.GeneralMixedCompoundFiveSlotDescriptor308
+import Yulang.GeneralMixedCompoundInitialNonjoin308
+import Yulang.GeneralMixedCompoundPointAdmin308
+import Yulang.GeneralMixedCompoundPointChild308
+import Yulang.GeneralMixedCompoundPointCommit308
+
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.revision
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.result_exact
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.desc_is_point
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.witness_zero
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.loose_not_point
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.improves
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.certificate
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.step
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.common_model
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.batch_step
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.square
+#print axioms Yulang.GeneralMixedCompoundEarlySquare308.early_not_point
+#print axioms Yulang.GeneralMixedCompoundFiveSlotDescriptor308.record_exact
+#print axioms Yulang.GeneralMixedCompoundFiveSlotDescriptor308.argument_exact
+#print axioms Yulang.GeneralMixedCompoundFiveSlotDescriptor308.list_two
+#print axioms Yulang.GeneralMixedCompoundFiveSlotDescriptor308.fits_forced
+#print axioms Yulang.GeneralMixedCompoundFiveSlotDescriptor308.descriptor_exact
+#print axioms Yulang.GeneralMixedCompoundInitialNonjoin308.disjoint
+#print axioms Yulang.GeneralMixedCompoundInitialNonjoin308.distinct
+#print axioms Yulang.GeneralMixedCompoundInitialNonjoin308.no_inhabited_join
+#print axioms Yulang.GeneralMixedCompoundInitialNonjoin308.packet_models_not_a_public_observer
+#print axioms Yulang.GeneralMixedCompoundInitialNonjoin308.both_real_paths
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.rSite
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.w
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.root_denotes
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.child_denotes
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.different
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.no_merge_forward
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.no_merge_backward
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.merge_already
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.root_ready
+#print axioms Yulang.GeneralMixedCompoundPointAdmin308.child_ready
+#print axioms Yulang.GeneralMixedCompoundPointChild308.located
+#print axioms Yulang.GeneralMixedCompoundPointChild308.query
+#print axioms Yulang.GeneralMixedCompoundPointChild308.report_exact
+#print axioms Yulang.GeneralMixedCompoundPointChild308.fresh
+#print axioms Yulang.GeneralMixedCompoundPointChild308.failed
+#print axioms Yulang.GeneralMixedCompoundPointChild308.known
+#print axioms Yulang.GeneralMixedCompoundPointChild308.no_inspection_pending
+#print axioms Yulang.GeneralMixedCompoundPointChild308.no_prepared
+#print axioms Yulang.GeneralMixedCompoundPointChild308.no_survivor
+#print axioms Yulang.GeneralMixedCompoundPointChild308.no_frame
+#print axioms Yulang.GeneralMixedCompoundPointChild308.no_evidence
+#print axioms Yulang.GeneralMixedCompoundPointChild308.reachable
+#print axioms Yulang.GeneralMixedCompoundPointChild308.same_request
+#print axioms Yulang.GeneralMixedCompoundPointCommit308.class_effects
+#print axioms Yulang.GeneralMixedCompoundPointCommit308.current_child_edge
+#print axioms Yulang.GeneralMixedCompoundPointCommit308.committed
+#print axioms Yulang.GeneralMixedCompoundPointCommit308.reached_cases
+#print axioms Yulang.GeneralMixedCompoundPointCommit308.no_install

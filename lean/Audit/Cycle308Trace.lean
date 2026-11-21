@@ -1,0 +1,7 @@
+import Yulang.GeneralMixedCompoundPointTrace308
+open Yulang
+
+#print axioms GeneralMixedCompoundPointTrace308.resolver_waits
+#print axioms GeneralMixedCompoundPointTrace308.resolver_rejects
+#print axioms GeneralMixedCompoundPointTrace308.actual_prefix
+#print axioms GeneralMixedCompoundPointTrace308.actual_emission_observation

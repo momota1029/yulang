@@ -1,0 +1,12 @@
+Cycle308Compiler exit=0
+Cycle308Early exit=0
+Cycle308Feedback exit=0
+Cycle308Fork exit=0
+Cycle308Surface1 exit=0
+Cycle308Surface2 exit=0
+Cycle308Surface3 exit=0
+Cycle308Surface4 exit=0
+Cycle308Surface5 exit=0
+Cycle308Surface6 exit=0
+Cycle308Trace exit=0
+records=324 unique=290 axiom_free=3 forbidden=[]
