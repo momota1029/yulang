@@ -1,0 +1,4 @@
+'Yulang.C322Readback.exact_old_source_emitter' depends on axioms: [propext, Quot.sound]
+'Yulang.C322Readback.exact_centered_source_emitter' depends on axioms: [propext, Quot.sound]
+'Yulang.C322Readback.same_binder_placement' depends on axioms: [propext, Classical.choice, Quot.sound]
+example exit: 0

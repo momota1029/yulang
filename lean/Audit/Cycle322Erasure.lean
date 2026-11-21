@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeEmissionErasure322
+
+#print axioms Yulang.GeneralDeclarativeEmissionErasure322.one_source
+#print axioms Yulang.GeneralDeclarativeEmissionErasure322.all_source

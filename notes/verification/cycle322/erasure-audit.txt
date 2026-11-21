@@ -1,0 +1,4 @@
+✔ [1022/1022] Built Yulang.GeneralDeclarativeEmissionErasure322 (1.5s)
+Build completed successfully (1022 jobs).
+'Yulang.GeneralDeclarativeEmissionErasure322.one_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionErasure322.all_source' depends on axioms: [propext, Quot.sound]

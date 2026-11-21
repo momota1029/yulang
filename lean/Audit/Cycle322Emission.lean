@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeEmissionClassify322
+import Yulang.GeneralDeclarativeDerivedNominal322
+
+#print axioms Yulang.GeneralDeclarativeSourceEmission322.source_var
+#print axioms Yulang.GeneralDeclarativeSourceEmission322.inputs_match_source
+#print axioms Yulang.GeneralDeclarativeSourceEmission322.outputs_match_source
+#print axioms Yulang.GeneralDeclarativeEmissionOperands322.input_proof
+#print axioms Yulang.GeneralDeclarativeEmissionOutputs322.output_operand
+#print axioms Yulang.GeneralDeclarativeEmissionOutputs322.output_result
+#print axioms Yulang.GeneralDeclarativeEmissionClause322.clause_ordinary
+#print axioms Yulang.GeneralDeclarativeEmissionForest322.all_clauses
+#print axioms Yulang.GeneralDeclarativeEmissionLocal322.source_batch
+#print axioms Yulang.GeneralDeclarativeEmissionLocal322.source_sound
+#print axioms Yulang.GeneralDeclarativeEmissionFixture322.no_materializer_needed
+#print axioms Yulang.GeneralDeclarativeEmissionClassify322.actual_source_inhabited
+#print axioms Yulang.GeneralDeclarativeInequality322.invariant_at
+#print axioms Yulang.GeneralDeclarativeDerivedNominal322.head_row

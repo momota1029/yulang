@@ -581,3 +581,14 @@ cycle 316 で、現在の mixed/source 境界について `EvidenceNode` が偽�
    - 既にある定理は残してよい（消さない、凍結しない）。
    - 宣言的な境界を定義するときに、どのプログラムが通るかを変える選択が必要になったら、Yulang の例を付けて質問ノートに書くこと（遅延の案を先に）。表現の選択だけなら design ノートに選択肢を書いて進めてよい。
 5. 各周の報告に、「宣言的な (4) にあと何本の橋が要るか」と「(2) にあと何本か」を分けて書くこと。
+
+## I-57（2026-11-21）凍結ファイルが切り詰めた出力で上書きされた。元に戻し、二度と書かないこと（監督役の判断）
+
+cycle 321 の公開で、凍結している二つのファイルが、ツールの切り詰めた読み出しで上書きされていた。
+- `lean/Audit.lean`: 10907 行 → 1231 行。先頭行が `Warning: truncated output (original token count: …)`、途中に `…tokens truncated…` がある。最初に入ったのは `b9835b279`。
+- `lean/README.md`: 4738 行 → 699 行。`426884800` から。
+どちらも I-43 などで凍結したファイルで、変更してはいけない。監督役が `fix/dots-321` で `integration/m1-final` の版にバイト単位で戻して統合した。cycle 321 のほかの変更（新しい `lean/Yulang/*.lean`・`lean/Audit/*.lean`・barrel・notes）はそのまま統合した。
+- 次の公開で、`work/dots-main` の `lean/Audit.lean` と `lean/README.md` を `integration/m1-final` の版にバイト単位で戻すこと（`git checkout origin/integration/m1-final -- lean/Audit.lean lean/README.md` と同じ結果）。
+- 以後、この二つのファイルを読み書きしないこと。新しい監査は `lean/Audit/<Name>.lean`、説明は `notes/` に書く。
+- 大きなファイルを、切り詰められうる経路（ツールの表示出力など）で読んで書き戻さないこと。公開の前に、変更したファイルに `truncated output` や `tokens truncated` が入っていないかを確かめること。例: `git diff --name-only <前回の公開> HEAD | xargs grep -l -e 'truncated output' -e 'tokens truncated'` が何も出さないこと。
+- 公開の前に、`git diff --stat <前回の公開> HEAD -- lean` で、既存ファイルから行が消えていないことも確かめること（`tools/verify-lean.sh` の「削除行なし」と同じ検査）。

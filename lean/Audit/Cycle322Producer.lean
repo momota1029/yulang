@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeProducerFixture322
+
+#print axioms Yulang.GeneralDeclarativeFixedReturn322.supplied_center
+#print axioms Yulang.GeneralDeclarativeFixedReturn322.positional_default_alias
+#print axioms Yulang.GeneralDeclarativeFixedReturn322.requested_return
+#print axioms Yulang.GeneralDeclarativeOrdinaryProducer322.ordinary_produces
+#print axioms Yulang.GeneralDeclarativeProducerFixture322.metadata
+#print axioms Yulang.GeneralDeclarativeProducerFixture322.actual_map
+#print axioms Yulang.GeneralDeclarativeProducerFixture322.produced

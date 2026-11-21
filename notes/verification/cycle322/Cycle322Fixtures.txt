@@ -1,0 +1,20 @@
+'Yulang.GeneralDeclarativeExistingFixtureClassify322.all_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeExistingFixtureClassify322.inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeExistingFixtureClassify322.exact_rows_and_nonliteral' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectedLower322.pair_first_head' does not depend on any axioms
+'Yulang.GeneralDeclarativeProjectedFixture322.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeProjectedFixture322.pending_cannot_project_scalar' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeExistingNames322.recovered_forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExistingNamesFixture322.exact_existing_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRefuseOverwrite322.not_conservative' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOverwriteFixture322.no_current_return' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOverwriteFixture322.no_rebind_with_extra_rows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOverwriteFixture322.no_child_dictionary' depends on axioms: [propext, Quot.sound]

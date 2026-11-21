@@ -1,0 +1,10 @@
+✔ [1019/1019] Built Yulang.GeneralDeclarativeExistingLocal322 (1.3s)
+Build completed successfully (1019 jobs).
+'Yulang.GeneralDeclarativeCongruence322.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEqualities322.entails' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTermWalk322.substitute' does not depend on any axioms
+'Yulang.GeneralDeclarativeTermHead322.actual_result' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExistingClause322.existing_result' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExistingReturn322.settled_result' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExistingLocal322.actual_batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExistingLocal322.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
