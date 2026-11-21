@@ -1,0 +1,7 @@
+Explicit audit entries (repeated entries included): 208
+Axiom-free entries: 11
+
+Nonempty axiom sets:
+     51 depends on axioms: [propext, Classical.choice, Quot.sound]
+    124 depends on axioms: [propext, Quot.sound]
+     22 depends on axioms: [propext]

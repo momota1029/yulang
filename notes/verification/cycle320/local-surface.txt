@@ -1,0 +1,61 @@
+Yulang.GeneralDeclarativeHead320.old_models (normal : Yulang.GeneralDeclarativeWhere319.State)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralDeclarativeHead320.Models { normal := normal, equations := [] } m ↔
+    Yulang.GeneralDeclarativeWhere319.Models normal m
+Yulang.GeneralDeclarativeHead320.read_sound {s : Yulang.GeneralDeclarativeHead320.State}
+  {captures : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {name : Nat}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {mode : Yulang.GeneralNominalMaterialization.Mode}
+  (proof : Yulang.GeneralDeclarativeHead320.Read s captures mode name e)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.CommonNominalFullCarrier.Equivalent (m name).fst
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeWhere319.variables captures m) mode
+      e)
+Yulang.GeneralDeclarativeDemand320.head_args {s : Yulang.GeneralDeclarativeHead320.State}
+  {catalogue : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {args : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {patterns : List Yulang.GeneralDeclarationPatterns.Pattern}
+  (given :
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeDemand320.HeadArg s catalogue interp capture) args
+      patterns)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeDemand320.HeadMeaning catalogue interp capture m)
+    args patterns
+Yulang.GeneralDeclarativeDemand320.where_args {s : Yulang.GeneralDeclarativeHead320.State}
+  {catalogue : Yulang.GeneralDeclarationPatterns.Constructors} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {args : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {patterns : List Yulang.GeneralDeclarationPatterns.Pattern}
+  (given :
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeDemand320.WhereArg s catalogue interp capture)
+      args patterns)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeDemand320.WhereMeaning catalogue interp capture m)
+    args patterns
+Yulang.GeneralDeclarativeOutputs320.default_translation (catalogue : Yulang.GeneralDeclarationPatterns.Constructors)
+  (interp : Yulang.GeneralNominalInspection.Interpretation) (term : Yulang.Roles.Term) :
+  Yulang.GeneralNominalCenteredHeadMatExpressions.translate catalogue interp
+      (Yulang.GeneralDeclarativeOutputs320.termPattern term) =
+    Yulang.GeneralNominalCenteredHeadMatExpressions.translateDefault catalogue interp term
+Yulang.GeneralDeclarativeOutputs320.root_output {s : Yulang.GeneralDeclarativeHead320.State}
+  {roles : Yulang.Roles.RoleDecls} {catalogue : Yulang.GeneralDeclarationPatterns.Constructors}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {declaration : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {out : Yulang.GeneralSourceState.Output}
+  (unique : (List.map Yulang.GeneralDeclarations.Equation.name declaration.associated).Nodup)
+  (proof : Yulang.GeneralDeclarativeOutputs320.RootOutput s roles catalogue interp declaration d capture out)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeOutputs320.OutputMeaning roles catalogue interp declaration d capture m out
+Yulang.GeneralDeclarativeLocal320.node_sound {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {decl : Yulang.GeneralDeclarations.Declaration}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {children : List Yulang.GeneralDeclarativeDemand320.Demand} (checked : Yulang.GeneralDeclarations.Checked r)
+  (read : Yulang.GeneralDeclarativeLocal320.LocalRead s r interp d decl capture children)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeLocal320.NodeMeaning r interp m d decl capture children
+'Yulang.GeneralDeclarativeHead320.old_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeHead320.read_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeDemand320.head_args' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeDemand320.where_args' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOutputs320.default_translation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOutputs320.root_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeLocal320.node_sound' depends on axioms: [propext, Classical.choice, Quot.sound]

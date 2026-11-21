@@ -1,0 +1,33 @@
+'Yulang.GeneralDeclarativePoint320.semantic_point' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativePoint320.actual_of_endpoints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativePoint320.normalized_head_of_endpoints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativePoint320.frozen_nominal' does not depend on any axioms
+'Yulang.GeneralDeclarativePoint320.invariant_nominal_actual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeReadScope320.application_reads' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeReadScope320.compiled_reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeReadScope320.compiled_reads_many' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeReadScope320.normalize_member' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeReadScope320.variable_of_member' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeReadScope320.tracked_from_declared_inputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeat320.int_top' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeat320.top_not_int' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeat320.fits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeat320.endpoints_compatible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeat320.known_lower' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeat320.feasible_shared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeat320.realization_not_universal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRepeat320.no_shared_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedHead320.representative' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeRepeatedHead320.occurrence_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedHead320.exists_binding' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedHead320.repeated_head' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeRepeatedHead320.repeated_origins' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedNode320.downstream_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatedNode320.repeated_source_node' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSubstitution320.logical_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeSubstitution320.logical_values' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeSubstitution320.equation_read' depends on axioms: [propext, Quot.sound]

@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeNamedAgreement320
+#check Yulang.GeneralDeclarativeNamedAgreement320.same_named
+#print axioms Yulang.GeneralDeclarativeNamedAgreement320.same_named

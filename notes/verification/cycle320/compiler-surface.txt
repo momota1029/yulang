@@ -1,0 +1,126 @@
+Yulang.GeneralDeclarativeNodeFacts320.batch_node_sound {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {decl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {facts : List Yulang.GeneralDeclarativeHead320.Equation} (checked : Yulang.GeneralDeclarations.Checked r)
+  (visible : decl ∈ r.declarations)
+  (captures : ∀ (n : Nat), n ∈ decl.inputNames → Yulang.GeneralDeclarativeDemand320.Bounds s (capture n))
+  (bounds :
+    ∀ (arg : Yulang.GeneralDeclarativeWhere319.Capture),
+      arg ∈ d.arguments → Yulang.GeneralDeclarativeDemand320.Bounds s arg)
+  (generated : Yulang.GeneralDeclarativeNodeFacts320.nodeFacts r interp capture decl d kids = some facts)
+  (settled : facts ⊆ s.equations) (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeAssembly320.Meaning r interp m d decl capture kids
+Yulang.GeneralDeclarativeEntailment320.entailed_batch_sound {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {decl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {facts : List Yulang.GeneralDeclarativeHead320.Equation} (checked : Yulang.GeneralDeclarations.Checked r)
+  (visible : decl ∈ r.declarations)
+  (captures : ∀ (n : Nat), n ∈ decl.inputNames → Yulang.GeneralDeclarativeDemand320.Bounds s (capture n))
+  (bounds :
+    ∀ (arg : Yulang.GeneralDeclarativeWhere319.Capture),
+      arg ∈ d.arguments → Yulang.GeneralDeclarativeDemand320.Bounds s arg)
+  (generated : Yulang.GeneralDeclarativeNodeFacts320.nodeFacts r interp capture decl d kids = some facts)
+  (settled :
+    ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+      row ∈ facts → Yulang.GeneralDeclarativeEntailment320.Entails s row)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeAssembly320.Meaning r interp m d decl capture kids
+Yulang.GeneralDeclarativeCompilerTree320.compile_classify {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {localRule : Yulang.GeneralDeclarativeEvidence320.Local} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {dict : Yulang.CommonRoleOutermostResolver.Dictionary} (checked : Yulang.GeneralDeclarations.Checked r)
+  (producer : Yulang.GeneralDeclarativeCompilerTree320.Compiles s r interp localRule)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m)
+  (chosen :
+    Yulang.CommonRoleOutermostResolver.Classify localRule d (Yulang.CommonRoleOutermostResolver.Result.selected dict)) :
+  Yulang.GeneralDeclarativeEvidence320.Evidence r interp m d dict
+Yulang.GeneralDeclarativeExampleFacts320.compiled_evidence (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeExampleSource320.state m) :
+  Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeExampleSource320.registry
+    Yulang.GeneralDeclarativeExampleSource320.interp m Yulang.GeneralDeclarativeExampleSource320.root
+    Yulang.GeneralDeclarativeExampleTree320.dictionary
+Yulang.GeneralDeclarativeExampleUnsettled320.parent_local :
+  Yulang.GeneralDeclarativeEntailment320.BatchRecipe Yulang.GeneralDeclarativeExampleUnsettled320.before
+    Yulang.GeneralDeclarativeExampleSource320.registry Yulang.GeneralDeclarativeExampleSource320.interp
+    Yulang.GeneralDeclarativeExampleSource320.root Yulang.GeneralDeclarationExamples.wrap.id
+    [Yulang.GeneralDeclarativeExampleSource320.child]
+Yulang.GeneralDeclarativeExampleUnsettled320.child_not_evidence :
+  ¬Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeExampleSource320.registry
+      Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeExampleUnsettled320.bad
+      Yulang.GeneralDeclarativeExampleSource320.child
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeMerge320.interval_exact {s : Yulang.GeneralDeclarativeHead320.State}
+  {first : Yulang.GeneralDeclarativeWhere319.Capture} {rest : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {combined : Yulang.GeneralDeclarativeWhere319.Capture}
+  (facts : Yulang.GeneralDeclarativeMerge320.Merge s first rest combined)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m)
+  (actual : Yulang.CommonNominalFullCarrier.Ty) :
+  Yulang.GeneralDeclarativeWhere319.InInterval (m combined.lower).fst (m combined.upper).fst actual ↔
+    ∀ (entry : Yulang.GeneralDeclarativeWhere319.Capture),
+      entry ∈ first :: rest →
+        Yulang.GeneralDeclarativeWhere319.InInterval (m entry.lower).fst (m entry.upper).fst actual
+Yulang.GeneralDeclarativeCaptureClosure320.batch_from_origins {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {interp : Yulang.GeneralNominalInspection.Interpretation}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {decl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {facts : List Yulang.GeneralDeclarativeHead320.Equation} (checked : Yulang.GeneralDeclarations.Checked r)
+  (visible : decl ∈ r.declarations)
+  (origins : ∀ (n : Nat), n ∈ decl.inputNames → Yulang.GeneralDeclarativeCaptureClosure320.Origin s (capture n))
+  (bounds :
+    ∀ (arg : Yulang.GeneralDeclarativeWhere319.Capture),
+      arg ∈ d.arguments → Yulang.GeneralDeclarativeDemand320.Bounds s arg)
+  (compiled : Yulang.GeneralDeclarativeNodeFacts320.nodeFacts r interp capture decl d kids = some facts)
+  (settled :
+    ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+      row ∈ facts → Yulang.GeneralDeclarativeEntailment320.Entails s row)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (valid : Yulang.GeneralDeclarativeHead320.Models s m) :
+  Yulang.GeneralDeclarativeAssembly320.Node r interp m d decl.id kids
+Yulang.GeneralDeclarativeCanonicalRead320.associated_agrees {s : Yulang.GeneralDeclarativeHead320.State}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment} {first last : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {root : Nat} {term : Yulang.GeneralNominalOriginTerms.Expr Nat}
+  (canonical : Yulang.GeneralNominalReadbackFunctionality.Canonical term)
+  (a :
+    Yulang.GeneralDeclarativeSubstitution320.EquationRead s first Yulang.GeneralNominalMaterialization.Mode.actual root
+      (Yulang.GeneralDeclarativeCanonicalRead320.embed term))
+  (b :
+    Yulang.GeneralDeclarativeSubstitution320.EquationRead s last Yulang.GeneralNominalMaterialization.Mode.actual root
+      (Yulang.GeneralDeclarativeCanonicalRead320.embed term))
+  (valid : Yulang.GeneralDeclarativeHead320.Models s m)
+  (algebra : Yulang.GeneralNominalCenteredHeadMatPatternSemantics.Algebra)
+  (rhs : Yulang.GeneralDeclarationPatterns.Pattern)
+  (scope : ∀ (n : Nat), n ∈ (Yulang.GeneralDeclarationPatterns.normalize rhs).variables → n ∈ term.leaves) :
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.GeneralNominalCenteredHeadMatPatternSemantics.eval algebra
+      (Yulang.GeneralDeclarativeWhere319.variables first m Yulang.GeneralNominalMaterialization.Mode.actual)
+      (Yulang.GeneralDeclarationPatterns.normalize rhs))
+    (Yulang.GeneralNominalCenteredHeadMatPatternSemantics.eval algebra
+      (Yulang.GeneralDeclarativeWhere319.variables last m Yulang.GeneralNominalMaterialization.Mode.actual)
+      (Yulang.GeneralDeclarationPatterns.normalize rhs))
+Yulang.GeneralDeclarativeDefaultScope320.default_never_falls_back {r : Yulang.GeneralDeclarations.Registry}
+  {interp : Yulang.GeneralNominalInspection.Interpretation} {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {decl : Yulang.GeneralDeclarations.Declaration}
+  {capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  (checked : Yulang.GeneralDeclarations.Checked r)
+  (meaning : Yulang.GeneralDeclarativeAssembly320.Meaning r interp m d decl capture kids) {output : Nat}
+  {rhs : Yulang.Roles.Term} (given : (r.roles decl.role).assoc output = some (some rhs)) (fallback : Nat) :
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.GeneralDeclarativeDemand320.sourceValue r.constructors interp
+      (Yulang.GeneralDeclarativeDefaultScope320.withFallback fallback d) m
+      (Yulang.GeneralDeclarativeOutputs320.termPattern rhs))
+    (Yulang.GeneralDeclarativeDemand320.sourceValue r.constructors interp
+      (Yulang.GeneralDeclarativeOutputs320.positional d) m (Yulang.GeneralDeclarativeOutputs320.termPattern rhs))
+'Yulang.GeneralDeclarativeNodeFacts320.batch_node_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEntailment320.entailed_batch_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompilerTree320.compile_classify' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExampleFacts320.compiled_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExampleUnsettled320.parent_local' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExampleUnsettled320.child_not_evidence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMerge320.interval_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCaptureClosure320.batch_from_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCanonicalRead320.associated_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeDefaultScope320.default_never_falls_back' depends on axioms: [propext, Quot.sound]

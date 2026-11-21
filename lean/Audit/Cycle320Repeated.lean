@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeMergeAgreement320
+#check Yulang.GeneralDeclarativeRepeatedHead320.representative
+#check Yulang.GeneralDeclarativeRepeatedHead320.repeated_head
+#check Yulang.GeneralDeclarativeRepeatedHead320.repeated_origins
+#check Yulang.GeneralDeclarativeRepeatedNode320.downstream_sound
+#check Yulang.GeneralDeclarativeRepeatedNode320.repeated_source_node
+#check Yulang.GeneralDeclarativeMergeAgreement320.merge_agrees
+#check Yulang.GeneralDeclarativeMergeAgreement320.same_compiled_value
+#print axioms Yulang.GeneralDeclarativeRepeatedHead320.repeated_head
+#print axioms Yulang.GeneralDeclarativeRepeatedHead320.repeated_origins
+#print axioms Yulang.GeneralDeclarativeRepeatedNode320.repeated_source_node
+#print axioms Yulang.GeneralDeclarativeMergeAgreement320.merge_agrees
+#print axioms Yulang.GeneralDeclarativeMergeAgreement320.same_compiled_value
