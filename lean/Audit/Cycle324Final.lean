@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeNFClassify324
+import Yulang.GeneralDeclarativeRuleSequence324
+
+#print axioms Yulang.GeneralDeclarativeNFClassify324.local_compiler
+#print axioms Yulang.GeneralDeclarativeNFClassify324.sound
+#print axioms Yulang.GeneralDeclarativeRuleSequence324.exact_models
+#print axioms Yulang.GeneralDeclarativeRuleSequence324.remains_applied
+#print axioms Yulang.GeneralDeclarativeRuleSequence324.replay_sound

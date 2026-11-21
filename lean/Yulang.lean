@@ -6828,3 +6828,5 @@ import Yulang.GeneralDeclarativeNominalClash324
 import Yulang.GeneralDeclarativeRivalDecl324
 import Yulang.GeneralDeclarativeRivalReads324
 import Yulang.GeneralDeclarativeRivalResolve324
+import Yulang.GeneralDeclarativeNFClassify324
+import Yulang.GeneralDeclarativeRuleSequence324
