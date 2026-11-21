@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeArityCompiler330
+
+#print axioms Yulang.GeneralDeclarativeArityNominal330.truth
+#print axioms Yulang.GeneralDeclarativeArityPlan330.extract
+#print axioms Yulang.GeneralDeclarativeArityRun330.buildFields
+#print axioms Yulang.GeneralDeclarativeArityRun330.build
+#print axioms Yulang.GeneralDeclarativeAritySource330.ordered
+#print axioms Yulang.GeneralDeclarativeArityCompiler330.compile
