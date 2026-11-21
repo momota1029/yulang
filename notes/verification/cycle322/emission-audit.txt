@@ -1,0 +1,17 @@
+Build completed successfully (1042 jobs).
+'Yulang.GeneralDeclarativeSourceEmission322.source_var' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeSourceEmission322.inputs_match_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeSourceEmission322.outputs_match_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionOperands322.input_proof' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionOutputs322.output_operand' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionOutputs322.output_result' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionClause322.clause_ordinary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionForest322.all_clauses' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionLocal322.source_batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionLocal322.source_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionFixture322.no_materializer_needed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionClassify322.actual_source_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeInequality322.invariant_at' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeDerivedNominal322.head_row' depends on axioms: [propext, Classical.choice, Quot.sound]
