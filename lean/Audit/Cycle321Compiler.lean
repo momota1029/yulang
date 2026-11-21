@@ -1,0 +1,19 @@
+import Yulang.GeneralDeclarativeNormalizedCompiler321
+import Yulang.GeneralDeclarativeSourceNames321
+import Yulang.GeneralDeclarativeSupportCut321
+
+#print axioms Yulang.GeneralDeclarativeInspect321.nominal_variable_visits_only_root
+#print axioms Yulang.GeneralDeclarativePriority321.delayed_pending_only
+#print axioms Yulang.GeneralDeclarativePriority321.recursive_over_viable
+#print axioms Yulang.GeneralDeclarativePriority321.overlap_outside_fragment
+#print axioms Yulang.GeneralDeclarativeOrdinaryReads321.entails_read
+#print axioms Yulang.GeneralDeclarativeWhereProducer321.child_result
+#print axioms Yulang.GeneralDeclarativeNodeProducer321.derivation_batch
+#print axioms Yulang.GeneralDeclarativeTrace321.trace_model
+#print axioms Yulang.GeneralDeclarativeRepresentatives321.chosen_entails
+#print axioms Yulang.GeneralDeclarativeTraceNames321.trace_actual_chosen
+#print axioms Yulang.GeneralDeclarativeSourceNames321.actual_source_occurrences
+#print axioms Yulang.GeneralDeclarativeTraceCompiler321.local_compiles
+#print axioms Yulang.GeneralDeclarativeTraceCompiler321.classify_evidence
+#print axioms Yulang.GeneralDeclarativeNormalizedCompiler321.normalized_batch
+#print axioms Yulang.GeneralDeclarativeSupportCut321.no_bare_state_readiness

@@ -1,0 +1,3 @@
+'Yulang.GeneralDeclarativeCovariantIntervals321.component_bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCovariantIntervals321.record_pair_bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCovariantIntervals321.recorded_components' does not depend on any axioms

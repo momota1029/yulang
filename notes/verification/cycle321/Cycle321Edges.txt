@@ -1,0 +1,18 @@
+'Yulang.GeneralDeclarativeChildScope321.all_where_names' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFreshExact321.exact_forest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeHeadCases321.compiles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHeadCases321.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNominalProjection321.nominal_center_consequence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNominalProjection321.endpoint_parameters' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNominalRegression321.read_upper_parameter_not_needed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNominalRegression321.inhabited' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNormalSupport321.restricted_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNormalSupport321.without_unsettled_link' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativePairCut321.probe_not_enough' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePairProjection321.projection_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeSettled321.no_self_grounding' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeVisibleFields321.no_hidden_payload' depends on axioms: [propext, Quot.sound]

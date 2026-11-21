@@ -1,0 +1,6 @@
+'Yulang.Cycle321Readback.source_table' depends on axioms: [propext, Quot.sound]
+'Yulang.Cycle321Readback.exact_labels' depends on axioms: [propext]
+'Yulang.Cycle321Readback.literal_rows' depends on axioms: [propext]
+'Yulang.Cycle321Readback.actual_compiler_readback' depends on axioms: [propext, Quot.sound]
+'Yulang.Cycle321Readback.old_protected_in_extended_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+example exit: 0

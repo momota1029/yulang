@@ -1,0 +1,21 @@
+'Yulang.GeneralDeclarativeInspect321.nominal_variable_visits_only_root' depends on axioms: [propext]
+'Yulang.GeneralDeclarativePriority321.delayed_pending_only' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePriority321.recursive_over_viable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePriority321.overlap_outside_fragment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOrdinaryReads321.entails_read' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereProducer321.child_result' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNodeProducer321.derivation_batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTrace321.trace_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepresentatives321.chosen_entails' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTraceNames321.trace_actual_chosen' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeSourceNames321.actual_source_occurrences' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTraceCompiler321.local_compiles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTraceCompiler321.classify_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNormalizedCompiler321.normalized_batch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSupportCut321.no_bare_state_readiness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,11 +1,11 @@
 # dot heartbeat
 
-- cycle: 320
+- cycle: 321
 - status: completed
-- started: 2026-11-21T11:27:10Z
-- updated: 2026-11-21T12:17:51.816Z
+- started: 2026-11-21T12:33:42Z
+- updated: 2026-11-21T13:23:49.898Z
 - elapsed_min: 50
-- activity: C320 complete: ordered declarative dictionary soundness with exact local compiler cut; shared actual captures, completed vs unsettled named-child regressions, independent verification
-- last_local_commit: ce012694c
-- resume_hint: C320 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。
-- report: notes/handoff/dots-cycle-320.md
+- activity: C321 complete: supported source reads, exact ordinary where compiler, same-model dictionary evidence and checked remaining source cut
+- last_local_commit: 6efb1eeca
+- resume_hint: C321 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。
+- report: notes/handoff/dots-cycle-321.md

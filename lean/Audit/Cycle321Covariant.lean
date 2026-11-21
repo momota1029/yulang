@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeCovariantIntervals321
+
+#print axioms Yulang.GeneralDeclarativeCovariantIntervals321.component_bounds
+#print axioms Yulang.GeneralDeclarativeCovariantIntervals321.record_pair_bounds
+#print axioms Yulang.GeneralDeclarativeCovariantIntervals321.recorded_components
