@@ -6548,3 +6548,13 @@ import Yulang.GeneralWhereOriginCompiler318
 import Yulang.GeneralWhereOriginDelta318
 import Yulang.GeneralWhereOriginTrace318
 import Yulang.GeneralWhereOriginConfig318
+import Yulang.GeneralWhereOriginFixture318
+import Yulang.GeneralWhereOriginSupport318
+import Yulang.GeneralWhereOriginBatch318
+import Yulang.GeneralWhereOriginReservation318
+import Yulang.GeneralWhereOriginActualShift318
+import Yulang.GeneralWhereOriginDescriptor318
+import Yulang.GeneralWhereOriginSingleSource318
+import Yulang.GeneralWhereOriginSingleRead318
+import Yulang.GeneralWhereOriginSingleHead318
+import Yulang.GeneralWhereOriginSingleCells318
