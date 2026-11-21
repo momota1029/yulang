@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativePairSpan326
+
+#print axioms Yulang.GeneralDeclarativePairCenters326.project_first
+#print axioms Yulang.GeneralDeclarativePairCenters326.coordinate_ranges
+#print axioms Yulang.GeneralDeclarativePairNames326.projection
+#print axioms Yulang.GeneralDeclarativePairSpan326.both_named
+#print axioms Yulang.GeneralDeclarativePairSpan326.projected_center

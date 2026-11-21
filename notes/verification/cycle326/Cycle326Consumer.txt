@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeProjectedConsumer326.ordered_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectedConsumer326.fixed_left_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

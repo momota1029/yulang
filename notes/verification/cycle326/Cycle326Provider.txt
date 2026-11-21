@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeLateProvider326.selected_without_own_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeLateWithProvider326.certified_transition' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAuthorizedCopy326.authorized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAuthorizedCopy326.no_new_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCopyFixture326.absent_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCopyFixture326.after_real_owner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJoinedSpan326.named_join' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJoinedSpan326.named_actual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectPair326.exact' depends on axioms: [propext, Quot.sound]

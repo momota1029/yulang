@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeOrderedTail326
+import Yulang.GeneralDeclarativeCopyK2326
+
+#print axioms Yulang.GeneralDeclarativeOrderedTail326.read_iff
+#print axioms Yulang.GeneralDeclarativeOrderedTail326.actual_decl_order
+#print axioms Yulang.GeneralDeclarativeGraphFootprint326.shape_children
+#print axioms Yulang.GeneralDeclarativeCopyK2326.exact

@@ -1,0 +1,182 @@
+                    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+                      (Yulang.GeneralDeclarativePairNames326.second s keep l r).center) }
+Yulang.GeneralDeclarativePairUnion326.pair_group : ∀ (a b c d : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent
+    (Yulang.CommonNominalSyntax.Layer.union (Yulang.CommonNominalFullCarrier.pair a b)
+      (Yulang.CommonNominalFullCarrier.pair c d))
+    (Yulang.CommonNominalFullCarrier.pair (Yulang.CommonNominalSyntax.Layer.union a c)
+      (Yulang.CommonNominalSyntax.Layer.union b d))
+@Yulang.GeneralDeclarativePairUnion326.exact : ∀
+  {expression left right : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativePairUnion326.Coordinates expression left right →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeRepeatedActual323.eqAt m expression
+        (Yulang.GeneralDeclarativePairCenters326.pair left right)
+@Yulang.GeneralDeclarativePairUnion326.center_rule : ∀ {name : Nat}
+  {expression left right : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeEqualities322.Derives s (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable name)
+      expression →
+    Yulang.GeneralDeclarativePairUnion326.Coordinates expression left right →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := name, right := Yulang.GeneralDeclarativePairCenters326.pair left right }
+@Yulang.GeneralDeclarativePairUnion326.with_joined_centers : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {p : Yulang.GeneralDeclarationPatterns.Pattern}
+  {lcode rcode expr left right : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {before after : List Yulang.GeneralDeclarativeTermWalk322.Occurrence}
+  {cap : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i (Yulang.GeneralDeclarationPatterns.normalize p) =
+      some (Yulang.GeneralDeclarativePairCenters326.pair lcode rcode) →
+    Yulang.GeneralDeclarativeEqualities322.Derives s
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center) expr →
+      Yulang.GeneralDeclarativePairUnion326.Coordinates expr left right →
+        Yulang.GeneralDeclarativeTermWalk322.Walk Yulang.GeneralNominalMaterialization.Mode.actual left lcode before →
+          Yulang.GeneralDeclarativeTermWalk322.Walk Yulang.GeneralNominalMaterialization.Mode.actual right rcode after →
+            Yulang.GeneralDeclarativeTermWalk322.Binds s cap (before ++ after) →
+              Yulang.GeneralDeclarativeCompileLists321.Result s (Yulang.GeneralDeclarativeNFHead324.fact c i cap arg p)
+@Yulang.GeneralDeclarativeProjectCapture326.identities : ∀ {left right : Nat}
+  {l r : Yulang.GeneralDeclarativePairNames326.Span} {s : Yulang.GeneralDeclarativeHead320.State} (kept : List Nat)
+  (base : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  left ≠ right →
+    Yulang.GeneralDeclarativeProjectCapture326.capture s kept left right l r base left =
+        Yulang.GeneralDeclarativePairNames326.first s kept l r ∧
+      Yulang.GeneralDeclarativeProjectCapture326.capture s kept left right l r base right =
+        Yulang.GeneralDeclarativePairNames326.second s kept l r
+@Yulang.GeneralDeclarativeProjectCapture326.exact_head : ∀
+  {low mid high : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {l r : Yulang.GeneralDeclarativePairNames326.Span} {left right : Nat}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {s : Yulang.GeneralDeclarativeHead320.State}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEqualities322.Derives s
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.lower) low →
+      Yulang.GeneralDeclarativeEqualities322.Derives s
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center) mid →
+        Yulang.GeneralDeclarativeEqualities322.Derives s
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.upper) high →
+          Yulang.GeneralDeclarativeProjectInterval326.projectAll low mid high = some (l, r) →
+            ∀ (kept : List Nat) (base : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+              left ≠ right →
+                Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i
+                      (Yulang.GeneralDeclarationPatterns.normalize pat) =
+                    some
+                      (Yulang.GeneralDeclarativePairCenters326.pair
+                        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable left)
+                        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable right)) →
+                  Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativePairSpan326.state s kept l r)
+                      (Yulang.GeneralDeclarativeProjectCapture326.capture s kept left right l r base left) ∧
+                    Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativePairSpan326.state s kept l r)
+                        (Yulang.GeneralDeclarativeProjectCapture326.capture s kept left right l r base right) ∧
+                      Yulang.GeneralDeclarativeCompileLists321.Result
+                        (Yulang.GeneralDeclarativePairSpan326.state s kept l r)
+                        (Yulang.GeneralDeclarativeNFHead324.fact c i
+                          (Yulang.GeneralDeclarativeProjectCapture326.capture s kept left right l r base) arg pat)
+@Yulang.GeneralDeclarativeProjectInterval326.pieces : ∀
+  {low mid high : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {l r : Yulang.GeneralDeclarativePairNames326.Span},
+  Yulang.GeneralDeclarativeProjectInterval326.projectAll low mid high = some (l, r) →
+    Yulang.GeneralDeclarativeProjectPair326.project low = some (l.low, r.low) ∧
+      Yulang.GeneralDeclarativeProjectPair326.project mid = some (l.actual, r.actual) ∧
+        Yulang.GeneralDeclarativeProjectPair326.project high = some (l.high, r.high)
+@Yulang.GeneralDeclarativeProjectInterval326.all_fits : ∀
+  {low mid high : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {l r : Yulang.GeneralDeclarativePairNames326.Span} {s : Yulang.GeneralDeclarativeHead320.State}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEqualities322.Derives s
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.lower) low →
+      Yulang.GeneralDeclarativeEqualities322.Derives s
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center) mid →
+        Yulang.GeneralDeclarativeEqualities322.Derives s
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.upper) high →
+          Yulang.GeneralDeclarativeProjectInterval326.projectAll low mid high = some (l, r) →
+            ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralDeclarativeHead320.Models s m →
+                Yulang.GeneralDeclarativeJoinedSpan326.Fits m l ∧ Yulang.GeneralDeclarativeJoinedSpan326.Fits m r
+@Yulang.GeneralDeclarativeProjectInterval326.unchanged_models : ∀
+  {low mid high : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {l r : Yulang.GeneralDeclarativePairNames326.Span} {s : Yulang.GeneralDeclarativeHead320.State}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEqualities322.Derives s
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.lower) low →
+      Yulang.GeneralDeclarativeEqualities322.Derives s
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center) mid →
+        Yulang.GeneralDeclarativeEqualities322.Derives s
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.upper) high →
+          Yulang.GeneralDeclarativeProjectInterval326.projectAll low mid high = some (l, r) →
+            ∀ (kept : List Nat) (m : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativePairSpan326.state s kept l r) m ↔
+                Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativePairNames326.appended s kept l r) m
+@Yulang.GeneralDeclarativeProjectInterval326.names_and_actual : ∀
+  {low mid high : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {l r : Yulang.GeneralDeclarativePairNames326.Span} {s : Yulang.GeneralDeclarativeHead320.State}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEqualities322.Derives s
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.lower) low →
+      Yulang.GeneralDeclarativeEqualities322.Derives s
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center) mid →
+        Yulang.GeneralDeclarativeEqualities322.Derives s
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.upper) high →
+          Yulang.GeneralDeclarativeProjectInterval326.projectAll low mid high = some (l, r) →
+            ∀ (kept : List Nat),
+              Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativePairSpan326.state s kept l r)
+                  (Yulang.GeneralDeclarativePairNames326.first s kept l r) ∧
+                Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativePairSpan326.state s kept l r)
+                    (Yulang.GeneralDeclarativePairNames326.second s kept l r) ∧
+                  (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                      Yulang.GeneralDeclarativeHead320.Models s m ↔
+                        ∃ next,
+                          Yulang.GeneralDeclarativeHead320.Models
+                              (Yulang.GeneralDeclarativePairSpan326.state s kept l r) next ∧
+                            ∀ (n : Nat),
+                              n ∈
+                                  Yulang.GeneralDeclarativeFootprint321.stateNames s ++
+                                    Yulang.GeneralDeclarativePairNames326.keepNames s kept l r →
+                                next n = m n) ∧
+                    Yulang.GeneralDeclarativeEntailment320.Entails
+                      (Yulang.GeneralDeclarativePairSpan326.state s kept l r)
+                      { left := arg.center,
+                        right :=
+                          Yulang.GeneralDeclarativePairCenters326.pair
+                            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+                              (Yulang.GeneralDeclarativePairNames326.first s kept l r).center)
+                            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+                              (Yulang.GeneralDeclarativePairNames326.second s kept l r).center) }
+@Yulang.GeneralDeclarativeProjectPair326.recorded : ∀
+  {expression a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativeProjectPair326.project expression = some (a, b) →
+    Yulang.GeneralDeclarativePairUnion326.Coordinates expression a b
+@Yulang.GeneralDeclarativeProjectPair326.complete : ∀
+  {expression a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativePairUnion326.Coordinates expression a b →
+    Yulang.GeneralDeclarativeProjectPair326.project expression = some (a, b)
+@Yulang.GeneralDeclarativeProjectPair326.exact : ∀
+  {expression a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativeProjectPair326.project expression = some (a, b) ↔
+    Yulang.GeneralDeclarativePairUnion326.Coordinates expression a b
+@Yulang.GeneralDeclarativeProjectPair326.same_coordinates : ∀
+  {expression left right a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativePairUnion326.Coordinates expression left right →
+    Yulang.GeneralDeclarativePairUnion326.Coordinates expression a b → left = a ∧ right = b
+@Yulang.GeneralDeclarativeProjectedConsumer326.ordered_child : ∀ {reg : Yulang.GeneralDeclarations.Registry}
+  {impl : Yulang.GeneralDeclarations.Declaration} {leftPat rightPat : Yulang.GeneralDeclarationPatterns.Pattern}
+  {left right : Nat} {s : Yulang.GeneralDeclarativeHead320.State} (kept : List Nat)
+  (l r : Yulang.GeneralDeclarativePairNames326.Span) (place : Yulang.GeneralDeclarativeEmissionForest322.Placement)
+  (base : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarations.Checked reg →
+    impl ∈ reg.declarations →
+      ∀ {cl : Yulang.GeneralDeclarations.Clause} {childIndex leftIndex rightIndex : Nat},
+        impl.requirements[childIndex]? = some cl →
+          cl.arguments[leftIndex]? = some leftPat →
+            cl.arguments[rightIndex]? = some rightPat →
+              Yulang.GeneralDeclarationPatterns.normalize leftPat = Yulang.GeneralDeclarationPatterns.Pattern.var left →
+                Yulang.GeneralDeclarationPatterns.normalize rightPat =
+                    Yulang.GeneralDeclarationPatterns.Pattern.var right →
+                  left ≠ right →
+                    ∃ child,
+                      (Yulang.GeneralDeclarativeEmissionForest322.children impl
+                              (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl place

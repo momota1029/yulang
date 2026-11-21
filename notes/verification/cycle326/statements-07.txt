@@ -1,0 +1,71 @@
+    d.role = Yulang.GeneralDeclarativeRecordDecl326.root.role → d = Yulang.GeneralDeclarativeRecordDecl326.decl
+Yulang.GeneralDeclarativeRecordResolve326.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeRecordDecl326.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeRecordDecl326.child.role → d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeRecordResolve326.root_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeRecordResolve326.branch done Yulang.GeneralDeclarativeRecordDecl326.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeRecordDecl326.decl.id
+      [Yulang.GeneralDeclarativeRecordDecl326.child])
+Yulang.GeneralDeclarativeRecordResolve326.child_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeRecordResolve326.branch done Yulang.GeneralDeclarativeRecordDecl326.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeRecordResolve326.declared : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativeRecordDecl326.registry Yulang.GeneralDeclarativeRecordDecl326.root
+Yulang.GeneralDeclarativeRecordResolve326.whole_selected : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeRecordResolve326.branch done)
+    Yulang.GeneralDeclarativeRecordDecl326.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeRecordResolve326.dictionary)
+Yulang.GeneralDeclarativeRecordResolve326.all_model : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRecordState326.final m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeRecordDecl326.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeRecordDecl326.root
+      Yulang.GeneralDeclarativeRecordResolve326.dictionary
+Yulang.GeneralDeclarativeRecordResolve326.exact_closed_tail : Yulang.GeneralDeclarativeGraphRows321.fields
+      (Yulang.GeneralDeclarativeRecordK2326.row Yulang.GeneralDeclarativeRecordState326.rawNames) =
+    some [(7, 3), (8, 4)] ∧
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeRecordResolve326.branch fun x => False)
+      Yulang.GeneralDeclarativeRecordDecl326.root
+      (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeRecordResolve326.dictionary) ∧
+    ∃ m,
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRecordState326.final m ∧
+        Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeRecordDecl326.registry
+          Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeRecordDecl326.root
+          Yulang.GeneralDeclarativeRecordResolve326.dictionary
+Yulang.GeneralDeclarativeRecordState326.tail_exact : Yulang.GeneralDeclarativeRecordState326.tail =
+  { left := 7,
+    right :=
+      Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record 8
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 4)
+        Yulang.GeneralDeclarativeRecordState326.terminal }
+Yulang.GeneralDeclarativeRecordState326.reconstructed : Yulang.GeneralDeclarativeEntailment320.Entails
+  Yulang.GeneralDeclarativeRecordState326.afterTail Yulang.GeneralDeclarativeRecordState326.readRow
+Yulang.GeneralDeclarativeRecordState326.new_names_only : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRecordState326.projected m ↔
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRecordState326.afterTail m
+Yulang.GeneralDeclarativeRecordState326.authorized : ∀ (done : Nat → Prop)
+  {eq : Yulang.GeneralDeclarativeHead320.Equation},
+  eq ∈ Yulang.GeneralDeclarativeRecordState326.sourceFacts →
+    eq ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeRecordState326.support2 done)).equations
+Yulang.GeneralDeclarativeRecordState326.point_bound : ∀ (n : Nat),
+  Yulang.GeneralDeclarativeDemand320.Bounds Yulang.GeneralDeclarativeRecordState326.final
+    (Yulang.GeneralDeclarativeExampleSource320.point n)
+Yulang.GeneralDeclarativeRecordState326.raw_models : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeRecordState326.rawState Yulang.GeneralDeclarativeRecordState326.model
+Yulang.GeneralDeclarativeRecordState326.populated : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeRecordState326.final Yulang.GeneralDeclarativeRecordState326.model
+@Yulang.GeneralDeclarativeVisibleRecord326.erased_behind : ∀ {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  (label : Nat) (head terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (xs : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeRepeatedActual323.eqAt m
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record label head
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail xs terminal))
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record label head
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail (Yulang.CommonRoleCanonicalRows.residual [label] xs)
+        terminal))
+Yulang.GeneralDeclarativeVisibleRecord326.visible_spine : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (xs : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeRepeatedActual323.eqAt m (Yulang.GeneralDeclarativeRecordResidual323.withTail xs terminal)
+    (Yulang.GeneralDeclarativeRecordResidual323.withTail (Yulang.CommonRoleCanonicalRows.normalize xs) terminal)

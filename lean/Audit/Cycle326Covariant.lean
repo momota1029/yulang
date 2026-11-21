@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeCovariantResolve326
+
+#print axioms Yulang.GeneralDeclarativePairProbe326.authorized_lower
+#print axioms Yulang.GeneralDeclarativePairProbe326.normalized_center
+#print axioms Yulang.GeneralDeclarativeProjectedFrame326.sound
+#print axioms Yulang.GeneralDeclarativeCovariantState326.no_direct_center
+#print axioms Yulang.GeneralDeclarativeCovariantState326.no_substitute_end
+#print axioms Yulang.GeneralDeclarativeCovariantResolve326.certified
+#print axioms Yulang.GeneralDeclarativeCovariantResolve326.genuine

@@ -1,0 +1,7 @@
+✔ [1131/1139] Built Yulang.GeneralDeclarativeCopyCollapse326 (1.2s)
+✔ [1134/1142] Built Yulang.GeneralDeclarativeCopyK2326 (1.3s)
+✔ [1136/1143] Built Yulang.GeneralDeclarativeCopiedPending326 (1.1s)
+✔ [1146/1147] Built Yulang.GeneralDeclarativeRecordFrame326 (1.3s)
+✔ [1147/1147] Built Yulang.GeneralDeclarativeRecordResolve326 (1.2s)
+Build completed successfully (1147 jobs).
+focused: 0

@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeProjectCapture326
+
+#print axioms Yulang.GeneralDeclarativeProjectInterval326.pieces
+#print axioms Yulang.GeneralDeclarativeProjectInterval326.all_fits
+#print axioms Yulang.GeneralDeclarativeProjectInterval326.names_and_actual
+#print axioms Yulang.GeneralDeclarativeProjectCapture326.exact_head

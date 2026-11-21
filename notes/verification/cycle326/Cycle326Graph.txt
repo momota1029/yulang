@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeOrderedTail326.read_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOrderedTail326.actual_decl_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeGraphFootprint326.shape_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCopyK2326.exact' depends on axioms: [propext, Quot.sound]

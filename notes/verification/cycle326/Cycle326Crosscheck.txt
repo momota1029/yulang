@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeLateWithProvider326.certified_transition' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCopyFixture326.absent_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCopyFixture326.after_real_owner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordResolve326.all_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCopiedPending326.ordinary_cycle_copied' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCopiedPending326.copied_stays_unbacked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeProjectInterval326.names_and_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

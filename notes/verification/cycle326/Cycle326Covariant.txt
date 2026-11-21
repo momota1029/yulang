@@ -1,0 +1,7 @@
+'Yulang.GeneralDeclarativePairProbe326.authorized_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePairProbe326.normalized_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectedFrame326.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCovariantState326.no_direct_center' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeCovariantState326.no_substitute_end' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCovariantResolve326.certified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCovariantResolve326.genuine' depends on axioms: [propext, Classical.choice, Quot.sound]

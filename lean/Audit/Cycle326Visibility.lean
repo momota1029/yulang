@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeCovariantLate326
+import Yulang.GeneralDeclarativeRecordK2326
+import Yulang.GeneralDeclarativeFreshTail326
+
+#print axioms Yulang.GeneralDeclarativeCovariantSupport326.child_ready_iff
+#print axioms Yulang.GeneralDeclarativeCovariantLate326.late_transition
+#print axioms Yulang.GeneralDeclarativeVisibleRecord326.visible_spine
+#print axioms Yulang.GeneralDeclarativeRecordK2326.fields_exact
+#print axioms Yulang.GeneralDeclarativeFreshTail326.model_projection
+#print axioms Yulang.GeneralDeclarativeFreshTail326.materialize

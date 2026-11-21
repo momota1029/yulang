@@ -1,0 +1,167 @@
+Yulang.GeneralDeclarativeCovariantLate326.parent_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeCovariantLate326.branch done Yulang.GeneralDeclarativePairDecl326.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativePairDecl326.impl.id
+      [Yulang.GeneralDeclarativePairDecl326.child])
+Yulang.GeneralDeclarativeCovariantLate326.pending_child : ∀ (done : Nat → Prop),
+  ¬done 42 →
+    Yulang.GeneralDeclarativeCovariantLate326.branch done Yulang.GeneralDeclarativePairDecl326.child
+      Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.GeneralDeclarativeCovariantLate326.selected_child : ∀ (done : Nat → Prop),
+  done 42 →
+    Yulang.GeneralDeclarativeCovariantLate326.branch done Yulang.GeneralDeclarativePairDecl326.child
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeCovariantLate326.pending_root : ∀ (done : Nat → Prop),
+  ¬done 42 →
+    Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeCovariantLate326.branch done)
+      Yulang.GeneralDeclarativePairDecl326.root Yulang.CommonRoleOutermostResolver.Result.pending
+Yulang.GeneralDeclarativeCovariantLate326.chosen_root : ∀ (done : Nat → Prop),
+  done 42 →
+    Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeCovariantLate326.branch done)
+      Yulang.GeneralDeclarativePairDecl326.root
+      (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeCovariantResolve326.dict)
+Yulang.GeneralDeclarativeCovariantLate326.late_transition : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeCovariantState326.final m →
+    Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeCovariantLate326.branch fun x => False)
+        Yulang.GeneralDeclarativePairDecl326.root Yulang.CommonRoleOutermostResolver.Result.pending ∧
+      Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeCovariantLate326.branch fun n => n = 42)
+          Yulang.GeneralDeclarativePairDecl326.root
+          (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeCovariantResolve326.dict) ∧
+        Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativePairDecl326.reg
+          Yulang.GeneralDeclarativePairDecl326.interpret m Yulang.GeneralDeclarativePairDecl326.root
+          Yulang.GeneralDeclarativeCovariantResolve326.dict
+Yulang.GeneralDeclarativeCovariantProbe326.lower_trace : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeTrace321.Trace
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCovariantState326.support2 done))
+    Yulang.GeneralNominalMaterialization.Mode.lower 0 Yulang.GeneralDeclarativePairDecl326.normalCode
+    [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.lower, argument := 3 },
+      { binder := 1, mode := Yulang.GeneralNominalMaterialization.Mode.lower, argument := 3 }]
+Yulang.GeneralDeclarativeCovariantProbe326.upper_trace : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeTrace321.Trace
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCovariantState326.support2 done))
+    Yulang.GeneralNominalMaterialization.Mode.upper 2 Yulang.GeneralDeclarativePairDecl326.normalCode
+    [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.upper, argument := 4 },
+      { binder := 1, mode := Yulang.GeneralNominalMaterialization.Mode.upper, argument := 4 }]
+Yulang.GeneralDeclarativeCovariantProbe326.root_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeCovariantState326.support2 done)
+    Yulang.GeneralDeclarativePairDecl326.root
+Yulang.GeneralDeclarativeCovariantProbe326.child_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeCovariantState326.support2 done)
+    Yulang.GeneralDeclarativePairDecl326.child
+Yulang.GeneralDeclarativeCovariantProbe326.root_probe : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCovariantState326.support2 done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativePairDecl326.interpret
+    Yulang.GeneralDeclarativePairDecl326.root Yulang.GeneralDeclarativePairDecl326.impl
+Yulang.GeneralDeclarativeCovariantProbe326.child_probe : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeCovariantState326.support2 done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativePairDecl326.interpret
+    Yulang.GeneralDeclarativePairDecl326.child Yulang.GeneralDeclarativeExampleSource320.leaf
+@Yulang.GeneralDeclarativeCovariantProbe326.alias_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias Yulang.GeneralDeclarativeCovariantState326.final a b →
+    Yulang.GeneralDeclarativeCovariantProbe326.rank a = Yulang.GeneralDeclarativeCovariantProbe326.rank b
+Yulang.GeneralDeclarativeCovariantProbe326.no_cycles : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeCovariantState326.final
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeCovariantState326.final) n
+Yulang.GeneralDeclarativeCovariantProbe326.safe : ∀ (done : Nat → Prop) (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeCovariantState326.final
+      Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.interpret
+      (Yulang.GeneralDeclarativeCovariantProbe326.tests done) d
+Yulang.GeneralDeclarativeCovariantResolve326.root_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativePairDecl326.reg.declarations →
+    d.role = Yulang.GeneralDeclarativePairDecl326.root.role → d = Yulang.GeneralDeclarativePairDecl326.impl
+Yulang.GeneralDeclarativeCovariantResolve326.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativePairDecl326.reg.declarations →
+    d.role = Yulang.GeneralDeclarativePairDecl326.child.role → d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeCovariantResolve326.selected_root : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeCovariantResolve326.branch done Yulang.GeneralDeclarativePairDecl326.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativePairDecl326.impl.id
+      [Yulang.GeneralDeclarativePairDecl326.child])
+Yulang.GeneralDeclarativeCovariantResolve326.selected_child : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeCovariantResolve326.branch done Yulang.GeneralDeclarativePairDecl326.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeCovariantResolve326.selected : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeCovariantResolve326.branch done)
+    Yulang.GeneralDeclarativePairDecl326.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeCovariantResolve326.dict)
+Yulang.GeneralDeclarativeCovariantResolve326.declared : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativePairDecl326.reg Yulang.GeneralDeclarativePairDecl326.root
+Yulang.GeneralDeclarativeCovariantResolve326.certified : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeCovariantState326.final m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativePairDecl326.reg
+      Yulang.GeneralDeclarativePairDecl326.interpret m Yulang.GeneralDeclarativePairDecl326.root
+      Yulang.GeneralDeclarativeCovariantResolve326.dict
+Yulang.GeneralDeclarativeCovariantResolve326.genuine : ∀ (swap : Bool),
+  (¬∃ expr, { left := 1, right := expr } ∈ Yulang.GeneralDeclarativeCovariantState326.final.equations) ∧
+    Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeCovariantResolve326.branch fun x => False)
+        Yulang.GeneralDeclarativePairDecl326.root
+        (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeCovariantResolve326.dict) ∧
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeCovariantState326.final
+          (Yulang.GeneralDeclarativeCovariantState326.assignment swap) ∧
+        Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativePairDecl326.reg
+            Yulang.GeneralDeclarativePairDecl326.interpret (Yulang.GeneralDeclarativeCovariantState326.assignment swap)
+            Yulang.GeneralDeclarativePairDecl326.root Yulang.GeneralDeclarativeCovariantResolve326.dict ∧
+          ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeCovariantState326.assignment swap 1).fst
+                (Yulang.GeneralDeclarativeCovariantState326.assignment swap 0).fst ∧
+            ¬Yulang.CommonNominalFullCarrier.Equivalent
+                (Yulang.GeneralDeclarativeCovariantState326.assignment swap 1).fst
+                (Yulang.GeneralDeclarativeCovariantState326.assignment swap 2).fst
+@Yulang.GeneralDeclarativeCovariantState326.old_row : ∀ {row : Yulang.GeneralDeclarativeHead320.Equation},
+  row ∈ Yulang.GeneralDeclarativeCovariantState326.sourceRows →
+    row ∈ Yulang.GeneralDeclarativeCovariantState326.final.equations
+Yulang.GeneralDeclarativeCovariantState326.authorized : ∀ (done : Nat → Prop)
+  {row : Yulang.GeneralDeclarativeHead320.Equation},
+  row ∈ Yulang.GeneralDeclarativeCovariantState326.sourceRows →
+    row ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeCovariantState326.support2 done)).equations
+Yulang.GeneralDeclarativeCovariantState326.no_direct_center : ¬∃ e,
+    { left := 1, right := e } ∈ Yulang.GeneralDeclarativeCovariantState326.final.equations
+Yulang.GeneralDeclarativeCovariantState326.center : Yulang.GeneralDeclarativeEqualities322.Derives
+  Yulang.GeneralDeclarativeCovariantState326.final (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 1)
+  Yulang.GeneralDeclarativeCovariantState326.actual
+Yulang.GeneralDeclarativeCovariantState326.low : Yulang.GeneralDeclarativeEqualities322.Derives
+  Yulang.GeneralDeclarativeCovariantState326.final (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+  Yulang.GeneralDeclarativeCovariantState326.lo
+Yulang.GeneralDeclarativeCovariantState326.high : Yulang.GeneralDeclarativeEqualities322.Derives
+  Yulang.GeneralDeclarativeCovariantState326.final (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 2)
+  Yulang.GeneralDeclarativeCovariantState326.hi
+Yulang.GeneralDeclarativeCovariantState326.root_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeCovariantState326.final Yulang.GeneralDeclarativePairDecl326.rootArg
+Yulang.GeneralDeclarativeCovariantState326.left_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeCovariantState326.final Yulang.GeneralDeclarativePairDecl326.leftArg
+Yulang.GeneralDeclarativeCovariantState326.right_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeCovariantState326.final Yulang.GeneralDeclarativePairDecl326.rightArg
+Yulang.GeneralDeclarativeCovariantState326.initial_models : ∀ (swap : Bool),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeCovariantState326.initial
+    (Yulang.GeneralDeclarativeCovariantState326.assignment swap)
+Yulang.GeneralDeclarativeCovariantState326.models : ∀ (swap : Bool),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeCovariantState326.final
+    (Yulang.GeneralDeclarativeCovariantState326.assignment swap)
+Yulang.GeneralDeclarativeCovariantState326.no_substitute_end : ∀ (swap : Bool),
+  ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeCovariantState326.assignment swap 1).fst
+        (Yulang.GeneralDeclarativeCovariantState326.assignment swap 0).fst ∧
+    ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeCovariantState326.assignment swap 1).fst
+        (Yulang.GeneralDeclarativeCovariantState326.assignment swap 2).fst
+Yulang.GeneralDeclarativeCovariantSupport326.source_outer : ∀ (done : Nat → Prop)
+  {row : Yulang.GeneralDeclarativeHead320.Equation},
+  row ∈ Yulang.GeneralDeclarativeCovariantState326.sourceRows →
+    row.left ≠ 3 →
+      row ∈
+        (Yulang.GeneralDeclarativeOrigins321.restriction
+            (Yulang.GeneralDeclarativeCovariantSupport326.controlled done)).equations
+Yulang.GeneralDeclarativeCovariantSupport326.scalar_unavailable : ∀ (done : Nat → Prop),
+  ¬done 42 →
+    ¬Yulang.GeneralDeclarativeCovariantSupport326.scalarRow ∈
+        (Yulang.GeneralDeclarativeOrigins321.restriction
+            (Yulang.GeneralDeclarativeCovariantSupport326.controlled done)).equations
+Yulang.GeneralDeclarativeCovariantSupport326.child_waits : ∀ (done : Nat → Prop),
+  ¬done 42 →
+    ¬Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeCovariantSupport326.controlled done)
+        Yulang.GeneralDeclarativePairDecl326.child
+Yulang.GeneralDeclarativeCovariantSupport326.child_ready_iff : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeCovariantSupport326.controlled done)
+      Yulang.GeneralDeclarativePairDecl326.child ↔
+    done 42
+Yulang.GeneralDeclarativeCovariantSupport326.lower : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeTrace321.Trace

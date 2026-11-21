@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeRecordResolve326
+import Yulang.GeneralDeclarativePairUnion326
+
+#print axioms Yulang.GeneralDeclarativeRecordDecl326.checked
+#print axioms Yulang.GeneralDeclarativeRecordDecl326.tail_call_deferred
+#print axioms Yulang.GeneralDeclarativeRecordState326.tail_exact
+#print axioms Yulang.GeneralDeclarativeRecordState326.new_names_only
+#print axioms Yulang.GeneralDeclarativeRecordProbe326.no_cycles
+#print axioms Yulang.GeneralDeclarativeRecordResolve326.all_model
+#print axioms Yulang.GeneralDeclarativeRecordResolve326.exact_closed_tail
+#print axioms Yulang.GeneralDeclarativePairUnion326.pair_group
+#print axioms Yulang.GeneralDeclarativePairUnion326.center_rule

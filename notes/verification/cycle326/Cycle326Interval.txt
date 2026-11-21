@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeProjectInterval326.pieces' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectInterval326.all_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeProjectInterval326.names_and_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeProjectCapture326.exact_head' depends on axioms: [propext, Classical.choice, Quot.sound]

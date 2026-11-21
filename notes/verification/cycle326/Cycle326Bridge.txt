@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeProjectedFrame326.ordered_record_fact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeProjectedFrame326.head_fact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeProjectedFrame326.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCopiedPending326.copied_stays_unbacked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCopiedPending326.ordinary_cycle_copied' depends on axioms: [propext, Quot.sound]
