@@ -6919,3 +6919,5 @@ import Yulang.GeneralDeclarativeRepeatGraph327
 import Yulang.GeneralDeclarativeRepeatFrame327
 import Yulang.GeneralDeclarativeRepeatResolve327
 import Yulang.GeneralDeclarativeRepeatModels327
+import Yulang.GeneralDeclarativeFrontierView327
+import Yulang.GeneralDeclarativeAlternateNames327
