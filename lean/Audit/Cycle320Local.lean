@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeLocal320
+#check Yulang.GeneralDeclarativeHead320.old_models
+#check Yulang.GeneralDeclarativeHead320.read_sound
+#check Yulang.GeneralDeclarativeDemand320.head_args
+#check Yulang.GeneralDeclarativeDemand320.where_args
+#check Yulang.GeneralDeclarativeOutputs320.default_translation
+#check Yulang.GeneralDeclarativeOutputs320.root_output
+#check Yulang.GeneralDeclarativeLocal320.node_sound
+#print axioms Yulang.GeneralDeclarativeHead320.old_models
+#print axioms Yulang.GeneralDeclarativeHead320.read_sound
+#print axioms Yulang.GeneralDeclarativeDemand320.head_args
+#print axioms Yulang.GeneralDeclarativeDemand320.where_args
+#print axioms Yulang.GeneralDeclarativeOutputs320.default_translation
+#print axioms Yulang.GeneralDeclarativeOutputs320.root_output
+#print axioms Yulang.GeneralDeclarativeLocal320.node_sound

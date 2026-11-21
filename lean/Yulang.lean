@@ -6610,3 +6610,7 @@ import Yulang.GeneralWherePhysicalChildCert319
 import Yulang.GeneralWherePhysicalEvidence319
 import Yulang.GeneralDeclarativeWhere319
 import Yulang.GeneralDeclarativeBounds319
+import Yulang.GeneralDeclarativeHead320
+import Yulang.GeneralDeclarativeDemand320
+import Yulang.GeneralDeclarativeOutputs320
+import Yulang.GeneralDeclarativeLocal320
