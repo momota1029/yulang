@@ -6931,3 +6931,8 @@ import Yulang.GeneralDeclarativeFiniteCheck327
 import Yulang.GeneralDeclarativeFiniteTrees327
 import Yulang.GeneralDeclarativeAliasAuthority327
 import Yulang.GeneralDeclarativeAliasStatus327
+import Yulang.GeneralDeclarativeClauseBatch327
+import Yulang.GeneralDeclarativeClausePlacement327
+import Yulang.GeneralDeclarativeWhereOutputBatch327
+import Yulang.GeneralDeclarativeAppliedClause327
+import Yulang.GeneralDeclarativeMixedClause327
