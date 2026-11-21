@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 175118)
-Total output lines: 10945
+Warning: truncated output (original token count: 175373)
+Total output lines: 10960
 
 import Yulang.GeneralDictionaryNominalCandidateEvidenceExamples
 import Yulang.GeneralDictionaryNominalCandidateReadbackExamples
@@ -651,21 +651,7 @@ run_cmd do
 #print axioms Yulang.SourceConstraintSupport.closed_clauses_supported
 #print axioms Yulang.SourceConstraintSupport.closed_compiler_and_rows_supported
 #print axioms Yulang.SourcePrincipalInference.collect_instances_exact
-#print axioms…155118 tokens truncated…urces
-#print axioms Yulang.GeneralNominalRefinements.linked
-#print axioms Yulang.GeneralNominalSaturationBoundary.stepModels
-#print axioms Yulang.GeneralNominalSaturationBoundary.closure
-#print axioms Yulang.GeneralNominalSaturationBoundary.survivor_interface
-#print axioms Yulang.GeneralNominalSaturationBoundary.source_models
-#print axioms Yulang.GeneralNominalSaturationBoundary.progress_of_basis
-#print axioms Yulang.GeneralNominalSaturationExamples.display_selected
-#print axioms Yulang.GeneralNominalSaturationExamples.display_installs_all_children
-#print axioms Yulang.GeneralNominalSaturationExamples.pending_inputs_same
-#print axioms Yulang.GeneralNominalSaturationExamples.pending_merge_step
-#print axioms Yulang.GeneralNominalSaturationExamples.pending_merge_preserves_model
-#print axioms Yulang.GeneralNominalSaturationExamples.pending_merge_output_equation
-#print axioms Yulang.GeneralNominalSaturationInstallation.initial_selected_installation
-#print axioms Yulang.GeneralNominalSaturationInvariants.canonical_update
+#print axioms…155373 tokens truncated…ical_update
 #print axioms Yulang.GeneralNominalSaturationInvariants.edges_update
 #print axioms Yulang.GeneralNominalSaturationInvariants.reachable_journal
 #print axioms Yulang.GeneralNominalSaturationInvariants.generated_recorded
@@ -1228,3 +1214,18 @@ run_cmd do
 #print axioms Yulang.GeneralDeclarativeFreshForest321.all_children_extension
 #print axioms Yulang.GeneralDeclarativeSourceCodes321.forest_exact
 #print axioms Yulang.GeneralDeclarativeConstruct321.compiled_with_fresh_children
+
+#print axioms Yulang.GeneralDeclarativeChildScope321.all_where_names
+#print axioms Yulang.GeneralDeclarativeFreshExact321.exact_forest
+#print axioms Yulang.GeneralDeclarativeHeadCases321.compiles
+#print axioms Yulang.GeneralDeclarativeHeadCases321.sound
+#print axioms Yulang.GeneralDeclarativeNominalProjection321.nominal_center_consequence
+#print axioms Yulang.GeneralDeclarativeNominalProjection321.endpoint_parameters
+#print axioms Yulang.GeneralDeclarativeNominalRegression321.read_upper_parameter_not_needed
+#print axioms Yulang.GeneralDeclarativeNominalRegression321.inhabited
+#print axioms Yulang.GeneralDeclarativeNormalSupport321.restricted_valid
+#print axioms Yulang.GeneralDeclarativeNormalSupport321.without_unsettled_link
+#print axioms Yulang.GeneralDeclarativePairCut321.probe_not_enough
+#print axioms Yulang.GeneralDeclarativePairProjection321.projection_exact
+#print axioms Yulang.GeneralDeclarativeSettled321.no_self_grounding
+#print axioms Yulang.GeneralDeclarativeVisibleFields321.no_hidden_payload

@@ -9,7 +9,8 @@ open GeneralNominalCenteredHeadMatExpressions (Expr)
 
 def fields : Expr → Option (List (Nat × Nat))
   | .primitive .emptyRecord [] => some []
-  | .record label (.variable child) tail => (fields tail).map ((label,child) :: ·)
+  | .record label (.variable child) tail => (fields tail).map fun fs =>
+      (label,child) :: fs.filter (fun field => decide (field.1 ≠ label))
   | _ => none
 
 /-- The purely normalized, named-operand fragment. Open and unnormalized

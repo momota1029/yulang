@@ -40,7 +40,7 @@ def demand (role first : Nat) (args : List Expr) (outputs : List (Nat × Expr)) 
 def seed (s : State) (extra : List Nat) (exps : List Expr) : Nat :=
   after ((stateNames s ++ extra) ++ exps.flatMap names)
 
-/-- Compilation numbered declaration syntax preserves the order of actual
+/-- Compilation from declaration syntax preserves the order of actual
 where operands and the order and names of its associated requests. -/
 structure SourceCodes (r : Registry) (interp : Interpretation) (clause : Clause)
     (args : List Expr) (out : List (Nat × Expr)) : Prop where

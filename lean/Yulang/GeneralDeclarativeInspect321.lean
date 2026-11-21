@@ -16,7 +16,8 @@ inductive Inspects : Expr → Prop where
   | variant : Inspects (.variant label payload)
 
 def fieldPatterns : Expr → List (Nat × Expr)
-  | .record label payload tail => (label,payload) :: fieldPatterns tail
+  | .record label payload tail => (label,payload) ::
+      (fieldPatterns tail).filter (fun field => decide (field.1 ≠ label))
   | _ => []
 
 /-- Positions actually inspected by a constructor prefix. A variable has no
