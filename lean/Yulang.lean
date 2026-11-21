@@ -6974,3 +6974,4 @@ import Yulang.GeneralDeclarativeOpaqueAuditGraph328
 import Yulang.GeneralDeclarativeOpaqueSingle328
 import Yulang.GeneralDeclarativeOpaqueBatch328
 import Yulang.GeneralDeclarativeNestedBatch328
+import Yulang.GeneralDeclarativeOpaqueRepeatCut328

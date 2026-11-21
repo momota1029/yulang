@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeOpaqueRepeatCut328
+
+#print axioms Yulang.GeneralDeclarativeOpaqueRepeatCut328.exact_cut
+#print axioms Yulang.GeneralDeclarativeOpaqueRepeatCut328.no_sharing
+#print axioms Yulang.GeneralDeclarativeOpaqueRepeatCut328.no_single_center
