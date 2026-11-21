@@ -1,0 +1,4 @@
+Supervisor axiom checker body unchanged; temporary import list scoped to the 32 C314 modules.
+$ lake env lean --trust=0 -DwarningAsError=true C314ScopedAxiomGate.lean
+AXIOM-GATE-PASS: 69356 declarations
+exit 0

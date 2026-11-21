@@ -1,0 +1,51 @@
+import Yulang.GeneralLiveCompoundRegistry316
+import Yulang.GeneralLiveCompoundRoot316
+import Yulang.GeneralLiveCompoundStable316
+import Yulang.GeneralLiveCompoundStaleRoot316
+import Yulang.GeneralLiveCompoundUpperRefresh316
+import Yulang.GeneralLiveCompoundUpperSnapshot316
+
+/-! Standalone C316 audit. -/
+#print axioms Yulang.GeneralLiveCompoundRegistry316.declaration_checked
+#print axioms Yulang.GeneralLiveCompoundRegistry316.compiled_registry
+#print axioms Yulang.GeneralLiveCompoundRegistry316.leaf_checked
+#print axioms Yulang.GeneralLiveCompoundRegistry316.checked
+#print axioms Yulang.GeneralLiveCompoundRegistry316.coverage
+#print axioms Yulang.GeneralLiveCompoundRegistry316.source
+#print axioms Yulang.GeneralLiveCompoundRegistry316.boundary_checked
+#print axioms Yulang.GeneralLiveCompoundRegistry316.initial
+#print axioms Yulang.GeneralLiveCompoundRoot316.source_metadata
+#print axioms Yulang.GeneralLiveCompoundRoot316.nominal_head
+#print axioms Yulang.GeneralLiveCompoundRoot316.prepared
+#print axioms Yulang.GeneralLiveCompoundRoot316.frame
+#print axioms Yulang.GeneralLiveCompoundRoot316.survivor
+#print axioms Yulang.GeneralLiveCompoundRoot316.unique
+#print axioms Yulang.GeneralLiveCompoundStable316.reached_cases
+#print axioms Yulang.GeneralLiveCompoundStable316.halted
+#print axioms Yulang.GeneralLiveCompoundStable316.stable
+#print axioms Yulang.GeneralLiveCompoundStable316.leaf_stable
+#print axioms Yulang.GeneralLiveCompoundStaleRoot316.current_lower
+#print axioms Yulang.GeneralLiveCompoundStaleRoot316.no_current_packet
+#print axioms Yulang.GeneralLiveCompoundStaleRoot316.no_common
+#print axioms Yulang.GeneralLiveCompoundStaleRoot316.no_root_evidence
+#print axioms Yulang.GeneralLiveCompoundStaleRoot316.no_install_root
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.read_old
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.input_trusted
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.aggregate
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.ports
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.cache
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.step
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.models_iff
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.upper_reachable
+#print axioms Yulang.GeneralLiveCompoundUpperRefresh316.old_models
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.base_transport
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.base_known
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.view_known
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.nominals
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.upper_high
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.upper_not_old
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.upper_unknown
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.upper_known
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.upper_reserved
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.upper_supported
+#print axioms Yulang.GeneralLiveCompoundUpperSnapshot316.support

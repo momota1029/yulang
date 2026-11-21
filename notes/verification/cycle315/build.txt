@@ -1,0 +1,5 @@
+✔ [1586/1618] Built Yulang.GeneralVersionedCompleteInModel315 (1.4s)
+✔ [2923/2978] Built Yulang.GeneralVersionedEndpointBatch315 (1.3s)
+✔ [2977/2978] Built Yulang.GeneralVersionedEndpointBadRow315 (2.3s)
+✔ [2978/2978] Built Yulang.GeneralVersionedEndpointPatchCase315 (2.0s)
+Build completed successfully (2978 jobs).

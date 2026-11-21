@@ -1,0 +1,23 @@
+'Yulang.GeneralLiveCompoundCulprit316.old_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLiveCompoundCulprit316.variables_pair' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLiveCompoundCulprit316.where_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLiveCompoundCulprit316.only_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLiveCompoundCounterexample316.not_evidenceNode' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralLiveCompoundCounterexample316.not_revisit_rhs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLiveCompoundFullResult316.selected_without_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralLiveCompoundFullResult316.not_sound_if_returned' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralLiveCompoundProposedRepair316.cursor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralLiveCompoundProposedRepair316.old_lower_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralLiveCompoundProposedRepair316.choice_compatible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralLiveCompoundProposedRepair316.feasible_without_rewriting_history' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+exit=0

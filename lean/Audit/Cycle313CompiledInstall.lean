@@ -1,0 +1,60 @@
+import Yulang.GeneralVersionedComputedRows313
+import Yulang.GeneralVersionedFirstComputed313
+import Yulang.GeneralVersionedCompiledFirstInstall313
+import Yulang.GeneralVersionedCollisionSource313
+import Yulang.GeneralVersionedCollisionRegression313
+import Yulang.GeneralVersionedSemanticEntryChoice313
+#print axioms Yulang.GeneralVersionedComputedRows313.output_target
+#print axioms Yulang.GeneralVersionedComputedRows313.output_row
+#print axioms Yulang.GeneralVersionedComputedRows313.emitted_rows
+#print axioms Yulang.GeneralVersionedComputedRows313.classifies
+#print axioms Yulang.GeneralVersionedComputedRows313.addresses_disjoint
+#print axioms Yulang.GeneralVersionedComputedRows313.output_coherent
+#print axioms Yulang.GeneralVersionedComputedRows313.row_present
+#print axioms Yulang.GeneralVersionedFirstComputed313.proper_keys
+#print axioms Yulang.GeneralVersionedFirstComputed313.output_free
+#print axioms Yulang.GeneralVersionedFirstComputed313.table
+#print axioms Yulang.GeneralVersionedFirstComputed313.residual_compatible
+#print axioms Yulang.GeneralVersionedFirstComputed313.exact
+#print axioms Yulang.GeneralVersionedFirstComputed313.joint
+#print axioms Yulang.GeneralVersionedFirstComputed313.installable
+#print axioms Yulang.GeneralVersionedCompiledFirstInstall313.compiled_outputs_unique
+#print axioms Yulang.GeneralVersionedCompiledFirstInstall313.key_coherence
+#print axioms Yulang.GeneralVersionedCompiledFirstInstall313.joint
+#print axioms Yulang.GeneralVersionedCompiledFirstInstall313.installable
+#print axioms Yulang.GeneralVersionedCompiledFirstInstall313.node_and_edges
+#print axioms Yulang.GeneralVersionedCollisionSource313.declaration_checked
+#print axioms Yulang.GeneralVersionedCollisionSource313.checked
+#print axioms Yulang.GeneralVersionedCollisionSource313.boundary_checked
+#print axioms Yulang.GeneralVersionedCollisionSource313.coverage
+#print axioms Yulang.GeneralVersionedCollisionSource313.source
+#print axioms Yulang.GeneralVersionedCollisionSource313.initial
+#print axioms Yulang.GeneralVersionedCollisionSource313.reachable
+#print axioms Yulang.GeneralVersionedCollisionSource313.private_head
+#print axioms Yulang.GeneralVersionedCollisionSource313.fresh
+#print axioms Yulang.GeneralVersionedCollisionSource313.prepared
+#print axioms Yulang.GeneralVersionedCollisionSource313.frame
+#print axioms Yulang.GeneralVersionedCollisionSource313.survivor
+#print axioms Yulang.GeneralVersionedCollisionSource313.unique
+#print axioms Yulang.GeneralVersionedCollisionRegression313.safe
+#print axioms Yulang.GeneralVersionedCollisionRegression313.model
+#print axioms Yulang.GeneralVersionedCollisionRegression313.head
+#print axioms Yulang.GeneralVersionedCollisionRegression313.ready
+#print axioms Yulang.GeneralVersionedCollisionRegression313.class_done
+#print axioms Yulang.GeneralVersionedCollisionRegression313.sharing_clear
+#print axioms Yulang.GeneralVersionedCollisionRegression313.merged_clear
+#print axioms Yulang.GeneralVersionedCollisionRegression313.output_clear
+#print axioms Yulang.GeneralVersionedCollisionRegression313.selected
+#print axioms Yulang.GeneralVersionedCollisionRegression313.enabled
+#print axioms Yulang.GeneralVersionedCollisionRegression313.keys_distinct
+#print axioms Yulang.GeneralVersionedCollisionRegression313.target_distinct
+#print axioms Yulang.GeneralVersionedCollisionRegression313.left_row
+#print axioms Yulang.GeneralVersionedCollisionRegression313.right_row
+#print axioms Yulang.GeneralVersionedCollisionRegression313.not_committed
+#print axioms Yulang.GeneralVersionedCollisionRegression313.step
+#print axioms Yulang.GeneralVersionedCollisionRegression313.recorded
+#print axioms Yulang.GeneralVersionedCollisionRegression313.two_outputs_same_model
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.sound
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.complete
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.prepared
+#print axioms Yulang.GeneralVersionedSemanticEntryChoice313.choice

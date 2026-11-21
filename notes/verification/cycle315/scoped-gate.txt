@@ -1,0 +1,4 @@
+Supervisor axiom checker body unchanged; temporary import list scoped to the 23 C315 modules.
+$ lake env lean --trust=0 -DwarningAsError=true YulangCycle315ScopedAxiomGate.lean
+AXIOM-GATE-PASS: 93413 declarations
+exit 0

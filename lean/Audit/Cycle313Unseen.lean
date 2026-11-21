@@ -1,0 +1,27 @@
+import Yulang.GeneralVersionedObservedEssential313
+import Yulang.GeneralVersionedReachableRootGround313
+import Yulang.GeneralVersionedHistoricalDomain313
+import Yulang.GeneralVersionedUnseenOwnerCenters313
+import Yulang.GeneralVersionedUnseenBinder313
+#print axioms Yulang.GeneralVersionedObservedEssential313.unchanged
+#print axioms Yulang.GeneralVersionedObservedEssential313.cannot_substitute
+#print axioms Yulang.GeneralVersionedObservedEssential313.scalar
+#print axioms Yulang.GeneralVersionedObservedEssential313.structural
+#print axioms Yulang.GeneralVersionedObservedEssential313.scalar_not_nominal
+#print axioms Yulang.GeneralVersionedObservedEssential313.nominal
+#print axioms Yulang.GeneralVersionedObservedEssential313.known
+#print axioms Yulang.GeneralVersionedObservedEssential313.refreshed_essential
+#print axioms Yulang.GeneralVersionedReachableRootGround313.ground
+#print axioms Yulang.GeneralVersionedReachableRootGround313.tests
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.extend_mono
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.growth
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.next
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.reached
+#print axioms Yulang.GeneralVersionedUnseenOwnerCenters313.binder_origin
+#print axioms Yulang.GeneralVersionedUnseenOwnerCenters313.emitted_origin
+#print axioms Yulang.GeneralVersionedUnseenOwnerCenters313.avoids
+#print axioms Yulang.GeneralVersionedUnseenOwnerCenters313.head_origins_unowned
+#print axioms Yulang.GeneralVersionedUnseenBinder313.raw_absent
+#print axioms Yulang.GeneralVersionedUnseenBinder313.head_absent
+#print axioms Yulang.GeneralVersionedUnseenBinder313.origins_absent
+#print axioms Yulang.GeneralVersionedUnseenBinder313.protected_iff

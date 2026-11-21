@@ -1,0 +1,73 @@
+import Yulang.GeneralLiveCompoundAdmin316
+import Yulang.GeneralLiveCompoundChildSite316
+import Yulang.GeneralLiveCompoundCounterexample316
+import Yulang.GeneralLiveCompoundCurrentRoot316
+import Yulang.GeneralLiveCompoundDepth316
+import Yulang.GeneralLiveCompoundFullResult316
+import Yulang.GeneralLiveCompoundInstall316
+import Yulang.GeneralLiveCompoundLeafCycles316
+
+/-! Standalone C316 audit. -/
+#print axioms Yulang.GeneralLiveCompoundAdmin316.alias_eq
+#print axioms Yulang.GeneralLiveCompoundAdmin316.admin
+#print axioms Yulang.GeneralLiveCompoundAdmin316.all_requests
+#print axioms Yulang.GeneralLiveCompoundAdmin316.equal_outputs
+#print axioms Yulang.GeneralLiveCompoundAdmin316.leaf_requests
+#print axioms Yulang.GeneralLiveCompoundAdmin316.leaf_classes
+#print axioms Yulang.GeneralLiveCompoundChildSite316.children
+#print axioms Yulang.GeneralLiveCompoundChildSite316.emitted_eq
+#print axioms Yulang.GeneralLiveCompoundChildSite316.raw_sites
+#print axioms Yulang.GeneralLiveCompoundChildSite316.centers
+#print axioms Yulang.GeneralLiveCompoundChildSite316.generated
+#print axioms Yulang.GeneralLiveCompoundChildSite316.center_id
+#print axioms Yulang.GeneralLiveCompoundChildSite316.raw_input
+#print axioms Yulang.GeneralLiveCompoundChildSite316.located
+#print axioms Yulang.GeneralLiveCompoundChildSite316.leaf_query
+#print axioms Yulang.GeneralLiveCompoundChildSite316.leaf_report
+#print axioms Yulang.GeneralLiveCompoundCounterexample316.child_ordered
+#print axioms Yulang.GeneralLiveCompoundCounterexample316.ordered
+#print axioms Yulang.GeneralLiveCompoundCounterexample316.not_at
+#print axioms Yulang.GeneralLiveCompoundCounterexample316.not_evidenceNode
+#print axioms Yulang.GeneralLiveCompoundCounterexample316.no_replay
+#print axioms Yulang.GeneralLiveCompoundCounterexample316.pending
+#print axioms Yulang.GeneralLiveCompoundCounterexample316.not_revisit_rhs
+#print axioms Yulang.GeneralLiveCompoundCurrentRoot316.query
+#print axioms Yulang.GeneralLiveCompoundCurrentRoot316.report_exact
+#print axioms Yulang.GeneralLiveCompoundCurrentRoot316.bindings_exact
+#print axioms Yulang.GeneralLiveCompoundCurrentRoot316.located
+#print axioms Yulang.GeneralLiveCompoundCurrentRoot316.not_root
+#print axioms Yulang.GeneralLiveCompoundCurrentRoot316.root_raw
+#print axioms Yulang.GeneralLiveCompoundCurrentRoot316.root_center
+#print axioms Yulang.GeneralLiveCompoundCurrentRoot316.frame_plan
+#print axioms Yulang.GeneralLiveCompoundDepth316.variant_child
+#print axioms Yulang.GeneralLiveCompoundDepth316.headless_variant_no_cycle
+#print axioms Yulang.GeneralLiveCompoundFullResult316.classified
+#print axioms Yulang.GeneralLiveCompoundFullResult316.selected_without_evidence
+#print axioms Yulang.GeneralLiveCompoundFullResult316.not_sound_if_returned
+#print axioms Yulang.GeneralLiveCompoundInstall316.old_model_initial
+#print axioms Yulang.GeneralLiveCompoundInstall316.acyclic
+#print axioms Yulang.GeneralLiveCompoundInstall316.administrative_ready
+#print axioms Yulang.GeneralLiveCompoundInstall316.safe
+#print axioms Yulang.GeneralLiveCompoundInstall316.positions
+#print axioms Yulang.GeneralLiveCompoundInstall316.frame_unique
+#print axioms Yulang.GeneralLiveCompoundInstall316.schema_eq
+#print axioms Yulang.GeneralLiveCompoundInstall316.variables_eq
+#print axioms Yulang.GeneralLiveCompoundInstall316.needed
+#print axioms Yulang.GeneralLiveCompoundInstall316.inputs_iff
+#print axioms Yulang.GeneralLiveCompoundInstall316.packet_iff
+#print axioms Yulang.GeneralLiveCompoundInstall316.packet_holds
+#print axioms Yulang.GeneralLiveCompoundInstall316.alternatives
+#print axioms Yulang.GeneralLiveCompoundInstall316.initial_reachable
+#print axioms Yulang.GeneralLiveCompoundInstall316.installation_models
+#print axioms Yulang.GeneralLiveCompoundInstall316.installed_model
+#print axioms Yulang.GeneralLiveCompoundInstall316.installable
+#print axioms Yulang.GeneralLiveCompoundInstall316.not_committed
+#print axioms Yulang.GeneralLiveCompoundInstall316.step
+#print axioms Yulang.GeneralLiveCompoundInstall316.reachable
+#print axioms Yulang.GeneralLiveCompoundLeafCycles316.lower_actual
+#print axioms Yulang.GeneralLiveCompoundLeafCycles316.no_lo
+#print axioms Yulang.GeneralLiveCompoundLeafCycles316.canonical
+#print axioms Yulang.GeneralLiveCompoundLeafCycles316.no_mid
+#print axioms Yulang.GeneralLiveCompoundLeafCycles316.no_nominal
+#print axioms Yulang.GeneralLiveCompoundLeafCycles316.no_raw_incoming
+#print axioms Yulang.GeneralLiveCompoundLeafCycles316.no_raw_five

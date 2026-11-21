@@ -1,0 +1,52 @@
+import Yulang.GeneralVersionedFirstHead313
+import Yulang.GeneralVersionedFirstInternal313
+import Yulang.GeneralVersionedHeadFromSharing313
+import Yulang.GeneralVersionedHistoricalDomain313
+import Yulang.GeneralVersionedInstallDomain313
+import Yulang.GeneralVersionedNormalizedVariable313
+
+#print axioms Yulang.GeneralVersionedFirstHead313.names
+#print axioms Yulang.GeneralVersionedFirstHead313.raw_small
+#print axioms Yulang.GeneralVersionedFirstHead313.origins_small
+#print axioms Yulang.GeneralVersionedFirstHead313.aggregate
+#print axioms Yulang.GeneralVersionedFirstHead313.binder_outside
+#print axioms Yulang.GeneralVersionedFirstHead313.initial_head
+#print axioms Yulang.GeneralVersionedFirstHead313.structural_free
+#print axioms Yulang.GeneralVersionedFirstInternal313.taut_reads
+#print axioms Yulang.GeneralVersionedFirstInternal313.taut_protected
+#print axioms Yulang.GeneralVersionedFirstInternal313.cell_free
+#print axioms Yulang.GeneralVersionedFirstInternal313.internal
+#print axioms Yulang.GeneralVersionedFirstInternal313.sites_covered
+#print axioms Yulang.GeneralVersionedFirstInternal313.joint
+#print axioms Yulang.GeneralVersionedFirstInternal313.installable
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.origins
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.supportWithOrigins
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.same_iff
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.origin_agree
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.materialize
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.Equations
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.BinderAfter
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.of_tests_and_sharing
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.selected_sharing
+#print axioms Yulang.GeneralVersionedHeadFromSharing313.selected_head
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.extend_mono
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.growth
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.IncludesHistory
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.next
+#print axioms Yulang.GeneralVersionedHistoricalDomain313.reached
+#print axioms Yulang.GeneralVersionedInstallDomain313.reserve
+#print axioms Yulang.GeneralVersionedInstallDomain313.pool
+#print axioms Yulang.GeneralVersionedInstallDomain313.extension_endpoints
+#print axioms Yulang.GeneralVersionedInstallDomain313.merge_atom
+#print axioms Yulang.GeneralVersionedInstallDomain313.replay_sources
+#print axioms Yulang.GeneralVersionedInstallDomain313.declaration_owner
+#print axioms Yulang.GeneralVersionedInstallDomain313.reserve_owner
+#print axioms Yulang.GeneralVersionedInstallDomain313.output_key
+#print axioms Yulang.GeneralVersionedInstallDomain313.child_output_key
+#print axioms Yulang.GeneralVersionedInstallDomain313.output_reserved
+#print axioms Yulang.GeneralVersionedInstallDomain313.declaration_purpose
+#print axioms Yulang.GeneralVersionedInstallDomain313.reserve_purpose
+#print axioms Yulang.GeneralVersionedInstallDomain313.head_sources
+#print axioms Yulang.GeneralVersionedNormalizedVariable313.row_not_var
+#print axioms Yulang.GeneralVersionedNormalizedVariable313.merge_variable
+#print axioms Yulang.GeneralVersionedNormalizedVariable313.normalized_value

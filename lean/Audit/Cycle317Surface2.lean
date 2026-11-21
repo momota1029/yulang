@@ -1,0 +1,49 @@
+import Yulang.GeneralWhereVersionFrontier317
+import Yulang.GeneralWhereVersionInstall317
+import Yulang.GeneralWhereVersionJournal317
+import Yulang.GeneralWhereVersionLeaf317
+import Yulang.GeneralWhereVersionLeafCommit317
+import Yulang.GeneralWhereVersionLeafFresh317
+import Yulang.GeneralWhereVersionLeafHead317
+
+#print axioms Yulang.GeneralWhereVersionFrontier317.prior_generated
+#print axioms Yulang.GeneralWhereVersionFrontier317.same_identity
+#print axioms Yulang.GeneralWhereVersionFrontier317.current_not_historical
+#print axioms Yulang.GeneralWhereVersionFrontier317.historical_and_current
+#print axioms Yulang.GeneralWhereVersionInstall317.ordered
+#print axioms Yulang.GeneralWhereVersionInstall317.fixture_emitted
+#print axioms Yulang.GeneralWhereVersionInstall317.mixed_eq
+#print axioms Yulang.GeneralWhereVersionInstall317.current_classes
+#print axioms Yulang.GeneralWhereVersionInstall317.models
+#print axioms Yulang.GeneralWhereVersionInstall317.step
+#print axioms Yulang.GeneralWhereVersionInstall317.from_every_before
+#print axioms Yulang.GeneralWhereVersionJournal317.prior
+#print axioms Yulang.GeneralWhereVersionJournal317.fixed_iff
+#print axioms Yulang.GeneralWhereVersionLeaf317.frame
+#print axioms Yulang.GeneralWhereVersionLeaf317.survivor
+#print axioms Yulang.GeneralWhereVersionLeaf317.unique
+#print axioms Yulang.GeneralWhereVersionLeaf317.certificate
+#print axioms Yulang.GeneralWhereVersionLeaf317.evidence
+#print axioms Yulang.GeneralWhereVersionLeafCommit317.actual_ports
+#print axioms Yulang.GeneralWhereVersionLeafCommit317.registered
+#print axioms Yulang.GeneralWhereVersionLeafCommit317.ordinary
+#print axioms Yulang.GeneralWhereVersionLeafCommit317.mid_value
+#print axioms Yulang.GeneralWhereVersionLeafCommit317.observed
+#print axioms Yulang.GeneralWhereVersionLeafCommit317.schema
+#print axioms Yulang.GeneralWhereVersionLeafCommit317.holds
+#print axioms Yulang.GeneralWhereVersionLeafCommit317.committed
+#print axioms Yulang.GeneralWhereVersionLeafFresh317.finite_sources
+#print axioms Yulang.GeneralWhereVersionLeafFresh317.owner_eq
+#print axioms Yulang.GeneralWhereVersionLeafFresh317.old_reservation
+#print axioms Yulang.GeneralWhereVersionLeafFresh317.fresh
+#print axioms Yulang.GeneralWhereVersionLeafFresh317.known
+#print axioms Yulang.GeneralWhereVersionLeafFresh317.prepared
+#print axioms Yulang.GeneralWhereVersionLeafHead317.located
+#print axioms Yulang.GeneralWhereVersionLeafHead317.query
+#print axioms Yulang.GeneralWhereVersionLeafHead317.report_exact
+#print axioms Yulang.GeneralWhereVersionLeafHead317.binding
+#print axioms Yulang.GeneralWhereVersionLeafHead317.capture
+#print axioms Yulang.GeneralWhereVersionLeafHead317.binder
+#print axioms Yulang.GeneralWhereVersionLeafHead317.ordinary
+#print axioms Yulang.GeneralWhereVersionLeafHead317.projections
+#print axioms Yulang.GeneralWhereVersionLeafHead317.head

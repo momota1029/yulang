@@ -1,0 +1,99 @@
+$ lake env lean --trust=0 -DwarningAsError=true Audit/Cycle315Surface2.lean
+'Yulang.GeneralVersionedEndpointCuts315.occurs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointCuts315.merged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointCuts315.equations_of_many' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointCuts315.lower_cut' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointCuts315.upper_cut' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointCuts315.LowerSame' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointCuts315.UpperSame' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointCuts315.lower_equivalent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointCuts315.upper_equivalent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.whereRows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.EndpointEquations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.ReadyModel' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.free_coherent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.guarded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.from_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.output_contains' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.ready_of_residual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointEquationCut315.residual_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstruction315.checked_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstruction315.no_replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstruction315.pending' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstruction315.no_residual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstruction315.old_endpoint_false' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstruction315.no_child_demand' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstruction315.no_counterexample_to_node' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.beforePlan' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.read_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.head_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionHead315.unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.leaf' does not depend on any axioms
+'Yulang.GeneralVersionedEndpointObstructionSelect315.nominalTree' does not depend on any axioms
+'Yulang.GeneralVersionedEndpointObstructionSelect315.canonical' depends on axioms: [propext]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.model_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.no_semantic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.no_raw_zero' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.current_tests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.source_at_zero' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.request_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.equal_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.class_effects' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.output_clear' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.sharing_clear' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.merged_clear' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointObstructionSelect315.selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEndpointPatch315.aligned_domain' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointPatch315.operand_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointPatch315.body_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointPatch315.classes_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointPatch315.head_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointPatch315.schema_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEndpointPatch315.sound_write' depends on axioms: [propext, Classical.choice, Quot.sound]
+exit 0

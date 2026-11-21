@@ -1,0 +1,33 @@
+import Yulang.GeneralVersionedEndpointPatchCase315
+import Yulang.GeneralVersionedEndpointReadTest315
+import Yulang.GeneralVersionedEndpointSourceKey315
+import Yulang.GeneralVersionedEndpointWholeRhs315
+import Yulang.GeneralVersionedHighClass315
+import Yulang.GeneralVersionedHighJournal315
+
+#print axioms Yulang.GeneralVersionedEndpointPatchCase315.narrowed_address_changes
+#print axioms Yulang.GeneralVersionedEndpointPatchCase315.preserves_old_and_sets_new
+#print axioms Yulang.GeneralVersionedEndpointReadTest315.nonempty
+#print axioms Yulang.GeneralVersionedEndpointReadTest315.Test
+#print axioms Yulang.GeneralVersionedEndpointReadTest315.operand
+#print axioms Yulang.GeneralVersionedEndpointReadTest315.Certificate
+#print axioms Yulang.GeneralVersionedEndpointReadTest315.readback
+#print axioms Yulang.GeneralVersionedEndpointSourceKey315.Row
+#print axioms Yulang.GeneralVersionedEndpointSourceKey315.SourceRow
+#print axioms Yulang.GeneralVersionedEndpointSourceKey315.from_endpoint
+#print axioms Yulang.GeneralVersionedEndpointSourceKey315.coherent_on_trace
+#print axioms Yulang.GeneralVersionedEndpointWholeRhs315.Row
+#print axioms Yulang.GeneralVersionedEndpointWholeRhs315.target_support
+#print axioms Yulang.GeneralVersionedEndpointWholeRhs315.AgreeRhs
+#print axioms Yulang.GeneralVersionedEndpointWholeRhs315.endpoint_iff
+#print axioms Yulang.GeneralVersionedEndpointWholeRhs315.joint_with_rhs
+#print axioms Yulang.GeneralVersionedHighClass315.default_origin
+#print axioms Yulang.GeneralVersionedHighClass315.reads
+#print axioms Yulang.GeneralVersionedHighClass315.class_frame
+#print axioms Yulang.GeneralVersionedHighClass315.effect_frame
+#print axioms Yulang.GeneralVersionedHighJournal315.legacy
+#print axioms Yulang.GeneralVersionedHighJournal315.all
+#print axioms Yulang.GeneralVersionedHighJournal315.unused
+#print axioms Yulang.GeneralVersionedHighJournal315.patch
+#print axioms Yulang.GeneralVersionedHighJournal315.patch_preserves
+#print axioms Yulang.GeneralVersionedHighJournal315.proposed_patch_preserves

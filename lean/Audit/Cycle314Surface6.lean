@@ -1,0 +1,10 @@
+import Yulang.GeneralVersionedSameOwnerChoice314
+import Yulang.GeneralVersionedStoredOwnerKeys314
+
+#print axioms Yulang.GeneralVersionedSameOwnerChoice314.covered
+#print axioms Yulang.GeneralVersionedSameOwnerChoice314.prepared
+#print axioms Yulang.GeneralVersionedSameOwnerChoice314.key_eq
+#print axioms Yulang.GeneralVersionedStoredOwnerKeys314.SameKey
+#print axioms Yulang.GeneralVersionedStoredOwnerKeys314.next
+#print axioms Yulang.GeneralVersionedStoredOwnerKeys314.reached
+#print axioms Yulang.GeneralVersionedStoredOwnerKeys314.full_decl

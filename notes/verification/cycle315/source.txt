@@ -1,0 +1,46 @@
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedChildDemandCut315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedChildEndpointCut315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedCompleteInModel315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointAddress315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointBadRow315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointBatch315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointCuts315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointEquationCut315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointObstruction315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointObstructionHead315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointObstructionSelect315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointPatch315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointPatchCase315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointReadTest315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointSourceKey315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedEndpointWholeRhs315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedHighClass315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedHighJournal315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedHighOrigins315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedHighPacket315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedHistoricalClasses315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedRevisitCut315.lean
+exit 0
+$ lake env lean --trust=0 -DwarningAsError=true Yulang/GeneralVersionedTightOperands315.lean
+exit 0

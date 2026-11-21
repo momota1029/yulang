@@ -1,0 +1,50 @@
+$ lake env lean --trust=0 -DwarningAsError=true Audit/Cycle314Surface4.lean
+'Yulang.GeneralVersionedPrivateJournal314.legacy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateJournal314.all' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateJournal314.prospective_head_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedPrivateJournal314.prospective' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateJournal314.matching' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateJournal314.owned' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateOrigins314.distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPrivateOrigins314.raw_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateOrigins314.Witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateOrigins314.Explains' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateOrigins314.historical_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateOrigins314.input_ne' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateOrigins314.binder_witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateOrigins314.child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.registered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.registered_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.outputs_ne' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.packet_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.variable_read_explains' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.roots' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.schema' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.emitted_target' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.expression_sources' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivatePacket314.stored_sources' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveFootprint314.head_atom' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveFootprint314.head_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveFootprint314.body_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveFootprint314.classes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveFootprint314.schema_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveFootprint314.all' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveFootprint314.aggregate_class_free' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.ReadTag' does not depend on any axioms
+'Yulang.GeneralVersionedProspectiveNames314.LocalTag' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.Read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.Actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.weaken' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.raw_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.endpoint_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.actual_binder' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.rhs_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProspectiveNames314.excludes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedReachableTests314.tests' depends on axioms: [propext, Classical.choice, Quot.sound]
+exit 0

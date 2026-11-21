@@ -1,0 +1,67 @@
+import Yulang.GeneralLiveCompoundLeafEvidence316
+import Yulang.GeneralLiveCompoundLeafHead316
+import Yulang.GeneralLiveCompoundLeafInstall316
+import Yulang.GeneralLiveCompoundLeafProof316
+import Yulang.GeneralLiveCompoundLeafSelect316
+import Yulang.GeneralLiveCompoundLowerRefresh316
+import Yulang.GeneralLiveCompoundLowerSnapshot316
+import Yulang.GeneralLiveCompoundPoint316
+
+/-! Standalone C316 audit. -/
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.known
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.fresh
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.prepared
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.frame
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.terminal
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.survivor
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.unique
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.emitted
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.binders_fit
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.holds
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.certificate
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.evidence
+#print axioms Yulang.GeneralLiveCompoundLeafEvidence316.ordered
+#print axioms Yulang.GeneralLiveCompoundLeafHead316.bindings
+#print axioms Yulang.GeneralLiveCompoundLeafHead316.ordinary
+#print axioms Yulang.GeneralLiveCompoundLeafHead316.projection_empty
+#print axioms Yulang.GeneralLiveCompoundLeafHead316.head
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.choice
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.installable
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.patch_before
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.binder_outside
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.not_committed
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.step
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.reachable
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.models
+#print axioms Yulang.GeneralLiveCompoundLeafInstall316.after_model
+#print axioms Yulang.GeneralLiveCompoundLeafProof316.valid
+#print axioms Yulang.GeneralLiveCompoundLeafProof316.binder_exact
+#print axioms Yulang.GeneralLiveCompoundLeafProof316.binder_value
+#print axioms Yulang.GeneralLiveCompoundLeafProof316.selected_bounds
+#print axioms Yulang.GeneralLiveCompoundLeafProof316.head_schema
+#print axioms Yulang.GeneralLiveCompoundLeafProof316.center_value
+#print axioms Yulang.GeneralLiveCompoundLeafProof316.schema
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.leaf_declaration
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.raw_child
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.center_child
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.frame_plan
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.inherited
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.safe_positions
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.safe
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.class_effects
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.ready
+#print axioms Yulang.GeneralLiveCompoundLeafSelect316.selected
+#print axioms Yulang.GeneralLiveCompoundLowerRefresh316.trusted
+#print axioms Yulang.GeneralLiveCompoundLowerRefresh316.slice
+#print axioms Yulang.GeneralLiveCompoundLowerRefresh316.supported
+#print axioms Yulang.GeneralLiveCompoundLowerRefresh316.models_iff
+#print axioms Yulang.GeneralLiveCompoundLowerRefresh316.lower_unknown
+#print axioms Yulang.GeneralLiveCompoundLowerRefresh316.lower_known
+#print axioms Yulang.GeneralLiveCompoundLowerRefresh316.step
+#print axioms Yulang.GeneralLiveCompoundLowerRefresh316.lower_reachable
+#print axioms Yulang.GeneralLiveCompoundLowerSnapshot316.assignment_transport
+#print axioms Yulang.GeneralLiveCompoundPoint316.loose
+#print axioms Yulang.GeneralLiveCompoundPoint316.step
+#print axioms Yulang.GeneralLiveCompoundPoint316.point_reachable
+#print axioms Yulang.GeneralLiveCompoundPoint316.install_models
+#print axioms Yulang.GeneralLiveCompoundPoint316.point_models

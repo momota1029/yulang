@@ -1,0 +1,103 @@
+'Yulang.GeneralVersionedFirstHead313.aggregate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstHead313.binder_outside' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstHead313.initial_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstHead313.structural_free' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFiniteInspectionTests313.actual_constructor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedFiniteInspectionTests313.inspect_tests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedFiniteInspectionTests313.many_tests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstGroundHead313.tests_of_registered_ground' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedFirstGroundHead313.source_ground' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstGroundHead313.tests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstGroundHead313.head' depends on axioms: [propext, Classical.choice, Quot.sound]
+PASS Audit/Cycle313FirstGround.lean
+RUN Audit/Cycle313PrivateWrites.lean
+'Yulang.GeneralVersionedPrivateWriteNames313.tag' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.transfer_small' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.endpoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.binder_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.rhs_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.head_atom' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.head_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.excludes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.actual_to_safe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.actual_binder' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedPrivateWriteNames313.aggregate_not_actual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedFirstFootprint313.center_get_small' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstFootprint313.requests_small' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstFootprint313.body_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstFootprint313.classes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstFootprint313.schema_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstFootprint313.protected_names' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstFootprint313.class_aggregate_free' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedNormalizedVariable313.row_not_var' depends on axioms: [propext]
+'Yulang.GeneralVersionedNormalizedVariable313.merge_variable' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedNormalizedVariable313.normalized_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.materializes' depends on axioms: [propext]
+'Yulang.GeneralVersionedCompoundRows313.key_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.coherent_address' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.clause_arg' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.lower_or_upper' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.emitted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.classifies' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedFirstInternal313.taut_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstInternal313.taut_protected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstInternal313.cell_free' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstInternal313.internal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstInternal313.sites_covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstInternal313.joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedFirstInternal313.installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+PASS Audit/Cycle313PrivateWrites.lean
+RUN Audit/Cycle313Producers.lean
+'Yulang.GeneralVersionedEssentialAggregates313.protected_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.sufficient_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.from_exclusion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.harmless_keeps' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.harmless_not_protected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedSharingBinderRows313.observed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedSharingBinderRows313.read_present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSharingBinderRows313.row_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSharingBinderRows313.observations_agree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedSharingBinderRows313.schema_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSharingBinderTable313.point_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSharingBinderTable313.table' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHeadFromSharing313.same_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedHeadFromSharing313.origin_agree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedHeadFromSharing313.materialize' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHeadFromSharing313.of_tests_and_sharing' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedHeadFromSharing313.selected_sharing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHeadFromSharing313.selected_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedInstallDomain313.extension_endpoints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedInstallDomain313.merge_atom' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedInstallDomain313.replay_sources' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedInstallDomain313.declaration_owner' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedInstallDomain313.reserve_owner' depends on axioms: [propext, Quot.sound]
+PASS Audit/Cycle313Producers.lean
+RUN Audit/Cycle313Surface1.lean
+'Yulang.GeneralVersionedBeforeFirstInstall313.source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedBeforeFirstInstall313.no_child_site' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedBeforeFirstInstall313.predecessor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedBeforeFirstInstall313.models_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedBeforeFirstInstall313.support_initial' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedBeforeFirstInstall313.source_small' depends on axioms: [propext, Classical.choice, Quot.sound]

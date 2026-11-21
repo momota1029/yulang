@@ -1,0 +1,136 @@
+$ lake env lean --trust=0 -DwarningAsError=true YulangCycle315StatementCheck.lean
+def Yulang.GeneralVersionedRecursiveCut314.EndpointReads : Yulang.Roles.RoleDecls → Prop :=
+fun roles =>
+  ∀ (registry : Yulang.GeneralDeclarations.Registry) (state : Yulang.GeneralNominalVersionedJournal232.State roles)
+    (root focus : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+    (kids : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+    (effect : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+    Yulang.GeneralVersionedRecursiveBridge310.PendingCase registry state root focus key kids →
+      Yulang.GeneralVersionedRecursiveBridge310.CurrentCandidate registry state focus key kids effect →
+        Yulang.GeneralVersionedEndpointReduction314.Readback state effect
+Yulang.GeneralVersionedEndpointObstruction315.pending :
+  Yulang.GeneralVersionedRecursiveBridge310.PendingCase Yulang.GeneralDictionaryCompoundSource238.sourceRegistry
+    Yulang.GeneralMixedCompoundUpperRefresh307.upperState Yulang.GeneralDictionaryJournalRefinement228Source.root
+    Yulang.GeneralDictionaryJournalRefinement228Source.root Yulang.GeneralDictionaryCompoundSource238.declaration.id
+    [Yulang.GeneralDictionaryCompoundSites238.childSite.occurrence]
+Yulang.GeneralVersionedEndpointObstruction315.old_endpoint_false :
+  ¬Yulang.GeneralVersionedRecursiveCut314.EndpointReads Yulang.GeneralDictionaryJournalRefinement228Source.roles
+Yulang.GeneralVersionedEndpointObstruction315.no_child_demand (m : Yulang.GeneralNominalCommonBridge.Assignment) :
+  ¬Yulang.GeneralVersionedChildDemandCut315.ChildDemand Yulang.GeneralDictionaryCompoundSource238.sourceRegistry
+      Yulang.GeneralMixedCompoundUpperRefresh307.upperState m
+      [Yulang.GeneralDictionaryCompoundSites238.childSite.occurrence]
+Yulang.GeneralVersionedEndpointBadRow315.only_lower_fails (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (valid : Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralMixedCompoundUpperRefresh307.upperState m)
+  (head : Yulang.GeneralNominalVersionedPlans231.HeadModels Yulang.GeneralMixedCompoundUpperRoot307.plan.packet m)
+  (row : Yulang.GeneralNominalCenteredHeadMatSchemas.Equation) :
+  row ∈ Yulang.GeneralVersionedEndpointEquationCut315.whereRows Yulang.GeneralMixedCompoundUpperRoot307.plan →
+    (¬Yulang.GeneralNominalCenteredHeadMatSchemas.Equation.Holds
+          (Yulang.GeneralNominalVersionedPlans231.variables Yulang.GeneralMixedCompoundUpperRoot307.plan m) m row ↔
+      row = Yulang.GeneralVersionedEndpointBadRow315.lowerRow)
+Yulang.GeneralVersionedCompleteInModel315.preserved {roles : Yulang.Roles.RoleDecls}
+  (s : Yulang.GeneralNominalVersionedJournal232.State roles) (p q : Yulang.GeneralNominalCenters.Plan roles)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) :
+  Yulang.GeneralNominalCenteredFrame179.Agree
+    (Yulang.GeneralNominalVersionedJournalFrame236.sources s ++
+      Yulang.GeneralVersionedSemanticPeer312.reportPool p.packet)
+    m (Yulang.GeneralVersionedCompleteInModel315.fill s p q m)
+Yulang.GeneralVersionedCompleteInModel315.shared {roles : Yulang.Roles.RoleDecls}
+  {registry : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {focus : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand} {key : Nat}
+  {kids : List (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand}
+  {s : Yulang.GeneralNominalVersionedJournal232.State roles} {p q : Yulang.GeneralNominalCenters.Plan roles}
+  (checked : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry)
+  (actual : Yulang.GeneralNominalVersionedTraceSupport237.Reachable registry root s)
+  (selected :
+    Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry s focus
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key kids))
+  (frame :
+    Yulang.GeneralNominalVersionedEvidence231.Frame (Yulang.GeneralVersionedHistoryEvidence310.Compiled registry) s.core
+      focus key p)
+  (stored : q ∈ s.plans) (same : q.packet.site.occurrence.identity = p.packet.site.occurrence.identity)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (models : Yulang.GeneralNominalVersionedJournal232.Models s m) :
+  have ready := Yulang.GeneralVersionedCompleteInModel315.fill s p q m;
+  Yulang.GeneralNominalVersionedJournal232.Models s ready ∧
+    Yulang.GeneralNominalVersionedPlans231.HeadModels p.packet ready ∧
+      Yulang.GeneralNominalVersionedPlans231.SchemaHolds p p.headSchema ready ∧
+        Yulang.GeneralNominalVersionedEffects231.ClassEffects s.core p.packet.site.occurrence p ready
+Yulang.GeneralVersionedEndpointWholeRhs315.joint_with_rhs {roles : Yulang.Roles.RoleDecls}
+  {registry : (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {kids : List (Yulang.GeneralNominalVersionedDiagnostic232.vocabulary roles).Demand}
+  {s : Yulang.GeneralNominalVersionedJournal232.State roles} {e : Yulang.GeneralNominalVersionedJournal232.Effect roles}
+  {q : Yulang.GeneralNominalCenters.Plan roles}
+  (checked : (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles).Checked registry)
+  (actual : Yulang.GeneralNominalVersionedTraceSupport237.Reachable registry root s)
+  (selected :
+    Yulang.GeneralNominalVersionedMixedSourceBoundary234.Local registry s e.plan.packet.site.occurrence
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected e.plan.packet.declaration.id kids))
+  (rg : e.registry = Yulang.GeneralVersionedHistoryEvidence310.Compiled registry) (snapshot : e.snapshot = s.core)
+  (stored : q ∈ s.plans) (owner : q.packet.site.occurrence.identity = e.plan.packet.site.occurrence.identity) :
+  (∃ m, Yulang.GeneralNominalVersionedMixedMaterialization237.Residual s e m) ↔
+    ∃ m,
+      Yulang.GeneralNominalVersionedJournal232.Models s m ∧
+        Yulang.GeneralNominalVersionedPlans231.HeadModels e.plan.packet m ∧
+          Yulang.GeneralNominalVersionedPlans231.SchemaHolds e.plan e.plan.headSchema m ∧
+            Yulang.GeneralVersionedEndpointWholeRhs315.AgreeRhs e.plan q m
+def Yulang.GeneralVersionedRevisitCut315.RevisitRhs : Yulang.Roles.RoleDecls → Prop :=
+fun roles =>
+  ∀ (r : Yulang.GeneralDeclarations.Registry) (s : Yulang.GeneralNominalVersionedJournal232.State roles)
+    (root focus : Yulang.GeneralSourceDictionaries.Occurrence roles) (key : Nat)
+    (kids : List (Yulang.GeneralSourceDictionaries.Occurrence roles))
+    (e : Yulang.GeneralNominalVersionedJournal232.Effect roles),
+    Yulang.GeneralVersionedRecursiveBridge310.PendingCase r s root focus key kids →
+      Yulang.GeneralVersionedRecursiveBridge310.CurrentCandidate r s focus key kids e →
+        ∀ (model : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralVersionedChildDemandCut315.ChildDemand r s model kids →
+            ∀ (old : Yulang.GeneralNominalCenters.Plan roles),
+              old ∈ s.plans →
+                old.packet.site.occurrence.identity = e.plan.packet.site.occurrence.identity →
+                  ∃ m,
+                    Yulang.GeneralNominalVersionedJournal232.Models s m ∧
+                      Yulang.GeneralNominalVersionedPlans231.HeadModels e.plan.packet m ∧
+                        Yulang.GeneralNominalVersionedPlans231.SchemaHolds e.plan e.plan.headSchema m ∧
+                          Yulang.GeneralVersionedEndpointWholeRhs315.AgreeRhs e.plan old m
+Yulang.GeneralVersionedRevisitCut315.evidenceNode {roles : Yulang.Roles.RoleDecls}
+  (aliases : Yulang.GeneralVersionedChildDemandCut315.ForeignKeys roles)
+  (endpoint : Yulang.GeneralVersionedRevisitCut315.RevisitRhs roles) :
+  Yulang.B4SkeletonV8.EvidenceNode (Yulang.GeneralNominalVersionedMixedSourceBoundary234.boundary roles)
+Yulang.GeneralVersionedEndpointBatch315.batch {roles : Yulang.Roles.RoleDecls}
+  {registry : Yulang.GeneralDeclarations.Registry} {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {s : Yulang.GeneralNominalVersionedJournal232.State roles} {e : Yulang.GeneralNominalVersionedJournal232.Effect roles}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  (actual : Yulang.GeneralNominalVersionedTraceSupport237.Reachable registry root s)
+  (rg : e.registry = Yulang.GeneralVersionedHistoryEvidence310.Compiled registry) (snapshot : e.snapshot = s.core)
+  (before : Yulang.GeneralVersionedChildEndpointCut315.BaseReady s e m)
+  (proposed : List (Yulang.GeneralVersionedEndpointBatch315.Proposal e.plan)) :
+  ∃ n,
+    Yulang.GeneralVersionedChildEndpointCut315.BaseReady s e n ∧
+      ∀ (row : Yulang.GeneralVersionedEndpointBatch315.Proposal e.plan),
+        row ∈ proposed → Yulang.CommonNominalFullCarrier.Equivalent (n row.target).fst (row.rhs n)
+Yulang.GeneralVersionedEndpointPatchCase315.preserves_old_and_sets_new :
+  ∃ e,
+    Yulang.GeneralVersionedRecursiveBridge310.CurrentCandidate Yulang.GeneralDictionaryCompoundSource238.sourceRegistry
+        Yulang.GeneralMixedCompoundUpperRefresh307.upperState Yulang.GeneralDictionaryJournalRefinement228Source.root
+        Yulang.GeneralDictionaryCompoundSource238.declaration.id
+        [Yulang.GeneralDictionaryCompoundSites238.childSite.occurrence] e ∧
+      ∃ model,
+        Yulang.GeneralVersionedChildEndpointCut315.BaseReady Yulang.GeneralMixedCompoundUpperRefresh307.upperState e
+            model ∧
+          (model
+                  (Yulang.GeneralVersionedEndpointAddress315.atCell Yulang.GeneralMixedCompoundUpperRoot307.plan
+                    Yulang.GeneralVersionedEndpointAddress315.Side.lower
+                    Yulang.GeneralDictionaryCompoundSource238.child.id 0
+                    Yulang.GeneralVersionedEndpointBadRow315.lowerRow.expression)).fst =
+              Yulang.GeneralNominalCenteredHeadMatExpressions.value
+                (Yulang.GeneralNominalVersionedPlans231.variables Yulang.GeneralMixedCompoundUpperRoot307.plan model)
+                Yulang.GeneralNominalMaterialization.Mode.lower
+                Yulang.GeneralVersionedEndpointBadRow315.lowerRow.expression ∧
+            Yulang.GeneralNominalCenteredHeadMatSchemas.Equation.Holds
+                (Yulang.GeneralNominalVersionedPlans231.variables Yulang.GeneralDictionaryCompoundObstruction238.oldPlan
+                  model)
+                model Yulang.GeneralVersionedEndpointBadRow315.lowerRow ∧
+              ¬Yulang.GeneralNominalCenteredHeadMatSchemas.Equation.Holds
+                  (Yulang.GeneralNominalVersionedPlans231.variables Yulang.GeneralMixedCompoundUpperRoot307.plan model)
+                  model Yulang.GeneralVersionedEndpointBadRow315.lowerRow
+exit 0
