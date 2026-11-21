@@ -1,0 +1,4 @@
+import Yulang.GeneralMixedFullControlDistinctions306
+
+#print axioms Yulang.GeneralMixedFullControlDistinctions306.blind_quotient_loses_model_observation
+#print axioms Yulang.GeneralMixedFullControlDistinctions306.same_obligation_count_different_best_raw_length

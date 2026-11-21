@@ -1,0 +1,9 @@
+'Yulang.GeneralMixedControlLiveness306.label_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlLiveness306.raw_halts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlLiveness306.table' depends on axioms: [propext]
+'Yulang.GeneralMixedControlLiveness306.target_raw_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRank306.raw_rank_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRank306.rank_matches' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRank306.rank_bisim' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedControlRank306.any_bisim_respects_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0

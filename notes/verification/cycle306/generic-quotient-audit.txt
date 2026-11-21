@@ -1,0 +1,30 @@
+'Yulang.GeneralFiniteColoredRounds306.stable_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteColoredScore306.drop_count' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteColoredScore306.fixed_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteColoredExact306.bounded_stationary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredExact306.exact_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredTable306.exact_materialized' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredEarlyStop306.exact_fast' does not depend on any axioms
+'Yulang.GeneralFiniteColoredEquivalence306.trans_on' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteQuotientRepresentatives306.no_two' depends on axioms: [propext]
+'Yulang.GeneralFiniteColoredQuotient306.representative_fixed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredQuotient306.exact_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredQuotient306.projection_minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteColoredCertificate306.certificate_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteColoredCertificate306.verified_submission_refines_minimum' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralFiniteColoredCycleExample306.cyclic_regression' does not depend on any axioms
+'Yulang.GeneralFiniteColoredCycleExample306.color_distinguishes' does not depend on any axioms
+'Yulang.GeneralFiniteRawPresentation306.raw_edges' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteRawPresentation306.minimal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteRawPresentation306.stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralMixedFullControlCompiledQuotient306.executed_counts' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlCertificate306.rejects_count_vs_accepts_class' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlCertificate306.phase_requires_extra_class' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlCertificate306.rejects_incomplete_domain' depends on axioms: [propext]
+'Yulang.GeneralMixedFullControlPresentation306.uncolored_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralMixedFullControlPresentation306.colored_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXIT=0

@@ -1,0 +1,43 @@
+C306: exact verified source, declaration audit and publication summary
+Lean 4.35.0; local tested code head bccd45a4e, previous local baseline 2c105891b.
+Previous work/dots-main C305 a9b7b3aa5c93d4aa351e5afc7f5811b55ab9adb5.
+Substantive C306 branch pin 2e476c8494adcf6907c1cefb0667bb36a63d4b22.
+
+Scoped Lean build command, used on named downstream targets only:
+  cd lean
+  LEAN_NUM_THREADS=1 lake build --wfail Yulang.<target>
+Selected endpoints (the captured logs include successful dependencies):
+  GeneralMixedControlRank306
+  GeneralMixedFullControlMinimal306
+  GeneralMixedFullControlTrace306
+  GeneralMixedPreInstallSigns306
+  GeneralMixedFullControlFinish306
+  GeneralMixedFullControlCost306
+  GeneralMixedFullControlModelClasses306
+  GeneralMixedFullControlObserver306
+  GeneralMixedFullControlDistinctions306
+  GeneralLadderCompiledRun306
+  GeneralFiniteColoredCycleExample306
+Final combined named build of the three last endpoints: EXIT=0.
+
+Independent source-check rerun (audit modules never import each other):
+  for f in Audit/Cycle306*.lean; do
+    lake env lean --trust=0 -DwarningAsError=true "$f" || exit
+  done
+Result: 7 files, 98 completely distinct audited names. Exit 0.
+Axioms: propext, Classical.choice, Quot.sound; some computed statements need none.
+Full repeated audit output in all-new-audits.txt.
+
+Repository static gate, without building other modules:
+  bash tools/verify-lean.sh <checkout> 2c105891b --no-build
+Result: PASS (diff checks only, NO build), exit 0.
+All 40 new modules present in published barrel once; no existing source removed
+or modified other than appended imports. Full log in diff-verify-00 through -04.
+
+Exact GitHub-pinned publication check: 64/64 substantive paths match.
+Expected barrel: previous published C305 bytes + exactly 40 ordered imports.
+Every other expected path: bytes from local scoped tested source commit.
+Mid-cycle integration advanced to b7fcac3da0a905a5a745fa6e4acc5717f007107c.
+Standing orders and inbox identical; 36 integrated Lean source modules checked
+byte-for-byte against the starting retained workspace (36/36 exact).
+No full historical audit, full repository build, Rust/CST or CI run claimed.
