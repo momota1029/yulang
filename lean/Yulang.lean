@@ -7040,3 +7040,4 @@ import Yulang.GeneralDeclarativeRecordInline330
 import Yulang.GeneralDeclarativeGuardView330
 import Yulang.GeneralDeclarativeGuardCurrent330
 import Yulang.GeneralDeclarativeRecordPayloads330
+import Yulang.GeneralDeclarativeRecordConsumption330
