@@ -1,0 +1,170 @@
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineFixture331.before done)) mode
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+    Yulang.GeneralDeclarativeInlineDecl331.normalizedExpr (Yulang.GeneralDeclarativeInlineFixture331.seen mode)
+Yulang.GeneralDeclarativeInlineFixture331.original_source : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineCompiler331.Source (Yulang.GeneralDeclarativeInlineFixture331.before done)
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeInlineDecl331.root.arguments Yulang.GeneralDeclarativeInlineDecl331.decl.head
+Yulang.GeneralDeclarativeInlineFixture331.exact_material_logic : Yulang.GeneralDeclarativeInlineMaterial331.ordinary
+      Yulang.GeneralDeclarativeInlineFixture331.sourceState (Yulang.GeneralDeclarativeOpaqueNominal328.point 0)
+      Yulang.GeneralDeclarativeInlineFixture331.keep
+      (Yulang.GeneralDeclarativeInlineFixture331.seen Yulang.GeneralNominalMaterialization.Mode.actual) =
+    [{ left := 18, right := Yulang.GeneralDeclarativeInlineFixture331.compound },
+      { left := 19,
+        right :=
+          Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record 9
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 15)
+            Yulang.GeneralDeclarativeInlineFixture331.terminal }] ∧
+  Yulang.GeneralDeclarativeInlineAllocation331.captures
+      (Yulang.GeneralDeclarativeInlineMaterial331.seed Yulang.GeneralDeclarativeInlineFixture331.sourceState
+        (Yulang.GeneralDeclarativeOpaqueNominal328.point 0) Yulang.GeneralDeclarativeInlineFixture331.keep
+        (Yulang.GeneralDeclarativeInlineFixture331.seen Yulang.GeneralNominalMaterialization.Mode.actual))
+      (Yulang.GeneralDeclarativeInlineFixture331.seen Yulang.GeneralNominalMaterialization.Mode.actual) =
+    Yulang.GeneralDeclarativeInlineFixture331.spans
+Yulang.GeneralDeclarativeInlineFixture331.actual_heads : Yulang.GeneralDeclarativeOpaqueConserve328.Retains
+    Yulang.GeneralDeclarativeInlineFixture331.sourceState Yulang.GeneralDeclarativeInlineFixture331.rebuilt
+    Yulang.GeneralDeclarativeInlineFixture331.keep ∧
+  Yulang.GeneralDeclarativeStableReads329.Heads Yulang.GeneralDeclarativeInlineFixture331.rebuilt
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeInlineDecl331.root.arguments Yulang.GeneralDeclarativeInlineDecl331.decl.head
+    Yulang.GeneralDeclarativeInlineFixture331.spans
+Yulang.GeneralDeclarativeInlineFixture331.calc_children : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeInlineDecl331.decl Yulang.GeneralDeclarativeInlineFixture331.named
+    Yulang.GeneralDeclarativeInlineFixture331.place =
+  [Yulang.GeneralDeclarativeInlineDecl331.child]
+Yulang.GeneralDeclarativeInlineFixture331.only_output : Yulang.GeneralDeclarativeBatch320.collect
+    (Yulang.GeneralDeclarativeNormalizeAssoc324.one Yulang.GeneralDeclarativeInlineDecl331.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation Yulang.GeneralDeclarativeInlineDecl331.decl
+      Yulang.GeneralDeclarativeInlineDecl331.root Yulang.GeneralDeclarativeInlineFixture331.named.input)
+    Yulang.GeneralDeclarativeInlineDecl331.root.outputs =
+  some [Yulang.GeneralDeclarativeInlineFixture331.rootWrite]
+Yulang.GeneralDeclarativeInlineFixture331.prepare_exact : Yulang.GeneralDeclarativeClauseBatch327.prepare
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeInlineFixture331.keep Yulang.GeneralDeclarativeInlineFixture331.cap
+    Yulang.GeneralDeclarativeInlineFixture331.rebuilt Yulang.GeneralDeclarativeInlineDecl331.decl.requirements =
+  some (Yulang.GeneralDeclarativeInlineFixture331.rebuilt, Yulang.GeneralDeclarativeInlineFixture331.ports)
+Yulang.GeneralDeclarativeInlineFixture331.grows : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeInlineFixture331.rebuilt Yulang.GeneralDeclarativeInlineFixture331.final
+Yulang.GeneralDeclarativeInlineFixture331.literal_frame : Yulang.GeneralDeclarativeInlineFixture331.final.equations =
+  Yulang.GeneralDeclarativeInlineFixture331.sourceRows ++ Yulang.GeneralDeclarativeInlineFixture331.storedReads ++
+    [Yulang.GeneralDeclarativeInlineFixture331.rootWrite, Yulang.GeneralDeclarativeInlineFixture331.leafWrite]
+Yulang.GeneralDeclarativeInlineFixture331.covered : Yulang.GeneralNominalCenteredHeadWFSource.Coverage
+  Yulang.GeneralDeclarativeInlineDecl331.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+Yulang.GeneralDeclarativeInlineFixture331.declared : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativeInlineDecl331.registry Yulang.GeneralDeclarativeInlineDecl331.root
+@Yulang.GeneralDeclarativeInlineFootprint331.pure : ∀ {P : Yulang.GeneralDeclarativeHead320.State → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  (∀ (t : Yulang.GeneralDeclarativeHead320.State), P t) → Yulang.GeneralDeclarativeInlineFootprint331.Replay s P
+@Yulang.GeneralDeclarativeInlineFootprint331.map : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {P Q : Yulang.GeneralDeclarativeHead320.State → Prop},
+  Yulang.GeneralDeclarativeInlineFootprint331.Replay s P →
+    (∀ (t : Yulang.GeneralDeclarativeHead320.State), P t → Q t) → Yulang.GeneralDeclarativeInlineFootprint331.Replay s Q
+@Yulang.GeneralDeclarativeInlineFootprint331.combine : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {P Q : Yulang.GeneralDeclarativeHead320.State → Prop},
+  Yulang.GeneralDeclarativeInlineFootprint331.Replay s P →
+    Yulang.GeneralDeclarativeInlineFootprint331.Replay s Q →
+      Yulang.GeneralDeclarativeInlineFootprint331.Replay s fun t => P t ∧ Q t
+@Yulang.GeneralDeclarativeInlineFootprint331.exact_row : ∀ {row : Yulang.GeneralDeclarativeHead320.Equation}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  row ∈ s.equations → Yulang.GeneralDeclarativeInlineFootprint331.Replay s fun t => row ∈ t.equations
+@Yulang.GeneralDeclarativeInlineFootprint331.alias : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias s a b →
+    Yulang.GeneralDeclarativeInlineFootprint331.Replay s fun t => Yulang.GeneralDeclarativeLowerKnown321.Alias t a b
+@Yulang.GeneralDeclarativeInlineFootprint331.spine : ∀ {n : Nat}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeRecordSpine330.Spine s n raw terminal →
+    Yulang.GeneralDeclarativeInlineFootprint331.Replay s fun t =>
+      Yulang.GeneralDeclarativeRecordSpine330.Spine t n raw terminal
+@Yulang.GeneralDeclarativeInlineFootprint331.closed : ∀ {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeInlineSpine331.Closed s e raw terminal →
+    Yulang.GeneralDeclarativeInlineFootprint331.Replay s fun t =>
+      Yulang.GeneralDeclarativeInlineSpine331.Closed t e raw terminal
+@Yulang.GeneralDeclarativeInlineFootprint331.trace : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {raw code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {seen : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeInlineTrace331.Read s mode raw code seen →
+    Yulang.GeneralDeclarativeInlineFootprint331.Replay s fun t =>
+      Yulang.GeneralDeclarativeInlineTrace331.Read t mode raw code seen
+@Yulang.GeneralDeclarativeInlineGround331.actual_source_row : ∀ {done : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineGround331.sourcesOnly p)).equations ↔
+    p.derivesFrom e Yulang.GeneralDeclarativeOrigins321.Origin.source
+@Yulang.GeneralDeclarativeInlineGround331.job_spelling : ∀
+  {e term : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  e ∈ Yulang.GeneralDeclarativeRecordPoints330.expanded term →
+    e = term ∧ ∀ (n : Nat), term ≠ Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n
+@Yulang.GeneralDeclarativeInlineGround331.origin_path : ∀ {done : Nat → Prop}
+  {pattern : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {targets : List Nat} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeInlineTrace331.Read
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeInlineGround331.sourcesOnly p))
+      Yulang.GeneralNominalMaterialization.Mode.actual
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center) pattern uses →
+    ∀ {row : Yulang.GeneralDeclarativeHead320.Equation},
+      row ∈ Yulang.GeneralDeclarativeInlineMaterial331.ordinary s arg targets uses →
+        ∃ loc,
+          loc ∈ uses ∧
+            row.right = loc.term ∧
+              (∀ (n : Nat), loc.term ≠ Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n) ∧
+                Yulang.GeneralDeclarativeInlineLineage331.Trail
+                  (Yulang.GeneralDeclarativeOrigins321.restriction
+                    (Yulang.GeneralDeclarativeInlineGround331.sourcesOnly p))
+                  (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center) loc.term
+@Yulang.GeneralDeclarativeInlineGround331.derived_backed : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keep : List Nat}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {row : Yulang.GeneralDeclarativeHead320.Equation}
+  {s t : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  (old : Yulang.GeneralDeclarativeGrowth327.Extends s t)
+  (rows : Yulang.GeneralDeclarativeInlineMaterial331.ordinary s arg keep uses ⊆ t.equations),
+  Yulang.GeneralDeclarativeInlineGround331.Native p arg keep uses row →
+    row ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineGround331.certify p old arg keep uses rows)).equations
+@Yulang.GeneralDeclarativeInlineGround331.grounded_known : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keep : List Nat}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {row : Yulang.GeneralDeclarativeHead320.Equation}
+  {tag : Yulang.GeneralDeclarativeLowerKnown321.Tag} {s t : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} (old : Yulang.GeneralDeclarativeGrowth327.Extends s t)
+  (rows : Yulang.GeneralDeclarativeInlineMaterial331.ordinary s arg keep uses ⊆ t.equations),
+  Yulang.GeneralDeclarativeInlineGround331.Native p arg keep uses row →
+    Yulang.GeneralDeclarativeLowerKnown321.constructorTag row.right = some tag →
+      Yulang.GeneralDeclarativeLowerKnown321.Knows
+        (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineGround331.certify p old arg keep uses rows))
+        row.left tag
+@Yulang.GeneralDeclarativeInlineGround331.no_forgery : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keep : List Nat}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {row : Yulang.GeneralDeclarativeHead320.Equation}
+  {s t : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  (old : Yulang.GeneralDeclarativeGrowth327.Extends s t)
+  (rows : Yulang.GeneralDeclarativeInlineMaterial331.ordinary s arg keep uses ⊆ t.equations),
+  row ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeInlineGround331.certify p old arg keep uses rows)).equations →
+    row ∈ (Yulang.GeneralDeclarativeOrigins321.restriction p).equations ∨
+      ∃ loc,
+        loc ∈ uses ∧
+          row.right = loc.term ∧
+            (∀ (n : Nat), loc.term ≠ Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n) ∧
+              Yulang.GeneralDeclarativeInlineLineage331.Trail
+                (Yulang.GeneralDeclarativeOrigins321.restriction
+                  (Yulang.GeneralDeclarativeInlineGround331.sourcesOnly p))
+                (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable arg.center) loc.term
+@Yulang.GeneralDeclarativeInlineGrowth331.closed : ∀ {input : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.GeneralDeclarativeInlineSpine331.Closed s input raw terminal →
+      Yulang.GeneralDeclarativeInlineSpine331.Closed t input raw terminal
+@Yulang.GeneralDeclarativeInlineGrowth331.extend : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {raw pat : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {uses : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →

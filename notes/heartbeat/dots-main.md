@@ -3,8 +3,8 @@
 - cycle: 331
 - status: running
 - started: 2026-11-21T22:33:42Z
-- updated: 2026-11-21T23:16:52.989Z
+- updated: 2026-11-21T23:16:59.841Z
 - elapsed_min: 43
-- activity: C331 full verification: diff and statement exact records 2
-- last_local_commit: 6c45006f3
+- activity: C331 full verification: diff and statement exact records 3
+- last_local_commit: fb53cd682
 - resume_hint: C331 の固定報告と検証ログを確認し、次の周は inbox 最新指示を再読。
