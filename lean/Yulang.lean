@@ -6830,3 +6830,5 @@ import Yulang.GeneralDeclarativeRivalReads324
 import Yulang.GeneralDeclarativeRivalResolve324
 import Yulang.GeneralDeclarativeNFClassify324
 import Yulang.GeneralDeclarativeRuleSequence324
+import Yulang.GeneralDeclarativeHeadOrigin325
+import Yulang.GeneralDeclarativeNamedHead325
