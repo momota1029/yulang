@@ -6832,3 +6832,9 @@ import Yulang.GeneralDeclarativeNFClassify324
 import Yulang.GeneralDeclarativeRuleSequence324
 import Yulang.GeneralDeclarativeHeadOrigin325
 import Yulang.GeneralDeclarativeNamedHead325
+import Yulang.GeneralDeclarativeEndpointHead325
+import Yulang.GeneralDeclarativeTraceTransfer325
+import Yulang.GeneralDeclarativeForwardHead325
+import Yulang.GeneralDeclarativeVisibleCode325
+import Yulang.GeneralDeclarativeAppliedSource325
+import Yulang.GeneralDeclarativeClauseOrigins325
