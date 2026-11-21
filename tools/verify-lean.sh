@@ -49,12 +49,15 @@ if [ "$nobuild" != "--no-build" ]; then
 
   # Which audits to run. An audit file that is unchanged since <base> was already run at <base>,
   # and it only reads modules that existed at <base>. If none of those existing files changed
-  # (the barrel lean/Yulang.lean and the audit files themselves excepted; lake config and
-  # toolchain included), its result cannot differ, so only new or changed audits are run.
+  # (only .lean files, lake config and toolchain count; the barrel lean/Yulang.lean and the
+  # audit files themselves are excepted; docs such as lean/README.md do not count), its result
+  # cannot differ, so only new or changed audits are run. Deleted lines in any lean/ file,
+  # docs included, are still refused by check 4.
   # Otherwise, or with VERIFY_FULL_AUDIT=1, every audit is run. Axioms of every declaration are
   # still checked by the supervisor gate (check 10) either way.
   existing_changed=$(git diff --name-only "$base"..HEAD -- lean | while read -r f; do
       git cat-file -e "$base:$f" 2>/dev/null && echo "$f"; done \
+    | grep -E '\.lean$|/lakefile\.|/lake-manifest\.json$|/lean-toolchain$' \
     | grep -vxE 'lean/Yulang\.lean|lean/Audit\.lean|lean/Audit/[A-Za-z0-9_]+\.lean' || true)
   all_audits=$(cd lean && { echo Audit.lean; ls Audit/*.lean 2>/dev/null | sort; })
   if [ -n "$existing_changed" ] || [ "${VERIFY_FULL_AUDIT:-0}" = 1 ]; then
