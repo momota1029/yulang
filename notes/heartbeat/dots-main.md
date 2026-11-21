@@ -3,8 +3,8 @@
 - cycle: 318
 - status: running
 - started: 2026-11-21T09:30:00Z
-- updated: 2026-11-21T09:50:04.256Z
-- elapsed_min: 20
-- activity: C318 20分: C317の実据付で追加2スロットの由来を照合。既存行を保持する混在書込定理が通過。独立の変数名を使うchecked fixtureで実観測→一つの生成区間が上端再利用・下端新規になることを確認。
-- last_local_commit: 0f4880879
+- updated: 2026-11-21T10:00:03.381Z
+- elapsed_min: 30
+- activity: C318 30分: 実compilerの有限列挙と配置判定、旧journal・現head/classを守る混在batchを検証。独立binderのchecked実観測で上端再利用・下端新規、旧現4行に同一モデルが存在。
+- last_local_commit: f72d2e0f0
 - resume_hint: C318 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。
