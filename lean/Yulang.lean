@@ -6914,3 +6914,8 @@ import Yulang.GeneralDeclarativeGrowth327
 import Yulang.GeneralDeclarativeRepeatDecl327
 import Yulang.GeneralDeclarativeRepeatedHead327
 import Yulang.GeneralDeclarativeRepeatState327
+import Yulang.GeneralDeclarativeRepeatProbe327
+import Yulang.GeneralDeclarativeRepeatGraph327
+import Yulang.GeneralDeclarativeRepeatFrame327
+import Yulang.GeneralDeclarativeRepeatResolve327
+import Yulang.GeneralDeclarativeRepeatModels327
