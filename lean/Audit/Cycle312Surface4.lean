@@ -1,0 +1,47 @@
+import Yulang.GeneralVersionedJointWrites312
+import Yulang.GeneralVersionedProtectedLookup312
+import Yulang.GeneralVersionedProtectedName312
+import Yulang.GeneralVersionedProtectedPeer312
+import Yulang.GeneralVersionedRecursiveReducers312
+import Yulang.GeneralVersionedReservedOther312
+
+#print axioms Yulang.GeneralVersionedJointWrites312.equations
+#print axioms Yulang.GeneralVersionedJointWrites312.inputNames
+#print axioms Yulang.GeneralVersionedJointWrites312.rhs
+#print axioms Yulang.GeneralVersionedJointWrites312.rows
+#print axioms Yulang.GeneralVersionedJointWrites312.protect
+#print axioms Yulang.GeneralVersionedJointWrites312.rhs_preserved
+#print axioms Yulang.GeneralVersionedJointWrites312.emitted_in
+#print axioms Yulang.GeneralVersionedJointWrites312.child_in
+#print axioms Yulang.GeneralVersionedJointWrites312.full_write
+#print axioms Yulang.GeneralVersionedJointWrites312.complete
+#print axioms Yulang.GeneralVersionedProtectedLookup312.verify
+#print axioms Yulang.GeneralVersionedProtectedLookup312.verify_iff
+#print axioms Yulang.GeneralVersionedProtectedLookup312.checked_head
+#print axioms Yulang.GeneralVersionedProtectedName312.atSlot
+#print axioms Yulang.GeneralVersionedProtectedName312.Named
+#print axioms Yulang.GeneralVersionedProtectedName312.same_slot
+#print axioms Yulang.GeneralVersionedProtectedName312.all_ids
+#print axioms Yulang.GeneralVersionedProtectedName312.owner_from_id
+#print axioms Yulang.GeneralVersionedProtectedName312.on_trace
+#print axioms Yulang.GeneralVersionedProtectedPeer312.semanticPool
+#print axioms Yulang.GeneralVersionedProtectedPeer312.Raw
+#print axioms Yulang.GeneralVersionedProtectedPeer312.raw_of_head
+#print axioms Yulang.GeneralVersionedProtectedPeer312.Observation
+#print axioms Yulang.GeneralVersionedProtectedPeer312.raw_iff_observation
+#print axioms Yulang.GeneralVersionedProtectedPeer312.raw_transport
+#print axioms Yulang.GeneralVersionedProtectedPeer312.recorded_raw
+#print axioms Yulang.GeneralVersionedProtectedPeer312.completed
+#print axioms Yulang.GeneralVersionedProtectedPeer312.preserves
+#print axioms Yulang.GeneralVersionedProtectedPeer312.complete_head
+#print axioms Yulang.GeneralVersionedProtectedPeer312.complete_on_trace
+#print axioms Yulang.GeneralVersionedProtectedPeer312.prepared_on_trace
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.ChoiceCoverage
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.InitialHead
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.TargetChecks
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.choice_of_coverage
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.joint_of_checks
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.evidenceNode
+#print axioms Yulang.GeneralVersionedReservedOther312.reserved
+#print axioms Yulang.GeneralVersionedReservedOther312.recorded_owner
+#print axioms Yulang.GeneralVersionedReservedOther312.absent_with_different_key

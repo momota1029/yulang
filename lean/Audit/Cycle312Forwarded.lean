@@ -1,0 +1,7 @@
+import Yulang.GeneralVersionedForwardedJoint312
+#print axioms Yulang.GeneralVersionedForwardedWrites312.child_redundant
+#print axioms Yulang.GeneralVersionedForwardedWrites312.emitted_redundant
+#print axioms Yulang.GeneralVersionedForwardedWrites312.internal
+#print axioms Yulang.GeneralVersionedForwardedJoint312.joint
+#print axioms Yulang.GeneralVersionedForwardedJoint312.installable
+#print axioms Yulang.GeneralVersionedForwardedJoint312.evidence_node

@@ -1,0 +1,45 @@
+import Yulang.GeneralVersionedRootWrites312
+import Yulang.GeneralVersionedSelectedJointHead312
+import Yulang.GeneralVersionedSelectedJointWrites312
+import Yulang.GeneralVersionedSemanticPeer312
+import Yulang.GeneralVersionedSiteOrigins312
+
+#print axioms Yulang.GeneralVersionedRootWrites312.outer
+#print axioms Yulang.GeneralVersionedRootWrites312.whereRequests
+#print axioms Yulang.GeneralVersionedRootWrites312.inner
+#print axioms Yulang.GeneralVersionedRootWrites312.generated_append
+#print axioms Yulang.GeneralVersionedRootWrites312.separates
+#print axioms Yulang.GeneralVersionedRootWrites312.from_request
+#print axioms Yulang.GeneralVersionedRootWrites312.materialize_target
+#print axioms Yulang.GeneralVersionedRootWrites312.outer_live
+#print axioms Yulang.GeneralVersionedRootWrites312.internalRows
+#print axioms Yulang.GeneralVersionedRootWrites312.FreeCoherent
+#print axioms Yulang.GeneralVersionedRootWrites312.lift_table
+#print axioms Yulang.GeneralVersionedSelectedJointHead312.head_of_schema
+#print axioms Yulang.GeneralVersionedSelectedJointHead312.effects_for_frame
+#print axioms Yulang.GeneralVersionedSelectedJointHead312.report_for_frame
+#print axioms Yulang.GeneralVersionedSelectedJointWrites312.TableReady
+#print axioms Yulang.GeneralVersionedSelectedJointWrites312.joint
+#print axioms Yulang.GeneralVersionedSelectedJointWrites312.InternalReady
+#print axioms Yulang.GeneralVersionedSelectedJointWrites312.joint_from_internal
+#print axioms Yulang.GeneralVersionedSemanticPeer312.reportPool
+#print axioms Yulang.GeneralVersionedSemanticPeer312.protectedPool
+#print axioms Yulang.GeneralVersionedSemanticPeer312.complete
+#print axioms Yulang.GeneralVersionedSemanticPeer312.Sufficient
+#print axioms Yulang.GeneralVersionedSemanticPeer312.full_head
+#print axioms Yulang.GeneralVersionedSemanticPeer312.full_head_of_trace
+#print axioms Yulang.GeneralVersionedSemanticPeer312.Coverage
+#print axioms Yulang.GeneralVersionedSemanticPeer312.coverage_of_trace
+#print axioms Yulang.GeneralVersionedSemanticPeer312.prepared
+#print axioms Yulang.GeneralVersionedSemanticPeer312.choice
+#print axioms Yulang.GeneralVersionedSiteOrigins312.child_above
+#print axioms Yulang.GeneralVersionedSiteOrigins312.emitted_origin
+#print axioms Yulang.GeneralVersionedSiteOrigins312.emitted_above
+#print axioms Yulang.GeneralVersionedSiteOrigins312.TraceData
+#print axioms Yulang.GeneralVersionedSiteOrigins312.initial_data
+#print axioms Yulang.GeneralVersionedSiteOrigins312.trace
+#print axioms Yulang.GeneralVersionedSiteOrigins312.reached
+#print axioms Yulang.GeneralVersionedSiteOrigins312.stored_current_config
+#print axioms Yulang.GeneralVersionedSiteOrigins312.stored_effect
+#print axioms Yulang.GeneralVersionedSiteOrigins312.stored_finished
+#print axioms Yulang.GeneralVersionedSiteOrigins312.stored_visible
