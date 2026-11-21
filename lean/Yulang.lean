@@ -6513,3 +6513,9 @@ import Yulang.GeneralWhereVersionCompiler317
 import Yulang.GeneralWhereVersionCase317
 import Yulang.GeneralWhereVersionBase317
 import Yulang.GeneralWhereVersionWitness317
+import Yulang.GeneralWhereVersionSnapshot317
+import Yulang.GeneralWhereVersionCommit317
+import Yulang.GeneralWhereVersionLeafHead317
+import Yulang.GeneralWhereVersionLeafFresh317
+import Yulang.GeneralWhereVersionLeafProof317
+import Yulang.GeneralWhereVersionLeaf317
