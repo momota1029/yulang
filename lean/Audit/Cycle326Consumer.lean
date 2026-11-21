@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeProjectedConsumer326
+
+#print axioms Yulang.GeneralDeclarativeProjectedConsumer326.ordered_child
+#print axioms Yulang.GeneralDeclarativeProjectedConsumer326.fixed_left_output
