@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativeStableResult329.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableModels329.genuine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableCrossResolve329.typed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableCrossCut329.exact_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableWriteVerdict329.genuine_type_error' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStablePendingAnchor329.ordinary_not_backed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

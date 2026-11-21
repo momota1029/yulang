@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeStableActual329.evidence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStablePoint329.distinct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableTrace329.from_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableHybrid329.ordered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableReplay329.from_sources' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableReplay329.replay' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeStableFixture329.prior_untied' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeStableFixture329.current_tie' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableFixture329.frame' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableFixture329.exact_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableFixture329.wrong_return_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableProbe329.acyclic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableResult329.tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableResult329.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]

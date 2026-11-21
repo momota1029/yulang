@@ -1,0 +1,50 @@
+C329 pinned source provenance and scope:
+Prior full handoff: 200c9b749b247f360c3e2819009094707ba8b651
+Independent source pin: 439e5cc76667e54793b44fe314a02df7f2b41372
+Source pin live & exact 43 paths + 1 heartbeat; no unrelated paths.
+Protected remote metadata only; bodies not fetched or written:
+lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Lean 4.35.0; focused Lake, direct trust-zero for all additions, standalone audit imports only Yulang modules. No full umbrella or Rust execution.
+6	0	lean/Audit/Cycle329Assembly.lean
+13	0	lean/Audit/Cycle329Boundaries.lean
+12	0	lean/Audit/Cycle329Choice.lean
+8	0	lean/Audit/Cycle329Core.lean
+12	0	lean/Audit/Cycle329Cross.lean
+38	0	lean/Audit/Cycle329Crosscheck.lean
+10	0	lean/Audit/Cycle329Fixture.lean
+9	0	lean/Audit/Cycle329Replay.lean
+33	0	lean/Yulang.lean
+98	0	lean/Yulang/GeneralDeclarativeStableActual329.lean
+92	0	lean/Yulang/GeneralDeclarativeStableAnchor329.lean
+147	0	lean/Yulang/GeneralDeclarativeStableAssemble329.lean
+86	0	lean/Yulang/GeneralDeclarativeStableAttempt329.lean
+65	0	lean/Yulang/GeneralDeclarativeStableBackedAnchor329.lean
+87	0	lean/Yulang/GeneralDeclarativeStableCanonical329.lean
+68	0	lean/Yulang/GeneralDeclarativeStableClash329.lean
+98	0	lean/Yulang/GeneralDeclarativeStableCompiler329.lean
+83	0	lean/Yulang/GeneralDeclarativeStableCrossBridge329.lean
+98	0	lean/Yulang/GeneralDeclarativeStableCrossCompile329.lean
+102	0	lean/Yulang/GeneralDeclarativeStableCrossCut329.lean
+180	0	lean/Yulang/GeneralDeclarativeStableCrossResolve329.lean
+104	0	lean/Yulang/GeneralDeclarativeStableCrossSource329.lean
+148	0	lean/Yulang/GeneralDeclarativeStableFixture329.lean
+105	0	lean/Yulang/GeneralDeclarativeStableGraph329.lean
+123	0	lean/Yulang/GeneralDeclarativeStableHybrid329.lean
+102	0	lean/Yulang/GeneralDeclarativeStableInputs329.lean
+57	0	lean/Yulang/GeneralDeclarativeStableMerge329.lean
+206	0	lean/Yulang/GeneralDeclarativeStableMergeEquiv329.lean
+117	0	lean/Yulang/GeneralDeclarativeStableModels329.lean
+64	0	lean/Yulang/GeneralDeclarativeStableOrigin329.lean
+84	0	lean/Yulang/GeneralDeclarativeStablePendingAnchor329.lean
+101	0	lean/Yulang/GeneralDeclarativeStablePoint329.lean
+117	0	lean/Yulang/GeneralDeclarativeStableProbe329.lean
+109	0	lean/Yulang/GeneralDeclarativeStableReads329.lean
+116	0	lean/Yulang/GeneralDeclarativeStableRejected329.lean
+94	0	lean/Yulang/GeneralDeclarativeStableReplay329.lean
+62	0	lean/Yulang/GeneralDeclarativeStableResult329.lean
+65	0	lean/Yulang/GeneralDeclarativeStableScope329.lean
+58	0	lean/Yulang/GeneralDeclarativeStableSelect329.lean
+96	0	lean/Yulang/GeneralDeclarativeStableTies329.lean
+81	0	lean/Yulang/GeneralDeclarativeStableTrace329.lean
+55	0	lean/Yulang/GeneralDeclarativeStableWriteVerdict329.lean

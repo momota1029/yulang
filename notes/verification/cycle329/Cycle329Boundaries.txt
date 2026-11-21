@@ -1,0 +1,12 @@
+'Yulang.GeneralDeclarativeStableBackedAnchor329.expose' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStablePendingAnchor329.ordinary_not_backed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStableWriteVerdict329.genuine_type_error' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStableScope329.source_scope' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableScope329.no_rows_if_linear' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableMergeEquiv329.aggregates' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableMergeEquiv329.forest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableMergeEquiv329.forest_evidence' depends on axioms: [propext, Quot.sound]

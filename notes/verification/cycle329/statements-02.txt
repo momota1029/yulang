@@ -1,0 +1,154 @@
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossCompile329.final m
+@Yulang.GeneralDeclarativeStableCrossBridge329.literal_alias : ∀ {done : Nat → Prop}
+  (p : Yulang.GeneralDeclarativeOrigins321.Supported Yulang.GeneralDeclarativeStableCrossBridge329.current done),
+  Yulang.GeneralDeclarativeLowerKnown321.Alias (Yulang.GeneralDeclarativeOrigins321.restriction p) 13 3
+Yulang.GeneralDeclarativeStableCrossCompile329.write : Yulang.GeneralDeclarativeStableTies329.rows
+    (Yulang.GeneralDeclarativeStableAssemble329.firsts Yulang.GeneralDeclarativeStableCrossSource329.spans
+      Yulang.GeneralDeclarativeStableCrossCompile329.fallback)
+    (List.map Yulang.GeneralDeclarativeStableTies329.pairOf Yulang.GeneralDeclarativeStableCrossSource329.spans) =
+  [{ left := 3, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7 }]
+Yulang.GeneralDeclarativeStableCrossCompile329.exact_capture : Yulang.GeneralDeclarativeStableCrossCompile329.chosen.captures
+    0 =
+  { lower := 13, center := 3, upper := 14 }
+Yulang.GeneralDeclarativeStableCrossCompile329.exact_child : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeRepeatedSource323.parent
+    (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeRepeatedSource323.parent
+      Yulang.GeneralDeclarativeStableCrossCompile329.place
+      Yulang.GeneralDeclarativeStableCrossCompile329.chosen.captures)
+    Yulang.GeneralDeclarativeStableCrossCompile329.place =
+  [Yulang.GeneralDeclarativeStableCrossCompile329.requested]
+Yulang.GeneralDeclarativeStableCrossCompile329.rejects_wrong_center : Yulang.GeneralDeclarativeOpaqueBatch328.check
+    (Yulang.GeneralDeclarativeEmissionForest322.children Yulang.GeneralDeclarativeRepeatedSource323.parent
+      (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeRepeatedSource323.parent
+        Yulang.GeneralDeclarativeStableCrossCompile329.place
+        Yulang.GeneralDeclarativeStableCrossCompile329.chosen.captures)
+      Yulang.GeneralDeclarativeStableCrossCompile329.place)
+    [{ role := 0, arguments := [{ lower := 13, center := 7, upper := 14 }], outputs := [] }] =
+  false
+Yulang.GeneralDeclarativeStableCrossCompile329.declared : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativeRepeatedSource323.registry Yulang.GeneralDeclarativeRepeatedSource323.goal
+Yulang.GeneralDeclarativeStableCrossCompile329.typed : Yulang.GeneralDeclarativeCompileLists321.Result
+    Yulang.GeneralDeclarativeStableCrossCompile329.final
+    (Yulang.GeneralDeclarativeNFComplete324.facts Yulang.GeneralDeclarativeRepeatedSource323.registry
+      Yulang.GeneralDeclarativeExampleSource320.interp
+      (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeRepeatedSource323.parent
+          Yulang.GeneralDeclarativeStableCrossCompile329.place
+          Yulang.GeneralDeclarativeStableCrossCompile329.chosen.captures).input
+      Yulang.GeneralDeclarativeRepeatedSource323.parent Yulang.GeneralDeclarativeRepeatedSource323.goal
+      [Yulang.GeneralDeclarativeStableCrossCompile329.requested]) ∧
+  ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossCompile329.final m →
+      Yulang.GeneralDeclarativeAssembly320.Meaning Yulang.GeneralDeclarativeRepeatedSource323.registry
+        Yulang.GeneralDeclarativeExampleSource320.interp m Yulang.GeneralDeclarativeRepeatedSource323.goal
+        Yulang.GeneralDeclarativeRepeatedSource323.parent
+        (Yulang.GeneralDeclarativeFrameReadback325.sourceNames Yulang.GeneralDeclarativeRepeatedSource323.parent
+            Yulang.GeneralDeclarativeStableCrossCompile329.place
+            Yulang.GeneralDeclarativeStableCrossCompile329.chosen.captures).input
+        [Yulang.GeneralDeclarativeStableCrossCompile329.requested]
+Yulang.GeneralDeclarativeStableCrossCompile329.untied_model : Yulang.GeneralDeclarativeHead320.Models
+    Yulang.GeneralDeclarativeStableCrossSource329.actual.state
+    (Yulang.GeneralDeclarativeStableCrossSource329.assignment Yulang.GeneralDeclarativeNestedModels328.boolType) ∧
+  ¬Yulang.GeneralDeclarativeHead320.Models
+      (Yulang.GeneralDeclarativeStableAssemble329.tieState Yulang.GeneralDeclarativeStableCrossSource329.actual.state
+        Yulang.GeneralDeclarativeStableCrossSource329.spans Yulang.GeneralDeclarativeStableCrossCompile329.fallback)
+      (Yulang.GeneralDeclarativeStableCrossSource329.assignment Yulang.GeneralDeclarativeNestedModels328.boolType)
+Yulang.GeneralDeclarativeStableCrossCompile329.compatible : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossCompile329.final m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 3).fst (m 7).fst
+Yulang.GeneralDeclarativeStableCrossCompile329.inhabitance : ∃ m,
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossCompile329.final m
+@Yulang.GeneralDeclarativeStableCrossCut329.bound_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeBounds319.Bound Yulang.GeneralDeclarativeStableCrossCompile329.final.normal a b →
+    Yulang.GeneralDeclarativeStableCrossCut329.rank a ≤ Yulang.GeneralDeclarativeStableCrossCut329.rank b
+@Yulang.GeneralDeclarativeStableCrossCut329.allowed_row : ∀ {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          Yulang.GeneralDeclarativeStableCrossCut329.beforeSupport).equations →
+    e ∈ Yulang.GeneralDeclarativeStableCrossSource329.oldRows
+@Yulang.GeneralDeclarativeStableCrossCut329.before_alias_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias
+      (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeStableCrossCut329.beforeSupport) a b →
+    Yulang.GeneralDeclarativeStableCrossCut329.rank a = Yulang.GeneralDeclarativeStableCrossCut329.rank b
+Yulang.GeneralDeclarativeStableCrossCut329.before_unknown : ∀ (tag : Yulang.GeneralDeclarativeLowerKnown321.Tag),
+  ¬Yulang.GeneralDeclarativeLowerKnown321.Knows
+      (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeStableCrossCut329.beforeSupport) 13 tag
+Yulang.GeneralDeclarativeStableCrossCut329.old_delayed : Yulang.GeneralDeclarativeLowerKnown321.Delayed
+  Yulang.GeneralDeclarativeStableCrossCut329.beforeSupport Yulang.GeneralDeclarativeStableCrossCompile329.requested
+Yulang.GeneralDeclarativeStableCrossCut329.pure_before : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeStableCrossCompile329.final
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeStableCrossCompile329.final) n
+Yulang.GeneralDeclarativeStableCrossCut329.pre_diagnostic : Yulang.GeneralDeclarativeStableSelect329.Rule
+  Yulang.GeneralDeclarativeStableCrossCompile329.final Yulang.GeneralDeclarativeRepeatedSource323.registry
+  Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeStableCrossCut329.beforeSupport
+  Yulang.GeneralDeclarativeStableCrossCut329.tests Yulang.GeneralDeclarativeStableCrossCompile329.requested
+  Yulang.CommonRoleOutermostResolver.Frontier.pending
+Yulang.GeneralDeclarativeStableCrossCut329.exact_cut : (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossBridge329.current m ↔
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossCompile329.final m) ∧
+  (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossCompile329.final m →
+        Yulang.CommonNominalFullCarrier.Equivalent (m 13).fst (m 3).fst) ∧
+    Yulang.GeneralDeclarativeStableSelect329.Rule Yulang.GeneralDeclarativeStableCrossCompile329.final
+        Yulang.GeneralDeclarativeRepeatedSource323.registry Yulang.GeneralDeclarativeExampleSource320.interp
+        Yulang.GeneralDeclarativeStableCrossCut329.beforeSupport Yulang.GeneralDeclarativeStableCrossCut329.tests
+        Yulang.GeneralDeclarativeStableCrossCompile329.requested Yulang.CommonRoleOutermostResolver.Frontier.pending ∧
+      Yulang.GeneralDeclarativeLowerKnown321.Ready Yulang.GeneralDeclarativeStableCrossResolve329.support
+        Yulang.GeneralDeclarativeStableCrossCompile329.requested
+Yulang.GeneralDeclarativeStableCrossResolve329.table : Yulang.GeneralDeclarativeStableCrossBridge329.current.equations =
+  Yulang.GeneralDeclarativeStableCrossSource329.oldRows ++
+    [{ left := 11, right := Yulang.GeneralDeclarativeRepeatedSource323.nominalCode 7 },
+      { left := 3, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7 }]
+@Yulang.GeneralDeclarativeStableCrossResolve329.lit : ∀ {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈ Yulang.GeneralDeclarativeStableCrossSource329.oldRows →
+    e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeStableCrossResolve329.support).equations
+Yulang.GeneralDeclarativeStableCrossResolve329.child_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeStableCrossBridge329.current { lower := 13, center := 3, upper := 14 }
+Yulang.GeneralDeclarativeStableCrossResolve329.parent_ready : Yulang.GeneralDeclarativeLowerKnown321.Ready
+  Yulang.GeneralDeclarativeStableCrossResolve329.support Yulang.GeneralDeclarativeRepeatedSource323.goal
+Yulang.GeneralDeclarativeStableCrossResolve329.child_ready : Yulang.GeneralDeclarativeLowerKnown321.Ready
+  Yulang.GeneralDeclarativeStableCrossResolve329.support Yulang.GeneralDeclarativeStableCrossCompile329.requested
+Yulang.GeneralDeclarativeStableCrossResolve329.parent_matches : Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeStableCrossResolve329.support)
+  Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+  Yulang.GeneralDeclarativeRepeatedSource323.goal Yulang.GeneralDeclarativeRepeatedSource323.parent
+Yulang.GeneralDeclarativeStableCrossResolve329.child_matches : Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeStableCrossResolve329.support)
+  Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+  Yulang.GeneralDeclarativeStableCrossCompile329.requested Yulang.GeneralDeclarativeRepeatedSource323.child
+Yulang.GeneralDeclarativeStableCrossResolve329.constraints : Yulang.GeneralDeclarativeStableCrossBridge329.current.normal.ordinary =
+  Yulang.GeneralDeclarativeStableCrossResolve329.aggregateAtoms 13 14 ++
+      Yulang.GeneralDeclarativeStableCrossResolve329.aggregateAtoms 15 16 ++
+    [Yulang.GeneralDeclarativeStableCrossResolve329.atom 13 3, Yulang.GeneralDeclarativeStableCrossResolve329.atom 3 13,
+      Yulang.GeneralDeclarativeStableCrossResolve329.atom 14 3,
+      Yulang.GeneralDeclarativeStableCrossResolve329.atom 3 14]
+@Yulang.GeneralDeclarativeStableCrossResolve329.alias_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias Yulang.GeneralDeclarativeStableCrossBridge329.current a b →
+    Yulang.GeneralDeclarativeStableCrossResolve329.rank a = Yulang.GeneralDeclarativeStableCrossResolve329.rank b
+Yulang.GeneralDeclarativeStableCrossResolve329.no_cycle : ∀ (a : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeStableCrossBridge329.current
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeStableCrossBridge329.current) a
+Yulang.GeneralDeclarativeStableCrossResolve329.safe : ∀ (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeStableCrossBridge329.current
+      Yulang.GeneralDeclarativeRepeatedSource323.registry Yulang.GeneralDeclarativeExampleSource320.interp
+      Yulang.GeneralDeclarativeStableCrossResolve329.tests d
+Yulang.GeneralDeclarativeStableCrossResolve329.root_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeRepeatedSource323.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeRepeatedSource323.goal.role →
+      d = Yulang.GeneralDeclarativeRepeatedSource323.parent
+Yulang.GeneralDeclarativeStableCrossResolve329.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeRepeatedSource323.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeStableCrossCompile329.requested.role →
+      d = Yulang.GeneralDeclarativeRepeatedSource323.child
+Yulang.GeneralDeclarativeStableCrossResolve329.root_selected : Yulang.GeneralDeclarativeStableCrossResolve329.localRule
+  Yulang.GeneralDeclarativeRepeatedSource323.goal
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeRepeatedSource323.parent.id
+    [Yulang.GeneralDeclarativeStableCrossCompile329.requested])
+Yulang.GeneralDeclarativeStableCrossResolve329.child_selected : Yulang.GeneralDeclarativeStableCrossResolve329.localRule
+  Yulang.GeneralDeclarativeStableCrossCompile329.requested
+  (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeRepeatedSource323.child.id [])
+Yulang.GeneralDeclarativeStableCrossResolve329.tree : Yulang.CommonRoleOutermostResolver.Classify
+  Yulang.GeneralDeclarativeStableCrossResolve329.localRule Yulang.GeneralDeclarativeRepeatedSource323.goal
+  (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeStableCrossResolve329.dict)
+Yulang.GeneralDeclarativeStableCrossResolve329.typed : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossBridge329.current m →

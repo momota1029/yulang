@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeStableCanonical329.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableCanonical329.permutation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableMerge329.compile_after' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableOrigin329.candidate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableGraph329.cycles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableModels329.genuine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableAttempt329.reject_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableRejected329.actual_rejection' depends on axioms: [propext, Classical.choice, Quot.sound]

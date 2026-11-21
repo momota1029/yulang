@@ -1,0 +1,30 @@
+Immutable source commit: 439e5cc76667e54793b44fe314a02df7f2b41372
+'Yulang.GeneralDeclarativeStableResult329.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableModels329.genuine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableCrossResolve329.typed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableCrossCut329.exact_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableWriteVerdict329.genuine_type_error' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStablePendingAnchor329.ordinary_not_backed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Cycle329Crosscheck byte match / source replay 0
+'Yulang.GeneralDeclarativeStableInputs329.for_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableAssemble329.assemble' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableAssemble329.witness_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableAssemble329.frame_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+Cycle329Assembly byte match / source replay 0
+'Yulang.GeneralDeclarativeStableBackedAnchor329.expose' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStablePendingAnchor329.ordinary_not_backed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStableWriteVerdict329.genuine_type_error' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStableScope329.source_scope' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableScope329.no_rows_if_linear' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableMergeEquiv329.aggregates' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableMergeEquiv329.forest' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableMergeEquiv329.forest_evidence' depends on axioms: [propext, Quot.sound]
+Cycle329Boundaries byte match / source replay 0
