@@ -6897,3 +6897,8 @@ import Yulang.GeneralDeclarativeJoinedSpan326
 import Yulang.GeneralDeclarativeProjectPair326
 import Yulang.GeneralDeclarativeAuthorizedCopy326
 import Yulang.GeneralDeclarativeCopyFixture326
+import Yulang.GeneralDeclarativeCopyCollapse326
+import Yulang.GeneralDeclarativeCopyK2326
+import Yulang.GeneralDeclarativeGraphFootprint326
+import Yulang.GeneralDeclarativeOrderedRecord326
+import Yulang.GeneralDeclarativeOrderedTail326
