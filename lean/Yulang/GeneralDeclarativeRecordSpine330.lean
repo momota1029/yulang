@@ -98,4 +98,24 @@ theorem exact_subtraction {s : State} {p : Supported s done}
     (to_permutation distinct sorted) (selected_nodup _ _ (normalize_unique fields))
   exact eqv_trans raw (eqv_trans canonical (eqv_trans split ordered))
 
+
+open GeneralDeclarativeLowerKnown321 (Knows constructorTag knows_alias knows_row)
+
+/-- Actual supported record spines expose a lower constructor without
+promoting the equality derived by `assemble` to a fresh source fact.
+An empty stored prefix contributes only its authorized alias. -/
+theorem head_known {s : State} (source : Spine s root row term)
+    (tag : constructorTag (withTail row term) = some k) : Knows s root k := by
+  induction source with
+  | width linked submitted | exactEnd linked submitted =>
+    exact knows_alias linked (knows_row submitted tag)
+  | cons linked submitted _ _ =>
+    exact knows_alias linked (knows_row submitted tag)
+  | inline linked _ submitted =>
+    exact knows_alias linked (knows_row submitted tag)
+  | @prefixed root owner front rest suffix term linked stored _ ih =>
+    cases front with
+    | nil => exact knows_alias (.trans linked (.forward stored)) (ih tag)
+    | cons hd tl => exact knows_alias linked (knows_row stored tag)
+
 end Yulang.GeneralDeclarativeRecordSpine330

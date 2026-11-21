@@ -7035,3 +7035,8 @@ import Yulang.GeneralDeclarativeCurrentProbe330
 import Yulang.GeneralDeclarativeCurrentResult330
 import Yulang.GeneralDeclarativeRecordReplay330
 import Yulang.GeneralDeclarativeRecordElection330
+import Yulang.GeneralDeclarativeRecordPoints330
+import Yulang.GeneralDeclarativeRecordInline330
+import Yulang.GeneralDeclarativeGuardView330
+import Yulang.GeneralDeclarativeGuardCurrent330
+import Yulang.GeneralDeclarativeRecordPayloads330

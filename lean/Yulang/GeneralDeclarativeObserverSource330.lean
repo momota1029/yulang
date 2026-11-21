@@ -1,4 +1,5 @@
 import Yulang.GeneralDeclarativeObserverGrowth330
+import Yulang.GeneralDeclarativeRecordPoints330
 import Yulang.GeneralDeclarativeStableReplay329
 
 set_option backward.isDefEq.respectTransparency false
@@ -45,6 +46,11 @@ inductive Input {s : State} (p : Supported s done) (c : Constructors) (i : Inter
       order (CommonRoleCanonicalRows.normalize raw) keys = some chosen → Fields p chosen written binds →
       translate c i (normalize pat) = some (withTail written (.variable binder)) → Input p c i a pat
 
+  | pointFields : Bounds s a → Spine (restriction p) a.center raw term → keys.Nodup →
+      order (CommonRoleCanonicalRows.normalize raw) keys = some chosen →
+      GeneralDeclarativeRecordPoints330.Layout chosen written binders →
+      translate c i (normalize pat) = some (withTail written (.variable binder)) → Input p c i a pat
+
 inductive Inputs {s : State} (p : Supported s done) (c : Constructors) (i : Interpretation) :
     List Capture → List Pattern → Prop where
   | nil : Inputs p c i [] []
@@ -70,6 +76,11 @@ theorem observe_one {s t : State} {p : Supported s done} (given : Input p c i a 
     have accepted := one (p := preserve p older) (fits older box) (spine (sources_grow p older) looked)
       distinct printed (fields older shape) translated protect
     exact ⟨_,_,accepted⟩
+
+  | pointFields box looked distinct printed layout translated =>
+    obtain ⟨grow,read⟩ := GeneralDeclarativeRecordPoints330.observed (p := preserve p older)
+      (spine (sources_grow p older) looked) (fits older box) distinct printed layout translated protect
+    exact ⟨_,_,grow,read,GeneralDeclarativeRecordPoints330.spans _ _ _ _ _⟩
 
 theorem observe_all {s t : State} {p : Supported s done} (given : Inputs p c i args pats)
     (older : Extends s t) (protect : List Nat) :
