@@ -1,0 +1,13 @@
+import Yulang.GeneralMixedCompoundPointFeedback308
+import Yulang.GeneralMixedCompoundPointChild308
+
+open Yulang
+
+#print axioms GeneralMixedCompoundPointPorts308.ports
+#print axioms GeneralMixedCompoundPointFeedback308.public_projection_not_feedback
+#print axioms GeneralMixedCompoundPointFeedback308.models_iff
+#print axioms GeneralMixedCompoundPointFeedback308.not_repeat
+#print axioms GeneralMixedCompoundPointViewTrust308.step
+#print axioms GeneralMixedCompoundPointChild308.report_exact
+#print axioms GeneralMixedCompoundPointChild308.no_evidence
+#print axioms GeneralMixedCompoundPointChild308.same_request
