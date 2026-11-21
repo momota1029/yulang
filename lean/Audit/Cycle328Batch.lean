@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeNestedBatch328
+import Yulang.GeneralDeclarativeOpaqueAuditGraph328
+
+#print axioms Yulang.GeneralDeclarativeOpaqueSingle328.supported_plan
+#print axioms Yulang.GeneralDeclarativeOpaqueSingle328.compiler_head
+#print axioms Yulang.GeneralDeclarativeOpaqueBatch328.check_exact
+#print axioms Yulang.GeneralDeclarativeOpaqueBatch328.accepted
+#print axioms Yulang.GeneralDeclarativeNestedBatch328.compiles
+#print axioms Yulang.GeneralDeclarativeNestedBatch328.full
+#print axioms Yulang.GeneralDeclarativeOpaqueCompress328.bound_exact
+#print axioms Yulang.GeneralDeclarativeOpaqueCompress328.alias_exact
+#print axioms Yulang.GeneralDeclarativeOpaqueCompress328.old_alias_if
+#print axioms Yulang.GeneralDeclarativeOpaqueAuditGraph328.no_cycle
