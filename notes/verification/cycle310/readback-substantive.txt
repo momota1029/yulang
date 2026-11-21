@@ -1,0 +1,7 @@
+Substantive GitHub commit: b24594d2761a1e8c04eef66e94253e5c532fb414.
+Prior completed GitHub base: b1bf6868ffa0792b6a034cb09fd8e8550a1c9fab.
+The substantive commit equaled live work/dots-main at readback.
+69/69 cumulatively changed paths matched byte-for-byte at the immutable substantive pin.
+Remote lean/Yulang.lean = prior canonical barrel + exactly 35 appended import lines.
+Heartbeat was running, elapsed_min=42, activity recorded for all verified source and audit files.
+All publication on work/dots-main used expected prior HEAD and force=false.
