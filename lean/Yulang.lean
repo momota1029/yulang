@@ -6345,3 +6345,4 @@ import Yulang.GeneralVersionedCheckedReturn310
 import Yulang.GeneralSharedNamedPremerge310
 import Yulang.GeneralSharedNamedDiagnostic310
 import Yulang.GeneralSharedNamedCurrentGuards310
+import Yulang.GeneralVersionedPeerChoice311
