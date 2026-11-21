@@ -1,11 +1,10 @@
 # dot heartbeat
 
-- cycle: 325
-- status: completed
-- started: 2026-11-21T16:32:41Z
-- updated: 2026-11-21T17:22:45.775Z
-- elapsed_min: 50
-- activity: C325 complete: ordinary normalized readback, genuine compound where and same-model dictionaries
+- cycle: 326
+- status: running
+- started: 2026-11-21T17:30:00Z
+- updated: 2026-11-21T17:30:02.205Z
+- elapsed_min: 0
+- activity: C326 start: constructive center projections for normalized source patterns
 - last_local_commit: 1a9685034
-- resume_hint: C325 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。
-- report: notes/handoff/dots-cycle-325.md
+- resume_hint: C326 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。
