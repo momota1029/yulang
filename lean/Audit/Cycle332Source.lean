@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeNestedExample332
+
+#print axioms Yulang.GeneralDeclarativeNestedView332.literalRows_sound
+#print axioms Yulang.GeneralDeclarativeNestedSound332.sound
+#print axioms Yulang.GeneralDeclarativeNestedDecode332.normalized_sound
+#print axioms Yulang.GeneralDeclarativeNestedExample332.actual_lower
+#print axioms Yulang.GeneralDeclarativeNestedExample332.observed_endpoints
+#print axioms Yulang.GeneralDeclarativeNestedExample332.observed_center
