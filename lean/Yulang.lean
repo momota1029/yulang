@@ -6903,3 +6903,5 @@ import Yulang.GeneralDeclarativeGraphFootprint326
 import Yulang.GeneralDeclarativeOrderedRecord326
 import Yulang.GeneralDeclarativeOrderedTail326
 import Yulang.GeneralDeclarativeCopiedPending326
+import Yulang.GeneralDeclarativeProjectInterval326
+import Yulang.GeneralDeclarativeProjectCapture326
