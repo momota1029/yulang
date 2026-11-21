@@ -1,0 +1,39 @@
+import Yulang.GeneralPositiveForkSource309
+import Yulang.GeneralPositiveForkVerified309
+import Yulang.GeneralSelectedReadEvidence309
+import Yulang.GeneralSelectedReadScope309
+
+#print axioms Yulang.GeneralPositiveForkSource309.loClause
+#print axioms Yulang.GeneralPositiveForkSource309.hiClause
+#print axioms Yulang.GeneralPositiveForkSource309.associated
+#print axioms Yulang.GeneralPositiveForkSource309.parent
+#print axioms Yulang.GeneralPositiveForkSource309.left
+#print axioms Yulang.GeneralPositiveForkSource309.right
+#print axioms Yulang.GeneralPositiveForkSource309.registry
+#print axioms Yulang.GeneralPositiveForkSource309.compiled
+#print axioms Yulang.GeneralPositiveForkSource309.root
+#print axioms Yulang.GeneralPositiveForkSource309.initial
+#print axioms Yulang.GeneralPositiveForkSource309.parent_signature
+#print axioms Yulang.GeneralPositiveForkSource309.parent_checked
+#print axioms Yulang.GeneralPositiveForkSource309.left_checked
+#print axioms Yulang.GeneralPositiveForkSource309.right_checked
+#print axioms Yulang.GeneralPositiveForkSource309.checked
+#print axioms Yulang.GeneralPositiveForkSource309.coverage
+#print axioms Yulang.GeneralPositiveForkSource309.init_source
+#print axioms Yulang.GeneralPositiveForkSource309.ground
+#print axioms Yulang.GeneralPositiveForkSource309.actual_initial
+#print axioms Yulang.GeneralPositiveForkSource309.init_reached
+#print axioms Yulang.GeneralPositiveForkSource309.init_model
+#print axioms Yulang.GeneralPositiveForkVerified309.certified_reader
+#print axioms Yulang.GeneralPositiveForkVerified309.checked_selected
+#print axioms Yulang.GeneralPositiveForkVerified309.certificates_for_every_model
+#print axioms Yulang.GeneralPositiveForkVerified309.only_explicit_body
+#print axioms Yulang.GeneralPositiveForkVerified309.evidence_at_low
+#print axioms Yulang.GeneralPositiveForkVerified309.evidence_at_high
+#print axioms Yulang.GeneralPositiveForkVerified309.fuel_not_rejection
+#print axioms Yulang.GeneralSelectedReadEvidence309.SelectionRow
+#print axioms Yulang.GeneralSelectedReadEvidence309.SelectedRead
+#print axioms Yulang.GeneralSelectedReadEvidence309.local_selected
+#print axioms Yulang.GeneralSelectedReadEvidence309.faithful
+#print axioms Yulang.GeneralSelectedReadEvidence309.selected_checker
+#print axioms Yulang.GeneralSelectedReadScope309.checked_on_footprint

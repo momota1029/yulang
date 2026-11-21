@@ -2,9 +2,9 @@
 - cycle: 309
 - status: running
 - started: 2026-11-21T00:29:54Z
-- updated: 2026-11-21T01:08:06.646Z
-- elapsed_min: 38
-- activity: 実可到達の両相で同一モデルの再帰証拠、最初の失敗・証明住所・読んだ支持の exactness を検証
+- updated: 2026-11-21T01:15:18.450Z
+- elapsed_min: 45
+- activity: C309: existing B4 current-candidate recursive soundness
 - workspace: /workspace/scratch/1d0b4aaa3394/yulang
-- last_local_commit: 468d68ad3
-- resume_hint: 独立監査とスコープ付き実行試験へ
+- last_local_commit: e7c1511e0
+- resume_hint: 三点の Current・Installable と既存 selected_node への接続が focused Lake build 合格。全ソースと独立監査を最終確認中。
