@@ -52,6 +52,9 @@ theorem spine {s t : State} (grown : Extends s t) (seen : Spine s n fields termi
   | exactEnd a b => exact .exactEnd (aliases grown a) (grown.equations b)
   | cons a b _ rest => exact .cons (aliases grown a) (grown.equations b) rest
 
+  | inline a terminal row => exact .inline (aliases grown a) terminal (grown.equations row)
+  | prefixed a row _ rest => exact .prefixed (aliases grown a) (grown.equations row) rest
+
 theorem located {s t : State} (grown : Extends s t) (uses : All₂ (Located s) a b) :
     All₂ (Located t) a b := by
   induction uses with

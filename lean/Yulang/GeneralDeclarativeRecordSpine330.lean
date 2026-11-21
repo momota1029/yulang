@@ -19,9 +19,17 @@ open GeneralDeclarativeOrderedRecord326 (order to_permutation)
 open CommonRoleCanonicalRows (Row normalize normalize_unique residual)
 open GeneralDeclarativeRepeatedActual323 (eqAt)
 
-/-- A closed ordinary source spine follows only authorized name
-equalities and actual row records. There is no open-fallback case;
-an unnamed or genuinely unknown terminal cannot produce a spine. -/
+/-- Inline constructor syntax can be read directly inside a
+supported RHS. Its tail is either a genuine terminal (constructor
+below) or a logical name whose own authorized spine can be followed.
+A join or unknown tail never becomes a terminal by model equality. -/
+inductive Terminal : Expr → Prop where
+  | width : Terminal (.primitive .emptyRecord [])
+  | exactEnd : Terminal (.primitive .exactEmpty [])
+
+/-- A closed ordinary source spine follows authorized name equalities
+and stored record prefixes. Payloads in buried fields can be arbitrary
+ordinary expressions; no terminal is chosen from a model. -/
 inductive Spine (s : State) : Nat → Row Expr → Expr → Prop where
   | width : Alias s root owner →
     (⟨owner,.primitive .emptyRecord []⟩ : Equation) ∈ s.equations →
@@ -33,6 +41,32 @@ inductive Spine (s : State) : Nat → Row Expr → Expr → Prop where
     (⟨owner,.record key (.variable field) (.variable rest)⟩ : Equation) ∈ s.equations →
     Spine s rest row terminal → Spine s root ((key,.variable field)::row) terminal
 
+  | inline : Alias s root owner → Terminal terminal →
+    (⟨owner,withTail fields terminal⟩ : Equation) ∈ s.equations →
+    Spine s root fields terminal
+  | prefixed : Alias s root owner →
+    (⟨owner,withTail front (.variable rest)⟩ : Equation) ∈ s.equations →
+    Spine s rest suffix terminal → Spine s root (front ++ suffix) terminal
+
+theorem tail_append (first last : Row Expr) (tail : Expr) :
+    withTail first (withTail last tail) = withTail (first ++ last) tail := by
+  induction first with
+  | nil => rfl
+  | cons f _ ih => simp only [withTail,List.cons_append,ih]
+
+theorem prefix_derives {s : State} (front : Row Expr) (r : Derives s x y) :
+    Derives s (withTail front x) (withTail front y) := by
+  induction front with
+  | nil => exact r
+  | cons _ _ ih => exact .record (.refl _) ih
+
+theorem ends {s : State} (seen : Spine s root fields terminal) : Terminal terminal := by
+  induction seen with
+  | width => exact .width
+  | exactEnd => exact .exactEnd
+  | inline _ t _ => exact t
+  | cons _ _ _ ih | prefixed _ _ _ ih => exact ih
+
 theorem assemble {s : State} (actual : Spine s root fields terminal) :
     Derives s (.variable root) (withTail fields terminal) := by
   induction actual with
@@ -41,6 +75,11 @@ theorem assemble {s : State} (actual : Spine s root fields terminal) :
   | cons linked stored _ tail =>
     exact .trans
       (.trans (.congruent (.variable linked)) (.row stored)) (.record (.refl _) tail)
+
+  | inline linked _ stored => exact .trans (.congruent (.variable linked)) (.row stored)
+  | @prefixed root owner front rest suffix terminal linked stored _ tail =>
+    rw [← tail_append front suffix terminal]
+    exact .trans (.trans (.congruent (.variable linked)) (.row stored)) (prefix_derives front tail)
 
 theorem was_named {s : State} {p : Supported s done} (actual : Spine (restriction p) root fields terminal) :
     Derives s (.variable root) (withTail fields terminal) :=

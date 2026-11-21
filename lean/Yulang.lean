@@ -7033,3 +7033,5 @@ import Yulang.GeneralDeclarativeObserverSource330
 import Yulang.GeneralDeclarativeCurrentReceipt330
 import Yulang.GeneralDeclarativeCurrentProbe330
 import Yulang.GeneralDeclarativeCurrentResult330
+import Yulang.GeneralDeclarativeRecordReplay330
+import Yulang.GeneralDeclarativeRecordElection330

@@ -1,7 +1,8 @@
-import Yulang.GeneralDeclarativeRecordTail330
+import Yulang.GeneralDeclarativeRecordElection330
 
-#print axioms Yulang.GeneralDeclarativeRecordMask330.other
-#print axioms Yulang.GeneralDeclarativeRecordReconstruct330.reconstruct
-#print axioms Yulang.GeneralDeclarativeRecordReconstruct330.exact
-#print axioms Yulang.GeneralDeclarativeRecordNames330.model_exact
-#print axioms Yulang.GeneralDeclarativeRecordTail330.does_not_fix_remainder
+#print axioms Yulang.GeneralDeclarativeRecordSpine330.ends
+#print axioms Yulang.GeneralDeclarativeRecordSpine330.exact_subtraction
+#print axioms Yulang.GeneralDeclarativeRecordReplay330.actual_observation
+#print axioms Yulang.GeneralDeclarativeRecordReplay330.user_readback
+#print axioms Yulang.GeneralDeclarativeRecordElection330.endpoint_trace
+#print axioms Yulang.GeneralDeclarativeRecordElection330.protected_tail
