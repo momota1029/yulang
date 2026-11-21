@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeHiddenPath324
+
+#print axioms Yulang.GeneralDeclarativeNFResolve324.sound
+#print axioms Yulang.GeneralDeclarativeApplyAssoc324.exact_rows
+#print axioms Yulang.GeneralDeclarativeApplyAssoc324.effect
+#print axioms Yulang.GeneralDeclarativeK2Mono324.preserve
+#print axioms Yulang.GeneralDeclarativeHiddenDecl324.declaration_checked
+#print axioms Yulang.GeneralDeclarativeHiddenProbe324.exact_k2_positions
+#print axioms Yulang.GeneralDeclarativeHiddenPath324.full_source_path
+#print axioms Yulang.GeneralDeclarativeHiddenResolve324.old_producer_fails
