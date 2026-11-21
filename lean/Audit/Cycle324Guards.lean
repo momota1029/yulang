@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeRivalResolve324
+import Yulang.GeneralDeclarativeFollowerDerived324
+import Yulang.GeneralDeclarativeErasureRegression324
+
+#print axioms Yulang.GeneralDeclarativeNominalClash324.genuine_selected
+#print axioms Yulang.GeneralDeclarativeRivalResolve324.successful_with_rival
+#print axioms Yulang.GeneralDeclarativeRivalResolve324.rival_eliminated
+#print axioms Yulang.GeneralDeclarativeFollower324.ready_iff
+#print axioms Yulang.GeneralDeclarativeFollowerDerived324.final_transition
+#print axioms Yulang.GeneralDeclarativeErasureRegression324.approved_observation_unchanged
+#print axioms Yulang.GeneralDeclarativeErasureRegression324.whole_batch_entailed
+#print axioms Yulang.GeneralDeclarativeHiddenWhereProof324.inhabited
