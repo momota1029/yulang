@@ -1,0 +1,33 @@
+import Yulang.GeneralVersionedBinderReuse312
+import Yulang.GeneralVersionedBinderTable312
+import Yulang.GeneralVersionedBinderTargets312
+import Yulang.GeneralVersionedCurrentFrame312
+import Yulang.GeneralVersionedEqualChildCenters312
+import Yulang.GeneralVersionedForwardedJoint312
+
+#print axioms Yulang.GeneralVersionedBinderReuse312.Owned
+#print axioms Yulang.GeneralVersionedBinderReuse312.reused
+#print axioms Yulang.GeneralVersionedBinderReuse312.head_table
+#print axioms Yulang.GeneralVersionedBinderTable312.PrivateAgrees
+#print axioms Yulang.GeneralVersionedBinderTable312.table
+#print axioms Yulang.GeneralVersionedBinderTable312.certified
+#print axioms Yulang.GeneralVersionedBinderTargets312.actualName
+#print axioms Yulang.GeneralVersionedBinderTargets312.cases_binder
+#print axioms Yulang.GeneralVersionedBinderTargets312.point_binding
+#print axioms Yulang.GeneralVersionedBinderTargets312.point_in_pool
+#print axioms Yulang.GeneralVersionedBinderTargets312.point_agrees
+#print axioms Yulang.GeneralVersionedBinderTargets312.same_fresh_name
+#print axioms Yulang.GeneralVersionedCurrentFrame312.ExactRaw
+#print axioms Yulang.GeneralVersionedCurrentFrame312.trace_raw
+#print axioms Yulang.GeneralVersionedCurrentFrame312.raw_observed
+#print axioms Yulang.GeneralVersionedCurrentFrame312.center_exact
+#print axioms Yulang.GeneralVersionedCurrentFrame312.raw_exact
+#print axioms Yulang.GeneralVersionedCurrentFrame312.frame_exact
+#print axioms Yulang.GeneralVersionedEqualChildCenters312.binder_equal
+#print axioms Yulang.GeneralVersionedEqualChildCenters312.emitted_equal
+#print axioms Yulang.GeneralVersionedEqualChildCenters312.child_center_equal
+#print axioms Yulang.GeneralVersionedEqualChildCenters312.same_clause_site
+#print axioms Yulang.GeneralVersionedEqualChildCenters312.child_site
+#print axioms Yulang.GeneralVersionedForwardedJoint312.joint
+#print axioms Yulang.GeneralVersionedForwardedJoint312.installable
+#print axioms Yulang.GeneralVersionedForwardedJoint312.evidence_node

@@ -1,0 +1,10 @@
+import Yulang.GeneralVersionedProtectedLookup312
+#print axioms Yulang.GeneralVersionedProtectedPeer312.raw_transport
+#print axioms Yulang.GeneralVersionedProtectedPeer312.recorded_raw
+#print axioms Yulang.GeneralVersionedProtectedPeer312.complete_head
+#print axioms Yulang.GeneralVersionedProtectedPeer312.prepared_on_trace
+#print axioms Yulang.GeneralVersionedHistoricalTransport312.prepared
+#print axioms Yulang.GeneralVersionedHistoricalTransport312.choice
+#print axioms Yulang.GeneralVersionedHistoricalTransport312.transfer_of_observations
+#print axioms Yulang.GeneralVersionedProtectedLookup312.verify_iff
+#print axioms Yulang.GeneralVersionedProtectedLookup312.checked_head

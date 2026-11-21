@@ -1,0 +1,75 @@
+=== Audit/Cycle312AliasChoice.lean ===
+'Yulang.GeneralVersionedSiteOrigins312.reached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedIdentityCenters312.same_identity' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAliasCenters312.same_alias' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAliasReadback312.readback' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAliasReport312.from_alias' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAliasChoice312.transfer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAliasChoice312.choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+=== Audit/Cycle312Forwarded.lean ===
+'Yulang.GeneralVersionedForwardedWrites312.child_redundant' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedForwardedWrites312.emitted_redundant' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedForwardedWrites312.internal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedForwardedJoint312.joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedForwardedJoint312.installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedForwardedJoint312.evidence_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+=== Audit/Cycle312JointWrites.lean ===
+'Yulang.GeneralVersionedCurrentFrame312.frame_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSelectedJointHead312.effects_for_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedJointWrites312.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedJointWriteExact312.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRootWrites312.outer_live' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSelectedJointWrites312.joint_from_internal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedAliasHeadWrites312.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSemanticPeer312.full_head_of_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedSemanticPeer312.choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHistoricalJoint312.head_from_history' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHistoricalJoint312.joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+=== Audit/Cycle312ProtectedPeer.lean ===
+'Yulang.GeneralVersionedProtectedPeer312.raw_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedProtectedPeer312.recorded_raw' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProtectedPeer312.complete_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProtectedPeer312.prepared_on_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHistoricalTransport312.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHistoricalTransport312.choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHistoricalTransport312.transfer_of_observations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedProtectedLookup312.verify_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProtectedLookup312.checked_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+=== Audit/Cycle312RecursiveReducers.lean ===
+'Yulang.GeneralVersionedRecursiveReducers312.choice_of_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedRecursiveReducers312.joint_of_checks' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedRecursiveReducers312.evidenceNode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedBinderTargets312.point_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedBinderTable312.table' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedBinderReuse312.head_table' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedProtectedName312.on_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHarmlessRefresh312.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHarmlessRefresh312.same_full_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedHarmlessRefresh312.raw_scan_blocked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedReservedOther312.reserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedReservedOther312.absent_with_different_key' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+=== Audit/Cycle312Surface1.lean ===
+'Yulang.GeneralFiniteTypedWrites312.Write' does not depend on any axioms
+'Yulang.GeneralFiniteTypedWrites312.Holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.Coherent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.Protected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.applyWrites' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.reflexive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.symmetric' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.transitive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.rows_unchanged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.solves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralFiniteTypedWrites312.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedAliasCenters312.Origins' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,8 @@
+import Yulang.GeneralVersionedAliasChoice312
+#print axioms Yulang.GeneralVersionedSiteOrigins312.reached
+#print axioms Yulang.GeneralVersionedIdentityCenters312.same_identity
+#print axioms Yulang.GeneralVersionedAliasCenters312.same_alias
+#print axioms Yulang.GeneralVersionedAliasReadback312.readback
+#print axioms Yulang.GeneralVersionedAliasReport312.from_alias
+#print axioms Yulang.GeneralVersionedAliasChoice312.transfer
+#print axioms Yulang.GeneralVersionedAliasChoice312.choice

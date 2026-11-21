@@ -1,0 +1,40 @@
+import Yulang.GeneralFiniteTypedWrites312
+import Yulang.GeneralVersionedAliasCenters312
+import Yulang.GeneralVersionedAliasChoice312
+import Yulang.GeneralVersionedAliasHeadWrites312
+import Yulang.GeneralVersionedAliasReadback312
+import Yulang.GeneralVersionedAliasReport312
+
+#print axioms Yulang.GeneralFiniteTypedWrites312.Write
+#print axioms Yulang.GeneralFiniteTypedWrites312.Holds
+#print axioms Yulang.GeneralFiniteTypedWrites312.Coherent
+#print axioms Yulang.GeneralFiniteTypedWrites312.Protected
+#print axioms Yulang.GeneralFiniteTypedWrites312.applyWrites
+#print axioms Yulang.GeneralFiniteTypedWrites312.reflexive
+#print axioms Yulang.GeneralFiniteTypedWrites312.symmetric
+#print axioms Yulang.GeneralFiniteTypedWrites312.transitive
+#print axioms Yulang.GeneralFiniteTypedWrites312.preserved
+#print axioms Yulang.GeneralFiniteTypedWrites312.rows_unchanged
+#print axioms Yulang.GeneralFiniteTypedWrites312.solves
+#print axioms Yulang.GeneralFiniteTypedWrites312.exact
+#print axioms Yulang.GeneralVersionedAliasCenters312.Origins
+#print axioms Yulang.GeneralVersionedAliasCenters312.origins
+#print axioms Yulang.GeneralVersionedAliasCenters312.source_origins
+#print axioms Yulang.GeneralVersionedAliasCenters312.same_alias
+#print axioms Yulang.GeneralVersionedAliasChoice312.Coverage
+#print axioms Yulang.GeneralVersionedAliasChoice312.transfer
+#print axioms Yulang.GeneralVersionedAliasChoice312.choice
+#print axioms Yulang.GeneralVersionedAliasChoice312.coverage_from_check
+#print axioms Yulang.GeneralVersionedAliasHeadWrites312.rows
+#print axioms Yulang.GeneralVersionedAliasHeadWrites312.pool
+#print axioms Yulang.GeneralVersionedAliasHeadWrites312.source_retarget
+#print axioms Yulang.GeneralVersionedAliasHeadWrites312.complete
+#print axioms Yulang.GeneralVersionedAliasReadback312.configuration
+#print axioms Yulang.GeneralVersionedAliasReadback312.centers
+#print axioms Yulang.GeneralVersionedAliasReadback312.actual_of_centers
+#print axioms Yulang.GeneralVersionedAliasReadback312.tests_of_centers
+#print axioms Yulang.GeneralVersionedAliasReadback312.readback
+#print axioms Yulang.GeneralVersionedAliasReport312.root_bounds
+#print axioms Yulang.GeneralVersionedAliasReport312.projection_iff
+#print axioms Yulang.GeneralVersionedAliasReport312.from_tests
+#print axioms Yulang.GeneralVersionedAliasReport312.from_alias

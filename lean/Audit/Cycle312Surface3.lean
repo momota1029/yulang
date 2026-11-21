@@ -1,0 +1,38 @@
+import Yulang.GeneralVersionedForwardedWrites312
+import Yulang.GeneralVersionedHarmlessRefresh312
+import Yulang.GeneralVersionedHistoricalJoint312
+import Yulang.GeneralVersionedHistoricalTransport312
+import Yulang.GeneralVersionedIdentityCenters312
+import Yulang.GeneralVersionedJointWriteExact312
+
+#print axioms Yulang.GeneralVersionedForwardedWrites312.Forwarded
+#print axioms Yulang.GeneralVersionedForwardedWrites312.variable_request
+#print axioms Yulang.GeneralVersionedForwardedWrites312.child_redundant
+#print axioms Yulang.GeneralVersionedForwardedWrites312.emitted_redundant
+#print axioms Yulang.GeneralVersionedForwardedWrites312.internal
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.atom
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.add
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.reflexive
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.raw_exact
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.name_used
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.included
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.certificate
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.step
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.same_full_models
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.retains_support
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.raw_scan_blocked
+#print axioms Yulang.GeneralVersionedHistoricalJoint312.HeadTableReady
+#print axioms Yulang.GeneralVersionedHistoricalJoint312.reduce_ledger
+#print axioms Yulang.GeneralVersionedHistoricalJoint312.head_from_history
+#print axioms Yulang.GeneralVersionedHistoricalJoint312.joint
+#print axioms Yulang.GeneralVersionedHistoricalTransport312.atFocus
+#print axioms Yulang.GeneralVersionedHistoricalTransport312.Transfer
+#print axioms Yulang.GeneralVersionedHistoricalTransport312.prepared
+#print axioms Yulang.GeneralVersionedHistoricalTransport312.choice
+#print axioms Yulang.GeneralVersionedHistoricalTransport312.transfer_of_observations
+#print axioms Yulang.GeneralVersionedIdentityCenters312.head_actual_iff
+#print axioms Yulang.GeneralVersionedIdentityCenters312.binders_same
+#print axioms Yulang.GeneralVersionedIdentityCenters312.centers_of_emission
+#print axioms Yulang.GeneralVersionedIdentityCenters312.same_identity
+#print axioms Yulang.GeneralVersionedJointWriteExact312.requirements
+#print axioms Yulang.GeneralVersionedJointWriteExact312.exact

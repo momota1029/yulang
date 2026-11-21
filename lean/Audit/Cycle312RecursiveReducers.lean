@@ -1,0 +1,15 @@
+import Yulang.GeneralVersionedRecursiveReducers312
+import Yulang.GeneralVersionedBinderReuse312
+import Yulang.GeneralVersionedReservedOther312
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.choice_of_coverage
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.joint_of_checks
+#print axioms Yulang.GeneralVersionedRecursiveReducers312.evidenceNode
+#print axioms Yulang.GeneralVersionedBinderTargets312.point_agrees
+#print axioms Yulang.GeneralVersionedBinderTable312.table
+#print axioms Yulang.GeneralVersionedBinderReuse312.head_table
+#print axioms Yulang.GeneralVersionedProtectedName312.on_trace
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.step
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.same_full_models
+#print axioms Yulang.GeneralVersionedHarmlessRefresh312.raw_scan_blocked
+#print axioms Yulang.GeneralVersionedReservedOther312.reserved
+#print axioms Yulang.GeneralVersionedReservedOther312.absent_with_different_key

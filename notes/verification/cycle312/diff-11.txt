@@ -1,0 +1,5 @@
+ok: lean/Audit/SharedDiscovery179.lean only appended (plus top import lines)
+ok: lean/Audit/SourceProducerClosure.lean only appended (plus top import lines)
+ok: lean/Audit/SourceSyntaxRefinement.lean only appended (plus top import lines)
+ok: lean/Audit/UniformCenteredProduction.lean only appended (plus top import lines)
+verify-lean: PASS (diff checks only, NO build)
