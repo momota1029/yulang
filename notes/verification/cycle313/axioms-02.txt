@@ -1,0 +1,103 @@
+'Yulang.GeneralVersionedBeforeFirstInstall313.source_slot_clean' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedBeforeFirstInstall313.center_small' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.class_done' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.sharing_clear' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.merged_clear' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.output_clear' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.keys_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.target_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.leftClause' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionRegression313.rightClause' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionRegression313.leftOutput' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionRegression313.rightOutput' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionRegression313.outputLeft' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.outputRight' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.leftRow' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.rightRow' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.left_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.right_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.not_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.recorded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionRegression313.two_outputs_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.width' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionSource313.exact' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionSource313.left' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionSource313.right' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionSource313.original' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionSource313.sourceRegistry' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionSource313.registry' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionSource313.d' does not depend on any axioms
+'Yulang.GeneralVersionedCollisionSource313.before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.declaration_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.boundary_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.packet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.plan' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.private_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.fresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.survivor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCollisionSource313.unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCompiledFirstInstall313.compiled_outputs_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompiledFirstInstall313.key_coherence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompiledFirstInstall313.joint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCompiledFirstInstall313.installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedCompiledFirstInstall313.node_and_edges' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.address' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.mode' does not depend on any axioms
+'Yulang.GeneralVersionedCompoundRows313.Taut' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.Cell' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.ForwardedResult' does not depend on any axioms
+'Yulang.GeneralVersionedCompoundRows313.materializes' depends on axioms: [propext]
+'Yulang.GeneralVersionedCompoundRows313.key_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.coherent_address' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.clause_arg' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.lower_or_upper' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.emitted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedCompoundRows313.classifies' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.Compiled' does not depend on any axioms
+'Yulang.GeneralVersionedComputedRows313.Forwarded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.OutputCell' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.KeyCoherent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.output_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.output_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.emitted_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.classifies' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.addresses_disjoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.output_coherent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralVersionedComputedRows313.row_present' depends on axioms: [propext, Quot.sound]
+PASS Audit/Cycle313Surface1.lean
+RUN Audit/Cycle313Surface2.lean
+'Yulang.GeneralVersionedEssentialAggregates313.Historical' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.Active' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.Covers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.protected_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.sufficient_iff' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.from_exclusion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralVersionedEssentialAggregates313.harmless_keeps' depends on axioms: [propext,
+ Classical.choice,

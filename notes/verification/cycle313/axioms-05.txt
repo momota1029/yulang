@@ -1,0 +1,6 @@
+ Quot.sound]
+'Yulang.GeneralVersionedUnseenBinder313.raw_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedUnseenBinder313.head_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedUnseenBinder313.origins_absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralVersionedUnseenBinder313.protected_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+PASS Audit/Cycle313Unseen.lean
