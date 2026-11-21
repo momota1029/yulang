@@ -9,7 +9,8 @@
 #
 # Checks (exit code 0 only if every one passes):
 #   1. cd lean && lake build --wfail                 (exit code read directly)
-#   2. lake env lean --trust=0 Audit.lean            (exit code read directly)
+#   2. lake env lean --trust=0 on Audit.lean and lean/Audit/*.lean (exit codes read directly);
+#      only new or changed audit files when no existing module changed (see below)
 #   3. every audited declaration depends only on propext / Classical.choice / Quot.sound
 #   4. no line removed from any existing lean/ file since <base-rev>
 #   5. no sorry / native_decide / axiom (any modifier) / metaprogramming in lines added to lean/
@@ -46,11 +47,33 @@ if [ "$nobuild" != "--no-build" ]; then
   rc=$?
   if [ $rc -eq 0 ]; then echo "ok: lake build --wfail ($(tail -1 "$log/build.out"))"; else echo "FAIL: lake build exit $rc (see $log/build.out)"; fail=1; fi
 
+  # Which audits to run. An audit file that is unchanged since <base> was already run at <base>,
+  # and it only reads modules that existed at <base>. If none of those existing files changed
+  # (the barrel lean/Yulang.lean and the audit files themselves excepted; lake config and
+  # toolchain included), its result cannot differ, so only new or changed audits are run.
+  # Otherwise, or with VERIFY_FULL_AUDIT=1, every audit is run. Axioms of every declaration are
+  # still checked by the supervisor gate (check 10) either way.
+  existing_changed=$(git diff --name-only "$base"..HEAD -- lean | while read -r f; do
+      git cat-file -e "$base:$f" 2>/dev/null && echo "$f"; done \
+    | grep -vxE 'lean/Yulang\.lean|lean/Audit\.lean|lean/Audit/[A-Za-z0-9_]+\.lean' || true)
+  all_audits=$(cd lean && { echo Audit.lean; ls Audit/*.lean 2>/dev/null | sort; })
+  if [ -n "$existing_changed" ] || [ "${VERIFY_FULL_AUDIT:-0}" = 1 ]; then
+    audits=$all_audits
+    echo "ok: running all $(echo "$audits" | wc -l) audit files (existing files changed: $(echo "$existing_changed" | head -3 | tr '\n' ' '))"
+  else
+    audits=$(git diff --name-only "$base"..HEAD -- lean/Audit.lean lean/Audit | sed 's#^lean/##' | grep -E '\.lean$' | sort || true)
+    echo "ok: no existing module changed since $base; running the $(echo "$audits" | grep -c .) new or changed audit files of $(echo "$all_audits" | wc -l)"
+  fi
   : > "$log/audit.out"
-  for af in Audit.lean $(cd lean && ls Audit/*.lean 2>/dev/null | sort); do
-    ( cd lean && lake env lean --trust=0 "$af" >> "$log/audit.out" 2>&1 )
-    rc=$?
-    if [ $rc -eq 0 ]; then echo "ok: $af exit 0"; else echo "FAIL: $af exit $rc (see $log/audit.out)"; fail=1; fi
+  mkdir -p "$log/audits"
+  # Run in parallel (VERIFY_AUDIT_JOBS, default 4); report in sorted order.
+  echo "$audits" | grep -v '^$' | xargs -P "${VERIFY_AUDIT_JOBS:-4}" -I{} sh -c \
+    'cd lean && lake env lean --trust=0 "$1" > "$2/audits/$(echo "$1" | tr / _).out" 2>&1; echo $? > "$2/audits/$(echo "$1" | tr / _).rc"' _ {} "$log"
+  for af in $audits; do
+    k=$(echo "$af" | tr / _)
+    cat "$log/audits/$k.out" >> "$log/audit.out" 2>/dev/null
+    rc=$(cat "$log/audits/$k.rc" 2>/dev/null || echo missing)
+    if [ "$rc" = 0 ]; then echo "ok: $af exit 0"; else echo "FAIL: $af exit $rc (see $log/audit.out)"; fail=1; fi
   done
 
   # Audit prints long lines wrapped; join then split per declaration.
