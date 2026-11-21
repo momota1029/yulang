@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeUnfinishedRoot330
+
+#print axioms Yulang.GeneralDeclarativeUnfinishedRoot330.blocked_and_cyclic
+#print axioms Yulang.GeneralDeclarativeUnfinishedRoot330.priority
+#print axioms Yulang.GeneralDeclarativeUnfinishedRoot330.reject_without_children
+#print axioms Yulang.GeneralDeclarativeUnfinishedRoot330.selected_old_exact
+#print axioms Yulang.GeneralDeclarativeUnfinishedRoot330.dictionary_sound
+#print axioms Yulang.GeneralDeclarativeUnfinishedRoot330.actual_i59
+#print axioms Yulang.GeneralDeclarativeUnfinishedRoot330.unchanged_without_root
+#print axioms Yulang.GeneralDeclarativeUnfinishedRoot330.no_emission_needed
