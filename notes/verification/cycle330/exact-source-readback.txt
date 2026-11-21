@@ -1,0 +1,34 @@
+Yulang.GeneralDeclarativeRecordSplit330.obstruction (key : Nat) :
+  CommonNominalFullCarrier.Subtype (GeneralDeclarativeRecordSplit330.lo key)
+      (GeneralDeclarativeRecordSplit330.hidden key) ∧
+    CommonNominalFullCarrier.Subtype (GeneralDeclarativeRecordSplit330.hidden key)
+        (GeneralDeclarativeRecordSplit330.hi key) ∧
+      ∀ (payload tail : CommonNominalFullCarrier.Ty),
+        ¬CommonNominalFullCarrier.Equivalent (GeneralDeclarativeRecordSplit330.hidden key)
+            (CommonNominalFullCarrier.record key payload tail)
+Yulang.GeneralDeclarativeRecordReconstruct330.exact {key : Nat}
+  {x lo hi loRest hiRest req opt : CommonNominalFullCarrier.Ty}
+  (low : CommonNominalFullCarrier.Subtype (CommonNominalFullCarrier.record key lo loRest) x)
+  (high : CommonNominalFullCarrier.Subtype x (CommonNominalFullCarrier.record key hi hiRest))
+  (required : GeneralDeclarativeRecordChannel330.project key false [] x = some req)
+  (optional : GeneralDeclarativeRecordChannel330.project key true [] x = some opt) :
+  (∃ a tail, CommonNominalFullCarrier.Equivalent x (CommonNominalFullCarrier.record key a tail)) ↔
+    CommonNominalFullCarrier.Equivalent req opt
+Yulang.GeneralDeclarativeRecordTail330.does_not_fix_remainder (key root : Nat) (protect : List Nat) :
+  ∃ m n,
+    (GeneralDeclarativeHead320.Models
+          (GeneralDeclarativeRecordNames330.expose GeneralDeclarativeRecordTail330.clean root key protect) m ∧
+        GeneralDeclarativeHead320.Models
+          (GeneralDeclarativeRecordNames330.expose GeneralDeclarativeRecordTail330.clean root key protect) n) ∧
+      (∀ (q : Nat),
+          q ∈ GeneralDeclarativeOpaqueNames328.kept GeneralDeclarativeRecordTail330.clean root protect → m q = n q) ∧
+        ¬CommonNominalFullCarrier.Equivalent
+            (m (GeneralDeclarativeOpaqueNames328.second GeneralDeclarativeRecordTail330.clean root protect)).fst
+            (n (GeneralDeclarativeOpaqueNames328.second GeneralDeclarativeRecordTail330.clean root protect)).fst
+'Yulang.GeneralDeclarativeArityModels330.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.accepted_without_literal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRecordElection330.protected_tail' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordInline330.inline_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+exact replay exit: 0

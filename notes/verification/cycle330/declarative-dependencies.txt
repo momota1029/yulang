@@ -1,0 +1,2 @@
+DECLARATIVE-DEPENDENCY-PASS: 879 C330 constants, 5732 transitive type/value dependencies
+dependency exit: 0
