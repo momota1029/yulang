@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeStableAssemble329
+
+#print axioms Yulang.GeneralDeclarativeStableInputs329.for_head
+#print axioms Yulang.GeneralDeclarativeStableAssemble329.assemble
+#print axioms Yulang.GeneralDeclarativeStableAssemble329.witness_projection
+#print axioms Yulang.GeneralDeclarativeStableAssemble329.frame_after

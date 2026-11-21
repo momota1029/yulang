@@ -6990,3 +6990,5 @@ import Yulang.GeneralDeclarativeStableMerge329
 import Yulang.GeneralDeclarativeStableModels329
 import Yulang.GeneralDeclarativeStableOrigin329
 import Yulang.GeneralDeclarativeStableRejected329
+import Yulang.GeneralDeclarativeStableInputs329
+import Yulang.GeneralDeclarativeStableAssemble329
