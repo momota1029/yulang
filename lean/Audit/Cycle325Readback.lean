@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeSourceFixture325
+
+#print axioms Yulang.GeneralDeclarativeRecordProducer325.normalized_tail
+#print axioms Yulang.GeneralDeclarativeGroupedProducer325.merged_tag
+#print axioms Yulang.GeneralDeclarativeProducedNames325.generated
+#print axioms Yulang.GeneralDeclarativeFrameReadback325.complete_read
+#print axioms Yulang.GeneralDeclarativeSourceSelection325.approved_priority_unchanged
+#print axioms Yulang.GeneralDeclarativeSourceSelection325.actual_local_compiler
+#print axioms Yulang.GeneralDeclarativeSourceSelection325.sound
+#print axioms Yulang.GeneralDeclarativeSourceFixture325.exact_output
+#print axioms Yulang.GeneralDeclarativeSourceFixture325.early_frame_but_unrecorded
+#print axioms Yulang.GeneralDeclarativeSourceFixture325.inhabited
