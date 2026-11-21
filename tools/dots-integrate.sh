@@ -53,7 +53,7 @@ git push -q origin HEAD:integration/m1-final || { echo "push failed"; exit 7; }
 echo "PUSHED $label"
 cd "$R" || exit 8
 [ "$(git rev-parse --abbrev-ref HEAD)" = yulang3 ] || { echo "sync skipped: main checkout not on yulang3"; exit 0; }
-[ -z "$(git status --porcelain)" ] || { echo "sync skipped: main checkout dirty"; exit 0; }
+[ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "sync skipped: main checkout dirty"; exit 0; }
 git fetch -q origin yulang3 integration/m1-final
 git merge -q --ff-only origin/yulang3 || { echo "sync skipped: yulang3 not fast-forwardable"; exit 0; }
 git checkout origin/integration/m1-final -- lean notes
