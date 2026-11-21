@@ -1,0 +1,69 @@
+                            (Yulang.GeneralDeclarativeRepeatedProjection327.mergeState s protect l r) next ∧
+                          ∀ (n : Nat),
+                            n ∈
+                                Yulang.GeneralDeclarativeFootprint321.stateNames s ++
+                                  Yulang.GeneralDeclarativePairNames326.keepNames s protect l r →
+                              next n = m n
+@Yulang.GeneralDeclarativeWhereOutputBatch327.direct_exact : ∀ {impl : Yulang.GeneralDeclarations.Declaration}
+  {eq : Yulang.GeneralDeclarations.Equation},
+  Yulang.GeneralDeclarativeWhereOutputBatch327.alreadyNamed impl eq = true ↔
+    Yulang.GeneralDeclarativeEmissionOutputs322.Direct impl eq
+@Yulang.GeneralDeclarativeWhereOutputBatch327.collect_exact : ∀ {α : Type u_1} {α_1 : Type u_2}
+  {f : α → Option (List α_1)} {rows : List α_1} {xs : List α},
+  Yulang.GeneralDeclarativeBatch320.collect f xs = some rows →
+    ∀ (row : α_1), row ∈ rows ↔ ∃ a, a ∈ xs ∧ ∃ own, f a = some own ∧ row ∈ own
+@Yulang.GeneralDeclarativeWhereOutputBatch327.collect_total : ∀ {α : Type u_1} {α_1 : Type u_2}
+  {f : α → Option (List α_1)} {xs : List α},
+  (∀ (a : α), a ∈ xs → ∃ own, f a = some own) → ∃ rows, Yulang.GeneralDeclarativeBatch320.collect f xs = some rows
+@Yulang.GeneralDeclarativeWhereOutputBatch327.collect_defined : ∀ {α : Type u_1} {α_1 : Type u_2}
+  {f : α → Option (List α_1)} {rows : List α_1} {xs : List α},
+  Yulang.GeneralDeclarativeBatch320.collect f xs = some rows → ∀ (a : α), a ∈ xs → ∃ own, f a = some own
+@Yulang.GeneralDeclarativeWhereOutputBatch327.compiled : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {names : Yulang.GeneralDeclarativeSourceEmission322.Names} {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat},
+  Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+    impl ∈ r.declarations →
+      ∃ rows, Yulang.GeneralDeclarativeWhereOutputBatch327.whole r i impl names targets = some rows
+@Yulang.GeneralDeclarativeWhereOutputBatch327.exact : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {names : Yulang.GeneralDeclarativeSourceEmission322.Names} {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat}
+  {rows : List Yulang.GeneralDeclarativeHead320.Equation},
+  Yulang.GeneralDeclarativeWhereOutputBatch327.whole r i impl names targets = some rows →
+    ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+      row ∈ rows ↔
+        ∃ cl,
+          cl ∈ impl.requirements ∧
+            ∃ eq,
+              eq ∈ cl.outputs ∧
+                ¬Yulang.GeneralDeclarativeEmissionOutputs322.Direct impl eq ∧
+                  ∃ written,
+                    Yulang.GeneralNominalCenteredHeadMatExpressions.translate r.constructors i
+                          (Yulang.GeneralDeclarationPatterns.normalize eq.rhs) =
+                        some written ∧
+                      row =
+                        {
+                          left :=
+                            (Yulang.GeneralDeclarativeSourceEmission322.useOutput impl names (targets cl) eq).target,
+                          right :=
+                            Yulang.GeneralDeclarativeSubstitution320.logical names.input
+                              Yulang.GeneralNominalMaterialization.Mode.actual written }
+@Yulang.GeneralDeclarativeWhereOutputBatch327.origin_after : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {names : Yulang.GeneralDeclarativeSourceEmission322.Names} {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat}
+  {rows : List Yulang.GeneralDeclarativeHead320.Equation} {cl : Yulang.GeneralDeclarations.Clause}
+  {eq : Yulang.GeneralDeclarations.Equation} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+    impl ∈ r.declarations →
+      Yulang.GeneralDeclarativeWhereOutputBatch327.whole r i impl names targets = some rows →
+        cl ∈ impl.requirements →
+          eq ∈ cl.outputs →
+            ∃ written,
+              Yulang.GeneralNominalCenteredHeadMatExpressions.translate r.constructors i
+                    (Yulang.GeneralDeclarationPatterns.normalize eq.rhs) =
+                  some written ∧
+                (¬Yulang.GeneralDeclarativeEmissionOutputs322.Direct impl eq →
+                  Yulang.GeneralDeclarativeClauseOrigins325.Origin
+                    (Yulang.GeneralDeclarativeEntailment320.appendFacts s rows)
+                    (Yulang.GeneralDeclarativeSourceEmission322.useOutput impl names (targets cl) eq).target
+                    (Yulang.GeneralDeclarativeSubstitution320.logical names.input
+                      Yulang.GeneralNominalMaterialization.Mode.actual written))

@@ -1,0 +1,3 @@
+'Yulang.GeneralDeclarativePlacementEquiv327.placement_for_clause' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativePlacementEquiv327.complete_ordered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativePlacementEvidence327.retarget' depends on axioms: [propext, Quot.sound]

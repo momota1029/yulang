@@ -1,0 +1,49 @@
+Only C327 Yulang proof sources and independent C327 audits are included in source proof checks.
+Lean 4.35.0, trust zero; no full umbrella or Rust execution.
+All new modules have same-change imports in lean/Yulang.lean; standalone audits import Yulang modules only.
+Frozen expected Git blob IDs (metadata only):
+lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+5	0	lean/Audit/Cycle327Authority.lean
+10	0	lean/Audit/Cycle327ClauseBatch.lean
+8	0	lean/Audit/Cycle327Compound.lean
+72	0	lean/Audit/Cycle327Crosscheck.lean
+8	0	lean/Audit/Cycle327First.lean
+8	0	lean/Audit/Cycle327Frontier.lean
+5	0	lean/Audit/Cycle327Placement.lean
+10	0	lean/Audit/Cycle327Selected.lean
+8	0	lean/Audit/Cycle327Verifier.lean
+33	0	lean/Yulang.lean
+109	0	lean/Yulang/GeneralDeclarativeAliasAuthority327.lean
+61	0	lean/Yulang/GeneralDeclarativeAliasChecker327.lean
+54	0	lean/Yulang/GeneralDeclarativeAliasProbe327.lean
+96	0	lean/Yulang/GeneralDeclarativeAliasStatus327.lean
+41	0	lean/Yulang/GeneralDeclarativeAliasVisit327.lean
+111	0	lean/Yulang/GeneralDeclarativeAlternateNames327.lean
+100	0	lean/Yulang/GeneralDeclarativeAppliedClause327.lean
+71	0	lean/Yulang/GeneralDeclarativeCandidateScan327.lean
+153	0	lean/Yulang/GeneralDeclarativeClauseBatch327.lean
+68	0	lean/Yulang/GeneralDeclarativeClausePlacement327.lean
+108	0	lean/Yulang/GeneralDeclarativeEndpointAlias327.lean
+99	0	lean/Yulang/GeneralDeclarativeFiniteCheck327.lean
+68	0	lean/Yulang/GeneralDeclarativeFiniteTrees327.lean
+85	0	lean/Yulang/GeneralDeclarativeFrontier327.lean
+184	0	lean/Yulang/GeneralDeclarativeFrontierView327.lean
+93	0	lean/Yulang/GeneralDeclarativeGrowth327.lean
+96	0	lean/Yulang/GeneralDeclarativeInPlace327.lean
+106	0	lean/Yulang/GeneralDeclarativeMixedClause327.lean
+105	0	lean/Yulang/GeneralDeclarativeMixedReplay327.lean
+117	0	lean/Yulang/GeneralDeclarativePlacementEquiv327.lean
+79	0	lean/Yulang/GeneralDeclarativePlacementEvidence327.lean
+55	0	lean/Yulang/GeneralDeclarativeRelation327.lean
+142	0	lean/Yulang/GeneralDeclarativeRelationalCheck327.lean
+88	0	lean/Yulang/GeneralDeclarativeRepeatDecl327.lean
+92	0	lean/Yulang/GeneralDeclarativeRepeatFrame327.lean
+80	0	lean/Yulang/GeneralDeclarativeRepeatGraph327.lean
+113	0	lean/Yulang/GeneralDeclarativeRepeatModels327.lean
+94	0	lean/Yulang/GeneralDeclarativeRepeatProbe327.lean
+75	0	lean/Yulang/GeneralDeclarativeRepeatResolve327.lean
+71	0	lean/Yulang/GeneralDeclarativeRepeatState327.lean
+82	0	lean/Yulang/GeneralDeclarativeRepeatedHead327.lean
+91	0	lean/Yulang/GeneralDeclarativeRepeatedProjection327.lean
+146	0	lean/Yulang/GeneralDeclarativeWhereOutputBatch327.lean

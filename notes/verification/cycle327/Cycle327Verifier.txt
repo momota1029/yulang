@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeEndpointAlias327.enough' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointAlias327.recur_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRelationalCheck327.exact_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRelationalCheck327.at_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeFiniteTrees327.classifies_iff' depends on axioms: [propext, Quot.sound]

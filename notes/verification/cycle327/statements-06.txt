@@ -1,0 +1,165 @@
+Yulang.GeneralDeclarativeRepeatFrame327.compound_read : Yulang.GeneralDeclarativeClauseOrigins325.Origin
+    Yulang.GeneralDeclarativeRepeatState327.result Yulang.GeneralDeclarativeRepeatState327.argC.lower
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 0
+      [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 13]) ∧
+  Yulang.GeneralDeclarativeClauseOrigins325.Origin Yulang.GeneralDeclarativeRepeatState327.result
+      Yulang.GeneralDeclarativeRepeatState327.argC.center
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 0
+        [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 13]) ∧
+    Yulang.GeneralDeclarativeClauseOrigins325.Origin Yulang.GeneralDeclarativeRepeatState327.result
+      Yulang.GeneralDeclarativeRepeatState327.argC.upper
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 0
+        [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 13])
+Yulang.GeneralDeclarativeRepeatFrame327.parent_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeRepeatState327.result
+    Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+    (Yulang.GeneralDeclarativeRepeatProbe327.supported done) Yulang.GeneralDeclarativeRepeatDecl327.root
+    Yulang.GeneralDeclarativeRepeatDecl327.impl Yulang.GeneralDeclarativeRepeatState327.base
+    Yulang.GeneralDeclarativeRepeatState327.place
+Yulang.GeneralDeclarativeRepeatFrame327.child_frame : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeProjectedFrame326.Frame Yulang.GeneralDeclarativeRepeatState327.result
+    Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+    (Yulang.GeneralDeclarativeRepeatProbe327.supported done) Yulang.GeneralDeclarativeRepeatState327.child
+    Yulang.GeneralDeclarativeExampleSource320.leaf Yulang.GeneralDeclarativeRepeatFrame327.childBase
+    Yulang.GeneralDeclarativeRepeatState327.place
+Yulang.GeneralDeclarativeRepeatGraph327.exact_rows : Yulang.GeneralDeclarativeRepeatState327.result.equations =
+  Yulang.GeneralDeclarativeRepeatState327.presentRows ++
+      [{ left := 12, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+        { left := 13, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7 },
+        { left := 14, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 4 },
+        { left := 15, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 9 },
+        { left := 16, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7 },
+        { left := 17, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 10 }] ++
+    [{ left := 20,
+        right :=
+          Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 0
+            [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 13] },
+      { left := 21,
+        right :=
+          Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 0
+            [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 13] },
+      { left := 22,
+        right :=
+          Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 0
+            [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 13] },
+      { left := 6, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 5 },
+      { left := 5, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 21 }]
+Yulang.GeneralDeclarativeRepeatGraph327.checked_intervals : Yulang.GeneralDeclarativeRepeatState327.result.normal.intervals =
+  [(0, 1), (1, 2), (12, 13), (13, 14), (15, 16), (16, 17), (20, 21), (21, 22)]
+@Yulang.GeneralDeclarativeRepeatGraph327.bounds_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeBounds319.Bound Yulang.GeneralDeclarativeRepeatState327.result.normal a b →
+    Yulang.GeneralDeclarativeRepeatGraph327.rank a = Yulang.GeneralDeclarativeRepeatGraph327.rank b
+@Yulang.GeneralDeclarativeRepeatGraph327.equal_rank : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias Yulang.GeneralDeclarativeRepeatState327.result a b →
+    Yulang.GeneralDeclarativeRepeatGraph327.rank a = Yulang.GeneralDeclarativeRepeatGraph327.rank b
+Yulang.GeneralDeclarativeRepeatGraph327.no_cycle : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeRepeatState327.result
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeRepeatState327.result) n
+Yulang.GeneralDeclarativeRepeatGraph327.safe : ∀ (done : Nat → Prop) (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeRepeatState327.result
+      Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+      (Yulang.GeneralDeclarativeRepeatProbe327.tests done) d
+Yulang.GeneralDeclarativeRepeatModels327.bottom_le : ∀ (type : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Subtype Yulang.CommonNominalSyntax.Layer.bottom type
+Yulang.GeneralDeclarativeRepeatModels327.actual_top : ∀ (flag : Bool),
+  Yulang.CommonNominalFullCarrier.Subtype (Yulang.GeneralDeclarativeRepeatModels327.value flag)
+    Yulang.CommonNominalSyntax.Layer.top
+Yulang.GeneralDeclarativeRepeatModels327.actual_not_bottom : ∀ (flag : Bool),
+  ¬Yulang.CommonNominalFullCarrier.Subtype (Yulang.GeneralDeclarativeRepeatModels327.value flag)
+      Yulang.CommonNominalSyntax.Layer.bottom
+Yulang.GeneralDeclarativeRepeatModels327.top_not_actual : ∀ (flag : Bool),
+  ¬Yulang.CommonNominalFullCarrier.Subtype Yulang.CommonNominalSyntax.Layer.top
+      (Yulang.GeneralDeclarativeRepeatModels327.value flag)
+Yulang.GeneralDeclarativeRepeatModels327.inhabited : ∀ (flag : Bool),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRepeatState327.result
+    (Yulang.GeneralDeclarativeRepeatModels327.assignment flag)
+Yulang.GeneralDeclarativeRepeatModels327.center_is_not_an_endpoint : ∀ (flag : Bool),
+  ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeRepeatModels327.assignment flag 1).fst
+        (Yulang.GeneralDeclarativeRepeatModels327.assignment flag 0).fst ∧
+    ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeRepeatModels327.assignment flag 1).fst
+        (Yulang.GeneralDeclarativeRepeatModels327.assignment flag 2).fst
+Yulang.GeneralDeclarativeRepeatModels327.genuine_two_models : ∀ (flag : Bool),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeRepeatState327.result
+      (Yulang.GeneralDeclarativeRepeatModels327.assignment flag) ∧
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeRepeatDecl327.reg
+        Yulang.GeneralDeclarativeRepeatDecl327.interp (Yulang.GeneralDeclarativeRepeatModels327.assignment flag)
+        Yulang.GeneralDeclarativeRepeatDecl327.root Yulang.GeneralDeclarativeRepeatResolve327.dict ∧
+      ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeRepeatModels327.assignment flag 1).fst
+            (Yulang.GeneralDeclarativeRepeatModels327.assignment flag 0).fst ∧
+        ¬Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeRepeatModels327.assignment flag 1).fst
+            (Yulang.GeneralDeclarativeRepeatModels327.assignment flag 2).fst
+Yulang.GeneralDeclarativeRepeatModels327.no_center_row : ¬∃ rhs,
+    { left := 1, right := rhs } ∈ Yulang.GeneralDeclarativeRepeatState327.result.equations
+Yulang.GeneralDeclarativeRepeatProbe327.normalized_rows : Yulang.GeneralDeclarativeRepeatState327.clausesState.equations =
+  Yulang.GeneralDeclarativeRepeatState327.presentRows ++
+      [{ left := 12, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3 },
+        { left := 13, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7 },
+        { left := 14, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 4 },
+        { left := 15, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 9 },
+        { left := 16, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7 },
+        { left := 17, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 10 }] ++
+    Yulang.GeneralDeclarativeRepeatState327.inputRows
+@Yulang.GeneralDeclarativeRepeatProbe327.base_row : ∀ {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈ Yulang.GeneralDeclarativeRepeatState327.presentRows ++ Yulang.GeneralDeclarativeRepeatState327.inputRows →
+    e ∈ Yulang.GeneralDeclarativeRepeatState327.clausesState.equations
+Yulang.GeneralDeclarativeRepeatProbe327.authored : ∀ (done : Nat → Prop)
+  {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈ Yulang.GeneralDeclarativeRepeatState327.presentRows ++ Yulang.GeneralDeclarativeRepeatState327.inputRows →
+    e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeRepeatProbe327.supported done)).equations
+Yulang.GeneralDeclarativeRepeatProbe327.root_interval : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeRepeatState327.result Yulang.GeneralDeclarativeRepeatDecl327.arg
+Yulang.GeneralDeclarativeRepeatProbe327.child_interval : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeRepeatState327.result Yulang.GeneralDeclarativeRepeatState327.argC
+Yulang.GeneralDeclarativeRepeatProbe327.center_of_merge : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeRepeatState327.result Yulang.GeneralDeclarativeRepeatState327.combined
+Yulang.GeneralDeclarativeRepeatProbe327.root_support : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeRepeatProbe327.supported done)
+    Yulang.GeneralDeclarativeRepeatDecl327.root
+Yulang.GeneralDeclarativeRepeatProbe327.child_source : ∀ (done : Nat → Prop),
+  { left := 20,
+      right :=
+        Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal 0
+          [Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 13] } ∈
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeRepeatProbe327.supported done)).equations
+Yulang.GeneralDeclarativeRepeatProbe327.child_support : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeRepeatProbe327.supported done)
+    Yulang.GeneralDeclarativeRepeatState327.child
+Yulang.GeneralDeclarativeRepeatProbe327.root_matches : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeRepeatProbe327.supported done))
+    Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors Yulang.GeneralDeclarativeRepeatDecl327.interp
+    Yulang.GeneralDeclarativeRepeatDecl327.root Yulang.GeneralDeclarativeRepeatDecl327.impl
+Yulang.GeneralDeclarativeRepeatProbe327.child_matches : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeEndpointProbe321.HeadMatches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeRepeatProbe327.supported done))
+    Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors Yulang.GeneralDeclarativeRepeatDecl327.interp
+    Yulang.GeneralDeclarativeRepeatState327.child Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeRepeatResolve327.root_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeRepeatDecl327.reg.declarations →
+    d.role = Yulang.GeneralDeclarativeRepeatDecl327.root.role → d = Yulang.GeneralDeclarativeRepeatDecl327.impl
+Yulang.GeneralDeclarativeRepeatResolve327.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeRepeatDecl327.reg.declarations →
+    d.role = Yulang.GeneralDeclarativeRepeatState327.child.role → d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeRepeatResolve327.root_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeRepeatResolve327.branch done Yulang.GeneralDeclarativeRepeatDecl327.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeRepeatDecl327.impl.id
+      [Yulang.GeneralDeclarativeRepeatState327.child])
+Yulang.GeneralDeclarativeRepeatResolve327.child_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeRepeatResolve327.branch done Yulang.GeneralDeclarativeRepeatState327.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeRepeatResolve327.frontier_coverage : ∀ (done : Nat → Prop),
+  (Yulang.GeneralDeclarativeFrontier327.NoOverlap Yulang.GeneralDeclarativeRepeatState327.result
+        Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+        (Yulang.GeneralDeclarativeRepeatProbe327.supported done) (Yulang.GeneralDeclarativeRepeatProbe327.tests done)
+        Yulang.GeneralDeclarativeRepeatDecl327.root ∧
+      Yulang.GeneralDeclarativeFrontier327.CanGenerate Yulang.GeneralDeclarativeRepeatState327.result
+        Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+        (Yulang.GeneralDeclarativeRepeatProbe327.supported done) (Yulang.GeneralDeclarativeRepeatProbe327.tests done)
+        (Yulang.GeneralDeclarativeProjectedFrame326.Generated Yulang.GeneralDeclarativeRepeatState327.result
+          Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+          (Yulang.GeneralDeclarativeRepeatProbe327.supported done))
+        Yulang.GeneralDeclarativeRepeatDecl327.root) ∧
+    Yulang.GeneralDeclarativeFrontier327.NoOverlap Yulang.GeneralDeclarativeRepeatState327.result
+        Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp

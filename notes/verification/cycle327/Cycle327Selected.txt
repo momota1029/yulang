@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeRepeatProbe327.root_matches' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatProbe327.child_support' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatGraph327.no_cycle' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatFrame327.parent_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatResolve327.frontier_coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatResolve327.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatModels327.genuine_two_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRepeatModels327.no_center_row' depends on axioms: [propext, Quot.sound]
