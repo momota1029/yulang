@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeOpaqueNested328
+import Yulang.GeneralDeclarativeOpaqueGraph328
+
+#print axioms Yulang.GeneralDeclarativeOpaqueAuthority328.exactly_old_support
+#print axioms Yulang.GeneralDeclarativeOpaqueGraph328.cycles
+#print axioms Yulang.GeneralDeclarativeOpaqueVariant328.reconstruction
+#print axioms Yulang.GeneralDeclarativeOpaqueTrace328.from_pair_match
+#print axioms Yulang.GeneralDeclarativeOpaqueVariantNames328.from_variant_match
+#print axioms Yulang.GeneralDeclarativeOpaquePlan328.extract
+#print axioms Yulang.GeneralDeclarativeOpaqueNested328.build
