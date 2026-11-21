@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeNestedChild332
+import Yulang.GeneralDeclarativeNestedTail332
+
+#print axioms Yulang.GeneralDeclarativeNestedIndex332.direct_exact
+#print axioms Yulang.GeneralDeclarativeNestedTail332.exact_peel
+#print axioms Yulang.GeneralDeclarativeNestedTail332.follow
+#print axioms Yulang.GeneralDeclarativeNestedRebuild332.unique
+#print axioms Yulang.GeneralDeclarativeNestedMaterial332.assemble_exact
+#print axioms Yulang.GeneralDeclarativeNestedBody332.compiler_exact
+#print axioms Yulang.GeneralDeclarativeNestedFrame332.exact_children_and_writes
+#print axioms Yulang.GeneralDeclarativeNestedChild332.endpoint_alias
+#print axioms Yulang.GeneralDeclarativeNestedChild332.tree
+#print axioms Yulang.GeneralDeclarativeNestedChild332.every_model
