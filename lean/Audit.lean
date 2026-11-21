@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 175373)
-Total output lines: 10960
+Warning: truncated output (original token count: 175433)
+Total output lines: 10964
 
 import Yulang.GeneralDictionaryNominalCandidateEvidenceExamples
 import Yulang.GeneralDictionaryNominalCandidateReadbackExamples
@@ -651,11 +651,7 @@ run_cmd do
 #print axioms Yulang.SourceConstraintSupport.closed_clauses_supported
 #print axioms Yulang.SourceConstraintSupport.closed_compiler_and_rows_supported
 #print axioms Yulang.SourcePrincipalInference.collect_instances_exact
-#print axioms…155373 tokens truncated…ical_update
-#print axioms Yulang.GeneralNominalSaturationInvariants.edges_update
-#print axioms Yulang.GeneralNominalSaturationInvariants.reachable_journal
-#print axioms Yulang.GeneralNominalSaturationInvariants.generated_recorded
-#print axioms Yulang.GeneralNominalSaturationInvariants.merged_outputs_retained
+#print axioms…155433 tokens truncated…oms Yulang.GeneralNominalSaturationInvariants.merged_outputs_retained
 #print axioms Yulang.GeneralNominalSaturationInvariants.complete_consistency
 #print axioms Yulang.GeneralNominalSaturationProgress.monotone
 #print axioms Yulang.GeneralNominalSaturationProgress.fresh_fact
@@ -1229,3 +1225,7 @@ run_cmd do
 #print axioms Yulang.GeneralDeclarativePairProjection321.projection_exact
 #print axioms Yulang.GeneralDeclarativeSettled321.no_self_grounding
 #print axioms Yulang.GeneralDeclarativeVisibleFields321.no_hidden_payload
+
+#print axioms Yulang.GeneralDeclarativeCovariantIntervals321.component_bounds
+#print axioms Yulang.GeneralDeclarativeCovariantIntervals321.record_pair_bounds
+#print axioms Yulang.GeneralDeclarativeCovariantIntervals321.recorded_components

@@ -1,0 +1,18 @@
+'Yulang.GeneralDeclarativeOrigins321.backed_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOrigins321.pending_only' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeLowerKnown321.ready_iff_not_delayed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAliasMeaning321.alias_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCenterEntails321.actual_head_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeGraphRows321.pending_nominal_self_cycle' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeK2Alias321.alias_cycle_iff' does not depend on any axioms
+'Yulang.GeneralDeclarativeSupportExample321.unfinished_blocks_second' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSupportExample321.completed_restarts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSupportExample321.alternate_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

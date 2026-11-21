@@ -32,3 +32,26 @@
   本当に供給するか。とくに名のない再帰型の正則同値・開行・共有する共変な
   actual の同じ論理名、ならびに安定した既存名の出力等式を正規化導出から得る。
   `Local` の選択を「証拠があるとき」と再定義するのでなく、この読み出しを証明する。
+
+## 次に必要な source exactness の型
+
+通常状態に user-visible な由来を表す別の証明 context を添えるが、その
+由来は `Models` の引数にしない。三つの target を分ける。
+
+1. source 式・普通の制約の正規化導出から `Available` な根拠の存在と、
+   root と非変数の調査位置だけにおける K2 の正規化像を導く。
+   型・行の普通の原子や区間に変換しても、出所の依存を消さない。
+   alias の「証明済み等値」と、正則な展開の観測同値を区別して橋渡しする。
+   開行の段階で閉じた record の投影を割り当てない。
+2. 同じ普通状態で、実際の許された局所選定から
+   `HeadCases321.Head` を作る。共変 root では actual の構成子／実
+   operand の出所を直接読む。`CovariantIntervals321.component_bounds`
+   が区間への整合を、`PairProjection321.projection_exact` が繰返し実
+   identity を正確に扱う。nominal root ではより弱い下端中心の規則を使う。
+   探索した一つの assignment や、候補の自己申告する `Node` は根拠にしない。
+3. source の順序付き where 伝播と関連型の出力 RHS が、既存の普通の論理名で
+   同じ定義を既に実現するかを示す。新しい論理名が必要なら
+   `FreshExact321.exact_forest` と `Fresh321.old_model_projection` を使う。
+   既存の出力 target は新しい定義の左辺として上書きしない。
+
+いずれも実行履歴・実行結果との照合は I-56 (2) の別の問題。

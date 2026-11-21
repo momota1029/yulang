@@ -6695,3 +6695,4 @@ import Yulang.GeneralDeclarativePairCut321
 import Yulang.GeneralDeclarativePairProjection321
 import Yulang.GeneralDeclarativeSettled321
 import Yulang.GeneralDeclarativeVisibleFields321
+import Yulang.GeneralDeclarativeCovariantIntervals321
