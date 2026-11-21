@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 77599)
-Total output lines: 7102
+Warning: truncated output (original token count: 77651)
+Total output lines: 7106
 
 import Yulang.GeneralDictionarySharedTrustTransport
 import Yulang.GeneralDictionarySharedSettlementResume
@@ -2483,11 +2483,7 @@ import Yulang.GeneralNominalSettledBudget
 import Yulang.GeneralNominalSettledBoundary
 import Yulang.GeneralNominalSettledIntervalDeclarations
 import Yulang.GeneralNominalSettledIntervalSource
-import Y…32599 tokens truncated…lMixedRefresh274
-import Yulang.GeneralRebaseTerminalMixedFrontier274
-import Yulang.GeneralRebaseTerminalTrustedWidth274
-import Yulang.GeneralRebaseWidthRegistration275
-import Yulang.GeneralRebaseWidthRefinement275
+import Y…32651 tokens truncated…nt275
 import Yulang.GeneralRebaseWidthCertificate275
 import Yulang.GeneralRebaseWidthRealized275
 import Yulang.GeneralRebaseAllWidthRegistration275
@@ -4395,3 +4391,7 @@ import Yulang.GeneralDeclarativeNestedClash332
 import Yulang.GeneralDeclarativeNestedBracket332
 import Yulang.GeneralDeclarativeNestedSiblingsDecl332
 import Yulang.GeneralDeclarativeNestedSiblingsFrame332
+import Yulang.GeneralDeclarativeNestedOpaque332
+import Yulang.GeneralDeclarativeNestedSiblingsResult332
+import Yulang.GeneralDeclarativeNestedSiblingsModels332
+import Yulang.GeneralDeclarativeNestedRepeat332

@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeNestedSiblingsModels332
+import Yulang.GeneralDeclarativeNestedOpaque332
+import Yulang.GeneralDeclarativeNestedRepeat332
+
+#print axioms Yulang.GeneralDeclarativeNestedSiblingsResult332.exact_tree
+#print axioms Yulang.GeneralDeclarativeNestedSiblingsResult332.every_model
+#print axioms Yulang.GeneralDeclarativeNestedSiblingsModels332.inhabited
+#print axioms Yulang.GeneralDeclarativeNestedSiblingsModels332.exact_siblings_same_model
+#print axioms Yulang.GeneralDeclarativeNestedOpaque332.actual_dependency
+#print axioms Yulang.GeneralDeclarativeNestedOpaque332.wrong_path
+#print axioms Yulang.GeneralDeclarativeNestedOpaque332.ordinary_unchanged
+#print axioms Yulang.GeneralDeclarativeNestedRepeat332.actual_reads
+#print axioms Yulang.GeneralDeclarativeNestedRepeat332.actual_slots
+#print axioms Yulang.GeneralDeclarativeNestedRepeat332.exact_shared_tie
+#print axioms Yulang.GeneralDeclarativeNestedRepeat332.every_later_rejects
