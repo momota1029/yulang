@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeCurrentReceipt330.exact_proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.rejoined_old' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.receipt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.reverseReceipt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentResult330.accepted_without_literal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

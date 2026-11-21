@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeRecordInline330
+import Yulang.GeneralDeclarativeGuardCurrent330
+import Yulang.GeneralDeclarativeRecordPayloads330
+
+#print axioms Yulang.GeneralDeclarativeRecordSpine330.head_known
+#print axioms Yulang.GeneralDeclarativeRecordPoints330.observed
+#print axioms Yulang.GeneralDeclarativeRecordInline330.endpoint_gap
+#print axioms Yulang.GeneralDeclarativeRecordPayloads330.all_mode
+#print axioms Yulang.GeneralDeclarativeRecordPayloads330.opaque_payload
+#print axioms Yulang.GeneralDeclarativeGuardView330.using_receipt
+#print axioms Yulang.GeneralDeclarativeGuardCurrent330.authorized_exact
+#print axioms Yulang.GeneralDeclarativeGuardCurrent330.actual_guards

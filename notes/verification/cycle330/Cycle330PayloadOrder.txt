@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeRecordConsumption330.lookup_iff' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeRecordConsumption330.read_field' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRecordConsumption330.from_ordered_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

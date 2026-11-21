@@ -1,0 +1,178 @@
+    Yulang.GeneralDeclarativeRecordInline330.taken Yulang.GeneralDeclarativeRecordInline330.remain =
+  8
+Yulang.GeneralDeclarativeRecordInline330.consumed_children : Yulang.GeneralDeclarativeRecordPoints330.usesFrom
+    Yulang.GeneralDeclarativeRecordInline330.taken [0, 1] 2
+    (Yulang.GeneralDeclarativeRecordPoints330.seed Yulang.GeneralDeclarativeRecordInline330.initial 0
+      Yulang.GeneralDeclarativeRecordInline330.keep Yulang.GeneralDeclarativeRecordInline330.taken
+      Yulang.GeneralDeclarativeRecordInline330.remain) =
+  [(0, Yulang.GeneralDeclarativeOpaqueNominal328.point 8), (1, Yulang.GeneralDeclarativeOpaqueNominal328.point 4),
+    (2, Yulang.GeneralDeclarativeOpaqueNominal328.point 9)]
+Yulang.GeneralDeclarativeRecordInline330.exact_allocations : Yulang.GeneralDeclarativeNewNames321.supply
+    Yulang.GeneralDeclarativeRecordInline330.initial (0 :: Yulang.GeneralDeclarativeRecordInline330.keep)
+    (Yulang.GeneralDeclarativeRecordPoints330.expressions Yulang.GeneralDeclarativeRecordInline330.taken
+      Yulang.GeneralDeclarativeRecordInline330.remain) =
+  [{ left := 8, right := Yulang.GeneralDeclarativeRecordInline330.payload },
+    { left := 9,
+      right :=
+        Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record 9
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 7)
+          Yulang.GeneralDeclarativeRecordInline330.terminal }]
+Yulang.GeneralDeclarativeRecordInline330.inline_ready : Yulang.GeneralDeclarativeOpaqueConserve328.Retains
+    Yulang.GeneralDeclarativeRecordInline330.initial Yulang.GeneralDeclarativeRecordInline330.named
+    Yulang.GeneralDeclarativeRecordInline330.keep ∧
+  Yulang.GeneralDeclarativeStableReads329.One Yulang.GeneralDeclarativeRecordInline330.named
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    (Yulang.GeneralDeclarativeOpaqueNominal328.point 0) Yulang.GeneralDeclarativeRecordInline330.pat
+    [(0, Yulang.GeneralDeclarativeOpaqueNominal328.point 8), (1, Yulang.GeneralDeclarativeOpaqueNominal328.point 4),
+      (2, Yulang.GeneralDeclarativeOpaqueNominal328.point 9)]
+Yulang.GeneralDeclarativeRecordInline330.in_observer : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeObserverSource330.Input (Yulang.GeneralDeclarativeRecordInline330.support done)
+    Yulang.GeneralDeclarativeHiddenDecl324.catalogue Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    (Yulang.GeneralDeclarativeOpaqueNominal328.point 0) Yulang.GeneralDeclarativeRecordInline330.pat
+Yulang.GeneralDeclarativeRecordInline330.lower_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Knows
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeRecordInline330.support done)) 0
+    (Yulang.GeneralDeclarativeLowerKnown321.Tag.record 7)
+Yulang.GeneralDeclarativeRecordInline330.endpoint_gap : ∀ (done : Nat → Prop)
+  (mode : Yulang.GeneralNominalMaterialization.Mode),
+  ¬∃ uses,
+      Yulang.GeneralDeclarativeTrace321.Trace
+        (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeRecordInline330.support done)) mode 0
+        (Yulang.GeneralDeclarativeRecordResidual323.withTail Yulang.GeneralDeclarativeRecordInline330.written
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 2))
+        uses
+Yulang.GeneralDeclarativeRecordIntervals330.direct : ∀ (key : Nat) (optional : Bool)
+  (f rest : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralDeclarativeRecordChannel330.project key optional []
+      (Yulang.CommonNominalFullCarrier.record key f rest) =
+    some f
+Yulang.GeneralDeclarativeRecordIntervals330.projected_below : ∀ (key : Nat) (optional : Bool)
+  {x y a b : Yulang.CommonNominalFullCarrier.Ty},
+  Yulang.GeneralDeclarativeRecordChannel330.project key optional [] x = some a →
+    Yulang.GeneralDeclarativeRecordChannel330.project key optional [] y = some b →
+      Yulang.CommonNominalFullCarrier.Subtype x y → Yulang.CommonNominalFullCarrier.Subtype a b
+Yulang.GeneralDeclarativeRecordIntervals330.present : ∀ (key : Nat) (optional : Bool)
+  {x b rest : Yulang.CommonNominalFullCarrier.Ty},
+  Yulang.CommonNominalFullCarrier.Subtype x (Yulang.CommonNominalFullCarrier.record key b rest) →
+    ∃ v, Yulang.GeneralDeclarativeRecordChannel330.project key optional [] x = some v
+Yulang.GeneralDeclarativeRecordIntervals330.sandwich : ∀ (key : Nat) (optional : Bool)
+  {x a b tail1 tail2 : Yulang.CommonNominalFullCarrier.Ty},
+  Yulang.CommonNominalFullCarrier.Subtype (Yulang.CommonNominalFullCarrier.record key a tail1) x →
+    Yulang.CommonNominalFullCarrier.Subtype x (Yulang.CommonNominalFullCarrier.record key b tail2) →
+      ∃ v,
+        Yulang.GeneralDeclarativeRecordChannel330.project key optional [] x = some v ∧
+          Yulang.CommonNominalFullCarrier.Subtype a v ∧ Yulang.CommonNominalFullCarrier.Subtype v b
+@Yulang.GeneralDeclarativeRecordMask330.same_guard : ∀ {query label : Nat} {a b : List Nat},
+  (query ∈ a ↔ query ∈ b) → (query = label ∧ ¬label ∈ a ↔ query = label ∧ ¬label ∈ b)
+Yulang.GeneralDeclarativeRecordMask330.probe : ∀ (key : Nat)
+  (env : Yulang.CommonNominalFullDemand.Environment Yulang.CommonNominalFullCarrier.Row)
+  (order :
+    Yulang.CommonNominalFullDemand.Ty Yulang.Common.Row → Yulang.CommonNominalFullDemand.Ty Yulang.Common.Row → Prop)
+  (v : Yulang.CommonNominalFullDemand.Ty Yulang.CommonNominalFullCarrier.Row) (optional : Bool) (a b : List Nat)
+  (obs : Yulang.CommonNominalFullDemand.Observation Yulang.CommonNominalFullCarrier.Row),
+  (key ∈ a ↔ key ∈ b) →
+    (Yulang.CommonNominalFullDemand.MaskedProbeStep Yulang.Common.rowLe env order a v
+        (Yulang.GeneralDeclarativeRecordChannel330.channel optional key obs) ↔
+      Yulang.CommonNominalFullDemand.MaskedProbeStep Yulang.Common.rowLe env order b v
+        (Yulang.GeneralDeclarativeRecordChannel330.channel optional key obs))
+@Yulang.GeneralDeclarativeRecordMask330.other : ∀ {forbid key : Nat},
+  key ≠ forbid →
+    ∀ (depth rank : Nat) (env : Yulang.CommonNominalFullDemand.Environment Yulang.CommonNominalFullCarrier.Row)
+      (v : Yulang.CommonNominalFullCarrier.Ty) (optional : Bool)
+      (obs : Yulang.CommonNominalFullDemand.Observation Yulang.CommonNominalFullCarrier.Row),
+      Yulang.CommonNominalFullDemand.ProbeAt Yulang.Common.rowLe rank env
+          (Yulang.CommonNominalFullCarrier.observeTy depth (Yulang.CommonNominalSyntax.Layer.mask [forbid] v))
+          (Yulang.GeneralDeclarativeRecordChannel330.channel optional key obs) ↔
+        Yulang.CommonNominalFullDemand.ProbeAt Yulang.Common.rowLe rank env
+          (Yulang.CommonNominalFullCarrier.observeTy depth v)
+          (Yulang.GeneralDeclarativeRecordChannel330.channel optional key obs)
+@Yulang.GeneralDeclarativeRecordMaterial330.right : ∀ {done : Nat → Prop} {root : Nat}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {keys : List Nat}
+  {picked : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeRecordSpine330.Spine (Yulang.GeneralDeclarativeOrigins321.restriction p) root raw terminal →
+    keys.Nodup →
+      Yulang.GeneralDeclarativeOrderedRecord326.order (Yulang.CommonRoleCanonicalRows.normalize raw) keys =
+          some picked →
+        ∀ (protect : List Nat),
+          Yulang.GeneralDeclarativeEntailment320.Entails
+            (Yulang.GeneralDeclarativeRecordMaterial330.namedTail s root protect raw keys terminal)
+            (Yulang.GeneralDeclarativeRecordMaterial330.readingRow s root protect raw picked keys terminal)
+@Yulang.GeneralDeclarativeRecordMaterial330.preserved : ∀ {done : Nat → Prop} {root : Nat}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {keys : List Nat}
+  {picked : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeRecordSpine330.Spine (Yulang.GeneralDeclarativeOrigins321.restriction p) root raw terminal →
+    keys.Nodup →
+      Yulang.GeneralDeclarativeOrderedRecord326.order (Yulang.CommonRoleCanonicalRows.normalize raw) keys =
+          some picked →
+        ∀ (protect : List Nat),
+          Yulang.GeneralDeclarativeOpaqueConserve328.Retains s
+            (Yulang.GeneralDeclarativeRecordMaterial330.ready s root protect raw picked keys terminal) protect
+@Yulang.GeneralDeclarativeRecordMaterial330.read_ordinary : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (root : Nat)
+  (protect : List Nat)
+  (raw picked : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (keys : List Nat) (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeEqualities322.Derives
+    (Yulang.GeneralDeclarativeRecordMaterial330.ready s root protect raw picked keys terminal)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable root)
+    (Yulang.GeneralDeclarativeRecordResidual323.withTail picked
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+        (Yulang.GeneralDeclarativeRecordMaterial330.tailRow s root protect raw keys terminal).left))
+@Yulang.GeneralDeclarativeRecordMaterial330.read_tail : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (root : Nat)
+  (protect : List Nat)
+  (raw picked : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (keys : List Nat) (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  Yulang.GeneralDeclarativeEqualities322.Derives
+    (Yulang.GeneralDeclarativeRecordMaterial330.ready s root protect raw picked keys terminal)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable
+      (Yulang.GeneralDeclarativeRecordMaterial330.tailRow s root protect raw keys terminal).left)
+    (Yulang.GeneralDeclarativeRecordMaterial330.tailExpr raw keys terminal)
+@Yulang.GeneralDeclarativeRecordNames330.named : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (root key : Nat)
+  (protect : List Nat),
+  Yulang.GeneralDeclarativeEqualities322.Derives (Yulang.GeneralDeclarativeRecordNames330.expose s root key protect)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable root)
+    (Yulang.GeneralDeclarativeRecordNames330.row s root key protect).right
+@Yulang.GeneralDeclarativeRecordNames330.lifts : ∀ {a b : Yulang.CommonNominalFullCarrier.Ty}
+  {s : Yulang.GeneralDeclarativeHead320.State} (root key : Nat) (protect : List Nat)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models s m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m root).fst (Yulang.CommonNominalFullCarrier.record key a b) →
+      Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeRecordNames330.expose s root key protect)
+          (Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m a b) ∧
+        ∀ (n : Nat),
+          n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s root protect →
+            Yulang.GeneralDeclarativeOpaqueNames328.extend s root protect m a b n = m n
+@Yulang.GeneralDeclarativeRecordNames330.model_exact : ∀ {cap : Yulang.GeneralDeclarativeWhere319.Capture}
+  {lo loRest hi hiRest : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State} (key : Nat) (protect : List Nat)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeDemand320.Bounds s cap →
+    Yulang.GeneralDeclarativeEntailment320.Entails s
+        { left := cap.lower, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record key lo loRest } →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          { left := cap.upper, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record key hi hiRest } →
+        ((∃ next,
+            Yulang.GeneralDeclarativeHead320.Models
+                (Yulang.GeneralDeclarativeRecordNames330.expose s cap.center key protect) next ∧
+              ∀ (n : Nat), n ∈ Yulang.GeneralDeclarativeOpaqueNames328.kept s cap.center protect → next n = m n) ↔
+          Yulang.GeneralDeclarativeHead320.Models s m ∧
+            Yulang.GeneralDeclarativeRecordNames330.Agreement key (m cap.center).fst)
+@Yulang.GeneralDeclarativeRecordPayloads330.visible : ∀ {key : Nat}
+  {raw : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {payload : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativeRecordPayloads330.Field key raw payload →
+    ∀ (terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+      (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeRecordChannel330.project key false []
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeHead320.environment m)
+            Yulang.GeneralNominalMaterialization.Mode.actual
+            (Yulang.GeneralDeclarativeRecordResidual323.withTail raw terminal)) =
+        some
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeHead320.environment m)
+            Yulang.GeneralNominalMaterialization.Mode.actual payload)
+@Yulang.GeneralDeclarativeRecordPayloads330.payload_below : ∀ {done : Nat → Prop} {a : Nat}
+  {fs : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {firstEnd : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {b : Nat}

@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeRecordSpine330.head_known' does not depend on any axioms
+'Yulang.GeneralDeclarativeRecordPoints330.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordInline330.endpoint_gap' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordPayloads330.all_mode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordPayloads330.opaque_payload' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeGuardView330.using_receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeGuardCurrent330.authorized_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeGuardCurrent330.actual_guards' depends on axioms: [propext, Classical.choice, Quot.sound]

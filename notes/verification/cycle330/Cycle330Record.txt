@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeRecordSpine330.ends' does not depend on any axioms
+'Yulang.GeneralDeclarativeRecordSpine330.exact_subtraction' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordReplay330.actual_observation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordReplay330.user_readback' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordElection330.endpoint_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRecordElection330.protected_tail' depends on axioms: [propext, Classical.choice, Quot.sound]

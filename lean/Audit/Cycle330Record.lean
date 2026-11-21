@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeRecordElection330
+
+#print axioms Yulang.GeneralDeclarativeRecordSpine330.ends
+#print axioms Yulang.GeneralDeclarativeRecordSpine330.exact_subtraction
+#print axioms Yulang.GeneralDeclarativeRecordReplay330.actual_observation
+#print axioms Yulang.GeneralDeclarativeRecordReplay330.user_readback
+#print axioms Yulang.GeneralDeclarativeRecordElection330.endpoint_trace
+#print axioms Yulang.GeneralDeclarativeRecordElection330.protected_tail

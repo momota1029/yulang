@@ -1,0 +1,165 @@
+@Yulang.GeneralDeclarativeArityCompiler330.compile : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {s : Yulang.GeneralDeclarativeHead320.State} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            Yulang.GeneralDeclarativeAritySource330.Source s r.constructors i p d.arguments impl.head →
+              ∀ (keep : List Nat) (fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+                (targets : Yulang.GeneralDeclarations.Clause → Nat → Nat),
+                ∃ current kids frame,
+                  Yulang.GeneralDeclarativeGrowth327.Extends s current ∧
+                    Yulang.GeneralDeclarativeCompileLists321.Result current
+                        (Yulang.GeneralDeclarativeNFComplete324.facts r i frame.capture impl d kids) ∧
+                      (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                          Yulang.GeneralDeclarativeHead320.Models current m →
+                            Yulang.GeneralDeclarativeAssembly320.Meaning r i m d impl frame.capture kids) ∧
+                        ∀ (child : Yulang.GeneralDeclarativeDemand320.Demand),
+                          child ∈ kids → Yulang.GeneralDeclarativeOutputSource323.Declared r child
+Yulang.GeneralDeclarativeArityFixture330.tie_exact : Yulang.GeneralDeclarativeStableTies329.rows
+    Yulang.GeneralDeclarativeArityFixture330.base
+    (List.map Yulang.GeneralDeclarativeStableTies329.pairOf Yulang.GeneralDeclarativeArityFixture330.spans) =
+  [Yulang.GeneralDeclarativeArityFixture330.tie]
+Yulang.GeneralDeclarativeArityFixture330.prior_untied : ¬Yulang.GeneralDeclarativeArityFixture330.tie ∈
+    Yulang.GeneralDeclarativeArityFixture330.prepared.equations
+Yulang.GeneralDeclarativeArityFixture330.covered_shape : Yulang.GeneralDeclarativeArityPlan330.Shape
+  Yulang.GeneralDeclarativeArityFixture330.headCode
+Yulang.GeneralDeclarativeArityFixture330.root_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeArityFixture330.initial Yulang.GeneralDeclarativeRepeatDecl327.arg
+Yulang.GeneralDeclarativeArityFixture330.actual_source : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeAritySource330.Source Yulang.GeneralDeclarativeArityFixture330.initial
+    Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors Yulang.GeneralDeclarativeArityFixture330.interp
+    (Yulang.GeneralDeclarativeArityFixture330.priorSupport done) Yulang.GeneralDeclarativeRepeatDecl327.root.arguments
+    Yulang.GeneralDeclarativeRepeatDecl327.impl.head
+Yulang.GeneralDeclarativeArityFixture330.actual_plan : Yulang.GeneralDeclarativeArityPlan330.Reads
+  Yulang.GeneralDeclarativeArityFixture330.initial 0 2 Yulang.GeneralDeclarativeArityFixture330.plan
+Yulang.GeneralDeclarativeArityFixture330.actual_pack : Yulang.GeneralDeclarativeArityRun330.Builds [5, 6]
+  Yulang.GeneralDeclarativeArityFixture330.initial Yulang.GeneralDeclarativeRepeatDecl327.arg
+  Yulang.GeneralDeclarativeArityFixture330.plan
+Yulang.GeneralDeclarativeArityFixture330.generated : Yulang.GeneralDeclarativeClauseBatch327.prepare
+    Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors Yulang.GeneralDeclarativeArityFixture330.interp
+    Yulang.GeneralDeclarativeArityFixture330.keep Yulang.GeneralDeclarativeArityFixture330.cap
+    Yulang.GeneralDeclarativeArityFixture330.tied Yulang.GeneralDeclarativeRepeatDecl327.impl.requirements =
+  some (Yulang.GeneralDeclarativeArityFixture330.inputState, Yulang.GeneralDeclarativeArityFixture330.ports)
+Yulang.GeneralDeclarativeArityFixture330.exact_input : Yulang.GeneralDeclarativeArityFixture330.inputState.equations =
+  Yulang.GeneralDeclarativeArityFixture330.oldRows ++
+      [Yulang.GeneralDeclarativeArityFixture330.pairRow, Yulang.GeneralDeclarativeArityFixture330.tie] ++
+    Yulang.GeneralDeclarativeArityFixture330.inputRows
+Yulang.GeneralDeclarativeArityFixture330.exact_child : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeRepeatDecl327.impl Yulang.GeneralDeclarativeArityFixture330.names
+    Yulang.GeneralDeclarativeArityFixture330.place =
+  [Yulang.GeneralDeclarativeArityFixture330.child]
+Yulang.GeneralDeclarativeArityFixture330.exact_return : Yulang.GeneralDeclarativeBatch320.collect
+    (Yulang.GeneralDeclarativeNormalizeAssoc324.one Yulang.GeneralDeclarativeRepeatDecl327.reg
+      Yulang.GeneralDeclarativeArityFixture330.interp Yulang.GeneralDeclarativeRepeatDecl327.impl
+      Yulang.GeneralDeclarativeRepeatDecl327.root Yulang.GeneralDeclarativeArityFixture330.names.input)
+    Yulang.GeneralDeclarativeRepeatDecl327.root.outputs =
+  some [Yulang.GeneralDeclarativeArityFixture330.returnRow]
+Yulang.GeneralDeclarativeArityFixture330.wrong_return_rejected : Yulang.GeneralDeclarativeOpaqueBatch328.check
+    (Yulang.GeneralDeclarativeEmissionForest322.children Yulang.GeneralDeclarativeRepeatDecl327.impl
+      Yulang.GeneralDeclarativeArityFixture330.names Yulang.GeneralDeclarativeArityFixture330.place)
+    [{ role := 2, arguments := [Yulang.GeneralDeclarativeArityFixture330.cas],
+        outputs := [{ name := 1, target := 6 }] }] =
+  false
+@Yulang.GeneralDeclarativeArityFixture330.ordinary_rows : ∀ {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈
+      Yulang.GeneralDeclarativeArityFixture330.oldRows ++
+          [Yulang.GeneralDeclarativeArityFixture330.pairRow, Yulang.GeneralDeclarativeArityFixture330.tie] ++
+        Yulang.GeneralDeclarativeArityFixture330.inputRows →
+    e ∈ Yulang.GeneralDeclarativeArityFixture330.final.equations
+Yulang.GeneralDeclarativeArityFixture330.where_grows : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeArityFixture330.inputState Yulang.GeneralDeclarativeArityFixture330.final
+Yulang.GeneralDeclarativeArityFixture330.pre_grows : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeArityFixture330.prepared Yulang.GeneralDeclarativeArityFixture330.final
+Yulang.GeneralDeclarativeArityFixture330.current_tie : Yulang.GeneralDeclarativeStableTies329.Consequence
+  Yulang.GeneralDeclarativeArityFixture330.final Yulang.GeneralDeclarativeArityFixture330.base
+  (List.map Yulang.GeneralDeclarativeStableTies329.pairOf Yulang.GeneralDeclarativeArityFixture330.spans)
+Yulang.GeneralDeclarativeArityFixture330.root_range_now : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeArityFixture330.final Yulang.GeneralDeclarativeRepeatDecl327.arg
+Yulang.GeneralDeclarativeArityFixture330.capture_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeArityFixture330.final (Yulang.GeneralDeclarativeOpaqueNominal328.point 3)
+Yulang.GeneralDeclarativeArityFixture330.child_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeArityFixture330.final Yulang.GeneralDeclarativeArityFixture330.cas
+Yulang.GeneralDeclarativeArityFixture330.parent_observed : Yulang.GeneralDeclarativeStableReads329.Heads
+  Yulang.GeneralDeclarativeArityFixture330.final Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors
+  Yulang.GeneralDeclarativeArityFixture330.interp Yulang.GeneralDeclarativeRepeatDecl327.root.arguments
+  Yulang.GeneralDeclarativeRepeatDecl327.impl.head Yulang.GeneralDeclarativeArityFixture330.spans
+Yulang.GeneralDeclarativeArityFixture330.child_observed : Yulang.GeneralDeclarativeStableReads329.Heads
+  Yulang.GeneralDeclarativeArityFixture330.final Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors
+  Yulang.GeneralDeclarativeArityFixture330.interp Yulang.GeneralDeclarativeArityFixture330.child.arguments
+  Yulang.GeneralDeclarativeExampleSource320.leaf.head [(0, Yulang.GeneralDeclarativeArityFixture330.cas)]
+Yulang.GeneralDeclarativeArityFixture330.coverage : Yulang.GeneralNominalCenteredHeadWFSource.Coverage
+  Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeArityFixture330.interp
+Yulang.GeneralDeclarativeArityModels330.hidden_same : ∀ (b : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Equivalent (Yulang.GeneralDeclarativeArityModels330.hidden b)
+    (Yulang.GeneralDeclarativeArityModels330.shape b)
+Yulang.GeneralDeclarativeArityModels330.old : ∀ (b : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeArityFixture330.prepared
+    (Yulang.GeneralDeclarativeArityModels330.assignment b)
+Yulang.GeneralDeclarativeArityModels330.stable : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeArityFixture330.final
+  (Yulang.GeneralDeclarativeArityModels330.assignment Yulang.GeneralDeclarativeRepeat320.int)
+Yulang.GeneralDeclarativeArityModels330.excluded : ¬Yulang.GeneralDeclarativeHead320.Models
+    Yulang.GeneralDeclarativeArityFixture330.tied
+    (Yulang.GeneralDeclarativeArityModels330.assignment Yulang.GeneralDeclarativeNestedModels328.boolType)
+Yulang.GeneralDeclarativeArityModels330.exact_compiler : Yulang.GeneralDeclarativeCompileLists321.Result
+  Yulang.GeneralDeclarativeArityFixture330.final
+  (Yulang.GeneralDeclarativeNFComplete324.facts Yulang.GeneralDeclarativeRepeatDecl327.reg
+    Yulang.GeneralDeclarativeArityFixture330.interp Yulang.GeneralDeclarativeArityFixture330.frame.capture
+    Yulang.GeneralDeclarativeRepeatDecl327.impl Yulang.GeneralDeclarativeRepeatDecl327.root
+    [Yulang.GeneralDeclarativeArityFixture330.child])
+Yulang.GeneralDeclarativeArityModels330.nonvacuous : (¬∃ rhs,
+      { left := 1, right := rhs } ∈ Yulang.GeneralDeclarativeArityFixture330.initial.equations) ∧
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeArityFixture330.prepared
+      (Yulang.GeneralDeclarativeArityModels330.assignment Yulang.GeneralDeclarativeNestedModels328.boolType) ∧
+    ¬Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeArityFixture330.tied
+          (Yulang.GeneralDeclarativeArityModels330.assignment Yulang.GeneralDeclarativeNestedModels328.boolType) ∧
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeArityFixture330.final
+          (Yulang.GeneralDeclarativeArityModels330.assignment Yulang.GeneralDeclarativeRepeat320.int) ∧
+        Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeRepeatDecl327.reg
+          Yulang.GeneralDeclarativeArityFixture330.interp
+          (Yulang.GeneralDeclarativeArityModels330.assignment Yulang.GeneralDeclarativeRepeat320.int)
+          Yulang.GeneralDeclarativeRepeatDecl327.root Yulang.GeneralDeclarativeArityResult330.dict
+Yulang.GeneralDeclarativeArityNominal330.value_shape : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment)
+  (args : List Nat),
+  Yulang.GeneralNominalCenteredHeadMatExpressions.values (Yulang.GeneralDeclarativeHead320.environment m)
+      Yulang.GeneralNominalMaterialization.Mode.actual
+      (List.map Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable args) =
+    List.map (fun n => (m n).fst) args
+@Yulang.GeneralDeclarativeArityNominal330.truth : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture} {tag : Nat}
+  {args other : List Nat} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s (Yulang.GeneralDeclarativeArityNominal330.row arg.lower tag args) →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          (Yulang.GeneralDeclarativeArityNominal330.row arg.upper tag other) →
+        Yulang.GeneralDeclarativeEntailment320.Entails s
+          (Yulang.GeneralDeclarativeArityNominal330.row arg.center tag args)
+@Yulang.GeneralDeclarativeArityNominal330.retains : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture} {tag : Nat}
+  {args other : List Nat} {s : Yulang.GeneralDeclarativeHead320.State} (keep : List Nat),
+  Yulang.GeneralDeclarativeDemand320.Bounds s arg →
+    Yulang.GeneralDeclarativeEntailment320.Entails s (Yulang.GeneralDeclarativeArityNominal330.row arg.lower tag args) →
+      Yulang.GeneralDeclarativeEntailment320.Entails s
+          (Yulang.GeneralDeclarativeArityNominal330.row arg.upper tag other) →
+        Yulang.GeneralDeclarativeOpaqueConserve328.Retains s
+          (Yulang.GeneralDeclarativeArityNominal330.ready s arg.center tag args) keep
+@Yulang.GeneralDeclarativeArityNominal330.reads : ∀ {s : Yulang.GeneralDeclarativeHead320.State} (root tag : Nat)
+  (args : List Nat),
+  Yulang.GeneralDeclarativeEqualities322.Derives (Yulang.GeneralDeclarativeArityNominal330.ready s root tag args)
+    (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable root)
+    (Yulang.GeneralDeclarativeArityNominal330.code tag args)
+@Yulang.GeneralDeclarativeArityNominal330.traced : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {root tag : Nat}
+  {target : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {uses : List Yulang.GeneralDeclarativeTrace321.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeTrace321.Trace (Yulang.GeneralDeclarativeOrigins321.restriction p) mode root
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal tag target) uses →
+    ∃ actual,
+      Yulang.GeneralDeclarativeEqualities322.Derives s
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable root)
+          (Yulang.GeneralDeclarativeArityNominal330.code tag actual) ∧
+        Yulang.GeneralDeclarativeTrace321.TraceArgs (Yulang.GeneralDeclarativeOrigins321.restriction p)
+          Yulang.GeneralNominalMaterialization.Mode.actual actual target uses

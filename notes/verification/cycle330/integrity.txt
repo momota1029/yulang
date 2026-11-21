@@ -1,0 +1,11 @@
+C330 pinned source provenance and scope:
+Prior complete handoff: 2e2244dccd5317220ddc19edfc069ac696034b50
+Initial owner-authorized integration/read fixed point: 753a99f9e0675dd1bb03c769cf1f9cf7ed6da9ab
+I-59 owner integration/read fixed point: 2733c493c8e4e2b143363fc9a282f51560ea0baf
+Original exact-source replay point: ede743bf51399105f03a5f512adf157ee13643c2
+Complete proof point (I-59 included): 3e5b32c4b86a4e0dce17a11eb76317cf97c9dc76
+Complete proof point live on private work/dots-main and byte-matched to local 45 changed paths, plus the running heartbeat; branch comparison had no extra paths and barrel had exactly 34 new module imports. All edits are cycle-native new modules/audits, append-only barrel, and notes.
+Protected object hashes only; I-57 frozen file bodies did not enter publication:
+lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Lean 4.35.0; focused Lake with warnings fatal, trust-zero direct source check, independent audit parts, exact GitHub proof-source replays. Full umbrella build and Rust execution were not performed.
