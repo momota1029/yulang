@@ -1,0 +1,185 @@
+  {impl : Yulang.GeneralDeclarations.Declaration}
+  {emit :
+    Yulang.GeneralDeclarativeDemand320.Demand →
+      Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Prop}
+  {kids : List Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeStableAttempt329.Elected s r i p tests d impl →
+    emit d impl kids →
+      Yulang.GeneralDeclarativePriority321.Local s r i p tests emit d
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected impl.id kids)
+@Yulang.GeneralDeclarativeStableAttempt329.reject_exact : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {completed : Nat → Prop} {p : Yulang.GeneralDeclarativeOrigins321.Supported s completed}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {impl : Yulang.GeneralDeclarations.Declaration}
+  (tryIt : Yulang.GeneralDeclarativeStableAttempt329.Attempt s r i p tests d impl),
+  Yulang.GeneralDeclarativeStableAttempt329.RejectedByWrite tryIt ↔
+    (∃ m, Yulang.GeneralDeclarativeHead320.Models s m) ∧
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models s m →
+          ¬Yulang.GeneralDeclarativeStableCanonical329.EqualUses m tryIt.spans
+@Yulang.GeneralDeclarativeStableAttempt329.no_success : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {completed : Nat → Prop} {p : Yulang.GeneralDeclarativeOrigins321.Supported s completed}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {impl : Yulang.GeneralDeclarations.Declaration}
+  (tryIt : Yulang.GeneralDeclarativeStableAttempt329.Attempt s r i p tests d impl),
+  Yulang.GeneralDeclarativeStableAttempt329.RejectedByWrite tryIt →
+    ∀ {t : Yulang.GeneralDeclarativeHead320.State},
+      Yulang.GeneralDeclarativeGrowth327.Extends tryIt.after t → ¬∃ m, Yulang.GeneralDeclarativeHead320.Models t m
+@Yulang.GeneralDeclarativeStableAttempt329.stable_writes : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {impl : Yulang.GeneralDeclarations.Declaration} {s t : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  (tryIt : Yulang.GeneralDeclarativeStableAttempt329.Attempt s r i p tests d impl),
+  Yulang.GeneralDeclarativeGrowth327.Extends tryIt.after t →
+    Yulang.GeneralDeclarativeStableTies329.Consequence t tryIt.center
+      (List.map Yulang.GeneralDeclarativeStableTies329.pairOf tryIt.spans)
+@Yulang.GeneralDeclarativeStableBackedAnchor329.alias_value : ∀ {done : Nat → Prop} {a b : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias (Yulang.GeneralDeclarativeOrigins321.restriction p) a b →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models s m → Yulang.CommonNominalFullCarrier.Equivalent (m a).fst (m b).fst
+@Yulang.GeneralDeclarativeStableBackedAnchor329.all_values : ∀ {done : Nat → Prop}
+  {seed : Yulang.GeneralDeclarativeWhere319.Capture} {rest : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {cap : Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeMerge320.Merge s seed rest cap →
+    Yulang.GeneralDeclarativeStableBackedAnchor329.BackedPoints p seed rest →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models s m →
+          Yulang.CommonNominalFullCarrier.Equivalent (m cap.lower).fst (m cap.center).fst ∧
+            Yulang.CommonNominalFullCarrier.Equivalent (m cap.upper).fst (m cap.center).fst
+@Yulang.GeneralDeclarativeStableBackedAnchor329.expose : ∀ {done : Nat → Prop}
+  {seed : Yulang.GeneralDeclarativeWhere319.Capture} {rest : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {cap : Yulang.GeneralDeclarativeWhere319.Capture} {tag : Yulang.GeneralDeclarativeLowerKnown321.Tag}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeMerge320.Merge s seed rest cap →
+    Yulang.GeneralDeclarativeStableBackedAnchor329.BackedPoints p seed rest →
+      Yulang.GeneralDeclarativeLowerKnown321.Knows (Yulang.GeneralDeclarativeOrigins321.restriction p) cap.center tag →
+        (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeStableAnchor329.close s cap) m ↔
+              Yulang.GeneralDeclarativeHead320.Models s m) ∧
+          Yulang.GeneralDeclarativeLowerKnown321.Knows
+            (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeStableAnchor329.origins p cap))
+            cap.lower tag
+@Yulang.GeneralDeclarativeStableCanonical329.found : ∀ {key : Nat}
+  {base : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)},
+  key ∈ List.map Prod.fst spans → (key, Yulang.GeneralDeclarativeOpaqueCapture328.choose base key spans) ∈ spans
+Yulang.GeneralDeclarativeStableCanonical329.uses_existing : ∀
+  (spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture))
+  (base : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeStableCanonical329.Representative
+    (fun key => Yulang.GeneralDeclarativeOpaqueCapture328.choose base key spans) spans
+Yulang.GeneralDeclarativeStableCanonical329.exact : ∀ (s : Yulang.GeneralDeclarativeHead320.State)
+  (selected : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+  (spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)),
+  Yulang.GeneralDeclarativeStableCanonical329.Representative selected spans →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models
+          (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+            (Yulang.GeneralDeclarativeStableTies329.rows selected
+              (List.map Yulang.GeneralDeclarativeStableTies329.pairOf spans)))
+          m ↔
+        Yulang.GeneralDeclarativeHead320.Models s m ∧ Yulang.GeneralDeclarativeStableCanonical329.EqualUses m spans
+@Yulang.GeneralDeclarativeStableCanonical329.model_independent : ∀
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s : Yulang.GeneralDeclarativeHead320.State}
+  (a b : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeStableCanonical329.Representative a spans →
+    Yulang.GeneralDeclarativeStableCanonical329.Representative b spans →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models
+            (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+              (Yulang.GeneralDeclarativeStableTies329.rows a
+                (List.map Yulang.GeneralDeclarativeStableTies329.pairOf spans)))
+            m ↔
+          Yulang.GeneralDeclarativeHead320.Models
+            (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+              (Yulang.GeneralDeclarativeStableTies329.rows b
+                (List.map Yulang.GeneralDeclarativeStableTies329.pairOf spans)))
+            m
+@Yulang.GeneralDeclarativeStableCanonical329.permutation : ∀
+  {spans others : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s : Yulang.GeneralDeclarativeHead320.State}
+  (a b : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeStableCanonical329.Representative a spans →
+    Yulang.GeneralDeclarativeStableCanonical329.Representative b others →
+      spans.Perm others →
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models
+              (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+                (Yulang.GeneralDeclarativeStableTies329.rows a
+                  (List.map Yulang.GeneralDeclarativeStableTies329.pairOf spans)))
+              m ↔
+            Yulang.GeneralDeclarativeHead320.Models
+              (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+                (Yulang.GeneralDeclarativeStableTies329.rows b
+                  (List.map Yulang.GeneralDeclarativeStableTies329.pairOf others)))
+              m
+@Yulang.GeneralDeclarativeStableCanonical329.distinct_redundant : ∀
+  {selected : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s : Yulang.GeneralDeclarativeHead320.State},
+  (List.map Prod.fst spans).Nodup →
+    Yulang.GeneralDeclarativeStableCanonical329.Representative selected spans →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models
+            (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+              (Yulang.GeneralDeclarativeStableTies329.rows selected
+                (List.map Yulang.GeneralDeclarativeStableTies329.pairOf spans)))
+            m ↔
+          Yulang.GeneralDeclarativeHead320.Models s m
+Yulang.GeneralDeclarativeStableClash329.inhabits : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeStableClash329.beforeChoice
+  (Yulang.GeneralDeclarativeStableModels329.assignment Yulang.GeneralDeclarativeRepeat320.int
+    Yulang.GeneralDeclarativeNestedModels328.payload)
+Yulang.GeneralDeclarativeStableClash329.from_shape : Yulang.GeneralDeclarativeStableReads329.Heads
+  Yulang.GeneralDeclarativeStableClash329.beforeChoice Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors
+  Yulang.GeneralDeclarativeRepeatDecl327.interp Yulang.GeneralDeclarativeRepeatDecl327.root.arguments
+  Yulang.GeneralDeclarativeRepeatDecl327.impl.head Yulang.GeneralDeclarativeStableFixture329.spans
+Yulang.GeneralDeclarativeStableClash329.impossible : ¬∃ m,
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableClash329.afterChoice m
+Yulang.GeneralDeclarativeStableClash329.clash : Yulang.GeneralDeclarativeStableSelect329.TieClash
+  Yulang.GeneralDeclarativeStableClash329.beforeChoice Yulang.GeneralDeclarativeRepeatDecl327.reg
+  Yulang.GeneralDeclarativeRepeatDecl327.interp Yulang.GeneralDeclarativeRepeatDecl327.root
+  Yulang.GeneralDeclarativeRepeatDecl327.impl
+@Yulang.GeneralDeclarativeStableCompiler329.source_ties : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {impl : Yulang.GeneralDeclarations.Declaration} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)}
+  {base : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarations.Checked r →
+    impl ∈ r.declarations →
+      Yulang.GeneralDeclarativeStableReads329.Heads s r.constructors i d.arguments impl.head spans →
+        Yulang.GeneralDeclarativeStableTies329.Consequence s base
+            (List.map Yulang.GeneralDeclarativeStableTies329.pairOf spans) →
+          ∀ (place : Yulang.GeneralDeclarativeEmissionForest322.Placement),
+            Yulang.GeneralDeclarativeStableTies329.Consequence s
+              (Yulang.GeneralDeclarativeFrameReadback325.sourceNames impl place base).input
+              (List.map Yulang.GeneralDeclarativeStableTies329.pairOf spans)
+@Yulang.GeneralDeclarativeStableCompiler329.read : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            ∀ (frame : Yulang.GeneralDeclarativeStableCompiler329.Frame s r i d impl kids),
+              Yulang.GeneralDeclarativeCompileLists321.Result s
+                  (Yulang.GeneralDeclarativeNFComplete324.facts r i frame.capture impl d kids) ∧
+                (∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                    Yulang.GeneralDeclarativeHead320.Models s m →
+                      Yulang.GeneralDeclarativeAssembly320.Meaning r i m d impl frame.capture kids) ∧
+                  ∀ (child : Yulang.GeneralDeclarativeDemand320.Demand),
+                    child ∈ kids → Yulang.GeneralDeclarativeOutputSource323.Declared r child
+Yulang.GeneralDeclarativeStableCrossBridge329.prior_aggregate : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeStableCrossBridge329.before Yulang.GeneralDeclarativeStableCrossCompile329.final
+Yulang.GeneralDeclarativeStableCrossBridge329.aggregate_value : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossCompile329.final m →
+    Yulang.CommonNominalFullCarrier.Equivalent (m 13).fst (m 3).fst ∧
+      Yulang.CommonNominalFullCarrier.Equivalent (m 14).fst (m 3).fst
+Yulang.GeneralDeclarativeStableCrossBridge329.conserves : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossBridge329.current m ↔

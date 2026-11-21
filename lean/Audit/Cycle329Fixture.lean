@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeStableResult329
+
+#print axioms Yulang.GeneralDeclarativeStableFixture329.prior_untied
+#print axioms Yulang.GeneralDeclarativeStableFixture329.current_tie
+#print axioms Yulang.GeneralDeclarativeStableFixture329.frame
+#print axioms Yulang.GeneralDeclarativeStableFixture329.exact_child
+#print axioms Yulang.GeneralDeclarativeStableFixture329.wrong_return_rejected
+#print axioms Yulang.GeneralDeclarativeStableProbe329.acyclic
+#print axioms Yulang.GeneralDeclarativeStableResult329.tree
+#print axioms Yulang.GeneralDeclarativeStableResult329.every_model

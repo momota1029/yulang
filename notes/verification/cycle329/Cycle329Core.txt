@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeStableTies329.model_batch' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableTies329.repeated_shares' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableReads329.head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableCompiler329.source_ties' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableCompiler329.read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableSelect329.sound' depends on axioms: [propext, Classical.choice, Quot.sound]

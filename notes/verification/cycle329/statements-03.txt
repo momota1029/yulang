@@ -1,0 +1,162 @@
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeRepeatedSource323.registry
+      Yulang.GeneralDeclarativeExampleSource320.interp m Yulang.GeneralDeclarativeRepeatedSource323.goal
+      Yulang.GeneralDeclarativeStableCrossResolve329.dict
+Yulang.GeneralDeclarativeStableCrossResolve329.nonvacuous : ∃ m,
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossBridge329.current m ∧
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeRepeatedSource323.registry
+      Yulang.GeneralDeclarativeExampleSource320.interp m Yulang.GeneralDeclarativeRepeatedSource323.goal
+      Yulang.GeneralDeclarativeStableCrossResolve329.dict
+Yulang.GeneralDeclarativeStableCrossSource329.allowed : ∀ (done : Nat → Prop)
+  {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈ Yulang.GeneralDeclarativeStableCrossSource329.oldRows →
+    e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeStableCrossSource329.supported done)).equations
+Yulang.GeneralDeclarativeStableCrossSource329.range_a : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeStableCrossSource329.initial Yulang.GeneralDeclarativeRepeatedSource323.a
+Yulang.GeneralDeclarativeStableCrossSource329.range_b : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeStableCrossSource329.initial Yulang.GeneralDeclarativeRepeatedSource323.b
+Yulang.GeneralDeclarativeStableCrossSource329.observed : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeStableTrace329.Actual Yulang.GeneralDeclarativeStableCrossSource329.initial
+    Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+    (Yulang.GeneralDeclarativeStableCrossSource329.supported done) Yulang.GeneralDeclarativeRepeatedSource323.a
+    Yulang.GeneralDeclarativeRepeatedSource323.pat [(0, Yulang.GeneralDeclarativeExampleSource320.point 3)]
+Yulang.GeneralDeclarativeStableCrossSource329.reads_pair : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeStableHybrid329.Source Yulang.GeneralDeclarativeStableCrossSource329.initial
+    Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+    (Yulang.GeneralDeclarativeStableCrossSource329.supported done)
+    Yulang.GeneralDeclarativeRepeatedSource323.goal.arguments Yulang.GeneralDeclarativeRepeatedSource323.parent.head
+Yulang.GeneralDeclarativeStableCrossSource329.named : Yulang.GeneralDeclarativeStableHybrid329.Certified
+  Yulang.GeneralDeclarativeStableCrossSource329.initial Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors
+  Yulang.GeneralDeclarativeExampleSource320.interp Yulang.GeneralDeclarativeRepeatedSource323.goal.arguments
+  Yulang.GeneralDeclarativeRepeatedSource323.parent.head Yulang.GeneralDeclarativeStableCrossSource329.tasks
+Yulang.GeneralDeclarativeStableCrossSource329.real_spans : Yulang.GeneralDeclarativeStableCrossSource329.actual.spans =
+  Yulang.GeneralDeclarativeStableCrossSource329.spans
+Yulang.GeneralDeclarativeStableCrossSource329.actual_rows : Yulang.GeneralDeclarativeStableCrossSource329.actual.state.equations =
+  Yulang.GeneralDeclarativeStableCrossSource329.oldRows ++
+    [{ left := 11, right := Yulang.GeneralDeclarativeRepeatedSource323.nominalCode 7 }]
+Yulang.GeneralDeclarativeStableCrossSource329.no_original_eleven : ¬∃ exp,
+    { left := 11, right := exp } ∈ Yulang.GeneralDeclarativeStableCrossSource329.initial.equations
+Yulang.GeneralDeclarativeStableCrossSource329.real_heads : Yulang.GeneralDeclarativeStableReads329.Heads
+  Yulang.GeneralDeclarativeStableCrossSource329.actual.state
+  Yulang.GeneralDeclarativeRepeatedSource323.registry.constructors Yulang.GeneralDeclarativeExampleSource320.interp
+  Yulang.GeneralDeclarativeRepeatedSource323.goal.arguments Yulang.GeneralDeclarativeRepeatedSource323.parent.head
+  Yulang.GeneralDeclarativeStableCrossSource329.spans
+Yulang.GeneralDeclarativeStableCrossSource329.real_ranges : ∀ (s : Nat × Yulang.GeneralDeclarativeWhere319.Capture),
+  s ∈ Yulang.GeneralDeclarativeStableCrossSource329.spans →
+    Yulang.GeneralDeclarativeDemand320.Bounds Yulang.GeneralDeclarativeStableCrossSource329.actual.state s.snd
+Yulang.GeneralDeclarativeStableCrossSource329.actual_model : ∀ (second : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeStableCrossSource329.actual.state
+    (Yulang.GeneralDeclarativeStableCrossSource329.assignment second)
+Yulang.GeneralDeclarativeStableFixture329.tie_exact : Yulang.GeneralDeclarativeStableTies329.rows
+    Yulang.GeneralDeclarativeStableFixture329.base
+    (List.map Yulang.GeneralDeclarativeStableTies329.pairOf Yulang.GeneralDeclarativeStableFixture329.spans) =
+  [Yulang.GeneralDeclarativeStableFixture329.tie]
+Yulang.GeneralDeclarativeStableFixture329.prior_untied : ¬Yulang.GeneralDeclarativeStableFixture329.tie ∈
+    Yulang.GeneralDeclarativeOpaqueFixture328.prepared.equations
+Yulang.GeneralDeclarativeStableFixture329.generated : Yulang.GeneralDeclarativeClauseBatch327.prepare
+    Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors Yulang.GeneralDeclarativeRepeatDecl327.interp
+    Yulang.GeneralDeclarativeStableFixture329.keep Yulang.GeneralDeclarativeStableFixture329.cap
+    Yulang.GeneralDeclarativeStableFixture329.tied Yulang.GeneralDeclarativeRepeatDecl327.impl.requirements =
+  some (Yulang.GeneralDeclarativeStableFixture329.inputState, Yulang.GeneralDeclarativeStableFixture329.ports)
+Yulang.GeneralDeclarativeStableFixture329.exact_input : Yulang.GeneralDeclarativeStableFixture329.inputState.equations =
+  Yulang.GeneralDeclarativeOpaqueFixture328.oldRows ++
+      [Yulang.GeneralDeclarativeStableFixture329.pairRow, Yulang.GeneralDeclarativeStableFixture329.tie] ++
+    Yulang.GeneralDeclarativeStableFixture329.inputRows
+Yulang.GeneralDeclarativeStableFixture329.exact_child : Yulang.GeneralDeclarativeEmissionForest322.children
+    Yulang.GeneralDeclarativeRepeatDecl327.impl Yulang.GeneralDeclarativeStableFixture329.names
+    Yulang.GeneralDeclarativeStableFixture329.place =
+  [Yulang.GeneralDeclarativeStableFixture329.child]
+Yulang.GeneralDeclarativeStableFixture329.exact_return : Yulang.GeneralDeclarativeBatch320.collect
+    (Yulang.GeneralDeclarativeNormalizeAssoc324.one Yulang.GeneralDeclarativeRepeatDecl327.reg
+      Yulang.GeneralDeclarativeRepeatDecl327.interp Yulang.GeneralDeclarativeRepeatDecl327.impl
+      Yulang.GeneralDeclarativeRepeatDecl327.root Yulang.GeneralDeclarativeStableFixture329.names.input)
+    Yulang.GeneralDeclarativeRepeatDecl327.root.outputs =
+  some [Yulang.GeneralDeclarativeStableFixture329.returnRow]
+Yulang.GeneralDeclarativeStableFixture329.wrong_return_rejected : Yulang.GeneralDeclarativeOpaqueBatch328.check
+    (Yulang.GeneralDeclarativeEmissionForest322.children Yulang.GeneralDeclarativeRepeatDecl327.impl
+      Yulang.GeneralDeclarativeStableFixture329.names Yulang.GeneralDeclarativeStableFixture329.place)
+    [{ role := 2, arguments := [Yulang.GeneralDeclarativeStableFixture329.cas],
+        outputs := [{ name := 1, target := 6 }] }] =
+  false
+@Yulang.GeneralDeclarativeStableFixture329.ordinary_rows : ∀ {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈
+      Yulang.GeneralDeclarativeOpaqueFixture328.oldRows ++
+          [Yulang.GeneralDeclarativeStableFixture329.pairRow, Yulang.GeneralDeclarativeStableFixture329.tie] ++
+        Yulang.GeneralDeclarativeStableFixture329.inputRows →
+    e ∈ Yulang.GeneralDeclarativeStableFixture329.final.equations
+Yulang.GeneralDeclarativeStableFixture329.where_grows : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeStableFixture329.inputState Yulang.GeneralDeclarativeStableFixture329.final
+Yulang.GeneralDeclarativeStableFixture329.pre_grows : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeOpaqueFixture328.prepared Yulang.GeneralDeclarativeStableFixture329.final
+Yulang.GeneralDeclarativeStableFixture329.current_tie : Yulang.GeneralDeclarativeStableTies329.Consequence
+  Yulang.GeneralDeclarativeStableFixture329.final Yulang.GeneralDeclarativeStableFixture329.base
+  (List.map Yulang.GeneralDeclarativeStableTies329.pairOf Yulang.GeneralDeclarativeStableFixture329.spans)
+Yulang.GeneralDeclarativeStableFixture329.root_range_now : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeStableFixture329.final Yulang.GeneralDeclarativeRepeatDecl327.arg
+Yulang.GeneralDeclarativeStableFixture329.capture_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeStableFixture329.final Yulang.GeneralDeclarativeOpaqueFixture328.leftCapture
+Yulang.GeneralDeclarativeStableFixture329.child_range : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeStableFixture329.final Yulang.GeneralDeclarativeStableFixture329.cas
+Yulang.GeneralDeclarativeStableFixture329.parent_observed : Yulang.GeneralDeclarativeStableReads329.Heads
+  Yulang.GeneralDeclarativeStableFixture329.final Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors
+  Yulang.GeneralDeclarativeRepeatDecl327.interp Yulang.GeneralDeclarativeRepeatDecl327.root.arguments
+  Yulang.GeneralDeclarativeRepeatDecl327.impl.head Yulang.GeneralDeclarativeStableFixture329.spans
+Yulang.GeneralDeclarativeStableFixture329.child_observed : Yulang.GeneralDeclarativeStableReads329.Heads
+  Yulang.GeneralDeclarativeStableFixture329.final Yulang.GeneralDeclarativeRepeatDecl327.reg.constructors
+  Yulang.GeneralDeclarativeRepeatDecl327.interp Yulang.GeneralDeclarativeStableFixture329.child.arguments
+  Yulang.GeneralDeclarativeExampleSource320.leaf.head [(0, Yulang.GeneralDeclarativeStableFixture329.cas)]
+Yulang.GeneralDeclarativeStableFixture329.coverage : Yulang.GeneralNominalCenteredHeadWFSource.Coverage
+  Yulang.GeneralDeclarativeRepeatDecl327.reg Yulang.GeneralDeclarativeRepeatDecl327.interp
+@Yulang.GeneralDeclarativeStableGraph329.aliases : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State}
+  (selected : Nat → Yulang.GeneralDeclarativeWhere319.Capture) (uses : List Yulang.GeneralDeclarativeStableTies329.Use),
+  Yulang.GeneralDeclarativeLowerKnown321.Alias
+      (Yulang.GeneralDeclarativeEntailment320.appendFacts s (Yulang.GeneralDeclarativeStableTies329.rows selected uses))
+      a b ↔
+    Yulang.GeneralDeclarativeStableGraph329.Linked s selected uses a b
+@Yulang.GeneralDeclarativeStableGraph329.edge : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State}
+  (selected : Nat → Yulang.GeneralDeclarativeWhere319.Capture) (uses : List Yulang.GeneralDeclarativeStableTies329.Use),
+  Yulang.GeneralDeclarativeK2Graph321.Descends
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView
+        (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+          (Yulang.GeneralDeclarativeStableTies329.rows selected uses))
+        (Yulang.GeneralDeclarativeGraphRows321.observed
+          (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+            (Yulang.GeneralDeclarativeStableTies329.rows selected uses))))
+      a b ↔
+    Yulang.GeneralDeclarativeK2Graph321.Descends (Yulang.GeneralDeclarativeStableGraph329.view s selected uses) a b
+@Yulang.GeneralDeclarativeStableGraph329.paths : ∀ {a b : Nat} {s : Yulang.GeneralDeclarativeHead320.State}
+  (selected : Nat → Yulang.GeneralDeclarativeWhere319.Capture) (uses : List Yulang.GeneralDeclarativeStableTies329.Use),
+  Yulang.GeneralDeclarativeK2Graph321.Path
+      (Yulang.GeneralDeclarativeK2Graph321.aliasView
+        (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+          (Yulang.GeneralDeclarativeStableTies329.rows selected uses))
+        (Yulang.GeneralDeclarativeGraphRows321.observed
+          (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+            (Yulang.GeneralDeclarativeStableTies329.rows selected uses))))
+      a b ↔
+    Yulang.GeneralDeclarativeK2Graph321.Path (Yulang.GeneralDeclarativeStableGraph329.view s selected uses) a b
+@Yulang.GeneralDeclarativeStableGraph329.cycles : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  (selected : Nat → Yulang.GeneralDeclarativeWhere319.Capture) (uses : List Yulang.GeneralDeclarativeStableTies329.Use)
+  (n : Nat),
+  Yulang.GeneralDeclarativeK2Alias321.AliasCycle
+      (Yulang.GeneralDeclarativeEntailment320.appendFacts s (Yulang.GeneralDeclarativeStableTies329.rows selected uses))
+      (Yulang.GeneralDeclarativeGraphRows321.observed
+        (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+          (Yulang.GeneralDeclarativeStableTies329.rows selected uses)))
+      n ↔
+    ∃ a b,
+      Yulang.GeneralDeclarativeK2Graph321.Descends (Yulang.GeneralDeclarativeStableGraph329.view s selected uses) n a ∧
+        Yulang.GeneralDeclarativeK2Graph321.Path (Yulang.GeneralDeclarativeStableGraph329.view s selected uses) a b ∧
+          Yulang.GeneralDeclarativeStableGraph329.Linked s selected uses b n
+@Yulang.GeneralDeclarativeStableHybrid329.certify : ∀ {done : Nat → Prop}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {args : List Yulang.GeneralDeclarativeWhere319.Capture} {pats : List Yulang.GeneralDeclarationPatterns.Pattern}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeStableHybrid329.Source s c i p args pats →
+    ∃ tasks, Yulang.GeneralDeclarativeStableHybrid329.Certified s c i args pats tasks
+@Yulang.GeneralDeclarativeStableHybrid329.transport_one : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {a : Yulang.GeneralDeclarativeWhere319.Capture}
+  {p : Yulang.GeneralDeclarationPatterns.Pattern} {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)}
+  {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →

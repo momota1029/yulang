@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeStableInputs329.for_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStableAssemble329.assemble' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableAssemble329.witness_projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStableAssemble329.frame_after' depends on axioms: [propext, Classical.choice, Quot.sound]

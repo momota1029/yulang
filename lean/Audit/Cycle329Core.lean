@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeStableSelect329
+
+#print axioms Yulang.GeneralDeclarativeStableTies329.model_batch
+#print axioms Yulang.GeneralDeclarativeStableTies329.repeated_shares
+#print axioms Yulang.GeneralDeclarativeStableReads329.head
+#print axioms Yulang.GeneralDeclarativeStableCompiler329.source_ties
+#print axioms Yulang.GeneralDeclarativeStableCompiler329.read
+#print axioms Yulang.GeneralDeclarativeStableSelect329.sound

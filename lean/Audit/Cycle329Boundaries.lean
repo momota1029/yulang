@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeStablePendingAnchor329
+import Yulang.GeneralDeclarativeStableWriteVerdict329
+import Yulang.GeneralDeclarativeStableScope329
+import Yulang.GeneralDeclarativeStableMergeEquiv329
+
+#print axioms Yulang.GeneralDeclarativeStableBackedAnchor329.expose
+#print axioms Yulang.GeneralDeclarativeStablePendingAnchor329.ordinary_not_backed
+#print axioms Yulang.GeneralDeclarativeStableWriteVerdict329.genuine_type_error
+#print axioms Yulang.GeneralDeclarativeStableScope329.source_scope
+#print axioms Yulang.GeneralDeclarativeStableScope329.no_rows_if_linear
+#print axioms Yulang.GeneralDeclarativeStableMergeEquiv329.aggregates
+#print axioms Yulang.GeneralDeclarativeStableMergeEquiv329.forest
+#print axioms Yulang.GeneralDeclarativeStableMergeEquiv329.forest_evidence

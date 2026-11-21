@@ -1,10 +1,10 @@
 # dot heartbeat
 
-- cycle: 328
+- cycle: 329
 - status: running
-- started: 2026-11-21T19:30:19Z
-- updated: 2026-11-21T20:13:42.255Z
+- started: 2026-11-21T20:30:01Z
+- updated: 2026-11-21T21:13:31.851Z
 - elapsed_min: 43
-- activity: C328: save verified proofs, handoff, and independent exact-source audit logs
-- last_local_commit: 6e817df8f
-- resume_hint: C328 の固定報告・証明・検証ログを確認し、次の周は inbox の最新指示を再読。
+- activity: C329: fixed I-58 handoff and independent Lean verification logs
+- last_local_commit: 677a87570
+- resume_hint: C329 の固定報告と検証ログを確認し、次の周は inbox 最新指示を再読。
