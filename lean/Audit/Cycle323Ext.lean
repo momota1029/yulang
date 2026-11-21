@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativePlainK2323
+import Yulang.GeneralDeclarativeProjectionCheck323
+import Yulang.GeneralDeclarativeRecordFixture323
+
+#print axioms Yulang.GeneralDeclarativePlainK2323.k2_exact
+#print axioms Yulang.GeneralDeclarativeProjectedSharing323.share
+#print axioms Yulang.GeneralDeclarativeProjectionCheck323.nested
+#print axioms Yulang.GeneralDeclarativeProjectionCheck323.covariant_not_shared
+#print axioms Yulang.GeneralDeclarativeRecordResidual323.reconstruct_with_terminal
+#print axioms Yulang.GeneralDeclarativeRecordResidual323.fresh_remainder
+#print axioms Yulang.GeneralDeclarativeRecordHead323.permuted_head
+#print axioms Yulang.GeneralDeclarativeRecordFixture323.closed_nonempty
