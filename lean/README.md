@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 140556)
-Total output lines: 4747
+Warning: truncated output (original token count: 140711)
+Total output lines: 4757
 
 # Yulang3 型推論の形式化
 
@@ -168,15 +168,7 @@ N は元 pool の node 数であり、`(5N+3)²` は**一つの branch の処理
 | 統合定理 | 示したこと | 示さないこと |
 | --- | --- | --- |
 | `CommonBoundRefWorklist.run_finished` / `run_closed` / `run_bound` / `run_grammar` | 任意 pool・初期辺で実有限 worklist が停止し、返した任意 state の未処理 rigid 比較がなく、処理履歴は重複せず inventory 内。初期辺が生成文法なら新しい child/required/optional 辺も同じ文法に入る | 任意の手書き型文法の分解 exactness、全 alternatives の多項式個数 |
-| `CommonBoundRefWorklist.generated_run_models_exact` / `generated_core_run_models_exact` | 任意の source/Core 式の任意生成 clause、任意独立 rows/values について、元 constructor Realizes の下で、元型比較列の成立 iff 実 run のいずれかの全辺・補助制約が成立。生成 grammar/width を内部で供給 | この部品単独での元明示行制約の求解、任意自…120556 tokens truncated…片。identityはscalar factの伝播規則であり、
-seedが無いidentity class全体へ任意型の等式を追加する主張ではない。新しいslotや
-変数辺、実parser由来のsource/invocation、一般のchild生成、最終四分類、辞書同値は
-未達。B4の5橋は引き続き未完成。一般のordinary entailmentや総runtime上限も含まない。
-
-## Cycle101: 構造的なソースからmixed閉包へ
-
-`CommonRoleStructuralMixedSource` は、検査済みの構造的な有限occurrence列から
-source table・receiver/output slot・物理的なsource等式を計算し、関連型とordinary
+| `CommonBoundRefWorklist.generated_run_models_exact` / `generated_core_run_models_exact` | 任意の source/Core 式の任意生成 clause、任意独立 rows/values について、元 constructor Realizes の下で、元型比較列の成立 iff 実 run のいずれかの全辺・補助制約が成立。生成 grammar/width を内部で供給 | この部品単独での元明示行制約の求解、任意自…120711 tokens truncated…ordinary
 の交互閉包へ接続する。任意のprogram/stateに対して、実出力のscalar evidenceは、
 元stateの明示的なseed、相互辺、独立な構造的関連型導出からなる名前上のjudgmentと
 一致する。生成される異なるfactは8 * occurrence数以下。
@@ -697,3 +689,13 @@ The same source witness and the same full assignment are retained.
   extend each old model without changing its old names. Approved whole-source
   local normalization/propagation and existing-state provenance remain open;
   no solver, executable or termination result is asserted.
+
+- Cycle322 (I-56): ordinary congruence/structural inversion and term
+  occurrences recover existing callable names without allocating them.
+  Erasing actual centers yields the existing source emitter's entire
+  ordered request forest. Normalized syntax coverage, common actual
+  capture, and fixed-target output equations support an independent
+  declarative producer. A checked two-node dictionary uses those exact
+  emitted names, and equivalent old aliases can transport its evidence.
+  General source decision/normalizer adequacy remains open; no changes
+  to language selection, solver state, Rust, or termination.

@@ -1,0 +1,22 @@
+'Yulang.GeneralDeclarativeNormalizeScope322.checked_normal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNormalizeCovered322.normalize_covered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSourceCoverage322.compile_requirements' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeSourceCoverage322.ready_from_forms' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeDefaultCoverage322.return_from_body' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeBinderEmission322.generates_from_binders' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTermOccurrences322.source_binders' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTermCapture322.named_binds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTermCapturedHead322.gives_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeSubstitute322.at_same_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeDemandAliases322.evidence_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAliasTransportFixture322.aliases_of_actual_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

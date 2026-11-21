@@ -1,0 +1,11 @@
+✔ [1044/1044] Built Yulang.GeneralDeclarativeProducerFixture322 (1.5s)
+Build completed successfully (1044 jobs).
+'Yulang.GeneralDeclarativeFixedReturn322.supplied_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFixedReturn322.positional_default_alias' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeFixedReturn322.requested_return' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOrdinaryProducer322.ordinary_produces' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeProducerFixture322.metadata' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeProducerFixture322.actual_map' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeProducerFixture322.produced' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,2 @@
+'Yulang.GeneralDeclarativeEmissionErasure322.one_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEmissionErasure322.all_source' depends on axioms: [propext, Quot.sound]

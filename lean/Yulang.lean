@@ -6739,3 +6739,6 @@ import Yulang.GeneralDeclarativeTermCapture322
 import Yulang.GeneralDeclarativeTermCapturedHead322
 import Yulang.GeneralDeclarativeTermOccurrences322
 import Yulang.GeneralDeclarativeEmissionErasure322
+import Yulang.GeneralDeclarativeFixedReturn322
+import Yulang.GeneralDeclarativeOrdinaryProducer322
+import Yulang.GeneralDeclarativeProducerFixture322
