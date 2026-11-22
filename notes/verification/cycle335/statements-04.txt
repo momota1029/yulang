@@ -1,3 +1,58 @@
+  Yulang.GeneralDeclarativeWitnessCutDecl334.root
+  (Yulang.CommonRoleOutermostResolver.Result.selected
+    (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDeclarativeWitnessCutDecl334.impl.id []))
+Yulang.GeneralStoppedI61Endpoint335.Cut.actual_repaired : ∃ m,
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeWitnessCutBody334.final m ∧
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeWitnessCutDecl334.registry
+      Yulang.GeneralDeclarativeNestedExample332.interpretation m Yulang.GeneralDeclarativeWitnessCutDecl334.root
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node Yulang.GeneralDeclarativeWitnessCutDecl334.impl.id [])
+@Yulang.GeneralStoppedInstallHistory335.roll : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start before after : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start before effect →
+    Yulang.GeneralNominalVersionedMixedKernel234.Step registry root before after →
+      Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start after effect
+@Yulang.GeneralStoppedInstallHistory335.administrative_effects : ∀ {roles : Yulang.Roles.RoleDecls}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralNominalVersionedMixedKernel234.Administrative before focus after → after.effects = before.effects
+@Yulang.GeneralStoppedInstallHistory335.effects_origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start final →
+    effect ∈ final.effects →
+      effect ∈ start.effects ∨ Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect
+@Yulang.GeneralStoppedInstallHistory335.installed_origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start final →
+    start.effects = [] →
+      effect ∈ final.effects → Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect
+@Yulang.GeneralStoppedInstallHistory335.retained_sites : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect →
+    Yulang.GeneralNominalVersionedChildren232.emitted effect.plan ⊆ final.core.sites ∧
+      Yulang.GeneralNominalVersionedChildren232.edges effect.plan ⊆ final.core.erased.current.edges
+@Yulang.GeneralStoppedInstallHistory335.retained_projected : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect →
+    List.map Prod.fst
+          (List.map Yulang.GeneralStoppedOrdinarySite335.occurrence
+            (Yulang.GeneralNominalVersionedChildren232.emitted effect.plan)) =
+        List.map Yulang.GeneralSourceDictionaries.Occurrence.identity
+          (Yulang.GeneralNominalVersionedFrame231.children effect.plan.packet) ∧
+      ∀ (site : Yulang.GeneralNominalCenters.Site roles),
+        site ∈ Yulang.GeneralNominalVersionedChildren232.emitted effect.plan →
+          site ∈ final.core.sites ∧
+            (effect.plan.packet.site.occurrence, site.occurrence) ∈ final.core.erased.current.edges ∧
+              (Yulang.GeneralStoppedOrdinarySite335.demand site).outputs = site.occurrence.demand.outputs
 @Yulang.GeneralStoppedInstallHistory335.retained_plan : ∀ {roles : Yulang.Roles.RoleDecls}
   {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
   {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
@@ -114,62 +169,3 @@
 @Yulang.GeneralStoppedLowerOrigin335.exists_entry : ∀ {α : Type u_1}
   {f : α → Option (List Yulang.GeneralDeclarativeHead320.Equation)}
   {es : List Yulang.GeneralDeclarativeHead320.Equation} {key : α} {xs : List α},
-  Yulang.GeneralStoppedLower335.collect f xs = some es → key ∈ xs → ∃ rows, f key = some rows
-@Yulang.GeneralStoppedLowerOrigin335.record_rows : ∀ {α : Type u_1} {name : Nat}
-  {encode : α → Option Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
-  {es : List Yulang.GeneralDeclarativeHead320.Equation} {row : Yulang.GeneralDeclarativeHead320.Equation}
-  {rec : Option α},
-  Yulang.GeneralStoppedLower335.record name encode rec = some es →
-    (row ∈ es ↔ ∃ value expr, rec = some value ∧ encode value = some expr ∧ row = { left := name, right := expr })
-@Yulang.GeneralStoppedLowerOrigin335.exact_rows : ∀ {q : Yulang.GeneralDeclarativeHead320.State}
-  {raw : Yulang.GeneralNominalState.State},
-  Yulang.GeneralStoppedLower335.lower raw = some q →
-    ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
-      row ∈ q.equations ↔
-        Yulang.GeneralStoppedLowerOrigin335.ScalarRow raw row ∨ Yulang.GeneralStoppedLowerOrigin335.NominalRow raw row
-@Yulang.GeneralStoppedLowerOrigin335.rename_point : ∀ {a b : Nat} {ps : List (Yulang.GeneralNominalState.Parameter a)}
-  {indices : List (Fin a)} (embedding : Fin a → Fin b),
-  Yulang.GeneralStoppedShape335.point ps = some indices →
-    Yulang.GeneralStoppedShape335.point (List.map (Yulang.GeneralNominalRefinements.renameParameter embedding) ps) =
-      some (List.map embedding indices)
-@Yulang.GeneralStoppedLowerOrigin335.descriptor_names : ∀ {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
-  {before after : Yulang.GeneralNominalState.State} (g : Yulang.GeneralNominalRefinements.Refines before after)
-  (d : Yulang.GeneralNominalState.Descriptor before.base.slots),
-  Yulang.GeneralStoppedShape335.descriptorExpr before.base d = some e →
-    Yulang.GeneralStoppedShape335.descriptorExpr after.base
-        (Yulang.GeneralNominalRefinements.renameDescriptor g.base.embed d) =
-      some e
-@Yulang.GeneralStoppedLowerOrigin335.literal_nominal_preserved : ∀ {row : Yulang.GeneralDeclarativeHead320.Equation}
-  {before after : Yulang.GeneralNominalState.State} (g : Yulang.GeneralNominalRefinements.Refines before after),
-  Yulang.GeneralStoppedLowerOrigin335.NominalRow before row → Yulang.GeneralStoppedLowerOrigin335.NominalRow after row
-@Yulang.GeneralStoppedLowerOrigin335.named_origin_transport : ∀ {t : Yulang.GeneralDeclarativeHead320.State}
-  {row : Yulang.GeneralDeclarativeHead320.Equation} {before after : Yulang.GeneralNominalState.State}
-  (g : Yulang.GeneralNominalRefinements.Refines before after),
-  Yulang.GeneralStoppedLower335.lower after = some t →
-    Yulang.GeneralStoppedLowerOrigin335.NominalRow before row → row ∈ t.equations
-@Yulang.GeneralStoppedOrdinarySite335.each_argument : ∀ {roles : Yulang.Roles.RoleDecls}
-  (site : Yulang.GeneralNominalCenters.Site roles) (index : Fin (roles site.occurrence.demand.role).arity),
-  (Yulang.GeneralStoppedOrdinarySite335.demand site).arguments[↑index]? =
-    some (Yulang.GeneralStoppedOrdinarySite335.argument site index)
-@Yulang.GeneralStoppedOrdinarySite335.output_targets : ∀ {roles : Yulang.Roles.RoleDecls}
-  (site : Yulang.GeneralNominalCenters.Site roles),
-  (Yulang.GeneralStoppedOrdinarySite335.demand site).outputs = site.occurrence.demand.outputs
-@Yulang.GeneralStoppedOrdinarySite335.retained_order : ∀ {roles : Yulang.Roles.RoleDecls}
-  (sites : List (Yulang.GeneralNominalCenters.Site roles)),
-  List.map Prod.fst (List.map Yulang.GeneralStoppedOrdinarySite335.occurrence sites) =
-    List.map (fun s => s.occurrence.identity) sites
-@Yulang.GeneralStoppedPlacement335.capture_models : ∀ {m : Yulang.GeneralNominalCommonBridge.Assignment}
-  {a b : Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State},
-  Yulang.GeneralDeclarativeHead320.Models s m →
-    Yulang.GeneralStoppedPlacement335.SameCapture s a b → Yulang.GeneralStoppedPlacement335.Meaning m a b
-@Yulang.GeneralStoppedPlacement335.demands_models : ∀ {m : Yulang.GeneralNominalCommonBridge.Assignment}
-  {a b : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State},
-  Yulang.GeneralDeclarativeHead320.Models s m →
-    Yulang.GeneralStoppedPlacement335.SameDemand s a b →
-      a.role = b.role ∧
-        a.outputs = b.outputs ∧
-          Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralStoppedPlacement335.Meaning m) a.arguments b.arguments
-@Yulang.GeneralStoppedProjectedTrace335.point_parameters : ∀ {n : Nat} {ids : List (Fin n)}
-  {xs : List (Yulang.GeneralNominalState.Parameter n)},
-  Yulang.GeneralStoppedShape335.point xs = some ids →
-    ∀ (p : Yulang.GeneralNominalState.Parameter n), p ∈ xs → Yulang.GeneralNominalReobservationSteps.PointParameter p
