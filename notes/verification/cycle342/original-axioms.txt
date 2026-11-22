@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeVersionedOriginalCut342.original_cut' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedOriginalCut342.reported_targets' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

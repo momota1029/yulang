@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeVersionedStale342
+#print axioms Yulang.GeneralDeclarativeVersionedStale342.historical_argument
+#print axioms Yulang.GeneralDeclarativeVersionedStale342.actual_argument
+#print axioms Yulang.GeneralDeclarativeVersionedStale342.no_substitute

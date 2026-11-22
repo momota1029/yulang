@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeVersionedOriginalCut342
+#print axioms Yulang.GeneralDeclarativeVersionedOriginalCut342.original_cut
+#print axioms Yulang.GeneralDeclarativeVersionedOriginalCut342.reported_targets

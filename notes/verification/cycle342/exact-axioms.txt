@@ -1,0 +1,91 @@
+'Yulang.GeneralDeclarativeVersionedOriginalCut342.original_cut' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedOriginalCut342.reported_targets' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedSeparation342.archived' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedSeparation342.not_current_lower' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedSeparation342.mode_changes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedCurrent342.current_prepared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedCurrent342.after_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedCurrent342.current_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedReceipt342.current_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedReceipt342.center_receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedReceipt342.reused_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedReceipt342.current_literals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildWitness342.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildWitness342.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedTree342.pre_not_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedTree342.root_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedTree342.child_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedTree342.actual_place' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedTree342.actual_root_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedTree342.modern_raw_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedPaired342.same_assignment' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedPhysical342.same_id_not_occurrence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedPhysical342.old_not_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedPhysical342.actual_model_packet' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildView342.in_every_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildView342.not_authored' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildView342.actual_arguments' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildBody342.compiled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildBody342.current_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedEndpointOnly342.no_center_observation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedEndpointOnly342.preserve_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootRead342.raw_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRetarget342.same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRetarget342.head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRetarget342.holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootGuard342.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootGuard342.ready_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootGuard342.selected_needs_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootShape342.read_modes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootShape342.exact_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootShape342.current_bindings' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootShape342.root_election' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootCompiler342.fixed_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootCompiler342.source_compile' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRows342.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRows342.aligned' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRows342.fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRows342.all' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedStale342.historical_argument' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedStale342.actual_argument' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedStale342.no_substitute' depends on axioms: [propext, Classical.choice, Quot.sound]

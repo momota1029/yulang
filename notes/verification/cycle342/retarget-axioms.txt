@@ -1,0 +1,3 @@
+'Yulang.GeneralDeclarativeVersionedRetarget342.same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRetarget342.head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRetarget342.holds' depends on axioms: [propext, Quot.sound]
