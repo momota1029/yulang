@@ -1,0 +1,35 @@
+'Yulang.GeneralDeclarativeObservedCompound347.first_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedCompound347.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedBody347.target_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeObservedBody347.compile_one_arg' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordBody347.actual_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordBody347.compiles_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeBoundary347.corrected_not_native' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRepairedEvidence347.input_output_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRepairedEvidence347.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRoot347.actual_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRoot347.starting_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeReplay347.same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativePlacement347.exact_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativePlacement347.endpoints_of_placement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatStage347.compatible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatStage347.actual_modes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatCompile347.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatInput347.exact_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatInput347.elected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatModels347.for_every_native_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatModels347.where_values' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatModels347.exact_placement_cut' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeCut347.verified' depends on axioms: [propext, Classical.choice, Quot.sound]
