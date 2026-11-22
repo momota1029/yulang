@@ -1,0 +1,2 @@
+✔ [1260/1260] Built Yulang.GeneralDeclarativeCompoundSources338 (1.2s)
+Build completed successfully (1260 jobs).

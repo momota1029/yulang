@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeCompoundSources338
+
+#print axioms Yulang.GeneralDeclarativeCompoundRoutes338.ordered_fields
+#print axioms Yulang.GeneralDeclarativeCompoundRoutes338.dispatch_total
+#print axioms Yulang.GeneralDeclarativeCompoundRoutes338.dispatch_exact
+#print axioms Yulang.GeneralDeclarativeCompoundReadback338.actual_recipe
+#print axioms Yulang.GeneralDeclarativeCompoundReadback338.child_operands
+#print axioms Yulang.GeneralDeclarativeCompoundReadback338.tail_recipe
+#print axioms Yulang.GeneralDeclarativeCompoundTree338.tree_exact
+#print axioms Yulang.GeneralDeclarativeCompoundTree338.forest_exact
+#print axioms Yulang.GeneralDeclarativeCompoundSources338.minted_anchors
+#print axioms Yulang.GeneralDeclarativeCompoundSources338.run_record
+#print axioms Yulang.GeneralDeclarativeCompoundSources338.compile
+#print axioms Yulang.GeneralDeclarativeCompoundSources338.exact
