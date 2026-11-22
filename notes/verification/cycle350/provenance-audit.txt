@@ -1,0 +1,35 @@
+'Yulang.GeneralDeclarativeWitnessOrigins350.visible_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNoHead350.all_bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNoHead350.alias_level' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNoHead350.unseen' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinished350.atRoot' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinished350.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinished350.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinished350.rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinished350.agrees_rejected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinishedFixture350.independently_unfinished' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinishedFixture350.promoted_is_not_pending' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinishedFixture350.authorized_same_root_head' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinishedFixture350.wrong_pending_owner_route' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinishedFixture350.no_author_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinishedFixture350.literal_rejected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnfinishedFixture350.cannot_call_it_pending' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleased350.usable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleased350.input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedFixture350.unfinished_is_not_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedFixture350.another_release_is_not_this_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedFixture350.exact_release_enables_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedFixture350.not_promoted_to_source' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessReleasedFixture350.nonvacuous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
