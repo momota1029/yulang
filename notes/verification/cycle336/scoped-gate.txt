@@ -1,0 +1,2 @@
+AXIOM-GATE-PASS: 65601 declarations
+scoped gate exit: 0

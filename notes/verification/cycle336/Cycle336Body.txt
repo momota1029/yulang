@@ -1,0 +1,2 @@
+'Yulang.GeneralDeclarativeEndpointBody336.calculate' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointBody336.sound' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,37 @@
+# Exact GitHub proof-pin byte match and Lean 4.35.0 replay
+# Proof pin: 9ef7cc13aeeeeef30fc25dadb6dff111d00e214a
+Yulang/GeneralDeclarativeEndpointBatch336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointBody336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointCase336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointChildModels336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointChildren336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointClash336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointClashChecked336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointCompatibility336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointConserve336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointDictionary336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointInput336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointLink336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointMixedTail336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointNames336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointOverlay336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointProgram336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointRecord336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointRegression336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointResidual336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointResidualFixture336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointResidualLift336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointResidualReflect336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointResidualSemantics336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointSelected336.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeEndpointSupport336.lean cmp=0 lean=0
+Audit/Cycle336Body.lean cmp=0 lean=0
+Audit/Cycle336Children.lean cmp=0 lean=0
+Audit/Cycle336Dictionary.lean cmp=0 lean=0
+Audit/Cycle336Endpoint.lean cmp=0 lean=0
+Audit/Cycle336Link.lean cmp=0 lean=0
+Audit/Cycle336Regression.lean cmp=0 lean=0
+Audit/Cycle336Reification.lean cmp=0 lean=0
+Audit/Cycle336Residual.lean cmp=0 lean=0
+Audit/Cycle336ResidualFixture.lean cmp=0 lean=0
+replay exit: 0

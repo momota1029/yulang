@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeEndpointLink336.selected_centers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointLink336.no_model_if_same_clash' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.materialize' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.lower_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.singleton_bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointCompatibility336.old_success' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointCompatibility336.old_and_new' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

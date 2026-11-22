@@ -1,0 +1,14 @@
+'Yulang.GeneralDeclarativeEndpointBatch336.patch_values' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointBatch336.fit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointProgram336.from_supported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointProgram336.list_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointOverlay336.approved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointInput336.sources' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointInput336.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.Generated.body' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.ties_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.clash_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointDictionary336.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
