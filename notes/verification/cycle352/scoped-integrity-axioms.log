@@ -1,0 +1,36 @@
+'Yulang.GeneralDeclarativeWitnessOriginPosition352.visible_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginPosition352.location_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginPosition352.released_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginPosition352.actual_selected_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginPosition352.used_released' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginControls352.released_not_authored' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginControls352.actual_ref_ordinal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginControls352.independent_copies' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedCompletion352.selected_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedCompletion352.selected_forest' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedCompletion352.no_positive_pending' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedCompletion352.common_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantCarrier352.not_left_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantCarrier352.not_right_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantCarrier352.invariant_flag_is_not_a_covariant_encoding' depends on axioms: [propext,
+ Quot.sound]
