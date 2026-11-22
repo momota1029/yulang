@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeEndpointResidualLift336
+import Yulang.GeneralDeclarativeEndpointClashChecked336
+
+#print axioms Yulang.GeneralDeclarativeEndpointResidualReflect336.reflect
+#print axioms Yulang.GeneralDeclarativeEndpointResidualLift336.mask_join
+#print axioms Yulang.GeneralDeclarativeEndpointResidualLift336.mask_meet
+#print axioms Yulang.GeneralDeclarativeEndpointResidualLift336.reifies
+#print axioms Yulang.GeneralDeclarativeEndpointResidualLift336.lifted
+#print axioms Yulang.GeneralDeclarativeEndpointResidualLift336.named
+#print axioms Yulang.GeneralDeclarativeEndpointResidualLift336.point_unique
+#print axioms Yulang.GeneralDeclarativeEndpointResidualLift336.rigid_unique
+#print axioms Yulang.GeneralDeclarativeEndpointResidualLift336.nonunique
+#print axioms Yulang.GeneralDeclarativeEndpointClashChecked336.regression
