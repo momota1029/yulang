@@ -1,0 +1,165 @@
+@Yulang.GeneralDeclarativeNestedBody332.compiler_exact : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s : Yulang.GeneralDeclarativeHead320.State}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            ∀ (keep : List Nat) (fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+              (targets : Yulang.GeneralDeclarations.Clause → Nat → Nat),
+              Yulang.GeneralDeclarativeStableReads329.Heads s r.constructors i d.arguments impl.head spans →
+                (∀ (a : Nat × Yulang.GeneralDeclarativeWhere319.Capture),
+                    a ∈ spans → Yulang.GeneralDeclarativeDemand320.Bounds s a.snd) →
+                  ∃ current kids frame,
+                    have input := Yulang.GeneralDeclarativeStableAssemble329.merged s keep spans fallback;
+                    Yulang.GeneralDeclarativeNestedBody332.compileBody r i d impl s spans keep fallback targets =
+                        some (current, kids) ∧
+                      frame.base = input.captures ∧
+                        frame.spans = spans ∧
+                          frame.targets = targets ∧
+                            current =
+                                Yulang.GeneralDeclarativeEntailment320.appendFacts
+                                  (Yulang.GeneralDeclarativeEntailment320.appendFacts frame.prepared frame.whereRows)
+                                  frame.rootRows ∧
+                              Yulang.GeneralDeclarativeGrowth327.Extends
+                                  (Yulang.GeneralDeclarativeStableAssemble329.tieState s spans fallback) current ∧
+                                ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                                  Yulang.GeneralDeclarativeHead320.Models current m ↔
+                                    Yulang.GeneralDeclarativeHead320.Models frame.prepared m ∧
+                                      ∀ (e : Yulang.GeneralDeclarativeHead320.Equation),
+                                        e ∈ frame.whereRows ++ frame.rootRows →
+                                          Yulang.GeneralDeclarativeEntailment320.Holds m e
+Yulang.GeneralDeclarativeNestedBracket332.record_below_width : ∀ (label : Nat)
+  (payload rest : Yulang.CommonNominalFullCarrier.Ty),
+  Yulang.CommonNominalFullCarrier.Subtype (Yulang.CommonNominalFullCarrier.record label payload rest)
+    Yulang.CommonNominalFullCarrier.emptyRecord
+Yulang.GeneralDeclarativeNestedBracket332.limited_upper : Yulang.GeneralDeclarativeNestedDecode332.normalized
+      Yulang.GeneralDeclarativeNestedBracket332.src Yulang.GeneralDeclarationExamples.constructors
+      Yulang.GeneralDeclarativeNestedExample332.interpretation Yulang.GeneralNominalMaterialization.Mode.lower
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+      Yulang.GeneralDeclarativeNestedBracket332.pattern =
+    some (Yulang.GeneralDeclarativeNestedBracket332.uses Yulang.GeneralNominalMaterialization.Mode.lower) ∧
+  Yulang.GeneralDeclarativeNestedDecode332.normalized Yulang.GeneralDeclarativeNestedBracket332.src
+        Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+        Yulang.GeneralNominalMaterialization.Mode.actual
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 1)
+        Yulang.GeneralDeclarativeNestedBracket332.pattern =
+      some (Yulang.GeneralDeclarativeNestedBracket332.uses Yulang.GeneralNominalMaterialization.Mode.actual) ∧
+    Yulang.GeneralDeclarativeNestedDecode332.normalized Yulang.GeneralDeclarativeNestedBracket332.src
+        Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+        Yulang.GeneralNominalMaterialization.Mode.upper
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 2)
+        Yulang.GeneralDeclarativeNestedBracket332.pattern =
+      none
+Yulang.GeneralDeclarativeNestedBracket332.model_exists : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeNestedBracket332.state Yulang.GeneralDeclarativeNestedBracket332.model
+Yulang.GeneralDeclarativeNestedBracket332.upper_none_not_clash : Yulang.GeneralDeclarativeNestedDecode332.normalized
+      Yulang.GeneralDeclarativeNestedBracket332.src Yulang.GeneralDeclarationExamples.constructors
+      Yulang.GeneralDeclarativeNestedExample332.interpretation Yulang.GeneralNominalMaterialization.Mode.upper
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 2)
+      Yulang.GeneralDeclarativeNestedBracket332.pattern =
+    none ∧
+  ∃ m,
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedBracket332.state m ∧
+      Yulang.GeneralDeclarativeRepeatedActual323.eqAt m
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 1)
+        Yulang.GeneralDeclarativeNestedBracket332.wanted
+Yulang.GeneralDeclarativeNestedBracket332.actual_lower_obstruction : Yulang.GeneralDeclarativeNestedClash332.Apart
+  Yulang.GeneralDeclarativeNestedBracket332.wider Yulang.GeneralDeclarativeNestedBracket332.wanted
+Yulang.GeneralDeclarativeNestedBracket332.lower_none_is_real : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedBracket332.state m →
+    ¬Yulang.GeneralDeclarativeRepeatedActual323.eqAt m (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 2)
+        Yulang.GeneralDeclarativeNestedBracket332.wanted
+Yulang.GeneralDeclarativeNestedChild332.gathered : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeStableAssemble329.MergeFacts Yulang.GeneralDeclarativeNestedFrame332.stage
+    Yulang.GeneralDeclarativeNestedFrame332.keep Yulang.GeneralDeclarativeNestedFrame332.spans
+    Yulang.GeneralDeclarativeNestedFrame332.fallback
+Yulang.GeneralDeclarativeNestedChild332.root_grows : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeNestedFrame332.stage Yulang.GeneralDeclarativeNestedFrame332.rootStage
+Yulang.GeneralDeclarativeNestedChild332.child_bounds : Yulang.GeneralDeclarativeDemand320.Bounds
+  Yulang.GeneralDeclarativeNestedFrame332.rootStage Yulang.GeneralDeclarativeNestedChild332.capture
+Yulang.GeneralDeclarativeNestedChild332.child_gathered : Yulang.GeneralDeclarativeStableAssemble329.MergeFacts
+  Yulang.GeneralDeclarativeNestedFrame332.rootStage Yulang.GeneralDeclarativeNestedFrame332.keep
+  Yulang.GeneralDeclarativeNestedChild332.leafSpans Yulang.GeneralDeclarativeNestedFrame332.fallback
+Yulang.GeneralDeclarativeNestedChild332.child_grows : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeNestedFrame332.rootStage Yulang.GeneralDeclarativeNestedChild332.final
+Yulang.GeneralDeclarativeNestedChild332.all_grows : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeGrowth327.Extends Yulang.GeneralDeclarativeNestedExample332.state
+    Yulang.GeneralDeclarativeNestedChild332.final
+Yulang.GeneralDeclarativeNestedChild332.wanted_child : Yulang.GeneralDeclarativeOutputSource323.Declared
+  Yulang.GeneralDeclarativeNestedDecl332.registry Yulang.GeneralDeclarativeNestedDecl332.child
+Yulang.GeneralDeclarativeNestedChild332.child_code : Yulang.GeneralDeclarativeNestedBody332.compileBody
+    Yulang.GeneralDeclarativeNestedDecl332.registry Yulang.GeneralDeclarativeNestedExample332.interpretation
+    Yulang.GeneralDeclarativeNestedDecl332.child Yulang.GeneralDeclarativeExampleSource320.leaf
+    Yulang.GeneralDeclarativeNestedFrame332.rootStage Yulang.GeneralDeclarativeNestedChild332.leafSpans
+    Yulang.GeneralDeclarativeNestedFrame332.keep Yulang.GeneralDeclarativeNestedFrame332.fallback
+    Yulang.GeneralDeclarativeNestedFrame332.targets =
+  some (Yulang.GeneralDeclarativeNestedChild332.final, [])
+Yulang.GeneralDeclarativeNestedChild332.child_frame : Nonempty
+  (Yulang.GeneralDeclarativeStableCompiler329.Frame Yulang.GeneralDeclarativeNestedChild332.final
+    Yulang.GeneralDeclarativeNestedDecl332.registry Yulang.GeneralDeclarativeNestedExample332.interpretation
+    Yulang.GeneralDeclarativeNestedDecl332.child Yulang.GeneralDeclarativeExampleSource320.leaf [])
+Yulang.GeneralDeclarativeNestedChild332.endpoint_alias : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Alias
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeNestedChild332.current done)) 18 3
+Yulang.GeneralDeclarativeNestedChild332.root_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeNestedChild332.current done)
+    Yulang.GeneralDeclarativeNestedDecl332.root
+Yulang.GeneralDeclarativeNestedChild332.child_ready : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeLowerKnown321.Ready (Yulang.GeneralDeclarativeNestedChild332.current done)
+    Yulang.GeneralDeclarativeNestedDecl332.child
+Yulang.GeneralDeclarativeNestedChild332.root_matches : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineEndpoint331.Heads
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeNestedChild332.current done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+    Yulang.GeneralDeclarativeNestedDecl332.root Yulang.GeneralDeclarativeNestedDecl332.decl
+Yulang.GeneralDeclarativeNestedChild332.child_matches : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineEndpoint331.Heads
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeNestedChild332.current done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+    Yulang.GeneralDeclarativeNestedDecl332.child Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeNestedChild332.exact_rows : Yulang.GeneralDeclarativeNestedChild332.final.equations =
+  Yulang.GeneralDeclarativeNestedExample332.rows ++
+    [{ left := 16, right := Yulang.GeneralDeclarativeNestedExample332.innerResidual },
+      { left := 17, right := Yulang.GeneralDeclarativeNestedExample332.outerResidual },
+      { left := 0, right := Yulang.GeneralDeclarativeNestedFrame332.capturedExpr },
+      Yulang.GeneralDeclarativeNestedFrame332.rootWrite, Yulang.GeneralDeclarativeNestedFrame332.childWrite]
+Yulang.GeneralDeclarativeNestedChild332.no_cycles : ∀ (n : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralDeclarativeNestedChild332.final
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralDeclarativeNestedChild332.final) n
+Yulang.GeneralDeclarativeNestedChild332.safe : ∀ (done : Nat → Prop) (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralDeclarativeNestedChild332.final
+      Yulang.GeneralDeclarativeNestedDecl332.registry Yulang.GeneralDeclarativeNestedExample332.interpretation
+      (Yulang.GeneralDeclarativeNestedChild332.tests done) d
+Yulang.GeneralDeclarativeNestedChild332.root_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeNestedDecl332.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeNestedDecl332.root.role → d = Yulang.GeneralDeclarativeNestedDecl332.decl
+Yulang.GeneralDeclarativeNestedChild332.child_only : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  d ∈ Yulang.GeneralDeclarativeNestedDecl332.registry.declarations →
+    d.role = Yulang.GeneralDeclarativeNestedDecl332.child.role → d = Yulang.GeneralDeclarativeExampleSource320.leaf
+Yulang.GeneralDeclarativeNestedChild332.root_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedChild332.branch done Yulang.GeneralDeclarativeNestedDecl332.root
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeNestedDecl332.decl.id
+      [Yulang.GeneralDeclarativeNestedDecl332.child])
+Yulang.GeneralDeclarativeNestedChild332.child_selected : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedChild332.branch done Yulang.GeneralDeclarativeNestedDecl332.child
+    (Yulang.CommonRoleOutermostResolver.Frontier.selected Yulang.GeneralDeclarativeExampleSource320.leaf.id [])
+Yulang.GeneralDeclarativeNestedChild332.tree : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeNestedChild332.branch done)
+    Yulang.GeneralDeclarativeNestedDecl332.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeNestedChild332.dictionary)
+Yulang.GeneralDeclarativeNestedChild332.every_model : ∀ (_m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedChild332.final _m →
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeNestedDecl332.registry
+      Yulang.GeneralDeclarativeNestedExample332.interpretation _m Yulang.GeneralDeclarativeNestedDecl332.root
+      Yulang.GeneralDeclarativeNestedChild332.dictionary
+@Yulang.GeneralDeclarativeNestedClash332.sound : ∀ {raw target : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativeNestedClash332.Apart raw target →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      ¬Yulang.CommonNominalFullCarrier.Subtype
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeHead320.environment m)
+            Yulang.GeneralNominalMaterialization.Mode.actual raw)
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.value (Yulang.GeneralDeclarativeHead320.environment m)
+            Yulang.GeneralNominalMaterialization.Mode.actual target)
