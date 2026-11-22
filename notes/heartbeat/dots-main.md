@@ -3,9 +3,9 @@
 cycle: 344
 status: running
 started: 2026-11-22T11:32:01.442Z
-updated: 2026-11-22T12:08:15.916Z
-elapsed_min: 36.24
-activity: Full actual commit replay pinned; testing occupation versions and literal source receipts
+updated: 2026-11-22T12:16:00.001Z
+elapsed_min: 43.98
+activity: verified C344 proof tree; replay checks and finish audits
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: Pin 1505db777d0880bfac2d67c730b47aa90f7e0708. Role agreement follows from genuine stamp; full output package needs actual Ready for supported explicit/default class bodies. Checked two C319 phases on one model and archived lower semantically nonpoint; also verified ordinary source/canonical order distinction and ordinal-stamped literal port writes. Preparing final proof audits.
+resume_hint: Proof cdb926848bd4a24ca776c4084d4b202a002d1e04 pinned, full changed exact byte readback at this proof and protected blob IDs verified. No semantics change. Detached verification and final report underway.
