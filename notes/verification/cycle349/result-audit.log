@@ -1,0 +1,30 @@
+'Yulang.GeneralDeclarativeWitnessSymbolic349.actual_readback' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSymbolic349.exact_writes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSymbolicFixture349.accepted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSymbolicFixture349.changed_rhs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSymbolicFixture349.added_duplicate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessProjection349.unpack_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessProjection349.ordered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessProjection349.replay_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessProjectionFixture349.checked_named_tail' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessProjectionFixture349.withheld_named_tail' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessProjectionFixture349.wrong_pattern' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessProjectionFixture349.output_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessProjectionFixture349.actual_projections' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMoreControls349.unary_where' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMoreControls349.stable_unhandled' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMoreControls349.swapped_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMoreControls349.swapped_dictionary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMoreControls349.pending_child_retained' depends on axioms: [propext, Quot.sound]
