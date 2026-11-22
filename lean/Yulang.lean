@@ -7350,3 +7350,6 @@ import Yulang.GeneralDeclarativeOriginSplit343
 import Yulang.GeneralDeclarativeBridgeInstance343
 import Yulang.GeneralDeclarativeReceiptSplit343
 import Yulang.GeneralDeclarativeOrderedProjection343
+import Yulang.GeneralDeclarativeCommitSuffix344
+import Yulang.GeneralDeclarativeCommitModes344
+import Yulang.GeneralDeclarativeCommitPosition344
