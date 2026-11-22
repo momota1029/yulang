@@ -1,0 +1,34 @@
+# Exact GitHub proof-pin byte match and Lean 4.35.0 replay
+# Proof pin: 293360074691286b8398007782d3292d5f0ea7d0
+Yulang/GeneralStoppedCanonical335.lean cmp=0 lean=0
+Yulang/GeneralStoppedCanonicalChoice335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayChoice335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayCut335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayExtended335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayExtendedChoice335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayGuard335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayHistory335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayLiteral335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayOriginal335.lean cmp=0 lean=0
+Yulang/GeneralStoppedDisplayProjection335.lean cmp=0 lean=0
+Yulang/GeneralStoppedI61Endpoint335.lean cmp=0 lean=0
+Yulang/GeneralStoppedInstallHistory335.lean cmp=0 lean=0
+Yulang/GeneralStoppedLiteralCompiler335.lean cmp=0 lean=0
+Yulang/GeneralStoppedLiteralWitness335.lean cmp=0 lean=0
+Yulang/GeneralStoppedLower335.lean cmp=0 lean=0
+Yulang/GeneralStoppedLowerOrigin335.lean cmp=0 lean=0
+Yulang/GeneralStoppedOrdinarySite335.lean cmp=0 lean=0
+Yulang/GeneralStoppedPlacement335.lean cmp=0 lean=0
+Yulang/GeneralStoppedProjectedTrace335.lean cmp=0 lean=0
+Yulang/GeneralStoppedScalarStorage335.lean cmp=0 lean=0
+Yulang/GeneralStoppedShape335.lean cmp=0 lean=0
+Yulang/GeneralStoppedSourceRefinement335.lean cmp=0 lean=0
+Audit/Cycle335Canonical.lean cmp=0 lean=0
+Audit/Cycle335Display.lean cmp=0 lean=0
+Audit/Cycle335History.lean cmp=0 lean=0
+Audit/Cycle335I61.lean cmp=0 lean=0
+Audit/Cycle335Literal.lean cmp=0 lean=0
+Audit/Cycle335Lower.lean cmp=0 lean=0
+Audit/Cycle335Original.lean cmp=0 lean=0
+Audit/Cycle335Trace.lean cmp=0 lean=0
+replay exit: 0

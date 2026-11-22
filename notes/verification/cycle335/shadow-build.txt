@@ -1,0 +1,36 @@
+Lean: Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Source: exact GitHub commit 293360074691286b8398007782d3292d5f0ea7d0
+New source files were compiled into a new separate directory; other imports use calibrated existing toolchain checkout.
+compile GeneralStoppedLiteralCompiler335: 0
+compile GeneralStoppedCanonical335: 0
+compile GeneralStoppedCanonicalChoice335: 0
+compile GeneralStoppedShape335: 0
+compile GeneralStoppedLower335: 0
+compile GeneralStoppedOrdinarySite335: 0
+compile GeneralStoppedDisplayProjection335: 0
+compile GeneralStoppedDisplayGuard335: 0
+compile GeneralStoppedDisplayChoice335: 0
+compile GeneralStoppedDisplayCut335: 0
+compile GeneralStoppedPlacement335: 0
+compile GeneralStoppedDisplayExtended335: 0
+compile GeneralStoppedDisplayExtendedChoice335: 0
+compile GeneralStoppedInstallHistory335: 0
+compile GeneralStoppedDisplayOriginal335: 0
+compile GeneralStoppedDisplayHistory335: 0
+compile GeneralStoppedLiteralWitness335: 0
+compile GeneralStoppedDisplayLiteral335: 0
+compile GeneralStoppedI61Endpoint335: 0
+compile GeneralStoppedLowerOrigin335: 0
+compile GeneralStoppedSourceRefinement335: 0
+compile GeneralStoppedScalarStorage335: 0
+compile GeneralStoppedProjectedTrace335: 0
+check Cycle335Canonical.lean: 0
+check Cycle335Display.lean: 0
+check Cycle335History.lean: 0
+check Cycle335I61.lean: 0
+check Cycle335Literal.lean: 0
+check Cycle335Lower.lean: 0
+check Cycle335Original.lean: 0
+check Cycle335Trace.lean: 0
+fixed statements and regression via new C335 imports: 0
+shadow exit: 0

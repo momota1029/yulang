@@ -1,0 +1,8 @@
+'Yulang.GeneralStoppedLiteralCompiler335.no_tie' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedLiteralCompiler335.exact_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedLiteralWitness335.local_meaning' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedLiteralWitness335.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayLiteral335.direct_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayLiteral335.direct_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayLiteral335.actual_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayLiteral335.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]

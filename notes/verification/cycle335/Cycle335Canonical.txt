@@ -1,0 +1,3 @@
+'Yulang.GeneralStoppedCanonicalChoice335.recurs_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedCanonicalChoice335.blocked_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedCanonicalChoice335.election_exact' depends on axioms: [propext, Classical.choice, Quot.sound]

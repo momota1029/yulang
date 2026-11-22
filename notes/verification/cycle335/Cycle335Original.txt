@@ -1,0 +1,12 @@
+'Yulang.GeneralStoppedPlacement335.demands_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedDisplayExtended335.written' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayExtended335.keeps_original_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayExtended335.placement' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedDisplayExtended335.conservative' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayExtendedChoice335.elect_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayExtendedChoice335.elect_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayOriginal335.exact_original_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralStoppedDisplayOriginal335.finite_replayed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayOriginal335.actual_success' depends on axioms: [propext, Classical.choice, Quot.sound]
