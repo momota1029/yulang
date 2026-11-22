@@ -1,0 +1,34 @@
+# Exact GitHub proof-pin byte match and Lean 4.35.0 replay
+# Proof pin: 603e801604042bde39a4ba2fb60c26d5c5441be3
+Yulang/GeneralDeclarativeAlternativeCapture333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeCases333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeCurrentCase333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeEmbedding333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeHeads333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeMixed333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeMixedCase333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeMixedDecl333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeMixedModels333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeMixedReplay333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeNamed333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeNamedCase333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeNamedComplete333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeNamedHeads333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeNeeds333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeRange333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeRangeCase333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeRanged333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeRangedReplay333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeRead333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeReadComplete333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeReplay333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeSpine333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeSpineComplete333.lean cmp=0 lean=0
+Yulang/GeneralDeclarativeAlternativeView333.lean cmp=0 lean=0
+Audit/Cycle333Completeness.lean cmp=0 lean=0
+Audit/Cycle333Mixed.lean cmp=0 lean=0
+Audit/Cycle333Ranges.lean cmp=0 lean=0
+Audit/Cycle333Replay.lean cmp=0 lean=0
+Audit/Cycle333Routes.lean cmp=0 lean=0
+Audit/Cycle333SourceFixture.lean cmp=0 lean=0
+replay exit: 0

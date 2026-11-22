@@ -1,0 +1,16 @@
+'Yulang.GeneralDeclarativeAlternativeHeads333.endpoint_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeCapture333.capture_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeCapture333.capture_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeReplay333.replay_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeReplay333.frame_from_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeReplay333.consume_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeCases333.first_index_sticks' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeCases333.from_second' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeCases333.both_spelling_orders' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeAlternativeCases333.same_single_index_cannot_mix' depends on axioms: [propext, Quot.sound]
