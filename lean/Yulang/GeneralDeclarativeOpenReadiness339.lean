@@ -116,7 +116,7 @@ theorem tail_changes :
   cases impossible
 
 /-- Provisional legacy election alone is not evidence that an actual
-goal tail is settled. The very same source equations admit two
+goal tail is settled. The very same source equations have two
 models with observably different residuals and no supported closure.
 This is not a verified selection by the new compiler or a raw solver
 counterexample. -/

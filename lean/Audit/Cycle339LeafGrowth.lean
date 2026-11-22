@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeMixedLeafGrowth339
+#print axioms Yulang.GeneralDeclarativeMixedLeafGrowth339.grow_args
+#print axioms Yulang.GeneralDeclarativeMixedLeafGrowth339.named_reader
+#print axioms Yulang.GeneralDeclarativeMixedLeafGrowth339.invariant_leaf
+#print axioms Yulang.GeneralDeclarativeMixedLeafGrowth339.pair_leaf
+#print axioms Yulang.GeneralDeclarativeMixedLeafGrowth339.join_shape_missing
