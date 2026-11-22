@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeInitialRoot343.anchored' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInitialRoot343.source_backed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInitialRoot343.root_election' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeInitialRoot343.exact_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]

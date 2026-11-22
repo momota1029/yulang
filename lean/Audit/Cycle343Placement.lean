@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeLogicalChild343
+import Yulang.GeneralDeclarativeOrdinary343
+import Yulang.GeneralDeclarativeInitialModels343
+import Yulang.GeneralDeclarativeFreshModel343
+import Yulang.GeneralDeclarativeFreshValues343
+import Yulang.GeneralDeclarativePlacement343
+#print axioms Yulang.GeneralDeclarativeLogicalChild343.port_zero
+#print axioms Yulang.GeneralDeclarativeLogicalChild343.batch
+#print axioms Yulang.GeneralDeclarativeOrdinary343.actual
+#print axioms Yulang.GeneralDeclarativeInitialModels343.first_values
+#print axioms Yulang.GeneralDeclarativeInitialModels343.kept_stage
+#print axioms Yulang.GeneralDeclarativeFreshModel343.fixed_output_model
+#print axioms Yulang.GeneralDeclarativeFreshValues343.printed
+#print axioms Yulang.GeneralDeclarativeFreshValues343.mode_match
+#print axioms Yulang.GeneralDeclarativePlacement343.avoids_history
+#print axioms Yulang.GeneralDeclarativePlacement343.kept_model
+#print axioms Yulang.GeneralDeclarativePlacement343.actual_place

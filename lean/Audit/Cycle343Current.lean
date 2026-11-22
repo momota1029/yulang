@@ -1,0 +1,22 @@
+import Yulang.GeneralDeclarativeFrameShape343
+import Yulang.GeneralDeclarativeFrameRank343
+import Yulang.GeneralDeclarativeFrameGuard343
+import Yulang.GeneralDeclarativeCurrentOrigins343
+import Yulang.GeneralDeclarativeCurrentRoot343
+import Yulang.GeneralDeclarativeCurrentWorld343
+import Yulang.GeneralDeclarativeCurrentChild343
+import Yulang.GeneralDeclarativeCurrentClosure343
+#print axioms Yulang.GeneralDeclarativeFrameShape343.exact_rows
+#print axioms Yulang.GeneralDeclarativeFrameRank343.before_fresh
+#print axioms Yulang.GeneralDeclarativeFrameGuard343.ranked
+#print axioms Yulang.GeneralDeclarativeCurrentOrigins343.recorded
+#print axioms Yulang.GeneralDeclarativeCurrentOrigins343.no_promotion
+#print axioms Yulang.GeneralDeclarativeCurrentRoot343.rule
+#print axioms Yulang.GeneralDeclarativeCurrentWorld343.child_compile
+#print axioms Yulang.GeneralDeclarativeCurrentWorld343.current_rank
+#print axioms Yulang.GeneralDeclarativeCurrentWorld343.stays
+#print axioms Yulang.GeneralDeclarativeCurrentChild343.rule
+#print axioms Yulang.GeneralDeclarativeCurrentClosure343.resolves
+#print axioms Yulang.GeneralDeclarativeCurrentClosure343.selected
+#print axioms Yulang.GeneralDeclarativeCurrentClosure343.current_place
+#print axioms Yulang.GeneralDeclarativeCurrentClosure343.one_model
