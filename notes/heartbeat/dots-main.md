@@ -3,9 +3,9 @@
 cycle: 345
 status: running
 started: 2026-11-22T12:32:29.459Z
-updated: 2026-11-22T12:34:03.155Z
-elapsed_min: 1.56
-activity: verified prior C344 and live I-62; recover current source
+updated: 2026-11-22T12:41:30.493Z
+elapsed_min: 9.02
+activity: current-class receipt and derived Ready checkpoint verified
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: Analyze actual alias-class request origin and ensure declaration evidence applies to current class, not merely birth. Rollback recovery is confined to Yulang.
+resume_hint: C345 8f8432b31cb2fc1d45080ad8a16396ed1e377cc8. Next: concrete actual C311 late peer and stopped C316 positive readiness versus unavailable root packet.
