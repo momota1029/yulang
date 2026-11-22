@@ -1,0 +1,24 @@
+Authenticated Git object: a4dc88479763de5131e5c2eac1a274b754beec45
+Exact committed bytes match checked local source: lean/Audit/Cycle337Authorized.lean
+Exact committed bytes match checked local source: lean/Audit/Cycle337Clash.lean
+Exact committed bytes match checked local source: lean/Audit/Cycle337Compatibility.lean
+Exact committed bytes match checked local source: lean/Audit/Cycle337Compose.lean
+Exact committed bytes match checked local source: lean/Audit/Cycle337Dictionary.lean
+Exact committed bytes match checked local source: lean/Audit/Cycle337ExactDelete.lean
+Exact committed bytes match checked local source: lean/Audit/Cycle337Nested.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeDeleteShell337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactClash337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactCompatibility337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactCompose337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactDelete337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactDeleteAuth337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactDeleteFinite337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactDeleteRigid337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactDictionary337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactNested337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactOverlay337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactRegression337.lean
+Exact committed bytes match checked local source: lean/Yulang/GeneralDeclarativeExactSupport337.lean
+Unchanged frozen object: lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+Unchanged frozen object: lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Full import barrel is byte-identical before exactly 13 new imports.

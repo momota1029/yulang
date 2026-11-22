@@ -1,0 +1,7 @@
+verify-lean: /tmp/yulang-c337-proof-recovery/diff-checkout @ a4dc88479 (base 3c878eabd74db107b7db9d7f74c6d0a254de0c1b)
+ok: no removed lines in lean/ since 3c878eabd74db107b7db9d7f74c6d0a254de0c1b
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+verify-lean: PASS (diff checks only, NO build)
+7340ed50d70c3faf1efb65a15fdc2436f3196e2a2357a5e46777ccf690bf653b  /tmp/yulang-c337-proof-recovery/logs/verify-diff.txt
