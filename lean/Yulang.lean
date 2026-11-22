@@ -7326,3 +7326,4 @@ import Yulang.GeneralDeclarativeVersionedStale342
 import Yulang.GeneralDeclarativeVersionedRootGuard342
 import Yulang.GeneralDeclarativeVersionedRootShape342
 import Yulang.GeneralDeclarativeVersionedRootCompiler342
+import Yulang.GeneralDeclarativeInitialRoot343

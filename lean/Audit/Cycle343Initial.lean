@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeInitialRoot343
+#print axioms Yulang.GeneralDeclarativeInitialRoot343.anchored
+#print axioms Yulang.GeneralDeclarativeInitialRoot343.source_backed
+#print axioms Yulang.GeneralDeclarativeInitialRoot343.root_election
+#print axioms Yulang.GeneralDeclarativeInitialRoot343.exact_inputs
