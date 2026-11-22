@@ -1,0 +1,16 @@
+'Yulang.GeneralDeclarativeWitnessReobserve334.kept_grows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.keeps_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.swap_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.receipt_grows' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessReobserve334.rebase_literal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.successful_reobserve' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.ordinary_phases_differ' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.chronological' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.inhabited_recovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

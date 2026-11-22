@@ -1,0 +1,11 @@
+'Yulang.GeneralDeclarativeWitnessCutBody334.has_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutRank334.at_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutRank334.no_cycles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.separating_state' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.old_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.new_waiting_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_new_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.not_every_old_readback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

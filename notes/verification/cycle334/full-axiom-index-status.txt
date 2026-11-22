@@ -1,0 +1,4 @@
+exit: 0
+theorems: 121
+axiom-types: Classical.choice, Quot.sound, propext
+forbidden: (none)

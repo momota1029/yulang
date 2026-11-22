@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeWitnessReadout334.replay_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReadout334.selected_from_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReadout334.chosen_declaration' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReadout334.chosen_key' depends on axioms: [propext, Classical.choice, Quot.sound]
