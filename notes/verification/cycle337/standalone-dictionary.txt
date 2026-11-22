@@ -1,0 +1,23 @@
+'Yulang.GeneralDeclarativeExactDictionary337.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactDictionary337.ties_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactDictionary337.local_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactDictionary337.selected_witness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeExactDictionary337.tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactDictionary337.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeExactSupport337.endpoints_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactSupport337.model_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactSupport337.from_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactSupport337.holds_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactSupport337.conserve' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactSupport337.ready_after_ties' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactSupport337.nested_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactRegression337.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactRegression337.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactRegression337.exact_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeExactRegression337.backed_residual' depends on axioms: [propext, Classical.choice, Quot.sound]

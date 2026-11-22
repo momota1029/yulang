@@ -1,0 +1,19 @@
+import Yulang.GeneralDeclarativeExactRegression337
+
+#print axioms Yulang.GeneralDeclarativeExactDictionary337.observed
+#print axioms Yulang.GeneralDeclarativeExactDictionary337.ties_exact
+#print axioms Yulang.GeneralDeclarativeExactDictionary337.local_sound
+#print axioms Yulang.GeneralDeclarativeExactDictionary337.selected_witness
+#print axioms Yulang.GeneralDeclarativeExactDictionary337.tree_sound
+#print axioms Yulang.GeneralDeclarativeExactDictionary337.dictionary_sound
+#print axioms Yulang.GeneralDeclarativeExactSupport337.endpoints_sound
+#print axioms Yulang.GeneralDeclarativeExactSupport337.model_exact
+#print axioms Yulang.GeneralDeclarativeExactSupport337.from_projection
+#print axioms Yulang.GeneralDeclarativeExactSupport337.holds_same
+#print axioms Yulang.GeneralDeclarativeExactSupport337.conserve
+#print axioms Yulang.GeneralDeclarativeExactSupport337.ready_after_ties
+#print axioms Yulang.GeneralDeclarativeExactSupport337.nested_read
+#print axioms Yulang.GeneralDeclarativeExactRegression337.inhabited
+#print axioms Yulang.GeneralDeclarativeExactRegression337.selected
+#print axioms Yulang.GeneralDeclarativeExactRegression337.exact_dictionary
+#print axioms Yulang.GeneralDeclarativeExactRegression337.backed_residual
