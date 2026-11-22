@@ -1,11 +1,11 @@
 # dots-main heartbeat
-cycle: 337
-status: completed
-started: 2026-11-22T04:28:27Z
-updated: 2026-11-22T05:18:26Z
-elapsed_min: 50.0
-activity: Completed exact standalone record subtraction, authored endpoint/ordered nested compiler and recursive dictionary soundness, including actual I58 rejection; scoped tests, replay, diff and readback verified.
+cycle: 338
+status: running
+started: 2026-11-22T05:28:20Z
+updated: 2026-11-22T05:29:02Z
+elapsed_min: 0.7
+activity: Read the current owner I61 and integrated C337. Developing a general recursive endpoint source compiler against the still-verified exact deletion and child receipts.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: a4dc88479763de5131e5c2eac1a274b754beec45
-resume_hint: Produce the general approved compound/nested normalized source witness into these exact receipts; then raw successful-stop groups A/B. No termination or Rust claim.
-report: notes/handoff/dots-cycle-337.md
+resume_hint: Connect actual compound pattern and independent source endpoint reads to ordered recursive captures; preserve I58 and exact fixed outputs.
+report: notes/handoff/dots-cycle-338.md
