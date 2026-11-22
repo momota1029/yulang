@@ -1,0 +1,27 @@
+'Yulang.GeneralDeclarativeVersionedPhysical342.same_id_not_occurrence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedPhysical342.old_not_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedPhysical342.actual_model_packet' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildView342.in_every_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildView342.not_authored' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildView342.actual_arguments' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildBody342.compiled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedChildBody342.current_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedEndpointOnly342.no_center_observation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedEndpointOnly342.preserve_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootRead342.raw_root' depends on axioms: [propext, Classical.choice, Quot.sound]
