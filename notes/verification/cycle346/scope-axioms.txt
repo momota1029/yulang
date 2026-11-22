@@ -1,0 +1,11 @@
+'Yulang.GeneralDeclarativeWherePlain346.complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWherePlain346.exact_domain' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereBatchReady346.checked_layout' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereLegacyCut346.native_no_slot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereLegacyCut346.actual_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereReleaseFixture346.same_owner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereReleaseFixture346.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereNonPoint346.old_and_new' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWherePairView346.bounded_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWherePairView346.bounds' does not depend on any axioms
+'Yulang.GeneralDeclarativeWherePairView346.view' depends on axioms: [propext, Classical.choice, Quot.sound]

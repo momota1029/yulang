@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeWhereRawExpr346
+import Yulang.GeneralDeclarativeWhereRawAtoms346
+import Yulang.GeneralDeclarativeWhereRawTicket346
+#print axioms Yulang.GeneralDeclarativeWhereRawExpr346.value_exact
+#print axioms Yulang.GeneralDeclarativeWhereRawAtoms346.cell_computed
+#print axioms Yulang.GeneralDeclarativeWhereRawAtoms346.semantic_atoms
+#print axioms Yulang.GeneralDeclarativeWhereRawAtoms346.exact_cell
+#print axioms Yulang.GeneralDeclarativeWhereRawAtoms346.batch_exact
+#print axioms Yulang.GeneralDeclarativeWhereRawTicket346.extended_models
+#print axioms Yulang.GeneralDeclarativeWhereRawTicket346.gives_ticket

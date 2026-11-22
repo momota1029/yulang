@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeWhereNominal346
+import Yulang.GeneralDeclarativeWhereNominalFixture346
+#print axioms Yulang.GeneralDeclarativeWhereNominal346.observed
+#print axioms Yulang.GeneralDeclarativeWhereNominal346.actual_cell
+#print axioms Yulang.GeneralDeclarativeWhereNominalFixture346.exact_current
+#print axioms Yulang.GeneralDeclarativeWhereNominalFixture346.no_stale_argument
+#print axioms Yulang.GeneralDeclarativeWhereNominalFixture346.actual_source

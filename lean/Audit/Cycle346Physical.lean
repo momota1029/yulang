@@ -1,0 +1,20 @@
+import Yulang.GeneralDeclarativeWhereRawReads346
+import Yulang.GeneralDeclarativeWhereEndpoint346
+import Yulang.GeneralDeclarativeWhereReuse346
+import Yulang.GeneralDeclarativeWhereStore346
+import Yulang.GeneralDeclarativeWhereStoreReplay346
+import Yulang.GeneralDeclarativeWherePhysical346
+#print axioms Yulang.GeneralDeclarativeWhereRawReads346.located
+#print axioms Yulang.GeneralDeclarativeWhereRawReads346.exact_paths
+#print axioms Yulang.GeneralDeclarativeWhereRawReads346.nominal_declines
+#print axioms Yulang.GeneralDeclarativeWhereEndpoint346.from_step
+#print axioms Yulang.GeneralDeclarativeWhereReuse346.same_author
+#print axioms Yulang.GeneralDeclarativeWhereReuse346.replay
+#print axioms Yulang.GeneralDeclarativeWhereStore346.from_trace
+#print axioms Yulang.GeneralDeclarativeWhereStore346.under_revision
+#print axioms Yulang.GeneralDeclarativeWhereStore346.exact_before_lookup
+#print axioms Yulang.GeneralDeclarativeWhereStoreReplay346.replay
+#print axioms Yulang.GeneralDeclarativeWherePhysical346.fresh_lower
+#print axioms Yulang.GeneralDeclarativeWherePhysical346.exact_batch
+#print axioms Yulang.GeneralDeclarativeWherePhysical346.derived_ticket
+#print axioms Yulang.GeneralDeclarativeWherePhysical346.retained_upper

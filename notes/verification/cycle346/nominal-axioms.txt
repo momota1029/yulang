@@ -1,0 +1,11 @@
+'Yulang.GeneralDeclarativeWhereNominal346.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominal346.actual_cell' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominalFixture346.exact_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominalFixture346.no_stale_argument' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominalFixture346.actual_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

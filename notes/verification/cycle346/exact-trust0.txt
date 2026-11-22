@@ -1,0 +1,30 @@
+PASS independent audit lean/Audit/Cycle346History.lean
+PASS independent audit lean/Audit/Cycle346Nominal.lean
+PASS independent audit lean/Audit/Cycle346Physical.lean
+PASS independent audit lean/Audit/Cycle346Raw.lean
+PASS independent audit lean/Audit/Cycle346Scope.lean
+PASS independent audit lean/Audit/Cycle346Source.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereAttributed346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereBatchReady346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereBoth346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereCurrent346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereEndpoint346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereLegacyCut346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereNamedSource346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereNominal346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereNominalFixture346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereNonPoint346.lean
+PASS source lean/Yulang/GeneralDeclarativeWherePairView346.lean
+PASS source lean/Yulang/GeneralDeclarativeWherePhysical346.lean
+PASS source lean/Yulang/GeneralDeclarativeWherePlain346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereRawAtoms346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereRawExpr346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereRawReads346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereRawTicket346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereRelease346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereReleaseFixture346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereReuse346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereRevisionCut346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereStore346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereStoreAdvance346.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereStoreReplay346.lean

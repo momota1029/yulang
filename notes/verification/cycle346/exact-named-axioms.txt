@@ -1,0 +1,62 @@
+'Yulang.GeneralDeclarativeWhereStoreAdvance346.under_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereCurrent346.actual_revision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereCurrent346.tracked_final' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereCurrent346.old_upper' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereAttributed346.model_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereAttributed346.exact_backing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereAttributed346.retained_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereAttributed346.backed_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereBoth346.paired' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRelease346.backed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRelease346.archived_excluded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRelease346.with_release' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRevisionCut346.not_literal_refinement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWhereRevisionCut346.actual_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominal346.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominal346.actual_cell' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominalFixture346.exact_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominalFixture346.no_stale_argument' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWhereNominalFixture346.actual_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawReads346.located' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawReads346.exact_paths' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawReads346.nominal_declines' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWhereEndpoint346.from_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereReuse346.same_author' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereReuse346.replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereStore346.from_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereStore346.under_revision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereStore346.exact_before_lookup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereStoreReplay346.replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWherePhysical346.fresh_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWherePhysical346.exact_batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWherePhysical346.derived_ticket' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWherePhysical346.retained_upper' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawExpr346.value_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawAtoms346.cell_computed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawAtoms346.semantic_atoms' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawAtoms346.exact_cell' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawAtoms346.batch_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawTicket346.extended_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRawTicket346.gives_ticket' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWherePlain346.complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWherePlain346.exact_domain' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereBatchReady346.checked_layout' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereLegacyCut346.native_no_slot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereLegacyCut346.actual_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereReleaseFixture346.same_owner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereReleaseFixture346.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereNonPoint346.old_and_new' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWherePairView346.bounded_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWherePairView346.bounds' does not depend on any axioms
+'Yulang.GeneralDeclarativeWherePairView346.view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereNamedSource346.independent_at_actual_point' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
