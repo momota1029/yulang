@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeWitnessAllocation350
+import Yulang.GeneralDeclarativeWitnessRank350
+#print axioms Yulang.GeneralDeclarativeWitnessAllocation350.input
+#print axioms Yulang.GeneralDeclarativeWitnessAllocation350.exact_order
+#print axioms Yulang.GeneralDeclarativeWitnessAllocation350.sound
+#print axioms Yulang.GeneralDeclarativeWitnessAllocation350.observed
+#print axioms Yulang.GeneralDeclarativeWitnessRank350.sound
+#print axioms Yulang.GeneralDeclarativeWitnessRank350.safe

@@ -1,0 +1,24 @@
+'Yulang.GeneralDeclarativeWitnessRecordLeafFixture350.accepted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordLeafFixture350.swapped_projection_slots' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordLeafFixture350.wrong_literal_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordLeafFixture350.unavailable_upper_is_not_authorized' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordLeafFixture350.fixed_state_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordLeafFixture350.nonvacuous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForest350.proofOnly' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessForest350.replay_same_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForest350.replayNode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForest350.resolves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForest350.models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhole350.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhole350.agreed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhole350.selected' depends on axioms: [propext, Classical.choice, Quot.sound]

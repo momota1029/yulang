@@ -1,0 +1,16 @@
+'Yulang.GeneralDeclarativeWitnessIntegrated350.excludes_positive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessIntegrated350.actual_rejected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessIntegrated350.positive_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessIntegrated350.positive_forest' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessIntegrated350.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessIntegrated350.checked_reject' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

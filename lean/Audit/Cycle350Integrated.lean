@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeWitnessIntegrated350
+#print axioms Yulang.GeneralDeclarativeWitnessIntegrated350.excludes_positive
+#print axioms Yulang.GeneralDeclarativeWitnessIntegrated350.actual_rejected
+#print axioms Yulang.GeneralDeclarativeWitnessIntegrated350.positive_tree
+#print axioms Yulang.GeneralDeclarativeWitnessIntegrated350.positive_forest
+#print axioms Yulang.GeneralDeclarativeWitnessIntegrated350.dictionary_sound
+#print axioms Yulang.GeneralDeclarativeWitnessIntegrated350.checked_reject

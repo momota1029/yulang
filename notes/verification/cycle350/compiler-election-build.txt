@@ -1,0 +1,3 @@
+✔ [3781/3782] Built Yulang.GeneralDeclarativeWitnessCompiler350 (1.5s)
+✔ [3782/3782] Built Yulang.GeneralDeclarativeWitnessOneRecord350 (1.2s)
+Build completed successfully (3782 jobs).

@@ -1,0 +1,19 @@
+import Yulang.GeneralDeclarativeWitnessRecordHead350
+import Yulang.GeneralDeclarativeWitnessCompiler350
+import Yulang.GeneralDeclarativeWitnessOneRecord350
+import Yulang.GeneralDeclarativeWitnessRecordReplay350
+#print axioms Yulang.GeneralDeclarativeWitnessRecordHead350.renders
+#print axioms Yulang.GeneralDeclarativeWitnessRecordHead350.fields
+#print axioms Yulang.GeneralDeclarativeWitnessRecordHead350.head
+#print axioms Yulang.GeneralDeclarativeWitnessCompiler350.trip_injective
+#print axioms Yulang.GeneralDeclarativeWitnessCompiler350.print_injective
+#print axioms Yulang.GeneralDeclarativeWitnessCompiler350.compiled
+#print axioms Yulang.GeneralDeclarativeWitnessCompiler350.fixed_targets
+#print axioms Yulang.GeneralDeclarativeWitnessCompiler350.actual
+#print axioms Yulang.GeneralDeclarativeWitnessCompiler350.retained
+#print axioms Yulang.GeneralDeclarativeWitnessCompiler350.fixed_in_current
+#print axioms Yulang.GeneralDeclarativeWitnessCompiler350.exact_children
+#print axioms Yulang.GeneralDeclarativeWitnessOneRecord350.replayElection
+#print axioms Yulang.GeneralDeclarativeWitnessOneRecord350.selected
+#print axioms Yulang.GeneralDeclarativeWitnessRecordReplay350.localStep
+#print axioms Yulang.GeneralDeclarativeWitnessRecordReplay350.leaf

@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeWitnessAllocation350.input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAllocation350.exact_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAllocation350.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAllocation350.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRank350.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRank350.safe' depends on axioms: [propext, Quot.sound]
