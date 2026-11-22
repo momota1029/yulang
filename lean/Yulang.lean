@@ -7204,3 +7204,4 @@ import Yulang.GeneralDeclarativeDeleteShell337
 import Yulang.GeneralDeclarativeExactDeleteFinite337
 import Yulang.GeneralDeclarativeExactDelete337
 import Yulang.GeneralDeclarativeExactDeleteRigid337
+import Yulang.GeneralDeclarativeExactCompose337

@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeExactCompose337.remaining_compose' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactCompose337.shell_idempotent' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeExactCompose337.shell_commutes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactCompose337.sequence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactCompose337.empty' depends on axioms: [propext, Quot.sound]
