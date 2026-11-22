@@ -7322,3 +7322,4 @@ import Yulang.GeneralDeclarativeVersionedReceipt342
 import Yulang.GeneralDeclarativeVersionedChildWitness342
 import Yulang.GeneralDeclarativeVersionedTree342
 import Yulang.GeneralDeclarativeVersionedPaired342
+import Yulang.GeneralDeclarativeVersionedStale342

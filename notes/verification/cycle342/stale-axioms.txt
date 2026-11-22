@@ -1,0 +1,3 @@
+'Yulang.GeneralDeclarativeVersionedStale342.historical_argument' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedStale342.actual_argument' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedStale342.no_substitute' depends on axioms: [propext, Classical.choice, Quot.sound]
