@@ -7405,3 +7405,6 @@ import Yulang.GeneralDeclarativeHybridPhysical345
 import Yulang.GeneralDeclarativeHybridHistory345
 import Yulang.GeneralDeclarativeRhsOrigin345
 import Yulang.GeneralDeclarativeCurrentCandidate345
+import Yulang.GeneralDeclarativeWhereRawExpr346
+import Yulang.GeneralDeclarativeWhereRawAtoms346
+import Yulang.GeneralDeclarativeWhereRawTicket346
