@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-cycle: 351
-status: completed
-started: 2026-11-22T18:37:24.680Z
-updated: 2026-11-22T19:22:21.575Z
-elapsed_min: 44.95
-activity: verified I-63 released producer and consuming forest, exact active versions, and independently routed tagged evidence
+cycle: 352
+status: running
+started: 2026-11-22T19:30:16.793Z
+updated: 2026-11-22T19:30:16.793Z
+elapsed_min: 0.00
+activity: I63 independent named-tag election and mixed ordered forest
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-report: notes/handoff/dots-cycle-351.md
-resume_hint: I-63: integrate independently certified named tagged input into positive election and full forest, preserving release/version and actual child modes; S1 1 partial / S2 1 partial / C 1 deferred. No old Local or termination.
+resume_hint: Live owner I63 unchanged and C351 complete. Ordinary attach OK. Checking source-grounded positive readiness and independent role/pattern selection.
