@@ -1,0 +1,7 @@
+# Cycle 341: stopped raw result to current witness-backed classification
+
+I-62 at `32244df15707e3a153b4add4272a3a0a56bb04ec` selects the witness-backed declaration judgment, not old Local correspondence. No new source rejection, readiness, priority, or termination property is sought.
+
+The independent data at each visited raw occurrence are its current site (original endpoint names and actual center), current Frame and its separately feasible packet, exact current request/target list, and projection to the selected declarative rule. Raw selection alone is not a packet certificate. Prove a lockstep positive projection by recursion on the actual finite successful raw derivation, retaining ordered demands and the exact dictionary; use the current declarative theorem in one supplied model, not by copying historical election. If fresh endpoint names are needed, expose the conservative extension and preserve old names rather than advertise the same-assignment case. Cover the real C276 parent/child span reminting and distinguish C285 current unjournaled plan from occurrence history. C316 is a genuinely reached dead-end with full raw selected and successful child, where the original root current packet is impossible; derive the exact producer-obligation failure and keep it separate from a counterexample about C340 declarative classification.
+
+Acceptance: exact pins, scoped warnings-as-errors and trust-0 runs, separate axiom printouts, append-only barrel, frozen Audit/README IDs unchanged.
