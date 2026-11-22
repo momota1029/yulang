@@ -1,0 +1,20 @@
+'Yulang.GeneralDeclarativeAlternativeRange333.materialize_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeRanged333.capture_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeRangedReplay333.consume_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeRangeCase333.original_material' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeAlternativeRangeCase333.concrete_body' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeRangeCase333.exact_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeEmbedding333.capture_embedding' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeEmbedding333.exact_replay' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeCurrentCase333.actual_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeCurrentCase333.real_current_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

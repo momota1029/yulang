@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeAlternativeReplay333
+import Yulang.GeneralDeclarativeAlternativeCases333
+
+#print axioms Yulang.GeneralDeclarativeAlternativeHeads333.endpoint_exact
+#print axioms Yulang.GeneralDeclarativeAlternativeCapture333.capture_sound
+#print axioms Yulang.GeneralDeclarativeAlternativeCapture333.capture_plan
+#print axioms Yulang.GeneralDeclarativeAlternativeReplay333.replay_plan
+#print axioms Yulang.GeneralDeclarativeAlternativeReplay333.frame_from_replay
+#print axioms Yulang.GeneralDeclarativeAlternativeReplay333.consume_current
+#print axioms Yulang.GeneralDeclarativeAlternativeCases333.first_index_sticks
+#print axioms Yulang.GeneralDeclarativeAlternativeCases333.from_second
+#print axioms Yulang.GeneralDeclarativeAlternativeCases333.both_spelling_orders
+#print axioms Yulang.GeneralDeclarativeAlternativeCases333.same_single_index_cannot_mix

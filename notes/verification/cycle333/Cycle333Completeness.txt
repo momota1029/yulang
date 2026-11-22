@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeAlternativeNeeds333.fulfilled' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeSpineComplete333.spine_plan' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeSpineComplete333.literal_plan' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeReadComplete333.read_plan' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeReadComplete333.normalized_finite' depends on axioms: [propext, Quot.sound]

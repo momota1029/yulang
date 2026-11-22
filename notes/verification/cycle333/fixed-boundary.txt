@@ -1,0 +1,22 @@
+C333 fixed proof pin: 603e801604042bde39a4ba2fb60c26d5c5441be3
+C332 predecessor: 43f7d3e19b112d7d8a74dbb131492c41c4008b3c
+GitHub expected-head and nonforce updates: work/dots-main only.
+Integration branch: 2cd3096a87572aaabc6ef20b59fd93968defa45c
+  standing 7ae4d68d2ac7df80d1eadbd061dadd2296faf4c4
+  inbox 884fe75a79efe66aa8d5a5a44864fa7af3dfc73e
+  spec/06-roles.md 8b5e65e5793dfeb44acd4e388929973c33c4033a
+I57 protected paths were excluded from all reading of bodies and all writes.
+  lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+  lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Barrel exact bytes:
+  prior 9ac7e621fb4a667ed642b6b0641378bda6eba975
+  new 4feb49d82e59c0c2bcce8e092ea59375c3695d69
+  only 25 appended Yulang imports, prior bytes read and independently hashed
+  before constructing each tree. Candidate true blob ID checked before ref
+  update; fixed remote full text compared after every update.
+Focused Lean 4.35.0 scoped results:
+  25 modules and 6 independent audit inputs.
+  All exact fixed remote proof paths were byte matched and replayed at trust 0.
+  Axiom-gate count is for its loaded environment, not new theorem count.
+  Dependency audit examines the types and values of C333 constants.
+  No whole Lean repository or Rust executable build/run was carried out.

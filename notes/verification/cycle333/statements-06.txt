@@ -1,0 +1,98 @@
+      (Yulang.GeneralDeclarativeRecordResidual323.withTail row
+        (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n)) =
+    (row, Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n)
+@Yulang.GeneralDeclarativeAlternativeSpineComplete333.terminal_in : ∀ {root owner : Nat}
+  {row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {term : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {src : Yulang.GeneralDeclarativeAlternativeView333.Index s}
+  (link : Yulang.GeneralDeclarativeLowerKnown321.Alias s root owner)
+  (stored : { left := owner, right := Yulang.GeneralDeclarativeRecordResidual323.withTail row term } ∈ s.equations),
+  { owner := owner, rhs := Yulang.GeneralDeclarativeRecordResidual323.withTail row term, linked := link,
+        stored := stored } ∈
+      src root →
+    Yulang.GeneralDeclarativeRecordSpine330.Terminal term →
+      ∀ (fuel : Nat),
+        ∃ out, out ∈ Yulang.GeneralDeclarativeAlternativeSpine333.spines src root (fuel + 1) ∧ out.val = (row, term)
+@Yulang.GeneralDeclarativeAlternativeSpineComplete333.prefix_in : ∀ {root owner : Nat}
+  {front : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {n fuel : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {src : Yulang.GeneralDeclarativeAlternativeView333.Index s}
+  (link : Yulang.GeneralDeclarativeLowerKnown321.Alias s root owner)
+  (stored :
+    { left := owner,
+        right :=
+          Yulang.GeneralDeclarativeRecordResidual323.withTail front
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n) } ∈
+      s.equations),
+  { owner := owner,
+        rhs :=
+          Yulang.GeneralDeclarativeRecordResidual323.withTail front
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n),
+        linked := link, stored := stored } ∈
+      src root →
+    ∀ {info : Yulang.GeneralDeclarativeNestedTail332.ClosedAt s n},
+      info ∈ Yulang.GeneralDeclarativeAlternativeSpine333.spines src n fuel →
+        ∃ out,
+          out ∈ Yulang.GeneralDeclarativeAlternativeSpine333.spines src root (fuel + 1) ∧
+            out.val = (front ++ info.val.fst, info.val.snd)
+@Yulang.GeneralDeclarativeAlternativeSpineComplete333.spine_plan : ∀ {n : Nat}
+  {row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {term : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeRecordSpine330.Spine s n row term →
+    Yulang.GeneralDeclarativeAlternativeNeeds333.Planned fun src =>
+      Yulang.GeneralDeclarativeAlternativeSpineComplete333.SpinesAt src n row term
+@Yulang.GeneralDeclarativeAlternativeSpineComplete333.spine_complete : ∀ {n : Nat}
+  {row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {term : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {src : Yulang.GeneralDeclarativeAlternativeView333.Index s},
+  Yulang.GeneralDeclarativeAlternativeView333.Covers src →
+    Yulang.GeneralDeclarativeRecordSpine330.Spine s n row term →
+      Yulang.GeneralDeclarativeAlternativeSpineComplete333.SpinesAt src n row term
+@Yulang.GeneralDeclarativeAlternativeSpineComplete333.literal_plan : ∀
+  {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {term : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeInlineSpine331.Closed s raw row term →
+    Yulang.GeneralDeclarativeAlternativeNeeds333.Planned fun src =>
+      Yulang.GeneralDeclarativeAlternativeSpineComplete333.LiteralIn src raw row term
+@Yulang.GeneralDeclarativeAlternativeSpineComplete333.literal_complete : ∀
+  {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {term : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {src : Yulang.GeneralDeclarativeAlternativeView333.Index s},
+  Yulang.GeneralDeclarativeAlternativeView333.Covers src →
+    Yulang.GeneralDeclarativeInlineSpine331.Closed s raw row term →
+      Yulang.GeneralDeclarativeAlternativeSpineComplete333.LiteralIn src raw row term
+@Yulang.GeneralDeclarativeAlternativeView333.source_row : ∀ {rows : List Yulang.GeneralDeclarativeHead320.Equation}
+  {owner : Nat} {rhs : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {name : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {valid : rows ⊆ s.equations}
+  {route : Yulang.GeneralDeclarativeAlternativeView333.Link s},
+  { left := owner, right := rhs } ∈ rows →
+    route.readAt = name →
+      owner = route.owner →
+        ∃ entry,
+          entry ∈ Yulang.GeneralDeclarativeAlternativeView333.offersFrom rows valid name route ∧
+            entry.owner = owner ∧ entry.rhs = rhs
+@Yulang.GeneralDeclarativeAlternativeView333.covers_self : ∀ {rows : List Yulang.GeneralDeclarativeHead320.Equation}
+  {n : Nat} {rhs : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {valid : rows ⊆ s.equations} {aliases : List (Yulang.GeneralDeclarativeAlternativeView333.Link s)},
+  { left := n, right := rhs } ∈ rows →
+    Yulang.GeneralDeclarativeAlternativeView333.CoversRow
+      (Yulang.GeneralDeclarativeAlternativeView333.ofTable rows valid aliases) n n rhs
+@Yulang.GeneralDeclarativeAlternativeView333.covers_alias : ∀ {rows : List Yulang.GeneralDeclarativeHead320.Equation}
+  {n owner : Nat} {rhs : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State} {valid : rows ⊆ s.equations}
+  {aliases : List (Yulang.GeneralDeclarativeAlternativeView333.Link s)}
+  {route : Yulang.GeneralDeclarativeAlternativeView333.Link s},
+  route ∈ aliases →
+    route.readAt = n →
+      owner = route.owner →
+        { left := owner, right := rhs } ∈ rows →
+          Yulang.GeneralDeclarativeAlternativeView333.CoversRow
+            (Yulang.GeneralDeclarativeAlternativeView333.ofTable rows valid aliases) n owner rhs
+@Yulang.GeneralDeclarativeAlternativeView333.exact_offer : ∀ {n owner : Nat}
+  {rhs : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {src : Yulang.GeneralDeclarativeAlternativeView333.Index s},
+  Yulang.GeneralDeclarativeAlternativeView333.CoversRow src n owner rhs →
+    ∀ (link : Yulang.GeneralDeclarativeLowerKnown321.Alias s n owner)
+      (stored : { left := owner, right := rhs } ∈ s.equations),
+      { owner := owner, rhs := rhs, linked := link, stored := stored } ∈ src n

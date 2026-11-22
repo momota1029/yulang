@@ -1,0 +1,20 @@
+'Yulang.GeneralDeclarativeAlternativeNamedComplete333.named_plan' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeNamedComplete333.named_finite' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeNamedHeads333.candidate_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeNamedHeads333.actual_named' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeMixed333.argument_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeMixed333.capture_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeMixed333.capture_plan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeMixedReplay333.replay_plan' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeMixedReplay333.consume_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeNamedCase333.both_source_modes_not_interchangeable' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeNamedCase333.actual_ordinary_model' depends on axioms: [propext, Quot.sound]

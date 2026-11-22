@@ -1,11 +1,11 @@
 # dots-main heartbeat
-cycle: 332
+cycle: 333
 status: completed
-started: 2026-11-21T23:31:31Z
-updated: 2026-11-22T00:21:41Z
+started: 2026-11-22T00:30:00Z
+updated: 2026-11-22T01:20:13Z
 elapsed_min: 50.2
-activity: Nested normalized source, exact ordered sibling dictionaries and first-hit limitation verified; 30 modules, 8 audits and fixed source replay pass.
+activity: Independent named and inline finite witnesses, exact mixed compiler and real current receipt verified; 25 modules, six audits and fixed source replay pass.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 87d549c77
-resume_hint: Read final report at 772ec5b92da5008912afd0e705e26890aedb7c20. Work on the remaining actual stable-source producer (index spelling, current receipt); (4) 1 group, (2) 2 groups. No diagnosis/acceptance priority or raw stopping claim.
-report: notes/handoff/dots-cycle-332.md
+last_local_commit: 5a624fd11
+resume_hint: Read final report at b804765ac5e9cb07e1452d3ff1cc26fdf3eadfc5. Derive actual-center supply and same-name current receipt from stable ordinary propagation rather than proving finite enumeration again; (4) 1 group, (2) 2 groups. No diagnosis/acceptance priority or raw stopping claim.
+report: notes/handoff/dots-cycle-333.md

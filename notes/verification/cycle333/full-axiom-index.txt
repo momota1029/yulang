@@ -1,0 +1,8 @@
+C333 direct axiom audit: 128 theorem statements
+Lean exit: 0
+41: Classical.choice, Quot.sound, propext
+55: Quot.sound, propext
+14: propext
+18: no axioms
+total: 128
+allowlist pass: True

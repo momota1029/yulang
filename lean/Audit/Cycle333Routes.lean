@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeAlternativeSpineComplete333
+import Yulang.GeneralDeclarativeAlternativeRead333
+
+#print axioms Yulang.GeneralDeclarativeAlternativeView333.covers_self
+#print axioms Yulang.GeneralDeclarativeAlternativeView333.covers_alias
+#print axioms Yulang.GeneralDeclarativeAlternativeSpineComplete333.spine_complete
+#print axioms Yulang.GeneralDeclarativeAlternativeSpineComplete333.literal_complete
+#print axioms Yulang.GeneralDeclarativeAlternativeRead333.normalized_sound

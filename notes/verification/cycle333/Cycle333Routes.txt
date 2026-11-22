@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeAlternativeView333.covers_self' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeView333.covers_alias' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeSpineComplete333.spine_complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeSpineComplete333.literal_complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeAlternativeRead333.normalized_sound' depends on axioms: [propext, Quot.sound]
