@@ -1,0 +1,7 @@
+'Yulang.GeneralDeclarativeExactDeleteAuth337.literal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactDeleteAuth337.canonical' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactDeleteAuth337.supported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactOverlay337.eval_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactOverlay337.list_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactOverlay337.patch_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactOverlay337.approved' depends on axioms: [propext, Classical.choice, Quot.sound]
