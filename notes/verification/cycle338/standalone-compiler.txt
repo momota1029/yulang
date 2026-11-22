@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeCompoundInputs338.old_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundInputs338.input_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundInputs338.extend_compound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundInputs338.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundCompiler338.body_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundCompiler338.read_back' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundCompiler338.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundDictionary338.local_meaning' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundDictionary338.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeCompoundDictionary338
+
+#print axioms Yulang.GeneralDeclarativeCompoundInputs338.old_sound
+#print axioms Yulang.GeneralDeclarativeCompoundInputs338.input_exact
+#print axioms Yulang.GeneralDeclarativeCompoundInputs338.extend_compound
+#print axioms Yulang.GeneralDeclarativeCompoundInputs338.observed
+#print axioms Yulang.GeneralDeclarativeCompoundCompiler338.body_ready
+#print axioms Yulang.GeneralDeclarativeCompoundCompiler338.read_back
+#print axioms Yulang.GeneralDeclarativeCompoundCompiler338.selected_sound
+#print axioms Yulang.GeneralDeclarativeCompoundDictionary338.local_meaning
+#print axioms Yulang.GeneralDeclarativeCompoundDictionary338.dictionary_sound

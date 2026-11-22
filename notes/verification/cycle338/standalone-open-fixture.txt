@@ -1,0 +1,11 @@
+'Yulang.GeneralDeclarativeCompoundOpenFixture338.read_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundOpenFixture338.alias_only_self' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundOpenFixture338.tail_not_closed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundOpenFixture338.source_valid' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundOpenFixture338.unknown_prefix_fixture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

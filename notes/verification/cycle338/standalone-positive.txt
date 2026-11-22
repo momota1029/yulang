@@ -1,0 +1,22 @@
+'Yulang.GeneralDeclarativeCompoundHeads338.pair_fields' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeCompoundHeads338.candidate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundHeads338.positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixture338.actual_source' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeCompoundFixture338.checked_decl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixture338.source_compiles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixture338.source_valid' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixture338.center_not_read' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeCompoundFixture338.matches_original' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixture338.checked_compilation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureRoutes338.projected_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureRoutes338.full_receipts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureRoutes338.routed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureRoutes338.observed' depends on axioms: [propext, Classical.choice, Quot.sound]

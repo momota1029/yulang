@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeCompoundOpenFixture338
+
+#print axioms Yulang.GeneralDeclarativeCompoundOpenFixture338.read_prefix
+#print axioms Yulang.GeneralDeclarativeCompoundOpenFixture338.alias_only_self
+#print axioms Yulang.GeneralDeclarativeCompoundOpenFixture338.tail_not_closed
+#print axioms Yulang.GeneralDeclarativeCompoundOpenFixture338.source_valid
+#print axioms Yulang.GeneralDeclarativeCompoundOpenFixture338.unknown_prefix_fixture

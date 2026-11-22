@@ -1,0 +1,3 @@
+✔ [1273/1274] Built Yulang.GeneralDeclarativeCompoundFixtureSelection338 (1.6s)
+✔ [1274/1274] Built Yulang.GeneralDeclarativeCompoundFixtureModel338 (1.3s)
+Build completed successfully (1274 jobs).

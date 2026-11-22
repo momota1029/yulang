@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeCompoundBatch338
+
+#print axioms Yulang.GeneralDeclarativeCompoundEndpoints338.order_iff
+#print axioms Yulang.GeneralDeclarativeCompoundEndpoints338.from_visible
+#print axioms Yulang.GeneralDeclarativeCompoundEndpoints338.closed_literal
+#print axioms Yulang.GeneralDeclarativeCompoundEndpoints338.from_row
+#print axioms Yulang.GeneralDeclarativeCompoundEndpoints338.projected
+#print axioms Yulang.GeneralDeclarativeCompoundPattern338.rebuild_peel
+#print axioms Yulang.GeneralDeclarativeCompoundPattern338.variables_peel
+#print axioms Yulang.GeneralDeclarativeCompoundPattern338.normalized_labels
+#print axioms Yulang.GeneralDeclarativeCompoundBatch338.produce
+#print axioms Yulang.GeneralDeclarativeCompoundBatch338.minted_certified
+#print axioms Yulang.GeneralDeclarativeCompoundBatch338.authored_row
+#print axioms Yulang.GeneralDeclarativeCompoundBatch338.conserves

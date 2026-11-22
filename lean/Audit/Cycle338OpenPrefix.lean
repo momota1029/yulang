@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeCompoundOpenReceipt338
+
+#print axioms Yulang.GeneralDeclarativeCompoundOpenPrefix338.from_visible
+#print axioms Yulang.GeneralDeclarativeCompoundOpenPrefix338.authorized
+#print axioms Yulang.GeneralDeclarativeCompoundOpenPrefix338.field_interval
+#print axioms Yulang.GeneralDeclarativeCompoundOpenPrefix338.residual_interval
+#print axioms Yulang.GeneralDeclarativeCompoundOpenPrefix338.residual_authorized
+#print axioms Yulang.GeneralDeclarativeCompoundOpenPrefix338.a_hidden_shadow_cannot_resume
+#print axioms Yulang.GeneralDeclarativeCompoundOpenReceipt338.receipt_current
+#print axioms Yulang.GeneralDeclarativeCompoundOpenReceipt338.exact_named

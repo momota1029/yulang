@@ -1,0 +1,28 @@
+'Yulang.GeneralDeclarativeCompoundFixtureSelection338.root_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureSelection338.child_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureSelection338.root_picks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureSelection338.child_picks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureSelection338.selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureSelection338.every_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureModel338.patch_world' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureModel338.exact_tail_values' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureModel338.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundFixtureModel338.verified_compound_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
