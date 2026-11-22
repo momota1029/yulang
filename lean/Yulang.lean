@@ -7280,3 +7280,5 @@ import Yulang.GeneralDeclarativeTaggedField340
 import Yulang.GeneralDeclarativeTaggedParent340
 import Yulang.GeneralDeclarativeTaggedNamedPatch340
 import Yulang.GeneralDeclarativeTaggedNamedRoute340
+import Yulang.GeneralDeclarativeStoppedRetarget340
+import Yulang.GeneralDeclarativeStoppedNominalNoPoint340

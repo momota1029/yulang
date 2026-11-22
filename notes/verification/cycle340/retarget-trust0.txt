@@ -1,0 +1,2 @@
+TRUST0 Yulang/GeneralDeclarativeStoppedRetarget340.lean
+TRUST0 Yulang/GeneralDeclarativeStoppedNominalNoPoint340.lean
