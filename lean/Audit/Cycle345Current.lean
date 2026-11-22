@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeCurrentSeed345
+import Yulang.GeneralDeclarativeCurrentRequest345
+import Yulang.GeneralDeclarativeCurrentOrder345
+import Yulang.GeneralDeclarativeCurrentReady345
+#print axioms Yulang.GeneralDeclarativeCurrentSeed345.emitted_origin
+#print axioms Yulang.GeneralDeclarativeCurrentSeed345.after_origin
+#print axioms Yulang.GeneralDeclarativeCurrentSeed345.after_coverage
+#print axioms Yulang.GeneralDeclarativeCurrentRequest345.attributed_iff
+#print axioms Yulang.GeneralDeclarativeCurrentRequest345.declared
+#print axioms Yulang.GeneralDeclarativeCurrentOrder345.outputs
+#print axioms Yulang.GeneralDeclarativeCurrentOrder345.exact_row
+#print axioms Yulang.GeneralDeclarativeCurrentReady345.after_ready
+#print axioms Yulang.GeneralDeclarativeCurrentReady345.from_reachable

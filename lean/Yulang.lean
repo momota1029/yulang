@@ -7378,3 +7378,7 @@ import Yulang.GeneralDeclarativeAmbient344
 import Yulang.GeneralDeclarativeStampedPort344
 import Yulang.GeneralDeclarativeOriginalReplay344
 import Yulang.GeneralDeclarativePhysicalJoint344
+import Yulang.GeneralDeclarativeCurrentSeed345
+import Yulang.GeneralDeclarativeCurrentRequest345
+import Yulang.GeneralDeclarativeCurrentOrder345
+import Yulang.GeneralDeclarativeCurrentReady345
