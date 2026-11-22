@@ -7273,3 +7273,4 @@ import Yulang.GeneralDeclarativeTaggedDictionary340
 import Yulang.GeneralDeclarativeTaggedFixture340
 import Yulang.GeneralDeclarativeTaggedFixtureSelection340
 import Yulang.GeneralDeclarativeTaggedFixtureModel340
+import Yulang.GeneralDeclarativeStoppedLeaf340
