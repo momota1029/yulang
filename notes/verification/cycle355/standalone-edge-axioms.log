@@ -1,0 +1,23 @@
+'Yulang.GeneralDeclarativeWitnessSpineEdgeMeaning355.to_child_node' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineEdgeMeaning355.one_edge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineEdgeMeaning355.same_view_for_authorized_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineKeysFixture355.actual_four_exact_releases_in_order' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineKeysFixture355.explicit_author_and_model_at_every_edge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealAliasCut355.actual_alternative_state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealAliasCut355.fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealAliasCut355.actual_ordinary_alias_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealAliasCut355.all_actual_models_agree_on_values' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealAliasCut355.actual_existing_authority_and_distinct_center' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealAliasCut355.no_grandchild_at_released_site' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealAliasCut355.witnessed_alias_never_repairs_the_actual_site' depends on axioms: [propext,
+ Quot.sound]

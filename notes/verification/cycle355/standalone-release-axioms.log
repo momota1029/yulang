@@ -1,0 +1,26 @@
+'Yulang.GeneralDeclarativeWitnessRangeRelease355.exact_site' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeRelease355.no_conflicting_version' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeRelease355.exact_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.independently_authorized_next_write_at_ten' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.old_parent_authority_is_not_new_child_authority' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.wrong_child_path' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.wrong_incarnation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.wrong_write_occurrence' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.wrong_target_even_if_equivalent' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.wrong_associated_name' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.two_simultaneous_incarnations' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeReleaseFixture355.exact_release_has_a_model' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeCut355.residual_joins_only_allow_bare_here' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeCut355.accepted_clause_is_bare' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeCut355.bare_scope' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeCut355.actual_capture_no_renaming' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeCut355.selected_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeCut355.actual_grandchild_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRangeCut355.no_grandchild_at_a_different_fixed_target' depends on axioms: [propext,
+ Quot.sound]

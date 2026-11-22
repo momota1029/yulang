@@ -1,0 +1,31 @@
+'Yulang.GeneralDeclarativeWitnessSpineFront355.literal_sites' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFront355.exact_sources' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFront355.root_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontFixture355.independently_parsed_entire_five_node_tree' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontFixture355.root_cannot_fake_output_order' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontFixture355.produced_row_not_an_independent_author_row' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontFixture355.ordinary_fallback_is_not_typed_authorship' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontFixture355.old_root_must_really_be_the_certified_author' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontModel355.established_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontModel355.entire_authored_tree_sound_nonvacuously' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineLedger355.every_release_is_authorized' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineLedger355.exact_source_vector' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineLedger355.every_source_release' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineLedger355.path_lengths' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontLedger355.declared_authorities' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontLedger355.actual_continuation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineFrontLedger355.authorized_from_external_source' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOldPremises355.real_requests_are_declared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOldPremises355.old_selected_declaration_not_checked' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOldPremises355.old_registry_not_checked_at_real_edge' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOldPremises355.requests_along_spine' depends on axioms: [propext, Quot.sound]

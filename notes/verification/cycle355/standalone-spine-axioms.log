@@ -1,0 +1,23 @@
+'Yulang.GeneralDeclarativeWitnessSpineNode355.current_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineNode355.step_exact_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineNode355.no_payload_name_renaming' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineNode355.exact_physical_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineNode355.joined_edge_same_literal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalSpine355.classified' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalSpine355.node_is_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalSpine355.all_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalSpine355.actual_payload_names_are_unchanged' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalSpine355.real_center_along_retained_joined_spine' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalSpineWhole355.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRetainedCut355.from_the_checked_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRetainedCut355.every_emitted_argument' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRetainedCut355.cannot_rename_to_fixed_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRetainedCut355.actual_link_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRetainedCut355.no_distinct_physical_sites_along_spine' depends on axioms: [propext,
+ Quot.sound]
