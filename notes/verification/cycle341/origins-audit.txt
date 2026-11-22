@@ -1,0 +1,2 @@
+'Yulang.Cycle341OriginAudit.keeps_origins' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.Cycle341OriginAudit.row_coordinates_unchanged' depends on axioms: [propext, Quot.sound]

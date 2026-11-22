@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeStoppedMissingOutput341
+#print axioms Yulang.GeneralDeclarativeStoppedMissingOutput341.before_only
+#print axioms Yulang.GeneralDeclarativeStoppedMissingOutput341.cannot_omit

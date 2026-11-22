@@ -1,0 +1,1 @@
+I62-DEPENDENCY-PASS: 7 roots, 2585 reachable declarations; no retired old/declarative correspondence theorem

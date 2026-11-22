@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeStoppedLockstep341
+#print axioms Yulang.GeneralDeclarativeStoppedLockstep341.positive
+#print axioms Yulang.GeneralDeclarativeStoppedLockstep341.same_assignment

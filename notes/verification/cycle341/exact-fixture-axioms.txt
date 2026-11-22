@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeStoppedRequested341.ordinal_zero' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthExact341.base_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthExact341.compiled_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
