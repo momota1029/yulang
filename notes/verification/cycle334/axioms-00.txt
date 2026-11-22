@@ -1,0 +1,181 @@
+'Yulang.GeneralDeclarativeWitnessClassify334.selected_witness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassify334.selected_center_reads' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassify334.local_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassify334.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassify334.selected_to_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.grown' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.allowed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.source_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.before_back' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.transport_head' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.actual_selected_before' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.exactly_completed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.actually_pending_before' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.never_pending_after' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.pending_iff_incomplete' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.actual_dictionary_after' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.old_choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.old_to_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.maps_selected' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.maps_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.forward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.backward' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.classify_to_old' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.classify_from_old' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_alias_rhs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_named' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_spine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_inline_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_inline' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_projected' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessCut334.no_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.unchanged_bounds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.lower_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.head_endpoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.old_elected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.old_stage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.actual_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_arguments' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.actual_wait' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_new_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.separating_state' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.not_every_old_readback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.old_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.new_waiting_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCut334.no_new_dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutBody334.bounds' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessCutBody334.ordinary_walk' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutBody334.literal_write' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutBody334.built' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutBody334.final_rows' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessCutBody334.exact_supported' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutBody334.only_pending_center' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessCutBody334.initial_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutBody334.folded' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutBody334.has_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutDecl334.normal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutDecl334.check_decl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutDecl334.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutDecl334.covered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutDecl334.declared' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessCutRank334.intervals_preserve' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessCutRank334.atoms_preserve' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessCutRank334.rows_preserve' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessCutRank334.bounds_only_increase' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutRank334.alias_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutRank334.is_stored' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessCutRank334.at_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutRank334.no_present_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutRank334.shape_descends' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessCutRank334.no_cycles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCutRank334.safe' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFixture334.safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFixture334.root_choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFixture334.root_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFixture334.one_choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFixture334.two_choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFixture334.actual_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFixture334.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessHead334.argument_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessHead334.actuals_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessHead334.current_argument' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessHead334.current_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.source_parent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.rootLater' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.firstLater' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.lastLater' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.ordinary_phases_differ' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.chronological' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.recovered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJournalCase334.inhabited_recovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNode334.Generation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNode334.Witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNode334.Witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNode334.Witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReadout334.replay_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReadout334.selected_from_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReadout334.chosen_declaration' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReadout334.chosen_key' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.kept_grows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.keeps_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.swap_argument' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.swap_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.receipt_grows' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessReobserve334.rebase_literal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.current_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReobserve334.successful_reobserve' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRowProjection334.read_into_projected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRowProjection334.projected_into_now' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRowProjection334.actual_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRowProjection334.origins_are_sufficient' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.same_key_of_visible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.resolves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.resolves_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.selected_receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.retain_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.retain_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.selected_iff_retained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVerdict334.verdict_functional' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVerdict334.only_lists_can_differ' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

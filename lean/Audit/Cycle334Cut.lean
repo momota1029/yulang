@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeWitnessCut334
+
+#print axioms Yulang.GeneralDeclarativeWitnessCutBody334.has_model
+#print axioms Yulang.GeneralDeclarativeWitnessCutRank334.at_center
+#print axioms Yulang.GeneralDeclarativeWitnessCutRank334.no_cycles
+#print axioms Yulang.GeneralDeclarativeWitnessCut334.no_current
+#print axioms Yulang.GeneralDeclarativeWitnessCut334.separating_state
+#print axioms Yulang.GeneralDeclarativeWitnessCut334.old_tree
+#print axioms Yulang.GeneralDeclarativeWitnessCut334.new_waiting_tree
+#print axioms Yulang.GeneralDeclarativeWitnessCut334.no_new_dictionary
+#print axioms Yulang.GeneralDeclarativeWitnessCut334.not_every_old_readback

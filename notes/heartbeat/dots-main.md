@@ -1,11 +1,11 @@
 # dots-main heartbeat
-cycle: 333
+cycle: 334
 status: completed
-started: 2026-11-22T00:30:00Z
-updated: 2026-11-22T01:20:13Z
+started: 2026-11-22T01:34:48Z
+updated: 2026-11-22T02:25:00Z
 elapsed_min: 50.2
-activity: Independent named and inline finite witnesses, exact mixed compiler and real current receipt verified; 25 modules, six audits and fixed source replay pass.
+activity: I-60 witnessed dictionary soundness verified; exact legacy separation, support repair, occurrence replay, and focused fixed-source audits complete.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 5a624fd11
-resume_hint: Read final report at b804765ac5e9cb07e1452d3ff1cc26fdf3eadfc5. Derive actual-center supply and same-name current receipt from stable ordinary propagation rather than proving finite enumeration again; (4) 1 group, (2) 2 groups. No diagnosis/acceptance priority or raw stopping claim.
-report: notes/handoff/dots-cycle-333.md
+last_local_commit: 373f1c1f9
+resume_hint: Read report at 0a12eb68f9b58be4408fc9c6cc6f093cb99312f8. (4) witnessed soundness done; old arbitrary converse false, reachable projection remains; (2) two groups. First connect actual stopped current supported occurrences, canonical child order and model projection to Retained. No termination claim.
+report: notes/handoff/dots-cycle-334.md

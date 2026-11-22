@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeWitnessRowProjection334.read_into_projected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRowProjection334.projected_into_now' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRowProjection334.rebase' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRowProjection334.actual_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRowProjection334.origins_are_sufficient' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

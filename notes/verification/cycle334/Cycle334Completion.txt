@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativeWitnessCompletion334.backedAfter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.exactly_completed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.pending_iff_incomplete' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion334.actual_dictionary_after' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

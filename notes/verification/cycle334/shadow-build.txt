@@ -1,0 +1,30 @@
+Lean: Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Source: exact GitHub commit dbbce5897c89b27ed508797271429173d53b9d02
+New source files were compiled into a new separate directory; other imports use calibrated existing toolchain checkout.
+compile GeneralDeclarativeWitnessHead334: 0
+compile GeneralDeclarativeWitnessNode334: 0
+compile GeneralDeclarativeWitnessClassify334: 0
+compile GeneralDeclarativeWitnessCorrespond334: 0
+compile GeneralDeclarativeWitnessCutDecl334: 0
+compile GeneralDeclarativeWitnessCutBody334: 0
+compile GeneralDeclarativeWitnessCutRank334: 0
+compile GeneralDeclarativeWitnessCut334: 0
+compile GeneralDeclarativeWitnessStopped334: 0
+compile GeneralDeclarativeWitnessCompletion334: 0
+compile GeneralDeclarativeWitnessFixture334: 0
+compile GeneralDeclarativeWitnessReobserve334: 0
+compile GeneralDeclarativeWitnessJournalCase334: 0
+compile GeneralDeclarativeWitnessReadout334: 0
+compile GeneralDeclarativeWitnessRowProjection334: 0
+compile GeneralDeclarativeWitnessVerdict334: 0
+check Cycle334Completion.lean: 0
+check Cycle334Cut.lean: 0
+check Cycle334Fixture.lean: 0
+check Cycle334Main.lean: 0
+check Cycle334Readout.lean: 0
+check Cycle334Reobserve.lean: 0
+check Cycle334RowProjection.lean: 0
+check Cycle334Stopped.lean: 0
+check Cycle334Verdict.lean: 0
+fixed statements and regression via new C334 imports: 0
+shadow exit: 0

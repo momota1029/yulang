@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeWitnessFixture334.actual_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFixture334.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.old_choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.classify_to_old' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCorrespond334.classify_from_old' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

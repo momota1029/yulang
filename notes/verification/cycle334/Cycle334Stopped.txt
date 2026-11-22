@@ -1,0 +1,7 @@
+'Yulang.GeneralDeclarativeWitnessStopped334.same_key_of_visible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.resolves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.selected_receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.retain_selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessStopped334.selected_iff_retained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

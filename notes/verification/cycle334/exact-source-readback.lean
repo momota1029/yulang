@@ -1,0 +1,40 @@
+import Yulang.GeneralDeclarativeWitnessJournalCase334
+import Yulang.GeneralDeclarativeWitnessReadout334
+import Yulang.GeneralDeclarativeWitnessRowProjection334
+import Yulang.GeneralDeclarativeWitnessVerdict334
+import Yulang.GeneralDeclarativeWitnessCompletion334
+import Yulang.GeneralDeclarativeWitnessCorrespond334
+
+open Yulang
+open GeneralDeclarativeWitnessJournalCase334
+open GeneralDeclarativeNestedSiblingsFrame332 (final)
+open GeneralDeclarativeNestedSiblingsDecl332 (registry)
+open GeneralDeclarativeNestedSiblingsResult332 (dictionary)
+open GeneralDeclarativeNestedExample332 (interpretation)
+open GeneralDeclarativeNestedDecl332 (root)
+open GeneralDeclarativeHead320 (Models)
+open GeneralDeclarativeEvidence320 (Evidence)
+
+example : ∃ m, Models final m ∧ Evidence registry interpretation m root dictionary :=
+  inhabited_recovery
+
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.kept_grows
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.keeps_current
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.swap_heads
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.receipt_grows
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.rebase_literal
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.current
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.successful_reobserve
+#print axioms Yulang.GeneralDeclarativeWitnessJournalCase334.ordinary_phases_differ
+#print axioms Yulang.GeneralDeclarativeWitnessJournalCase334.chronological
+#print axioms Yulang.GeneralDeclarativeWitnessJournalCase334.inhabited_recovery
+
+#print axioms Yulang.GeneralDeclarativeWitnessClassify334.dictionary_sound
+#print axioms Yulang.GeneralDeclarativeWitnessCorrespond334.classify_to_old
+#print axioms Yulang.GeneralDeclarativeWitnessCut334.separating_state
+#print axioms Yulang.GeneralDeclarativeWitnessCompletion334.exactly_completed
+#print axioms Yulang.GeneralDeclarativeWitnessStopped334.selected_iff_retained
+#print axioms Yulang.GeneralDeclarativeWitnessReadout334.replay_exact
+#print axioms Yulang.GeneralDeclarativeWitnessReadout334.selected_from_replay
+#print axioms Yulang.GeneralDeclarativeWitnessRowProjection334.actual_selected
+#print axioms Yulang.GeneralDeclarativeWitnessVerdict334.only_lists_can_differ

@@ -1,0 +1,163 @@
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s t : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeWitnessHead334.Actuals p c i keep t args pats after spans →
+    Yulang.GeneralDeclarativeGrowth327.Extends s t →
+      Yulang.GeneralDeclarativeOpaqueConserve328.Retains t after keep ∧
+        Yulang.GeneralDeclarativeStableReads329.Heads after c i args pats spans ∧
+          ∀ (slot : Nat × Yulang.GeneralDeclarativeWhere319.Capture),
+            slot ∈ spans → Yulang.GeneralDeclarativeDemand320.Bounds after slot.snd
+@Yulang.GeneralDeclarativeWitnessHead334.current_argument : ∀ {done : Nat → Prop}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {keep : List Nat} {a : Yulang.GeneralDeclarativeHead320.State} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {b : Yulang.GeneralDeclarativeHead320.State}
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} (sl : Yulang.GeneralDeclarativeWitnessHead334.Slice p),
+  Yulang.GeneralDeclarativeWitnessHead334.Argument sl.support c i keep a arg pat b spans →
+    Yulang.GeneralDeclarativeWitnessHead334.CurrentArgument p c i arg pat
+@Yulang.GeneralDeclarativeWitnessHead334.current_heads : ∀ {done : Nat → Prop}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {keep : List Nat} {a : Yulang.GeneralDeclarativeHead320.State} {args : List Yulang.GeneralDeclarativeWhere319.Capture}
+  {pats : List Yulang.GeneralDeclarationPatterns.Pattern} {b : Yulang.GeneralDeclarativeHead320.State}
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} (sl : Yulang.GeneralDeclarativeWitnessHead334.Slice p),
+  Yulang.GeneralDeclarativeWitnessHead334.Actuals sl.support c i keep a args pats b spans →
+    Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralDeclarativeWitnessHead334.CurrentArgument p c i) args pats
+Yulang.GeneralDeclarativeWitnessJournalCase334.source_parent : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralDeclarativeNestedSiblingsFrame332.source Yulang.GeneralDeclarativeNestedSiblingsFrame332.parent
+Yulang.GeneralDeclarativeWitnessJournalCase334.rootLater : Yulang.GeneralDeclarativeWitnessReobserve334.ReaderGrowth
+  Yulang.GeneralDeclarativeWitnessJournalCase334.rootHistorical
+  (Yulang.GeneralDeclarativeNestedSiblingsResult332.current Yulang.GeneralDeclarativeWitnessJournalCase334.allDone)
+Yulang.GeneralDeclarativeWitnessJournalCase334.firstLater : Yulang.GeneralDeclarativeWitnessReobserve334.ReaderGrowth
+  Yulang.GeneralDeclarativeWitnessJournalCase334.firstHistorical
+  (Yulang.GeneralDeclarativeNestedSiblingsResult332.current Yulang.GeneralDeclarativeWitnessJournalCase334.allDone)
+Yulang.GeneralDeclarativeWitnessJournalCase334.lastLater : Yulang.GeneralDeclarativeWitnessReobserve334.ReaderGrowth
+  (Yulang.GeneralDeclarativeNestedSiblingsResult332.current Yulang.GeneralDeclarativeWitnessJournalCase334.allDone)
+  (Yulang.GeneralDeclarativeNestedSiblingsResult332.current Yulang.GeneralDeclarativeWitnessJournalCase334.allDone)
+Yulang.GeneralDeclarativeWitnessJournalCase334.ordinary_phases_differ : Yulang.GeneralDeclarativeNestedSiblingsFrame332.parent.equations ≠
+    Yulang.GeneralDeclarativeNestedSiblingsFrame332.firstDone.equations ∧
+  Yulang.GeneralDeclarativeNestedSiblingsFrame332.firstDone.equations ≠
+    Yulang.GeneralDeclarativeNestedSiblingsFrame332.final.equations
+Yulang.GeneralDeclarativeWitnessJournalCase334.chronological : Yulang.GeneralDeclarativeWitnessReobserve334.Journal
+  (Yulang.GeneralDeclarativeNestedSiblingsResult332.current Yulang.GeneralDeclarativeWitnessJournalCase334.allDone)
+  Yulang.GeneralDeclarativeNestedSiblingsDecl332.registry Yulang.GeneralDeclarativeNestedExample332.interpretation
+  Yulang.GeneralDeclarativeWitnessFixture334.waiting Yulang.GeneralDeclarativeNestedDecl332.root
+  Yulang.GeneralDeclarativeWitnessJournalCase334.exactTree
+Yulang.GeneralDeclarativeWitnessJournalCase334.recovered : Yulang.CommonRoleOutermostResolver.Classify
+    (Yulang.GeneralDeclarativeWitnessClassify334.Rule
+      (Yulang.GeneralDeclarativeNestedSiblingsResult332.current Yulang.GeneralDeclarativeWitnessJournalCase334.allDone)
+      Yulang.GeneralDeclarativeNestedSiblingsDecl332.registry Yulang.GeneralDeclarativeNestedExample332.interpretation
+      Yulang.GeneralDeclarativeWitnessFixture334.waiting)
+    Yulang.GeneralDeclarativeNestedDecl332.root
+    (Yulang.CommonRoleOutermostResolver.Result.selected Yulang.GeneralDeclarativeNestedSiblingsResult332.dictionary) ∧
+  ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedSiblingsFrame332.final m →
+      Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeNestedSiblingsDecl332.registry
+        Yulang.GeneralDeclarativeNestedExample332.interpretation m Yulang.GeneralDeclarativeNestedDecl332.root
+        Yulang.GeneralDeclarativeNestedSiblingsResult332.dictionary
+Yulang.GeneralDeclarativeWitnessJournalCase334.inhabited_recovery : ∃ m,
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedSiblingsFrame332.final m ∧
+    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralDeclarativeNestedSiblingsDecl332.registry
+      Yulang.GeneralDeclarativeNestedExample332.interpretation m Yulang.GeneralDeclarativeNestedDecl332.root
+      Yulang.GeneralDeclarativeNestedSiblingsResult332.dictionary
+@Yulang.GeneralDeclarativeWitnessNode334.Generation : {done : Nat → Prop} →
+  {s : Yulang.GeneralDeclarativeHead320.State} →
+    Yulang.GeneralDeclarativeOrigins321.Supported s done →
+      Yulang.GeneralDeclarations.Registry →
+        Yulang.GeneralNominalInspection.Interpretation →
+          Yulang.GeneralDeclarativeDemand320.Demand →
+            Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Type
+@Yulang.GeneralDeclarativeWitnessNode334.Witness : {done : Nat → Prop} →
+  {s : Yulang.GeneralDeclarativeHead320.State} →
+    Yulang.GeneralDeclarativeOrigins321.Supported s done →
+      Yulang.GeneralDeclarations.Registry →
+        Yulang.GeneralNominalInspection.Interpretation →
+          (Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop) →
+            Yulang.GeneralDeclarativeDemand320.Demand →
+              Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Type
+@Yulang.GeneralDeclarativeWitnessNode334.Witness : {done : Nat → Prop} →
+  {s : Yulang.GeneralDeclarativeHead320.State} →
+    Yulang.GeneralDeclarativeOrigins321.Supported s done →
+      Yulang.GeneralDeclarations.Registry →
+        Yulang.GeneralNominalInspection.Interpretation →
+          (Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop) →
+            Yulang.GeneralDeclarativeDemand320.Demand →
+              Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Type
+@Yulang.GeneralDeclarativeWitnessNode334.Witness : {done : Nat → Prop} →
+  {s : Yulang.GeneralDeclarativeHead320.State} →
+    Yulang.GeneralDeclarativeOrigins321.Supported s done →
+      Yulang.GeneralDeclarations.Registry →
+        Yulang.GeneralNominalInspection.Interpretation →
+          (Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop) →
+            Yulang.GeneralDeclarativeDemand320.Demand →
+              Yulang.GeneralDeclarations.Declaration → List Yulang.GeneralDeclarativeDemand320.Demand → Type
+@Yulang.GeneralDeclarativeWitnessReadout334.replay_exact : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {impl : Yulang.GeneralDeclarations.Declaration} {named : Yulang.GeneralDeclarativeHead320.State}
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {protect : List Nat}
+  {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat}
+  {key : Nat} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {ordinary : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeWitnessReadout334.replay r i d impl named spans protect fallback targets key kids =
+      some ordinary ↔
+    key = impl.id ∧
+      Yulang.GeneralDeclarativeNestedBody332.compileBody r i d impl named spans protect fallback targets =
+        some (ordinary, kids)
+@Yulang.GeneralDeclarativeWitnessReadout334.selected_from_replay : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {impl : Yulang.GeneralDeclarations.Declaration} {protect : List Nat}
+  {named : Yulang.GeneralDeclarativeHead320.State} {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)}
+  {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat}
+  {key : Nat} {proposed : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {ordinary s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeStableAttempt329.Elected s r i p
+      (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i waiting) d impl →
+    ∀ (slice : Yulang.GeneralDeclarativeWitnessHead334.Slice p),
+      Yulang.GeneralDeclarativeWitnessHead334.Actuals slice.support r.constructors i protect slice.base d.arguments
+          impl.head named spans →
+        Yulang.GeneralDeclarativeWitnessReadout334.replay r i d impl named spans protect fallback targets key proposed =
+            some ordinary →
+          Yulang.GeneralDeclarativeCurrentReceipt330.Receipt ordinary s →
+            Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting d
+              (Yulang.CommonRoleOutermostResolver.Frontier.selected key proposed)
+@Yulang.GeneralDeclarativeWitnessReadout334.chosen_declaration : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {a : Yulang.GeneralDeclarations.Declaration}
+  {xs : List Yulang.GeneralDeclarativeDemand320.Demand} {b : Yulang.GeneralDeclarations.Declaration}
+  {ys : List Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    ∀ (first : Yulang.GeneralDeclarativeWitnessNode334.Witness p r i waiting d a xs)
+      (next : Yulang.GeneralDeclarativeWitnessNode334.Witness p r i waiting d b ys), a = b
+@Yulang.GeneralDeclarativeWitnessReadout334.chosen_key : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {k : Nat} {xs : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {j : Nat} {ys : List Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting d
+        (Yulang.CommonRoleOutermostResolver.Frontier.selected k xs) →
+      Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting d
+          (Yulang.CommonRoleOutermostResolver.Frontier.selected j ys) →
+        k = j
+@Yulang.GeneralDeclarativeWitnessReobserve334.kept_grows : ∀ {a b : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} (p : Yulang.GeneralDeclarativeOrigins321.Supported s a),
+  (∀ (n : Nat), a n → b n) →
+    Yulang.GeneralDeclarativeGrowth327.Extends (Yulang.GeneralDeclarativeOrigins321.restriction p)
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeWitnessReobserve334.keptBase p b))
+@Yulang.GeneralDeclarativeWitnessReobserve334.keeps_current : ∀ {a b : Nat → Prop}
+  {s t : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s a}
+  {q : Yulang.GeneralDeclarativeOrigins321.Supported t b},
+  Yulang.GeneralDeclarativeWitnessReobserve334.ReaderGrowth p q →
+    ∀ (prior : Yulang.GeneralDeclarativeWitnessHead334.Slice p),
+      Yulang.GeneralDeclarativeGrowth327.Extends
+        (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeWitnessReobserve334.keptBase prior.support b))
+        (Yulang.GeneralDeclarativeOrigins321.restriction q)
+@Yulang.GeneralDeclarativeWitnessReobserve334.swap_argument : ∀ {a b : Nat → Prop}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {keep : List Nat} {before : Yulang.GeneralDeclarativeHead320.State} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {after : Yulang.GeneralDeclarativeHead320.State}
+  {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)} {s : Yulang.GeneralDeclarativeHead320.State}
