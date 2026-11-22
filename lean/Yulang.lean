@@ -7213,3 +7213,6 @@ import Yulang.GeneralDeclarativeExactRegression337
 import Yulang.GeneralDeclarativeExactNested337
 import Yulang.GeneralDeclarativeExactClash337
 import Yulang.GeneralDeclarativeExactCompatibility337
+import Yulang.GeneralDeclarativeCompoundEndpoints338
+import Yulang.GeneralDeclarativeCompoundPattern338
+import Yulang.GeneralDeclarativeCompoundBatch338

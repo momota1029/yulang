@@ -1,0 +1,12 @@
+'Yulang.GeneralDeclarativeCompoundEndpoints338.order_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundEndpoints338.from_visible' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundEndpoints338.closed_literal' does not depend on any axioms
+'Yulang.GeneralDeclarativeCompoundEndpoints338.from_row' does not depend on any axioms
+'Yulang.GeneralDeclarativeCompoundEndpoints338.projected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundPattern338.rebuild_peel' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeCompoundPattern338.variables_peel' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeCompoundPattern338.normalized_labels' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundBatch338.produce' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundBatch338.minted_certified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundBatch338.authored_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCompoundBatch338.conserves' depends on axioms: [propext, Classical.choice, Quot.sound]
