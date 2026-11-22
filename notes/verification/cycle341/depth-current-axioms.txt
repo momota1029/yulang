@@ -1,0 +1,14 @@
+'Yulang.GeneralDeclarativeStoppedDepthWitness341.printed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthWitness341.witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthProjection341.source_same' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthProjection341.preserve_raw' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthProjection341.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget341.ordered_rows_same' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget341.recorded_semantics' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget341.fit_unique_role' depends on axioms: [propext, Classical.choice, Quot.sound]

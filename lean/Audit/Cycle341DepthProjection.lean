@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeStoppedDepthWitness341
+import Yulang.GeneralDeclarativeStoppedDepthProjection341
+import Yulang.GeneralDeclarativeStoppedRetarget341
+#print axioms Yulang.GeneralDeclarativeStoppedDepthWitness341.printed
+#print axioms Yulang.GeneralDeclarativeStoppedDepthWitness341.witness
+#print axioms Yulang.GeneralDeclarativeStoppedDepthProjection341.source_same
+#print axioms Yulang.GeneralDeclarativeStoppedDepthProjection341.preserve_raw
+#print axioms Yulang.GeneralDeclarativeStoppedDepthProjection341.actual
+#print axioms Yulang.GeneralDeclarativeStoppedRetarget341.ordered_rows_same
+#print axioms Yulang.GeneralDeclarativeStoppedRetarget341.recorded_semantics
+#print axioms Yulang.GeneralDeclarativeStoppedRetarget341.fit_unique_role
