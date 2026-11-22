@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeEndpointBody336
+
+#print axioms Yulang.GeneralDeclarativeEndpointBody336.calculate
+#print axioms Yulang.GeneralDeclarativeEndpointBody336.sound

@@ -7179,3 +7179,4 @@ import Yulang.GeneralDeclarativeEndpointRecord336
 import Yulang.GeneralDeclarativeEndpointResidual336
 import Yulang.GeneralDeclarativeEndpointNames336
 import Yulang.GeneralDeclarativeEndpointCase336
+import Yulang.GeneralDeclarativeEndpointBody336
