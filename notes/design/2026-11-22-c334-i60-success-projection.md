@@ -15,3 +15,7 @@
 I-60 の判断自体を物理 solver の受理条件として移植したり、C334 の記録付き fixture を Rust または実 Sat の反例として扱ったりしない。
 
 補足: `verdict_functional` により、同じ現行支持状態における二つの witnessed frontier は、保留・拒否・曖昧・選定の種別で一致し、選定なら宣言 ID も一致する。これは既存の I-59 拒否と I-60 の「現在の読む根拠なし」を尊重した結果。残る同値比較は、異なるが合法な placement が出す同一性でない子需要についてであり、種別の不一致を埋めるために新しい優先規則を足してはいない。
+
+### 実子の順序を射影する際の注意（Lean で小さい実差を確認）
+
+`GeneralDictionaryReadback.Payload` は `CommonRoleOutermostResolver.Dictionary` の別名なので、key だけの辞書型変換は不要。失うのは occurrence ごとの需要と意味である。raw 側は `GeneralNominalVersionedFrame231.children` → `GeneralDictionaryEmissionPlans.children` → `canonicalEmit` を通り、既存の一意な clause ID で正準化する。一方、今の普通の `compileBody` は供給された `impl.requirements` の順を使う。C332 の checked な二子宣言の要求順だけを逆にすると、普通の実コンパイルの出力先列は `[5,10]` から `[10,5]` に変わり、正準化した入力は元に戻る（`notes/verification/cycle334/ordered-raw-cut.lean`）。子は同じ role なので、role/key の集合で照合しては検出できない。割当名も入力順で変わりうるため、すべての論理名の単なる置換と断言しない。実射影では raw が使った正準宣言を同じ順と名前で引き渡せる条件か、仕様に沿った変換を先に証明する。証人つき側の受理や、新しい順序の既定をここで変更しない。

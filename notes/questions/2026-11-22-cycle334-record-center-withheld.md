@@ -18,15 +18,15 @@ role W 'u:
 role Pick 't:
     type out
 
-impl W 'u:
+impl W (list 'u):
     where 'u: Hold
-    type out = {x: int, y: int}
+    type out = {x: int}
 
 impl Pick {x: 'a, ..'rest}:
     type out = 'a
 ```
 
-需要は `'u: W(out = 'center)` と `'center: Pick(out = 'result)`。別のソース制約から `'lo <= 'center <= 'hi`、両端の record 頭は分かるが、実中心の record 行の由来は未解決の `Hold` を持つ W の出力のみ、という状態を考える。上の断片そのものを Rust 実行してこの状態に到達したとの主張ではない。
+需要は `(list 'u): W(out = 'center)` と `'center: Pick(out = 'result)`。W の where は `list 'u` から `'u` に降りる。別のソース制約から `'lo <= 'center <= 'hi`、両端の record 頭は分かるが、実中心の record 行の由来は未解決の `Hold` を持つ W の出力のみ、という状態を考える。上の断片そのものを Rust 実行してこの状態に到達したとの主張ではない。
 
 ## Lean で確認済みの切れ目
 
