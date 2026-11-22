@@ -1,0 +1,35 @@
+PASS independent audit lean/Audit/Cycle349ExactSidecar.lean
+PASS independent audit lean/Audit/Cycle349Header.lean
+PASS independent audit lean/Audit/Cycle349Point.lean
+PASS independent audit lean/Audit/Cycle349RecordRead.lean
+PASS independent audit lean/Audit/Cycle349Result.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessBound349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessChecks349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessEquation349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessExactProjection349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessExactProjectionFixture349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessExactRest349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessExactRestFixture349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessFixture349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessGround349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessHeader349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessLiteral349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessManifest349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMoreControls349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPointEvidence349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPointFixture349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPointInput349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPointReplay349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessProblem349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessProjection349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessProjectionFixture349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessReceipt349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessReceiptFixture349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecord349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecordFixture349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessSignature349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessSymbolic349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessSymbolicFixture349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTaggedBoundary349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTargets349.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTree349.lean

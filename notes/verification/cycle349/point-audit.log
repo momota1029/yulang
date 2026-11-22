@@ -1,0 +1,22 @@
+'Yulang.GeneralDeclarativeWitnessTree349.eq_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTree349.eq_result' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTree349.exact_report' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTree349.classifies' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGround349.receipt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointInput349.picked' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessPointInput349.head_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointEvidence349.actual_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointEvidence349.choice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointReplay349.checked_result' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointFixture349.accepted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointFixture349.wrong_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointFixture349.wrong_dictionary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointFixture349.wrong_diagnostic' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointFixture349.no_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointFixture349.no_receipt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointFixture349.no_selection_claim' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointFixture349.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
