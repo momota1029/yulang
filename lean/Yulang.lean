@@ -7263,3 +7263,6 @@ import Yulang.GeneralDeclarativeMixedLeafGrowth339
 import Yulang.GeneralDeclarativeStoppedIntervals340
 import Yulang.GeneralDeclarativeStoppedProjection340
 import Yulang.GeneralDeclarativeStoppedCurrent340
+import Yulang.GeneralDeclarativeTaggedSources340
+import Yulang.GeneralDeclarativeTaggedPatch340
+import Yulang.GeneralDeclarativeTaggedWhole340
