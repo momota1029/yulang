@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeEndpointChildModels336
+import Yulang.GeneralDeclarativeEndpointClash336
+
+#print axioms Yulang.GeneralDeclarativeEndpointConserve336.conserve
+#print axioms Yulang.GeneralDeclarativeEndpointConserve336.ready_after_ties
+#print axioms Yulang.GeneralDeclarativeEndpointChildren336.root_compiles
+#print axioms Yulang.GeneralDeclarativeEndpointChildren336.child_compiles
+#print axioms Yulang.GeneralDeclarativeEndpointChildren336.child_lower
+#print axioms Yulang.GeneralDeclarativeEndpointChildren336.selected
+#print axioms Yulang.GeneralDeclarativeEndpointChildModels336.inhabited
+#print axioms Yulang.GeneralDeclarativeEndpointChildModels336.recursively_checked
+#print axioms Yulang.GeneralDeclarativeEndpointClash336.elected
+#print axioms Yulang.GeneralDeclarativeEndpointClash336.before_model
+#print axioms Yulang.GeneralDeclarativeEndpointClash336.clash
+#print axioms Yulang.GeneralDeclarativeEndpointClash336.rejected
