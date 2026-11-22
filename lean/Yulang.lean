@@ -7309,3 +7309,4 @@ import Yulang.GeneralDeclarativeStoppedRequested341
 import Yulang.GeneralDeclarativeStoppedDepthExact341
 import Yulang.GeneralDeclarativeStoppedMissingOutput341
 import Yulang.GeneralDeclarativeVersionedRetarget342
+import Yulang.GeneralDeclarativeVersionedRows342

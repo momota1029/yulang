@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeVersionedRows342.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRows342.aligned' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRows342.fixed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRows342.all' depends on axioms: [propext, Quot.sound]

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeVersionedRows342
+#print axioms Yulang.GeneralDeclarativeVersionedRows342.exact
+#print axioms Yulang.GeneralDeclarativeVersionedRows342.aligned
+#print axioms Yulang.GeneralDeclarativeVersionedRows342.fixed
+#print axioms Yulang.GeneralDeclarativeVersionedRows342.all
