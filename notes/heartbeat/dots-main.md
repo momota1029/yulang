@@ -3,9 +3,9 @@
 cycle: 351
 status: running
 started: 2026-11-22T18:37:24.680Z
-updated: 2026-11-22T18:55:41.415Z
-elapsed_min: 18.28
-activity: same fixed model for scoped release producer and full consumer forest
+updated: 2026-11-22T19:04:30.846Z
+elapsed_min: 27.10
+activity: version freshness and independently named vs literal tag replay verified
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: Verified pin 4e6aaa9. Source producer output actual target 2; changing occurrence/version/write/target or withholding release fails. Separate literal/direct and named-arm tag proof and compiler tests built; extending exact fixture with same-model retained merged payload.
+resume_hint: Pin 7419eaa includes finite version uniqueness, wrong/released-elsewhere tests, literal-vs-recursive named replay, and current compiler output checks. Named leaf exact shared model and fixed merged output now built; auditing final proof before further compositional work.
