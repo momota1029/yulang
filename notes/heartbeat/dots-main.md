@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-cycle: 354
-status: completed
-started: 2026-11-22T21:36:39.324Z
-updated: 2026-11-22T22:20:45.078Z
-elapsed_min: 44.10
-activity: checked exact release-indexed typed output, actual ordered same-model children, and verified nonpoint re-emission only
+cycle: 355
+status: running
+started: 2026-11-22T22:33:37.309Z
+updated: 2026-11-22T22:33:54.814Z
+elapsed_min: 0.29
+activity: fresh I-63 and exact C354 checked; measure genuine grandchild placement and release cutoff
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-report: notes/handoff/dots-cycle-354.md
-resume_hint: I-63 S1 1 partial / S2 1 partial / C 1 deferred; next independently stamp/release child write at 10 to an actual grandchild and keep joint typed tables exact. No former Local/termination.
+resume_hint: Retained scoped Lean 4.35.0. First prove precise distinctions among actual where argument centers, released fixed target 10 and independently replayed child source. Do not invent a grandchild demand or promote equal payload.
