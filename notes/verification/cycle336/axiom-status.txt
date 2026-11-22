@@ -1,0 +1,4 @@
+direct axiom index exit: 0
+theorems: 159
+axiom kinds: Classical.choice, Quot.sound, propext
+forbidden axioms: none

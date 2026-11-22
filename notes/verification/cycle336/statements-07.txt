@@ -1,0 +1,61 @@
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {legit :
+    ∀ (e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry),
+      e ∈ rs → Yulang.GeneralDeclarativeEndpointSupport336.Certified p e},
+  e ∈ (Yulang.GeneralDeclarativeOrigins321.restriction p).equations →
+    e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralDeclarativeEndpointSupport336.authorize p rs legit)).equations
+@Yulang.GeneralDeclarativeEndpointSupport336.projected_row : ∀ {done : Nat → Prop}
+  {rs : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry} {e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry}
+  {row : Yulang.GeneralDeclarativeHead320.Equation} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {legit :
+    ∀ (e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry),
+      e ∈ rs → Yulang.GeneralDeclarativeEndpointSupport336.Certified p e},
+  e ∈ rs →
+    row ∈ Yulang.GeneralDeclarativeEndpointSupport336.writes e →
+      row ∈
+        (Yulang.GeneralDeclarativeOrigins321.restriction
+            (Yulang.GeneralDeclarativeEndpointSupport336.authorize p rs legit)).equations
+@Yulang.GeneralDeclarativeEndpointSupport336.bounded_field : ∀ {done : Nat → Prop}
+  {rs : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {label : Nat} {lo hi : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {legit :
+    ∀ (e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry),
+      e ∈ rs → Yulang.GeneralDeclarativeEndpointSupport336.Certified p e}
+  {e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry},
+  e ∈ rs →
+    e.fst = Yulang.GeneralDeclarativeEndpointProgram336.Projection.field arg label lo hi →
+      { left := e.snd.lower, right := lo } ∈
+          (Yulang.GeneralDeclarativeOrigins321.restriction
+              (Yulang.GeneralDeclarativeEndpointSupport336.authorize p rs legit)).equations ∧
+        { left := e.snd.upper, right := hi } ∈
+          (Yulang.GeneralDeclarativeOrigins321.restriction
+              (Yulang.GeneralDeclarativeEndpointSupport336.authorize p rs legit)).equations
+@Yulang.GeneralDeclarativeEndpointSupport336.lower_name : ∀ {done : Nat → Prop}
+  {rs : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry} {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {label n : Nat} {hi : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {tag : Yulang.GeneralDeclarativeLowerKnown321.Tag} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {legit :
+    ∀ (e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry),
+      e ∈ rs → Yulang.GeneralDeclarativeEndpointSupport336.Certified p e}
+  {e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry},
+  e ∈ rs →
+    e.fst =
+        Yulang.GeneralDeclarativeEndpointProgram336.Projection.field arg label
+          (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n) hi →
+      Yulang.GeneralDeclarativeLowerKnown321.Knows (Yulang.GeneralDeclarativeOrigins321.restriction p) n tag →
+        Yulang.GeneralDeclarativeLowerKnown321.Knows
+          (Yulang.GeneralDeclarativeOrigins321.restriction
+            (Yulang.GeneralDeclarativeEndpointSupport336.authorize p rs legit))
+          e.snd.lower tag
+@Yulang.GeneralDeclarativeEndpointSupport336.singleton_bounds : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  (keep : List Nat) (source : Yulang.GeneralDeclarativeWhere319.Capture),
+  Yulang.GeneralDeclarativeDemand320.Bounds s source →
+    Yulang.GeneralDeclarativeLowerKnown321.Alias (Yulang.GeneralDeclarativeAggregate324.ready s keep source [])
+        (Yulang.GeneralDeclarativeAggregate324.span s keep source []).lower source.lower ∧
+      Yulang.GeneralDeclarativeLowerKnown321.Alias (Yulang.GeneralDeclarativeAggregate324.ready s keep source [])
+        (Yulang.GeneralDeclarativeAggregate324.span s keep source []).upper source.upper

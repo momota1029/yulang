@@ -1,0 +1,15 @@
+'Yulang.GeneralDeclarativeEndpointRecord336.field_interval' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointRecord336.residual_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidual336.endpoint_mask' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidual336.exact_residuals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointNames336.name_field' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointNames336.name_rest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointCase336.actual_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointCase336.center_not_listed' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeEndpointCase336.model_ok' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointCase336.old_head_impossible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointCase336.both' depends on axioms: [propext, Classical.choice, Quot.sound]

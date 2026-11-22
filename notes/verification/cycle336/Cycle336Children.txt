@@ -1,0 +1,14 @@
+'Yulang.GeneralDeclarativeEndpointConserve336.conserve' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointConserve336.ready_after_ties' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointChildren336.root_compiles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointChildren336.child_compiles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointChildren336.child_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointChildren336.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointChildModels336.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointChildModels336.recursively_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointClash336.elected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointClash336.before_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointClash336.clash' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointClash336.rejected' depends on axioms: [propext, Classical.choice, Quot.sound]

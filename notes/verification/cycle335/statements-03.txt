@@ -120,50 +120,50 @@ Yulang.GeneralStoppedDisplayProjection335.halted : ∀
   (later : Yulang.GeneralNominalVersionedJournal232.State Yulang.GeneralDeclarationExamples.roles),
   ¬Yulang.GeneralNominalVersionedMixedKernel234.Step Yulang.GeneralNominalExamples.registry
       Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralRebaseDisplayFrame276.after later
-@Yulang.GeneralStoppedInstallHistory335.roll : ∀ {roles : Yulang.Roles.RoleDecls}
-  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
-  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
-  {start before after : Yulang.GeneralNominalVersionedJournal232.State roles},
-  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start before effect →
-    Yulang.GeneralNominalVersionedMixedKernel234.Step registry root before after →
-      Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start after effect
-@Yulang.GeneralStoppedInstallHistory335.administrative_effects : ∀ {roles : Yulang.Roles.RoleDecls}
-  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
-  {before after : Yulang.GeneralNominalVersionedJournal232.State roles},
-  Yulang.GeneralNominalVersionedMixedKernel234.Administrative before focus after → after.effects = before.effects
-@Yulang.GeneralStoppedInstallHistory335.effects_origin : ∀ {roles : Yulang.Roles.RoleDecls}
-  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
-  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
-  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
-  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start final →
-    effect ∈ final.effects →
-      effect ∈ start.effects ∨ Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect
-@Yulang.GeneralStoppedInstallHistory335.installed_origin : ∀ {roles : Yulang.Roles.RoleDecls}
-  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
-  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
-  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
-  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start final →
-    start.effects = [] →
-      effect ∈ final.effects → Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect
-@Yulang.GeneralStoppedInstallHistory335.retained_sites : ∀ {roles : Yulang.Roles.RoleDecls}
-  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
-  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
-  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
-  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect →
-    Yulang.GeneralNominalVersionedChildren232.emitted effect.plan ⊆ final.core.sites ∧
-      Yulang.GeneralNominalVersionedChildren232.edges effect.plan ⊆ final.core.erased.current.edges
-@Yulang.GeneralStoppedInstallHistory335.retained_projected : ∀ {roles : Yulang.Roles.RoleDecls}
-  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
-  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
-  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
-  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect →
-    List.map Prod.fst
-          (List.map Yulang.GeneralStoppedOrdinarySite335.occurrence
-            (Yulang.GeneralNominalVersionedChildren232.emitted effect.plan)) =
-        List.map Yulang.GeneralSourceDictionaries.Occurrence.identity
-          (Yulang.GeneralNominalVersionedFrame231.children effect.plan.packet) ∧
-      ∀ (site : Yulang.GeneralNominalCenters.Site roles),
-        site ∈ Yulang.GeneralNominalVersionedChildren232.emitted effect.plan →
-          site ∈ final.core.sites ∧
-            (effect.plan.packet.site.occurrence, site.occurrence) ∈ final.core.erased.current.edges ∧
-              (Yulang.GeneralStoppedOrdinarySite335.demand site).outputs = site.occurrence.demand.outputs
+@Yulang.GeneralStoppedI61Endpoint335.center_is_record : ∀ {done : Nat → Prop}
+  {a : Yulang.GeneralDeclarativeWhere319.Capture} {label : Nat}
+  {field tail : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralStoppedI61Endpoint335.EqualRecord p a label field tail →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models s m →
+        Yulang.GeneralDeclarativeEntailment320.Holds m
+          { left := a.center, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record label field tail }
+@Yulang.GeneralStoppedI61Endpoint335.present_iff : ∀ {done : Nat → Prop} {a : Yulang.GeneralDeclarativeWhere319.Capture}
+  {label : Nat} {field tail : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralStoppedI61Endpoint335.EqualRecord p a label field tail →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models
+          (Yulang.GeneralDeclarativeEntailment320.appendFacts s
+            [{ left := a.center,
+                right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record label field tail }])
+          m ↔
+        Yulang.GeneralDeclarativeHead320.Models s m
+Yulang.GeneralStoppedI61Endpoint335.Cut.no_center_present : ¬Yulang.GeneralDeclarativeWitnessCutBody334.opaqueCenter ∈
+    Yulang.GeneralStoppedI61Endpoint335.Cut.noCenter.equations
+Yulang.GeneralStoppedI61Endpoint335.Cut.endpoints : Yulang.GeneralStoppedI61Endpoint335.EqualRecord
+  Yulang.GeneralStoppedI61Endpoint335.Cut.authored Yulang.GeneralDeclarativeWitnessCutDecl334.arg 7
+  (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 3)
+  (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 4)
+Yulang.GeneralStoppedI61Endpoint335.Cut.projection_is_conservative : ∀
+  (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeWitnessCutBody334.initial m ↔
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralStoppedI61Endpoint335.Cut.noCenter m
+Yulang.GeneralStoppedI61Endpoint335.Cut.old_lo : Yulang.GeneralDeclarativeWitnessCutBody334.lo ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralStoppedI61Endpoint335.Cut.authorized).equations
+Yulang.GeneralStoppedI61Endpoint335.Cut.old_hi : Yulang.GeneralDeclarativeWitnessCutBody334.hi ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralStoppedI61Endpoint335.Cut.authorized).equations
+Yulang.GeneralStoppedI61Endpoint335.Cut.supported_center : Yulang.GeneralDeclarativeWitnessCutBody334.opaqueCenter ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralStoppedI61Endpoint335.Cut.prepared).equations
+Yulang.GeneralStoppedI61Endpoint335.Cut.actual_choice : Yulang.GeneralDeclarativeStableAttempt329.Elected
+  Yulang.GeneralDeclarativeWitnessCutBody334.final Yulang.GeneralDeclarativeWitnessCutDecl334.registry
+  Yulang.GeneralDeclarativeNestedExample332.interpretation Yulang.GeneralStoppedI61Endpoint335.Cut.authorized
+  (Yulang.GeneralDeclarativeInlineEndpoint331.candidates Yulang.GeneralStoppedI61Endpoint335.Cut.authorized
+    Yulang.GeneralDeclarativeWitnessCutDecl334.registry Yulang.GeneralDeclarativeNestedExample332.interpretation
+    Yulang.GeneralDeclarativeWitnessCut334.waiting)
+  Yulang.GeneralDeclarativeWitnessCutDecl334.root Yulang.GeneralDeclarativeWitnessCutDecl334.impl
+Yulang.GeneralStoppedI61Endpoint335.Cut.actual_selected : Yulang.CommonRoleOutermostResolver.Classify
+  (Yulang.GeneralDeclarativeWitnessClassify334.Rule Yulang.GeneralStoppedI61Endpoint335.Cut.authorized
+    Yulang.GeneralDeclarativeWitnessCutDecl334.registry Yulang.GeneralDeclarativeNestedExample332.interpretation
+    Yulang.GeneralDeclarativeWitnessCut334.waiting)

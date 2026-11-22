@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeEndpointRegression336.build' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointRegression336.elected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointRegression336.accepted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointRegression336.populated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointRegression336.accepted_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointMixedTail336.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointMixedTail336.inhabited' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointMixedTail336.strict' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointMixedTail336.genuine_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

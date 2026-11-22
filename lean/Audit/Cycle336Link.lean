@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeEndpointLink336
+import Yulang.GeneralDeclarativeEndpointSupport336
+import Yulang.GeneralDeclarativeEndpointCompatibility336
+
+#print axioms Yulang.GeneralDeclarativeEndpointLink336.selected_centers
+#print axioms Yulang.GeneralDeclarativeEndpointLink336.no_model_if_same_clash
+#print axioms Yulang.GeneralDeclarativeEndpointSupport336.materialize
+#print axioms Yulang.GeneralDeclarativeEndpointSupport336.lower_name
+#print axioms Yulang.GeneralDeclarativeEndpointSupport336.singleton_bounds
+#print axioms Yulang.GeneralDeclarativeEndpointCompatibility336.old_success
+#print axioms Yulang.GeneralDeclarativeEndpointCompatibility336.old_and_new

@@ -1,0 +1,174 @@
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key kids) →
+    Yulang.GeneralDeclarativeEndpointSelected336.Rule p additional r i wait d
+      (Yulang.CommonRoleOutermostResolver.Frontier.selected key kids)
+@Yulang.GeneralDeclarativeEndpointCompatibility336.selected_tree : ∀ {done : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {r : Yulang.GeneralDeclarations.Registry}
+  {wait : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {additional : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry}
+  (diag : Yulang.CommonRoleOutermostResolver.Tree) (dict : Yulang.CommonRoleOutermostResolver.Dictionary),
+  Yulang.CommonRoleOutermostResolver.Resolves (Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i wait) d diag →
+    Yulang.CommonRoleOutermostResolver.Summarizes diag (Yulang.CommonRoleOutermostResolver.Result.selected dict) →
+      Yulang.CommonRoleOutermostResolver.Resolves
+        (Yulang.GeneralDeclarativeEndpointSelected336.Rule p additional r i wait) d diag
+@Yulang.GeneralDeclarativeEndpointCompatibility336.selected_forest : ∀ {done : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {r : Yulang.GeneralDeclarations.Registry}
+  {wait : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {ds : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {additional : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry}
+  (diags : List Yulang.CommonRoleOutermostResolver.Tree) (dicts : List Yulang.CommonRoleOutermostResolver.Dictionary),
+  Yulang.CommonRoleOutermostResolver.All₂
+      (Yulang.CommonRoleOutermostResolver.Resolves (Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i wait)) ds
+      diags →
+    Yulang.CommonRoleOutermostResolver.All₂ Yulang.CommonRoleOutermostResolver.Summarizes diags
+        (List.map Yulang.CommonRoleOutermostResolver.Result.selected dicts) →
+      Yulang.CommonRoleOutermostResolver.All₂
+        (Yulang.CommonRoleOutermostResolver.Resolves
+          (Yulang.GeneralDeclarativeEndpointSelected336.Rule p additional r i wait))
+        ds diags
+@Yulang.GeneralDeclarativeEndpointCompatibility336.old_success : ∀ {done : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {r : Yulang.GeneralDeclarations.Registry}
+  {wait : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {dict : Yulang.CommonRoleOutermostResolver.Dictionary}
+  {additional : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry},
+  Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i wait) d
+      (Yulang.CommonRoleOutermostResolver.Result.selected dict) →
+    Yulang.CommonRoleOutermostResolver.Classify
+      (Yulang.GeneralDeclarativeEndpointSelected336.Rule p additional r i wait) d
+      (Yulang.CommonRoleOutermostResolver.Result.selected dict)
+@Yulang.GeneralDeclarativeEndpointCompatibility336.old_and_new : ∀ {done : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {r : Yulang.GeneralDeclarations.Registry}
+  {wait : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {dict : Yulang.CommonRoleOutermostResolver.Dictionary},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+        Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i wait) d
+            (Yulang.CommonRoleOutermostResolver.Result.selected dict) →
+          ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralDeclarativeHead320.Models s m →
+              Yulang.GeneralDeclarativeEvidence320.Evidence r i m d dict ∧
+                Yulang.GeneralDeclarativeEndpointDictionary336.Evidence r i m d dict
+@Yulang.GeneralDeclarativeEndpointConserve336.slots_same : ∀ {e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry}
+  {m n : Yulang.GeneralNominalCommonBridge.Assignment},
+  (∀ (v : Nat), v ∈ Yulang.GeneralDeclarativeEndpointConserve336.refs e → n v = m v) →
+    Yulang.GeneralDeclarativeEndpointBatch336.atSlots n e.snd =
+      Yulang.GeneralDeclarativeEndpointBatch336.atSlots m e.snd
+@Yulang.GeneralDeclarativeEndpointConserve336.holds_same : ∀ {e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry}
+  {m n : Yulang.GeneralNominalCommonBridge.Assignment},
+  (∀ (v : Nat), v ∈ Yulang.GeneralDeclarativeEndpointConserve336.refs e → n v = m v) →
+    (Yulang.GeneralDeclarativeEndpointOverlay336.Holds n e ↔ Yulang.GeneralDeclarativeEndpointOverlay336.Holds m e)
+@Yulang.GeneralDeclarativeEndpointConserve336.receipts_same : ∀
+  {rs : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry} {m n : Yulang.GeneralNominalCommonBridge.Assignment},
+  (∀ (v : Nat), v ∈ Yulang.GeneralDeclarativeEndpointConserve336.names rs → n v = m v) →
+    ((∀ (e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry),
+        e ∈ rs → Yulang.GeneralDeclarativeEndpointOverlay336.Holds n e) ↔
+      ∀ (e : Yulang.GeneralDeclarativeEndpointOverlay336.Entry),
+        e ∈ rs → Yulang.GeneralDeclarativeEndpointOverlay336.Holds m e)
+@Yulang.GeneralDeclarativeEndpointConserve336.conserve : ∀ {keep : List Nat}
+  {rs : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeOpaqueConserve328.Retains s t keep →
+    Yulang.GeneralDeclarativeEndpointConserve336.names rs ⊆ Yulang.GeneralDeclarativeFootprint321.stateNames s ++ keep →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith s rs m ↔
+          ∃ n,
+            Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith t rs n ∧
+              ∀ (v : Nat), v ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ++ keep → n v = m v
+@Yulang.GeneralDeclarativeEndpointConserve336.ready_after_ties : ∀
+  {rs : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry} {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {uses : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)}
+  {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {keep : List Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith s rs m →
+    Yulang.GeneralDeclarativeStableCanonical329.EqualUses m uses →
+      (∀ (slot : Nat × Yulang.GeneralDeclarativeWhere319.Capture),
+          slot ∈ uses → Yulang.GeneralDeclarativeDemand320.Bounds s slot.snd) →
+        Yulang.GeneralDeclarativeEndpointConserve336.names rs ⊆
+            Yulang.GeneralDeclarativeFootprint321.stateNames
+                (Yulang.GeneralDeclarativeStableAssemble329.tieState s uses fallback) ++
+              keep →
+          ∃ n,
+            Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith
+                (Yulang.GeneralDeclarativeStableAssemble329.merged s keep uses fallback).state rs n ∧
+              ∀ (v : Nat),
+                v ∈
+                    Yulang.GeneralDeclarativeFootprint321.stateNames
+                        (Yulang.GeneralDeclarativeStableAssemble329.tieState s uses fallback) ++
+                      keep →
+                  n v = m v
+@Yulang.GeneralDeclarativeEndpointDictionary336.tree_sound : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {sidecar : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith s sidecar m →
+        ∀ (d : Yulang.GeneralDeclarativeDemand320.Demand),
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            ∀ (diag : Yulang.CommonRoleOutermostResolver.Tree) (dict : Yulang.CommonRoleOutermostResolver.Dictionary),
+              Yulang.CommonRoleOutermostResolver.Resolves
+                  (Yulang.GeneralDeclarativeEndpointSelected336.Rule p sidecar r i waiting) d diag →
+                Yulang.CommonRoleOutermostResolver.Summarizes diag
+                    (Yulang.CommonRoleOutermostResolver.Result.selected dict) →
+                  Yulang.GeneralDeclarativeEndpointDictionary336.Evidence r i m d dict
+@Yulang.GeneralDeclarativeEndpointDictionary336.forest_sound : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {sidecar : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith s sidecar m →
+        ∀ (ds : List Yulang.GeneralDeclarativeDemand320.Demand),
+          (∀ (child : Yulang.GeneralDeclarativeDemand320.Demand),
+              child ∈ ds → Yulang.GeneralDeclarativeOutputSource323.Declared r child) →
+            ∀ (diags : List Yulang.CommonRoleOutermostResolver.Tree)
+              (dicts : List Yulang.CommonRoleOutermostResolver.Dictionary),
+              Yulang.CommonRoleOutermostResolver.All₂
+                  (Yulang.CommonRoleOutermostResolver.Resolves
+                    (Yulang.GeneralDeclarativeEndpointSelected336.Rule p sidecar r i waiting))
+                  ds diags →
+                Yulang.CommonRoleOutermostResolver.All₂ Yulang.CommonRoleOutermostResolver.Summarizes diags
+                    (List.map Yulang.CommonRoleOutermostResolver.Result.selected dicts) →
+                  Yulang.CommonRoleOutermostResolver.All₂
+                    (Yulang.GeneralDeclarativeEndpointDictionary336.Evidence r i m) ds dicts
+@Yulang.GeneralDeclarativeEndpointDictionary336.dictionary_sound : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {sidecar : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry}
+  {dict : Yulang.CommonRoleOutermostResolver.Dictionary},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+        Yulang.CommonRoleOutermostResolver.Classify
+            (Yulang.GeneralDeclarativeEndpointSelected336.Rule p sidecar r i waiting) d
+            (Yulang.CommonRoleOutermostResolver.Result.selected dict) →
+          ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+            Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith s sidecar m →
+              Yulang.GeneralDeclarativeEndpointDictionary336.Evidence r i m d dict
+@Yulang.GeneralDeclarativeEndpointInput336.shape_grows : ∀ {c : Yulang.GeneralDeclarationPatterns.Constructors}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {a : Yulang.GeneralDeclarativeWhere319.Capture}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {us : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)}
+  {rs : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry} {s t : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeGrowth327.Extends s t →
+    Yulang.GeneralDeclarativeEndpointInput336.LocalShape c i a pat us rs →
+      Yulang.GeneralDeclarativeEndpointInput336.LocalShape c i a pat us rs
+@Yulang.GeneralDeclarativeEndpointInput336.input : ∀ {done : Nat → Prop}
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {keep : List Nat} {a : Yulang.GeneralDeclarativeWhere319.Capture} {pat : Yulang.GeneralDeclarationPatterns.Pattern}
+  {after : Yulang.GeneralDeclarativeHead320.State} {used : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)}
+  {reads : List Yulang.GeneralDeclarativeEndpointOverlay336.Entry} {s before : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeEndpointInput336.Input p c i keep before a pat after used reads →
+    Yulang.GeneralDeclarativeGrowth327.Extends s before →
+      Yulang.GeneralDeclarativeGrowth327.Extends before after ∧
+        Yulang.GeneralDeclarativeEndpointInput336.LocalShape c i a pat used reads ∧
+          (∀ (slot : Nat × Yulang.GeneralDeclarativeWhere319.Capture),
+              slot ∈ used → Yulang.GeneralDeclarativeDemand320.Bounds after slot.snd) ∧

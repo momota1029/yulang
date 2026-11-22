@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeEndpointResidualFixture336
+
+#print axioms Yulang.GeneralDeclarativeEndpointResidualFixture336.has_two_standalone

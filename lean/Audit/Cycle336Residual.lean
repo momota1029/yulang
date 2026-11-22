@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeEndpointResidualSemantics336
+
+#print axioms Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_disjoint
+#print axioms Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_exact
+#print axioms Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_interval
+#print axioms Yulang.GeneralDeclarativeEndpointResidualSemantics336.closed_distinct

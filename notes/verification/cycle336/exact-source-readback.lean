@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeEndpointCompatibility336
+import Yulang.GeneralDeclarativeEndpointChildModels336
+import Yulang.GeneralDeclarativeEndpointResidualLift336
+import Yulang.GeneralDeclarativeEndpointResidualFixture336
+import Yulang.GeneralDeclarativeEndpointClashChecked336
+
+#check @Yulang.GeneralDeclarativeEndpointDictionary336.dictionary_sound
+#check @Yulang.GeneralDeclarativeEndpointCompatibility336.old_success
+#check @Yulang.GeneralDeclarativeEndpointChildModels336.recursively_checked
+#check @Yulang.GeneralDeclarativeEndpointClashChecked336.regression
+#check @Yulang.GeneralDeclarativeEndpointResidualLift336.named
+#check @Yulang.GeneralDeclarativeEndpointResidualLift336.nonunique
+#check @Yulang.GeneralDeclarativeEndpointResidualFixture336.has_two_standalone

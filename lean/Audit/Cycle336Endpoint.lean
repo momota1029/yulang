@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeEndpointCase336
+import Yulang.GeneralDeclarativeEndpointNames336
+
+#print axioms Yulang.GeneralDeclarativeEndpointRecord336.field_interval
+#print axioms Yulang.GeneralDeclarativeEndpointRecord336.residual_interval
+#print axioms Yulang.GeneralDeclarativeEndpointResidual336.endpoint_mask
+#print axioms Yulang.GeneralDeclarativeEndpointResidual336.exact_residuals
+#print axioms Yulang.GeneralDeclarativeEndpointNames336.name_field
+#print axioms Yulang.GeneralDeclarativeEndpointNames336.name_rest
+#print axioms Yulang.GeneralDeclarativeEndpointCase336.actual_read
+#print axioms Yulang.GeneralDeclarativeEndpointCase336.center_not_listed
+#print axioms Yulang.GeneralDeclarativeEndpointCase336.model_ok
+#print axioms Yulang.GeneralDeclarativeEndpointCase336.old_head_impossible
+#print axioms Yulang.GeneralDeclarativeEndpointCase336.both

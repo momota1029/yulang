@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_disjoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualSemantics336.closed_distinct' depends on axioms: [propext, Quot.sound]

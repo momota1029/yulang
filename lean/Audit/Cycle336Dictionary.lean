@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeEndpointDictionary336
+
+#print axioms Yulang.GeneralDeclarativeEndpointBatch336.patch_values
+#print axioms Yulang.GeneralDeclarativeEndpointBatch336.fit
+#print axioms Yulang.GeneralDeclarativeEndpointProgram336.from_supported
+#print axioms Yulang.GeneralDeclarativeEndpointProgram336.list_sound
+#print axioms Yulang.GeneralDeclarativeEndpointOverlay336.approved
+#print axioms Yulang.GeneralDeclarativeEndpointInput336.sources
+#print axioms Yulang.GeneralDeclarativeEndpointInput336.observed
+#print axioms Yulang.GeneralDeclarativeEndpointSelected336.Generated.body
+#print axioms Yulang.GeneralDeclarativeEndpointSelected336.selected_sound
+#print axioms Yulang.GeneralDeclarativeEndpointSelected336.ties_exact
+#print axioms Yulang.GeneralDeclarativeEndpointSelected336.clash_exact
+#print axioms Yulang.GeneralDeclarativeEndpointDictionary336.dictionary_sound

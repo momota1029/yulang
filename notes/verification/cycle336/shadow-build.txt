@@ -1,0 +1,39 @@
+Lean: Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Source: exact GitHub commit 9ef7cc13aeeeeef30fc25dadb6dff111d00e214a
+New source files were compiled into a new separate directory; other imports use calibrated existing toolchain checkout.
+compile GeneralDeclarativeEndpointRecord336: 0
+compile GeneralDeclarativeEndpointResidual336: 0
+compile GeneralDeclarativeEndpointNames336: 0
+compile GeneralDeclarativeEndpointBatch336: 0
+compile GeneralDeclarativeEndpointBody336: 0
+compile GeneralDeclarativeEndpointCase336: 0
+compile GeneralDeclarativeEndpointProgram336: 0
+compile GeneralDeclarativeEndpointOverlay336: 0
+compile GeneralDeclarativeEndpointSupport336: 0
+compile GeneralDeclarativeEndpointInput336: 0
+compile GeneralDeclarativeEndpointSelected336: 0
+compile GeneralDeclarativeEndpointDictionary336: 0
+compile GeneralDeclarativeEndpointLink336: 0
+compile GeneralDeclarativeEndpointMixedTail336: 0
+compile GeneralDeclarativeEndpointChildren336: 0
+compile GeneralDeclarativeEndpointConserve336: 0
+compile GeneralDeclarativeEndpointChildModels336: 0
+compile GeneralDeclarativeEndpointClash336: 0
+compile GeneralDeclarativeEndpointClashChecked336: 0
+compile GeneralDeclarativeEndpointCompatibility336: 0
+compile GeneralDeclarativeEndpointRegression336: 0
+compile GeneralDeclarativeEndpointResidualSemantics336: 0
+compile GeneralDeclarativeEndpointResidualReflect336: 0
+compile GeneralDeclarativeEndpointResidualLift336: 0
+compile GeneralDeclarativeEndpointResidualFixture336: 0
+check Cycle336Body.lean: 0
+check Cycle336Children.lean: 0
+check Cycle336Dictionary.lean: 0
+check Cycle336Endpoint.lean: 0
+check Cycle336Link.lean: 0
+check Cycle336Regression.lean: 0
+check Cycle336Reification.lean: 0
+check Cycle336Residual.lean: 0
+check Cycle336ResidualFixture.lean: 0
+fixed statements and regression via new C336 imports: 0
+shadow exit: 0

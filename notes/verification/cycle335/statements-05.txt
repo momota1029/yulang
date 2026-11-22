@@ -1,3 +1,62 @@
+  Yulang.GeneralStoppedLower335.collect f xs = some es → key ∈ xs → ∃ rows, f key = some rows
+@Yulang.GeneralStoppedLowerOrigin335.record_rows : ∀ {α : Type u_1} {name : Nat}
+  {encode : α → Option Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {es : List Yulang.GeneralDeclarativeHead320.Equation} {row : Yulang.GeneralDeclarativeHead320.Equation}
+  {rec : Option α},
+  Yulang.GeneralStoppedLower335.record name encode rec = some es →
+    (row ∈ es ↔ ∃ value expr, rec = some value ∧ encode value = some expr ∧ row = { left := name, right := expr })
+@Yulang.GeneralStoppedLowerOrigin335.exact_rows : ∀ {q : Yulang.GeneralDeclarativeHead320.State}
+  {raw : Yulang.GeneralNominalState.State},
+  Yulang.GeneralStoppedLower335.lower raw = some q →
+    ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+      row ∈ q.equations ↔
+        Yulang.GeneralStoppedLowerOrigin335.ScalarRow raw row ∨ Yulang.GeneralStoppedLowerOrigin335.NominalRow raw row
+@Yulang.GeneralStoppedLowerOrigin335.rename_point : ∀ {a b : Nat} {ps : List (Yulang.GeneralNominalState.Parameter a)}
+  {indices : List (Fin a)} (embedding : Fin a → Fin b),
+  Yulang.GeneralStoppedShape335.point ps = some indices →
+    Yulang.GeneralStoppedShape335.point (List.map (Yulang.GeneralNominalRefinements.renameParameter embedding) ps) =
+      some (List.map embedding indices)
+@Yulang.GeneralStoppedLowerOrigin335.descriptor_names : ∀ {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {before after : Yulang.GeneralNominalState.State} (g : Yulang.GeneralNominalRefinements.Refines before after)
+  (d : Yulang.GeneralNominalState.Descriptor before.base.slots),
+  Yulang.GeneralStoppedShape335.descriptorExpr before.base d = some e →
+    Yulang.GeneralStoppedShape335.descriptorExpr after.base
+        (Yulang.GeneralNominalRefinements.renameDescriptor g.base.embed d) =
+      some e
+@Yulang.GeneralStoppedLowerOrigin335.literal_nominal_preserved : ∀ {row : Yulang.GeneralDeclarativeHead320.Equation}
+  {before after : Yulang.GeneralNominalState.State} (g : Yulang.GeneralNominalRefinements.Refines before after),
+  Yulang.GeneralStoppedLowerOrigin335.NominalRow before row → Yulang.GeneralStoppedLowerOrigin335.NominalRow after row
+@Yulang.GeneralStoppedLowerOrigin335.named_origin_transport : ∀ {t : Yulang.GeneralDeclarativeHead320.State}
+  {row : Yulang.GeneralDeclarativeHead320.Equation} {before after : Yulang.GeneralNominalState.State}
+  (g : Yulang.GeneralNominalRefinements.Refines before after),
+  Yulang.GeneralStoppedLower335.lower after = some t →
+    Yulang.GeneralStoppedLowerOrigin335.NominalRow before row → row ∈ t.equations
+@Yulang.GeneralStoppedOrdinarySite335.each_argument : ∀ {roles : Yulang.Roles.RoleDecls}
+  (site : Yulang.GeneralNominalCenters.Site roles) (index : Fin (roles site.occurrence.demand.role).arity),
+  (Yulang.GeneralStoppedOrdinarySite335.demand site).arguments[↑index]? =
+    some (Yulang.GeneralStoppedOrdinarySite335.argument site index)
+@Yulang.GeneralStoppedOrdinarySite335.output_targets : ∀ {roles : Yulang.Roles.RoleDecls}
+  (site : Yulang.GeneralNominalCenters.Site roles),
+  (Yulang.GeneralStoppedOrdinarySite335.demand site).outputs = site.occurrence.demand.outputs
+@Yulang.GeneralStoppedOrdinarySite335.retained_order : ∀ {roles : Yulang.Roles.RoleDecls}
+  (sites : List (Yulang.GeneralNominalCenters.Site roles)),
+  List.map Prod.fst (List.map Yulang.GeneralStoppedOrdinarySite335.occurrence sites) =
+    List.map (fun s => s.occurrence.identity) sites
+@Yulang.GeneralStoppedPlacement335.capture_models : ∀ {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {a b : Yulang.GeneralDeclarativeWhere319.Capture} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeHead320.Models s m →
+    Yulang.GeneralStoppedPlacement335.SameCapture s a b → Yulang.GeneralStoppedPlacement335.Meaning m a b
+@Yulang.GeneralStoppedPlacement335.demands_models : ∀ {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {a b : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeHead320.Models s m →
+    Yulang.GeneralStoppedPlacement335.SameDemand s a b →
+      a.role = b.role ∧
+        a.outputs = b.outputs ∧
+          Yulang.CommonRoleOutermostResolver.All₂ (Yulang.GeneralStoppedPlacement335.Meaning m) a.arguments b.arguments
+@Yulang.GeneralStoppedProjectedTrace335.point_parameters : ∀ {n : Nat} {ids : List (Fin n)}
+  {xs : List (Yulang.GeneralNominalState.Parameter n)},
+  Yulang.GeneralStoppedShape335.point xs = some ids →
+    ∀ (p : Yulang.GeneralNominalState.Parameter n), p ∈ xs → Yulang.GeneralNominalReobservationSteps.PointParameter p
 @Yulang.GeneralStoppedProjectedTrace335.lowered_point_closed : ∀ {t : Yulang.GeneralDeclarativeHead320.State}
   {raw : Yulang.GeneralNominalState.State},
   Yulang.GeneralStoppedLower335.lower raw = some t → Yulang.GeneralNominalReobservationSteps.PointClosed raw
@@ -109,27 +168,3 @@ Yulang.GeneralStoppedShape335.name_values : ∀ (base : Yulang.GeneralSourceStat
   Yulang.GeneralNominalRebaseRawView243.atom g (Yulang.PresenceNormalForm.Atom.rename f a) =
     Yulang.GeneralNominalRebaseRawView243.atom (g ∘ f) a
 @Yulang.GeneralStoppedSourceRefinement335.physical_source : ∀ {before after : Yulang.GeneralNominalState.State}
-  (g : Yulang.GeneralNominalRefinements.Refines before after),
-  Yulang.GeneralNominalRebaseRawView243.slot after.base Yulang.Core.PresenceGeneration.CompTerm.var ∘ g.base.embed =
-    Yulang.GeneralNominalRebaseRawView243.slot before.base Yulang.Core.PresenceGeneration.CompTerm.var
-@Yulang.GeneralStoppedSourceRefinement335.normal_preserved : ∀ {before after : Yulang.GeneralNominalState.State}
-  (g : Yulang.GeneralNominalRefinements.Refines before after),
-  (Yulang.GeneralStoppedLower335.normal before).ordinary ⊆ (Yulang.GeneralStoppedLower335.normal after).ordinary ∧
-    (Yulang.GeneralStoppedLower335.normal before).intervals ⊆ (Yulang.GeneralStoppedLower335.normal after).intervals
-@Yulang.GeneralStoppedSourceRefinement335.scalar_preserved : ∀ {before after : Yulang.GeneralNominalState.State}
-  {row : Yulang.GeneralDeclarativeHead320.Equation} (g : Yulang.GeneralNominalRefinements.Refines before after),
-  Yulang.GeneralStoppedSourceRefinement335.ScalarStorage before after g →
-    Yulang.GeneralStoppedLowerOrigin335.ScalarRow before row → Yulang.GeneralStoppedLowerOrigin335.ScalarRow after row
-@Yulang.GeneralStoppedSourceRefinement335.projected_normal : ∀ {raw : Yulang.GeneralNominalState.State}
-  {s : Yulang.GeneralDeclarativeHead320.State},
-  Yulang.GeneralStoppedLower335.lower raw = some s → s.normal = Yulang.GeneralStoppedLower335.normal raw
-@Yulang.GeneralStoppedSourceRefinement335.preserves : ∀ {before after : Yulang.GeneralNominalState.State}
-  {s t : Yulang.GeneralDeclarativeHead320.State} (g : Yulang.GeneralNominalRefinements.Refines before after),
-  Yulang.GeneralStoppedSourceRefinement335.ScalarStorage before after g →
-    Yulang.GeneralStoppedLower335.lower before = some s →
-      Yulang.GeneralStoppedLower335.lower after = some t → Yulang.GeneralDeclarativeGrowth327.Extends s t
-@Yulang.GeneralStoppedSourceRefinement335.stopped_models : ∀ {roles : Yulang.Roles.RoleDecls}
-  {s : Yulang.GeneralDeclarativeHead320.State} {m : Yulang.GeneralNominalCommonBridge.Assignment}
-  (raw : Yulang.GeneralNominalVersionedJournal232.State roles),
-  Yulang.GeneralStoppedLower335.lower raw.core.erased.current.context.state = some s →
-    Yulang.GeneralNominalVersionedJournal232.Models raw m → Yulang.GeneralDeclarativeHead320.Models s m
