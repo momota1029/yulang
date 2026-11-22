@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeNestedReplayCases332
+
+#print axioms Yulang.GeneralDeclarativeNestedHeadList332.capture_sound
+#print axioms Yulang.GeneralDeclarativeNestedHeadList332.probe_sound
+#print axioms Yulang.GeneralDeclarativeNestedReplay332.replay_frame
+#print axioms Yulang.GeneralDeclarativeNestedReplay332.current_after_replay
+#print axioms Yulang.GeneralDeclarativeNestedReplayCases332.actual_replay
+#print axioms Yulang.GeneralDeclarativeNestedReplayCases332.across_arguments
+#print axioms Yulang.GeneralDeclarativeNestedReplayCases332.cross_argument_tie
+#print axioms Yulang.GeneralDeclarativeNestedReplayCases332.cross_argument_conflict
