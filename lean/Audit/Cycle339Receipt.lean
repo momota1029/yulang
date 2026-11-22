@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeOpenReceipt339
+
+#print axioms Yulang.GeneralDeclarativeOpenReceipt339.same_open_endpoint
+#print axioms Yulang.GeneralDeclarativeOpenReceipt339.endpoints
+#print axioms Yulang.GeneralDeclarativeOpenReceipt339.as_values
+#print axioms Yulang.GeneralDeclarativeOpenReceipt339.routed
