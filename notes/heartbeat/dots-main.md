@@ -3,9 +3,9 @@
 cycle: 345
 status: running
 started: 2026-11-22T12:32:29.459Z
-updated: 2026-11-22T12:50:42.589Z
-elapsed_min: 18.22
-activity: actual late-peer receipts and retained-effect readiness checked
+updated: 2026-11-22T13:00:04.871Z
+elapsed_min: 27.59
+activity: recovered approved environment after workspace rollback; preserving audited pin
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: C345 science 45ada394bb56e19b81bc22508837fc28000f4c76. Trace physical prefix and Ready transport now compile; verifying exact positions on retained historical effects across actual finite returns; no new solver claims.
+resume_hint: Audited sources at c8ecf907c028fb955ce4416dcfdffa437b06813d verified cumulatively (27 paths). Re-materializing exact Git source and rerunning focused checks before any further code publication.
