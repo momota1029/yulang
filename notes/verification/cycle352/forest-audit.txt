@@ -1,0 +1,24 @@
+'Yulang.GeneralDeclarativeWitnessTagHeader352.payload_descent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagHeader352.variant_payload_descent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagHeader352.wrapped_payload_descent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagHeader352.tag_descent_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagHeader352.replay_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagElection352.read_is_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagElection352.elect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagBranch352.same_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagBranch352.decode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForest352.local_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForest352.replayTree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForest352.replayList' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForest352.resolves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForest352.models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedSound352.tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedSound352.forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedSound352.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedWhole352.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedWhole352.agreed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedWhole352.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
