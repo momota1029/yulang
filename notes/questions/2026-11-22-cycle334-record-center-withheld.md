@@ -31,3 +31,7 @@ impl Pick {x: 'a, ..'rest}:
 ## Lean で確認済みの切れ目
 
 `GeneralDeclarativeWitnessCut334`。checked な実 record impl、支持された両端、有効な通常モデル、I-59 の非循環、実コンパイラによる固定出力 `5=3`、同じ ordinary receipt を持つ。旧 `Local59 / Staged` は selected。現証人分類では、実中心名 1 に届く支持された alias が他名にならず、名 1 の RHS の由来は未完了 owner 100 のみ。named・inline・現行 projected のどれでも中心を読めないことを証明し、pending、selected 辞書なしを確認した。旧 solver が実際にこの状態を返すこと、または言語全体の不一致は未証明。案 2 は未証明・未実装。
+
+### 再確認：遅延解除の最小条件
+
+同じ fixture で、区間・普通の等式・モデル・由来表は一切変えず、完了の述語だけを任意に変えた。Lean の `exactly_completed` / `pending_iff_incomplete` により、新分類が同じ宣言を同じ子列で選ぶのは owner 100 が完了したときに限り、それまでは保留になる。100 と無関係な完了では変わらない。完了後は、すでにあった中心の record 行を読み直し、同じ固定出力先でコンパイラを通し、実モデルで辞書の証拠まで得る。solver が実際に owner 100 を完了へ進めることはこの結果からは言えない。
