@@ -1,0 +1,179 @@
+@Yulang.GeneralDeclarativeAlternativeReadComplete333.replace_plan : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {target : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {fuel : Nat}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {src : Yulang.GeneralDeclarativeAlternativeView333.Index s}
+  (next : Yulang.GeneralDeclarativeAlternativeRead333.Reader s)
+  (fields : Yulang.GeneralDeclarativeAlternativeRead333.FieldReader s)
+  (a b :
+    Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr ×
+      Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  a = b →
+    ∀ (old : Yulang.GeneralDeclarativeRecordResidual323.withTail a.fst a.snd = target)
+      (now : Yulang.GeneralDeclarativeRecordResidual323.withTail b.fst b.snd = target),
+      Yulang.GeneralDeclarativeAlternativeRead333.recordChoices src fuel next fields mode raw a old =
+        Yulang.GeneralDeclarativeAlternativeRead333.recordChoices src fuel next fields mode raw b now
+@Yulang.GeneralDeclarativeAlternativeReadComplete333.record_in : ∀
+  {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {actual : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {picked : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {tail : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {fuel : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {src : Yulang.GeneralDeclarativeAlternativeView333.Index s}
+  {mode : Yulang.GeneralNominalMaterialization.Mode}
+  (rawShape : Yulang.GeneralDeclarativeInlineSpine331.Closed s raw actual terminal) (keys : List Nat)
+  (written : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr)
+  (unique : keys.Nodup) (someKeys : keys ≠ [])
+  (selects :
+    Yulang.GeneralDeclarativeOrderedRecord326.order (Yulang.CommonRoleCanonicalRows.normalize actual) keys =
+      some picked),
+  List.map Prod.fst written = keys →
+    ∀ (ending : Yulang.GeneralDeclarativeInlineTrace331.TailCode tail)
+      {a : Yulang.GeneralDeclarativeAlternativeRead333.FieldResult s mode picked written}
+      {b :
+        Yulang.GeneralDeclarativeAlternativeRead333.Result s mode
+          (Yulang.GeneralDeclarativeRecordMaterial330.tailExpr actual keys terminal) tail},
+      ⟨(actual, terminal), rawShape⟩ ∈ Yulang.GeneralDeclarativeAlternativeSpine333.literals src fuel raw →
+        a ∈ Yulang.GeneralDeclarativeAlternativeRead333.readFields src fuel mode picked written →
+          b ∈
+              Yulang.GeneralDeclarativeAlternativeRead333.read src fuel mode
+                (Yulang.GeneralDeclarativeRecordMaterial330.tailExpr actual keys terminal) tail →
+            ⟨a.val ++ b.val, ⋯⟩ ∈
+              Yulang.GeneralDeclarativeAlternativeRead333.read src (fuel + 1) mode raw
+                (Yulang.GeneralDeclarativeRecordResidual323.withTail written tail)
+@Yulang.GeneralDeclarativeAlternativeReadComplete333.read_plan : ∀ {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {raw wanted : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State}
+  (h : Yulang.GeneralDeclarativeInlineTrace331.Read s mode raw wanted used),
+  Yulang.GeneralDeclarativeAlternativeNeeds333.Planned fun src =>
+    Yulang.GeneralDeclarativeAlternativeReadComplete333.AllRead src h
+@Yulang.GeneralDeclarativeAlternativeReadComplete333.read_complete : ∀
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {raw wanted : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State}
+  {src : Yulang.GeneralDeclarativeAlternativeView333.Index s},
+  Yulang.GeneralDeclarativeAlternativeView333.Covers src →
+    ∀ (h : Yulang.GeneralDeclarativeInlineTrace331.Read s mode raw wanted used),
+      Yulang.GeneralDeclarativeAlternativeReadComplete333.AllRead src h
+@Yulang.GeneralDeclarativeAlternativeReadComplete333.normalized_plan : ∀
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i (Yulang.GeneralDeclarationPatterns.normalize pat) =
+      some code →
+    Yulang.GeneralDeclarativeInlineTrace331.Read s mode raw code used →
+      Yulang.GeneralDeclarativeAlternativeNeeds333.Planned fun src =>
+        Yulang.GeneralDeclarativeAlternativeNeeds333.Eventually fun f =>
+          used ∈ Yulang.GeneralDeclarativeAlternativeRead333.normalized src f c i mode raw pat
+@Yulang.GeneralDeclarativeAlternativeReadComplete333.normalized_finite : ∀
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i (Yulang.GeneralDeclarationPatterns.normalize pat) =
+      some code →
+    Yulang.GeneralDeclarativeInlineTrace331.Read s mode raw code used →
+      ∃ needed,
+        Yulang.GeneralDeclarativeAlternativeNeeds333.Eventually fun f =>
+          used ∈
+            Yulang.GeneralDeclarativeAlternativeRead333.normalized
+              (Yulang.GeneralDeclarativeAlternativeNeeds333.finiteIndex needed) f c i mode raw pat
+@Yulang.GeneralDeclarativeAlternativeReadComplete333.normalized_complete : ∀
+  {c : Yulang.GeneralDeclarationPatterns.Constructors} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {pat : Yulang.GeneralDeclarationPatterns.Pattern} {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {raw : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence} {s : Yulang.GeneralDeclarativeHead320.State}
+  {src : Yulang.GeneralDeclarativeAlternativeView333.Index s},
+  Yulang.GeneralDeclarativeAlternativeView333.Covers src →
+    Yulang.GeneralNominalCenteredHeadMatExpressions.translate c i (Yulang.GeneralDeclarationPatterns.normalize pat) =
+        some code →
+      Yulang.GeneralDeclarativeInlineTrace331.Read s mode raw code used →
+        Yulang.GeneralDeclarativeAlternativeNeeds333.Eventually fun f =>
+          used ∈ Yulang.GeneralDeclarativeAlternativeRead333.normalized src f c i mode raw pat
+@Yulang.GeneralDeclarativeAlternativeReplay333.frame_from_replay : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {impl : Yulang.GeneralDeclarations.Declaration} {d : Yulang.GeneralDeclarativeDemand320.Demand} {fuel : Nat}
+  {keep : List Nat} {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat} {after : Yulang.GeneralDeclarativeHead320.State}
+  {kids : List Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  (src : Yulang.GeneralDeclarativeAlternativeView333.Index (Yulang.GeneralDeclarativeOrigins321.restriction p)),
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+                a ∈ d.arguments → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+              (after, kids) ∈
+                  Yulang.GeneralDeclarativeAlternativeReplay333.replay src fuel r i d impl s keep fallback targets →
+                ∃ frame, frame.targets = targets
+@Yulang.GeneralDeclarativeAlternativeReplay333.replay_plan : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {impl : Yulang.GeneralDeclarations.Declaration} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            Yulang.CommonRoleOutermostResolver.All₂
+                (Yulang.GeneralDeclarativeInlineEndpoint331.Matches (Yulang.GeneralDeclarativeOrigins321.restriction p)
+                  r.constructors i)
+                d.arguments impl.head →
+              Yulang.GeneralDeclarativeAlternativeHeads333.Centers p r.constructors i d.arguments impl.head →
+                ∀ (keep : List Nat) (fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+                  (targets : Yulang.GeneralDeclarations.Clause → Nat → Nat),
+                  Yulang.GeneralDeclarativeAlternativeNeeds333.Planned fun src =>
+                    Yulang.GeneralDeclarativeAlternativeNeeds333.Eventually fun depth =>
+                      ∃ result,
+                        result ∈
+                          Yulang.GeneralDeclarativeAlternativeReplay333.replay src depth r i d impl s keep fallback
+                            targets
+@Yulang.GeneralDeclarativeAlternativeReplay333.consume_current : ∀ {done now : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {fuel : Nat} {impl : Yulang.GeneralDeclarations.Declaration}
+  {keep : List Nat} {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat} {after : Yulang.GeneralDeclarativeHead320.State}
+  {kids : List Yulang.GeneralDeclarativeDemand320.Demand} {tests : Yulang.GeneralDeclarativePriority321.Candidates}
+  {proposed : List Yulang.GeneralDeclarativeDemand320.Demand} {s t : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} {q : Yulang.GeneralDeclarativeOrigins321.Supported t now}
+  (src : Yulang.GeneralDeclarativeAlternativeView333.Index (Yulang.GeneralDeclarativeOrigins321.restriction p)),
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+        (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+            a ∈ d.arguments → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+          (after, kids) ∈
+              Yulang.GeneralDeclarativeAlternativeReplay333.replay src fuel r i d impl s keep fallback targets →
+            Yulang.GeneralDeclarativeCurrentReceipt330.Receipt after t →
+              Yulang.GeneralDeclarativeStableAttempt329.Elected t r i q tests d impl →
+                Yulang.GeneralDeclarativeOpaqueBatch328.check kids proposed = true →
+                  ∃ frame,
+                    frame.targets = targets ∧
+                      Yulang.GeneralDeclarativeCurrentReceipt330.Rule t r i q tests d
+                          (Yulang.CommonRoleOutermostResolver.Frontier.selected impl.id proposed) ∧
+                        Yulang.GeneralDeclarativeCompileLists321.Result t
+                            (Yulang.GeneralDeclarativeNFComplete324.facts r i frame.capture impl d proposed) ∧
+                          ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                            Yulang.GeneralDeclarativeHead320.Models t m →
+                              Yulang.GeneralDeclarativeAssembly320.Meaning r i m d impl frame.capture proposed
+@Yulang.GeneralDeclarativeAlternativeSpine333.prefix_exact : ∀
+  {term : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {n : Nat},
+  Yulang.GeneralDeclarativeAlternativeSpine333.isPrefix term = some n →
+    term = Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n
+Yulang.GeneralDeclarativeAlternativeSpine333.peel_keeps : ∀
+  (stop : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+  (∀ (k : Nat) (f t : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+      stop ≠ Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.record k f t) →
+    ∀ (row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+      Yulang.GeneralDeclarativeNestedTail332.peel (Yulang.GeneralDeclarativeRecordResidual323.withTail row stop) =
+        (row, stop)
+@Yulang.GeneralDeclarativeAlternativeSpine333.peel_terminal : ∀
+  {stop : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativeRecordSpine330.Terminal stop →
+    ∀ (row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr),
+      Yulang.GeneralDeclarativeNestedTail332.peel (Yulang.GeneralDeclarativeRecordResidual323.withTail row stop) =
+        (row, stop)
+Yulang.GeneralDeclarativeAlternativeSpine333.peel_variable : ∀
+  (row : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr) (n : Nat),
+  Yulang.GeneralDeclarativeNestedTail332.peel
