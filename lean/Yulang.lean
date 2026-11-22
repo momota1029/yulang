@@ -7464,3 +7464,7 @@ import Yulang.GeneralDeclarativeNativeRepeatCompile347
 import Yulang.GeneralDeclarativeNativeRepeatInput347
 import Yulang.GeneralDeclarativeNativeRepeatModels347
 import Yulang.GeneralDeclarativeNativeCut347
+import Yulang.GeneralDeclarativeWhereTxn348
+import Yulang.GeneralDeclarativeTxnEffects348
+import Yulang.GeneralDeclarativeTxnReceipt348
+import Yulang.GeneralDeclarativeTxnCell348
