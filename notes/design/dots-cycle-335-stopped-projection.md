@@ -21,3 +21,7 @@
 正準 registry は既存 clause ID による並べ替えだけで checked と coverage を保つ。既存 compiler も試作 compiler も、同じ入力名のまま比較すると正準入力の結果が文字どおり一致する。別々の placement をどう対応させるかとは独立。
 
 ordinary の射影が成功したとき、その名付き RHS 行は現在の raw の scalar 記録または point nominal の記録と正確に同値。checked source 的 refinement は point nominal の完全な RHS と名前を保存する。scalar について Refines が約束するのは Rewrites であり、現時点の literal 形を読めることは別に要る。
+
+## 現行 raw Step 全分岐を使う authored source 輸送
+
+許された scalar/point 断片に有限経路の全 snapshot が射影できて、終状態が raw model を持つ場合には、別の scalar storage 仮定は要らない。元からの scalar は raw の knownness と実モデルによる scalar 構成子の識別で保持される。ordinary atom は独立の source/rowSource 名へ exact に移し、記録名・型が異ならない point nominals と通常区間も保持する。projection が通る point 状態では Improve する reobserve の前提が成立しないため、この場合に限って full mixed Step の各分岐が checked refinement になる。これはすでに与えられた有限経路上の部分正当性（停止性も、一般 raw trace がこの断片を出ないことも述べない）。実 C276 をこの一般命題に通して初期 authored source の Slice を確認した。出力由来を新たな source に昇格させない。
