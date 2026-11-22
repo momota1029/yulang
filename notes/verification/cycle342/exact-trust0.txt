@@ -1,0 +1,25 @@
+PASS independent audit lean/Audit/Cycle342Original.lean
+PASS independent audit lean/Audit/Cycle342Paired.lean
+PASS independent audit lean/Audit/Cycle342Physical.lean
+PASS independent audit lean/Audit/Cycle342Retarget.lean
+PASS independent audit lean/Audit/Cycle342Root.lean
+PASS independent audit lean/Audit/Cycle342Rows.lean
+PASS independent audit lean/Audit/Cycle342Stale.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedChildBody342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedChildView342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedChildWitness342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedCurrent342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedEndpointOnly342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedOriginalCut342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedPaired342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedPhysical342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedReceipt342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedRetarget342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedRootCompiler342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedRootGuard342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedRootRead342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedRootShape342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedRows342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedSeparation342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedStale342.lean
+PASS source lean/Yulang/GeneralDeclarativeVersionedTree342.lean
