@@ -7230,3 +7230,4 @@ import Yulang.GeneralDeclarativeCompoundFixtureSelection338
 import Yulang.GeneralDeclarativeCompoundFixtureModel338
 import Yulang.GeneralDeclarativeCompoundOpenPrefix338
 import Yulang.GeneralDeclarativeCompoundOpenReceipt338
+import Yulang.GeneralDeclarativeCompoundOpenFixture338
