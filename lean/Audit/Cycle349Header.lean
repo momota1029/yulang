@@ -1,0 +1,22 @@
+import Yulang.GeneralDeclarativeWitnessProblem349
+import Yulang.GeneralDeclarativeWitnessTargets349
+import Yulang.GeneralDeclarativeWitnessSignature349
+import Yulang.GeneralDeclarativeWitnessChecks349
+import Yulang.GeneralDeclarativeWitnessHeader349
+import Yulang.GeneralDeclarativeWitnessFixture349
+#print axioms Yulang.GeneralDeclarativeWitnessProblem349.covered_iff
+#print axioms Yulang.GeneralDeclarativeWitnessProblem349.declared_iff
+#print axioms Yulang.GeneralDeclarativeWitnessProblem349.first_sound
+#print axioms Yulang.GeneralDeclarativeWitnessTargets349.exact_targets
+#print axioms Yulang.GeneralDeclarativeWitnessTargets349.exact_ordinal
+#print axioms Yulang.GeneralDeclarativeWitnessSignature349.checked_signature
+#print axioms Yulang.GeneralDeclarativeWitnessChecks349.stable_sound
+#print axioms Yulang.GeneralDeclarativeWitnessChecks349.descent_parts
+#print axioms Yulang.GeneralDeclarativeWitnessHeader349.decl_checked
+#print axioms Yulang.GeneralDeclarativeWitnessHeader349.sound
+#print axioms Yulang.GeneralDeclarativeWitnessFixture349.good
+#print axioms Yulang.GeneralDeclarativeWitnessFixture349.target_changed
+#print axioms Yulang.GeneralDeclarativeWitnessFixture349.order_changed
+#print axioms Yulang.GeneralDeclarativeWitnessFixture349.duplicate_omitted
+#print axioms Yulang.GeneralDeclarativeWitnessFixture349.ignored_default
+#print axioms Yulang.GeneralDeclarativeWitnessFixture349.undeclared
