@@ -7260,3 +7260,6 @@ import Yulang.GeneralDeclarativeStoppedStructural339
 import Yulang.GeneralDeclarativeStoppedLower339
 import Yulang.GeneralDeclarativeStoppedFixture339
 import Yulang.GeneralDeclarativeMixedLeafGrowth339
+import Yulang.GeneralDeclarativeStoppedIntervals340
+import Yulang.GeneralDeclarativeStoppedProjection340
+import Yulang.GeneralDeclarativeStoppedCurrent340

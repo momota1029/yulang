@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeStoppedCurrent340
+#print axioms Yulang.GeneralDeclarativeStoppedIntervals340.at_exact
+#print axioms Yulang.GeneralDeclarativeStoppedIntervals340.aligned_exact
+#print axioms Yulang.GeneralDeclarativeStoppedIntervals340.denotes_exact
+#print axioms Yulang.GeneralDeclarativeStoppedIntervals340.mem_table
+#print axioms Yulang.GeneralDeclarativeStoppedIntervals340.table_exact
+#print axioms Yulang.GeneralDeclarativeStoppedProjection340.head_exact
+#print axioms Yulang.GeneralDeclarativeStoppedProjection340.exact_models
+#print axioms Yulang.GeneralDeclarativeStoppedProjection340.append_exact
+#print axioms Yulang.GeneralDeclarativeStoppedCurrent340.ordered_outputs
+#print axioms Yulang.GeneralDeclarativeStoppedCurrent340.nonpoint_slot
+#print axioms Yulang.GeneralDeclarativeStoppedCurrent340.nonpoint_table
+#print axioms Yulang.GeneralDeclarativeStoppedCurrent340.fixture_projected
+#print axioms Yulang.GeneralDeclarativeStoppedCurrent340.fixture_output
+#print axioms Yulang.GeneralDeclarativeStoppedCurrent340.fixture_nonvacuous
