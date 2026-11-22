@@ -3,9 +3,9 @@
 cycle: 339
 status: running
 started: 2026-11-22T06:33:50Z
-updated: 2026-11-22T07:08:22Z
-elapsed_min: 34.5
-activity: Mixed selected actual recursive receipt and unresolved-read exclusion verified; now checking exact raw installed current output rows and limits.
+updated: 2026-11-22T07:16:48Z
+elapsed_min: 43.0
+activity: exact detached 29-module and eight-audit replay passed, structural raw slot boundary and declarative dependency checks complete; preparing pinned handoff.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
-last_local_commit: 8e2acbf660bfcdb9b47c3f2301c5b1599dcf72e3
-resume_hint: I61 fixed target and no new priority; I60 legacy (2) is actual stopped-state partial correctness only.
+last_local_commit: d33c4777d1603e9cda83ecb849a68f6389a7f7de
+resume_hint: retain both stopped-state groups, and pursue approved nested paths outside the present I61 cut.
