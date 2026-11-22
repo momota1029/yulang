@@ -1,0 +1,20 @@
+import Yulang.GeneralDeclarativeMixedFixtureModel339
+
+#print axioms Yulang.GeneralDeclarativeMixedInputs339.input_exact
+#print axioms Yulang.GeneralDeclarativeMixedInputs339.observed
+#print axioms Yulang.GeneralDeclarativeMixedCompiler339.body_ready
+#print axioms Yulang.GeneralDeclarativeMixedCompiler339.read_back
+#print axioms Yulang.GeneralDeclarativeMixedCompiler339.selected_sound
+#print axioms Yulang.GeneralDeclarativeMixedDictionary339.dictionary_sound
+#print axioms Yulang.GeneralDeclarativeMixedFixtureBase339.actual_source
+#print axioms Yulang.GeneralDeclarativeMixedFixtureBase339.source_positive
+#print axioms Yulang.GeneralDeclarativeMixedFixtureBase339.source_compiles
+#print axioms Yulang.GeneralDeclarativeMixedFixtureRoutes339.payload_bind
+#print axioms Yulang.GeneralDeclarativeMixedFixtureRoutes339.routed
+#print axioms Yulang.GeneralDeclarativeMixedFixtureSelection339.root_compiles
+#print axioms Yulang.GeneralDeclarativeMixedFixtureSelection339.child_compiles
+#print axioms Yulang.GeneralDeclarativeMixedFixtureSelection339.root_picks
+#print axioms Yulang.GeneralDeclarativeMixedFixtureSelection339.child_picks
+#print axioms Yulang.GeneralDeclarativeMixedFixtureSelection339.selected
+#print axioms Yulang.GeneralDeclarativeMixedFixtureModel339.modeled
+#print axioms Yulang.GeneralDeclarativeMixedFixtureModel339.actual_mixed_dictionary

@@ -1,0 +1,34 @@
+'Yulang.GeneralDeclarativeMixedInputs339.input_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedInputs339.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedCompiler339.body_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedCompiler339.read_back' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedCompiler339.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedDictionary339.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureBase339.actual_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureBase339.source_positive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureBase339.source_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureRoutes339.payload_bind' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureRoutes339.routed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.root_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.child_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.root_picks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.child_picks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureModel339.modeled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureModel339.actual_mixed_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
