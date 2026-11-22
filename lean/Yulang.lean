@@ -7186,3 +7186,5 @@ import Yulang.GeneralDeclarativeEndpointOverlay336
 import Yulang.GeneralDeclarativeEndpointInput336
 import Yulang.GeneralDeclarativeEndpointSelected336
 import Yulang.GeneralDeclarativeEndpointDictionary336
+import Yulang.GeneralDeclarativeEndpointRegression336
+import Yulang.GeneralDeclarativeEndpointMixedTail336

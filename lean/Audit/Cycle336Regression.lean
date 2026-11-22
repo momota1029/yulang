@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeEndpointRegression336
+import Yulang.GeneralDeclarativeEndpointMixedTail336
+
+#print axioms Yulang.GeneralDeclarativeEndpointRegression336.build
+#print axioms Yulang.GeneralDeclarativeEndpointRegression336.elected
+#print axioms Yulang.GeneralDeclarativeEndpointRegression336.accepted
+#print axioms Yulang.GeneralDeclarativeEndpointRegression336.populated
+#print axioms Yulang.GeneralDeclarativeEndpointRegression336.accepted_model
+#print axioms Yulang.GeneralDeclarativeEndpointMixedTail336.observed
+#print axioms Yulang.GeneralDeclarativeEndpointMixedTail336.inhabited
+#print axioms Yulang.GeneralDeclarativeEndpointMixedTail336.strict
+#print axioms Yulang.GeneralDeclarativeEndpointMixedTail336.genuine_interval
