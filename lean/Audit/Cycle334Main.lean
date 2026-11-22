@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeWitnessClassify334
+
+#print axioms Yulang.GeneralDeclarativeWitnessHead334.argument_sound
+#print axioms Yulang.GeneralDeclarativeWitnessHead334.current_heads
+#print axioms Yulang.GeneralDeclarativeWitnessNode334.Witness.frame
+#print axioms Yulang.GeneralDeclarativeWitnessNode334.Witness.ties_in_current
+#print axioms Yulang.GeneralDeclarativeWitnessClassify334.selected_center_reads
+#print axioms Yulang.GeneralDeclarativeWitnessClassify334.local_sound
+#print axioms Yulang.GeneralDeclarativeWitnessClassify334.dictionary_sound
+#print axioms Yulang.GeneralDeclarativeWitnessClassify334.selected_to_old
+#check @Yulang.GeneralDeclarativeWitnessClassify334.dictionary_sound
