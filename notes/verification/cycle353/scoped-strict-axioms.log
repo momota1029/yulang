@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeWitnessCovariantStrict353.unit_outside_merge' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantStrict353.upper_is_genuinely_larger' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantStrict353.common_upper_is_genuinely_larger' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantStrict353.common_lower_is_genuinely_smaller' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

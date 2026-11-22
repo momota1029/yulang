@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessCovariantMetadata353
+#print axioms Yulang.GeneralDeclarativeWitnessCovariantMetadata353.table_key
+#print axioms Yulang.GeneralDeclarativeWitnessCovariantMetadata353.author_not_fallback
