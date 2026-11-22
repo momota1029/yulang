@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeMixedEndpoint339.trace_extract' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedEndpoint339.committed_argument' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedTree339.native_stage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedTree339.exact_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedTree339.from_approved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedLeaf339.read_variant' does not depend on any axioms
+'Yulang.GeneralDeclarativeMixedLeaf339.read_nominal' does not depend on any axioms
+'Yulang.GeneralDeclarativeMixedLeaf339.ready_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedSources339.run_record' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedSources339.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedSources339.exact' depends on axioms: [propext, Classical.choice, Quot.sound]

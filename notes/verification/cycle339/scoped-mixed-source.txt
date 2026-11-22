@@ -1,0 +1,2 @@
+✔ [1270/1270] Built Yulang.GeneralDeclarativeMixedSources339 (1.2s)
+Build completed successfully (1270 jobs).

@@ -7241,3 +7241,7 @@ import Yulang.GeneralDeclarativeOpenFixtureSelection339
 import Yulang.GeneralDeclarativeOpenFixtureModel339
 import Yulang.GeneralDeclarativeOpenSelected339
 import Yulang.GeneralDeclarativeOpenFixtureWitness339
+import Yulang.GeneralDeclarativeMixedEndpoint339
+import Yulang.GeneralDeclarativeMixedTree339
+import Yulang.GeneralDeclarativeMixedLeaf339
+import Yulang.GeneralDeclarativeMixedSources339
