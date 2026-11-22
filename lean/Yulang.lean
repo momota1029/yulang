@@ -7428,3 +7428,4 @@ import Yulang.GeneralDeclarativeWhereNonPoint346
 import Yulang.GeneralDeclarativeWherePairView346
 import Yulang.GeneralDeclarativeWhereNominal346
 import Yulang.GeneralDeclarativeWhereNominalFixture346
+import Yulang.GeneralDeclarativeWhereNamedSource346

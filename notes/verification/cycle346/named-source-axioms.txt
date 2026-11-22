@@ -1,0 +1,3 @@
+'Yulang.GeneralDeclarativeWhereNamedSource346.independent_at_actual_point' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

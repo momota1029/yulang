@@ -1,0 +1,2 @@
+import Yulang.GeneralDeclarativeWhereNamedSource346
+#print axioms Yulang.GeneralDeclarativeWhereNamedSource346.independent_at_actual_point
