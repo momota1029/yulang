@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeVersionedRetarget342
+#print axioms Yulang.GeneralDeclarativeVersionedRetarget342.same
+#print axioms Yulang.GeneralDeclarativeVersionedRetarget342.head
+#print axioms Yulang.GeneralDeclarativeVersionedRetarget342.holds
