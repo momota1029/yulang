@@ -1,0 +1,33 @@
+PASS independent audit lean/Audit/Cycle344Batch.lean
+PASS independent audit lean/Audit/Cycle344Joint.lean
+PASS independent audit lean/Audit/Cycle344Package.lean
+PASS independent audit lean/Audit/Cycle344Polar.lean
+PASS independent audit lean/Audit/Cycle344Raw.lean
+PASS source lean/Yulang/GeneralDeclarativeAmbient344.lean
+PASS source lean/Yulang/GeneralDeclarativeAssociatedReplay344.lean
+PASS source lean/Yulang/GeneralDeclarativeCommitCoverage344.lean
+PASS source lean/Yulang/GeneralDeclarativeCommitModes344.lean
+PASS source lean/Yulang/GeneralDeclarativeCommitPackage344.lean
+PASS source lean/Yulang/GeneralDeclarativeCommitPort344.lean
+PASS source lean/Yulang/GeneralDeclarativeCommitPosition344.lean
+PASS source lean/Yulang/GeneralDeclarativeCommitSuffix344.lean
+PASS source lean/Yulang/GeneralDeclarativeEffectiveReplay344.lean
+PASS source lean/Yulang/GeneralDeclarativeLedger344.lean
+PASS source lean/Yulang/GeneralDeclarativeLiteralPorts344.lean
+PASS source lean/Yulang/GeneralDeclarativeModeCongruence344.lean
+PASS source lean/Yulang/GeneralDeclarativeNormalizedPort344.lean
+PASS source lean/Yulang/GeneralDeclarativeOriginalReplay344.lean
+PASS source lean/Yulang/GeneralDeclarativePackageBoundary344.lean
+PASS source lean/Yulang/GeneralDeclarativePhysicalJoint344.lean
+PASS source lean/Yulang/GeneralDeclarativePhysicalReplay344.lean
+PASS source lean/Yulang/GeneralDeclarativePolarCompiler344.lean
+PASS source lean/Yulang/GeneralDeclarativePolarNormalize344.lean
+PASS source lean/Yulang/GeneralDeclarativeRawCapture344.lean
+PASS source lean/Yulang/GeneralDeclarativeRawReplayArgs344.lean
+PASS source lean/Yulang/GeneralDeclarativeReplayOrder344.lean
+PASS source lean/Yulang/GeneralDeclarativeReplayOrdering344.lean
+PASS source lean/Yulang/GeneralDeclarativeRevalidate344.lean
+PASS source lean/Yulang/GeneralDeclarativeRootReplay344.lean
+PASS source lean/Yulang/GeneralDeclarativeStampedPort344.lean
+PASS source lean/Yulang/GeneralDeclarativeStampedReplay344.lean
+PASS source lean/Yulang/GeneralDeclarativeTwoViews344.lean
