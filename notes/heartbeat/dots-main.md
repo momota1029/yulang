@@ -1,11 +1,11 @@
 # dots-main heartbeat
 cycle: 336
-status: running
+status: completed
 started: 2026-11-22T03:26:34Z
-updated: 2026-11-22T04:09:53Z
-elapsed_min: 43.3
-activity: Fixed proof pin replays in fresh Lean objects. New unmasked residual interval/reification verified; actual nonuniqueness isolates what complete subtraction must retain.
+updated: 2026-11-22T04:16:46Z
+elapsed_min: 50.2
+activity: I61 direct record endpoint dictionary, real emitted child and I58 rejection verified. Unmasked reification verified; standalone absence and compound coverage remain.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: be8e8c4a7
-resume_hint: See C335 and current I-61; isolate record interval rules and preserve I-58 actual centers. No termination.
+last_local_commit: 71e3453be
+resume_hint: Read report at d47a87c6bac1fe6a6543a26e8a60b0edf2ae29dd. I61 next exact typed residual absence and nested/compound eligibility; then actual successful-stop receipts. No termination.
 report: notes/handoff/dots-cycle-336.md
