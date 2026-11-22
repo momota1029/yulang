@@ -7173,3 +7173,4 @@ import Yulang.GeneralStoppedLowerOrigin335
 import Yulang.GeneralStoppedSourceRefinement335
 import Yulang.GeneralStoppedScalarStorage335
 import Yulang.GeneralStoppedProjectedTrace335
+import Yulang.GeneralStoppedCanonicalChoice335

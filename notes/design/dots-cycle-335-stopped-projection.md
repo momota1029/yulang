@@ -25,3 +25,5 @@ ordinary の射影が成功したとき、その名付き RHS 行は現在の ra
 ## 現行 raw Step 全分岐を使う authored source 輸送
 
 許された scalar/point 断片に有限経路の全 snapshot が射影できて、終状態が raw model を持つ場合には、別の scalar storage 仮定は要らない。元からの scalar は raw の knownness と実モデルによる scalar 構成子の識別で保持される。ordinary atom は独立の source/rowSource 名へ exact に移し、記録名・型が異ならない point nominals と通常区間も保持する。projection が通る point 状態では Improve する reobserve の前提が成立しないため、この場合に限って full mixed Step の各分岐が checked refinement になる。これはすでに与えられた有限経路上の部分正当性（停止性も、一般 raw trace がこの断片を出ないことも述べない）。実 C276 をこの一般命題に通して初期 authored source の Slice を確認した。出力由来を新たな source に昇格させない。
+
+さらに正準化の前後で待ち判断が不変と分かる場合に限って、普通の独立候補照合と K2、選定を両方向へ輸送した。where 順だけが違うからといって任意の待ち oracle の同値を仮定から外さず、raw 実行側から普通の実 head provenance を作る問題とも分ける。
