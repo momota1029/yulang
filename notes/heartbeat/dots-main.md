@@ -3,9 +3,9 @@
 cycle: 354
 status: running
 started: 2026-11-22T21:36:39.324Z
-updated: 2026-11-22T22:11:56.730Z
-elapsed_min: 35.29
-activity: verified common stamped scope; auditing exact nonpoint re-emission
+updated: 2026-11-22T22:18:33.629Z
+elapsed_min: 41.91
+activity: detached exact source and transitive checks verified; owner handoff scope reviewed
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: C354 8f77b5aba7f5f42c8a93cec8df7b1b20d29d141c proves compatible common typed valuation and actual overlap limitation. Next checked patch uses exact authorized release into an actual nonpoint child emitting a typed write at target 10, with no implicit release; complete detached and scoped rebuilts before 22:25Z.
+resume_hint: C354 science 5af319d8551105706ef37d6dc5dbd14b94b57f95 and evidence eef1db20feb4424f4ef6afbbbca8d11ba5e10e75 exact. S1/S2 remain partial, C deferred. New typed producer at target 10 does not publish that target; need separately certified new occurrence and real emitted child angle. Prepare final fixed report before cutoff.
