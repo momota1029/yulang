@@ -1,0 +1,44 @@
+'Yulang.GeneralDeclarativeWitnessGrandchild355.exact_released_read' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchild355.exact_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchild355.joint_schema_target_is_payload_name' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchild355.covers_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchild355.same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.literal_actual_centers' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.competing_real_demand_and_ordinary_leaf_at_nine' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.true_same_site_grandchild' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.distinct_fixed_target_not_an_actual_center' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.old_token_no_implicit_reuse' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.exact_tree_position' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.exact_emitted_index' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.wrong_old_row_as_authored' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildFixture355.lower_is_not_actual_center' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildContinuity355.preserves_visible_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildContinuity355.one_model_one_typed_table' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildTree355.ordered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildTree355.all_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildTreeFixture355.actual_three_levels' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildTreeFixture355.cannot_flatten_real_tree' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildTreeFixture355.cannot_drop_inner_choice' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildTreeFixture355.cannot_change_root_output_order' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildModel355.atom_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildModel355.real_state_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildModel355.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGrandchildModel355.actual_three_level_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
