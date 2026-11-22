@@ -1,0 +1,2 @@
+✔ [1262/1262] Built Yulang.GeneralDeclarativeCompoundOpenReceipt338 (1.1s)
+Build completed successfully (1262 jobs).
