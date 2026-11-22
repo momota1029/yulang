@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeOrderedProjection343
+#print axioms Yulang.GeneralDeclarativeOrderedProjection343.root_place
+#print axioms Yulang.GeneralDeclarativeOrderedProjection343.ordered_places
+#print axioms Yulang.GeneralDeclarativeOrderedProjection343.exact_targets
+#print axioms Yulang.GeneralDeclarativeOrderedProjection343.projected

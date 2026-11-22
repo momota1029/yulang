@@ -7349,3 +7349,4 @@ import Yulang.GeneralDeclarativeWithheldInput343
 import Yulang.GeneralDeclarativeOriginSplit343
 import Yulang.GeneralDeclarativeBridgeInstance343
 import Yulang.GeneralDeclarativeReceiptSplit343
+import Yulang.GeneralDeclarativeOrderedProjection343

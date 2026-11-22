@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeOrderedProjection343.root_place' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOrderedProjection343.ordered_places' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOrderedProjection343.exact_targets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOrderedProjection343.projected' depends on axioms: [propext, Classical.choice, Quot.sound]
