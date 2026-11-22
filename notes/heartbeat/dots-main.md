@@ -3,9 +3,9 @@
 cycle: 345
 status: running
 started: 2026-11-22T12:32:29.459Z
-updated: 2026-11-22T13:00:04.871Z
-elapsed_min: 27.59
-activity: recovered approved environment after workspace rollback; preserving audited pin
+updated: 2026-11-22T13:05:34.108Z
+elapsed_min: 33.08
+activity: exact source restored; serial focused rebuild and interleaved readiness checked
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: Audited sources at c8ecf907c028fb955ce4416dcfdffa437b06813d verified cumulatively (27 paths). Re-materializing exact Git source and rerunning focused checks before any further code publication.
+resume_hint: Recovered same authorized env from exact C344/C345 pins. Hybrid phase accounts for actual native reobserve and separate isolated install; no claim raw engine integration. Final independent audit and readback next.
