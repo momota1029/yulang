@@ -7166,3 +7166,7 @@ import Yulang.GeneralStoppedPlacement335
 import Yulang.GeneralStoppedDisplayExtended335
 import Yulang.GeneralStoppedDisplayExtendedChoice335
 import Yulang.GeneralStoppedDisplayOriginal335
+import Yulang.GeneralStoppedInstallHistory335
+import Yulang.GeneralStoppedDisplayHistory335
+import Yulang.GeneralStoppedCanonical335
+import Yulang.GeneralStoppedLowerOrigin335

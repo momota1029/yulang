@@ -1,0 +1,15 @@
+import Yulang.GeneralStoppedDisplayHistory335
+import Yulang.GeneralStoppedCanonical335
+import Yulang.GeneralStoppedLowerOrigin335
+
+#print axioms Yulang.GeneralStoppedInstallHistory335.effects_origin
+#print axioms Yulang.GeneralStoppedInstallHistory335.retained_projected
+#print axioms Yulang.GeneralStoppedInstallHistory335.saved_projection
+#print axioms Yulang.GeneralStoppedDisplayHistory335.root_installed
+#print axioms Yulang.GeneralStoppedDisplayHistory335.selected_not_installed
+#print axioms Yulang.GeneralStoppedLowerOrigin335.exact_rows
+#print axioms Yulang.GeneralStoppedLowerOrigin335.named_origin_transport
+#print axioms Yulang.GeneralStoppedCanonical335.source_checked
+#print axioms Yulang.GeneralStoppedCanonical335.source_coverage
+#print axioms Yulang.GeneralStoppedCanonical335.ordinary_canonical_eq
+#print axioms Yulang.GeneralStoppedCanonical335.literal_canonical_eq

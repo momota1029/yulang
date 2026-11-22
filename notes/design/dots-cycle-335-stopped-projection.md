@@ -13,3 +13,11 @@
 ## 元の compiler を変えない replay
 
 第二の表現では本当に実コンパイラが足した 8 つの通常 atom を使い、旧実モデルを名前 0,1 上まったく保つ構成で endpoint 2,3 だけを定義する。元からあった普通の行の origin は同じで、名前だけを真とする atom は独立の構成子の根拠に昇格しない。元の I-60 Classify で、親は元の普通 source slice から本物の (2,1,3) を生成し、子の lower/upper には普通の相互包含が根拠の読みを持つ。同じ辞書 payload を得るが、実 raw の子に対して型が各 mode で同値、出力先は文字どおり同じ、という明示的 placement 関係を使った。実 raw の全モデルについて元の名前のまま拡張できることを証明した。これを一般 solver の射影仕様に選んだわけではなく、元の assignment の未拘束な 2,3 まで同じとの主張でもない。
+
+## 具体例を越えた三つの構造補題
+
+実 raw Step の列と空の初期 effect リストがあるとき、終状態の versioned effect は、実際の過去の install（選ばれた occurrence、当時の Installable と未commit）に遡る。そこで発行した順序付き site / edge はすべて終状態に残り、今の同じモデルで live effect と child center の意味も成り立つ。C276 の葉には実 local selected があっても対応する installed effect は無いので、この不変条件だけを全 selected の源泉にはしない。
+
+正準 registry は既存 clause ID による並べ替えだけで checked と coverage を保つ。既存 compiler も試作 compiler も、同じ入力名のまま比較すると正準入力の結果が文字どおり一致する。別々の placement をどう対応させるかとは独立。
+
+ordinary の射影が成功したとき、その名付き RHS 行は現在の raw の scalar 記録または point nominal の記録と正確に同値。checked source 的 refinement は point nominal の完全な RHS と名前を保存する。scalar について Refines が約束するのは Rewrites であり、現時点の literal 形を読めることは別に要る。
