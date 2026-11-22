@@ -1,0 +1,42 @@
+'Yulang.GeneralDeclarativeWitnessLiteral349.eq_expr' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessLiteral349.receipt' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessLiteral349.rows_ordinal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessBound349.bounds_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessBound349.alias_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessEquation349.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessEquation349.in_every_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReceipt349.exact_position' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessReceipt349.same_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessManifest349.authored' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessManifest349.cannot_promote' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessManifest349.peel_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecord349.exact_labels' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecord349.residual_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecord349.field_same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.independently_accepted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.literals' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.wrong_endpoint' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.wrong_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.unknown_field' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.duplicate_field' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.ordinary_but_withheld' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.genuine_ends' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordFixture349.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReceiptFixture349.semantic_not_literal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReceiptFixture349.wrong_middle' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReceiptFixture349.wrong_atom_slot' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReceiptFixture349.nonvacuous_transport' depends on axioms: [propext, Quot.sound]
