@@ -1,0 +1,18 @@
+'Yulang.GeneralDeclarativeWitnessPathOrder352.exact_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPathOrder352.exact_list' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagCore352.assembled_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagCore352.actual_variable_environment' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagCore352.literal_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagCore352.literal_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagCoreForest352.semantic_conclusion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagCoreFixture352.checks_original_semantic_conclusion' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagCoreFixture352.same_source_two_conclusions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagCoreFixture352.exact_writes_at_exact_tree_positions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

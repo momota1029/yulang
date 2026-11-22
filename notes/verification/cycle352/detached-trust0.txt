@@ -1,0 +1,35 @@
+PASS independent audit lean/Audit/Cycle352Core.lean
+PASS independent audit lean/Audit/Cycle352Covariant.lean
+PASS independent audit lean/Audit/Cycle352Forest.lean
+PASS independent audit lean/Audit/Cycle352Integrity.lean
+PASS independent audit lean/Audit/Cycle352Model.lean
+PASS independent audit lean/Audit/Cycle352Release.lean
+PASS independent audit lean/Audit/Cycle352TaggedParent.lean
+PASS independent audit lean/Audit/Cycle352WrittenHead.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessCovariant352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessCovariantBoundary352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessCovariantCarrier352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessCovariantFixture352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessCovariantHead352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedCompletion352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedControls352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedFixture352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedForest352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedModel352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedRelease352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedReleaseFixture352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedReleaseModel352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedSound352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedWhole352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessOriginControls352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessOriginPosition352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPathOrder352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTagBranch352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTagCore352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTagCoreBranch352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTagCoreFixture352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTagCoreForest352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTagElection352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTagHeader352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTaggedParent352.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTaggedParentModel352.lean

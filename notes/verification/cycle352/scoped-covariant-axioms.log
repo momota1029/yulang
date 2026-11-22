@@ -1,0 +1,16 @@
+'Yulang.GeneralDeclarativeWitnessCovariant352.projection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariant352.compiler_left' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariant352.compiler_right' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariant352.actual_capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantFixture352.checks_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantFixture352.actual_two_whole_bindings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantFixture352.rejects_split_capture' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantFixture352.rejects_same_shape_without_declared_covariance' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantFixture352.rejects_other_tag' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantFixture352.rejects_unauthored_arm' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantFixture352.rejects_other_nominal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantBoundary352.no_covariant_as_invariant_application' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantBoundary352.existing_tagged_source_reader_cannot_encode' depends on axioms: [propext,
+ Quot.sound]

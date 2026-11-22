@@ -1,0 +1,35 @@
+'Yulang.GeneralDeclarativeWitnessMixedRelease352.active_place' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRelease352.actual_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRelease352.two_reports' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseFixture352.real_writer_row' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseFixture352.released_named_arm' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseFixture352.no_authored_promotion' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseFixture352.cannot_omit_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseFixture352.version_matters' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseFixture352.requires_exact_write' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseFixture352.no_competing_versions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseModel352.actual_covered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseModel352.same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseModel352.nonvacuous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
