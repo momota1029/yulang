@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeWitnessMixedScope356.keep_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedScope356.metadata_unchanged' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessMixedScope356.ordinary_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPayloadRoute356.argument_is_projected_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPayloadRoute356.ordinary_payload_law' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedTyped356.consumed_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedTyped356.exact_actual_center' depends on axioms: [propext, Quot.sound]
