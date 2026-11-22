@@ -1,0 +1,37 @@
+'Yulang.GeneralDeclarativeWitnessRecordHeader350.payload_descent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordHeader350.extra_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordHeader350.descent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordHeader350.decl_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordHeader350.registry_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordHeader350.replay_first' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordHeader350.replay_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordNodes350.same_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordNodes350.decodeNode' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForestEngine350.replayTree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForestEngine350.replayList' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWhole350.checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWhole350.agreed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWhole350.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedFixture350.actual_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedFixture350.accepted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedFixture350.wrong_dictionary_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedFixture350.wrong_diagnostic_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedFixture350.extra_child_is_not_replayed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedModel350.ordinary_edges_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedModel350.same_assignment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedModel350.problem_is_fixed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedModel350.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
