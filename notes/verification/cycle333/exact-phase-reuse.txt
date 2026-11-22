@@ -1,0 +1,4 @@
+'C333PhaseReuse.across_support_phase' depends on axioms: [propext, Classical.choice, Quot.sound]
+'C333PhaseReuse.exactly_available' depends on axioms: [propext, Classical.choice, Quot.sound]
+'C333PhaseReuse.unchanged_ordinary_state' depends on axioms: [propext, Quot.sound]
+source exit: 0
