@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeTaggedFixtureModel340
+#print axioms Yulang.GeneralDeclarativeTaggedFixture340.read
+#print axioms Yulang.GeneralDeclarativeTaggedFixture340.old_not_ready
+#print axioms Yulang.GeneralDeclarativeTaggedFixture340.checked
+#print axioms Yulang.GeneralDeclarativeTaggedFixture340.actual_compile
+#print axioms Yulang.GeneralDeclarativeTaggedFixture340.exact_same_address
+#print axioms Yulang.GeneralDeclarativeTaggedFixtureSelection340.ranked
+#print axioms Yulang.GeneralDeclarativeTaggedFixtureSelection340.candidate
+#print axioms Yulang.GeneralDeclarativeTaggedFixtureSelection340.classification
+#print axioms Yulang.GeneralDeclarativeTaggedFixtureModel340.complete_models
+#print axioms Yulang.GeneralDeclarativeTaggedFixtureModel340.actual_dictionary
