@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeNestedNegative332.visible_field' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedNegative332.actual_obstruction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedNegativeCases332.detects_lower' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedNegativeCases332.no_false_from_inside_unknown' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedNegativeCases332.checked_point' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

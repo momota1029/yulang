@@ -1,0 +1,14 @@
+'Yulang.GeneralDeclarativeNestedModels332.populated' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedModels332.real_nested_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedClash332.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNestedClash332.from_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedBracket332.upper_none_not_clash' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedBracket332.lower_none_is_real' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedSiblingsFrame332.exact_order_writes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNestedSiblingsFrame332.order_is_real' does not depend on any axioms

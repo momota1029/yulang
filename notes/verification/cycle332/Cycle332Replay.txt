@@ -1,0 +1,14 @@
+'Yulang.GeneralDeclarativeNestedHeadList332.capture_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedHeadList332.probe_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNestedReplay332.replay_frame' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedReplay332.current_after_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedReplayCases332.actual_replay' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedReplayCases332.across_arguments' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedReplayCases332.cross_argument_tie' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedReplayCases332.cross_argument_conflict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
