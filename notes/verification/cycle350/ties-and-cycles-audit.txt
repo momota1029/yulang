@@ -1,0 +1,54 @@
+'Yulang.GeneralDeclarativeWitnessTies350.tied_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTies350.repeats' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTies350.literal_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatedFixture350.compiler_tie' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatedFixture350.accepted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatedFixture350.wrong_rank_not_positive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatedFixture350.unbacked_cycle_not_positive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatedFixture350.derived_tie_accepted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycle350.link' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycle350.hop' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycle350.path' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycle350.rooted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycle350.no_positive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycleFixture350.accepted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycleFixture350.plain_alias_is_no_descent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycleFixture350.wrong_root' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycleFixture350.wrong_closure' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycleFixture350.child_cycle_not_root' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCycleFixture350.unbacked_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedControls350.wrong_reported_child_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedControls350.wrong_child_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedControls350.wrong_fixed_target' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedControls350.same_model_not_same_syntax' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedControls350.swapped_child_certificates' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedControls350.missing_required_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatModel350.actual_atoms' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatModel350.center_at_aggregate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatModel350.upper_at_aggregate' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatModel350.atoms_fit' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatModel350.valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatModel350.cover' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRepeatModel350.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
