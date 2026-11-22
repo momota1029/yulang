@@ -3,9 +3,9 @@
 cycle: 343
 status: running
 started: 2026-11-22T10:33:58.468Z
-updated: 2026-11-22T10:35:13.560Z
-elapsed_min: 1.25
-activity: Recovered retained Lean cache; checked initial-source entry point
+updated: 2026-11-22T10:41:03.976Z
+elapsed_min: 7.09
+activity: Authored root proof pinned; replaying actual compiler's three mode names
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: C228 explicitly contains authored Foo(width,width) labels and a separate raw width atom. Test an origin compiler from these rather than granting support from C342 raw models.
+resume_hint: Pin c49f5be34d5464493b0ea67ddd5c9b92744ea600. Compiler merges even singleton spans into named lower and upper aggregates; both are semantically protected representatives, not literally input 2. Current work retains the actual generated symbols and checks mode-wise agreement.
