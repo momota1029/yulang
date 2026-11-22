@@ -1,0 +1,12 @@
+import Yulang.GeneralStoppedDisplayOriginal335
+
+#print axioms Yulang.GeneralStoppedPlacement335.demands_models
+#print axioms Yulang.GeneralStoppedDisplayExtended335.written
+#print axioms Yulang.GeneralStoppedDisplayExtended335.keeps_original_rows
+#print axioms Yulang.GeneralStoppedDisplayExtended335.placement
+#print axioms Yulang.GeneralStoppedDisplayExtended335.conservative
+#print axioms Yulang.GeneralStoppedDisplayExtendedChoice335.elect_parent
+#print axioms Yulang.GeneralStoppedDisplayExtendedChoice335.elect_child
+#print axioms Yulang.GeneralStoppedDisplayOriginal335.exact_original_dictionary
+#print axioms Yulang.GeneralStoppedDisplayOriginal335.finite_replayed
+#print axioms Yulang.GeneralStoppedDisplayOriginal335.actual_success
