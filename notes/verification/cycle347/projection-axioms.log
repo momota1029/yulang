@@ -1,0 +1,23 @@
+'Yulang.GeneralDeclarativeNativeRead347.low_current_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRead347.high_current_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRead347.exact_readings' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRead347.genuinely_nonpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedTable347.location' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedTable347.exact_nominals' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedOrdinary347.stored_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNamedOrdinary347.ordinary_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNamedProjection347.preserves_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNamedProjection347.current_completed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeObservedSyntax347.structural_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedSyntax347.raw_head_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedSyntax347.nominal_point_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeObservedSupport347.exact_backing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedSupport347.child_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecord347.rows_backed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecord347.creates_spine' depends on axioms: [propext, Classical.choice, Quot.sound]
