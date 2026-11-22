@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeCurrentSnapshot345
+import Yulang.GeneralDeclarativeCurrentMerge345
+import Yulang.GeneralDeclarativeMergeOrder345
+import Yulang.GeneralDeclarativeCurrentPeer345
+import Yulang.GeneralDeclarativeCurrentBarrier345
+#print axioms Yulang.GeneralDeclarativeCurrentSnapshot345.row_origin
+#print axioms Yulang.GeneralDeclarativeCurrentSnapshot345.from_reached_frame
+#print axioms Yulang.GeneralDeclarativeCurrentMerge345.retained
+#print axioms Yulang.GeneralDeclarativeCurrentMerge345.actual_peer
+#print axioms Yulang.GeneralDeclarativeMergeOrder345.exact_merge_scan
+#print axioms Yulang.GeneralDeclarativeMergeOrder345.stable_subsequence
+#print axioms Yulang.GeneralDeclarativeCurrentPeer345.before_no_row
+#print axioms Yulang.GeneralDeclarativeCurrentPeer345.after_row
+#print axioms Yulang.GeneralDeclarativeCurrentPeer345.ready_with_peer
+#print axioms Yulang.GeneralDeclarativeCurrentBarrier345.known_without_packet
+#print axioms Yulang.GeneralDeclarativeCurrentBarrier345.literal_targets
+#print axioms Yulang.GeneralDeclarativeCurrentBarrier345.held_outputs_without_packet

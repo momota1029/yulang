@@ -1,0 +1,2 @@
+'Yulang.GeneralDeclarativeCurrentCandidate345.exact_proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentCandidate345.actual_cut' depends on axioms: [propext, Classical.choice, Quot.sound]

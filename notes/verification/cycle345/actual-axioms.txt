@@ -1,0 +1,18 @@
+'Yulang.GeneralDeclarativeCurrentSnapshot345.row_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentSnapshot345.from_reached_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentMerge345.retained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentMerge345.actual_peer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMergeOrder345.exact_merge_scan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMergeOrder345.stable_subsequence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentPeer345.before_no_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentPeer345.after_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentPeer345.ready_with_peer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBarrier345.known_without_packet' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBarrier345.literal_targets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBarrier345.held_outputs_without_packet' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

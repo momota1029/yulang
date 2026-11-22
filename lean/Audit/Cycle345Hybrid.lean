@@ -1,0 +1,31 @@
+import Yulang.GeneralDeclarativeCurrentProposal345
+import Yulang.GeneralDeclarativeCurrentUnstored345
+import Yulang.GeneralDeclarativeCurrentGuard345
+import Yulang.GeneralDeclarativeHybridRegister345
+import Yulang.GeneralDeclarativeHybridTrace345
+import Yulang.GeneralDeclarativeHybridPhysical345
+import Yulang.GeneralDeclarativeHybridHistory345
+import Yulang.GeneralDeclarativeRhsOrigin345
+#print axioms Yulang.GeneralDeclarativeCurrentProposal345.actual_current
+#print axioms Yulang.GeneralDeclarativeCurrentProposal345.stopped_current
+#print axioms Yulang.GeneralDeclarativeCurrentUnstored345.committed_current
+#print axioms Yulang.GeneralDeclarativeCurrentUnstored345.no_effect_at_child
+#print axioms Yulang.GeneralDeclarativeCurrentUnstored345.actual
+#print axioms Yulang.GeneralDeclarativeCurrentGuard345.no_committed
+#print axioms Yulang.GeneralDeclarativeCurrentGuard345.no_installable
+#print axioms Yulang.GeneralDeclarativeCurrentGuard345.ready_still_unavailable
+#print axioms Yulang.GeneralDeclarativeHybridRegister345.registered
+#print axioms Yulang.GeneralDeclarativeHybridRegister345.centered
+#print axioms Yulang.GeneralDeclarativeHybridRegister345.covered
+#print axioms Yulang.GeneralDeclarativeHybridTrace345.from_reach
+#print axioms Yulang.GeneralDeclarativeHybridTrace345.along
+#print axioms Yulang.GeneralDeclarativeHybridTrace345.replay_next
+#print axioms Yulang.GeneralDeclarativeHybridPhysical345.covered
+#print axioms Yulang.GeneralDeclarativeHybridPhysical345.reached
+#print axioms Yulang.GeneralDeclarativeHybridPhysical345.both_ready
+#print axioms Yulang.GeneralDeclarativeHybridPhysical345.replay_one_model
+#print axioms Yulang.GeneralDeclarativeHybridHistory345.both_prefixes
+#print axioms Yulang.GeneralDeclarativeHybridHistory345.positions
+#print axioms Yulang.GeneralDeclarativeRhsOrigin345.indexed_iff
+#print axioms Yulang.GeneralDeclarativeRhsOrigin345.rhs_exact
+#print axioms Yulang.GeneralDeclarativeRhsOrigin345.default_center

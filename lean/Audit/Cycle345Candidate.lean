@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeCurrentCandidate345
+#print axioms Yulang.GeneralDeclarativeCurrentCandidate345.exact_proposal
+#print axioms Yulang.GeneralDeclarativeCurrentCandidate345.actual_cut

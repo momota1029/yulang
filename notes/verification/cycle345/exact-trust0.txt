@@ -1,0 +1,32 @@
+PASS independent audit lean/Audit/Cycle345Actual.lean
+PASS independent audit lean/Audit/Cycle345Candidate.lean
+PASS independent audit lean/Audit/Cycle345Current.lean
+PASS independent audit lean/Audit/Cycle345Hybrid.lean
+PASS independent audit lean/Audit/Cycle345Returned.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentBarrier345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentBodies345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentCandidate345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentDuplicate345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentGuard345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentHistory345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentJoint345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentMerge345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentOrder345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentPeer345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentPeerOutput345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentPosition345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentProposal345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentReady345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentRequest345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentReturned345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentSeed345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentSnapshot345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentTrace345.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentUnstored345.lean
+PASS source lean/Yulang/GeneralDeclarativeHybridHistory345.lean
+PASS source lean/Yulang/GeneralDeclarativeHybridPhysical345.lean
+PASS source lean/Yulang/GeneralDeclarativeHybridRegister345.lean
+PASS source lean/Yulang/GeneralDeclarativeHybridTrace345.lean
+PASS source lean/Yulang/GeneralDeclarativeMergeOrder345.lean
+PASS source lean/Yulang/GeneralDeclarativeNonPointBodies345.lean
+PASS source lean/Yulang/GeneralDeclarativeRhsOrigin345.lean

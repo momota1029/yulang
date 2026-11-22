@@ -1,0 +1,80 @@
+'Yulang.GeneralDeclarativeCurrentSnapshot345.row_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentSnapshot345.from_reached_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentMerge345.retained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentMerge345.actual_peer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMergeOrder345.exact_merge_scan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMergeOrder345.stable_subsequence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentPeer345.before_no_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentPeer345.after_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentPeer345.ready_with_peer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBarrier345.known_without_packet' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBarrier345.literal_targets' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBarrier345.held_outputs_without_packet' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentCandidate345.exact_proposal' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentCandidate345.actual_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentSeed345.emitted_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentSeed345.after_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentSeed345.after_coverage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentRequest345.attributed_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentRequest345.declared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentOrder345.outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentOrder345.exact_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentReady345.after_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentReady345.from_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentProposal345.actual_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentProposal345.stopped_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentUnstored345.committed_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentUnstored345.no_effect_at_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentUnstored345.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentGuard345.no_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentGuard345.no_installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentGuard345.ready_still_unavailable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeHybridRegister345.registered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridRegister345.centered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridRegister345.covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridTrace345.from_reach' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridTrace345.along' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridTrace345.replay_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridPhysical345.covered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridPhysical345.reached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridPhysical345.both_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridPhysical345.replay_one_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridHistory345.both_prefixes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeHybridHistory345.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRhsOrigin345.indexed_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeRhsOrigin345.rhs_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRhsOrigin345.default_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentTrace345.trace_prefix' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentTrace345.previous_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentTrace345.previous_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentTrace345.stable_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentHistory345.after_historical_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentHistory345.retained_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentReturned345.output_receipts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentReturned345.on_return' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentPosition345.attached' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentJoint345.one_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBodies345.witnessed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBodies345.independent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentBodies345.attach_any_base' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentDuplicate345.exact_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentDuplicate345.exact_after' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentDuplicate345.no_dedup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCurrentPeerOutput345.inherited_body' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNonPointBodies345.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
