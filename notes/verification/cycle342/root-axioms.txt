@@ -1,0 +1,19 @@
+'Yulang.GeneralDeclarativeVersionedRootGuard342.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootGuard342.ready_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootGuard342.selected_needs_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootShape342.read_modes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootShape342.exact_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootShape342.current_bindings' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootShape342.root_election' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootCompiler342.fixed_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeVersionedRootCompiler342.source_compile' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
