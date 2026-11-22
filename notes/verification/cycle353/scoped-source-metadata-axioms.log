@@ -1,0 +1,2 @@
+'Yulang.GeneralDeclarativeWitnessCovariantMetadata353.table_key' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantMetadata353.author_not_fallback' depends on axioms: [propext, Quot.sound]
