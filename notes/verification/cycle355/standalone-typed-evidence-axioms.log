@@ -1,0 +1,41 @@
+'Yulang.GeneralDeclarativeWitnessWhereFresh355.compound_center_above_start' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhereFresh355.actual_job_is_fresh' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhereFresh355.fresh_make' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhereFresh355.fresh_weakening' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhereFresh355.weaken_ports' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhereFresh355.actual_ports' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhereFresh355.count_translations' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessWhereFresh355.emitted_compound_not_any_protected_name' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageBoundary355.visible_selected_decl' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageBoundary355.checked_nominal_excludes_legacy_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageBoundary355.range_not_legacy_coverage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageBoundary355.whole_spine_not_old_carrier' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedEvidence355.all_input_binders_in_same_model' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedEvidence355.compose' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedEvidence355.checked_tree_has_typed_evidence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepFixture355.actual_five_nodes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepFixture355.truncated_spine_not_a_leaf' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepFixture355.stale_middle_incarnation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepFixture355.old_publisher_cannot_replace_later_authority' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepFixture355.next_path_is_proven_not_printed' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepFixture355.internal_choice_cannot_disappear' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepModel355.fixture_supported' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepModel355.fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSpineDeepModel355.actual_finite_chain_single_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
