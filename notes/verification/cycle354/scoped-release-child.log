@@ -1,0 +1,19 @@
+✔ [3868/3869] Built Yulang.GeneralDeclarativeWitnessTypedChild354 (1.5s)
+✖ [3869/3869] Building Yulang.GeneralDeclarativeWitnessTypedFixture354 (7.3s)
+trace: .> LEAN_PATH=/workspace/scratch/1d0b4aaa3394/yulang-c337-recovery/lean/.lake/build/lib/lean /workspace/scratch/1d0b4aaa3394/yulang-lean-4.35.0-verified/lean-4.35.0-linux/bin/lean --trust=0 /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery/lean/Yulang/GeneralDeclarativeWitnessTypedFixture354.lean -o /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery/lean/.lake/build/lib/lean/Yulang/GeneralDeclarativeWitnessTypedFixture354.olean -i /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery/lean/.lake/build/lib/lean/Yulang/GeneralDeclarativeWitnessTypedFixture354.ilean -c /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery/lean/.lake/build/ir/Yulang/GeneralDeclarativeWitnessTypedFixture354.c --setup /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery/lean/.lake/build/ir/Yulang/GeneralDeclarativeWitnessTypedFixture354.setup.json --json
+error: Yulang/GeneralDeclarativeWitnessTypedFixture354.lean:60:37: Tactic `decide` failed to reduce
+  @decide (test = true) (instDecidableEqBool test true)
+to `true` or `false`.
+
+Reduction got stuck at
+  match
+    Option.map
+      (fun x =>
+        match x with
+        | (s, w) => (decode problem s (id w)).isSome)
+      data with
+  | some x => x
+  | none => false
+Some required targets logged failures:
+- Yulang.GeneralDeclarativeWitnessTypedFixture354
+error: build failed

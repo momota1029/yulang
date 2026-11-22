@@ -1,0 +1,33 @@
+'Yulang.GeneralDeclarativeWitnessTypedRangeWriter354.writes_and_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRangeWriter354.range_in_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRangeFixture354.true_nonpoint_child_reemits' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRangeFixture354.no_child_output_invention' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemit354.same_released_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemit354.released_physical_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemit354.scoped_write' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemit354.carries_original_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.genuine_released_nonpoint_emits_checked_output' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.old_release_not_reusable_by_equal_payload' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.no_reemit_from_stale_parent' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.exact_nested_write' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.lower_endpoint_is_not_the_released_center' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitPayload354.exact_same_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitPayload354.fresh_fixed_name_not_prematurely_published' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.real_state_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.exact_receiver_output_is_whole' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.actual_chain_same_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.actual_reemission_not_published_in_consumer_scope' depends on axioms: [propext,
+ Quot.sound]

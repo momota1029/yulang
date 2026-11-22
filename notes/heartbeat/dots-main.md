@@ -1,12 +1,12 @@
 # dots-main heartbeat
 
-cycle: 353
+cycle: 354
 status: completed
-started: 2026-11-22T20:33:36.646Z
-updated: 2026-11-22T21:23:39.012Z
-elapsed_min: 50.04
-activity: verified independent authored typed covariant nonpoint center, same-model ordered evidence and exact fixed outputs
+started: 2026-11-22T21:36:39.324Z
+updated: 2026-11-22T22:20:45.078Z
+elapsed_min: 44.10
+activity: checked exact release-indexed typed output, actual ordered same-model children, and verified nonpoint re-emission only
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-report: notes/handoff/dots-cycle-353.md
-resume_hint: I-63 S1 1 partial / S2 1 partial / C 1 deferred; later nominal child via actual typed nominal-valued write (key/ordinal/target), not invariant fallback or erasure. No old Local or termination.
+report: notes/handoff/dots-cycle-354.md
+resume_hint: I-63 S1 1 partial / S2 1 partial / C 1 deferred; next independently stamp/release child write at 10 to an actual grandchild and keep joint typed tables exact. No former Local/termination.

@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeWitnessTypedOutput354.supplies' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOutput354.item_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOutput354.trace_targets' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedPacket354.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRelease354.exact_ordinal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRelease354.actual_payload' depends on axioms: [propext, Quot.sound]

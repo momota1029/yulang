@@ -1,0 +1,35 @@
+'Yulang.GeneralDeclarativeWitnessTypedForest354.Leaves.printed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForest354.Leaves.same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForest354.exact_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSource354.all_authored' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSource354.original_only' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSource354.not_solver_rows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSource354.scoped_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.actual_siblings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.both_typed_writes_emitted' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.correctly_released_equal_payload_elsewhere_is_wrong' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.reverse_child_paths' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.missing_actual_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.wrong_report_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestModel354.atom_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestModel354.real_state_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestModel354.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestModel354.inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSourceFixture354.literal_author_and_actual_children' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSourceFixture354.stale_cannot_be_author_line' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSourceFixture354.primitive_is_not_covariant' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSourceFixture354.source_order_not_permutable' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedScope354.same_compiled_run' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedScope354.exact_scope' depends on axioms: [propext, Classical.choice, Quot.sound]

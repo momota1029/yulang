@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeWitnessTypedOutput354
+import Yulang.GeneralDeclarativeWitnessTypedPacket354
+import Yulang.GeneralDeclarativeWitnessTypedRelease354
+#print axioms Yulang.GeneralDeclarativeWitnessTypedOutput354.supplies
+#print axioms Yulang.GeneralDeclarativeWitnessTypedOutput354.item_target
+#print axioms Yulang.GeneralDeclarativeWitnessTypedOutput354.trace_targets
+#print axioms Yulang.GeneralDeclarativeWitnessTypedPacket354.exact
+#print axioms Yulang.GeneralDeclarativeWitnessTypedRelease354.exact_ordinal
+#print axioms Yulang.GeneralDeclarativeWitnessTypedRelease354.actual_payload

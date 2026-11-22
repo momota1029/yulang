@@ -1,0 +1,30 @@
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.typedAt_defined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.trace_index' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.unique_position' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.released_version_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.inspect_other_exact_child_target' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJoint354.author_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJoint354.shared_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJoint354.one_valuation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.two_children_in_one_typed_valuation' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.independent_readers_do_not_assert_shared_rows' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.disagreement_detected_not_language_rejection' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.overlapping_identical_author_data_allowed' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.actual_shared_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOverlap354.common_row_necessary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOverlap354.conflict_is_in_real_rows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOverlap354.no_common_view_for_the_actual_accepted_pair' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedConservative354.ordinary_recovered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedConservative354.no_ordinary_semantics_changed' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedConservative354.no_default_as_typed' depends on axioms: [propext, Quot.sound]
