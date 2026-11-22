@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeCommitCoverage344
+import Yulang.GeneralDeclarativeRawCapture344
+import Yulang.GeneralDeclarativeRawReplayArgs344
+import Yulang.GeneralDeclarativeReplayOrder344
+import Yulang.GeneralDeclarativeEffectiveReplay344
+import Yulang.GeneralDeclarativeAssociatedReplay344
+#print axioms Yulang.GeneralDeclarativeCommitCoverage344.used
+#print axioms Yulang.GeneralDeclarativeCommitCoverage344.batch_available
+#print axioms Yulang.GeneralDeclarativeRawCapture344.modeled
+#print axioms Yulang.GeneralDeclarativeRawCapture344.replay
+#print axioms Yulang.GeneralDeclarativeRawReplayArgs344.bare
+#print axioms Yulang.GeneralDeclarativeRawReplayArgs344.arguments
+#print axioms Yulang.GeneralDeclarativeReplayOrder344.paired
+#print axioms Yulang.GeneralDeclarativeReplayOrder344.committed_order
+#print axioms Yulang.GeneralDeclarativeEffectiveReplay344.all_effective
+#print axioms Yulang.GeneralDeclarativeEffectiveReplay344.birth_effective
+#print axioms Yulang.GeneralDeclarativeAssociatedReplay344.output_batch
