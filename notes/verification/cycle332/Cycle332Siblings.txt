@@ -1,0 +1,17 @@
+'Yulang.GeneralDeclarativeNestedSiblingsResult332.exact_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedSiblingsResult332.every_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedSiblingsModels332.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedSiblingsModels332.exact_siblings_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedOpaque332.actual_dependency' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedOpaque332.wrong_path' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedOpaque332.ordinary_unchanged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNestedRepeat332.actual_reads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedRepeat332.actual_slots' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedRepeat332.exact_shared_tie' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedRepeat332.every_later_rejects' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

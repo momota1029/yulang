@@ -1,0 +1,96 @@
+@GeneralDeclarativeNestedDecode332.normalized_sound : ∀ {s : GeneralDeclarativeHead320.State}
+  {c : GeneralDeclarationPatterns.Constructors} {i : GeneralNominalInspection.Interpretation}
+  {mode : GeneralNominalMaterialization.Mode} {input : GeneralNominalCenteredHeadMatExpressions.Expr}
+  {pat : GeneralDeclarationPatterns.Pattern} {uses : List GeneralDeclarativeTermWalk322.Occurrence}
+  {src : GeneralDeclarativeNestedView332.Sources s},
+  GeneralDeclarativeNestedDecode332.normalized src c i mode input pat = some uses →
+    ∃ code,
+      GeneralNominalCenteredHeadMatExpressions.translate c i (GeneralDeclarationPatterns.normalize pat) = some code ∧
+        GeneralDeclarativeInlineTrace331.Read s mode input code uses
+@GeneralDeclarativeNestedHeadList332.capture_sound : ∀ {done : Nat → Prop}
+  {xs : List GeneralDeclarativeWhere319.Capture} {c : GeneralDeclarationPatterns.Constructors}
+  {i : GeneralNominalInspection.Interpretation} {fixed : List Nat} {ps : List GeneralDeclarationPatterns.Pattern}
+  {out : GeneralDeclarativeHead320.State} {spans : List (Nat × GeneralDeclarativeWhere319.Capture)}
+  {s t : GeneralDeclarativeHead320.State} {p : GeneralDeclarativeOrigins321.Supported s done}
+  (src : GeneralDeclarativeNestedView332.Sources (GeneralDeclarativeOrigins321.restriction p)),
+  GeneralDeclarativeGrowth327.Extends s t →
+    (∀ (a : GeneralDeclarativeWhere319.Capture), a ∈ xs → GeneralDeclarativeDemand320.Bounds s a) →
+      GeneralDeclarativeNestedHeadList332.captureArgs src c i fixed t xs ps = some (out, spans) →
+        GeneralDeclarativeOpaqueConserve328.Retains t out fixed ∧
+          GeneralDeclarativeStableReads329.Heads out c i xs ps spans ∧
+            ∀ (o : Nat × GeneralDeclarativeWhere319.Capture), o ∈ spans → GeneralDeclarativeDemand320.Bounds out o.snd
+@GeneralDeclarativeNestedReplay332.current_after_replay : ∀ {done now : Nat → Prop} {r : GeneralDeclarations.Registry}
+  {i : GeneralNominalInspection.Interpretation} {d : GeneralDeclarativeDemand320.Demand}
+  {impl : GeneralDeclarations.Declaration} {fixed : List Nat} {fallback : Nat → GeneralDeclarativeWhere319.Capture}
+  {targets : GeneralDeclarations.Clause → Nat → Nat} {after : GeneralDeclarativeHead320.State}
+  {kids : List GeneralDeclarativeDemand320.Demand} {tests : GeneralDeclarativePriority321.Candidates}
+  {proposed : List GeneralDeclarativeDemand320.Demand} {s t : GeneralDeclarativeHead320.State}
+  {p : GeneralDeclarativeOrigins321.Supported s done} {q : GeneralDeclarativeOrigins321.Supported t now}
+  (src : GeneralDeclarativeNestedView332.Sources (GeneralDeclarativeOrigins321.restriction p)),
+  GeneralDeclarations.Checked r →
+    GeneralNominalCenteredHeadWFSource.Coverage r i →
+      GeneralDeclarativeOutputSource323.Declared r d →
+        (∀ (a : GeneralDeclarativeWhere319.Capture), a ∈ d.arguments → GeneralDeclarativeDemand320.Bounds s a) →
+          GeneralDeclarativeNestedReplay332.replay r i d impl src s fixed fallback targets = some (after, kids) →
+            GeneralDeclarativeCurrentReceipt330.Receipt after t →
+              GeneralDeclarativeStableAttempt329.Elected t r i q tests d impl →
+                GeneralDeclarativeOpaqueBatch328.check kids proposed = true →
+                  ∃ frame,
+                    frame.targets = targets ∧
+                      GeneralDeclarativeCurrentReceipt330.Rule t r i q tests d
+                          (CommonRoleOutermostResolver.Frontier.selected impl.id proposed) ∧
+                        GeneralDeclarativeCompileLists321.Result t
+                            (GeneralDeclarativeNFComplete324.facts r i frame.capture impl d proposed) ∧
+                          ∀ (m : GeneralNominalCommonBridge.Assignment),
+                            GeneralDeclarativeHead320.Models t m →
+                              GeneralDeclarativeAssembly320.Meaning r i m d impl frame.capture proposed
+GeneralDeclarativeNestedSiblingsModels332.exact_siblings_same_model : GeneralDeclarativeNestedSiblingsFrame332.first.arguments =
+    [{ lower := 18, center := 3, upper := 19 }] ∧
+  GeneralDeclarativeNestedSiblingsFrame332.first.outputs = [{ name := 1, target := 5 }] ∧
+    GeneralDeclarativeNestedSiblingsFrame332.second.arguments = [{ lower := 20, center := 11, upper := 21 }] ∧
+      GeneralDeclarativeNestedSiblingsFrame332.second.outputs = [{ name := 1, target := 10 }] ∧
+        ∃ m,
+          GeneralDeclarativeHead320.Models GeneralDeclarativeNestedSiblingsFrame332.final m ∧
+            GeneralDeclarativeEvidence320.Evidence GeneralDeclarativeNestedSiblingsDecl332.registry
+              GeneralDeclarativeNestedExample332.interpretation m GeneralDeclarativeNestedDecl332.root
+              GeneralDeclarativeNestedSiblingsResult332.dictionary
+GeneralDeclarativeNestedBracket332.upper_none_not_clash : GeneralDeclarativeNestedDecode332.normalized
+      GeneralDeclarativeNestedBracket332.src GeneralDeclarationExamples.constructors
+      GeneralDeclarativeNestedExample332.interpretation GeneralNominalMaterialization.Mode.upper
+      (GeneralNominalCenteredHeadMatExpressions.Expr.variable 2) GeneralDeclarativeNestedBracket332.pattern =
+    none ∧
+  ∃ m,
+    GeneralDeclarativeHead320.Models GeneralDeclarativeNestedBracket332.state m ∧
+      GeneralDeclarativeRepeatedActual323.eqAt m (GeneralNominalCenteredHeadMatExpressions.Expr.variable 1)
+        GeneralDeclarativeNestedBracket332.wanted
+GeneralDeclarativeNestedBracket332.lower_none_is_real : ∀ (m : GeneralNominalCommonBridge.Assignment),
+  GeneralDeclarativeHead320.Models GeneralDeclarativeNestedBracket332.state m →
+    ¬GeneralDeclarativeRepeatedActual323.eqAt m (GeneralNominalCenteredHeadMatExpressions.Expr.variable 2)
+        GeneralDeclarativeNestedBracket332.wanted
+GeneralDeclarativeNestedReplayCases332.cross_argument_conflict : ∀ (done : Nat → Prop),
+  (∃ m, GeneralDeclarativeHead320.Models GeneralDeclarativeNestedSiblingsFrame332.source m) ∧
+    ¬∃ m,
+        GeneralDeclarativeHead320.Models
+          (GeneralDeclarativeStableAssemble329.tieState GeneralDeclarativeNestedReplayCases332.second
+            GeneralDeclarativeNestedReplayCases332.twoSpans GeneralDeclarativeNestedFrame332.fallback)
+          m
+GeneralDeclarativeNestedSeekCases332.auto_read : ∀ (first last : Bool),
+  GeneralDeclarativeNestedDecode332.normalized
+      (GeneralDeclarativeNestedSeek332.seeking (GeneralDeclarativeNestedSeekCases332.index first last) 1)
+      GeneralDeclarationExamples.constructors GeneralDeclarativeNestedExample332.interpretation
+      GeneralNominalMaterialization.Mode.actual (GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+      GeneralDeclarativeNestedOpaque332.target =
+    if (first && last) = true then some GeneralDeclarativeNestedOpaque332.seen else none
+@GeneralDeclarativeNestedSeek332.seek_complete_for_path : ∀ {root : Nat} {path : List Nat} {fuel : Nat}
+  {s : GeneralDeclarativeHead320.State} {src : GeneralDeclarativeNestedView332.Sources s},
+  GeneralDeclarativeNestedSeek332.Path src root path →
+    path.length ≤ fuel → GeneralDeclarativeNestedSeek332.seek src root fuel = some path
+'Yulang.GeneralDeclarativeNestedReplay332.current_after_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedSiblingsModels332.exact_siblings_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedReplayCases332.cross_argument_conflict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

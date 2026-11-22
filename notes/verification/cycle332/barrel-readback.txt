@@ -1,0 +1,28 @@
+Exact append-only C332 barrel and publication validation
+
+C331 remote predecessor:
+  commit a617f02266694ece56afb4e6b88a9cc47efb7893
+  lean/Yulang.lean blob 1671bd9ced0b25b8489591bc206f6bcc7c7cd30a
+  exact 309481 bytes copied in bounded chunks and checked with git hash-object
+
+C332 serialization repair:
+  commit 303673e58d5d212c3631db937787c06f4e95aa05
+  lean/Yulang.lean blob 9ac7e621fb4a667ed642b6b0641378bda6eba975
+  exact 310956 bytes: remote C331 bytes followed by 30 C332 module imports
+  no other path in the repair diff; frozen Audit.lean and README.md unchanged
+  current complete recursive tree compared to C331: 77 paths matched
+  all 77 blob IDs matched the expected local blobs (see tree-scope.json)
+
+Intermediate serialization had truncated the barrel in a shell-tool stdout
+transfer. Comparing fetched bytes only against the uploaded text was insufficient.
+The subsequent check compared true expected Git blob IDs and caught the error.
+The repair passed a metadata blob check before publishing; remote full bytes were
+also compared to the verified predecessor-plus-imports string after publication.
+Final verification checks cumulative tree scope and true blob IDs for every path.
+
+Dependency-only scan of the 30 appended imports: exit 0.
+Direct dependency-only scan of the whole barrel in this workspace:
+C331 and repaired C332 both exited 1 with byte-identical output
+("unknown module prefix 'SpecExamples'" in the focused build environment).
+This is not a whole-barrel build claim. All 30 new modules and 8 audits were
+successfully built/replayed at the scopes shown in other records here.

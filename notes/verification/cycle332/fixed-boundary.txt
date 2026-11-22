@@ -1,0 +1,17 @@
+C332 fixed proof pin: e37bf68fcaf2501091586e2ec2f07a513cc2ccd0
+C331 parent cycle pin: a617f02266694ece56afb4e6b88a9cc47efb7893
+Remote expected-head and fast-forward verification: work/dots-main only.
+Latest owner branch read at opening and before final checks:
+  integration/m1-final 2cd3096a87572aaabc6ef20b59fd93968defa45c
+  notes/plan/dots-standing-orders.md 7ae4d68d2ac7df80d1eadbd061dadd2296faf4c4
+  notes/plan/dots-inbox.md 884fe75a79efe66aa8d5a5a44864fa7af3dfc73e
+  spec/06-roles.md 8b5e65e5793dfeb44acd4e388929973c33c4033a
+I-57 protected file IDs retained in both C331 and C332 proof trees:
+  lean/Audit.lean 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9
+  lean/README.md 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Both paths were excluded from all writes. Only the IDs were read.
+Lean 4.35.0: 30 modules and 8 independent audits. All 38 exact remote bytes
+replayed with --trust=0, warnings as errors. 150 concrete theorem statements
+listed. The focused gate counts its full loaded environment, not added lemmas.
+The dependency audit scans types and values of C332 constants, not just imports.
+No whole-repository or Rust build or executable verification is claimed.

@@ -1,0 +1,11 @@
+'Yulang.GeneralDeclarativeNestedSeek332.checked_result' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedSeek332.exact_path' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedSeek332.length_bound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNestedSeek332.seek_complete_for_path' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedSeekCases332.finds_actual_tail' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedSeekCases332.auto_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedSeekCases332.insufficient_budget' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

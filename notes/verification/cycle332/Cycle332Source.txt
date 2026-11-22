@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeNestedView332.literalRows_sound' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeNestedSound332.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNestedDecode332.normalized_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNestedExample332.actual_lower' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNestedExample332.observed_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNestedExample332.observed_center' depends on axioms: [propext, Classical.choice, Quot.sound]

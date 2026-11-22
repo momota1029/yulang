@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeNestedSeekCases332
+
+#print axioms Yulang.GeneralDeclarativeNestedSeek332.checked_result
+#print axioms Yulang.GeneralDeclarativeNestedSeek332.exact_path
+#print axioms Yulang.GeneralDeclarativeNestedSeek332.length_bound
+#print axioms Yulang.GeneralDeclarativeNestedSeek332.seek_complete_for_path
+#print axioms Yulang.GeneralDeclarativeNestedSeekCases332.finds_actual_tail
+#print axioms Yulang.GeneralDeclarativeNestedSeekCases332.auto_read
+#print axioms Yulang.GeneralDeclarativeNestedSeekCases332.insufficient_budget

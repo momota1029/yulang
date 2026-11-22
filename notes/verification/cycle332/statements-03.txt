@@ -1,0 +1,156 @@
+  {after : Yulang.GeneralDeclarativeHead320.State} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  (src : Yulang.GeneralDeclarativeNestedView332.Sources (Yulang.GeneralDeclarativeOrigins321.restriction p)),
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+                a ∈ d.arguments → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+              Yulang.GeneralDeclarativeNestedReplay332.replay r i d impl src s fixed fallback targets =
+                  some (after, kids) →
+                ∃ frame, frame.targets = targets
+@Yulang.GeneralDeclarativeNestedReplay332.current_after_replay : ∀ {done now : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {impl : Yulang.GeneralDeclarations.Declaration} {fixed : List Nat}
+  {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture} {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat}
+  {after : Yulang.GeneralDeclarativeHead320.State} {kids : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {tests : Yulang.GeneralDeclarativePriority321.Candidates} {proposed : List Yulang.GeneralDeclarativeDemand320.Demand}
+  {s t : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {q : Yulang.GeneralDeclarativeOrigins321.Supported t now}
+  (src : Yulang.GeneralDeclarativeNestedView332.Sources (Yulang.GeneralDeclarativeOrigins321.restriction p)),
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+        (∀ (a : Yulang.GeneralDeclarativeWhere319.Capture),
+            a ∈ d.arguments → Yulang.GeneralDeclarativeDemand320.Bounds s a) →
+          Yulang.GeneralDeclarativeNestedReplay332.replay r i d impl src s fixed fallback targets = some (after, kids) →
+            Yulang.GeneralDeclarativeCurrentReceipt330.Receipt after t →
+              Yulang.GeneralDeclarativeStableAttempt329.Elected t r i q tests d impl →
+                Yulang.GeneralDeclarativeOpaqueBatch328.check kids proposed = true →
+                  ∃ frame,
+                    frame.targets = targets ∧
+                      Yulang.GeneralDeclarativeCurrentReceipt330.Rule t r i q tests d
+                          (Yulang.CommonRoleOutermostResolver.Frontier.selected impl.id proposed) ∧
+                        Yulang.GeneralDeclarativeCompileLists321.Result t
+                            (Yulang.GeneralDeclarativeNFComplete324.facts r i frame.capture impl d proposed) ∧
+                          ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+                            Yulang.GeneralDeclarativeHead320.Models t m →
+                              Yulang.GeneralDeclarativeAssembly320.Meaning r i m d impl frame.capture proposed
+Yulang.GeneralDeclarativeNestedReplayCases332.actual_replay : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedReplay332.replay Yulang.GeneralDeclarativeNestedSiblingsDecl332.registry
+      Yulang.GeneralDeclarativeNestedExample332.interpretation Yulang.GeneralDeclarativeNestedDecl332.root
+      Yulang.GeneralDeclarativeNestedSiblingsDecl332.impl (Yulang.GeneralDeclarativeNestedSiblingsFrame332.indexed done)
+      Yulang.GeneralDeclarativeNestedSiblingsFrame332.source Yulang.GeneralDeclarativeNestedSiblingsFrame332.keep
+      Yulang.GeneralDeclarativeNestedFrame332.fallback Yulang.GeneralDeclarativeNestedSiblingsFrame332.targets =
+    some
+      (Yulang.GeneralDeclarativeNestedSiblingsFrame332.parent,
+        Yulang.GeneralDeclarativeNestedSiblingsFrame332.childList)
+Yulang.GeneralDeclarativeNestedReplayCases332.rejects_wrong_arity : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedHeadList332.captureArgs (Yulang.GeneralDeclarativeNestedSiblingsFrame332.indexed done)
+      Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+      Yulang.GeneralDeclarativeNestedSiblingsFrame332.keep Yulang.GeneralDeclarativeNestedSiblingsFrame332.source
+      [Yulang.GeneralDeclarativeOpaqueNominal328.point 0]
+      [Yulang.GeneralDeclarativeNestedExample332.pat, Yulang.GeneralDeclarationPatterns.Pattern.var 0] =
+    none
+Yulang.GeneralDeclarativeNestedReplayCases332.across_arguments : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedHeadList332.captureArgs (Yulang.GeneralDeclarativeNestedSiblingsFrame332.indexed done)
+      Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+      Yulang.GeneralDeclarativeNestedSiblingsFrame332.keep Yulang.GeneralDeclarativeNestedSiblingsFrame332.source
+      [Yulang.GeneralDeclarativeOpaqueNominal328.point 0, Yulang.GeneralDeclarativeOpaqueNominal328.point 11]
+      [Yulang.GeneralDeclarativeNestedExample332.pat, Yulang.GeneralDeclarationPatterns.Pattern.var 0] =
+    some (Yulang.GeneralDeclarativeNestedReplayCases332.second, Yulang.GeneralDeclarativeNestedReplayCases332.twoSpans)
+Yulang.GeneralDeclarativeNestedReplayCases332.cross_argument_tie : (Yulang.GeneralDeclarativeStableAssemble329.tieState
+      Yulang.GeneralDeclarativeNestedReplayCases332.second Yulang.GeneralDeclarativeNestedReplayCases332.twoSpans
+      Yulang.GeneralDeclarativeNestedFrame332.fallback).equations =
+  Yulang.GeneralDeclarativeNestedReplayCases332.second.equations ++
+    [{ left := 3, right := Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 11 }]
+Yulang.GeneralDeclarativeNestedReplayCases332.cross_argument_conflict : ∀ (done : Nat → Prop),
+  (∃ m, Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeNestedSiblingsFrame332.source m) ∧
+    ¬∃ m,
+        Yulang.GeneralDeclarativeHead320.Models
+          (Yulang.GeneralDeclarativeStableAssemble329.tieState Yulang.GeneralDeclarativeNestedReplayCases332.second
+            Yulang.GeneralDeclarativeNestedReplayCases332.twoSpans Yulang.GeneralDeclarativeNestedFrame332.fallback)
+          m
+@Yulang.GeneralDeclarativeNestedRun332.tagId_exact : ∀ {a b : Yulang.GeneralCandidateInspection.Primitive},
+  Yulang.GeneralDeclarativeNestedRun332.tagId a = Yulang.GeneralDeclarativeNestedRun332.tagId b → a = b
+@Yulang.GeneralDeclarativeNestedSeek332.checked_result : ∀
+  {fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {terminal : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  (src : Yulang.GeneralDeclarativeNestedView332.Sources s) (n budget : Nat),
+  (Yulang.GeneralDeclarativeNestedSeek332.seeking src budget).spines n = some (fields, terminal) →
+    Yulang.GeneralDeclarativeRecordSpine330.Spine s n fields terminal
+@Yulang.GeneralDeclarativeNestedSeek332.exact_path : ∀ {fuel : Nat} {path : List Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} (src : Yulang.GeneralDeclarativeNestedView332.Sources s) (root : Nat)
+  {found : Yulang.GeneralDeclarativeNestedTail332.ClosedAt s root},
+  Yulang.GeneralDeclarativeNestedSeek332.seek src root fuel = some path →
+    Yulang.GeneralDeclarativeNestedTail332.follow src root path = some found →
+      (Yulang.GeneralDeclarativeNestedSeek332.seeking src fuel).spines root = some found.val
+@Yulang.GeneralDeclarativeNestedSeek332.length_bound : ∀ {root fuel : Nat} {path : List Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} (src : Yulang.GeneralDeclarativeNestedView332.Sources s),
+  Yulang.GeneralDeclarativeNestedSeek332.seek src root fuel = some path → path.length ≤ fuel
+@Yulang.GeneralDeclarativeNestedSeek332.terminal_seen : ∀ {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativeRecordSpine330.Terminal e →
+    ∃ cert, Yulang.GeneralDeclarativeNestedTail332.isTerminal e = some cert
+@Yulang.GeneralDeclarativeNestedSeek332.seek_complete_for_path : ∀ {root : Nat} {path : List Nat} {fuel : Nat}
+  {s : Yulang.GeneralDeclarativeHead320.State} {src : Yulang.GeneralDeclarativeNestedView332.Sources s},
+  Yulang.GeneralDeclarativeNestedSeek332.Path src root path →
+    path.length ≤ fuel → Yulang.GeneralDeclarativeNestedSeek332.seek src root fuel = some path
+Yulang.GeneralDeclarativeNestedSeekCases332.finds_actual_tail : Yulang.GeneralDeclarativeNestedSeek332.seek
+    (Yulang.GeneralDeclarativeNestedSeekCases332.index true true) 20 1 =
+  some [21]
+Yulang.GeneralDeclarativeNestedSeekCases332.auto_read : ∀ (first last : Bool),
+  Yulang.GeneralDeclarativeNestedDecode332.normalized
+      (Yulang.GeneralDeclarativeNestedSeek332.seeking (Yulang.GeneralDeclarativeNestedSeekCases332.index first last) 1)
+      Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+      Yulang.GeneralNominalMaterialization.Mode.actual (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+      Yulang.GeneralDeclarativeNestedOpaque332.target =
+    if (first && last) = true then some Yulang.GeneralDeclarativeNestedOpaque332.seen else none
+Yulang.GeneralDeclarativeNestedSeekCases332.insufficient_budget : Yulang.GeneralDeclarativeNestedDecode332.normalized
+    (Yulang.GeneralDeclarativeNestedSeek332.seeking (Yulang.GeneralDeclarativeNestedSeekCases332.index true true) 0)
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+    Yulang.GeneralNominalMaterialization.Mode.actual (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+    Yulang.GeneralDeclarativeNestedOpaque332.target =
+  none
+Yulang.GeneralDeclarativeNestedSiblingsDecl332.picked : ∀ (cl : Yulang.GeneralDeclarations.Clause),
+  cl ∈ Yulang.GeneralDeclarativeNestedSiblingsDecl332.impl.requirements →
+    cl = Yulang.GeneralDeclarativePairDecl326.clause ∨ cl = Yulang.GeneralDeclarativeNestedSiblingsDecl332.clauseTwo
+Yulang.GeneralDeclarativeNestedSiblingsDecl332.impl_checked : Yulang.GeneralDeclarations.DeclarationChecked
+  Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarationExamples.roles
+  Yulang.GeneralDeclarativeNestedSiblingsDecl332.impl
+Yulang.GeneralDeclarativeNestedSiblingsDecl332.checked : Yulang.GeneralDeclarations.Checked
+  Yulang.GeneralDeclarativeNestedSiblingsDecl332.registry
+Yulang.GeneralDeclarativeNestedSiblingsFrame332.actual : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedDecode332.normalized (Yulang.GeneralDeclarativeNestedSiblingsFrame332.indexed done)
+      Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+      Yulang.GeneralNominalMaterialization.Mode.actual (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+      Yulang.GeneralDeclarativeNestedExample332.pat =
+    some (Yulang.GeneralDeclarativeNestedExample332.uses Yulang.GeneralNominalMaterialization.Mode.actual)
+Yulang.GeneralDeclarativeNestedSiblingsFrame332.lower : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedDecode332.normalized (Yulang.GeneralDeclarativeNestedSiblingsFrame332.indexed done)
+      Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+      Yulang.GeneralNominalMaterialization.Mode.lower (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+      Yulang.GeneralDeclarativeNestedExample332.pat =
+    some (Yulang.GeneralDeclarativeNestedExample332.uses Yulang.GeneralNominalMaterialization.Mode.lower)
+Yulang.GeneralDeclarativeNestedSiblingsFrame332.upper : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeNestedDecode332.normalized (Yulang.GeneralDeclarativeNestedSiblingsFrame332.indexed done)
+      Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+      Yulang.GeneralNominalMaterialization.Mode.upper (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0)
+      Yulang.GeneralDeclarativeNestedExample332.pat =
+    some (Yulang.GeneralDeclarativeNestedExample332.uses Yulang.GeneralNominalMaterialization.Mode.upper)
+Yulang.GeneralDeclarativeNestedSiblingsFrame332.observed : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeInlineEndpoint331.Matches
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralDeclarativeNestedSiblingsFrame332.origins done))
+    Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+    (Yulang.GeneralDeclarativeOpaqueNominal328.point 0) Yulang.GeneralDeclarativeNestedExample332.pat
+Yulang.GeneralDeclarativeNestedSiblingsFrame332.actual_head : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeOpaqueConserve328.Retains Yulang.GeneralDeclarativeNestedSiblingsFrame332.source
+      Yulang.GeneralDeclarativeNestedSiblingsFrame332.stage Yulang.GeneralDeclarativeNestedSiblingsFrame332.keep ∧
+    Yulang.GeneralDeclarativeStableReads329.One Yulang.GeneralDeclarativeNestedSiblingsFrame332.stage
+        Yulang.GeneralDeclarationExamples.constructors Yulang.GeneralDeclarativeNestedExample332.interpretation
+        (Yulang.GeneralDeclarativeOpaqueNominal328.point 0) Yulang.GeneralDeclarativeNestedExample332.pat
+        Yulang.GeneralDeclarativeNestedFrame332.spans ∧
+      Yulang.GeneralDeclarativeInlineMaterial331.ordinary Yulang.GeneralDeclarativeNestedSiblingsFrame332.source
+            (Yulang.GeneralDeclarativeOpaqueNominal328.point 0) Yulang.GeneralDeclarativeNestedSiblingsFrame332.keep
+            (Yulang.GeneralDeclarativeNestedExample332.uses Yulang.GeneralNominalMaterialization.Mode.actual) ⊆

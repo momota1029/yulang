@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeNestedNegativeCases332
+
+#print axioms Yulang.GeneralDeclarativeNestedNegative332.visible_field
+#print axioms Yulang.GeneralDeclarativeNestedNegative332.actual_obstruction
+#print axioms Yulang.GeneralDeclarativeNestedNegativeCases332.detects_lower
+#print axioms Yulang.GeneralDeclarativeNestedNegativeCases332.no_false_from_inside_unknown
+#print axioms Yulang.GeneralDeclarativeNestedNegativeCases332.checked_point
