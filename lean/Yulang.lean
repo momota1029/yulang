@@ -7175,3 +7175,7 @@ import Yulang.GeneralStoppedScalarStorage335
 import Yulang.GeneralStoppedProjectedTrace335
 import Yulang.GeneralStoppedCanonicalChoice335
 import Yulang.GeneralStoppedI61Endpoint335
+import Yulang.GeneralDeclarativeEndpointRecord336
+import Yulang.GeneralDeclarativeEndpointResidual336
+import Yulang.GeneralDeclarativeEndpointNames336
+import Yulang.GeneralDeclarativeEndpointCase336
