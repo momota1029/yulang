@@ -7549,3 +7549,4 @@ import Yulang.GeneralDeclarativeWitnessUnfinished350
 import Yulang.GeneralDeclarativeWitnessUnfinishedFixture350
 import Yulang.GeneralDeclarativeWitnessReleased350
 import Yulang.GeneralDeclarativeWitnessReleasedFixture350
+import Yulang.GeneralDeclarativeWitnessIntegrated350
