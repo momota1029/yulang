@@ -1,0 +1,182 @@
+    (∀ (j : Nat × Yulang.GeneralDeclarativeEndpointProgram336.Projection),
+        j ∈ jobs →
+          ∃ v, j.snd.eval m = some v ∧ Yulang.GeneralDeclarativeWhere319.InInterval v.fst v.snd.snd v.snd.fst) →
+      ∀ (protect : List Nat),
+        Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith
+          (Yulang.GeneralDeclarativeEndpointBatch336.prepare s
+            (Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs) (List.length jobs))
+          (Yulang.GeneralDeclarativeEndpointOverlay336.receipts s
+            (Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs) jobs)
+          (Yulang.GeneralDeclarativeEndpointBatch336.patch s
+            (Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs)
+            (Yulang.GeneralDeclarativeEndpointOverlay336.values m jobs) m)
+@Yulang.GeneralDeclarativeEndpointOverlay336.realizes : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {jobs : Yulang.GeneralDeclarativeEndpointProgram336.Jobs} (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models s m →
+    (∀ (j : Nat × Yulang.GeneralDeclarativeEndpointProgram336.Projection),
+        j ∈ jobs →
+          ∃ v, j.snd.eval m = some v ∧ Yulang.GeneralDeclarativeWhere319.InInterval v.fst v.snd.snd v.snd.fst) →
+      ∀ (protect : List Nat),
+        ∃ n,
+          Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith
+              (Yulang.GeneralDeclarativeEndpointBatch336.prepare s
+                (Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs) (List.length jobs))
+              (Yulang.GeneralDeclarativeEndpointOverlay336.receipts s
+                (Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs) jobs)
+              n ∧
+            ∀ (v : Nat),
+              v ∈
+                  Yulang.GeneralDeclarativeFootprint321.stateNames s ++
+                    Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs →
+                n v = m v
+@Yulang.GeneralDeclarativeEndpointOverlay336.approved : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {ls us first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {le ue : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {shape : List (Nat × Nat)} {tail : Nat}
+  {jobs : Yulang.GeneralDeclarativeEndpointProgram336.Jobs} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeEndpointRecord336.Read p arg (List.map Prod.fst shape) ls us first last le ue →
+    Yulang.GeneralDeclarativeEndpointProgram336.ready arg shape tail ls us first last le ue = some jobs →
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        Yulang.GeneralDeclarativeHead320.Models s m →
+          ∀ (protect : List Nat),
+            ∃ n,
+              Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith
+                  (Yulang.GeneralDeclarativeEndpointBatch336.prepare s
+                    (Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs) (List.length jobs))
+                  (Yulang.GeneralDeclarativeEndpointOverlay336.receipts s
+                    (Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs) jobs)
+                  n ∧
+                ∀ (v : Nat),
+                  v ∈
+                      Yulang.GeneralDeclarativeFootprint321.stateNames s ++
+                        Yulang.GeneralDeclarativeEndpointOverlay336.footprintKeep protect jobs →
+                    n v = m v
+@Yulang.GeneralDeclarativeEndpointProgram336.hide_away : ∀ {key : Nat} {fields : List (Nat × Nat)},
+  ¬key ∈ List.map Prod.fst fields →
+    ∀ (r : Nat),
+      Yulang.GeneralDeclarationPatterns.hide key (Yulang.GeneralDeclarativeEndpointProgram336.template fields r) =
+        Yulang.GeneralDeclarativeEndpointProgram336.template fields r
+@Yulang.GeneralDeclarativeEndpointProgram336.normal : ∀ {fields : List (Nat × Nat)},
+  (List.map Prod.fst fields).Nodup →
+    ∀ (r : Nat),
+      Yulang.GeneralDeclarationPatterns.normalize (Yulang.GeneralDeclarativeEndpointProgram336.template fields r) =
+        Yulang.GeneralDeclarativeEndpointProgram336.template fields r
+Yulang.GeneralDeclarativeEndpointProgram336.binders : ∀ (fields : List (Nat × Nat)) (r : Nat),
+  (Yulang.GeneralDeclarativeEndpointProgram336.template fields r).variables = List.map Prod.snd fields ++ [r]
+@Yulang.GeneralDeclarativeEndpointProgram336.fields_complete : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {shape : List (Nat × Nat)}
+  {first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  List.map Prod.fst first = List.map Prod.fst shape →
+    List.map Prod.fst last = List.map Prod.fst shape →
+      ∃ jobs, Yulang.GeneralDeclarativeEndpointProgram336.fields arg shape first last = some jobs
+@Yulang.GeneralDeclarativeEndpointProgram336.from_supported : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {ls us first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {le ue : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {shape : List (Nat × Nat)}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeEndpointRecord336.Read p arg (List.map Prod.fst shape) ls us first last le ue →
+    ∀ (tail : Nat),
+      ∃ jobs, Yulang.GeneralDeclarativeEndpointProgram336.ready arg shape tail ls us first last le ue = some jobs
+@Yulang.GeneralDeclarativeEndpointProgram336.fields_exact : ∀ {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {shape : List (Nat × Nat)}
+  {first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {jobs : Yulang.GeneralDeclarativeEndpointProgram336.Jobs},
+  Yulang.GeneralDeclarativeEndpointProgram336.fields arg shape first last = some jobs →
+    List.map Prod.fst jobs = List.map Prod.snd shape ∧
+      ∀ (j : Nat × Yulang.GeneralDeclarativeEndpointProgram336.Projection),
+        j ∈ jobs →
+          ∃ key a b,
+            j.snd = Yulang.GeneralDeclarativeEndpointProgram336.Projection.field arg key a b ∧
+              (key, a) ∈ first ∧ (key, b) ∈ last
+@Yulang.GeneralDeclarativeEndpointProgram336.list_sound : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture}
+  {ls us first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {le ue : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {shape : List (Nat × Nat)} {tail : Nat}
+  {jobs : Yulang.GeneralDeclarativeEndpointProgram336.Jobs} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeEndpointRecord336.Read p arg (List.map Prod.fst shape) ls us first last le ue →
+    Yulang.GeneralDeclarativeEndpointProgram336.ready arg shape tail ls us first last le ue = some jobs →
+      List.map Prod.fst jobs = (Yulang.GeneralDeclarativeEndpointProgram336.template shape tail).variables ∧
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m →
+            ∀ (j : Nat × Yulang.GeneralDeclarativeEndpointProgram336.Projection),
+              j ∈ jobs →
+                ∃ v, j.snd.eval m = some v ∧ Yulang.GeneralDeclarativeWhere319.InInterval v.fst v.snd.snd v.snd.fst
+Yulang.GeneralDeclarativeEndpointRecord336.mask_below : ∀ (keys : List Nat) {a b : Yulang.CommonNominalFullCarrier.Ty},
+  Yulang.CommonNominalFullCarrier.Subtype a b →
+    Yulang.CommonNominalFullCarrier.Subtype (Yulang.CommonNominalFullCarrier.mask keys a)
+      (Yulang.CommonNominalFullCarrier.mask keys b)
+Yulang.GeneralDeclarativeEndpointRecord336.mask_equiv : ∀ (keys : List Nat) {a b : Yulang.CommonNominalFullCarrier.Ty},
+  Yulang.CommonNominalFullCarrier.Equivalent a b →
+    Yulang.CommonNominalFullCarrier.Equivalent (Yulang.CommonNominalFullCarrier.mask keys a)
+      (Yulang.CommonNominalFullCarrier.mask keys b)
+@Yulang.GeneralDeclarativeEndpointRecord336.labels : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keys : List Nat}
+  {ls us first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {le ue : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeEndpointRecord336.Read p arg keys ls us first last le ue →
+    List.map Prod.fst first = keys ∧ List.map Prod.fst last = keys
+@Yulang.GeneralDeclarativeEndpointRecord336.interval : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keys : List Nat}
+  {ls us first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {le ue : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeEndpointRecord336.Read p arg keys ls us first last le ue →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models s m →
+        Yulang.GeneralDeclarativeWhere319.InInterval
+          (Yulang.GeneralDeclarativeEndpointRecord336.interp m
+            (Yulang.GeneralDeclarativeRecordResidual323.withTail ls le))
+          (Yulang.GeneralDeclarativeEndpointRecord336.interp m
+            (Yulang.GeneralDeclarativeRecordResidual323.withTail us ue))
+          (m arg.center).fst
+@Yulang.GeneralDeclarativeEndpointRecord336.field_interval : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keys : List Nat}
+  {ls us first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {le ue : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {key : Nat}
+  {a b : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeEndpointRecord336.Read p arg keys ls us first last le ue →
+    (key, a) ∈ first →
+      (key, b) ∈ last →
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralDeclarativeHead320.Models s m →
+            ∃ f,
+              Yulang.GeneralDeclarativeRecordChannel330.project key false [] (m arg.center).fst = some f ∧
+                Yulang.GeneralDeclarativeWhere319.InInterval (Yulang.GeneralDeclarativeEndpointRecord336.interp m a)
+                  (Yulang.GeneralDeclarativeEndpointRecord336.interp m b) f
+@Yulang.GeneralDeclarativeEndpointRecord336.residual_interval : ∀ {done : Nat → Prop}
+  {arg : Yulang.GeneralDeclarativeWhere319.Capture} {keys : List Nat}
+  {ls us first last : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {le ue : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativeEndpointRecord336.Read p arg keys ls us first last le ue →
+    ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+      Yulang.GeneralDeclarativeHead320.Models s m →
+        Yulang.GeneralDeclarativeWhere319.InInterval
+          (Yulang.CommonNominalFullCarrier.mask keys
+            (Yulang.GeneralDeclarativeEndpointRecord336.interp m
+              (Yulang.GeneralDeclarativeRecordResidual323.withTail ls le)))
+          (Yulang.CommonNominalFullCarrier.mask keys
+            (Yulang.GeneralDeclarativeEndpointRecord336.interp m
+              (Yulang.GeneralDeclarativeRecordResidual323.withTail us ue)))
+          (Yulang.CommonNominalFullCarrier.mask keys (m arg.center).fst)
+Yulang.GeneralDeclarativeEndpointRegression336.ready_eq : Yulang.GeneralDeclarativeEndpointProgram336.ready
+    Yulang.GeneralDeclarativeWitnessCutDecl334.arg Yulang.GeneralDeclarativeEndpointRegression336.shape 1
+    Yulang.GeneralDeclarativeEndpointCase336.loFields Yulang.GeneralDeclarativeEndpointCase336.hiFields
+    Yulang.GeneralDeclarativeEndpointCase336.loFields Yulang.GeneralDeclarativeEndpointCase336.hiFields
+    Yulang.GeneralDeclarativeEndpointCase336.endCode Yulang.GeneralDeclarativeEndpointCase336.endCode =
+  some Yulang.GeneralDeclarativeEndpointRegression336.jobs
+Yulang.GeneralDeclarativeEndpointRegression336.source : Yulang.GeneralDeclarativeEndpointInput336.Inputs
+  Yulang.GeneralDeclarativeEndpointCase336.support Yulang.GeneralDeclarationExamples.constructors
+  Yulang.GeneralDeclarativeNestedExample332.interpretation Yulang.GeneralDeclarativeEndpointRegression336.protect
+  Yulang.GeneralDeclarativeEndpointCase336.before Yulang.GeneralDeclarativeWitnessCutDecl334.root.arguments
+  Yulang.GeneralDeclarativeWitnessCutDecl334.impl.head Yulang.GeneralDeclarativeEndpointRegression336.named
+  Yulang.GeneralDeclarativeEndpointRegression336.uses Yulang.GeneralDeclarativeEndpointRegression336.sidecar
+Yulang.GeneralDeclarativeEndpointRegression336.points : Yulang.GeneralDeclarativeEndpointRegression336.uses =
+  [(0, { lower := 6, center := 7, upper := 8 }), (1, { lower := 9, center := 10, upper := 11 })]
+Yulang.GeneralDeclarativeEndpointRegression336.build : Yulang.GeneralDeclarativeNestedBody332.compileBody
+    Yulang.GeneralDeclarativeWitnessCutDecl334.registry Yulang.GeneralDeclarativeNestedExample332.interpretation
+    Yulang.GeneralDeclarativeWitnessCutDecl334.root Yulang.GeneralDeclarativeWitnessCutDecl334.impl
