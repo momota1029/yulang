@@ -3,9 +3,9 @@
 cycle: 341
 status: running
 started: 2026-11-22T08:35:02Z
-updated: 2026-11-22T09:00:20Z
-elapsed_min: 25.3
-activity: C285 固定出力・全 raw 旧名前を保つ新端点拡張を公開、実成功診断木をそのまま保つ順序橋を検証中
+updated: 2026-11-22T09:08:15Z
+elapsed_min: 33.2
+activity: C285 の全 journal モデルと普通射影の双方向、正確な出力 ordinal 0 を公開。固定 SHA から全新規証明・監査を再検証
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
-last_local_commit: 241072f417be16f053166f8d9df6ea5943ec72fc
-resume_hint: C316 は実二節点と子順序だけでは現 packet が出ない。C276 と C285 の成功例に対する class targets・端点別の場所づけの証明を継続。
+last_local_commit: cc2d76eb13d64d37052a8b05634824abc16f2177
+resume_hint: 作業継続なら proof pin cc2d76eb13d64d37052a8b05634824abc16f2177 を起点。凍結ファイルは blob ID だけを照合し、全新規証明を trust=0 で独立検証する。
