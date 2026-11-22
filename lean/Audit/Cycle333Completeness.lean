@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeAlternativeReadComplete333
+
+#print axioms Yulang.GeneralDeclarativeAlternativeNeeds333.fulfilled
+#print axioms Yulang.GeneralDeclarativeAlternativeSpineComplete333.spine_plan
+#print axioms Yulang.GeneralDeclarativeAlternativeSpineComplete333.literal_plan
+#print axioms Yulang.GeneralDeclarativeAlternativeReadComplete333.read_plan
+#print axioms Yulang.GeneralDeclarativeAlternativeReadComplete333.normalized_finite

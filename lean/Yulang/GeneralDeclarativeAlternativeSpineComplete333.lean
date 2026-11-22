@@ -1,8 +1,10 @@
 import Yulang.GeneralDeclarativeAlternativeSpine333
+import Yulang.GeneralDeclarativeAlternativeNeeds333
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeAlternativeSpineComplete333
 open GeneralDeclarativeHead320 (State Equation)
+open GeneralDeclarativeAlternativeNeeds333 (Need Planned Eventually eventually_one eventually_step)
 open GeneralDeclarativeAlternativeView333 (Offer Index Covers exact_offer)
 open GeneralDeclarativeAlternativeSpine333 (isPrefix peel_terminal peel_variable finishing through spines literals)
 open GeneralDeclarativeRecordSpine330 (Spine Terminal)
@@ -56,63 +58,68 @@ theorem prefix_in {s : State} {src : Index s} (link : Alias s root owner)
     subst j
     exact List.mem_map.mpr ⟨info,known,Subtype.ext (congrArg (fun z => (z.1 ++ info.val.1,info.val.2)) p)⟩
 
-/-- Every independently derived spine is found once its authorized
-rows/aliases are included and the syntax depth is large enough. -/
-theorem spine_complete {s : State} {src : Index s} (covers : Covers src) (pre : Spine s n row term) :
-    ∃ bound, ∀ fuel ≥ bound, ∃ out ∈ spines src n fuel, out.val = (row,term) := by
-  induction pre with
-  | width route known =>
-    exact ⟨1,fun fuel enough => by
-      cases fuel with
-      | zero => cases enough
-      | succ fuel => exact terminal_in (row := []) route known (exact_offer (covers _ _ _ route known) route known) .width fuel⟩
-  | exactEnd route known =>
-    exact ⟨1,fun fuel enough => by
-      cases fuel with
-      | zero => cases enough
-      | succ fuel => exact terminal_in (row := []) route known (exact_offer (covers _ _ _ route known) route known) .exactEnd fuel⟩
-  | inline route terminal known =>
-    exact ⟨1,fun fuel enough => by
-      cases fuel with
-      | zero => cases enough
-      | succ fuel => exact terminal_in route known (exact_offer (covers _ _ _ route known) route known) terminal fuel⟩
-  | cons route known _ ih =>
-    obtain ⟨bound,here⟩ := ih
-    refine ⟨bound+1,fun fuel enough => ?_⟩
-    cases fuel with
-    | zero => cases enough
-    | succ fuel =>
-      obtain ⟨a,got,h⟩ := here fuel (Nat.le_of_succ_le_succ enough)
-      obtain ⟨result,listed,same⟩ := prefix_in (front := [(_,Expr.variable _)]) route known
-        (exact_offer (covers _ _ _ route known) route known) got
-      exact ⟨result,listed,by rw [same,h]; rfl⟩
-  | prefixed route known _ ih =>
-    obtain ⟨bound,here⟩ := ih
-    refine ⟨bound+1,fun fuel enough => ?_⟩
-    cases fuel with
-    | zero => cases enough
-    | succ fuel =>
-      obtain ⟨a,got,h⟩ := here fuel (Nat.le_of_succ_le_succ enough)
-      obtain ⟨result,listed,same⟩ := prefix_in route known
-        (exact_offer (covers _ _ _ route known) route known) got
-      exact ⟨result,listed,by rw [same,h]⟩
+abbrev SpinesAt (src : Index s) (n : Nat) (row : Row Expr) (term : Expr) :=
+  Eventually (fun fuel => ∃ out ∈ spines src n fuel, out.val = (row,term))
 
-theorem literal_complete {s : State} {src : Index s} (covers : Covers src) (known : Closed s raw row term) :
-    ∃ bound, ∀ fuel ≥ bound, ∃ out ∈ literals src fuel raw, out.val = (row,term) := by
+abbrev LiteralIn (src : Index s) (raw : Expr) (row : Row Expr) (term : Expr) :=
+  Eventually (fun fuel => ∃ out ∈ literals src fuel raw, out.val = (row,term))
+
+/-- A finite dependency packet is obtained from the actual independent
+spine derivation. No globally complete alias index is required. -/
+theorem spine_plan {s : State} (pre : Spine s n row term) :
+    Planned (fun src : Index s => SpinesAt src n row term) := by
+  induction pre with
+  | @width root owner route known =>
+    let e : Need s := ⟨root,⟨owner,_,route,known⟩⟩
+    refine ⟨[e],fun src filled => eventually_one fun fuel => ?_⟩
+    exact terminal_in (row := []) route known (filled e List.mem_cons_self) .width fuel
+  | @exactEnd root owner route known =>
+    let e : Need s := ⟨root,⟨owner,_,route,known⟩⟩
+    refine ⟨[e],fun src filled => eventually_one fun fuel => ?_⟩
+    exact terminal_in (row := []) route known (filled e List.mem_cons_self) .exactEnd fuel
+  | @inline root owner term front route terminal known =>
+    let e : Need s := ⟨root,⟨owner,_,route,known⟩⟩
+    refine ⟨[e],fun src filled => eventually_one fun fuel => ?_⟩
+    exact terminal_in route known (filled e List.mem_cons_self) terminal fuel
+  | @cons root owner key field rest row term route known _ ih =>
+    let e : Need s := ⟨root,⟨owner,_,route,known⟩⟩
+    refine ih.add e (fun src to hand => eventually_step hand (fun fuel hit => ?_))
+    obtain ⟨info,present,value⟩ := hit
+    obtain ⟨out,found,shows⟩ := prefix_in (front := [(key,Expr.variable field)]) route known to present
+    exact ⟨out,found,by rw [shows,value]; rfl⟩
+  | @prefixed root owner front rest row term route known _ ih =>
+    let e : Need s := ⟨root,⟨owner,_,route,known⟩⟩
+    refine ih.add e (fun src to hand => eventually_step hand (fun fuel hit => ?_))
+    obtain ⟨info,present,value⟩ := hit
+    obtain ⟨out,found,shows⟩ := prefix_in route known to present
+    exact ⟨out,found,by rw [shows,value]⟩
+
+theorem spine_complete {s : State} {src : Index s} (covers : Covers src) (pre : Spine s n row term) :
+    SpinesAt src n row term := (spine_plan pre).from_cover covers
+
+theorem literal_plan {s : State} (known : Closed s raw row term) :
+    Planned (fun src : Index s => LiteralIn src raw row term) := by
   induction known with
   | terminal ending =>
     cases ending
-    · exact ⟨0,fun _ _ => ⟨_,List.mem_cons_self,rfl⟩⟩
-    · exact ⟨0,fun _ _ => ⟨_,List.mem_cons_self,rfl⟩⟩
+    · exact Planned.pure fun _ => ⟨0,fun _ _ => ⟨_,List.mem_cons_self,rfl⟩⟩
+    · exact Planned.pure fun _ => ⟨0,fun _ _ => ⟨_,List.mem_cons_self,rfl⟩⟩
   | field _ ih =>
-    obtain ⟨bound,after⟩ := ih
+    apply ih.map
+    intro src earlier
+    obtain ⟨bound,after⟩ := earlier
     refine ⟨bound,fun fuel enough => ?_⟩
     obtain ⟨x,got,same⟩ := after fuel enough
     exact ⟨_,List.mem_map.mpr ⟨x,got,rfl⟩,congrArg (fun v => (_ :: v.1,v.2)) same⟩
   | name found =>
-    obtain ⟨bound,after⟩ := spine_complete covers found
+    apply (spine_plan found).map
+    intro src earlier
+    obtain ⟨bound,after⟩ := earlier
     refine ⟨bound,fun fuel enough => ?_⟩
     obtain ⟨x,got,same⟩ := after fuel enough
     exact ⟨_,List.mem_map.mpr ⟨x,got,rfl⟩,same⟩
+
+theorem literal_complete {s : State} {src : Index s} (covers : Covers src) (known : Closed s raw row term) :
+    LiteralIn src raw row term := (literal_plan known).from_cover covers
 
 end Yulang.GeneralDeclarativeAlternativeSpineComplete333

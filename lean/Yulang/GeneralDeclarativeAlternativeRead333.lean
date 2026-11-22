@@ -35,6 +35,28 @@ def tailOK (e : Expr) : Option (PLift (TailCode e)) :=
   | .primitive .exactEmpty [] => some ⟨.exactEnd⟩
   | _ => none
 
+def recordChoices {target : Expr} (src : Index s) (fuel : Nat)
+    (next : Reader s) (fields : FieldReader s) (mode : Mode) (raw : Expr)
+    (planned : Row Expr × Expr) (spelled : withTail planned.1 planned.2 = target) :
+    List (Result s mode raw target) :=
+    let keys := planned.1.map Prod.fst
+    if good : keys.Nodup ∧ keys ≠ [] then
+      match tailOK planned.2 with
+      | none => []
+      | some tail =>
+        (literals src fuel raw).flatMap fun literal =>
+          match showOrder : order (normalize literal.val.1) keys with
+          | none => []
+          | some picked =>
+            (fields mode picked planned.1).flatMap fun xs =>
+              (next mode (tailExpr literal.val.1 keys literal.val.2) planned.2).map fun ys =>
+                ⟨xs.val++ys.val,by
+                  change Read s mode raw target _
+                  rw [← spelled]
+                  exact .record literal.property good.1 good.2 showOrder
+                    xs.property tail.down ys.property⟩
+    else []
+
 def structured (src : Index s) (fuel : Nat) (next : Reader s) (args : ArgReader s)
     (fields : FieldReader s) (mode : Mode) : (raw target : Expr) → List (Result s mode raw target)
   | raw,.variable b => [⟨[⟨b,mode,raw⟩],.capture⟩]
@@ -57,25 +79,7 @@ def structured (src : Index s) (fuel : Nat) (next : Reader s) (args : ArgReader 
     (next mode r t).flatMap fun a =>
       (next mode x y).map fun b => ⟨a.val++b.val,.join a.property b.property⟩
   | raw,.record k f rest =>
-    let target := Expr.record k f rest
-    let planned := peel target
-    let keys := planned.1.map Prod.fst
-    if good : keys.Nodup ∧ keys ≠ [] then
-      match tailOK planned.2 with
-      | none => []
-      | some tail =>
-        (literals src fuel raw).flatMap fun literal =>
-          match showOrder : order (normalize literal.val.1) keys with
-          | none => []
-          | some picked =>
-            (fields mode picked planned.1).flatMap fun xs =>
-              (next mode (tailExpr literal.val.1 keys literal.val.2) planned.2).map fun ys =>
-                ⟨xs.val++ys.val,by
-                  change Read s mode raw target _
-                  rw [← exact_peel target]
-                  exact .record literal.property good.1 good.2 showOrder
-                    xs.property tail.down ys.property⟩
-    else []
+    recordChoices src fuel next fields mode raw (peel (.record k f rest)) (exact_peel _)
   | _,_ => []
 
 def nonBinder : Expr → Bool
