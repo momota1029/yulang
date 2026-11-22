@@ -1,0 +1,38 @@
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.mask_join' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.mask_meet' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.reifies' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.residual_clear' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.lifted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.named' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.point_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.rigid_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.exact_below_forgetting' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.forgetting_below_open' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualLift336.nonunique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualReflect336.reflect' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_disjoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualSemantics336.open_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointResidualSemantics336.closed_distinct' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.Generated.body' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.ties_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.clash_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSelected336.selected_witness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.writes_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.materialize' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.old_kept' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.projected_row' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.bounded_field' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.lower_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeEndpointSupport336.singleton_bounds' depends on axioms: [propext, Quot.sound]
