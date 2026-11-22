@@ -1,0 +1,29 @@
+PASS independent audit lean/Audit/Cycle343Boundary.lean
+PASS independent audit lean/Audit/Cycle343Current.lean
+PASS independent audit lean/Audit/Cycle343Initial.lean
+PASS independent audit lean/Audit/Cycle343Ordered.lean
+PASS independent audit lean/Audit/Cycle343Placement.lean
+PASS source lean/Yulang/GeneralDeclarativeBridgeInstance343.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentChild343.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentClosure343.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentHistory343.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentOrigins343.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentRoot343.lean
+PASS source lean/Yulang/GeneralDeclarativeCurrentWorld343.lean
+PASS source lean/Yulang/GeneralDeclarativeFrameGuard343.lean
+PASS source lean/Yulang/GeneralDeclarativeFrameRank343.lean
+PASS source lean/Yulang/GeneralDeclarativeFrameShape343.lean
+PASS source lean/Yulang/GeneralDeclarativeFreshModel343.lean
+PASS source lean/Yulang/GeneralDeclarativeFreshValues343.lean
+PASS source lean/Yulang/GeneralDeclarativeInitialModels343.lean
+PASS source lean/Yulang/GeneralDeclarativeInitialRoot343.lean
+PASS source lean/Yulang/GeneralDeclarativeLogicalChild343.lean
+PASS source lean/Yulang/GeneralDeclarativeModeBridge343.lean
+PASS source lean/Yulang/GeneralDeclarativeOrderedProjection343.lean
+PASS source lean/Yulang/GeneralDeclarativeOrdinary343.lean
+PASS source lean/Yulang/GeneralDeclarativeOriginSplit343.lean
+PASS source lean/Yulang/GeneralDeclarativePlacement343.lean
+PASS source lean/Yulang/GeneralDeclarativeRankedBridge343.lean
+PASS source lean/Yulang/GeneralDeclarativeReceiptSplit343.lean
+PASS source lean/Yulang/GeneralDeclarativeWithheldInput343.lean
+PASS source lean/Yulang/GeneralDeclarativeWithheldReceipt343.lean
