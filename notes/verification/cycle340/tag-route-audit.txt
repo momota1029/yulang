@@ -1,0 +1,15 @@
+'Yulang.GeneralDeclarativeTaggedNamed340.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamed340.entails_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamed340.prior' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamed340.plans' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamed340.finite' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedField340.named_endpoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedField340.whole_field_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedField340.routed_whole' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedParent340.normalized_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedParent340.compile_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamedPatch340.prepare' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamedPatch340.checked_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamedRoute340.lift_read' does not depend on any axioms
+'Yulang.GeneralDeclarativeTaggedNamedRoute340.no_missing_branch' does not depend on any axioms
+'Yulang.GeneralDeclarativeTaggedNamedRoute340.under_siblings' depends on axioms: [propext, Classical.choice, Quot.sound]
