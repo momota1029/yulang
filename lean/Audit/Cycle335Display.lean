@@ -1,0 +1,14 @@
+import Yulang.GeneralStoppedDisplayCut335
+import Yulang.GeneralStoppedDisplayChoice335
+
+#print axioms Yulang.GeneralStoppedDisplayProjection335.initial_read
+#print axioms Yulang.GeneralStoppedDisplayProjection335.stopped_read
+#print axioms Yulang.GeneralStoppedDisplayProjection335.actual_model
+#print axioms Yulang.GeneralStoppedDisplayProjection335.stopped_sites
+#print axioms Yulang.GeneralStoppedDisplayProjection335.reached
+#print axioms Yulang.GeneralStoppedDisplayProjection335.halted
+#print axioms Yulang.GeneralStoppedDisplayChoice335.parent_choice
+#print axioms Yulang.GeneralStoppedDisplayChoice335.child_choice
+#print axioms Yulang.GeneralStoppedDisplayCut335.actual_children
+#print axioms Yulang.GeneralStoppedDisplayCut335.not_same_literal_child
+#print axioms Yulang.GeneralStoppedDisplayCut335.refuses_literal_report

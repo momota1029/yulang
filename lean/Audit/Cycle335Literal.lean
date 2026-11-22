@@ -1,0 +1,10 @@
+import Yulang.GeneralStoppedDisplayLiteral335
+
+#print axioms Yulang.GeneralStoppedLiteralCompiler335.no_tie
+#print axioms Yulang.GeneralStoppedLiteralCompiler335.exact_frame
+#print axioms Yulang.GeneralStoppedLiteralWitness335.local_meaning
+#print axioms Yulang.GeneralStoppedLiteralWitness335.sound
+#print axioms Yulang.GeneralStoppedDisplayLiteral335.direct_parent
+#print axioms Yulang.GeneralStoppedDisplayLiteral335.direct_child
+#print axioms Yulang.GeneralStoppedDisplayLiteral335.actual_success
+#print axioms Yulang.GeneralStoppedDisplayLiteral335.inhabited
