@@ -3,9 +3,9 @@
 cycle: 342
 status: running
 started: 2026-11-22T09:30:08Z
-updated: 2026-11-22T09:54:55Z
-elapsed_min: 24.8
-activity: 復旧後、固定 C341 の依存を回復し、C319 の actual Frame と最新証人の焦点ビルドを実行中
+updated: 2026-11-22T10:01:53Z
+elapsed_min: 31.8
+activity: Exact current and historical source cut checked; rebuilding physical witness frontier
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
-last_local_commit: 920cb04674e13dbd29356231a6d034617775514d
-resume_hint: 現版の lower=2、再利用 upper、旧下端4を分離。待ち時間に C316 同じ元例の保守拡張と、中心を保留した現子の端点観測を精査。
+last_local_commit: de43e8f8844f268c2ded015cce8d75fa1afd9e6c
+resume_hint: The retained original C316 raw fixture still cannot produce, while the isolated C317 versioned successor has an accepted exact target sequence and a current frame with recursive evidence on a common conservative assignment. Recovering checked C319 dependencies before a separate physical old/new occurrence witness.
