@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeExactCompose337
+#print axioms Yulang.GeneralDeclarativeExactCompose337.remaining_compose
+#print axioms Yulang.GeneralDeclarativeExactCompose337.shell_idempotent
+#print axioms Yulang.GeneralDeclarativeExactCompose337.shell_commutes
+#print axioms Yulang.GeneralDeclarativeExactCompose337.sequence
+#print axioms Yulang.GeneralDeclarativeExactCompose337.empty

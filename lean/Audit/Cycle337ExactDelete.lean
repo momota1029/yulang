@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeExactDeleteRigid337
+
+#print axioms Yulang.GeneralDeclarativeDeleteShell337.required_eq
+#print axioms Yulang.GeneralDeclarativeDeleteShell337.optional_eq
+#print axioms Yulang.GeneralDeclarativeDeleteShell337.outside
+#print axioms Yulang.GeneralDeclarativeExactDeleteFinite337.fields
+#print axioms Yulang.GeneralDeclarativeExactDelete337.outside
+#print axioms Yulang.GeneralDeclarativeExactDelete337.finite_mono
+#print axioms Yulang.GeneralDeclarativeExactDelete337.observe_subtract
+#print axioms Yulang.GeneralDeclarativeExactDelete337.monotone
+#print axioms Yulang.GeneralDeclarativeExactDeleteRigid337.deletes_literal
+#print axioms Yulang.GeneralDeclarativeExactDeleteRigid337.interval
+#print axioms Yulang.GeneralDeclarativeExactDeleteRigid337.exact_if_both_empty
+#print axioms Yulang.GeneralDeclarativeExactDeleteRigid337.consumed_optional

@@ -1,0 +1,2 @@
+'Yulang.GeneralDeclarativeExactNested337.extend' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactNested337.compile_nested' depends on axioms: [propext, Classical.choice, Quot.sound]

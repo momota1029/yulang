@@ -1,0 +1,7 @@
+'Yulang.GeneralDeclarativeExactClash337.clash_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactClash337.before_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactClash337.field_agrees' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactClash337.rest_above' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactClash337.disjoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeExactClash337.exact_clash' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactClash337.regression' depends on axioms: [propext, Classical.choice, Quot.sound]

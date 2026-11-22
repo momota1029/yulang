@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeExactOverlay337
+
+#print axioms Yulang.GeneralDeclarativeExactDeleteAuth337.literal
+#print axioms Yulang.GeneralDeclarativeExactDeleteAuth337.canonical
+#print axioms Yulang.GeneralDeclarativeExactDeleteAuth337.supported
+#print axioms Yulang.GeneralDeclarativeExactOverlay337.eval_eq
+#print axioms Yulang.GeneralDeclarativeExactOverlay337.list_sound
+#print axioms Yulang.GeneralDeclarativeExactOverlay337.patch_checked
+#print axioms Yulang.GeneralDeclarativeExactOverlay337.approved

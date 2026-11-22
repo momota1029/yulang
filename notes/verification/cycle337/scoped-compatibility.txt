@@ -1,0 +1,3 @@
+✔ [1250/1251] Built Yulang.GeneralDeclarativeEndpointCompatibility336 (2.2s)
+✔ [1251/1251] Built Yulang.GeneralDeclarativeExactCompatibility337 (1.0s)
+Build completed successfully (1251 jobs).
