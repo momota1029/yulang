@@ -1,0 +1,28 @@
+import Yulang.GeneralDeclarativeTwoViews344
+import Yulang.GeneralDeclarativePhysicalReplay344
+import Yulang.GeneralDeclarativeStampedReplay344
+import Yulang.GeneralDeclarativeRevalidate344
+import Yulang.GeneralDeclarativeReplayOrdering344
+import Yulang.GeneralDeclarativeLiteralPorts344
+import Yulang.GeneralDeclarativeAmbient344
+import Yulang.GeneralDeclarativeStampedPort344
+import Yulang.GeneralDeclarativeOriginalReplay344
+import Yulang.GeneralDeclarativePhysicalJoint344
+#print axioms Yulang.GeneralDeclarativeTwoViews344.together
+#print axioms Yulang.GeneralDeclarativePhysicalReplay344.old_ready
+#print axioms Yulang.GeneralDeclarativePhysicalReplay344.middle_prefix
+#print axioms Yulang.GeneralDeclarativePhysicalReplay344.phases
+#print axioms Yulang.GeneralDeclarativeStampedReplay344.feasible
+#print axioms Yulang.GeneralDeclarativeStampedReplay344.later_position
+#print axioms Yulang.GeneralDeclarativeStampedReplay344.later_from_step
+#print axioms Yulang.GeneralDeclarativeRevalidate344.replay
+#print axioms Yulang.GeneralDeclarativeRevalidate344.together
+#print axioms Yulang.GeneralDeclarativeReplayOrdering344.permuted
+#print axioms Yulang.GeneralDeclarativeReplayOrdering344.compiler_canonical
+#print axioms Yulang.GeneralDeclarativeLiteralPorts344.read
+#print axioms Yulang.GeneralDeclarativeAmbient344.same_origin_rows
+#print axioms Yulang.GeneralDeclarativeAmbient344.with_source
+#print axioms Yulang.GeneralDeclarativeStampedPort344.stamped_input
+#print axioms Yulang.GeneralDeclarativeOriginalReplay344.contrast
+#print axioms Yulang.GeneralDeclarativePhysicalJoint344.physical_order
+#print axioms Yulang.GeneralDeclarativePhysicalJoint344.both_receipts

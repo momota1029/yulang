@@ -1,0 +1,7 @@
+'Yulang.GeneralDeclarativeCommitSuffix344.from_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCommitSuffix344.child_at' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCommitModes344.endpoint_request' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCommitModes344.all_modes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeCommitPosition344.current_stamp' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCommitPosition344.positioned' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCommitPosition344.literal_outputs' depends on axioms: [propext, Quot.sound]

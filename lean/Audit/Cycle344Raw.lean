@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeCommitSuffix344
+import Yulang.GeneralDeclarativeCommitModes344
+import Yulang.GeneralDeclarativeCommitPosition344
+#print axioms Yulang.GeneralDeclarativeCommitSuffix344.from_step
+#print axioms Yulang.GeneralDeclarativeCommitSuffix344.child_at
+#print axioms Yulang.GeneralDeclarativeCommitModes344.endpoint_request
+#print axioms Yulang.GeneralDeclarativeCommitModes344.all_modes
+#print axioms Yulang.GeneralDeclarativeCommitPosition344.current_stamp
+#print axioms Yulang.GeneralDeclarativeCommitPosition344.positioned
+#print axioms Yulang.GeneralDeclarativeCommitPosition344.literal_outputs

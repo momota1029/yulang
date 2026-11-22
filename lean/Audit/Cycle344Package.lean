@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeRootReplay344
+import Yulang.GeneralDeclarativeCommitPackage344
+import Yulang.GeneralDeclarativePackageBoundary344
+#print axioms Yulang.GeneralDeclarativeRootReplay344.default_exact
+#print axioms Yulang.GeneralDeclarativeRootReplay344.output
+#print axioms Yulang.GeneralDeclarativeRootReplay344.batch
+#print axioms Yulang.GeneralDeclarativeCommitPackage344.from_install
+#print axioms Yulang.GeneralDeclarativePackageBoundary344.actual
+#print axioms Yulang.GeneralDeclarativePackageBoundary344.no_unchanged_stamp

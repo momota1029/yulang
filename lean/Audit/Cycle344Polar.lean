@@ -1,0 +1,18 @@
+import Yulang.GeneralDeclarativeLedger344
+import Yulang.GeneralDeclarativeModeCongruence344
+import Yulang.GeneralDeclarativeCommitPort344
+import Yulang.GeneralDeclarativePolarNormalize344
+import Yulang.GeneralDeclarativePolarCompiler344
+import Yulang.GeneralDeclarativeNormalizedPort344
+#print axioms Yulang.GeneralDeclarativeLedger344.step
+#print axioms Yulang.GeneralDeclarativeLedger344.stamped
+#print axioms Yulang.GeneralDeclarativeLedger344.site_kept
+#print axioms Yulang.GeneralDeclarativeLedger344.later_model
+#print axioms Yulang.GeneralDeclarativeModeCongruence344.expression
+#print axioms Yulang.GeneralDeclarativeCommitPort344.literal_mode
+#print axioms Yulang.GeneralDeclarativeCommitPort344.compound_position
+#print axioms Yulang.GeneralDeclarativePolarNormalize344.normalize_sound
+#print axioms Yulang.GeneralDeclarativePolarCompiler344.normalized_codes
+#print axioms Yulang.GeneralDeclarativeNormalizedPort344.genuine_code
+#print axioms Yulang.GeneralDeclarativeNormalizedPort344.prepared_code
+#print axioms Yulang.GeneralDeclarativeNormalizedPort344.compound

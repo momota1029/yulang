@@ -1,0 +1,46 @@
+import Yulang.GeneralDeclarativeAmbient344
+import Yulang.GeneralDeclarativeAssociatedReplay344
+import Yulang.GeneralDeclarativeCommitCoverage344
+import Yulang.GeneralDeclarativeCommitModes344
+import Yulang.GeneralDeclarativeCommitPackage344
+import Yulang.GeneralDeclarativeCommitPort344
+import Yulang.GeneralDeclarativeCommitPosition344
+import Yulang.GeneralDeclarativeCommitSuffix344
+import Yulang.GeneralDeclarativeEffectiveReplay344
+import Yulang.GeneralDeclarativeLedger344
+import Yulang.GeneralDeclarativeLiteralPorts344
+import Yulang.GeneralDeclarativeModeCongruence344
+import Yulang.GeneralDeclarativeNormalizedPort344
+import Yulang.GeneralDeclarativeOriginalReplay344
+import Yulang.GeneralDeclarativePackageBoundary344
+import Yulang.GeneralDeclarativePhysicalJoint344
+import Yulang.GeneralDeclarativePhysicalReplay344
+import Yulang.GeneralDeclarativePolarCompiler344
+import Yulang.GeneralDeclarativePolarNormalize344
+import Yulang.GeneralDeclarativeRawCapture344
+import Yulang.GeneralDeclarativeRawReplayArgs344
+import Yulang.GeneralDeclarativeReplayOrder344
+import Yulang.GeneralDeclarativeReplayOrdering344
+import Yulang.GeneralDeclarativeRevalidate344
+import Yulang.GeneralDeclarativeRootReplay344
+import Yulang.GeneralDeclarativeStampedPort344
+import Yulang.GeneralDeclarativeStampedReplay344
+import Yulang.GeneralDeclarativeTwoViews344
+set_option maxHeartbeats 0
+open Lean Elab Command in
+run_cmd do
+  let environment ← getEnv
+  let allowed := #[``propext, ``Classical.choice, ``Quot.sound]
+  let system : List Name := [`Init, `Std, `Lean, `Lake]
+  let mut checked : Nat := 0
+  for (name, _) in environment.constants.toList do
+    if let some index := environment.getModuleIdxFor? name then
+      let moduleName := environment.header.moduleNames[index.toNat]!
+      unless system.any (·.isPrefixOf moduleName) do
+        checked := checked + 1
+        let axioms ← collectAxioms name
+        for dependency in axioms do
+          unless allowed.contains dependency do
+            throwError "AXIOM-GATE-FAIL: {name} (module {moduleName}) depends on {dependency}"
+  if checked = 0 then throwError "AXIOM-GATE-FAIL: no declarations checked"
+  logInfo m!"AXIOM-GATE-PASS: {checked} declarations"

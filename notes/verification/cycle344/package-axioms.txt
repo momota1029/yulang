@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeRootReplay344.default_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRootReplay344.output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRootReplay344.batch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeCommitPackage344.from_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePackageBoundary344.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativePackageBoundary344.no_unchanged_stamp' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
