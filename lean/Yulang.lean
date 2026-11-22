@@ -7305,3 +7305,5 @@ import Yulang.GeneralDeclarativeStoppedPaired341
 import Yulang.GeneralDeclarativeStoppedPairedDisplay341
 import Yulang.GeneralDeclarativeStoppedPairedDepth341
 import Yulang.GeneralDeclarativeStoppedOrdinal341
+import Yulang.GeneralDeclarativeStoppedRequested341
+import Yulang.GeneralDeclarativeStoppedDepthExact341

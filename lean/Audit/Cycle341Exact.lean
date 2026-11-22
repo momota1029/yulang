@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeStoppedRequested341
+import Yulang.GeneralDeclarativeStoppedDepthExact341
+#print axioms Yulang.GeneralDeclarativeStoppedRequested341.ordinal_zero
+#print axioms Yulang.GeneralDeclarativeStoppedDepthExact341.base_exact
+#print axioms Yulang.GeneralDeclarativeStoppedDepthExact341.compiled_exact
