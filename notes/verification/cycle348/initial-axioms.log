@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeWhereTxn348.exact_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTxnEffects348.literal_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTxnReceipt348.receipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTxnReceipt348.exact_position' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTxnReceipt348.keeps_prior' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTxnCell348.generated_cell' depends on axioms: [propext, Classical.choice, Quot.sound]

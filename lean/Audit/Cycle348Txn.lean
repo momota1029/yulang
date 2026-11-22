@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeWhereTxn348
+import Yulang.GeneralDeclarativeTxnEffects348
+import Yulang.GeneralDeclarativeTxnReceipt348
+import Yulang.GeneralDeclarativeTxnCell348
+#print axioms Yulang.GeneralDeclarativeWhereTxn348.exact_models
+#print axioms Yulang.GeneralDeclarativeTxnEffects348.literal_requests
+#print axioms Yulang.GeneralDeclarativeTxnReceipt348.receipt
+#print axioms Yulang.GeneralDeclarativeTxnReceipt348.exact_position
+#print axioms Yulang.GeneralDeclarativeTxnReceipt348.keeps_prior
+#print axioms Yulang.GeneralDeclarativeTxnCell348.generated_cell

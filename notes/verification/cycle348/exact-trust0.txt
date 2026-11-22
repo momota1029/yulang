@@ -1,0 +1,31 @@
+PASS independent audit lean/Audit/Cycle348Closure.lean
+PASS independent audit lean/Audit/Cycle348Repeat.lean
+PASS independent audit lean/Audit/Cycle348Txn.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedChild348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedClosure348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedDictionary348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedLayout348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedOrigins348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedPlacement348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedRank348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedReceipts348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedRoot348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedRows348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedSpelling348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedTxn348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedVisible348.lean
+PASS source lean/Yulang/GeneralDeclarativeRepeatedWorld348.lean
+PASS source lean/Yulang/GeneralDeclarativeReplayCompile348.lean
+PASS source lean/Yulang/GeneralDeclarativeReplayModels348.lean
+PASS source lean/Yulang/GeneralDeclarativeReplayStage348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnAssemble348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnCell348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnComplete348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnEffects348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnHistory348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnNormalized348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnObserve348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnQuiet348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnReceipt348.lean
+PASS source lean/Yulang/GeneralDeclarativeTxnTrace348.lean
+PASS source lean/Yulang/GeneralDeclarativeWhereTxn348.lean
