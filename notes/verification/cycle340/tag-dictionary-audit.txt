@@ -1,0 +1,12 @@
+'Yulang.GeneralDeclarativeTaggedInputs340.pull' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedInputs340.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedInputs340.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedElection340.level' does not depend on any axioms
+'Yulang.GeneralDeclarativeTaggedElection340.no_cycles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedElection340.guarded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedSelected340.reconstruct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedSelected340.local_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedDictionary340.tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedDictionary340.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,3 @@
+TRUST0 Yulang/GeneralDeclarativeStoppedCurrent340.lean
+TRUST0 Yulang/GeneralDeclarativeStoppedIntervals340.lean
+TRUST0 Yulang/GeneralDeclarativeStoppedProjection340.lean

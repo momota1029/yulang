@@ -1,0 +1,9 @@
+# I-60: 同じタグの合流を旧 readiness で見落とす
+
+**差分を統合するまでの保守案は保留**。ただしこれは旧観測側の暫定策で、仕様の意味変更や真に未解決な枝の優先規則ではない。
+
+仕様 §6.3 (2026-11-07) は同じタグを先に合流し、plain 型変数はそれぞれ payload 全体を取る、と確定済み。I‑61 の根拠付き端点にも従った。新たな言語判断は不要と考える。旧 reachable Local を合わせるなら、候補を調べる直前に実際の支持元を保存した正規化読み（名前つきの同じタグ join の分岐も含む）を接続するのがよいか、監督側で統合を検討してほしい。
+
+Yulang の模式例（Rust 実行は未確認）: `impl R (:{tick 'a, tick 'b})` に対し、入力の両端が `:{tick int} | :{tick bool}`。正規化したタグの payload は `int | bool`。両 binder がその一つの実際の捕捉を指す。出力を `'b` とした場合、literal target はこの全 payload の型を持つ。片方を `int`、他方を `bool` と別々に捕捉しない。
+
+Lean の `GeneralDeclarativeTaggedLegacyCut340.exact_difference` では、同じ充足可能な source state・同じ支持元で旧 `Local` は pending、支持付きの新しい正規化読みは selected、既存の body compiler が出力 6 へ実際の捕捉を書き、同じモデルが辞書 `.node 97 []` を満たす。旧 readiness には元の join 行しかなく、中心にも正規化されたタグ行にも独立な支持はない。これは宣言判断の対応の差で、raw 実装や Rust の判定差を確認したものではない。`TaggedWithheld340` では片枝の根拠が未完了の関連出力だけの場合に exact read が得られないことも別に確かめた。

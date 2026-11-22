@@ -1,0 +1,17 @@
+Exact detached proof pin b6a61a5ed1310f283a46acac3d53cdbcf6ee0ee2
+Ancestor and git diff --check: PASS
+I57 frozen metadata and changed-path marker scan: PASS
+ok: no removed lines in lean/ since ff62800ff252d6c6e3466e1466f15ca3a1275213
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+verify-lean: PASS (diff checks only, NO build)
+42bbe8f16912876d0a71f846e610965aba81f61fcb66478e722da0ee737420a4  /workspace/scratch/1d0b4aaa3394/yulang-lean-4.35.0-verified/c340/diff-only.txt
+
+Build completed successfully (3026 jobs).
+AXIOM-GATE-PASS: 96140 declarations
+DECLARATIVE-BOUNDARY-PASS: 334 roots, 1932 reachable declarations
+PASS original same C334 dictionary source Yulang/GeneralDeclarativeWitnessClassify334.lean 7b8d43b087357ba210ef592c4c828f30e7990944
+Exact detached replay: 35 Git-byte-identical files (26 new modules, 9 standalone audits). Printed standard axiom checks: 97.
+Frozen metadata referenced from integration and previous cycle: 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9, 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Barrel exact verified Git blob: 17b2a6448319bcc84c4ad122b10a3f0a9e512c31

@@ -1,0 +1,6 @@
+'Yulang.GeneralDeclarativeStoppedLeaf340.committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.current_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.receipt_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.current_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.same_model_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.projected_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]

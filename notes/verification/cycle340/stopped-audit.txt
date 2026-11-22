@@ -1,0 +1,18 @@
+'Yulang.GeneralDeclarativeStoppedIntervals340.at_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedIntervals340.aligned_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedIntervals340.denotes_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedIntervals340.mem_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedIntervals340.table_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedProjection340.head_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedProjection340.exact_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedProjection340.append_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.ordered_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.nonpoint_slot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.nonpoint_table' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.fixture_projected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.fixture_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.fixture_nonvacuous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

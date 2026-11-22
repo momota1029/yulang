@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeTaggedWhole340
+#print axioms Yulang.GeneralDeclarativeTaggedSources340.decodes
+#print axioms Yulang.GeneralDeclarativeTaggedSources340.group_sound
+#print axioms Yulang.GeneralDeclarativeTaggedSources340.entail
+#print axioms Yulang.GeneralDeclarativeTaggedSources340.prefers_no_split
+#print axioms Yulang.GeneralDeclarativeTaggedPatch340.pre_retains
+#print axioms Yulang.GeneralDeclarativeTaggedPatch340.bounded_endpoint
+#print axioms Yulang.GeneralDeclarativeTaggedPatch340.patch
+#print axioms Yulang.GeneralDeclarativeTaggedWhole340.reads
+#print axioms Yulang.GeneralDeclarativeTaggedWhole340.clone_exact
+#print axioms Yulang.GeneralDeclarativeTaggedWhole340.existing_head

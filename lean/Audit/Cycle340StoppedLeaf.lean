@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeStoppedLeaf340
+#print axioms Yulang.GeneralDeclarativeStoppedLeaf340.committed
+#print axioms Yulang.GeneralDeclarativeStoppedLeaf340.current_ready
+#print axioms Yulang.GeneralDeclarativeStoppedLeaf340.receipt_holds
+#print axioms Yulang.GeneralDeclarativeStoppedLeaf340.current_outputs
+#print axioms Yulang.GeneralDeclarativeStoppedLeaf340.same_model_leaf
+#print axioms Yulang.GeneralDeclarativeStoppedLeaf340.projected_outputs

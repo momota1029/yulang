@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeStoppedLeafFixture340
+#print axioms Yulang.GeneralDeclarativeStoppedLeafFixture340.identity_only
+#print axioms Yulang.GeneralDeclarativeStoppedLeafFixture340.no_peer_choice
+#print axioms Yulang.GeneralDeclarativeStoppedLeafFixture340.positions
+#print axioms Yulang.GeneralDeclarativeStoppedLeafFixture340.can_install
+#print axioms Yulang.GeneralDeclarativeStoppedLeafFixture340.not_journaled
+#print axioms Yulang.GeneralDeclarativeStoppedLeafFixture340.actual_leaf
+#print axioms Yulang.GeneralDeclarativeStoppedLeafFixture340.reached_and_stopped

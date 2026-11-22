@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeTaggedWithheld340
+import Yulang.GeneralDeclarativeTaggedLegacyCut340
+import Yulang.GeneralDeclarativeStoppedFold340
+#print axioms Yulang.GeneralDeclarativeTaggedWithheld340.visible_exact
+#print axioms Yulang.GeneralDeclarativeTaggedWithheld340.absent_offer
+#print axioms Yulang.GeneralDeclarativeTaggedWithheld340.support_separates
+#print axioms Yulang.GeneralDeclarativeTaggedWithheld340.same_ordinary_model
+#print axioms Yulang.GeneralDeclarativeTaggedWithheld340.pending_is_not_false
+#print axioms Yulang.GeneralDeclarativeTaggedLegacyCut340.current_old_not_ready
+#print axioms Yulang.GeneralDeclarativeTaggedLegacyCut340.old_pending
+#print axioms Yulang.GeneralDeclarativeTaggedLegacyCut340.exact_difference
+#print axioms Yulang.GeneralDeclarativeStoppedSelected340.install_from_frame
+#print axioms Yulang.GeneralDeclarativeStoppedSelected340.source_leaf
+#print axioms Yulang.GeneralDeclarativeStoppedSelected340.source_node
+#print axioms Yulang.GeneralDeclarativeStoppedFold340.live_children
+#print axioms Yulang.GeneralDeclarativeStoppedFold340.dictionary
+#print axioms Yulang.GeneralDeclarativeStoppedFold340.producer_necessary_for_claim

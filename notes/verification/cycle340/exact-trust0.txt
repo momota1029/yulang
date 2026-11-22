@@ -1,0 +1,180 @@
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedCurrent340.lean 932bcc4efc1af29abf1c8783381c3360e95f4671
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedFold340.lean f3c0eb9228e19930d6f68cc8bdbf64e30218f422
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedIntervals340.lean d96d96a2ccfc138d91e5ad6e98d120dd9f506763
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedLeaf340.lean 7802599c21ec15f802a47cbbc9d212696a4510b1
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedLeafFixture340.lean 6d8dcc8a0cee924d756b30de5e3030c2916abd2c
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedNominalNoPoint340.lean 68c1ac3d2983ae051d6ea70e72923aa236c306fb
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedProjection340.lean 72f5b823c5b09d5bc16eafdb5416d9cbb4994e63
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedRetarget340.lean 083df70b78dec70c3c931f8e58297461821667e6
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedSelected340.lean e16f8b70e3cbcb0b92ca63b16060613758ffc42c
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedDictionary340.lean ef7bf40e739fcec233f24d01a47b89420f536b52
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedElection340.lean f5e37c6a2d68a19d5b3c52388ff944b4c4083fe5
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedField340.lean 7f5599e09ec2e0fa108225ab812eed97ff203123
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedFixture340.lean 522d0fe81957d19f1b8b4c165cf452041af7c326
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedFixtureModel340.lean ffe275c016531cbd91ec15b1439b7ec9b895beae
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedFixtureSelection340.lean 294d315307fcce3c88c953d4285298916c32e305
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedInputs340.lean d229e9779ad24e3c1445dc5173832e051702beb8
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedLegacyCut340.lean d1046de8eb525dad158004ccac8d68276e93e73f
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedNamed340.lean b16834d305fdc76f7514982ea21cb93c722587ce
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedNamedPatch340.lean 496c88c6c8328f16e9e5793051288f5e3e6cc780
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedNamedRoute340.lean 223c99d44378282c442069230752eb038dc0ef71
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedParent340.lean be6db26410078410d7ce8770ce727d03119f03fe
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedPatch340.lean 136ba1265570476e9474d685524da43fa4c8ef05
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedSelected340.lean 96e0bfadb8e6cf7a1d526968a365b077ae00a968
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedSources340.lean e62e6e59303efc923a22a5ffd30b3c7591c8ce4a
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedWhole340.lean f957996f82c7bce744e2376125d9c11754774463
+EXACT TRUST0 Yulang/GeneralDeclarativeTaggedWithheld340.lean d0d776312d0c51201bebd1c66ce6ea587e48efaa
+EXACT TRUST0 Audit/Cycle340Closure.lean 887e1b98624929330899efd4b7547c7e3a00d930
+'Yulang.GeneralDeclarativeTaggedWithheld340.visible_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWithheld340.absent_offer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWithheld340.support_separates' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWithheld340.same_ordinary_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWithheld340.pending_is_not_false' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedLegacyCut340.current_old_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedLegacyCut340.old_pending' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedLegacyCut340.exact_difference' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedSelected340.install_from_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedSelected340.source_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedSelected340.source_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFold340.live_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFold340.dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFold340.producer_necessary_for_claim' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle340StoppedFixture.lean ef84c4ff26384289a9f089c9ea4eb02ac392e46a
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.identity_only' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.no_peer_choice' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.can_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.not_journaled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.actual_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.reached_and_stopped' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle340StoppedLeaf.lean d1379cb790d21014147f9f08c503e5c5aeb3e0b3
+'Yulang.GeneralDeclarativeStoppedLeaf340.committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.current_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.receipt_holds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.current_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.same_model_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeaf340.projected_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXACT TRUST0 Audit/Cycle340StoppedProjection.lean 21136d579277ef4d4ae830cf2071325679693b5a
+'Yulang.GeneralDeclarativeStoppedIntervals340.at_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedIntervals340.aligned_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedIntervals340.denotes_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedIntervals340.mem_table' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedIntervals340.table_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedProjection340.head_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedProjection340.exact_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedProjection340.append_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.ordered_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.nonpoint_slot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.nonpoint_table' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.fixture_projected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.fixture_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedCurrent340.fixture_nonvacuous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle340StoppedRetarget.lean 610331cc73fc5054d869ec632be6f16f82d77e5b
+'Yulang.GeneralDeclarativeStoppedRetarget340.reach' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget340.installable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget340.recorded_source_distinct' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget340.current_plan_not_retained' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget340.only_site_requests' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget340.exact_requests' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget340.exact_packet' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget340.exact_stopped_current' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedRetarget340.output_with_actual_view' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedNominalNoPoint340.literal_values' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedNominalNoPoint340.lower_not_representative' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle340TaggedDictionary.lean 4af97ff2fb9869b6e21359b4664dc1d793721978
+'Yulang.GeneralDeclarativeTaggedInputs340.pull' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedInputs340.complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedInputs340.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedElection340.level' does not depend on any axioms
+'Yulang.GeneralDeclarativeTaggedElection340.no_cycles' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedElection340.guarded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedSelected340.reconstruct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedSelected340.local_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedDictionary340.tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedDictionary340.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle340TaggedEndpoint.lean ed6db301735a8b467b2402c1fe21fac3ea6f4d81
+'Yulang.GeneralDeclarativeTaggedSources340.decodes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedSources340.group_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedSources340.entail' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedSources340.prefers_no_split' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedPatch340.pre_retains' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedPatch340.bounded_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedPatch340.patch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWhole340.reads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWhole340.clone_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWhole340.existing_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXACT TRUST0 Audit/Cycle340TaggedFixture.lean 7c3409d136cd6012abe3406adf1defcd96238c15
+'Yulang.GeneralDeclarativeTaggedFixture340.read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedFixture340.old_not_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedFixture340.checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedFixture340.actual_compile' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedFixture340.exact_same_address' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeTaggedFixtureSelection340.ranked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedFixtureSelection340.candidate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedFixtureSelection340.classification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedFixtureModel340.complete_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedFixtureModel340.actual_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle340TaggedRoute.lean 7045cacd67396b20023dec3197476acc48522d62
+'Yulang.GeneralDeclarativeTaggedNamed340.sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamed340.entails_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamed340.prior' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamed340.plans' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamed340.finite' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedField340.named_endpoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedField340.whole_field_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedField340.routed_whole' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedParent340.normalized_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedParent340.compile_parent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamedPatch340.prepare' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamedPatch340.checked_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedNamedRoute340.lift_read' does not depend on any axioms
+'Yulang.GeneralDeclarativeTaggedNamedRoute340.no_missing_branch' does not depend on any axioms
+'Yulang.GeneralDeclarativeTaggedNamedRoute340.under_siblings' depends on axioms: [propext, Classical.choice, Quot.sound]

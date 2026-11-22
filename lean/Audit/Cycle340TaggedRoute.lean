@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeTaggedNamedRoute340
+#print axioms Yulang.GeneralDeclarativeTaggedNamed340.sound
+#print axioms Yulang.GeneralDeclarativeTaggedNamed340.entails_read
+#print axioms Yulang.GeneralDeclarativeTaggedNamed340.prior
+#print axioms Yulang.GeneralDeclarativeTaggedNamed340.plans
+#print axioms Yulang.GeneralDeclarativeTaggedNamed340.finite
+#print axioms Yulang.GeneralDeclarativeTaggedField340.named_endpoints
+#print axioms Yulang.GeneralDeclarativeTaggedField340.whole_field_read
+#print axioms Yulang.GeneralDeclarativeTaggedField340.routed_whole
+#print axioms Yulang.GeneralDeclarativeTaggedParent340.normalized_parent
+#print axioms Yulang.GeneralDeclarativeTaggedParent340.compile_parent
+#print axioms Yulang.GeneralDeclarativeTaggedNamedPatch340.prepare
+#print axioms Yulang.GeneralDeclarativeTaggedNamedPatch340.checked_head
+#print axioms Yulang.GeneralDeclarativeTaggedNamedRoute340.lift_read
+#print axioms Yulang.GeneralDeclarativeTaggedNamedRoute340.no_missing_branch
+#print axioms Yulang.GeneralDeclarativeTaggedNamedRoute340.under_siblings
