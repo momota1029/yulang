@@ -1,0 +1,9 @@
+C332 independent direct theorem axiom audit (150 indexed theorem statements)
+lean exit: 0
+lean error lines: 0
+87: Classical.choice, Quot.sound, propext
+25: Quot.sound, propext
+33: propext
+5: no axioms
+total: 150
+allowlist pass: True
