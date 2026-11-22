@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeWherePlain346
+import Yulang.GeneralDeclarativeWhereBatchReady346
+import Yulang.GeneralDeclarativeWhereLegacyCut346
+import Yulang.GeneralDeclarativeWhereReleaseFixture346
+import Yulang.GeneralDeclarativeWhereNonPoint346
+import Yulang.GeneralDeclarativeWherePairView346
+#print axioms Yulang.GeneralDeclarativeWherePlain346.complete
+#print axioms Yulang.GeneralDeclarativeWherePlain346.exact_domain
+#print axioms Yulang.GeneralDeclarativeWhereBatchReady346.checked_layout
+#print axioms Yulang.GeneralDeclarativeWhereLegacyCut346.native_no_slot
+#print axioms Yulang.GeneralDeclarativeWhereLegacyCut346.actual_cut
+#print axioms Yulang.GeneralDeclarativeWhereReleaseFixture346.same_owner
+#print axioms Yulang.GeneralDeclarativeWhereReleaseFixture346.observed
+#print axioms Yulang.GeneralDeclarativeWhereNonPoint346.old_and_new
+#print axioms Yulang.GeneralDeclarativeWherePairView346.bounded_models
+#print axioms Yulang.GeneralDeclarativeWherePairView346.bounds
+#print axioms Yulang.GeneralDeclarativeWherePairView346.view
