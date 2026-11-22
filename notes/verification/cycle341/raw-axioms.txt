@@ -1,0 +1,17 @@
+'Yulang.GeneralDeclarativeStoppedObstruction341.actual_obstruction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedObstruction341.not_root_producer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepth341.producer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepth341.every_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthView341.exact_before' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthView341.exact_rhs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthView341.no_promoted_targets' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDepthView341.current_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDisplayModern341.promote' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDisplay341.all_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedDisplay341.actual_success' depends on axioms: [propext, Classical.choice, Quot.sound]

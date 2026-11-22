@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeStoppedObstruction341
+import Yulang.GeneralDeclarativeStoppedDepth341
+import Yulang.GeneralDeclarativeStoppedDepthView341
+import Yulang.GeneralDeclarativeStoppedDisplayModern341
+import Yulang.GeneralDeclarativeStoppedDisplay341
+#print axioms Yulang.GeneralDeclarativeStoppedObstruction341.actual_obstruction
+#print axioms Yulang.GeneralDeclarativeStoppedObstruction341.not_root_producer
+#print axioms Yulang.GeneralDeclarativeStoppedDepth341.producer
+#print axioms Yulang.GeneralDeclarativeStoppedDepth341.every_model
+#print axioms Yulang.GeneralDeclarativeStoppedDepthView341.exact_before
+#print axioms Yulang.GeneralDeclarativeStoppedDepthView341.exact_rhs
+#print axioms Yulang.GeneralDeclarativeStoppedDepthView341.no_promoted_targets
+#print axioms Yulang.GeneralDeclarativeStoppedDepthView341.current_model
+#print axioms Yulang.GeneralDeclarativeStoppedDisplayModern341.promote
+#print axioms Yulang.GeneralDeclarativeStoppedDisplay341.all_current
+#print axioms Yulang.GeneralDeclarativeStoppedDisplay341.actual_success
