@@ -1,0 +1,53 @@
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      ∀ (kids : List Yulang.GeneralDeclarativeDemand320.Demand)
+        (children : List Yulang.CommonRoleOutermostResolver.Tree)
+        (dicts : List Yulang.CommonRoleOutermostResolver.Dictionary),
+        (∀ (d : Yulang.GeneralDeclarativeDemand320.Demand),
+            d ∈ kids → Yulang.GeneralDeclarativeOutputSource323.Declared r d) →
+          Yulang.CommonRoleOutermostResolver.All₂
+              (Yulang.CommonRoleOutermostResolver.Resolves
+                (Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting))
+              kids children →
+            Yulang.CommonRoleOutermostResolver.All₂ Yulang.CommonRoleOutermostResolver.Summarizes children
+                (List.map Yulang.CommonRoleOutermostResolver.Result.selected dicts) →
+              Yulang.CommonRoleOutermostResolver.All₂
+                (Yulang.GeneralDeclarativeWitnessStopped334.Retained p r i waiting) kids children
+@Yulang.GeneralDeclarativeWitnessStopped334.selected_iff_retained : ∀ {done : Nat → Prop}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {dict : Yulang.CommonRoleOutermostResolver.Dictionary},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+        (Yulang.CommonRoleOutermostResolver.Classify (Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting) d
+            (Yulang.CommonRoleOutermostResolver.Result.selected dict) ↔
+          ∃ tree,
+            Yulang.GeneralDeclarativeWitnessStopped334.Retained p r i waiting d tree ∧
+              Yulang.CommonRoleOutermostResolver.Summarizes tree
+                (Yulang.CommonRoleOutermostResolver.Result.selected dict))
+@Yulang.GeneralDeclarativeWitnessVerdict334.verdict_functional : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {a b : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting d a →
+      Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting d b →
+        Yulang.GeneralDeclarativeWitnessVerdict334.verdict a = Yulang.GeneralDeclarativeWitnessVerdict334.verdict b
+@Yulang.GeneralDeclarativeWitnessVerdict334.only_lists_can_differ : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {a b : Yulang.CommonRoleOutermostResolver.Frontier Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting d a →
+      Yulang.GeneralDeclarativeWitnessClassify334.Rule p r i waiting d b →
+        a ≠ b →
+          ∃ key one two,
+            a = Yulang.CommonRoleOutermostResolver.Frontier.selected key one ∧
+              b = Yulang.CommonRoleOutermostResolver.Frontier.selected key two ∧ one ≠ two
