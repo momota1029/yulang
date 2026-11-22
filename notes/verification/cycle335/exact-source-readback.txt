@@ -1,0 +1,18 @@
+'Yulang.GeneralStoppedSourceRefinement335.normal_preserved' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedSourceRefinement335.preserves' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedSourceRefinement335.stopped_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedScalarStorage335.storage_of_inhabited' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedScalarStorage335.inhabited_refinement' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedProjectedTrace335.lowered_point_closed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedProjectedTrace335.step_refinement' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedProjectedTrace335.sources_preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedProjectedTrace335.source_slice' depends on axioms: [propext, Classical.choice, Quot.sound]
+'display_trace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayLiteral335.actual_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayCut335.not_same_literal_child' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayOriginal335.actual_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayHistory335.selected_not_installed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralStoppedCanonicalChoice335.election_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+exact replay exit: 0

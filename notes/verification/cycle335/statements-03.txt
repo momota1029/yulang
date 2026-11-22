@@ -1,0 +1,169 @@
+    Yulang.GeneralStoppedDisplayProjection335.parentDemand Yulang.GeneralDeclarationExamples.display
+    Yulang.GeneralStoppedDisplayProjection335.ordinary Yulang.GeneralStoppedDisplayCut335.sourceSpans
+    Yulang.GeneralStoppedDisplayCut335.protect Yulang.GeneralStoppedDisplayCut335.fallback
+    Yulang.GeneralStoppedDisplayCut335.targets =
+  some (Yulang.GeneralStoppedDisplayProjection335.ordinary, [Yulang.GeneralStoppedDisplayProjection335.childDemand])
+Yulang.GeneralStoppedDisplayLiteral335.direct_child : Yulang.GeneralStoppedLiteralCompiler335.compile
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+    Yulang.GeneralStoppedDisplayProjection335.childDemand Yulang.GeneralNominalExamples.intDisplay
+    Yulang.GeneralStoppedDisplayProjection335.ordinary [] Yulang.GeneralStoppedDisplayCut335.protect
+    Yulang.GeneralStoppedDisplayCut335.fallback Yulang.GeneralStoppedDisplayCut335.targets =
+  some (Yulang.GeneralStoppedDisplayProjection335.ordinary, [])
+Yulang.GeneralStoppedDisplayLiteral335.ordered_tree : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify
+    (Yulang.GeneralStoppedLiteralWitness335.Rule (Yulang.GeneralStoppedDisplayProjection335.supported done)
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+      Yulang.GeneralStoppedDisplayGuard335.waiting)
+    Yulang.GeneralStoppedDisplayProjection335.parentDemand
+    (Yulang.CommonRoleOutermostResolver.Result.selected
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []]))
+@Yulang.GeneralStoppedDisplayLiteral335.actual_success : ∀ {key : Nat}
+  {phase : Yulang.GeneralRebaseDisplayExecutor276.Phase} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  (done : Nat → Prop),
+  Yulang.GeneralRebaseDisplayExecutor276.run key = some (phase, payload) →
+    Yulang.CommonRoleOutermostResolver.Classify
+        (Yulang.GeneralStoppedLiteralWitness335.Rule (Yulang.GeneralStoppedDisplayProjection335.supported done)
+          Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+          Yulang.GeneralStoppedDisplayGuard335.waiting)
+        Yulang.GeneralStoppedDisplayProjection335.parentDemand
+        (Yulang.CommonRoleOutermostResolver.Result.selected payload) ∧
+      ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+        (Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralStoppedDisplayProjection335.ordinary m ↔
+            Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralRebaseDisplayExecutor276.raw phase) m) ∧
+          (Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralRebaseDisplayExecutor276.raw phase) m →
+            Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralNominalExamples.registry
+              Yulang.GeneralNominalExamples.interpretation m Yulang.GeneralStoppedDisplayProjection335.parentDemand
+              payload)
+Yulang.GeneralStoppedDisplayLiteral335.inhabited : ∀ (done : Nat → Prop),
+  ∃ m,
+    Yulang.GeneralNominalVersionedJournal232.Models
+        (Yulang.GeneralRebaseDisplayExecutor276.raw Yulang.GeneralRebaseDisplayExecutor276.Phase.settled) m ∧
+      Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralNominalExamples.registry
+        Yulang.GeneralNominalExamples.interpretation m Yulang.GeneralStoppedDisplayProjection335.parentDemand
+        (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []])
+Yulang.GeneralStoppedDisplayOriginal335.exact_original_dictionary : ∀ (done : Nat → Prop),
+  Yulang.CommonRoleOutermostResolver.Classify
+    (Yulang.GeneralDeclarativeWitnessClassify334.Rule (Yulang.GeneralStoppedDisplayExtended335.augmented done)
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+      Yulang.GeneralStoppedDisplayGuard335.waiting)
+    Yulang.GeneralStoppedDisplayProjection335.parentDemand
+    (Yulang.CommonRoleOutermostResolver.Result.selected
+      (Yulang.CommonRoleOutermostResolver.Dictionary.node 1 [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []]))
+Yulang.GeneralStoppedDisplayOriginal335.finite_replayed : ∀ (done : Nat → Prop),
+  ∃ tree,
+    Yulang.GeneralDeclarativeWitnessStopped334.Retained (Yulang.GeneralStoppedDisplayExtended335.augmented done)
+        Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+        Yulang.GeneralStoppedDisplayGuard335.waiting Yulang.GeneralStoppedDisplayProjection335.parentDemand tree ∧
+      Yulang.CommonRoleOutermostResolver.Summarizes tree
+        (Yulang.CommonRoleOutermostResolver.Result.selected
+          (Yulang.CommonRoleOutermostResolver.Dictionary.node 1
+            [Yulang.CommonRoleOutermostResolver.Dictionary.node 3 []]))
+@Yulang.GeneralStoppedDisplayOriginal335.actual_success : ∀ {key : Nat}
+  {phase : Yulang.GeneralRebaseDisplayExecutor276.Phase} {payload : Yulang.GeneralDictionaryReadback.Payload}
+  (done : Nat → Prop),
+  Yulang.GeneralRebaseDisplayExecutor276.run key = some (phase, payload) →
+    Yulang.CommonRoleOutermostResolver.Classify
+        (Yulang.GeneralDeclarativeWitnessClassify334.Rule (Yulang.GeneralStoppedDisplayExtended335.augmented done)
+          Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+          Yulang.GeneralStoppedDisplayGuard335.waiting)
+        Yulang.GeneralStoppedDisplayProjection335.parentDemand
+        (Yulang.CommonRoleOutermostResolver.Result.selected payload) ∧
+      Yulang.GeneralStoppedPlacement335.SameDemand Yulang.GeneralStoppedDisplayExtended335.expanded
+          Yulang.GeneralStoppedDisplayProjection335.childDemand Yulang.GeneralStoppedDisplayCut335.reminted ∧
+        ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+          Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralRebaseDisplayExecutor276.raw phase) m →
+            ∃ n,
+              Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralStoppedDisplayExtended335.expanded n ∧
+                (∀ (name : Nat),
+                    name ∈ Yulang.GeneralDeclarativeFootprint321.stateNames Yulang.GeneralStoppedDisplayCut335.closed →
+                      n name = m name) ∧
+                  Yulang.GeneralNominalVersionedJournal232.Models (Yulang.GeneralRebaseDisplayExecutor276.raw phase) n ∧
+                    Yulang.GeneralDeclarativeEvidence320.Evidence Yulang.GeneralNominalExamples.registry
+                      Yulang.GeneralNominalExamples.interpretation n
+                      Yulang.GeneralStoppedDisplayProjection335.parentDemand payload
+Yulang.GeneralStoppedDisplayProjection335.terminal_atoms : Yulang.GeneralStoppedDisplayProjection335.ordinary.normal.ordinary =
+  Yulang.GeneralStoppedDisplayProjection335.initialOrdinary.normal.ordinary ++
+    Yulang.GeneralStoppedDisplayProjection335.diagonal
+Yulang.GeneralStoppedDisplayProjection335.initial_read : Yulang.GeneralStoppedLower335.lower
+    Yulang.GeneralRebaseDisplayFrame276.before.core.erased.current.context.state =
+  some Yulang.GeneralStoppedDisplayProjection335.initialOrdinary
+Yulang.GeneralStoppedDisplayProjection335.stopped_read : Yulang.GeneralStoppedLower335.lower
+    Yulang.GeneralRebaseDisplayFrame276.after.core.erased.current.context.state =
+  some Yulang.GeneralStoppedDisplayProjection335.ordinary
+Yulang.GeneralStoppedDisplayProjection335.actual_model : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralStoppedDisplayProjection335.ordinary m ↔
+    Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralRebaseDisplayFrame276.after m
+Yulang.GeneralStoppedDisplayProjection335.list_allowed : ∀ (done : Nat → Prop),
+  Yulang.GeneralStoppedDisplayProjection335.listRow ∈
+    (Yulang.GeneralDeclarativeOrigins321.restriction
+        (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations
+Yulang.GeneralStoppedDisplayProjection335.int_allowed : ∀ (done : Nat → Prop),
+  Yulang.GeneralStoppedDisplayProjection335.scalarRow ∈
+    (Yulang.GeneralDeclarativeOrigins321.restriction
+        (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations
+Yulang.GeneralStoppedDisplayProjection335.exact_parent : Yulang.GeneralStoppedOrdinarySite335.occurrence
+    (Yulang.GeneralNominalCenters.rootSite (Yulang.GeneralNominalExamples.state true).seed
+      Yulang.GeneralNominalExamples.displayRoot) =
+  (Yulang.GeneralNominalExamples.displayRoot.identity, Yulang.GeneralStoppedDisplayProjection335.parentDemand)
+Yulang.GeneralStoppedDisplayProjection335.exact_child : Yulang.GeneralStoppedOrdinarySite335.occurrence
+    Yulang.GeneralNominalNonleafPlan193.centerSite =
+  (Yulang.GeneralNominalExamples.displayChild.identity, Yulang.GeneralStoppedDisplayProjection335.childDemand)
+Yulang.GeneralStoppedDisplayProjection335.stopped_sites : List.map Yulang.GeneralStoppedOrdinarySite335.occurrence
+    Yulang.GeneralRebaseDisplayFrame276.after.core.sites =
+  [(Yulang.GeneralNominalExamples.displayRoot.identity, Yulang.GeneralStoppedDisplayProjection335.parentDemand),
+    (Yulang.GeneralNominalExamples.displayChild.identity, Yulang.GeneralStoppedDisplayProjection335.childDemand)]
+Yulang.GeneralStoppedDisplayProjection335.reached : Yulang.B4Target.Steps
+  (Yulang.GeneralNominalVersionedMixedKernel234.Step Yulang.GeneralNominalExamples.registry
+    Yulang.GeneralNominalExamples.displayRoot)
+  Yulang.GeneralRebaseDisplayFrame276.before Yulang.GeneralRebaseDisplayFrame276.after
+Yulang.GeneralStoppedDisplayProjection335.halted : ∀
+  (later : Yulang.GeneralNominalVersionedJournal232.State Yulang.GeneralDeclarationExamples.roles),
+  ¬Yulang.GeneralNominalVersionedMixedKernel234.Step Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalExamples.displayRoot Yulang.GeneralRebaseDisplayFrame276.after later
+@Yulang.GeneralStoppedInstallHistory335.roll : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start before after : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start before effect →
+    Yulang.GeneralNominalVersionedMixedKernel234.Step registry root before after →
+      Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start after effect
+@Yulang.GeneralStoppedInstallHistory335.administrative_effects : ∀ {roles : Yulang.Roles.RoleDecls}
+  {focus : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {before after : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralNominalVersionedMixedKernel234.Administrative before focus after → after.effects = before.effects
+@Yulang.GeneralStoppedInstallHistory335.effects_origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start final →
+    effect ∈ final.effects →
+      effect ∈ start.effects ∨ Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect
+@Yulang.GeneralStoppedInstallHistory335.installed_origin : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.B4Target.Steps (Yulang.GeneralNominalVersionedMixedKernel234.Step registry root) start final →
+    start.effects = [] →
+      effect ∈ final.effects → Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect
+@Yulang.GeneralStoppedInstallHistory335.retained_sites : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect →
+    Yulang.GeneralNominalVersionedChildren232.emitted effect.plan ⊆ final.core.sites ∧
+      Yulang.GeneralNominalVersionedChildren232.edges effect.plan ⊆ final.core.erased.current.edges
+@Yulang.GeneralStoppedInstallHistory335.retained_projected : ∀ {roles : Yulang.Roles.RoleDecls}
+  {effect : Yulang.GeneralNominalVersionedJournal232.Effect roles} {registry : Yulang.GeneralDeclarations.Registry}
+  {root : Yulang.GeneralSourceDictionaries.Occurrence roles}
+  {start final : Yulang.GeneralNominalVersionedJournal232.State roles},
+  Yulang.GeneralStoppedInstallHistory335.InstalledBetween registry root start final effect →
+    List.map Prod.fst
+          (List.map Yulang.GeneralStoppedOrdinarySite335.occurrence
+            (Yulang.GeneralNominalVersionedChildren232.emitted effect.plan)) =
+        List.map Yulang.GeneralSourceDictionaries.Occurrence.identity
+          (Yulang.GeneralNominalVersionedFrame231.children effect.plan.packet) ∧
+      ∀ (site : Yulang.GeneralNominalCenters.Site roles),
+        site ∈ Yulang.GeneralNominalVersionedChildren232.emitted effect.plan →
+          site ∈ final.core.sites ∧
+            (effect.plan.packet.site.occurrence, site.occurrence) ∈ final.core.erased.current.edges ∧
+              (Yulang.GeneralStoppedOrdinarySite335.demand site).outputs = site.occurrence.demand.outputs

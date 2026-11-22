@@ -2,7 +2,7 @@
 
 ## 今回の範囲
 
-01:30 UTC 枠。開始 2026-11-22 01:34:48 UTC、報告時刻 （実 50.0 分）。終了前の integration は （指示・spec の 3 blob は開始時と同一）。開始時の `integration/m1-final` は `e60c9f2240e4a9eaf5b5ef85bc107a3acf4c1960`。standing orders、inbox（I-60）、spec §6.3/6.5 と直前完了版 `eebbb67128b5e09524bb4c0cae0bb6e2f249ddda` を確認。I-58 の選定後の実中心等式と、I-59 の狭い根 K2 を変更せず、I-60 の新分類で (4) を先に証明し、旧定義との対応、(2) を別に扱った。変更先は `work/dots-main` のみ（expected-head、nonforce）。主証明・独立監査の固定 pin は `dbbce5897c89b27ed508797271429173d53b9d02`。
+01:30 UTC 枠。開始 2026-11-22 01:34:48 UTC、報告時刻 2026-11-22T02:24:49Z（実 50.0 分）。終了前の integration は e60c9f2240e4a9eaf5b5ef85bc107a3acf4c1960（指示・spec の 3 blob は開始時と同一）。開始時の `integration/m1-final` は `e60c9f2240e4a9eaf5b5ef85bc107a3acf4c1960`。standing orders、inbox（I-60）、spec §6.3/6.5 と直前完了版 `eebbb67128b5e09524bb4c0cae0bb6e2f249ddda` を確認。I-58 の選定後の実中心等式と、I-59 の狭い根 K2 を変更せず、I-60 の新分類で (4) を先に証明し、旧定義との対応、(2) を別に扱った。変更先は `work/dots-main` のみ（expected-head、nonforce）。主証明・独立監査の固定 pin は `dbbce5897c89b27ed508797271429173d53b9d02`。
 
 ## (4) 証人つき分類の辞書健全性：残り 0 群
 

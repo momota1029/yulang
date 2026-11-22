@@ -1,0 +1,13 @@
+'Yulang.GeneralStoppedInstallHistory335.effects_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedInstallHistory335.retained_projected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedInstallHistory335.saved_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayHistory335.root_installed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralStoppedDisplayHistory335.selected_not_installed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralStoppedLowerOrigin335.exact_rows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedLowerOrigin335.named_origin_transport' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedCanonical335.source_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedCanonical335.source_coverage' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedCanonical335.ordinary_canonical_eq' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedCanonical335.literal_canonical_eq' depends on axioms: [propext, Quot.sound]

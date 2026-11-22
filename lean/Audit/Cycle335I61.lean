@@ -1,0 +1,8 @@
+import Yulang.GeneralStoppedI61Endpoint335
+
+#print axioms Yulang.GeneralStoppedI61Endpoint335.center_is_record
+#print axioms Yulang.GeneralStoppedI61Endpoint335.present_iff
+#print axioms Yulang.GeneralStoppedI61Endpoint335.Cut.no_center_present
+#print axioms Yulang.GeneralStoppedI61Endpoint335.Cut.projection_is_conservative
+#print axioms Yulang.GeneralStoppedI61Endpoint335.Cut.actual_selected
+#print axioms Yulang.GeneralStoppedI61Endpoint335.Cut.actual_repaired

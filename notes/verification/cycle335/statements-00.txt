@@ -1,0 +1,182 @@
+Yulang.GeneralStoppedCanonical335.declaration_reorders : ∀ (d : Yulang.GeneralDeclarations.Declaration),
+  Yulang.GeneralRegistryReordering.DeclarationReorders d (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration d)
+Yulang.GeneralStoppedCanonical335.source_reorders : ∀ (r : Yulang.GeneralDeclarations.Registry),
+  Yulang.GeneralRegistryReordering.Reorders r (Yulang.GeneralStoppedCanonical335.sourceCanonical r)
+@Yulang.GeneralStoppedCanonical335.source_checked : ∀ {r : Yulang.GeneralDeclarations.Registry},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralDeclarations.Checked (Yulang.GeneralStoppedCanonical335.sourceCanonical r)
+@Yulang.GeneralStoppedCanonical335.source_coverage : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation},
+  Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage (Yulang.GeneralStoppedCanonical335.sourceCanonical r) i
+@Yulang.GeneralStoppedCanonical335.ordinary_canonical_eq : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)}
+  {keep : List Nat} {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat} (first last : Yulang.GeneralDeclarations.Declaration),
+  Yulang.GeneralRegistryReordering.DeclarationReorders first last →
+    Yulang.GeneralDeclarations.DeclarationChecked r.constructors r.roles first →
+      Yulang.GeneralDeclarativeNestedBody332.compileBody r i d
+          (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration first) s spans keep fallback targets =
+        Yulang.GeneralDeclarativeNestedBody332.compileBody r i d
+          (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration last) s spans keep fallback targets
+@Yulang.GeneralStoppedCanonical335.literal_canonical_eq : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {s : Yulang.GeneralDeclarativeHead320.State} {spans : List (Nat × Yulang.GeneralDeclarativeWhere319.Capture)}
+  {keep : List Nat} {fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture}
+  {targets : Yulang.GeneralDeclarations.Clause → Nat → Nat} (first last : Yulang.GeneralDeclarations.Declaration),
+  Yulang.GeneralRegistryReordering.DeclarationReorders first last →
+    Yulang.GeneralDeclarations.DeclarationChecked r.constructors r.roles first →
+      Yulang.GeneralStoppedLiteralCompiler335.compile r i d
+          (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration first) s spans keep fallback targets =
+        Yulang.GeneralStoppedLiteralCompiler335.compile r i d
+          (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration last) s spans keep fallback targets
+@Yulang.GeneralStoppedCanonicalChoice335.same_probe : ∀ {done : Nat → Prop} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} (r : Yulang.GeneralDeclarations.Registry)
+  (i : Yulang.GeneralNominalInspection.Interpretation)
+  (wait : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop)
+  (d : Yulang.GeneralDeclarativeDemand320.Demand) (impl : Yulang.GeneralDeclarations.Declaration),
+  (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p (Yulang.GeneralStoppedCanonical335.sourceCanonical r) i
+          wait).viable
+      d (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration impl) ↔
+    (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i wait).viable d impl
+@Yulang.GeneralStoppedCanonicalChoice335.survives_forward : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {impl : Yulang.GeneralDeclarations.Declaration}
+  {s : Yulang.GeneralDeclarativeHead320.State} {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  Yulang.GeneralDeclarativePriority321.Survives r (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i waiting)
+      d impl →
+    Yulang.GeneralDeclarativePriority321.Survives (Yulang.GeneralStoppedCanonical335.sourceCanonical r)
+      (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p (Yulang.GeneralStoppedCanonical335.sourceCanonical r) i
+        waiting)
+      d (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration impl)
+@Yulang.GeneralStoppedCanonicalChoice335.survives_prior : ∀ {done : Nat → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done} {impl : Yulang.GeneralDeclarations.Declaration},
+  impl ∈ r.declarations →
+    Yulang.GeneralDeclarativePriority321.Survives (Yulang.GeneralStoppedCanonical335.sourceCanonical r)
+        (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p (Yulang.GeneralStoppedCanonical335.sourceCanonical r) i
+          waiting)
+        d (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration impl) →
+      Yulang.GeneralDeclarativePriority321.Survives r
+        (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i waiting) d impl
+@Yulang.GeneralStoppedCanonicalChoice335.blocked_iff : ∀ {done : Nat → Prop}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  (p : Yulang.GeneralDeclarativeOrigins321.Supported s done),
+  Yulang.GeneralStoppedCanonicalChoice335.SameWait waiting →
+    (Yulang.GeneralDeclarativePriority321.Blocked (Yulang.GeneralStoppedCanonical335.sourceCanonical r)
+        (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p (Yulang.GeneralStoppedCanonical335.sourceCanonical r) i
+          waiting)
+        d ↔
+      Yulang.GeneralDeclarativePriority321.Blocked r
+        (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i waiting) d)
+@Yulang.GeneralStoppedCanonicalChoice335.recurs_iff : ∀ {done : Nat → Prop} {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  (p : Yulang.GeneralDeclarativeOrigins321.Supported s done),
+  Yulang.GeneralDeclarativePriority321.Recurs s (Yulang.GeneralStoppedCanonical335.sourceCanonical r) i
+      (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p (Yulang.GeneralStoppedCanonical335.sourceCanonical r) i
+        waiting)
+      d ↔
+    Yulang.GeneralDeclarativePriority321.Recurs s r i
+      (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i waiting) d
+@Yulang.GeneralStoppedCanonicalChoice335.election_exact : ∀ {done : Nat → Prop}
+  {impl : Yulang.GeneralDeclarations.Declaration}
+  {waiting : Yulang.GeneralDeclarativeDemand320.Demand → Yulang.GeneralDeclarations.Declaration → Prop}
+  {r : Yulang.GeneralDeclarations.Registry} {i : Yulang.GeneralNominalInspection.Interpretation}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand} {s : Yulang.GeneralDeclarativeHead320.State}
+  {p : Yulang.GeneralDeclarativeOrigins321.Supported s done},
+  impl ∈ r.declarations →
+    Yulang.GeneralStoppedCanonicalChoice335.SameWait waiting →
+      (Yulang.GeneralDeclarativeStableAttempt329.Elected s r i p
+          (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p r i waiting) d impl ↔
+        Yulang.GeneralDeclarativeStableAttempt329.Elected s (Yulang.GeneralStoppedCanonical335.sourceCanonical r) i p
+          (Yulang.GeneralDeclarativeInlineEndpoint331.candidates p (Yulang.GeneralStoppedCanonical335.sourceCanonical r)
+            i waiting)
+          d (Yulang.GeneralCanonicalChildOrder.canonicalDeclaration impl))
+@Yulang.GeneralStoppedDisplayChoice335.right_of_row : ∀ {done : Nat → Prop} {n : Nat}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  { left := n, right := e } ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations →
+    n = 0 ∧ e = Yulang.GeneralStoppedDisplayProjection335.listRow.right ∨
+      n = 1 ∧ e = Yulang.GeneralStoppedDisplayProjection335.scalarRow.right
+@Yulang.GeneralStoppedDisplayChoice335.row_zero : ∀ {done : Nat → Prop}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  { left := 0, right := e } ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations →
+    e = Yulang.GeneralStoppedDisplayProjection335.listRow.right
+@Yulang.GeneralStoppedDisplayChoice335.row_one : ∀ {done : Nat → Prop}
+  {e : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  { left := 1, right := e } ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations →
+    e = Yulang.GeneralStoppedDisplayProjection335.scalarRow.right
+@Yulang.GeneralStoppedDisplayChoice335.no_prefix : ∀ {done : Nat → Prop} {owner rest : Nat}
+  {front : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  { left := owner,
+        right :=
+          Yulang.GeneralDeclarativeRecordResidual323.withTail front
+            (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable rest) } ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations →
+    False
+@Yulang.GeneralStoppedDisplayChoice335.no_ending : ∀ {last : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {done : Nat → Prop} {owner : Nat}
+  {fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativeRecordSpine330.Terminal last →
+    { left := owner, right := Yulang.GeneralDeclarativeRecordResidual323.withTail fields last } ∈
+        (Yulang.GeneralDeclarativeOrigins321.restriction
+            (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations →
+      False
+@Yulang.GeneralStoppedDisplayChoice335.no_spine : ∀ {done : Nat → Prop} {n : Nat}
+  {fields : Yulang.CommonRoleCanonicalRows.Row Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {tail : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr},
+  Yulang.GeneralDeclarativeRecordSpine330.Spine
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done)) n
+      fields tail →
+    False
+@Yulang.GeneralStoppedDisplayChoice335.starts : ∀ {done : Nat → Prop} {mode : Yulang.GeneralNominalMaterialization.Mode}
+  {n : Nat} {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeInlineTrace331.Read
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done)) mode
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable n) code used →
+    (∃ name, code = Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable name) ∨
+      ∃ owner rhs,
+        Yulang.GeneralDeclarativeLowerKnown321.Alias
+            (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done))
+            n owner ∧
+          { left := owner, right := rhs } ∈
+              (Yulang.GeneralDeclarativeOrigins321.restriction
+                  (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations ∧
+            Yulang.GeneralDeclarativeInlineTrace331.Read
+              (Yulang.GeneralDeclarativeOrigins321.restriction
+                (Yulang.GeneralStoppedDisplayProjection335.supported done))
+              mode rhs code used
+@Yulang.GeneralStoppedDisplayChoice335.nominal_stays : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {n : Nat}
+  {src : List Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeInlineTrace331.Read
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done)) mode
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal n src) code used →
+    (∃ name, code = Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable name) ∨
+      ∃ args, code = Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.nominal n args
+@Yulang.GeneralStoppedDisplayChoice335.int_stays : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {code : Yulang.GeneralNominalCenteredHeadMatExpressions.Expr}
+  {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeInlineTrace331.Read
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done)) mode
+      Yulang.GeneralStoppedDisplayGuard335.intCode code used →
+    (∃ name, code = Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable name) ∨
+      ∃ args,
+        code =

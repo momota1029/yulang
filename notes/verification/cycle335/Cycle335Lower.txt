@@ -1,0 +1,7 @@
+'Yulang.GeneralStoppedShape335.descriptor_semantics' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedShape335.head_semantics' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedLower335.collect_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedLower335.exact_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralStoppedOrdinarySite335.each_argument' depends on axioms: [propext]
+'Yulang.GeneralStoppedOrdinarySite335.output_targets' does not depend on any axioms
+'Yulang.GeneralStoppedOrdinarySite335.retained_order' depends on axioms: [propext]

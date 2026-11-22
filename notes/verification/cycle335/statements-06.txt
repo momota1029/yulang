@@ -1,0 +1,24 @@
+  (g : Yulang.GeneralNominalRefinements.Refines before after),
+  Yulang.GeneralNominalRebaseRawView243.slot after.base Yulang.Core.PresenceGeneration.CompTerm.var ∘ g.base.embed =
+    Yulang.GeneralNominalRebaseRawView243.slot before.base Yulang.Core.PresenceGeneration.CompTerm.var
+@Yulang.GeneralStoppedSourceRefinement335.normal_preserved : ∀ {before after : Yulang.GeneralNominalState.State}
+  (g : Yulang.GeneralNominalRefinements.Refines before after),
+  (Yulang.GeneralStoppedLower335.normal before).ordinary ⊆ (Yulang.GeneralStoppedLower335.normal after).ordinary ∧
+    (Yulang.GeneralStoppedLower335.normal before).intervals ⊆ (Yulang.GeneralStoppedLower335.normal after).intervals
+@Yulang.GeneralStoppedSourceRefinement335.scalar_preserved : ∀ {before after : Yulang.GeneralNominalState.State}
+  {row : Yulang.GeneralDeclarativeHead320.Equation} (g : Yulang.GeneralNominalRefinements.Refines before after),
+  Yulang.GeneralStoppedSourceRefinement335.ScalarStorage before after g →
+    Yulang.GeneralStoppedLowerOrigin335.ScalarRow before row → Yulang.GeneralStoppedLowerOrigin335.ScalarRow after row
+@Yulang.GeneralStoppedSourceRefinement335.projected_normal : ∀ {raw : Yulang.GeneralNominalState.State}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralStoppedLower335.lower raw = some s → s.normal = Yulang.GeneralStoppedLower335.normal raw
+@Yulang.GeneralStoppedSourceRefinement335.preserves : ∀ {before after : Yulang.GeneralNominalState.State}
+  {s t : Yulang.GeneralDeclarativeHead320.State} (g : Yulang.GeneralNominalRefinements.Refines before after),
+  Yulang.GeneralStoppedSourceRefinement335.ScalarStorage before after g →
+    Yulang.GeneralStoppedLower335.lower before = some s →
+      Yulang.GeneralStoppedLower335.lower after = some t → Yulang.GeneralDeclarativeGrowth327.Extends s t
+@Yulang.GeneralStoppedSourceRefinement335.stopped_models : ∀ {roles : Yulang.Roles.RoleDecls}
+  {s : Yulang.GeneralDeclarativeHead320.State} {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  (raw : Yulang.GeneralNominalVersionedJournal232.State roles),
+  Yulang.GeneralStoppedLower335.lower raw.core.erased.current.context.state = some s →
+    Yulang.GeneralNominalVersionedJournal232.Models raw m → Yulang.GeneralDeclarativeHead320.Models s m

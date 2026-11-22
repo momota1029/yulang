@@ -1,0 +1,171 @@
+          Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.primitive
+            (Yulang.GeneralCandidateInspection.Primitive.scalar Yulang.Inference.Base.int) args
+@Yulang.GeneralStoppedDisplayChoice335.wrong_trace_scalar : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {used : List Yulang.GeneralDeclarativeTrace321.Occurrence},
+  Yulang.GeneralDeclarativeTrace321.Trace
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done)) mode
+      0 Yulang.GeneralStoppedDisplayGuard335.intCode used →
+    False
+@Yulang.GeneralStoppedDisplayChoice335.wrong_trace_list : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {used : List Yulang.GeneralDeclarativeTrace321.Occurrence},
+  Yulang.GeneralDeclarativeTrace321.Trace
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done)) mode
+      1 Yulang.GeneralStoppedDisplayGuard335.listCode used →
+    False
+@Yulang.GeneralStoppedDisplayChoice335.wrong_inline_scalar : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeInlineTrace331.Read
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done)) mode
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 0) Yulang.GeneralStoppedDisplayGuard335.intCode
+      used →
+    False
+@Yulang.GeneralStoppedDisplayChoice335.wrong_inline_list : ∀ {done : Nat → Prop}
+  {mode : Yulang.GeneralNominalMaterialization.Mode} {used : List Yulang.GeneralDeclarativeTermWalk322.Occurrence},
+  Yulang.GeneralDeclarativeInlineTrace331.Read
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done)) mode
+      (Yulang.GeneralNominalCenteredHeadMatExpressions.Expr.variable 1) Yulang.GeneralStoppedDisplayGuard335.listCode
+      used →
+    False
+@Yulang.GeneralStoppedDisplayChoice335.no_parent_scalar : ∀ {done : Nat → Prop},
+  ¬(Yulang.GeneralDeclarativeInlineEndpoint331.candidates (Yulang.GeneralStoppedDisplayProjection335.supported done)
+          Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+          Yulang.GeneralStoppedDisplayGuard335.waiting).viable
+      Yulang.GeneralStoppedDisplayProjection335.parentDemand Yulang.GeneralNominalExamples.intDisplay
+@Yulang.GeneralStoppedDisplayChoice335.no_child_list : ∀ {done : Nat → Prop},
+  ¬(Yulang.GeneralDeclarativeInlineEndpoint331.candidates (Yulang.GeneralStoppedDisplayProjection335.supported done)
+          Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+          Yulang.GeneralStoppedDisplayGuard335.waiting).viable
+      Yulang.GeneralStoppedDisplayProjection335.childDemand Yulang.GeneralDeclarationExamples.display
+Yulang.GeneralStoppedDisplayChoice335.parent_choice : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeStableAttempt329.Elected Yulang.GeneralStoppedDisplayProjection335.ordinary
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+    (Yulang.GeneralStoppedDisplayProjection335.supported done)
+    (Yulang.GeneralDeclarativeInlineEndpoint331.candidates (Yulang.GeneralStoppedDisplayProjection335.supported done)
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+      Yulang.GeneralStoppedDisplayGuard335.waiting)
+    Yulang.GeneralStoppedDisplayProjection335.parentDemand Yulang.GeneralDeclarationExamples.display
+Yulang.GeneralStoppedDisplayChoice335.child_choice : ∀ (done : Nat → Prop),
+  Yulang.GeneralDeclarativeStableAttempt329.Elected Yulang.GeneralStoppedDisplayProjection335.ordinary
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+    (Yulang.GeneralStoppedDisplayProjection335.supported done)
+    (Yulang.GeneralDeclarativeInlineEndpoint331.candidates (Yulang.GeneralStoppedDisplayProjection335.supported done)
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+      Yulang.GeneralStoppedDisplayGuard335.waiting)
+    Yulang.GeneralStoppedDisplayProjection335.childDemand Yulang.GeneralNominalExamples.intDisplay
+Yulang.GeneralStoppedDisplayCut335.literal_state : Yulang.GeneralStoppedDisplayProjection335.ordinary =
+  Yulang.GeneralStoppedDisplayCut335.closed
+Yulang.GeneralStoppedDisplayCut335.actual_children : Option.map Prod.snd
+    (Yulang.GeneralDeclarativeNestedBody332.compileBody Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalExamples.interpretation Yulang.GeneralStoppedDisplayProjection335.parentDemand
+      Yulang.GeneralDeclarationExamples.display Yulang.GeneralStoppedDisplayProjection335.ordinary
+      Yulang.GeneralStoppedDisplayCut335.sourceSpans Yulang.GeneralStoppedDisplayCut335.protect
+      Yulang.GeneralStoppedDisplayCut335.fallback Yulang.GeneralStoppedDisplayCut335.targets) =
+  some [Yulang.GeneralStoppedDisplayCut335.reminted]
+Yulang.GeneralStoppedDisplayCut335.not_same_literal_child : ∀ (expected : Yulang.GeneralDeclarativeHead320.State),
+  Yulang.GeneralDeclarativeNestedBody332.compileBody Yulang.GeneralNominalExamples.registry
+      Yulang.GeneralNominalExamples.interpretation Yulang.GeneralStoppedDisplayProjection335.parentDemand
+      Yulang.GeneralDeclarationExamples.display Yulang.GeneralStoppedDisplayProjection335.ordinary
+      Yulang.GeneralStoppedDisplayCut335.sourceSpans Yulang.GeneralStoppedDisplayCut335.protect
+      Yulang.GeneralStoppedDisplayCut335.fallback Yulang.GeneralStoppedDisplayCut335.targets ≠
+    some (expected, [Yulang.GeneralStoppedDisplayProjection335.childDemand])
+Yulang.GeneralStoppedDisplayCut335.refuses_literal_report : Yulang.GeneralDeclarativeWitnessReadout334.replay
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+    Yulang.GeneralStoppedDisplayProjection335.parentDemand Yulang.GeneralDeclarationExamples.display
+    Yulang.GeneralStoppedDisplayProjection335.ordinary Yulang.GeneralStoppedDisplayCut335.sourceSpans
+    Yulang.GeneralStoppedDisplayCut335.protect Yulang.GeneralStoppedDisplayCut335.fallback
+    Yulang.GeneralStoppedDisplayCut335.targets Yulang.GeneralDeclarationExamples.display.id
+    [Yulang.GeneralStoppedDisplayProjection335.childDemand] =
+  none
+Yulang.GeneralStoppedDisplayExtended335.written : Yulang.GeneralDeclarativeNestedBody332.compileBody
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+    Yulang.GeneralStoppedDisplayProjection335.parentDemand Yulang.GeneralDeclarationExamples.display
+    Yulang.GeneralStoppedDisplayProjection335.ordinary Yulang.GeneralStoppedDisplayCut335.sourceSpans
+    Yulang.GeneralStoppedDisplayCut335.protect Yulang.GeneralStoppedDisplayCut335.fallback
+    Yulang.GeneralStoppedDisplayCut335.targets =
+  some (Yulang.GeneralStoppedDisplayExtended335.expanded, [Yulang.GeneralStoppedDisplayCut335.reminted])
+Yulang.GeneralStoppedDisplayExtended335.child_compiles : Yulang.GeneralDeclarativeNestedBody332.compileBody
+    Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation
+    Yulang.GeneralStoppedDisplayCut335.reminted Yulang.GeneralNominalExamples.intDisplay
+    Yulang.GeneralStoppedDisplayExtended335.expanded [] Yulang.GeneralStoppedDisplayCut335.protect
+    Yulang.GeneralStoppedDisplayCut335.fallback Yulang.GeneralStoppedDisplayCut335.targets =
+  some (Yulang.GeneralStoppedDisplayExtended335.expanded, [])
+Yulang.GeneralStoppedDisplayExtended335.contains_closed : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralStoppedDisplayCut335.closed Yulang.GeneralStoppedDisplayExtended335.expanded
+Yulang.GeneralStoppedDisplayExtended335.contains_raw : Yulang.GeneralDeclarativeGrowth327.Extends
+  Yulang.GeneralStoppedDisplayProjection335.ordinary Yulang.GeneralStoppedDisplayExtended335.expanded
+Yulang.GeneralStoppedDisplayExtended335.keeps_original_rows : ∀ (done : Nat → Prop),
+  (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayExtended335.augmented done)).equations =
+    (Yulang.GeneralDeclarativeOrigins321.restriction
+        (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations
+Yulang.GeneralStoppedDisplayExtended335.placement : Yulang.GeneralStoppedPlacement335.SameDemand
+  Yulang.GeneralStoppedDisplayExtended335.expanded Yulang.GeneralStoppedDisplayProjection335.childDemand
+  Yulang.GeneralStoppedDisplayCut335.reminted
+@Yulang.GeneralStoppedDisplayExtended335.existing_names : ∀ {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {name : Nat},
+  name ∈ Yulang.GeneralDeclarativeFootprint321.stateNames Yulang.GeneralStoppedDisplayCut335.closed →
+    Yulang.GeneralStoppedDisplayExtended335.extend m name = m name
+@Yulang.GeneralStoppedDisplayExtended335.augmented_models : ∀ {m : Yulang.GeneralNominalCommonBridge.Assignment},
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralStoppedDisplayCut335.closed m →
+    Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralStoppedDisplayExtended335.expanded
+      (Yulang.GeneralStoppedDisplayExtended335.extend m)
+Yulang.GeneralStoppedDisplayExtended335.conservative : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralNominalVersionedJournal232.Models Yulang.GeneralRebaseDisplayFrame276.after m ↔
+    ∃ n,
+      Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralStoppedDisplayExtended335.expanded n ∧
+        ∀ (name : Nat),
+          name ∈ Yulang.GeneralDeclarativeFootprint321.stateNames Yulang.GeneralStoppedDisplayCut335.closed →
+            n name = m name
+Yulang.GeneralStoppedDisplayExtendedChoice335.atom_check : Yulang.GeneralStoppedDisplayExtended335.expanded.normal.ordinary.all
+    Yulang.GeneralStoppedDisplayExtendedChoice335.atomOK =
+  true
+Yulang.GeneralStoppedDisplayExtendedChoice335.interval_check : (Yulang.GeneralStoppedDisplayExtended335.expanded.normal.intervals.all
+    fun p =>
+    decide
+      (Yulang.GeneralStoppedDisplayExtendedChoice335.mark p.fst =
+        Yulang.GeneralStoppedDisplayExtendedChoice335.mark p.snd)) =
+  true
+@Yulang.GeneralStoppedDisplayExtendedChoice335.bound_mark : ∀ {a b : Nat},
+  Yulang.GeneralDeclarativeBounds319.Bound Yulang.GeneralStoppedDisplayExtended335.expanded.normal a b →
+    Yulang.GeneralStoppedDisplayExtendedChoice335.mark a = Yulang.GeneralStoppedDisplayExtendedChoice335.mark b
+@Yulang.GeneralStoppedDisplayExtendedChoice335.alias_mark : ∀ {x y : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias Yulang.GeneralStoppedDisplayExtended335.expanded x y →
+    Yulang.GeneralStoppedDisplayExtendedChoice335.mark x = Yulang.GeneralStoppedDisplayExtendedChoice335.mark y
+@Yulang.GeneralStoppedDisplayExtendedChoice335.src_original : ∀ {done : Nat → Prop}
+  {e : Yulang.GeneralDeclarativeHead320.Equation},
+  e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralStoppedDisplayExtended335.augmented done)).equations →
+    e ∈
+      (Yulang.GeneralDeclarativeOrigins321.restriction
+          (Yulang.GeneralStoppedDisplayProjection335.supported done)).equations
+@Yulang.GeneralStoppedDisplayExtendedChoice335.aliases_support : ∀ {done : Nat → Prop} {x y : Nat},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayExtended335.augmented done)) x y →
+    Yulang.GeneralStoppedDisplayExtendedChoice335.mark x = Yulang.GeneralStoppedDisplayExtendedChoice335.mark y
+Yulang.GeneralStoppedDisplayExtendedChoice335.no_cycles : ∀ (src : Nat),
+  ¬Yulang.GeneralDeclarativeK2Alias321.AliasCycle Yulang.GeneralStoppedDisplayExtended335.expanded
+      (Yulang.GeneralDeclarativeGraphRows321.observed Yulang.GeneralStoppedDisplayExtended335.expanded) src
+Yulang.GeneralStoppedDisplayExtendedChoice335.safe : ∀ (tests : Yulang.GeneralDeclarativePriority321.Candidates)
+  (d : Yulang.GeneralDeclarativeDemand320.Demand),
+  ¬Yulang.GeneralDeclarativePriority321.Recurs Yulang.GeneralStoppedDisplayExtended335.expanded
+      Yulang.GeneralNominalExamples.registry Yulang.GeneralNominalExamples.interpretation tests d
+@Yulang.GeneralStoppedDisplayExtendedChoice335.same_read_rows : ∀ {done : Nat → Prop},
+  Yulang.GeneralDeclarativeGrowth327.Extends
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayProjection335.supported done))
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayExtended335.augmented done))
+Yulang.GeneralStoppedDisplayExtendedChoice335.direct_list : ∀ (done : Nat → Prop)
+  (mode : Yulang.GeneralNominalMaterialization.Mode),
+  Yulang.GeneralDeclarativeTrace321.Trace
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayExtended335.augmented done)) mode 0
+    Yulang.GeneralStoppedDisplayGuard335.listCode
+    [{ binder := 0, mode := Yulang.GeneralNominalMaterialization.Mode.actual, argument := 1 }]
+@Yulang.GeneralStoppedDisplayExtendedChoice335.scalar_from : ∀ {src : Nat} {done : Nat → Prop},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias
+      (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayExtended335.augmented done)) src 1 →
+    ∀ (mode : Yulang.GeneralNominalMaterialization.Mode),
+      Yulang.GeneralDeclarativeTrace321.Trace
+        (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayExtended335.augmented done)) mode
+        src Yulang.GeneralStoppedDisplayGuard335.intCode []
+@Yulang.GeneralStoppedDisplayExtendedChoice335.lo_alias : ∀ {done : Nat → Prop},
+  Yulang.GeneralDeclarativeLowerKnown321.Alias
+    (Yulang.GeneralDeclarativeOrigins321.restriction (Yulang.GeneralStoppedDisplayExtended335.augmented done)) 2 1
