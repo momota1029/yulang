@@ -1,0 +1,4 @@
+TRUST0 Yulang/GeneralDeclarativeTaggedWithheld340.lean
+TRUST0 Yulang/GeneralDeclarativeTaggedLegacyCut340.lean
+TRUST0 Yulang/GeneralDeclarativeStoppedSelected340.lean
+TRUST0 Yulang/GeneralDeclarativeStoppedFold340.lean

@@ -1,0 +1,26 @@
+'Yulang.GeneralDeclarativeTaggedWithheld340.visible_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWithheld340.absent_offer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWithheld340.support_separates' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWithheld340.same_ordinary_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedWithheld340.pending_is_not_false' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedLegacyCut340.current_old_not_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeTaggedLegacyCut340.old_pending' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeTaggedLegacyCut340.exact_difference' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedSelected340.install_from_frame' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedSelected340.source_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedSelected340.source_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFold340.live_children' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFold340.dictionary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFold340.producer_necessary_for_claim' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
