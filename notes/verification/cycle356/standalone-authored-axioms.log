@@ -1,0 +1,41 @@
+'Yulang.GeneralDeclarativeWitnessMixedFront356.exact_plan_rows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedFront356.exact_authors' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedFront356.replay_in_one_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedIsolation356.compiled_scope_is_original' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedIsolation356.ordinary_mode_and_roles_not_changed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedIsolation356.exact_retained_role' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedIsolation356.real_ordinary_nodes_keep_all_candidates' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseMeaning356.guaranteed_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseMeaning356.actual_branch_facts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedReleaseMeaning356.same_models_separate_receipts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedFrontFixture356.independent_full_front_is_accepted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedFrontFixture356.cannot_author_issued_nominal_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedFrontFixture356.ordinary_source_is_separately_required' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedFrontFixture356.same_number_not_a_carrier_tag' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedFrontFixture356.has_explicit_two_carriers_on_actual_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
