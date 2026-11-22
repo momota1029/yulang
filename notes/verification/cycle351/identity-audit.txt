@@ -1,0 +1,12 @@
+'Yulang.GeneralDeclarativeWitnessIdentity351.select_sound' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessIdentity351.writer' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessIdentity351.release_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCatalog351.from_required' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCatalog351.proves_writes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthAllocation351.input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthAllocation351.exact_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthAllocation351.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthAllocation351.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthAllocation351.head' depends on axioms: [propext, Classical.choice, Quot.sound]
