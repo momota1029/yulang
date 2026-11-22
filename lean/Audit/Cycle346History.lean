@@ -1,0 +1,20 @@
+import Yulang.GeneralDeclarativeWhereStoreAdvance346
+import Yulang.GeneralDeclarativeWhereCurrent346
+import Yulang.GeneralDeclarativeWhereAttributed346
+import Yulang.GeneralDeclarativeWhereBoth346
+import Yulang.GeneralDeclarativeWhereRelease346
+import Yulang.GeneralDeclarativeWhereRevisionCut346
+#print axioms Yulang.GeneralDeclarativeWhereStoreAdvance346.under_install
+#print axioms Yulang.GeneralDeclarativeWhereCurrent346.actual_revision
+#print axioms Yulang.GeneralDeclarativeWhereCurrent346.tracked_final
+#print axioms Yulang.GeneralDeclarativeWhereCurrent346.old_upper
+#print axioms Yulang.GeneralDeclarativeWhereAttributed346.model_exact
+#print axioms Yulang.GeneralDeclarativeWhereAttributed346.exact_backing
+#print axioms Yulang.GeneralDeclarativeWhereAttributed346.retained_model
+#print axioms Yulang.GeneralDeclarativeWhereAttributed346.backed_read
+#print axioms Yulang.GeneralDeclarativeWhereBoth346.paired
+#print axioms Yulang.GeneralDeclarativeWhereRelease346.backed
+#print axioms Yulang.GeneralDeclarativeWhereRelease346.archived_excluded
+#print axioms Yulang.GeneralDeclarativeWhereRelease346.with_release
+#print axioms Yulang.GeneralDeclarativeWhereRevisionCut346.not_literal_refinement
+#print axioms Yulang.GeneralDeclarativeWhereRevisionCut346.actual_cut

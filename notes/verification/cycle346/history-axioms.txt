@@ -1,0 +1,16 @@
+'Yulang.GeneralDeclarativeWhereStoreAdvance346.under_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereCurrent346.actual_revision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereCurrent346.tracked_final' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereCurrent346.old_upper' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereAttributed346.model_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereAttributed346.exact_backing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereAttributed346.retained_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWhereAttributed346.backed_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereBoth346.paired' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRelease346.backed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRelease346.archived_excluded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRelease346.with_release' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWhereRevisionCut346.not_literal_refinement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWhereRevisionCut346.actual_cut' depends on axioms: [propext, Classical.choice, Quot.sound]
