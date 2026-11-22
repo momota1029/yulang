@@ -10,6 +10,8 @@ import Yulang.GeneralDeclarativeNestedHeadList332
 import Yulang.GeneralDeclarativeNestedIndex332
 import Yulang.GeneralDeclarativeNestedMaterial332
 import Yulang.GeneralDeclarativeNestedModels332
+import Yulang.GeneralDeclarativeNestedNegative332
+import Yulang.GeneralDeclarativeNestedNegativeCases332
 import Yulang.GeneralDeclarativeNestedOpaque332
 import Yulang.GeneralDeclarativeNestedRebuild332
 import Yulang.GeneralDeclarativeNestedRepeat332
@@ -88,6 +90,12 @@ import Yulang.GeneralDeclarativeNestedView332
 #check @Yulang.GeneralDeclarativeNestedModels332.stage_model
 #check @Yulang.GeneralDeclarativeNestedModels332.populated
 #check @Yulang.GeneralDeclarativeNestedModels332.real_nested_dictionary
+#check @Yulang.GeneralDeclarativeNestedNegative332.visible_field
+#check @Yulang.GeneralDeclarativeNestedNegative332.actual_obstruction
+#check @Yulang.GeneralDeclarativeNestedNegativeCases332.printed
+#check @Yulang.GeneralDeclarativeNestedNegativeCases332.detects_lower
+#check @Yulang.GeneralDeclarativeNestedNegativeCases332.no_false_from_inside_unknown
+#check @Yulang.GeneralDeclarativeNestedNegativeCases332.checked_point
 #check @Yulang.GeneralDeclarativeNestedOpaque332.backed
 #check @Yulang.GeneralDeclarativeNestedOpaque332.actual_dependency
 #check @Yulang.GeneralDeclarativeNestedOpaque332.wrong_path
