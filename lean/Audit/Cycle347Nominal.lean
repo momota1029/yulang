@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeNominalIntervals347
+#print axioms Yulang.GeneralDeclarativeNominalIntervals347.fits_exact
+#print axioms Yulang.GeneralDeclarativeNominalIntervals347.fits_list_exact
+#print axioms Yulang.GeneralDeclarativeNominalIntervals347.read_exact
+#print axioms Yulang.GeneralDeclarativeNominalIntervals347.observes

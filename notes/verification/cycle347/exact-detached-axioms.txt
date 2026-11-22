@@ -1,0 +1,108 @@
+'Yulang.GeneralDeclarativeNativeWhere347.absent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeWhere347.no_lookup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeWhere347.no_compiled_cell' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeWhere347.recorded_no_compiled_cell' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeWhere347.both_missing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeChild347.traces' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeChild347.current_positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNominalRevision347.prior_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNominalRevision347.current_read' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNominalRevision347.not_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNominalRevision347.exact_times' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNominalTransport347.stable_refinement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNominalTransport347.type_projection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNominalTransport347.row_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedCompound347.first_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedCompound347.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedBody347.target_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeObservedBody347.compile_one_arg' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordBody347.actual_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordBody347.compiles_actual' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeBoundary347.corrected_not_native' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRepairedEvidence347.input_output_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeRepairedEvidence347.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRoot347.actual_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRoot347.starting_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeReplay347.same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativePlacement347.exact_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativePlacement347.endpoints_of_placement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatStage347.compatible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatStage347.actual_modes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatCompile347.actual' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatInput347.exact_inputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatInput347.elected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatModels347.for_every_native_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatModels347.where_values' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRepeatModels347.exact_placement_cut' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNativeCut347.verified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNominalIntervals347.fits_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNominalIntervals347.fits_list_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNominalIntervals347.read_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNominalIntervals347.observes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRead347.low_current_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRead347.high_current_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRead347.exact_readings' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeRead347.genuinely_nonpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedTable347.location' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedTable347.exact_nominals' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNamedOrdinary347.stored_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNamedOrdinary347.ordinary_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNamedProjection347.preserves_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeNamedProjection347.current_completed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeObservedSyntax347.structural_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedSyntax347.raw_head_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedSyntax347.nominal_point_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeObservedSupport347.exact_backing' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedSupport347.child_view' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecord347.rows_backed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecord347.creates_spine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeCompound347.owner_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeCompound347.old_positions_not_current_reads' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeJournalPrefix347.previous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalRelease347.at_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalRelease347.actual_release' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalRelease347.read_after_done' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalFixture347.released_both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalFixture347.current_not_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalInput347.current_uses_real_receipts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecordPair347.order_complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecordPair347.produces' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecordExact347.materializes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoredAuthority347.exact_author' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredAuthority347.same_input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordBase347.raw_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordBase347.stored_site' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordRoute347.no_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordRoute347.same_model_at_inputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

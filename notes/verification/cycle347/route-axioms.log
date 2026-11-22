@@ -1,0 +1,26 @@
+'Yulang.GeneralDeclarativeNativeCompound347.owner_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeNativeCompound347.old_positions_not_current_reads' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeJournalPrefix347.previous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalRelease347.at_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalRelease347.actual_release' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalRelease347.read_after_done' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalFixture347.released_both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalFixture347.current_not_old' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeJournalInput347.current_uses_real_receipts' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecordPair347.order_complete' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecordPair347.produces' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeObservedRecordExact347.materializes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoredAuthority347.exact_author' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredAuthority347.same_input' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordBase347.raw_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordBase347.stored_site' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordRoute347.no_center' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoredRecordRoute347.same_model_at_inputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

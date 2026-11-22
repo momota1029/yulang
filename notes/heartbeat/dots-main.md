@@ -1,12 +1,12 @@
 # dots-main heartbeat
 
-cycle: 346
+cycle: 347
 status: completed
-started: 2026-11-22T13:33:21.797Z
-updated: 2026-11-22T14:23:23.399Z
-elapsed_min: 50.03
-activity: exact physical where inputs, fresh/reused raw evidence, and actual named descriptor / source separation
+started: 2026-11-22T14:36:45.817Z
+updated: 2026-11-22T15:20:52.245Z
+elapsed_min: 44.11
+activity: verified raw typed projection, real provenance and placement obstruction for the same C316 declaration
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
-last_local_commit: e0c2f839b07caccf162d39478ad50d71acd1df36
-report: notes/handoff/dots-cycle-346.md
-resume_hint: C346 separates real native C316 absent mode addresses from verified isolated C319 fresh/reused input. Find real native event/typed descriptor production, or independently advance I-61 supported normalization. Old Local correspondence dropped by I-62.
+last_local_commit: 13fc49ad892b2fc9b75cdd9bf1a7eca98f48e68d
+report: notes/handoff/dots-cycle-347.md
+resume_hint: C347 proves a semantic same-declaration native placement cut; continue verified current where transaction and witness-backed stopped diagnostic projection, never resurrect old Local correspondence.
