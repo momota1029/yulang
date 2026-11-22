@@ -1,0 +1,1 @@
+DECLARATIVE-DEPENDENCY-PASS: 558 C338 constants, 5916 transitive type/value dependencies

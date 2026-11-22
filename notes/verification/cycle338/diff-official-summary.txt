@@ -1,0 +1,7 @@
+verify-lean: /workspace/scratch/1d0b4aaa3394/yulang-lean-4.35.0-verified/c338/verified-detached @ ac9fb5040 (base cdfca81e37ee0b502b4b7bdf00a56720dbc2ba5b)
+ok: no removed lines in lean/ since cdfca81e37ee0b502b4b7bdf00a56720dbc2ba5b
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+verify-lean: PASS (diff checks only, NO build)
+73e3083d8c0e2eacee3c969351a09441d75b857ce5ed3c14f3ade4b14af5ed95  /workspace/scratch/1d0b4aaa3394/yulang-lean-4.35.0-verified/c338/diff-official.txt
