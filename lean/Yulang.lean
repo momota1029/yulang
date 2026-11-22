@@ -7382,3 +7382,8 @@ import Yulang.GeneralDeclarativeCurrentSeed345
 import Yulang.GeneralDeclarativeCurrentRequest345
 import Yulang.GeneralDeclarativeCurrentOrder345
 import Yulang.GeneralDeclarativeCurrentReady345
+import Yulang.GeneralDeclarativeCurrentSnapshot345
+import Yulang.GeneralDeclarativeCurrentMerge345
+import Yulang.GeneralDeclarativeMergeOrder345
+import Yulang.GeneralDeclarativeCurrentPeer345
+import Yulang.GeneralDeclarativeCurrentBarrier345
