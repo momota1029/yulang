@@ -1,0 +1,23 @@
+'Yulang.GeneralDeclarativeWitnessRecursiveTree356.exact_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveSound356.nominal_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveSound356.meaning' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveSound356.one_model_for_whole_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedNestedFixture356.actual_nested_ordinary_route' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedNestedFixture356.actual_two_fixed_ordinary_sites' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedNestedFixture356.projected_grandchild_cannot_be_truncated' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedNestedFixture356.ordinary_absolute_path_cannot_be_rebased' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedNestedFixture356.wrong_mixed_return' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
