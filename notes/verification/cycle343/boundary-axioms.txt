@@ -1,0 +1,25 @@
+'Yulang.GeneralDeclarativeCurrentHistory343.cannot_substitute' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeCurrentHistory343.nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeModeBridge343.source_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeModeBridge343.with_actual_site' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeModeBridge343.no_fresh_origin' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeRankedBridge343.preserves_rank' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWithheldReceipt343.only_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWithheldReceipt343.cannot_use_truth_to_select' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWithheldInput343.only_receipts' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWithheldInput343.no_authored_no_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOriginSplit343.independent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeBridgeInstance343.exact_join' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeBridgeInstance343.ranked_by_generic_bridge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeBridgeInstance343.models_by_generic_bridge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeReceiptSplit343.independent' depends on axioms: [propext, Classical.choice, Quot.sound]
