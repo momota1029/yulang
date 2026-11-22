@@ -1,0 +1,33 @@
+PASS independent audit lean/Audit/Cycle354Child.lean
+PASS independent audit lean/Audit/Cycle354Forest.lean
+PASS independent audit lean/Audit/Cycle354Joint.lean
+PASS independent audit lean/Audit/Cycle354Reemit.lean
+PASS independent audit lean/Audit/Cycle354Sound.lean
+PASS independent audit lean/Audit/Cycle354Typed.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedChild354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedConservative354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedFixture354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedForest354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedForestFixture354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedForestModel354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedIndex354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedJoint354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedJointFixture354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedLegacyCut354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedModel354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedOutput354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedOverlap354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedPacket354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedRangeFixture354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedRangeWriter354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedReemit354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedReemitFixture354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedReemitModel354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedReemitPayload354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedRelease354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedScope354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedSound354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedSource354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedSourceFixture354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedTree354.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessTypedTreeFixture354.lean

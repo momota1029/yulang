@@ -1,0 +1,151 @@
+'Yulang.GeneralDeclarativeWitnessTypedChild354.same_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedChild354.physical_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedChild354.compiler_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.accepted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.real_output_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.actual_where_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.old_fixed_not_the_new_output' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.no_release' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.wrong_path' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.wrong_version' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.wrong_write_ordinal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.wrong_child_ordinal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.wrong_output_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.swapped_outputs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.wrong_nominal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.cannot_call_output_authored' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedFixture354.two_incarnations' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForest354.Leaves.printed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForest354.Leaves.same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForest354.exact_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSource354.all_authored' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSource354.original_only' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSource354.not_solver_rows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSource354.scoped_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.actual_siblings' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.both_typed_writes_emitted' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.correctly_released_equal_payload_elsewhere_is_wrong' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.reverse_child_paths' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.missing_actual_child' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestFixture354.wrong_report_order' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestModel354.atom_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestModel354.real_state_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestModel354.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedForestModel354.inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSourceFixture354.literal_author_and_actual_children' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSourceFixture354.stale_cannot_be_author_line' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSourceFixture354.primitive_is_not_covariant' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSourceFixture354.source_order_not_permutable' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedScope354.same_compiled_run' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedScope354.exact_scope' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.typedAt_defined' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.trace_index' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.unique_position' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.released_version_unique' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedIndex354.inspect_other_exact_child_target' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJoint354.author_rows' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJoint354.shared_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJoint354.one_valuation' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.two_children_in_one_typed_valuation' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.independent_readers_do_not_assert_shared_rows' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.disagreement_detected_not_language_rejection' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.overlapping_identical_author_data_allowed' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedJointFixture354.actual_shared_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOverlap354.common_row_necessary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOverlap354.conflict_is_in_real_rows' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOverlap354.no_common_view_for_the_actual_accepted_pair' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedConservative354.ordinary_recovered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedConservative354.no_ordinary_semantics_changed' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedConservative354.no_default_as_typed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRangeWriter354.writes_and_children' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRangeWriter354.range_in_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRangeFixture354.true_nonpoint_child_reemits' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRangeFixture354.no_child_output_invention' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemit354.same_released_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemit354.released_physical_center' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemit354.scoped_write' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemit354.carries_original_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.genuine_released_nonpoint_emits_checked_output' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.old_release_not_reusable_by_equal_payload' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.no_reemit_from_stale_parent' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.exact_nested_write' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitFixture354.lower_endpoint_is_not_the_released_center' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitPayload354.exact_same_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitPayload354.fresh_fixed_name_not_prematurely_published' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.real_state_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.exact_receiver_output_is_whole' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.actual_chain_same_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedReemitModel354.actual_reemission_not_published_in_consumer_scope' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSound354.authored_body' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSound354.child_models' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSound354.released_type_at_actual_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedSound354.both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedModel354.real_state_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedModel354.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedModel354.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedTree354.exactly' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedTreeFixture354.actual_tree' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedTreeFixture354.wrong_child_path' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedTreeFixture354.wrong_writer_path' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedTreeFixture354.wrong_dictionary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedTreeFixture354.target_sequence_changed' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedTreeFixture354.concrete_same_model_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedLegacyCut354.exact_lookup' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedLegacyCut354.source_not_invariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedLegacyCut354.old_output_is_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedLegacyCut354.old_fixed_batch_is_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOutput354.supplies' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOutput354.item_target' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedOutput354.trace_targets' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedPacket354.exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRelease354.exact_ordinal' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTypedRelease354.actual_payload' depends on axioms: [propext, Quot.sound]
