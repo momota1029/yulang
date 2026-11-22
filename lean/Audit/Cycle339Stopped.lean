@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeStoppedFixture339
+#print axioms Yulang.GeneralDeclarativeStoppedOutput339.names_actual
+#print axioms Yulang.GeneralDeclarativeStoppedOutput339.ordinary_holds
+#print axioms Yulang.GeneralDeclarativeStoppedOutput339.row_present
+#print axioms Yulang.GeneralDeclarativeStoppedOutput339.append_current
+#print axioms Yulang.GeneralDeclarativeStoppedOrder339.checked_order
+#print axioms Yulang.GeneralDeclarativeStoppedOrder339.installed_outputs
+#print axioms Yulang.GeneralDeclarativeStoppedOrigins339.backed_output
+#print axioms Yulang.GeneralDeclarativeStoppedOrigins339.pending_no_gain
+#print axioms Yulang.GeneralDeclarativeStoppedOrigins339.actual_outputs
+#print axioms Yulang.GeneralDeclarativeStoppedStructural339.meaning
+#print axioms Yulang.GeneralDeclarativeStoppedLower339.exact_models
+#print axioms Yulang.GeneralDeclarativeStoppedLower339.agrees_older
+#print axioms Yulang.GeneralDeclarativeStoppedLower339.installed_outputs
+#print axioms Yulang.GeneralDeclarativeStoppedFixture339.installed_valid
+#print axioms Yulang.GeneralDeclarativeStoppedFixture339.concrete_width_head
+#print axioms Yulang.GeneralDeclarativeStoppedFixture339.structural_boundary

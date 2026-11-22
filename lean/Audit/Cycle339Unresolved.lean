@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeOpenUnresolved339
+
+#print axioms Yulang.GeneralDeclarativeOpenUnresolved339.only_head
+#print axioms Yulang.GeneralDeclarativeOpenUnresolved339.no_settled_spine
+#print axioms Yulang.GeneralDeclarativeOpenUnresolved339.not_settled_read

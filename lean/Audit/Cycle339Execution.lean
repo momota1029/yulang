@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeOpenTraversal339
+import Yulang.GeneralDeclarativeOpenReadiness339
+
+#print axioms Yulang.GeneralDeclarativeOpenExec339.joined
+#print axioms Yulang.GeneralDeclarativeOpenExec339.execute
+#print axioms Yulang.GeneralDeclarativeOpenTraversal339.run_sound
+#print axioms Yulang.GeneralDeclarativeOpenTraversal339.realize_tree
+#print axioms Yulang.GeneralDeclarativeOpenReadiness339.named_positive
+#print axioms Yulang.GeneralDeclarativeOpenReadiness339.legacy_elected
+#print axioms Yulang.GeneralDeclarativeOpenReadiness339.tail_models
+#print axioms Yulang.GeneralDeclarativeOpenReadiness339.exact_gap

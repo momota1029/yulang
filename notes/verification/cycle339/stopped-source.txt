@@ -1,0 +1,6 @@
+LEAN --trust=0 Yulang/GeneralDeclarativeStoppedFixture339.lean
+LEAN --trust=0 Yulang/GeneralDeclarativeStoppedLower339.lean
+LEAN --trust=0 Yulang/GeneralDeclarativeStoppedOrder339.lean
+LEAN --trust=0 Yulang/GeneralDeclarativeStoppedOrigins339.lean
+LEAN --trust=0 Yulang/GeneralDeclarativeStoppedOutput339.lean
+LEAN --trust=0 Yulang/GeneralDeclarativeStoppedStructural339.lean

@@ -1,0 +1,18 @@
+import Yulang.GeneralDeclarativeOpenFixtureWitness339
+
+#print axioms Yulang.GeneralDeclarativeOpenFixtureBase339.open_author
+#print axioms Yulang.GeneralDeclarativeOpenFixtureBase339.no_tail_source
+#print axioms Yulang.GeneralDeclarativeOpenFixtureBase339.actual_open
+#print axioms Yulang.GeneralDeclarativeOpenFixtureBase339.source_valid
+#print axioms Yulang.GeneralDeclarativeOpenFixtureRoutes339.routed
+#print axioms Yulang.GeneralDeclarativeOpenFixtureSelection339.root_compiles
+#print axioms Yulang.GeneralDeclarativeOpenFixtureSelection339.child_compiles
+#print axioms Yulang.GeneralDeclarativeOpenFixtureSelection339.root_picks
+#print axioms Yulang.GeneralDeclarativeOpenFixtureSelection339.child_picks
+#print axioms Yulang.GeneralDeclarativeOpenFixtureSelection339.selected
+#print axioms Yulang.GeneralDeclarativeOpenFixtureModel339.seed_valid
+#print axioms Yulang.GeneralDeclarativeOpenFixtureModel339.inhabited
+#print axioms Yulang.GeneralDeclarativeOpenSelected339.output
+#print axioms Yulang.GeneralDeclarativeOpenFixtureWitness339.rootReceipt
+#print axioms Yulang.GeneralDeclarativeOpenFixtureWitness339.rootOutput
+#print axioms Yulang.GeneralDeclarativeOpenFixtureWitness339.actual_open_dictionary

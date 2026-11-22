@@ -1,0 +1,20 @@
+'Yulang.GeneralDeclarativeStoppedOutput339.names_actual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOutput339.ordinary_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOutput339.row_present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOutput339.append_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrder339.checked_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrder339.installed_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrigins339.backed_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrigins339.pending_no_gain' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrigins339.actual_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedStructural339.meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLower339.exact_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLower339.agrees_older' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLower339.installed_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFixture339.installed_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFixture339.concrete_width_head' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFixture339.structural_boundary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

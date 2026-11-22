@@ -1,0 +1,148 @@
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedCompiler339.lean 6dda1ae9c0d24f58902bd4346da6980219e57074
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedDictionary339.lean 7864fbc87947bdb77c8ac507520ed511bbbcc059
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedEndpoint339.lean 901a4c6ae1ff95a88cf4424dd7097c008c269b1e
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedFixtureBase339.lean 76a13ed705a6e45156bec5e5b4d89959d8a575cd
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedFixtureModel339.lean 3fd460a9835b48bd5c85211db670c7e62a3204ad
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedFixtureRoutes339.lean 9c57c6105dd9754fd307c9e591d62eb6600c9086
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedFixtureSelection339.lean aa229fd3bdd1b2ebdb264df494fb8ded7ce89399
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedInputs339.lean 05a91a85fea21cc0a55f7aa98d2152fe7fe4785a
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedLeaf339.lean 5d92451e7b8dc360976b14a8dee1ab0dd8b0057e
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedLeafGrowth339.lean a985e0e74975e9ae0bf776519a139299b0ea3c71
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedSources339.lean f48e6bf65512de4d63241aa38299d573ce767fde
+EXACT TRUST0 Yulang/GeneralDeclarativeMixedTree339.lean 5432a1817a4012b4f6153aee49fc18d0e3193f03
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenExec339.lean 6c2da2930687bf360c6c4db265163f86b6a071f2
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenFixtureBase339.lean ae8f3e7d088a32069e054f843ed0cfae535b81fc
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenFixtureModel339.lean a19334357076b210bbf63f9367dfe978df608a6e
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenFixtureRoutes339.lean f30b26107e12507607030791aef851b87c19972d
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenFixtureSelection339.lean 6579668618a2b831f291051e51cd856cd41ffa9c
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenFixtureWitness339.lean 3a987f6d7d67eaa3aaad3a355d3d1e04c2470d11
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenReadiness339.lean 9379a00c4ed8d30eb7575b0212d438c3dc3ee040
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenReceipt339.lean 644e94c0723040d9d8f52792c2ec0cc18119de42
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenSelected339.lean a98cbe851aced1b9d7da16cdd5f37ced15aee599
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenTraversal339.lean 83f9994cb08dbd841012cd35056286021ce4ad59
+EXACT TRUST0 Yulang/GeneralDeclarativeOpenUnresolved339.lean ecf5f0288225d57394e8d3c2dfbc01fc140b7c25
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedFixture339.lean 627b43636bd87bf8ef0af98774d818563b96fe07
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedLower339.lean 9009f2bf360bb12bb1b4ddf95bb6c2d2a8d0f899
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedOrder339.lean bfa36221ec5e8c24cad3530ef00c132ea171dcc2
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedOrigins339.lean c9d46d7f06504aa787ccbe1cdb018e82c1baf5a0
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedOutput339.lean f11ff276468ed6cddd9cf511019db8c17f5509ae
+EXACT TRUST0 Yulang/GeneralDeclarativeStoppedStructural339.lean c21cb7795383706de9ed579d24ec74d4bb68f177
+EXACT TRUST0 Audit/Cycle339Execution.lean e2ee943d981f798e64af9a877a7705ac55fd1c60
+'Yulang.GeneralDeclarativeOpenExec339.joined' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenExec339.execute' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenTraversal339.run_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenTraversal339.realize_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReadiness339.named_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReadiness339.legacy_elected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReadiness339.tail_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReadiness339.exact_gap' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXACT TRUST0 Audit/Cycle339LeafGrowth.lean ec0d734b513df5260188f9b42374f6dfcfcf9a1c
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.grow_args' does not depend on any axioms
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.named_reader' does not depend on any axioms
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.invariant_leaf' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.pair_leaf' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.join_shape_missing' does not depend on any axioms
+EXACT TRUST0 Audit/Cycle339MixedSelected.lean 736818429365b2e0503fdfe26c39a658dc9c2f47
+'Yulang.GeneralDeclarativeMixedInputs339.input_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedInputs339.observed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedCompiler339.body_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedCompiler339.read_back' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedCompiler339.selected_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedDictionary339.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureBase339.actual_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureBase339.source_positive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureBase339.source_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureRoutes339.payload_bind' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureRoutes339.routed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.root_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.child_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.root_picks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.child_picks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureSelection339.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureModel339.modeled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedFixtureModel339.actual_mixed_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle339MixedSource.lean 3304449329939fd7f4c4ad6240b866efc579abc7
+'Yulang.GeneralDeclarativeMixedEndpoint339.trace_extract' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedEndpoint339.committed_argument' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeMixedTree339.native_stage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedTree339.exact_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedTree339.from_approved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedLeaf339.read_variant' does not depend on any axioms
+'Yulang.GeneralDeclarativeMixedLeaf339.read_nominal' does not depend on any axioms
+'Yulang.GeneralDeclarativeMixedLeaf339.ready_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedSources339.run_record' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedSources339.compile' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeMixedSources339.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXACT TRUST0 Audit/Cycle339Receipt.lean 5329859dd8b8088f37590f2014726d16cfd1c62e
+'Yulang.GeneralDeclarativeOpenReceipt339.same_open_endpoint' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReceipt339.endpoints' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReceipt339.as_values' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReceipt339.routed' depends on axioms: [propext, Classical.choice, Quot.sound]
+EXACT TRUST0 Audit/Cycle339Selected.lean 49dd792c8d9116feacea00ec3212ef0ca3a39f0d
+'Yulang.GeneralDeclarativeOpenFixtureBase339.open_author' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureBase339.no_tail_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureBase339.actual_open' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureBase339.source_valid' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureRoutes339.routed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.root_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.child_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.root_picks' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.child_picks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureModel339.seed_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureModel339.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenSelected339.output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureWitness339.rootReceipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureWitness339.rootOutput' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureWitness339.actual_open_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle339Stopped.lean f40b8da8574ed407df31596e963c6e44a28666de
+'Yulang.GeneralDeclarativeStoppedOutput339.names_actual' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOutput339.ordinary_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOutput339.row_present' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOutput339.append_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrder339.checked_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrder339.installed_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrigins339.backed_output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrigins339.pending_no_gain' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedOrigins339.actual_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedStructural339.meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLower339.exact_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLower339.agrees_older' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLower339.installed_outputs' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFixture339.installed_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFixture339.concrete_width_head' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedFixture339.structural_boundary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+EXACT TRUST0 Audit/Cycle339Unresolved.lean 02ae582c6dcd55beb90b9bc44cabe419768222d3
+'Yulang.GeneralDeclarativeOpenUnresolved339.only_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenUnresolved339.no_settled_spine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenUnresolved339.not_settled_read' depends on axioms: [propext, Classical.choice, Quot.sound]

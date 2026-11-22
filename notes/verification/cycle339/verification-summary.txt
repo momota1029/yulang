@@ -1,0 +1,16 @@
+Exact proof pin: d33c4777d1603e9cda83ecb849a68f6389a7f7de
+Detached Git ancestry and git diff --check: PASS
+ok: no removed lines in lean/ since 819fe1ea2e9a98b59072d977f644f7bf96e4970c
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+verify-lean: PASS (diff checks only, NO build)
+e3d72de30f7a90da4bfac99dd657553c1e5aaf1856c1f17b0186560f68350104  /workspace/scratch/1d0b4aaa3394/yulang-lean-4.35.0-verified/c339/exact-verify-diff.txt
+
+Build completed successfully (1875 jobs).
+AXIOM-GATE-PASS: 77303 declarations
+DECLARATIVE-BOUNDARY-PASS: 595 roots, 2276 reachable declarations
+PASS: C238 installed slot 0 has descriptor (4,2), outside the point descriptor encoder; the width head at slot 2 is a distinct observation.
+Exact detached source replay: 37 files (29 modules + 8 audits); 81 independent axiom print lines.
+Frozen Audit.lean and README.md: 97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9, 9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a
+Full barrel exact appended imports: f888a6392165da37f71d35d1319bd8f606030c2f

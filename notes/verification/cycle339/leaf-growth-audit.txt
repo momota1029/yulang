@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.grow_args' does not depend on any axioms
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.named_reader' does not depend on any axioms
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.invariant_leaf' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.pair_leaf' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeMixedLeafGrowth339.join_shape_missing' does not depend on any axioms

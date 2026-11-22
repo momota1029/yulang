@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeMixedSources339
+
+#print axioms Yulang.GeneralDeclarativeMixedEndpoint339.trace_extract
+#print axioms Yulang.GeneralDeclarativeMixedEndpoint339.committed_argument
+#print axioms Yulang.GeneralDeclarativeMixedTree339.native_stage
+#print axioms Yulang.GeneralDeclarativeMixedTree339.exact_tree
+#print axioms Yulang.GeneralDeclarativeMixedTree339.from_approved
+#print axioms Yulang.GeneralDeclarativeMixedLeaf339.read_variant
+#print axioms Yulang.GeneralDeclarativeMixedLeaf339.read_nominal
+#print axioms Yulang.GeneralDeclarativeMixedLeaf339.ready_leaf
+#print axioms Yulang.GeneralDeclarativeMixedSources339.run_record
+#print axioms Yulang.GeneralDeclarativeMixedSources339.compile
+#print axioms Yulang.GeneralDeclarativeMixedSources339.exact

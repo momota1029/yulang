@@ -1,0 +1,7 @@
+I57 changed-path marker checks: PASS; both frozen paths excluded without opening their contents.
+ok: no removed lines in lean/ since 819fe1ea2e9a98b59072d977f644f7bf96e4970c
+ok: no sorry/native_decide/axiom-like constructs in added lines
+ok: lake config unchanged (or only SpecExamples*/Main* libs added)
+ok: new files are Yulang modules only
+verify-lean: PASS (diff checks only, NO build)
+3e8583c725f4cb910f1d254aba4762cf2930453d88c97ad2db53f56c055024a1  /workspace/scratch/1d0b4aaa3394/yulang-lean-4.35.0-verified/c339/verify-frozen-skipped.txt

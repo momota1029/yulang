@@ -1,0 +1,24 @@
+'Yulang.GeneralDeclarativeOpenFixtureBase339.open_author' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureBase339.no_tail_source' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureBase339.actual_open' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureBase339.source_valid' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureRoutes339.routed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.root_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.child_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.root_picks' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.child_picks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureSelection339.selected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureModel339.seed_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureModel339.inhabited' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenSelected339.output' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureWitness339.rootReceipt' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureWitness339.rootOutput' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenFixtureWitness339.actual_open_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

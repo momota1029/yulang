@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeOpenExec339.joined' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenExec339.execute' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenTraversal339.run_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenTraversal339.realize_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReadiness339.named_positive' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReadiness339.legacy_elected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReadiness339.tail_models' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeOpenReadiness339.exact_gap' depends on axioms: [propext, Classical.choice, Quot.sound]

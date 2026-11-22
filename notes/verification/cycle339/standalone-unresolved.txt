@@ -1,0 +1,3 @@
+'Yulang.GeneralDeclarativeOpenUnresolved339.only_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenUnresolved339.no_settled_spine' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeOpenUnresolved339.not_settled_read' depends on axioms: [propext, Classical.choice, Quot.sound]
