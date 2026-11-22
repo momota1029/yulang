@@ -33,7 +33,7 @@ theorem not_current (h : get point 0 = some (0,[.type 4 2,.type 4 2])) : False :
   rw [current_read] at h
   cases h
 
-/-- The same physical root and the same final raw model admit both
+/-- The same physical root and the same final raw model allow both
 recorded observations at their own times. The earlier bound is genuinely
 nonpoint in *every* actual final model; it is not an alternative exact
 current literal even when nominal denotations agree. -/
