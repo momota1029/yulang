@@ -1,0 +1,162 @@
+@Yulang.GeneralDeclarativeEndpointBatch336.preserves : ∀ {s : Yulang.GeneralDeclarativeHead320.State}
+  {protect : List Nat} (vals : List Yulang.GeneralDeclarativeEndpointNames336.Triple)
+  (m : Yulang.GeneralNominalCommonBridge.Assignment) (n : Nat),
+  n ∈ Yulang.GeneralDeclarativeFootprint321.stateNames s ++ protect →
+    Yulang.GeneralDeclarativeEndpointBatch336.patch s protect vals m n = m n
+@Yulang.GeneralDeclarativeEndpointBatch336.patch_values : ∀ {j : Nat}
+  {v : Yulang.GeneralDeclarativeEndpointNames336.Triple} {s : Yulang.GeneralDeclarativeHead320.State}
+  {protect : List Nat} {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {vals : List Yulang.GeneralDeclarativeEndpointNames336.Triple},
+  vals[j]? = some v →
+    Yulang.GeneralDeclarativeEndpointBatch336.atSlots (Yulang.GeneralDeclarativeEndpointBatch336.patch s protect vals m)
+        (Yulang.GeneralDeclarativeEndpointBatch336.slots s protect j) =
+      v
+@Yulang.GeneralDeclarativeEndpointBatch336.bound : ∀ {s : Yulang.GeneralDeclarativeHead320.State} {keep : List Nat}
+  {n j : Nat},
+  j < n →
+    Yulang.GeneralDeclarativeDemand320.Bounds (Yulang.GeneralDeclarativeEndpointBatch336.prepare s keep n)
+      (Yulang.GeneralDeclarativeEndpointBatch336.slots s keep j)
+Yulang.GeneralDeclarativeEndpointBatch336.grows : ∀ (s : Yulang.GeneralDeclarativeHead320.State) (keep : List Nat)
+  (n : Nat), Yulang.GeneralDeclarativeGrowth327.Extends s (Yulang.GeneralDeclarativeEndpointBatch336.prepare s keep n)
+@Yulang.GeneralDeclarativeEndpointBatch336.fit : ∀ {m : Yulang.GeneralNominalCommonBridge.Assignment}
+  {s : Yulang.GeneralDeclarativeHead320.State},
+  Yulang.GeneralDeclarativeHead320.Models s m →
+    ∀ (keep : List Nat) (vals : List Yulang.GeneralDeclarativeEndpointNames336.Triple),
+      (∀ (v : Yulang.GeneralDeclarativeEndpointNames336.Triple),
+          v ∈ vals → Yulang.GeneralDeclarativeWhere319.InInterval v.fst v.snd.snd v.snd.fst) →
+        Yulang.GeneralDeclarativeHead320.Models (Yulang.GeneralDeclarativeEndpointBatch336.prepare s keep vals.length)
+          (Yulang.GeneralDeclarativeEndpointBatch336.patch s keep vals m)
+@Yulang.GeneralDeclarativeEndpointBody336.calculate : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {impl : Yulang.GeneralDeclarations.Declaration}
+  {spans : List Yulang.GeneralDeclarativeStableAssemble329.Span} {s : Yulang.GeneralDeclarativeHead320.State}
+  {d : Yulang.GeneralDeclarativeDemand320.Demand},
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            ∀ (keep : List Nat) (fallback : Nat → Yulang.GeneralDeclarativeWhere319.Capture)
+              (targets : Yulang.GeneralDeclarations.Clause → Nat → Nat),
+              List.map Prod.fst spans = impl.inputNames →
+                (∀ (a : Yulang.GeneralDeclarativeStableAssemble329.Span),
+                    a ∈ spans → Yulang.GeneralDeclarativeDemand320.Bounds s a.snd) →
+                  ∃ current kids body,
+                    have input := Yulang.GeneralDeclarativeStableAssemble329.merged s keep spans fallback;
+                    Yulang.GeneralDeclarativeNestedBody332.compileBody r i d impl s spans keep fallback targets =
+                        some (current, kids) ∧
+                      body.base = input.captures ∧
+                        body.spans = spans ∧
+                          body.targets = targets ∧
+                            current =
+                                Yulang.GeneralDeclarativeEntailment320.appendFacts
+                                  (Yulang.GeneralDeclarativeEntailment320.appendFacts body.prepared body.whereRows)
+                                  body.rootRows ∧
+                              Yulang.GeneralDeclarativeGrowth327.Extends
+                                (Yulang.GeneralDeclarativeStableAssemble329.tieState s spans fallback) current
+@Yulang.GeneralDeclarativeEndpointBody336.sound : ∀ {r : Yulang.GeneralDeclarations.Registry}
+  {i : Yulang.GeneralNominalInspection.Interpretation} {d : Yulang.GeneralDeclarativeDemand320.Demand}
+  {impl : Yulang.GeneralDeclarations.Declaration} {s : Yulang.GeneralDeclarativeHead320.State}
+  {kids : List Yulang.GeneralDeclarativeDemand320.Demand} (b : Yulang.GeneralDeclarativeEndpointBody336.Body s kids),
+  Yulang.GeneralDeclarations.Checked r →
+    Yulang.GeneralNominalCenteredHeadWFSource.Coverage r i →
+      impl ∈ r.declarations →
+        impl.role = d.role →
+          Yulang.GeneralDeclarativeOutputSource323.Declared r d →
+            ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+              Yulang.GeneralDeclarativeHead320.Models s m →
+                Yulang.GeneralDeclarativeEndpointBody336.Meaning r i m d impl b.capture kids ∧
+                  ∀ (child : Yulang.GeneralDeclarativeDemand320.Demand),
+                    child ∈ kids → Yulang.GeneralDeclarativeOutputSource323.Declared r child
+Yulang.GeneralDeclarativeEndpointCase336.low : Yulang.GeneralDeclarativeEndpointCase336.rowLo ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeEndpointCase336.support).equations
+Yulang.GeneralDeclarativeEndpointCase336.high : Yulang.GeneralDeclarativeEndpointCase336.rowHi ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeEndpointCase336.support).equations
+Yulang.GeneralDeclarativeEndpointCase336.actual_read : Yulang.GeneralDeclarativeEndpointRecord336.Read
+  Yulang.GeneralDeclarativeEndpointCase336.support Yulang.GeneralDeclarativeWitnessCutDecl334.arg [7]
+  Yulang.GeneralDeclarativeEndpointCase336.loFields Yulang.GeneralDeclarativeEndpointCase336.hiFields
+  Yulang.GeneralDeclarativeEndpointCase336.loFields Yulang.GeneralDeclarativeEndpointCase336.hiFields
+  Yulang.GeneralDeclarativeEndpointCase336.endCode Yulang.GeneralDeclarativeEndpointCase336.endCode
+Yulang.GeneralDeclarativeEndpointCase336.center_not_listed : ∀ (row : Yulang.GeneralDeclarativeHead320.Equation),
+  row ∈ Yulang.GeneralDeclarativeEndpointCase336.before.equations →
+    row.left ≠ Yulang.GeneralDeclarativeWitnessCutDecl334.arg.center
+Yulang.GeneralDeclarativeEndpointCase336.model_ok : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeEndpointCase336.before Yulang.GeneralDeclarativeEndpointCase336.model
+Yulang.GeneralDeclarativeEndpointCase336.old_head_impossible : ∀
+  (capture : Nat → Yulang.GeneralDeclarativeWhere319.Capture),
+  ¬Yulang.GeneralDeclarativeDemand320.HeadMeaning Yulang.GeneralDeclarationExamples.constructors
+      Yulang.GeneralDeclarativeNestedExample332.interpretation capture Yulang.GeneralDeclarativeEndpointCase336.model
+      Yulang.GeneralDeclarativeWitnessCutDecl334.arg Yulang.GeneralDeclarativeWitnessCutDecl334.pat
+Yulang.GeneralDeclarativeEndpointCase336.both : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeHead320.Models Yulang.GeneralDeclarativeEndpointCase336.before m →
+    (∃ payload,
+        Yulang.GeneralDeclarativeRecordChannel330.project 7 false [] (m 1).fst = some payload ∧
+          Yulang.GeneralDeclarativeWhere319.InInterval (m 3).fst (m 4).fst payload) ∧
+      Yulang.GeneralDeclarativeWhere319.InInterval
+        (Yulang.CommonNominalFullCarrier.mask [7] Yulang.CommonNominalFullCarrier.exactEmpty)
+        (Yulang.CommonNominalFullCarrier.mask [7] Yulang.CommonNominalFullCarrier.exactEmpty)
+        (Yulang.CommonNominalFullCarrier.mask [7] (m 1).fst)
+Yulang.GeneralDeclarativeEndpointChildModels336.source_valid : Yulang.GeneralDeclarativeHead320.Models
+  Yulang.GeneralDeclarativeEndpointChildren336.initial Yulang.GeneralDeclarativeEndpointChildModels336.sourceModel
+Yulang.GeneralDeclarativeEndpointChildModels336.seed_valid : Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith
+  Yulang.GeneralDeclarativeEndpointChildren336.named Yulang.GeneralDeclarativeEndpointChildren336.sidecar
+  Yulang.GeneralDeclarativeEndpointChildModels336.seed
+Yulang.GeneralDeclarativeEndpointChildModels336.shared_root : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeStableCanonical329.EqualUses m Yulang.GeneralDeclarativeEndpointChildren336.uses
+Yulang.GeneralDeclarativeEndpointChildModels336.shared_child : ∀ (m : Yulang.GeneralNominalCommonBridge.Assignment),
+  Yulang.GeneralDeclarativeStableCanonical329.EqualUses m Yulang.GeneralDeclarativeEndpointChildren336.childUses
+Yulang.GeneralDeclarativeEndpointChildModels336.footprint_root : Yulang.GeneralDeclarativeEndpointConserve336.names
+    Yulang.GeneralDeclarativeEndpointChildren336.sidecar ⊆
+  Yulang.GeneralDeclarativeFootprint321.stateNames
+      (Yulang.GeneralDeclarativeStableAssemble329.tieState Yulang.GeneralDeclarativeEndpointChildren336.named
+        Yulang.GeneralDeclarativeEndpointChildren336.uses Yulang.GeneralDeclarativeEndpointChildren336.fallback) ++
+    Yulang.GeneralDeclarativeEndpointChildren336.protect
+Yulang.GeneralDeclarativeEndpointChildModels336.footprint_child : Yulang.GeneralDeclarativeEndpointConserve336.names
+    Yulang.GeneralDeclarativeEndpointChildren336.sidecar ⊆
+  Yulang.GeneralDeclarativeFootprint321.stateNames
+      (Yulang.GeneralDeclarativeStableAssemble329.tieState Yulang.GeneralDeclarativeEndpointChildren336.rootFinal
+        Yulang.GeneralDeclarativeEndpointChildren336.childUses Yulang.GeneralDeclarativeEndpointChildren336.fallback) ++
+    Yulang.GeneralDeclarativeEndpointChildren336.protect
+Yulang.GeneralDeclarativeEndpointChildModels336.inhabited : ∃ m,
+  Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith Yulang.GeneralDeclarativeEndpointChildren336.final
+    Yulang.GeneralDeclarativeEndpointChildren336.sidecar m
+Yulang.GeneralDeclarativeEndpointChildModels336.recursively_checked : ∃ m,
+  Yulang.GeneralDeclarativeEndpointOverlay336.ModelsWith Yulang.GeneralDeclarativeEndpointChildren336.final
+      Yulang.GeneralDeclarativeEndpointChildren336.sidecar m ∧
+    Yulang.GeneralDeclarativeEndpointDictionary336.Evidence Yulang.GeneralDeclarativeRecordDecl326.registry
+      Yulang.GeneralDeclarativeHiddenDecl324.interpretation m Yulang.GeneralDeclarativeEndpointChildren336.root
+      Yulang.GeneralDeclarativeEndpointChildren336.dictionary
+Yulang.GeneralDeclarativeEndpointChildren336.initial_lo : Yulang.GeneralDeclarativeEndpointChildren336.lo ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeEndpointChildren336.support).equations
+Yulang.GeneralDeclarativeEndpointChildren336.initial_hi : Yulang.GeneralDeclarativeEndpointChildren336.hi ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeEndpointChildren336.support).equations
+Yulang.GeneralDeclarativeEndpointChildren336.initial_scalar : Yulang.GeneralDeclarativeEndpointChildren336.scalar ∈
+  (Yulang.GeneralDeclarativeOrigins321.restriction Yulang.GeneralDeclarativeEndpointChildren336.support).equations
+Yulang.GeneralDeclarativeEndpointChildren336.read : Yulang.GeneralDeclarativeEndpointRecord336.Read
+  Yulang.GeneralDeclarativeEndpointChildren336.support Yulang.GeneralDeclarativeWitnessCutDecl334.arg [7]
+  Yulang.GeneralDeclarativeEndpointChildren336.payload Yulang.GeneralDeclarativeEndpointChildren336.payload
+  Yulang.GeneralDeclarativeEndpointChildren336.payload Yulang.GeneralDeclarativeEndpointChildren336.payload
+  Yulang.GeneralDeclarativeEndpointChildren336.endL Yulang.GeneralDeclarativeEndpointChildren336.endU
+Yulang.GeneralDeclarativeEndpointChildren336.program : Yulang.GeneralDeclarativeEndpointProgram336.ready
+    Yulang.GeneralDeclarativeWitnessCutDecl334.arg [(7, 0)] 1 Yulang.GeneralDeclarativeEndpointChildren336.payload
+    Yulang.GeneralDeclarativeEndpointChildren336.payload Yulang.GeneralDeclarativeEndpointChildren336.payload
+    Yulang.GeneralDeclarativeEndpointChildren336.payload Yulang.GeneralDeclarativeEndpointChildren336.endL
+    Yulang.GeneralDeclarativeEndpointChildren336.endU =
+  some Yulang.GeneralDeclarativeEndpointChildren336.jobs
+Yulang.GeneralDeclarativeEndpointChildren336.root_compiles : Yulang.GeneralDeclarativeNestedBody332.compileBody
+    Yulang.GeneralDeclarativeRecordDecl326.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeEndpointChildren336.root Yulang.GeneralDeclarativeRecordDecl326.decl
+    Yulang.GeneralDeclarativeEndpointChildren336.named Yulang.GeneralDeclarativeEndpointChildren336.uses
+    Yulang.GeneralDeclarativeEndpointChildren336.protect Yulang.GeneralDeclarativeEndpointChildren336.fallback
+    Yulang.GeneralDeclarativeEndpointChildren336.targets =
+  some (Yulang.GeneralDeclarativeEndpointChildren336.rootFinal, [Yulang.GeneralDeclarativeEndpointChildren336.child])
+Yulang.GeneralDeclarativeEndpointChildren336.child_compiles : Yulang.GeneralDeclarativeNestedBody332.compileBody
+    Yulang.GeneralDeclarativeRecordDecl326.registry Yulang.GeneralDeclarativeHiddenDecl324.interpretation
+    Yulang.GeneralDeclarativeEndpointChildren336.child Yulang.GeneralDeclarativeExampleSource320.leaf
+    Yulang.GeneralDeclarativeEndpointChildren336.rootFinal Yulang.GeneralDeclarativeEndpointChildren336.childUses
+    Yulang.GeneralDeclarativeEndpointChildren336.protect Yulang.GeneralDeclarativeEndpointChildren336.fallback
+    Yulang.GeneralDeclarativeEndpointChildren336.targets =
+  some (Yulang.GeneralDeclarativeEndpointChildren336.childFinal, [])
+Yulang.GeneralDeclarativeEndpointChildren336.uses_eq : Yulang.GeneralDeclarativeEndpointChildren336.uses =
+  [(0, { lower := 7, center := 8, upper := 9 }), (1, { lower := 10, center := 11, upper := 12 })]
+Yulang.GeneralDeclarativeEndpointChildren336.root_source : Yulang.GeneralDeclarativeEndpointInput336.Inputs
+  Yulang.GeneralDeclarativeEndpointChildren336.support Yulang.GeneralDeclarativeHiddenDecl324.catalogue
