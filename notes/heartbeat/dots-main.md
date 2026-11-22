@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-cycle: 353
-status: completed
-started: 2026-11-22T20:33:36.646Z
-updated: 2026-11-22T21:23:39.012Z
-elapsed_min: 50.04
-activity: verified independent authored typed covariant nonpoint center, same-model ordered evidence and exact fixed outputs
+cycle: 354
+status: running
+started: 2026-11-22T21:36:39.324Z
+updated: 2026-11-22T21:36:57.495Z
+elapsed_min: 0.30
+activity: startup; checking actual typed associated output and authorized checkout
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-report: notes/handoff/dots-cycle-353.md
-resume_hint: I-63 S1 1 partial / S2 1 partial / C 1 deferred; later nominal child via actual typed nominal-valued write (key/ordinal/target), not invariant fallback or erasure. No old Local or termination.
+resume_hint: C353 completion verified, I-63 unchanged, latest owner input checked. Target is actual explicit associated lookup, ordered typed write, and independent release consumer, not old invariant fixed-batch success.
