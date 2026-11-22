@@ -7310,3 +7310,4 @@ import Yulang.GeneralDeclarativeStoppedDepthExact341
 import Yulang.GeneralDeclarativeStoppedMissingOutput341
 import Yulang.GeneralDeclarativeVersionedRetarget342
 import Yulang.GeneralDeclarativeVersionedRows342
+import Yulang.GeneralDeclarativeVersionedOriginalCut342
