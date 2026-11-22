@@ -23,13 +23,11 @@ open GeneralDeclarativeStableTies329 (rows pairOf)
 open GeneralDeclarativeOutputSource323 (Declared)
 open GeneralNominalCenteredHeadWFSource (Coverage)
 
-/-- Independent current witness for one selected node. No Frame,
-Meaning, Evidence or satisfaction premise is stored. The actual
-compiler must produce the given ordered demands, with the fixed
-logical targets, and the current receipt has no renaming component. -/
-structure Witness {s : State} (p : Supported s done) (r : Registry) (i : Interpretation)
-    (waiting : Demand → Declaration → Prop) (d : Demand) (impl : Declaration) (kids : List Demand) where
-  chosen : Elected s r i p (candidates p r i waiting) d impl
+/-- Ordinary generation data, independently of the choice guard, so
+an implementation can project it without assuming a verdict. No
+Frame, Meaning, Evidence or model premise is stored. -/
+structure Generation {s : State} (p : Supported s done) (r : Registry) (i : Interpretation)
+    (d : Demand) (impl : Declaration) (kids : List Demand) where
   slice : Slice p
   protect : List Nat
   fallback : Nat → Capture
@@ -41,17 +39,30 @@ structure Witness {s : State} (p : Supported s done) (r : Registry) (i : Interpr
   compiled : compileBody r i d impl named spans protect fallback targets = some (ordinary,kids)
   receipt : Receipt ordinary s
 
-theorem Witness.frame {s : State} {p : Supported s done} (w : Witness p r i waiting d impl kids)
-    (checked : Checked r) (cover : Coverage r i) (wanted : Declared r d) :
+structure Witness {s : State} (p : Supported s done) (r : Registry) (i : Interpretation)
+    (waiting : Demand → Declaration → Prop) (d : Demand) (impl : Declaration) (kids : List Demand)
+    extends Generation p r i d impl kids where
+  chosen : Elected s r i p (candidates p r i waiting) d impl
+
+theorem Generation.frame {s : State} {p : Supported s done} (w : Generation p r i d impl kids)
+    (checked : Checked r) (cover : Coverage r i) (wanted : Declared r d)
+    (visible : impl ∈ r.declarations) (role : impl.role = d.role) :
     ∃ frame : Frame w.ordinary r i d impl kids,
       frame.spans = w.spans ∧ frame.targets = w.targets ∧
       GeneralDeclarativeGrowth327.Extends (tieState w.named w.spans w.fallback) w.ordinary := by
   have ⟨_,observed,known⟩ := actuals_sound w.source (GeneralDeclarativeClauseBatch327.reflexive _)
   obtain ⟨ordinary,kids',frame,verified,_,sameSpans,sameTargets,_,writeTies,_⟩ :=
-    compiler_exact checked cover w.chosen.viable.1.1 w.chosen.viable.1.2 wanted
+    compiler_exact checked cover visible role wanted
       w.protect w.fallback w.targets observed known
   cases Option.some.inj (verified.symm.trans w.compiled)
   exact ⟨frame,sameSpans,sameTargets,writeTies⟩
+
+theorem Witness.frame {s : State} {p : Supported s done} (w : Witness p r i waiting d impl kids)
+    (checked : Checked r) (cover : Coverage r i) (wanted : Declared r d) :
+    ∃ frame : Frame w.ordinary r i d impl kids,
+      frame.spans = w.spans ∧ frame.targets = w.targets ∧
+      GeneralDeclarativeGrowth327.Extends (tieState w.named w.spans w.fallback) w.ordinary :=
+  w.toGeneration.frame checked cover wanted w.chosen.viable.1.1 w.chosen.viable.1.2
 
 theorem Witness.staged {s : State} {p : Supported s done} (w : Witness p r i waiting d impl kids)
     (checked : Checked r) (cover : Coverage r i) (wanted : Declared r d) : Staged s r i d impl kids := by

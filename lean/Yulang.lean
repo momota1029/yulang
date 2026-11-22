@@ -7139,3 +7139,5 @@ import Yulang.GeneralDeclarativeAlternativeMixedModels333
 import Yulang.GeneralDeclarativeWitnessHead334
 import Yulang.GeneralDeclarativeWitnessNode334
 import Yulang.GeneralDeclarativeWitnessClassify334
+import Yulang.GeneralDeclarativeWitnessFixture334
+import Yulang.GeneralDeclarativeWitnessCorrespond334

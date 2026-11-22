@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeWitnessFixture334
+import Yulang.GeneralDeclarativeWitnessCorrespond334
+
+#print axioms Yulang.GeneralDeclarativeWitnessFixture334.actual_tree
+#print axioms Yulang.GeneralDeclarativeWitnessFixture334.nonvacuous
+#print axioms Yulang.GeneralDeclarativeWitnessCorrespond334.old_choice
+#print axioms Yulang.GeneralDeclarativeWitnessCorrespond334.classify_to_old
+#print axioms Yulang.GeneralDeclarativeWitnessCorrespond334.classify_from_old
