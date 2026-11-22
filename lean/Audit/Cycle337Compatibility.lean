@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeExactCompatibility337
+
+#print axioms Yulang.GeneralDeclarativeExactCompatibility337.local_positive
+#print axioms Yulang.GeneralDeclarativeExactCompatibility337.old_success
+#print axioms Yulang.GeneralDeclarativeExactCompatibility337.old_and_new

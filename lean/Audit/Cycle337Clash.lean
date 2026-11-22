@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeExactClash337
+
+#print axioms Yulang.GeneralDeclarativeExactClash337.clash_exact
+#print axioms Yulang.GeneralDeclarativeExactClash337.before_model
+#print axioms Yulang.GeneralDeclarativeExactClash337.field_agrees
+#print axioms Yulang.GeneralDeclarativeExactClash337.rest_above
+#print axioms Yulang.GeneralDeclarativeExactClash337.disjoint
+#print axioms Yulang.GeneralDeclarativeExactClash337.exact_clash
+#print axioms Yulang.GeneralDeclarativeExactClash337.regression

@@ -1,0 +1,5 @@
+'Yulang.GeneralDeclarativeExactCompatibility337.local_positive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeExactCompatibility337.old_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeExactCompatibility337.old_and_new' depends on axioms: [propext, Classical.choice, Quot.sound]
