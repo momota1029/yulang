@@ -7145,3 +7145,4 @@ import Yulang.GeneralDeclarativeWitnessCutDecl334
 import Yulang.GeneralDeclarativeWitnessCutBody334
 import Yulang.GeneralDeclarativeWitnessCutRank334
 import Yulang.GeneralDeclarativeWitnessCut334
+import Yulang.GeneralDeclarativeWitnessStopped334
