@@ -7365,3 +7365,6 @@ import Yulang.GeneralDeclarativeRawReplayArgs344
 import Yulang.GeneralDeclarativeReplayOrder344
 import Yulang.GeneralDeclarativeEffectiveReplay344
 import Yulang.GeneralDeclarativeAssociatedReplay344
+import Yulang.GeneralDeclarativeRootReplay344
+import Yulang.GeneralDeclarativeCommitPackage344
+import Yulang.GeneralDeclarativePackageBoundary344
