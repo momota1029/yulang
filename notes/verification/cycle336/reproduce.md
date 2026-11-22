@@ -14,10 +14,14 @@ done
 lake env lean --trust=0 -DwarningAsError=true ../notes/verification/cycle336/axiom-index.lean
 lake env lean --trust=0 -DwarningAsError=true ../notes/verification/cycle336/statement-index.lean
 lake env lean --trust=0 -DwarningAsError=true ../notes/verification/cycle336/exact-source-readback.lean
+lake env lean --trust=0 -DwarningAsError=true ../notes/verification/cycle336/dependency-boundary.lean
+lake env lean --trust=0 -DwarningAsError=true ../notes/verification/cycle336/no-center.lean
 ```
 
 The first two commands have their shell substitution written in Bash syntax and select only the new proof modules. The individual theorem axiom and statement outputs are partitioned in axiom/statements files. The separate scoped supervisor gate uses the ordinary gate predicate with exactly the listed explicit modules in place of the enormous top-level imports.
 
 `github-exact-replay.txt` verifies each fixed source and independent audit path byte-for-byte against its GitHub proof blob before checking that source directly. Files unchanged since the slightly earlier verified proof pin were checked against the last pin's exact blob IDs. `shadow-build.txt` compiles those same bytes in topological order with a separate Lean path, reusing older imports but no new C336 objects. `proof-tree.json` compares the exact base and proof trees, including the two I-57 frozen blobs. `proof-source-sha256.txt` lists the proof and audit source checksums, including the append-only barrel.
+
+`dependency-boundary.txt` audits transitive types and values of the new declarative constants for forbidden raw solver/state/resolver references. `no-center.txt` rechecks with the fresh C336 objects that the selected two-node compiler fixture still has no supported literal input-center row and retains its exact fixed writes.
 
 `diff-NN.txt` is the complete diff-only verifier output under I-57 (Audit.lean and README.md untouched, standalone audit files allowed); its scoped full-build option was not used. Exit codes are stored alongside logs.
