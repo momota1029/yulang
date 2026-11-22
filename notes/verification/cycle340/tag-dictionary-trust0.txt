@@ -1,0 +1,4 @@
+TRUST0 Yulang/GeneralDeclarativeTaggedInputs340.lean
+TRUST0 Yulang/GeneralDeclarativeTaggedElection340.lean
+TRUST0 Yulang/GeneralDeclarativeTaggedSelected340.lean
+TRUST0 Yulang/GeneralDeclarativeTaggedDictionary340.lean

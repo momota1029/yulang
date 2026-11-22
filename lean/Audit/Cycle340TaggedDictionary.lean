@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeTaggedDictionary340
+#print axioms Yulang.GeneralDeclarativeTaggedInputs340.pull
+#print axioms Yulang.GeneralDeclarativeTaggedInputs340.complete
+#print axioms Yulang.GeneralDeclarativeTaggedInputs340.observed
+#print axioms Yulang.GeneralDeclarativeTaggedElection340.level
+#print axioms Yulang.GeneralDeclarativeTaggedElection340.no_cycles
+#print axioms Yulang.GeneralDeclarativeTaggedElection340.guarded
+#print axioms Yulang.GeneralDeclarativeTaggedSelected340.reconstruct
+#print axioms Yulang.GeneralDeclarativeTaggedSelected340.local_sound
+#print axioms Yulang.GeneralDeclarativeTaggedDictionary340.tree_sound
+#print axioms Yulang.GeneralDeclarativeTaggedDictionary340.dictionary_sound

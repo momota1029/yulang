@@ -7266,3 +7266,7 @@ import Yulang.GeneralDeclarativeStoppedCurrent340
 import Yulang.GeneralDeclarativeTaggedSources340
 import Yulang.GeneralDeclarativeTaggedPatch340
 import Yulang.GeneralDeclarativeTaggedWhole340
+import Yulang.GeneralDeclarativeTaggedInputs340
+import Yulang.GeneralDeclarativeTaggedElection340
+import Yulang.GeneralDeclarativeTaggedSelected340
+import Yulang.GeneralDeclarativeTaggedDictionary340
