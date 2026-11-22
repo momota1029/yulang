@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-cycle: 340
-status: completed
-started: 2026-11-22T07:30:59Z
-updated: 2026-11-22T08:20:59Z
-elapsed_min: 50.0
-activity: completed exact backed joined receipts, nonpoint raw projection, and conditional same-model stopped dictionary evidence.
+cycle: 341
+status: running
+started: 2026-11-22T08:35:02Z
+updated: 2026-11-22T08:35:17Z
+elapsed_min: 0.3
+activity: I-62 確認、証人つき分類を目標とする実solver停止状態の射影を精査。作業環境復旧中
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
-last_local_commit: b6a61a5ed1310f283a46acac3d53cdbcf6ee0ee2
-resume_hint: derive real current packet compatibility/feasibility in remaining raw success cases, especially C316, and retain independently supported normalized join routes in legacy view.
-report: notes/handoff/dots-cycle-340.md
+last_local_commit: 259e8f6b6f47682ce9561f45fafc7c01a2f0a436
+resume_hint: C340 固定先から継続。旧 Local 対応は目標外。実solver既停止状態と宣言側の対応のみを証明する。
