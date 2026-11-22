@@ -1,11 +1,11 @@
 # dots-main heartbeat
-cycle: 338
-status: completed
-started: 2026-11-22T05:28:20Z
-updated: 2026-11-22T06:18:26Z
-elapsed_min: 50.1
-activity: Completed checked independent nested source, original candidate observer, elected modeled parent/child with actual writes, and exact open-prefix value receipts. Scoped audit and final pinned Git bytes replayed.
+cycle: 339
+status: running
+started: 2026-11-22T06:33:50Z
+updated: 2026-11-22T06:34:20Z
+elapsed_min: 0.5
+activity: Current I61 and §6.3 re-read; distinguish semantically resolved but unsupported tail syntax from genuinely unresolved goal tail. Recovering existing verified environment.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
-last_local_commit: cdfca81e37ee0b502b4b7bdf00a56720dbc2ba5b
-resume_hint: Read pinned C338 report. Integrate exact named open-prefix tails and supported heterogeneous heads, then raw successful-stop receipt A; no termination.
-report: notes/handoff/dots-cycle-338.md
+last_local_commit: 819fe1ea2e9a98b59072d977f644f7bf96e4970c
+resume_hint: Derive exact named receipt under unchanged existing candidate election, no new selection for actually unresolved tails.
+report: notes/handoff/dots-cycle-339.md
