@@ -7598,3 +7598,4 @@ import Yulang.GeneralDeclarativeWitnessTagCore352
 import Yulang.GeneralDeclarativeWitnessTagCoreBranch352
 import Yulang.GeneralDeclarativeWitnessTagCoreForest352
 import Yulang.GeneralDeclarativeWitnessTagCoreFixture352
+import Yulang.GeneralDeclarativeWitnessCovariantHead352

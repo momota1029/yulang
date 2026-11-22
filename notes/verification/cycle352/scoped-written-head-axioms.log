@@ -1,0 +1,9 @@
+'Yulang.GeneralDeclarativeWitnessCovariantHead352.basic_normalizer_keeps_two_boxes' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantHead352.not_yet_lowered_by_base_normalizer' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantHead352.actual_written_head_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantHead352.cannot_split_written_head' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantHead352.no_nominal_without_declared_covariance' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCovariantHead352.unequal_nominal_names' depends on axioms: [propext, Quot.sound]
