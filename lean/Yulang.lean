@@ -7141,3 +7141,7 @@ import Yulang.GeneralDeclarativeWitnessNode334
 import Yulang.GeneralDeclarativeWitnessClassify334
 import Yulang.GeneralDeclarativeWitnessFixture334
 import Yulang.GeneralDeclarativeWitnessCorrespond334
+import Yulang.GeneralDeclarativeWitnessCutDecl334
+import Yulang.GeneralDeclarativeWitnessCutBody334
+import Yulang.GeneralDeclarativeWitnessCutRank334
+import Yulang.GeneralDeclarativeWitnessCut334
