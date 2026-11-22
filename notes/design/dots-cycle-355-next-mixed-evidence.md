@@ -1,0 +1,17 @@
+# C355 follow-on: mixed independent branches, not retargeted output
+
+## Verified handoff
+
+The exact C354-origin `9 -> 10` re-emission can be released at [4,0] / role 3 / declaration 93 / version 8 / ordinal 0 / associated name 4 / target 10. With a real added bare `where` child, ordinary compilation emits input (50,9,51); the actual ordinary state contains 10 = 9. Even conditioned on that real equality, on a genuine release, and on a model, no accepted C355 child at that release can be manufactured at 10. The preserved exact physical center follows from the retained checked residual join and capture rules, not from solver convergence.
+
+The **different same-literal-site example** starts with actual captured name 10. The checked whole nominal spine is 92[93[94[95[96]]]]; four independent `(path, role, declaration, active version, write ordinal, associated name, target)` grants are retained. These are compatible identical typings at one logical name, not a transfer between different physical names. All stages have actual compiler child lists and fixed outputs. The entire root was parsed from authored words independent of the wire. One ordinary model and one common typed valuation support the semantic evidence and all the authorized read paths.
+
+## Next sequence
+
+1. Reuse the separate typed local-evidence kernel, not an invariant encoding. Go beyond single-child spines by combining a previously verified typed branch and an independently checked ordinary sibling on the exact emitted demand list. Require the real `where` ordering, exact source declarations and lexical scope, and current fixed-output target order in each branch. Reuse C352/C337 for unchanged ordinary heads and their own source-scoped coverage only; do not silently assert their coverage on the typed declaration. Start from one positive actual fixture, plus an altered order/authority absolute path negative.
+2. If useful, derive one witness-backed mixed dictionary induction indexed by real emitted `Demand` and the printed `Dictionary`. The ordinary and typed evidence constructors should consume the same fixed ordinary model; compatible typed read scopes get one valuation. Distinguish coherent overlap from equal models: C354 contains a real incompatible overlap even with same ordinary values outside that root.
+3. Different physical-name handoff needs independently supported source semantics which actually emit that named target. C355's broader pure ordinary preparation lemma proves compound input centers are fresh relative to the pre-stage/protected names. It is not a reason to change the spec or claim all distinct transfers impossible. If trying a fresh allocated site, build the actual authorized receipt first, and prove an approved same-model typed observation there rather than promoting a similarly-valued output, reusing a protected name, or accepting a scope based on language behavior not specified.
+
+## S1/S2 boundary
+
+The legacy C334 `Coverage` is impossible even for the actual visible covariant constructor in this typed route: neither primitive nor invariant was authored. Its registry `Checked` is also impossible at an actual non-leaf route because the ordinary check insists on `CountsCovered` and the supported residual joined head is outside it. The actual `Declared` predicate is nevertheless independently true. Retain those old theorems for their carrier. The finite typed evidence checker is partial, no inference completeness, arbitrary positive classification, legacy Local, termination, or Rust relation is claimed.
