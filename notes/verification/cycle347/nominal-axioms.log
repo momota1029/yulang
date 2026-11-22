@@ -1,0 +1,4 @@
+'Yulang.GeneralDeclarativeNominalIntervals347.fits_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNominalIntervals347.fits_list_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNominalIntervals347.read_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeNominalIntervals347.observes' depends on axioms: [propext, Classical.choice, Quot.sound]

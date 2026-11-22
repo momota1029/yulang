@@ -7429,3 +7429,4 @@ import Yulang.GeneralDeclarativeWherePairView346
 import Yulang.GeneralDeclarativeWhereNominal346
 import Yulang.GeneralDeclarativeWhereNominalFixture346
 import Yulang.GeneralDeclarativeWhereNamedSource346
+import Yulang.GeneralDeclarativeNominalIntervals347
