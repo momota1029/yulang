@@ -2,10 +2,10 @@
 cycle: 334
 status: running
 started: 2026-11-22T01:34:48Z
-updated: 2026-11-22T01:57:22Z
-elapsed_min: 22.6
-activity: Checked exact owner-completion gate in same ordinary state; original compiler and nonempty-model dictionary now replay after completion.
+updated: 2026-11-22T02:01:14Z
+elapsed_min: 26.4
+activity: Checked current re-election and exact same-name receipts from three historical emitter snapshots; completed a genuine two-child replay.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
-last_local_commit: 200e76bcc
-resume_hint: Prove dictionary soundness from actual interpreted supported observations, ordered child receipt and explicit selected ties. Keep old Local correspondence and stopped solver projection separate.
+last_local_commit: 5a3c46ffd
+resume_hint: I-60 dictionary soundness proven; old converse separated, it requires supported actual center. Find actual successful stop projection into occurrence-aligned receipts and re-election, not a termination proof.
 report: notes/handoff/dots-cycle-334.md

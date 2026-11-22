@@ -1,0 +1,25 @@
+import Yulang.GeneralDeclarativeWitnessJournalCase334
+
+open Yulang
+open GeneralDeclarativeWitnessJournalCase334
+open GeneralDeclarativeNestedSiblingsFrame332 (final)
+open GeneralDeclarativeNestedSiblingsDecl332 (registry)
+open GeneralDeclarativeNestedSiblingsResult332 (dictionary)
+open GeneralDeclarativeNestedExample332 (interpretation)
+open GeneralDeclarativeNestedDecl332 (root)
+open GeneralDeclarativeHead320 (Models)
+open GeneralDeclarativeEvidence320 (Evidence)
+
+example : ∃ m, Models final m ∧ Evidence registry interpretation m root dictionary :=
+  inhabited_recovery
+
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.kept_grows
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.keeps_current
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.swap_heads
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.receipt_grows
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.rebase_literal
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.current
+#print axioms Yulang.GeneralDeclarativeWitnessReobserve334.successful_reobserve
+#print axioms Yulang.GeneralDeclarativeWitnessJournalCase334.ordinary_phases_differ
+#print axioms Yulang.GeneralDeclarativeWitnessJournalCase334.chronological
+#print axioms Yulang.GeneralDeclarativeWitnessJournalCase334.inhabited_recovery
