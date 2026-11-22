@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-cycle: 348
-status: completed
-started: 2026-11-22T15:28:24.330Z
-updated: 2026-11-22T16:18:25.368Z
-elapsed_min: 50.02
-activity: I-63 witness checker design published; archived already-published Lean verified exactly
+cycle: 349
+status: running
+started: 2026-11-22T16:36:22.562Z
+updated: 2026-11-22T16:36:30.060Z
+elapsed_min: 0.12
+activity: I-63 finite witness input checks
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-report: notes/handoff/dots-cycle-348.md
-resume_hint: Follow current I-63: start finite declarative input/Witness checker with C291 metadata reflection; no historical producer mining, no old Local correspondence or termination.
+resume_hint: I-63 and C348 verified; checking canonical metadata, declared names and fixed-target equality with retained approved workspace if available.
