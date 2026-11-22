@@ -1,0 +1,40 @@
+PASS independent audit lean/Audit/Cycle347Current.lean
+PASS independent audit lean/Audit/Cycle347Final.lean
+PASS independent audit lean/Audit/Cycle347Nominal.lean
+PASS independent audit lean/Audit/Cycle347Projection.lean
+PASS independent audit lean/Audit/Cycle347Routes.lean
+PASS source lean/Yulang/GeneralDeclarativeJournalFixture347.lean
+PASS source lean/Yulang/GeneralDeclarativeJournalInput347.lean
+PASS source lean/Yulang/GeneralDeclarativeJournalPrefix347.lean
+PASS source lean/Yulang/GeneralDeclarativeJournalRelease347.lean
+PASS source lean/Yulang/GeneralDeclarativeNamedOrdinary347.lean
+PASS source lean/Yulang/GeneralDeclarativeNamedProjection347.lean
+PASS source lean/Yulang/GeneralDeclarativeNamedTable347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeBoundary347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeChild347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeCompound347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeCut347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativePlacement347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeRead347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeRepeatCompile347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeRepeatInput347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeRepeatModels347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeRepeatStage347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeReplay347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeRoot347.lean
+PASS source lean/Yulang/GeneralDeclarativeNativeWhere347.lean
+PASS source lean/Yulang/GeneralDeclarativeNominalIntervals347.lean
+PASS source lean/Yulang/GeneralDeclarativeNominalRevision347.lean
+PASS source lean/Yulang/GeneralDeclarativeNominalTransport347.lean
+PASS source lean/Yulang/GeneralDeclarativeObservedBody347.lean
+PASS source lean/Yulang/GeneralDeclarativeObservedCompound347.lean
+PASS source lean/Yulang/GeneralDeclarativeObservedRecord347.lean
+PASS source lean/Yulang/GeneralDeclarativeObservedRecordExact347.lean
+PASS source lean/Yulang/GeneralDeclarativeObservedRecordPair347.lean
+PASS source lean/Yulang/GeneralDeclarativeObservedSupport347.lean
+PASS source lean/Yulang/GeneralDeclarativeObservedSyntax347.lean
+PASS source lean/Yulang/GeneralDeclarativeRepairedEvidence347.lean
+PASS source lean/Yulang/GeneralDeclarativeStoredAuthority347.lean
+PASS source lean/Yulang/GeneralDeclarativeStoredRecordBase347.lean
+PASS source lean/Yulang/GeneralDeclarativeStoredRecordBody347.lean
+PASS source lean/Yulang/GeneralDeclarativeStoredRecordRoute347.lean
