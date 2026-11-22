@@ -60,8 +60,30 @@ theorem raw_canonical_input_repairs_this_order :
   rw [restored_order]
   rfl
 
+def boundsIn (xs : List Demand) : List (List (Nat × Nat × Nat)) :=
+  xs.map (fun d => d.arguments.map fun a => (a.lower,a.center,a.upper))
+
+def emittedBounds (d : Declaration) : Option (List (List (Nat × Nat × Nat))) :=
+  (compileBody registry interpretation root d stage spans keep fallback targets).map (boundsIn ∘ Prod.snd)
+
+/-- In this fixture, the allocator keeps each complete child request,
+including the exact endpoint and center names; only the two visits
+exchange position. This is a computed case, not a general permutation law. -/
+theorem actual_names_follow_order :
+    emittedBounds impl = some [[(18,3,19)],[(20,11,21)]] ∧
+    emittedBounds backwards = some [[(20,11,21)],[(18,3,19)]] :=
+  ⟨rfl,rfl⟩
+
+def emittedChildren (d : Declaration) : Option (List Demand) :=
+  (compileBody registry interpretation root d stage spans keep fallback targets).map Prod.snd
+
+theorem fixture_reverses_full_requests :
+    emittedChildren backwards = (emittedChildren impl).map List.reverse := rfl
+
 end Yulang.C334OrderedRawCut
 
 #print axioms Yulang.C334OrderedRawCut.backwards_checked
 #print axioms Yulang.C334OrderedRawCut.actual_order_cut
 #print axioms Yulang.C334OrderedRawCut.raw_canonical_input_repairs_this_order
+#print axioms Yulang.C334OrderedRawCut.actual_names_follow_order
+#print axioms Yulang.C334OrderedRawCut.fixture_reverses_full_requests
