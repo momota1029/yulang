@@ -7220,3 +7220,6 @@ import Yulang.GeneralDeclarativeCompoundRoutes338
 import Yulang.GeneralDeclarativeCompoundReadback338
 import Yulang.GeneralDeclarativeCompoundTree338
 import Yulang.GeneralDeclarativeCompoundSources338
+import Yulang.GeneralDeclarativeCompoundInputs338
+import Yulang.GeneralDeclarativeCompoundCompiler338
+import Yulang.GeneralDeclarativeCompoundDictionary338
