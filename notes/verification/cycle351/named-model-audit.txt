@@ -1,0 +1,36 @@
+'Yulang.GeneralDeclarativeWitnessReleaseExact351.fixed_slot' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleaseExact351.writes_at_request' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleaseExact351.exact_release_eligible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleaseExact351.release_owner_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagAssurance351.ordinary_addition_not_authentication' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagAssurance351.guessed_ordinary_index_not_authentication' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagAssurance351.same_named_script_remains_valid' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagAssurance351.independent_literal_author_can_be_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagConcrete351.compiler_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagConcrete351.edge_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagConcrete351.fitted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagConcrete351.some_checked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagConcrete351.local_fixed_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagNode351.local_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagNode351.leaf_evidence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagNodeFixture351.named_leaf_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

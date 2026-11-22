@@ -1,0 +1,53 @@
+'Yulang.GeneralDeclarativeWitnessTagSources351.offer' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagSources351.inline' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagSources351.named' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagSources351.directBounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagSources351.namedBounds' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagLocal351.input_direct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagLocal351.prepared' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagLocal351.sound_local' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.named_source_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.nested_named_not_literal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.withheld_arm' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.wrong_owner_arm' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.dropping_arm' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.genuine_named_write' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.genuine_direct_write' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.checked_named_compiler' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagFixture351.wrong_symbolic_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshness351.receipt_is_active' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshness351.single_position' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshness351.unique_version' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshness351.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshFixture351.actually_fresh' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshFixture351.stale_independent_stamp' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshFixture351.no_two_active_versions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshFixture351.no_unidentified_required_version' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshFixture351.no_replay_of_historic_releases' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFreshFixture351.another_current_version_with_matching_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,49 @@
+'Yulang.GeneralDeclarativeWitnessCompletion351.positive_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion351.positive_forest' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion351.reports_complete' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletion351.both' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletionFixture351.exact_trace' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletionFixture351.never_promoted' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletionFixture351.two_dictionaries' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletionFixture351.wrong_release_role' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletionFixture351.wrong_release_ordinal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletionFixture351.duplicated_real_writer_key_is_not_a_catalogue' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompletionFixture351.stale_record_does_not_harm_independently_released_current_version' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.asNamed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.lowerDirect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.hybrid_compiles' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.hybrid_keeps_upper_source_requirement' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.cannot_use_direct_for_both' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.upperDirect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.other_hybrid_compiles' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.literal_upper_does_not_replace_missing_lower' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.endpoints_must_belong_to_actual_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTagMix351.different_tag_does_not_supply_same_tag_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeWitnessIdentity351
+import Yulang.GeneralDeclarativeWitnessCatalog351
+import Yulang.GeneralDeclarativeWitnessAuthAllocation351
+#print axioms Yulang.GeneralDeclarativeWitnessIdentity351.select_sound
+#print axioms Yulang.GeneralDeclarativeWitnessIdentity351.writer
+#print axioms Yulang.GeneralDeclarativeWitnessIdentity351.release_exact
+#print axioms Yulang.GeneralDeclarativeWitnessCatalog351.from_required
+#print axioms Yulang.GeneralDeclarativeWitnessCatalog351.proves_writes
+#print axioms Yulang.GeneralDeclarativeWitnessAuthAllocation351.input
+#print axioms Yulang.GeneralDeclarativeWitnessAuthAllocation351.exact_order
+#print axioms Yulang.GeneralDeclarativeWitnessAuthAllocation351.sound
+#print axioms Yulang.GeneralDeclarativeWitnessAuthAllocation351.observed
+#print axioms Yulang.GeneralDeclarativeWitnessAuthAllocation351.head
