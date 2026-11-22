@@ -1,0 +1,15 @@
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.identity_only' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.no_peer_choice' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.can_install' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.not_journaled' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.actual_leaf' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeStoppedLeafFixture340.reached_and_stopped' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
