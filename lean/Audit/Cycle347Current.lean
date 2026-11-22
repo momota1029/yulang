@@ -1,0 +1,18 @@
+import Yulang.GeneralDeclarativeNativeWhere347
+import Yulang.GeneralDeclarativeNativeChild347
+import Yulang.GeneralDeclarativeNominalRevision347
+import Yulang.GeneralDeclarativeNominalTransport347
+#print axioms Yulang.GeneralDeclarativeNativeWhere347.absent
+#print axioms Yulang.GeneralDeclarativeNativeWhere347.no_lookup
+#print axioms Yulang.GeneralDeclarativeNativeWhere347.no_compiled_cell
+#print axioms Yulang.GeneralDeclarativeNativeWhere347.recorded_no_compiled_cell
+#print axioms Yulang.GeneralDeclarativeNativeWhere347.both_missing
+#print axioms Yulang.GeneralDeclarativeNativeChild347.traces
+#print axioms Yulang.GeneralDeclarativeNativeChild347.current_positions
+#print axioms Yulang.GeneralDeclarativeNominalRevision347.prior_read
+#print axioms Yulang.GeneralDeclarativeNominalRevision347.current_read
+#print axioms Yulang.GeneralDeclarativeNominalRevision347.not_current
+#print axioms Yulang.GeneralDeclarativeNominalRevision347.exact_times
+#print axioms Yulang.GeneralDeclarativeNominalTransport347.stable_refinement
+#print axioms Yulang.GeneralDeclarativeNominalTransport347.type_projection
+#print axioms Yulang.GeneralDeclarativeNominalTransport347.row_projection
