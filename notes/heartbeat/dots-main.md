@@ -2,10 +2,10 @@
 cycle: 337
 status: running
 started: 2026-11-22T04:28:27Z
-updated: 2026-11-22T04:51:59Z
-elapsed_min: 23.5
-activity: Restored checksum-verified Lean 4.35.0 and separate live work checkout; exact core imports matched and rebuilt. Reconstructing and auditing the deletion proof.
+updated: 2026-11-22T04:59:42Z
+elapsed_min: 31.3
+activity: Standalone deletion is verified in Lean: full regular subtype monotonicity, exact rigid deletion and consumed-optional difference from a mask. Continuing authored receipt integration.
 workspace: /workspace/scratch/1d0b4aaa3394/yulang
 last_local_commit: bc00a3142
-resume_hint: Use the current separate recovery checkout and verified Lean toolchain; do not use the C32 snapshot for consumer-level claims.
+resume_hint: Read the C337 exact-delete modules and standalone audit; finish current supported authored projection and dictionary, no termination.
 report: notes/handoff/dots-cycle-337.md
