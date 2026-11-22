@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeCompoundFixtureRoutes338
+
+#print axioms Yulang.GeneralDeclarativeCompoundHeads338.pair_fields
+#print axioms Yulang.GeneralDeclarativeCompoundHeads338.candidate
+#print axioms Yulang.GeneralDeclarativeCompoundHeads338.positive
+#print axioms Yulang.GeneralDeclarativeCompoundFixture338.actual_source
+#print axioms Yulang.GeneralDeclarativeCompoundFixture338.checked_decl
+#print axioms Yulang.GeneralDeclarativeCompoundFixture338.source_compiles
+#print axioms Yulang.GeneralDeclarativeCompoundFixture338.source_valid
+#print axioms Yulang.GeneralDeclarativeCompoundFixture338.center_not_read
+#print axioms Yulang.GeneralDeclarativeCompoundFixture338.matches_original
+#print axioms Yulang.GeneralDeclarativeCompoundFixture338.checked_compilation
+#print axioms Yulang.GeneralDeclarativeCompoundFixtureRoutes338.projected_origin
+#print axioms Yulang.GeneralDeclarativeCompoundFixtureRoutes338.full_receipts
+#print axioms Yulang.GeneralDeclarativeCompoundFixtureRoutes338.routed
+#print axioms Yulang.GeneralDeclarativeCompoundFixtureRoutes338.observed
