@@ -1,0 +1,31 @@
+import Yulang.GeneralDeclarativeRepeatedTxn348
+import Yulang.GeneralDeclarativeRepeatedRows348
+import Yulang.GeneralDeclarativeReplayStage348
+import Yulang.GeneralDeclarativeReplayCompile348
+import Yulang.GeneralDeclarativeReplayModels348
+import Yulang.GeneralDeclarativeRepeatedPlacement348
+import Yulang.GeneralDeclarativeTxnNormalized348
+import Yulang.GeneralDeclarativeTxnComplete348
+import Yulang.GeneralDeclarativeRepeatedVisible348
+import Yulang.GeneralDeclarativeRepeatedSpelling348
+import Yulang.GeneralDeclarativeTxnObserve348
+import Yulang.GeneralDeclarativeTxnTrace348
+#print axioms Yulang.GeneralDeclarativeRepeatedTxn348.checked
+#print axioms Yulang.GeneralDeclarativeRepeatedTxn348.exactly
+#print axioms Yulang.GeneralDeclarativeRepeatedRows348.exact_at
+#print axioms Yulang.GeneralDeclarativeRepeatedRows348.corrected_position
+#print axioms Yulang.GeneralDeclarativeReplayStage348.actual_modes
+#print axioms Yulang.GeneralDeclarativeReplayCompile348.actual
+#print axioms Yulang.GeneralDeclarativeReplayModels348.model_extension
+#print axioms Yulang.GeneralDeclarativeRepeatedPlacement348.modes
+#print axioms Yulang.GeneralDeclarativeRepeatedPlacement348.same_model_placement
+#print axioms Yulang.GeneralDeclarativeTxnNormalized348.same_rhs
+#print axioms Yulang.GeneralDeclarativeTxnNormalized348.exact_support
+#print axioms Yulang.GeneralDeclarativeTxnComplete348.actual_outputs
+#print axioms Yulang.GeneralDeclarativeRepeatedVisible348.current_source
+#print axioms Yulang.GeneralDeclarativeRepeatedSpelling348.actual_cut
+#print axioms Yulang.GeneralDeclarativeTxnObserve348.refresh_models
+#print axioms Yulang.GeneralDeclarativeTxnObserve348.revise_models
+#print axioms Yulang.GeneralDeclarativeTxnObserve348.revise_observed
+#print axioms Yulang.GeneralDeclarativeTxnTrace348.path_extends
+#print axioms Yulang.GeneralDeclarativeTxnTrace348.path_projects
