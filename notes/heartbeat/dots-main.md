@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-cycle: 341
-status: completed
-started: 2026-11-22T08:35:02Z
-updated: 2026-11-22T09:22:31Z
-elapsed_min: 47.5
-activity: completed: exact stopped positive diagnostic placement, current packet producer cut, C285 exact full model and output projection.
+cycle: 342
+status: running
+started: 2026-11-22T09:30:08Z
+updated: 2026-11-22T09:30:08Z
+elapsed_min: 0.0
+activity: I-62 と C341 の完了を確認。版付き where の現在 Frame、旧/現の子と固定出力の由来を Lean で検証
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
-last_local_commit: 5ee53409f231f5b3f732daa6cd3c4367cae31ffd
-resume_hint: Latest I-62: compare actual solver and current witnesses only. Extend general current source provenance and exact whole diagnostics; C316 changed where endpoints need version-aware handling, not legacy alignment.
-report: notes/handoff/dots-cycle-341.md
+last_local_commit: ada2a1282181c1a78f73d9a1bfadfbb575146f8b
+resume_hint: C319 の after-install snapshot と実子を使う。旧 Local への対応ではなく、現版の実施工から最新支持付き証人を構成する。
