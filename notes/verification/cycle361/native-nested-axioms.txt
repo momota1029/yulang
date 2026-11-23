@@ -1,0 +1,33 @@
+Exact added source and intended audit blob IDs:
+GeneralDeclarativeWitnessNativeNestedMatch361 0c8e2674c9dc94df901a05e3d120df62c0b29149 Cycle361NativeNestedMatch 3d3f1cf4f0d283d013e17e8302956ee1dc638ead
+GeneralDeclarativeWitnessNestedLeaf361 3095e0a3cf3742351accae3b606ffc92f949e5f4 Cycle361NestedLeaf bb5c61358d7d92c9c540248a21c10d33c0bb565f
+GeneralDeclarativeWitnessNestedFixture361 b68c9c4065fd99df77645f9e83604609d22452f9 Cycle361NestedFixture 0b826e88f9683d695f7e2e5a9a68ad5aa3593b03
+GeneralDeclarativeWitnessNestedModel361 5cab64ecaad2ef3c36b7f821d44b65d3378bfe09 Cycle361NestedModel 8de29e8c46a6d34d4e48f9b4373a1550628ac53d
+
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; unmodified bodies in dependency order, standard external imports, exact audit query suffixes, exit 0. No new .olean or separate import build.
+'Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.source_centers' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.every_captured_span_has_literal_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.independent_match_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedLeaf361.classified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedFixture361.actual_nested_binder_does_not_use_nominal_address' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedFixture361.matching_port_and_release_do_not_select_other_constructor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModel361.actual_compiler_keeps_the_payload_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModel361.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModel361.composed_leaf_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModel361.actual_nested_dictionary_in_one_fitted_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
