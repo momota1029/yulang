@@ -1,0 +1,28 @@
+'Yulang.GeneralDeclarativeWitnessNativeBodyFixture360.genuine_preparation_and_where' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.check_exact' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.authored_target_appears' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.other_target_unchanged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.actual_installation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.no_ordinary_override' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.fit_after_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.release_current_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.not_installed_not_released' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.version_needs_current_authority' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.not_granted_not_released' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.checked_exact_written_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePipeline360.actual_compiler_write_and_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePipeline360.source_version_grant_and_actual_value_are_separate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
