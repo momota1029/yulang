@@ -1,0 +1,24 @@
+import Yulang.GeneralDeclarativeI65RouteTag368
+import Yulang.GeneralDeclarativeI65ReleaseErasure368
+import Yulang.GeneralDeclarativeI65AuthoredPrefix368
+import Yulang.GeneralDeclarativeI65NormalSupport368
+
+#print axioms Yulang.GeneralDeclarativeI65.routed_tag_exact
+#print axioms Yulang.GeneralDeclarativeI65.window_preserves_required_route
+#print axioms Yulang.GeneralDeclarativeI65.distinct_route_excludes_match
+#print axioms Yulang.GeneralDeclarativeI65.original_slot_is_exact
+#print axioms Yulang.GeneralDeclarativeI65.native_interpretation_exact_coherence
+#print axioms Yulang.GeneralDeclarativeI65.fit_exact_on_native_table
+#print axioms Yulang.GeneralDeclarativeI65.fits_does_not_read_routes
+#print axioms Yulang.GeneralDeclarativeI65.exact_ready_differs_on_unchanged_current
+#print axioms Yulang.GeneralDeclarativeI65.no_erasure_of_ready_authority
+#print axioms Yulang.GeneralDeclarativeI65.lift_prefix_visit
+#print axioms Yulang.GeneralDeclarativeI65.backed_alias_is_ordinary
+#print axioms Yulang.GeneralDeclarativeI65.backed_view_is_ordinary
+#print axioms Yulang.GeneralDeclarativeI65.authored_ordinary_prefix_k2
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_prefix_veto_independent_of_choice
+#print axioms Yulang.GeneralDeclarativeI65.pending_equation_at_reached_site_has_k2
+#print axioms Yulang.GeneralDeclarativeI65.supported_entry_origin
+#print axioms Yulang.GeneralDeclarativeI65.backed_bound_is_ordinary
+#print axioms Yulang.GeneralDeclarativeI65.authorized_alias_to_ordinary
+#print axioms Yulang.GeneralDeclarativeI65.verified_source_view_to_ordinary
