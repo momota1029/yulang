@@ -1,0 +1,20 @@
+'Yulang.GeneralDeclarativeWitnessSharedTailProjection358.record_merge_shared_tail' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSharedTailProjection358.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSharedTailProjection358.authored_visibility_same_model' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoSourcedEndpoints358.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoSourcedEndpoints358.independently_sourced' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWindowFixture358.actual_two_source_heads' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWindowFixture358.center_has_no_equation' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessRecordWindowFixture358.current_constraints_are_not_origins' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWindowFixture358.integer_to_payload' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWindowFixture358.strict_original_payload_bounds' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWindowFixture358.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWindowFixture358.actual_record_window_without_center_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
