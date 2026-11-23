@@ -7907,3 +7907,4 @@ import Yulang.GeneralDeclarativeI65ReturnRankCore370
 import Yulang.GeneralDeclarativeI65SourceBodyProduction371
 import Yulang.GeneralDeclarativeI65DirectDeclaredTarget371
 import Yulang.GeneralDeclarativeI65RetainedEvent372
+import Yulang.GeneralDeclarativeI65CurrentRelease376
