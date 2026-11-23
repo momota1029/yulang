@@ -1,0 +1,30 @@
+PASS independent audit lean/Audit/Cycle356Authored.lean
+PASS independent audit lean/Audit/Cycle356Ledger.lean
+PASS independent audit lean/Audit/Cycle356Mixed.lean
+PASS independent audit lean/Audit/Cycle356Paths.lean
+PASS independent audit lean/Audit/Cycle356Recursive.lean
+PASS independent audit lean/Audit/Cycle356Routes.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessAddressLinear356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedFront356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedFrontFixture356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedIsolation356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedLedger356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedLedgerFixture356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedNestedFixture356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedNestedModel356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedNestedSeed356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedPathLedger356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedReal356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedRealFixture356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedRealModel356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedRecursiveFrontFixture356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedReleaseMeaning356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedScope356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedSiblings356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessMixedTyped356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPayloadAuthored356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPayloadRoute356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecursiveMixed356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecursiveSound356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecursiveSource356.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecursiveTree356.lean
