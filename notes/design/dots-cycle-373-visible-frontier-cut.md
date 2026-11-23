@@ -32,6 +32,43 @@ if the two source declaration values were equal); `tape.live = [row]`
 rules it out. This is an ordinal of `visible s q`, not a global
 declaration ID or a physical write address.
 
+## Remove semantic-model inspection from this exact tape identity cut
+
+The only use of `Fits` in C367's rigid-rival exclusion is
+`same_native_slot_same_endpoint`: two authored observations at the
+same physical slot have the same endpoint. In particular no ordinary
+interval/equality model, independently chosen typed value, or
+context-comparison soundness theorem is needed for that negative.
+Replace that step by the exact structural invariant
+`SlotCoherent s.origins` from C368 (`original_slot_is_exact` /
+`native_interpretation_exact_coherence`).
+
+For a declared-mode `RigidCandidateMiss`, `SinglePhysical` and each
+original's independently recorded route identify the conflicting
+observation and the supposedly matching lower endpoint at the same
+physical slot. `SlotCoherent` now gives literal endpoint equality.
+Injectivity of the two nominal tags contradicts the mismatch after
+normalizing the same written pattern. The ordinary alternative is
+ruled out by its exact declared-only mode and existing
+`declared_application_not_ordinary`; the join alternative is ruled
+out by syntax, just as in C367. All three cases are model-free.
+The no-wait, singleton-live tape lemma then carries the resulting
+rival exclusion across independent valid tapes exactly as above.
+
+Thus **the exact C367 visible-tape declaration identity holds whenever
+the actual native origin ledger is internally slot-coherent, even
+if there is no fitting ordinary model.** This premise is a data
+invariant, not a condition on ordinary solutions or a new check on
+accepted programs. A genuine `Fits` already entails it directly
+because it is the same function's lookup at that slot. For a separate
+model-free construction of an actual state, the writer/retainer must
+still prove this invariant or use the checked existing ledger; do
+not assume it for every raw list, conflate `SinglePhysical` with it,
+or require that different slots routed to the same name carry identical
+physical provenance. This makes the distinction between event-side
+recording and semantic interpretation precise without extending the
+candidate carrier.
+
 ## What can be transported to a retained event
 
 At each request occurrence one may reuse the declaration identity from
