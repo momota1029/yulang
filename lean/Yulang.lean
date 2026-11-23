@@ -7874,3 +7874,4 @@ import Yulang.GeneralDeclarativeWitnessNominalNoFallback364
 import Yulang.GeneralDeclarativeWitnessRealMismatchedRival364
 import Yulang.GeneralDeclarativeWitnessRigidMismatch364
 import Yulang.GeneralDeclarativeI65Comparison365
+import Yulang.GeneralDeclarativeI65State365
