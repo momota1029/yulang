@@ -1,0 +1,4 @@
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; exit 0. Read-only ordinary attachment; 39 prior source dependencies read at exact C361 pin and replayed in import order; no .olean output. Exact published audit suffix.
+'Yulang.GeneralDeclarativeWitnessThreeNative362.actual_three_authored_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessCrossOwnerModel362
+#print axioms Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.actual_multi_owner_reader_state
+#print axioms Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.fits_current
+#print axioms Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.actual_common_fitted_state_from_three_authors

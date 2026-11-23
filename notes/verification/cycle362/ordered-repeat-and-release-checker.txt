@@ -1,0 +1,18 @@
+Lean 4.35.0 exact source and prerequisites in read-only stdin, exit 0.
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointRepeat362.actual_two_scopes_share_exact_center_not_alias_addresses' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointModel362.actual_both_returns_keep_source_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointModel362.model_after_both' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointModel362.exact_source_after_two_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointModel362.two_children_have_exact_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExecutableRelease362.open_from_exact_facts' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExecutableRelease362.exact_release_checker' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExecutableRelease362.executable_retirement_only_removes_own_release' depends on axioms: [propext,
+ Quot.sound]

@@ -1,0 +1,17 @@
+Lean 4.35.0 strict stdin, exact checked source closure, exit 0. Independent audits:
+'Yulang.GeneralDeclarativeWitnessCrossOwnerReceiver362.actual_read_of_three_independent_sources' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerReceiver362.preserves_checked_mode_words' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerReceiver362.every_reader_fit_still_reads_each_original_owner' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.actual_multi_owner_reader_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.fits_current' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.actual_common_fitted_state_from_three_authors' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

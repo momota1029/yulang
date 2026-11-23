@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessNativeOrder362
+#print axioms Yulang.GeneralDeclarativeWitnessNativeOrder362.actual_directed_rows
+#print axioms Yulang.GeneralDeclarativeWitnessNativeOrder362.holds_yields_typed_context
+#print axioms Yulang.GeneralDeclarativeWitnessNativeOrder362.release_and_order_in_every_fit

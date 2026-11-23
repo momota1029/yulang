@@ -1,0 +1,19 @@
+C362 isolated virtual exact import closures from fd8140029c86f9707756394f686df7f581632a35
+Strict Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; no new .olean.
+GeneralDeclarativeWitnessCrossOwnerModel362 PASS, 23 exact C362 modules in its declared closure, 3 named independent queries
+GeneralDeclarativeWitnessReaderModeAgreement362 PASS, 14 exact C362 modules in its declared closure, 3 named independent queries
+GeneralDeclarativeWitnessOrderedNonpointModel362 PASS, 16 exact C362 modules in its declared closure, 4 named independent queries
+GeneralDeclarativeWitnessExecutableRelease362 PASS, 16 exact C362 modules in its declared closure, 3 named independent queries
+GeneralDeclarativeWitnessSeparateAuthorOrder362 PASS, 14 exact C362 modules in its declared closure, 4 named independent queries
+GeneralDeclarativeWitnessInheritedEnvelope362 PASS, 7 exact C362 modules in its declared closure, 2 named independent queries
+GeneralDeclarativeWitnessUnaryVarianceLaws362 PASS, 5 exact C362 modules in its declared closure, 5 named independent queries
+GeneralDeclarativeWitnessModeScope362 PASS, 7 exact C362 modules in its declared closure, 4 named independent queries
+GeneralDeclarativeWitnessScopedNativeWindows362 PASS, 11 exact C362 modules in its declared closure, 4 named independent queries
+GeneralDeclarativeWitnessThreeNative362 PASS, 1 exact C362 modules in its declared closure, 1 named independent queries
+GeneralDeclarativeWitnessNonpointReceiver362 PASS, 9 exact C362 modules in its declared closure, 3 named independent queries
+GeneralDeclarativeWitnessSeparateAuthorModel362 PASS, 13 exact C362 modules in its declared closure, 4 named independent queries
+GeneralDeclarativeWitnessNativeInvariantCut362 PASS, 5 exact C362 modules in its declared closure, 3 named independent queries
+GeneralDeclarativeWitnessNativeThreeModel362 PASS, 2 exact C362 modules in its declared closure, 4 named independent queries
+GeneralDeclarativeWitnessNonpointPort362 PASS, 7 exact C362 modules in its declared closure, 2 named independent queries
+GeneralDeclarativeWitnessReleaseSeparation362 PASS, 15 exact C362 modules in its declared closure, 4 named independent queries
+GeneralDeclarativeWitnessOrderedNonpointRepeat362 PASS, 15 exact C362 modules in its declared closure, 1 named independent queries

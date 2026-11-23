@@ -1,0 +1,2 @@
+import Yulang.GeneralDeclarativeWitnessOrderedNonpointRepeat362
+#print axioms Yulang.GeneralDeclarativeWitnessOrderedNonpointRepeat362.actual_two_scopes_share_exact_center_not_alias_addresses
