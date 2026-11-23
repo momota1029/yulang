@@ -3,8 +3,8 @@
 cycle: 368
 status: running
 started: 2026-11-23T11:37:00.292Z
-updated: 2026-11-23T11:37:00.292Z
-elapsed_min: 0
-activity: fresh I-65 authority verified; source-coherence and candidate K2 proof cuts
-last_local_commit: fb9124d967dbdcd5416e707e7941a816f3954514
-resume_hint: notes/design/dots-cycle-367-i65-next-source-rule.md
+updated: 2026-11-23T11:46:26.027Z
+elapsed_min: 9
+activity: independent release-table and two-graph K2 design pinned; exact proof drafts held privately; no Lean executor
+last_local_commit: 2371677480761a53f7c61e3739cca86159236fd8
+resume_hint: notes/design/dots-cycle-368-i65-authority-and-k2.md
