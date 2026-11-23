@@ -1,0 +1,8 @@
+'Yulang.GeneralDeclarativeWitnessAddressLinear356.tree_addresses' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAddressLinear356.descendants' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAddressLinear356.unique_report_addresses' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAddressLinear356.one_write_entry_per_compiler_path' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
