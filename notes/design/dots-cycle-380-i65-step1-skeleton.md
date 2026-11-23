@@ -30,7 +30,7 @@ theorem dictionary_sound
 - 下記の `LocalSource s` は **これから実現する独立な規則**。`Classifies` の固定 API と一緒に S01 で具現化する。旧 `Local` の別名でも、checker の成功判定でもない。読んだ integration の I-65 モジュールでは全称の `Classifies` / `DictionaryEvidence` は見つからなかった。S13 が後者の実 API を具現化する。これらは仮定や無償の別名にしない。
 - `SelectedSource s q key kids` は S02 の中間データ。実 root 構文、選択されたソース宣言の出現、元の順序付き候補判断（成功・不一致・保留の理由）、その規則の body 導出と子リストを持つ。比較の意味、受理証明、`SourceReceipt` はフィールドにしない。
 - `OrdinaryRoot`, `ActualCandidateVisit` はそれぞれ実 root と、独立候補判断で実際に入った検査位置の指標。位置には候補出現、引数番号、親からの検査経路、型/行、元端点の別を保持する。 `CurrentCycle` は実グラフのその位置への非空閉路で、未完了出力の等式も含め、nominal の引数は通るが body は開かない。 `AuthorizedLower` は別の元データによる支持。possible port を visited としない。
-- `GeneralHead`, `GeneralCapture`, `OrdinaryReceipt`, `TypedReceipt`, `GeneralNode`, `GeneralTree`, `GeneralTreeMeaning` は下記の穴を明示する作業名。既存 `SourceHead` と `ReceiptTree` にない形を既存名で潰さない。特に C368 の `Write.typed` の意味は unary 値引数で、任意の宣言モード・引数ベクトルの出力意味とはまだ同じではない。新たな型の扱いは仕様に既にあるものだけ。`NodeFrom event n` と `LiteralTreeFrom trace n` は同じ原始導出から来た記録を比較する関係（単なる key の等式や存在否定のための動作条件ではない）。標準化して等価な他の body の出力に取り替えない。Lean の `Prop` の証明同一性から選択イベントを読み取らない。ソースの候補/作者/配列イベントは明示のデータまたは独立な関係の添字に置く。S01 の `Tree` の key 列だけで同じ body event とみなさず、S02 と S11 が同じ実イベントの添字を運ぶ。出力記録 `OrderedReceipt` は出現付きの literal な順序列で、固定 target と実作者・版・ordinal をすり替えない。
+- `GeneralHead`, `GeneralCapture`, `OrdinaryReceipt`, `TypedReceipt`, `GeneralNode`, `GeneralTree`, `GeneralTreeMeaning` は下記の穴を明示する作業名。既存 `SourceHead` と `ReceiptTree` にない形を既存名で潰さない。特に C368 の `Write.typed` の意味は unary 値引数で、任意の宣言モード・引数ベクトルの出力意味とはまだ同じではない。新たな型の扱いは仕様に既にあるものだけ。`NodeFrom event n` と `LiteralTreeFrom trace n` は同じ原始導出から来た記録を比較する関係（単なる key の等式や存在否定のための動作条件ではない）。標準化して等価な他の body の出力に取り替えない。Lean の `Prop` の証明同一性から選択イベントを読み取らない。ソースの候補/作者/配列イベントは明示のデータまたは独立な関係の添字に置く。S01 の `Tree` の key 列だけで同じ body event とみなさず、S02 と S11 が同じ実イベントの添字を運ぶ。出力記録 `OrderedReceipt` は出現付きの literal な順序列で、固定 target と実作者・版・ordinal をすり替えない。出力受け口が複数の要求で共有される場合も、元要求での出力名/ordinal/target を記録してから、承認された需要合流の整合性を別に扱う。
 
 ## 1. 出発点: 独立な導出から、実際に選ばれた一回の出現へ
 
@@ -122,7 +122,7 @@ theorem selected_typed_actual_owner_and_retention (sel : SelectedSource s q key 
       RetainedCurrentWrites s r ∧ ExactIndependentReleaseUse s sel r
 ```
 
-既存: `PreparedOwnBody376.same_prepared_author_in_finished_and_typed_body`, `CurrentRelease376.checked_install_opens_iff_granted`, `JoinBody368.current_typed_write_exact` は実 prepared・現在同じ write の配列・独立 grant を結ぶが、一般の選択からその writer/version/sourceOrdinal/outputOrdinal/target と同じ現在盤面を回収できていない。
+既存: `PreparedOwnBody376.same_prepared_author_in_finished_and_typed_body`, `CurrentRelease376.checked_install_opens_iff_granted`, `JoinBody368.current_typed_write_exact` は実 prepared・現在同じ write の配列・独立 grant を結ぶが、一般の選択からその writer occurrence/role/declaration/version/sourceOrdinal/outputOrdinal/output name/fixed target/source equation と同じ現在盤面を回収できていない。C376 の `one_authored_preparation_keeps_ordered_and_typed_meaning` の追加観測 `observes` は一般の `Fits s m` からの射影がまだ無い。その仮定を固定文に追加せず、S07 の保持と S09 の解釈を接続して初めて使う。
 
 `ExactIndependentReleaseUse` は **実際に出力を支持として読んだ箇所**の独立 grant だけを求める。全ての書き込みに release 済みを要求したり、下流の fit・同名/同値・install 成功から grant を作ったりしない。`ExactSelectedReceipt` は、選択の where が返す literal `kids = children q demands`、全子の実宣言、同じ捕捉からの固定出力、ordinal と target の逐一一致を含む。S06/07 の `SourceBodyCase` は S02 で反転した実 body 規則のどちらかであり、対応できない入力を排除する条件ではない。
 
@@ -146,7 +146,7 @@ theorem general_local_meaning (n : GeneralNode s q row kids)
     (m : Model) (fit : Fits s m) : GeneralNodeMeaning n m
 ```
 
-既存: `UnionReceipts368.source_receipt_in_one_model` は ordinary と既存 typed carrier に対し、head・子順・全子宣言・targets・普通等式・unary native 観測を同じモデルで得る。広い carrier で型/行と文脈を同じ `m` で意味づける部分は未証明。固定出力を自由な値にしたり、別モデルへの付け替えで閉じたりしない。
+既存: `UnionReceipts368.source_receipt_in_one_model` は ordinary と既存 typed carrier に対し、head・子順・全子宣言・targets・普通等式・unary native 観測を同じモデルで得る。C360 の `Code` も recursive unary spine であり、nested には使えても任意の型/行ベクトルを表したとは言わない。広い carrier で型/行と文脈を同じ `m` で意味づける部分は未証明。固定出力を自由な値にしたり、別モデルへの付け替えで閉じたりしない。
 
 ### S10 · 未証明 — `selected_frontier_to_general_node`
 
@@ -281,14 +281,14 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 固定した公開結論の実 interface                              S13
 ```
 
-矢印は証明の依存（S10 が S02〜S08 全部を、S11 が S01/S10 を、S12 が S09/S11 を使用）。P01–P04 の見出しは狭い再利用定理。S 行は一回ずつ数え、forest は S11 と同一の相互帰納単位。S01 の `Resolves` は同じ `s` を参照する。途中で子が付け足した等式や native write は、実導出が現在の `s` に保持したという S06/S07 の対応を通す。証拠のないスナップショットの固定化、兄弟の交換、可換な意味を利用した順序消去では補わない。I-60 どおり、その位置を判断するための支持付き読みや原始的な author/発行規則を宣言的導出の材料にできる。S01 の本物の規則を実装する際、S02–S07 の**複合結論**を証明済みフィールドとして詰めない。特に S03 の実検査位置・優先順位は proof of acceptance でなく、その独立導出からの保存/反転の目標。S09 以外の source → receipt 側では `Fits`、モデル選定、checker を使わない。新しい行を足す場合はその理由と依存の入れ替えをこの節へ 1 行で記録する。
+矢印は証明の依存（S10 が S02〜S08 全部を、S11 が S01/S10 を、S12 が S09/S11 を使用）。P01–P04 の見出しは狭い再利用定理。S 行は一回ずつ数え、forest は S11 と同一の相互帰納単位。S01 の `Resolves` は同じ `s` を参照する。途中で子が付け足した等式や native write は、実導出が現在の `s` に保持したという S06/S07 の対応を通す。証拠のないスナップショットの固定化、兄弟の交換、可換な意味を利用した順序消去では補わない。I-60 どおり、その位置を判断するための支持付き読みや原始的な author/発行規則を宣言的導出の材料にできる。S01 の本物の規則を実装する際、S02–S07 の**複合結論**を証明済みフィールドとして詰めない。特に S03 の実検査位置・優先順位は proof of acceptance でなく、その独立導出からの保存/反転の目標。S01/S02 の source event は原始規則で成立したものを指し、成功チェッカや派生 `ReceiptTreeMeaning`を backwards に使わない。S09 以外の source → receipt 側では `Fits`、モデル選定、checker を使わない。新しい行を足す場合はその理由と依存の入れ替えをこの節へ 1 行で記録する。
 
 
 ### 最初に行う S01 の確認点
 
 1. 正本で監査するのは `Classifies` の限定実装を呼ぶかどうかでなく、`State` と実原始導出から `LocalSource` の入力が揃うか。宣言の順番・実出現・kind/mode の出どころを現台帳から読む。 `Fits` の同じ syntax/値だけでは異なる source route の区別を証明できない（S02/S04）。
 2. 診断木は root/候補検査規則と where 子の要約を別の段に置く。K2 は S03 の root/候補検査であり、子リストやモデルの fold から逆算しない。辞書全体を再帰して既に選択したかを判定する循環を作らない（S01 と S11 の分離）。
-3. 実 carrier の負の監査として既存の `ReleaseErasure368.no_erasure_of_ready_authority`（`GeneralDeclarativeI65ReleaseErasure368.lean`）と `CurrentRelease376.same_target_different_source_address_not_open` を使う。同じ普通状態、同じ target だけを入力とする producer は authority を復元できない。S01 で正当な原始根拠が現在の `State` に足りない場合、それを S01 の表現課題として報告する。閉じないケースを無断で保留や拒否へ寄せない。
+3. 実 carrier の負の監査として既存の `ReleaseErasure368.no_erasure_of_ready_authority`（`GeneralDeclarativeI65ReleaseErasure368.lean`）と `CurrentRelease376.same_target_different_source_address_not_open` を使う。同じ普通状態、同じ target だけを入力とする producer は authority を復元できない。C365 の `State.current` の `Current` には `environment, ordinary, visible` のみがあり、C360 の `Board.active/writes` と `ReleaseAuthority.grants` はそこからの射影として定義されていない。原始 source fact の同じ状態への attachment は調べるが、任意の新規 grant を許す存在量化にはしない。S01 で正当な原始根拠が現在の `State` に足りない場合、それを S01 の表現課題として報告する。閉じないケースを無断で保留や拒否へ寄せない。
 4. `ReceiptMeaning` が exact local order と typed write を型に持っていても、その後の `WrittenIn` は各要素の意味の投影でしかない。S13 を P04 の集合化だけで閉じず、辞書の木構造に固定した全列を保持する。
 
 次は S01（独立規則と正規診断 API）。その行で全形を確認し、先に他の行を閉じたことにしない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
