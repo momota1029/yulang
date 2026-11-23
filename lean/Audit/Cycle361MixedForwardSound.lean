@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessMixedForwardSound361
+
+#print axioms Yulang.GeneralDeclarativeWitnessMixedForwardSound361.recursive_witness
+#print axioms Yulang.GeneralDeclarativeWitnessMixedForwardSound361.ordered_dictionary_sound
+#print axioms Yulang.GeneralDeclarativeWitnessMixedForwardSound361.actual_mixed_pair_has_one_fitting_model

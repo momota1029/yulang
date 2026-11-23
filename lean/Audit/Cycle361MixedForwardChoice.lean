@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessMixedForwardChoice361
+
+#print axioms Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.source_inputs_exact
+#print axioms Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.only_reads_two_distinct_source_lanes
+#print axioms Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.compiler_uses_same_selected_clause
