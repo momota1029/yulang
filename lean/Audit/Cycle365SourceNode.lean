@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65SourceNode365
+#print axioms Yulang.GeneralDeclarativeI65.heads_have_one_model
+#print axioms Yulang.GeneralDeclarativeI65.source_node_sound

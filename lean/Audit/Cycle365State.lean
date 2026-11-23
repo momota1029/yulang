@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65State365
+#print axioms Yulang.GeneralDeclarativeI65.visible_exact
+#print axioms Yulang.GeneralDeclarativeI65.mode_window_sound
+#print axioms Yulang.GeneralDeclarativeI65.body_facts_sound
+#print axioms Yulang.GeneralDeclarativeI65.children_are_actual_requests

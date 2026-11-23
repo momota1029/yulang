@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65ExistingCases365
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_head_adapter
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_node
+#print axioms Yulang.GeneralDeclarativeI65.joined_node
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_and_joined_share_model

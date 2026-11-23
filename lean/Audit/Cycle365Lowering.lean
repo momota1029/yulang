@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65Lowering365
+#print axioms Yulang.GeneralDeclarativeI65.lower_tree
+#print axioms Yulang.GeneralDeclarativeI65.lower_forest
+#print axioms Yulang.GeneralDeclarativeI65.classified_source_assembly

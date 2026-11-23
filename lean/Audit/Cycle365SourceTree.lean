@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65SourceTree365
+#print axioms Yulang.GeneralDeclarativeI65.source_tree_sound
+#print axioms Yulang.GeneralDeclarativeI65.every_fixed_row_comes_from_the_same_model
