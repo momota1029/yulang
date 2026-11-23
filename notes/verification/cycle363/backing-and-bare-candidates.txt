@@ -1,0 +1,14 @@
+Lean 4.35.0 strict stdin against exact prior C362 and its retained dependency closure. Exit 0. Named queries:
+'Yulang.GeneralDeclarativeWitnessBackedNativeInput363.two_lanes_authenticate_before_choosing_body' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessBackedNativeInput363.source_evidence_agrees_in_every_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointGraph363.edges_respect_levels' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNonpointGraph363.no_loop' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointGraph363.graph_exact_positive' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessBareCandidates363.variables_source' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessBareCandidates363.member_of_visible' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessBareCandidates363.selected_descriptor_only_of_current_visible' depends on axioms: [propext,
+ Quot.sound]

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessBareCandidates363
+#print axioms Yulang.GeneralDeclarativeWitnessBareCandidates363.variables_source
+#print axioms Yulang.GeneralDeclarativeWitnessBareCandidates363.member_of_visible
+#print axioms Yulang.GeneralDeclarativeWitnessBareCandidates363.selected_descriptor_only_of_current_visible

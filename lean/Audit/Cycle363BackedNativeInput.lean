@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessBackedNativeInput363
+#print axioms Yulang.GeneralDeclarativeWitnessBackedNativeInput363.two_lanes_authenticate_before_choosing_body
+#print axioms Yulang.GeneralDeclarativeWitnessBackedNativeInput363.source_evidence_agrees_in_every_model
