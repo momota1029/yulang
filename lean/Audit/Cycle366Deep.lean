@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65Deep366
+#print axioms Yulang.GeneralDeclarativeI65.Binding.source_sound
+#print axioms Yulang.GeneralDeclarativeI65.deep_reads_retain_all_sources
+#print axioms Yulang.GeneralDeclarativeI65.deep_binding_means_same_model

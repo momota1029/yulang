@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65Capture366
+#print axioms Yulang.GeneralDeclarativeI65.value_binding_sound
+#print axioms Yulang.GeneralDeclarativeI65.row_binding_sound
+#print axioms Yulang.GeneralDeclarativeI65.selected_centers_sound

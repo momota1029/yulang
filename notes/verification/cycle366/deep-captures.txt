@@ -1,0 +1,7 @@
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true, exit 0
+'Yulang.GeneralDeclarativeI65.value_binding_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.row_binding_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.selected_centers_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.Binding.source_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.deep_reads_retain_all_sources' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.deep_binding_means_same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
