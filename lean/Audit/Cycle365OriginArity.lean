@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65OriginArity365
+#print axioms Yulang.GeneralDeclarativeI65.two_uses_of_one_written_constructor_agree
+#print axioms Yulang.GeneralDeclarativeI65.same_written_arity_at_both_origins
+#print axioms Yulang.GeneralDeclarativeI65.same_mode_vector_at_both_origins

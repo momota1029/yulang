@@ -7882,3 +7882,4 @@ import Yulang.GeneralDeclarativeI65Obligations365
 import Yulang.GeneralDeclarativeI65Reflection365
 import Yulang.GeneralDeclarativeI65ExistingCases365
 import Yulang.GeneralDeclarativeI65TypedOutputs365
+import Yulang.GeneralDeclarativeI65OriginArity365
