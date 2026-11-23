@@ -1,0 +1,19 @@
+'Yulang.GeneralDeclarativeWitnessChildProjectionCut357.compare_is_not_point_capture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessChildProjectionCut357.actual_endpoints_not_literal_nominal_sources' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessChildProjectionCut357.separate_provenance_needed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRootDeclared357.compiled_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRootDeclared357.written_root_declared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRootDeclared357.receipt_has_its_own_declared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRootDeclared357.exact_s2_without_external_declared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
