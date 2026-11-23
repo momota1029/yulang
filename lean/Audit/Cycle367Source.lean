@@ -1,0 +1,28 @@
+import Yulang.GeneralDeclarativeI65Selection367
+namespace Yulang.GeneralDeclarativeI65
+#print axioms ran_body_has_literal_ports
+#print axioms receipt_compiler_centers
+#print axioms attached_source_sound
+#print axioms find_first_group
+#print axioms build_retains_first_center
+#print axioms actual_port_center
+#print axioms deep_heads_sound
+#print axioms shallow_head_projection
+#print axioms source_head_sound
+#print axioms actual_route_iff
+#print axioms physical_sources_exact
+#print axioms physical_origin_is_not_logical_equality
+#print axioms same_native_slot_same_endpoint
+#print axioms rigid_mismatch_excludes_same_lane
+#print axioms ordered_head_at
+#print axioms declared_application_not_ordinary
+#print axioms rigid_candidate_excludes_a_source_head
+#print axioms root_recurrence_vetoes_tape
+#print axioms actual_matched_row
+#print axioms rival_is_excluded_by_positive_evidence
+#print axioms assembled_tape_receipt
+#print axioms pending_cannot_be_used_as_input
+#print axioms live_readback
+#print axioms tape_waiting_origin
+#print axioms every_nonlive_unblocked_row_is_a_real_miss
+end Yulang.GeneralDeclarativeI65
