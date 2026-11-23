@@ -1,0 +1,18 @@
+'Yulang.GeneralDeclarativeWitnessRecursiveSeed358.actual_two_local_writers' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveSeed358.exact_nonpoint_input' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveSeed358.exact_fixed_targets' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveSeed358.not_enough_to_have_same_atoms' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveSeed358.requires_right_arm_in_independent_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveSeed358.cannot_use_outer_center_for_internal_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
