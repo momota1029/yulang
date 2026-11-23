@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessNonpointPort362
+#print axioms Yulang.GeneralDeclarativeWitnessNonpointPort362.actual_child_has_distinct_logical_endpoints
+#print axioms Yulang.GeneralDeclarativeWitnessNonpointPort362.current_child_projection_keeps_all_three_sources

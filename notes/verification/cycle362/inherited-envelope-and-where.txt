@@ -1,0 +1,30 @@
+Lean 4.35.0 strict stdin, exact C361 dependency modules and immutable new source. Exit 0 across exact audit queries.
+'Yulang.GeneralDeclarativeWitnessNativeWindowWitness362.inhabited_exact_comparison' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeWindowWitness362.actual_source_window_inhabited_and_ordered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeWindowWitness362.same_snapshot_does_not_choose_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedEnvelope362.actual_inherited_envelope_uses_authored_payload_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedEnvelope362.overlaps_at_the_separately_authored_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPort362.actual_child_has_distinct_logical_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPort362.current_child_projection_keeps_all_three_sources' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPortModel362.exact_model_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPortModel362.actual_state_after_emission' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPortModel362.extended_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPortModel362.actual_nonpoint_child_one_model_family' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
