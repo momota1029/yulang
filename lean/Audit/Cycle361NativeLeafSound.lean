@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessNativeLeafSound361
+
+#print axioms Yulang.GeneralDeclarativeWitnessNativeLeafSound361.actual_leaf_is_positively_checked
+#print axioms Yulang.GeneralDeclarativeWitnessNativeLeafSound361.dictionary_sound
+#print axioms Yulang.GeneralDeclarativeWitnessNativeLeafSound361.real_scoped_leaf_with_one_fitted_model
