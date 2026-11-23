@@ -1,0 +1,1 @@
+For each fitted model the actual traces produce #97→#98 with independently authenticated native inputs and literal selected body replay. Actual visible #99 causes ambiguity alongside #98 even when a forced #98 body compiles and the same family of models fits; an unsupported compound alternative is not silently skipped. Neither establishes general language rejection.

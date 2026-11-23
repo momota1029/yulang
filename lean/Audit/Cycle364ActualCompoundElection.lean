@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessActualCompoundElection364
+#print axioms Yulang.GeneralDeclarativeWitnessActualCompoundElection364.actual_visible_source_controls
+#print axioms Yulang.GeneralDeclarativeWitnessActualCompoundElection364.unique_is_not_just_well_formed

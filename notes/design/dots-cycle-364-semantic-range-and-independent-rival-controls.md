@@ -1,0 +1,1 @@
+The source-authorized context in every fitting model orients the entire ordinary payload bounds. Real #98/#99 overlap propagates ambiguity, a different rigid nominal is incompatible at either original endpoint and allows the actual bare #98 compiler trace, and the valid visible out-of-scope nullary candidate is not discarded to elect the first row.

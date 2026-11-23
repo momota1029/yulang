@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessNonpointGraph363
+#print axioms Yulang.GeneralDeclarativeWitnessNonpointGraph363.edges_respect_levels
+#print axioms Yulang.GeneralDeclarativeWitnessNonpointGraph363.no_loop
+#print axioms Yulang.GeneralDeclarativeWitnessNonpointGraph363.graph_exact_positive

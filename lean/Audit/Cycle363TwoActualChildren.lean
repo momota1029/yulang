@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessTwoActualChildren363
+#print axioms Yulang.GeneralDeclarativeWitnessTwoActualChildren363.Leaf.prior
+#print axioms Yulang.GeneralDeclarativeWitnessTwoActualChildren363.two_distinct_ordered_literal_children

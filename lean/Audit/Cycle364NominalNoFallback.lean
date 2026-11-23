@@ -1,0 +1,2 @@
+import Yulang.GeneralDeclarativeWitnessNominalNoFallback364
+#print axioms Yulang.GeneralDeclarativeWitnessNominalNoFallback364.unsupported_authored_alternative_is_not_absent

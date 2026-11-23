@@ -1,0 +1,1 @@
+The original physical endpoint positions 301 and 303 come from distinct owners and agree on their actual declared unary constructor. The emitted demand retains logical positions 310,302,311; a matching head was not inferred from ordinary alias identity or the physical center.

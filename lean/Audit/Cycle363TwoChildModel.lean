@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessTwoChildModel363
+#print axioms Yulang.GeneralDeclarativeWitnessTwoChildModel363.model_fits_both_scopes
+#print axioms Yulang.GeneralDeclarativeWitnessTwoChildModel363.exact_compiler_sibling_state
+#print axioms Yulang.GeneralDeclarativeWitnessTwoChildModel363.actual_order_and_nonvacuous_same_model

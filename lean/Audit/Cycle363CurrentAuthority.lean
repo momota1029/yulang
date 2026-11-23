@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessCurrentAuthority363
+#print axioms Yulang.GeneralDeclarativeWitnessCurrentAuthority363.scoped_dictionary_sound
+#print axioms Yulang.GeneralDeclarativeWitnessCurrentAuthority363.removing_only_current_center_permission_changes_certificate

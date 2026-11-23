@@ -1,0 +1,7 @@
+Lean 4.35.0 strict stdin, exit 0
+'Yulang.GeneralDeclarativeWitnessOriginalEndpointProjection364.exact_endpoint_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginalEndpointProjection364.actual_projection_uses_two_authored_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

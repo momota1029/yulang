@@ -1,0 +1,2 @@
+import Yulang.GeneralDeclarativeWitnessActualNominalLeaf364
+#print axioms Yulang.GeneralDeclarativeWitnessActualNominalLeaf364.actual_elected_compound_has_literal_receipt

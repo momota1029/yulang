@@ -1,0 +1,22 @@
+Scoped Lean v4.35.0 --stdin --trust=0 -DwarningAsError=true
+'Yulang.GeneralDeclarativeWitnessLocatedElection363.election_not_called_from_compiler' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessLocatedElection363.exact_compiler_must_use_chosen_row' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSelectedNonpointRoot363.exact_authored_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSelectedNonpointChild363.actual_selected_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSelectedNonpointChild363.returned_model_has_prior_author_and_child_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedDictionary363.selected_tree_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedDictionary363.selected_children_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedDictionary363.dictionary_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointGraph363.edges_respect_levels' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNonpointGraph363.no_loop' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointGraph363.graph_exact_positive' depends on axioms: [propext, Quot.sound]
