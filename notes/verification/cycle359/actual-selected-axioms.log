@@ -1,0 +1,14 @@
+'Yulang.GeneralDeclarativeWitnessSourceEndpoint359.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSourceEndpoint359.endpoint_in_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSourceEndpoint359.residual_endpoints' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenBody359.actually_read_both' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenBody359.needs_original_open_row' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenBody359.initial_to_compiler_final' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenBody359.actual_fixed_output_between_source_remainders' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenBody359.real_ordered_body_and_actual_remainders' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

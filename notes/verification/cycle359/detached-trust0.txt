@@ -1,0 +1,33 @@
+PASS independent audit lean/Audit/Cycle359ActualOutput.lean
+PASS independent audit lean/Audit/Cycle359Associated.lean
+PASS independent audit lean/Audit/Cycle359Comparison.lean
+PASS independent audit lean/Audit/Cycle359JointObservation.lean
+PASS independent audit lean/Audit/Cycle359LiteralReceipt.lean
+PASS independent audit lean/Audit/Cycle359Nested.lean
+PASS independent audit lean/Audit/Cycle359Opaque.lean
+PASS independent audit lean/Audit/Cycle359Polarity.lean
+PASS independent audit lean/Audit/Cycle359Scopes.lean
+PASS independent audit lean/Audit/Cycle359Width.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessActualOpenBody359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessActualOpenReceipts359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessActualScopes359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessAssociatedBatch359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessAssociatedDescriptor359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessAssociatedFixture359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessJointObservation359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNoInstallation359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNominalCompareExact359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNominalExact359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNominalPolarity359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNominalRecordFixture359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNominalRelation359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNominalSource359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessOpenFixture359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessOpenSpine359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPlannedComparison359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecordResidual359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecordSpine359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRecordWidthFixture359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessScopedBindings359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessSourceEndpoint359.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessVisibleWithoutCenter359.lean

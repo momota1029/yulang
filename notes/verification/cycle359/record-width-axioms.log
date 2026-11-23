@@ -1,0 +1,20 @@
+'Yulang.GeneralDeclarativeWitnessRecordSpine359.EndKind.terminal' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessRecordSpine359.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordSpine359.read_in_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordResidual359.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordResidual359.authored_interval' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.rests_ordered' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.rests_not_reversible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.read_checks' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.cannot_collapse_width_to_exact' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.missing_authored_remainder_fails' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.current_without_center_equation' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.actual_window' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecordWidthFixture359.unlike_actual_remainders' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
