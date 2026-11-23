@@ -1,0 +1,30 @@
+Scoped Lean v4.35.0 --stdin --trust=0 -DwarningAsError=true
+'Yulang.GeneralDeclarativeWitnessTwoActualChildren363.Leaf.prior' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoActualChildren363.two_distinct_ordered_literal_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoChildDictionary363.successive_real_states_have_one_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoChildDictionary363.actual_ordered_sibling_dict' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoChildDictionary363.actual_sibling_dict_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoChildModel363.model_fits_both_scopes' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoChildModel363.exact_compiler_sibling_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessTwoChildModel363.actual_order_and_nonvacuous_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCurrentAuthority363.scoped_dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCurrentAuthority363.removing_only_current_center_permission_changes_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+C363 AXIOM-GATE-PASS: 3388 elaborated (including 708 C363-named), 117535 imported non-runtime
