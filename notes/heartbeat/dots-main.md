@@ -3,8 +3,8 @@
 cycle: 379
 status: running
 started: 2026-11-23T22:30:43.430Z
-updated: 2026-11-23T22:43:07.423Z
-elapsed_min: 12
-activity: C379 exact native unary/scanner order and entered literal ordinary root K2 all strict audited
-last_local_commit: 08cc4eb08fb764b4fe75acddb393923857c0754b
+updated: 2026-11-23T22:47:43.178Z
+elapsed_min: 16
+activity: C379 A-D strict audited; selected nonpoint parent and exact where-to-child final read added
+last_local_commit: 213e4e8111500dcab681fe1189c98890dab11796
 resume_hint: Exact demand-root native early dispatch
