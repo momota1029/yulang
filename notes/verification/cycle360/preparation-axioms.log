@@ -1,0 +1,10 @@
+'Yulang.GeneralDeclarativeWitnessNativePreparation360.from_actual_compiler' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePreparation360.same_model_of_prepared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeValue360.emitted_exact' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeValue360.fixed_compiler_capture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

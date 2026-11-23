@@ -1,0 +1,183 @@
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.exact_navigated_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.from_actual_release' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.actual_nested_payload_is_original_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.ordered_child_has_no_native_target' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.exact_missing_child_reference' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.actual_full_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.joint_ordered_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.compiler_final_is_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.actual_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.full_positive_in_one_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.first_of_two_stays_smaller' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.alongside_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedForward360.different_actual_body_compiles_child_at_released_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedForward360.child_reads_exact_released_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedForward360.no_authority_no_forwarded_use' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeBodyFixture360.genuine_preparation_and_where' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.check_exact' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.authored_target_appears' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.other_target_unchanged' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.actual_installation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.no_ordinary_override' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInstall360.fit_after_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.release_current_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.not_installed_not_released' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.version_needs_current_authority' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.not_granted_not_released' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeRelease360.checked_exact_written_value' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePipeline360.actual_compiler_write_and_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePipeline360.source_version_grant_and_actual_value_are_separate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeModel360.running_real_stage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeModel360.exact_stage' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeModel360.fitting_ordinary_nonpoint' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeModel360.checked_target_in_every_native_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeModel360.final_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeModel360.native_does_not_guess_ordinary_target' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeModel360.native_view_tracks_actual_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeSnapshot360.same_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeSnapshot360.commits_exact_snapshot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeSnapshot360.current_target_keeps_others' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.visible_chain_stays_smaller' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.origin_exact' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.from_chain_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.descent_witness' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.checked_descent' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePreparation360.actual_source_requirement_smaller' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedInstall360.unchanged_two_nested_heads_install' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedInstall360.previous_checker_was_not_a_language_refusal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedInstall360.native_commit_true_in_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePreparation360.from_actual_compiler' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePreparation360.same_model_of_prepared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeValue360.emitted_exact' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeValue360.fixed_compiler_capture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForwardModel360.exact_forwarding_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForwardModel360.fitting_forwarding_state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForwardModel360.actual_child_binds_native_payload' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessForwardModel360.real_forwarded_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeReceiver360.source_body_receives_original_native_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeReceiver360.same_model_received_binder' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReceiverModel360.exact_actual_receiver_constraints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReceiverModel360.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReceiverModel360.actual_received_in_same_world' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessBranchFootprint360.independent_allocations_overlap' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessBranchFootprint360.record_source_not_int' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessBranchFootprint360.no_naive_union_of_previews' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.compiler_reallocates_after_ordinary_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.one_state_checked_sequence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.actual_ordered_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.ordered_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.whole_exact_sequence_is_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.exact_ordinary_nested_stage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.fitting_nested' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.actual_nested_has_native_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.authored_nested_value_in_every_fitting_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.actual_two_heads_compiled_and_fitted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.same_world_obligation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.real_generated_child_replays' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.all_model_ordered_fixed_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.actual_stage_has_exact_aliases' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.actual_child_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.real_shared_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

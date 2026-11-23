@@ -1,0 +1,35 @@
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.exact_navigated_source' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.from_actual_release' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.actual_nested_payload_is_original_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.ordered_child_has_no_native_target' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedObservation360.exact_missing_child_reference' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.actual_full_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.joint_ordered_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.compiler_final_is_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.actual_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedOrdered360.full_positive_in_one_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.first_of_two_stays_smaller' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedDescent360.alongside_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedForward360.different_actual_body_compiles_child_at_released_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedForward360.child_reads_exact_released_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleasedForward360.no_authority_no_forwarded_use' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

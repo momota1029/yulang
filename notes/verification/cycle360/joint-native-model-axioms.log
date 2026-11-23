@@ -1,0 +1,29 @@
+'Yulang.GeneralDeclarativeWitnessNestedModels360.exact_ordinary_nested_stage' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.fitting_nested' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.actual_nested_has_native_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.authored_nested_value_in_every_fitting_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedModels360.actual_two_heads_compiled_and_fitted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.same_world_obligation' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.real_generated_child_replays' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.all_model_ordered_fixed_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.actual_stage_has_exact_aliases' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.actual_child_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedChild360.real_shared_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
