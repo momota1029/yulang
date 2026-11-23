@@ -1,9 +1,10 @@
 # dots-main heartbeat
 
-cycle: 371
-status: completed
-started: 2026-11-23T14:37:13.286Z
-updated: 2026-11-23T15:14:06.082Z
-elapsed_min: 36
-activity: C371 exact ordinary source body/placement argument; provider unavailable; no unchecked Lean
-report: notes/handoff/dots-cycle-371.md
+cycle: 372
+status: running
+started: 2026-11-23T15:35:17.920Z
+updated: 2026-11-23T15:35:21.438Z
+elapsed_min: 0
+activity: I-65 step 1 retained event; live policy checked, provider offline
+last_local_commit: 4b33761db8bc66eb6a0fcb7746651139628188ae
+resume_hint: notes/design/dots-cycle-372-retained-event.md
