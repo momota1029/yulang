@@ -1,0 +1,11 @@
+# C359 next proof cut: typed writes are a separate commitment
+
+The record and nominal results meet only at independent, checked current observation and comparison. It would be incorrect to make an endpoint comparison return a solved center, an installed associated value, or an election. An open or width remainder can have different actual values in one ordinary state even when a required field is visible in every model.
+
+1. Reuse C359 literal scoped operand comparison when a genuine typed write is returned; extend the declared current model with an independently justified value/typed-row interpretation at the exact committed target. Route source author, ordinal, occurrence, version and respective physical scopes through a real prepared/where phase, not from eventual output equality. Keep target evidence separate from compared endpoint shape.
+2. If this works in a narrow authored nested declared-mode case, check the actual recursive compiler child's re-observation and the whole ordered fixed trace in one model. Do not reinterpret a typed row as the old C334 invariant nominal, and do not mint a typed release based only on a descriptor.
+3. General row kinds, mixed-arity and compound heads beyond the checked fragments remain independent work. Keep explicitly checked source/absence/unused rules separate from unsupported routes. No new completeness or termination goal.
+
+### Concrete starting acceptance test for the typed stage
+
+Use exactly the authored output at ordinal 0, equation id 111, requested fixed target 101, and the scoped input span chosen from the physical source. Before installing it, first pass a real preparation/where check for whatever source fragment is actually exercised. The successful body must then produce the typed write and exact child request itself; require the current state to retain that address/version and reproduce the authored value in a fit model. Verify that the two target-101 interpretations from C359 cannot both satisfy the new *installed* evidence when its authored value is fixed. Only then compare the child's authored descriptor in the same model and fold into a recursive dictionary. Testing the target in a new unrelated model, back-solving it from the declared RHS, or relying solely on the existing 16 range checks would miss this obligation.
