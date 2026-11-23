@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 376
+cycle: 377
 status: completed
-started: 2026-11-23T19:34:09.067Z
-updated: 2026-11-23T20:14:07.547Z
+started: 2026-11-23T20:34:32.534Z
+updated: 2026-11-23T21:13:50.731Z
 elapsed_min: 39
-activity: C376 exact strict audited ordinary and native body from same authored preparation
-report: notes/handoff/dots-cycle-376.md
+activity: C377 exact audited early endpoint positions; native source/release split pending
+report: notes/handoff/dots-cycle-377.md

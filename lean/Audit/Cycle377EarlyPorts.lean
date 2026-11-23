@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeI65EarlyPorts369
+
+#print axioms Yulang.GeneralDeclarativeI65.OriginalSide.pick
+#print axioms Yulang.GeneralDeclarativeI65.JobFace.pick
+#print axioms Yulang.GeneralDeclarativeI65.comparisonPairs
+#print axioms Yulang.GeneralDeclarativeI65.endpointPorts
+#print axioms Yulang.GeneralDeclarativeI65.EndpointPort.atJob
+#print axioms Yulang.GeneralDeclarativeI65.endpoint_port_agrees_with_job
+#print axioms Yulang.GeneralDeclarativeI65.endpoint_port_from_one_original
+#print axioms Yulang.GeneralDeclarativeI65.paired_jobs_for_value
+#print axioms Yulang.GeneralDeclarativeI65.paired_jobs_for_row
+#print axioms Yulang.GeneralDeclarativeI65.value_jobs_in_context
+#print axioms Yulang.GeneralDeclarativeI65.row_jobs_in_context
