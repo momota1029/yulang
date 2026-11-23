@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65AuthoredDispatchMode379
+
+#print axioms Yulang.GeneralDeclarativeI65.authored_declared_mode_is_unique
+#print axioms Yulang.GeneralDeclarativeI65.actual_dispatch_uses_same_authored_value_variance
+#print axioms Yulang.GeneralDeclarativeI65.dispatched_unary_value_port_targets_literal_child
