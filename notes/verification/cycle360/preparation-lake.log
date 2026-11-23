@@ -1,0 +1,8 @@
+✔ [3802/3808] Built Yulang.GeneralDeclarativeWitnessNominalSource359 (6.5s)
+✔ [3803/3808] Built Yulang.GeneralDeclarativeWitnessNominalRelation359 (1.6s)
+✔ [3804/3808] Built Yulang.GeneralDeclarativeWitnessNominalExact359 (1.3s)
+✔ [3805/3808] Built Yulang.GeneralDeclarativeWitnessNominalCompareExact359 (1.1s)
+✔ [3806/3808] Built Yulang.GeneralDeclarativeWitnessScopedBindings359 (1.1s)
+✔ [3807/3808] Built Yulang.GeneralDeclarativeWitnessAssociatedDescriptor359 (1.2s)
+✔ [3808/3808] Built Yulang.GeneralDeclarativeWitnessNativePreparation360 (1.1s)
+Build completed successfully (3808 jobs).

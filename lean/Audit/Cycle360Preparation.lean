@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeWitnessNativePreparation360
+import Yulang.GeneralDeclarativeWitnessNativeValue360
+#print axioms Yulang.GeneralDeclarativeWitnessNativePreparation360.from_actual_compiler
+#print axioms Yulang.GeneralDeclarativeWitnessNativePreparation360.same_model_of_prepared
+#print axioms Yulang.GeneralDeclarativeWitnessNativeValue360.emitted_exact
+#print axioms Yulang.GeneralDeclarativeWitnessNativeValue360.fixed_compiler_capture
