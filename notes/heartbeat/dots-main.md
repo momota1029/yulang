@@ -1,9 +1,10 @@
 # dots-main heartbeat
 
-cycle: 368
-status: completed
-started: 2026-11-23T11:37:00.292Z
-updated: 2026-11-23T12:14:01.416Z
-elapsed_min: 37
-activity: C368 ten strict Lean source modules, 38 standard-only audits; fixed report verified; I-65 step 1 open
-report: notes/handoff/dots-cycle-368.md
+cycle: 369
+status: running
+started: 2026-11-23T12:32:35.795Z
+updated: 2026-11-23T12:32:35.795Z
+elapsed_min: 0
+activity: verify exact I-65 source-native prefix before whole comparison
+last_local_commit: f230c3fe3cbde8e1755950e55d790539a7d368ad
+resume_hint: notes/design/dots-cycle-368-i65-authority-and-k2.md
