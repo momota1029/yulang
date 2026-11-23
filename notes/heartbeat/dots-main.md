@@ -1,9 +1,10 @@
 # dots-main heartbeat
 
-cycle: 374
-status: completed
-started: 2026-11-23T17:31:54.786Z
-updated: 2026-11-23T18:16:28.550Z
-elapsed_min: 44
-activity: C374 authored visible ordinal argument and strict audited local return-rank recovery
-report: notes/handoff/dots-cycle-374.md
+cycle: 375
+status: running
+started: 2026-11-23T18:33:12.294Z
+updated: 2026-11-23T18:33:20.975Z
+elapsed_min: 0
+activity: C375 I-65 stage1 independent event and release authority; current Lean executor offline
+last_local_commit: 42520193511186726e3ef5ffddad0fae16a3ed73
+resume_hint: notes/design/dots-cycle-375-retained-release-cut.md
