@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361
+
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.start
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.beforeGrant
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.close
