@@ -44,7 +44,7 @@ theorem classifies_unpacks_actual_source {s : State} {q : Request} {d : Dictiona
       ∃ trace : SourceTreeTrace s q t tree, Summarizes t (.selected d)
 ```
 
-選択分だけの仮定は足さない。独立な有限導出を正規診断に投影する API を実装し、その具体的な導入則が扱う全ての形から導く。`SourceTreeTrace` は各ルールが観測した宣言出現、順序付き候補判断、原始 body/author イベントを記録する型で、結果の source receipt や semantic evidence は保持しない。証拠の個体を区別するのは計算可能な trace の側の値と対応関係。既存の汎用 resolver に未充足の `Protocol.Local` を与えるだけでは終わらない。integration の `GeneralDeclarativeWitnessClassifyVariance357.dictionary_sound` も `SourceChecked`、`Coverage`、`Declared` を別に要求し、`Rule` は旧 ordinary と限定 unary join の場合分けなので S01/S13 の固定 API ではない。
+選択分だけの仮定は足さない。候補照合で一意になっただけの状態を最終の `.selected d` にしない。実 where・選択後の等式・固定出力が矛盾した場合の診断は、局所導出と既存要約の境界で保存し、`∀ m, Fits s m → …` が空に成り立つことから受理を逆算しない。独立な有限導出を正規診断に投影する API を実装し、その具体的な導入則が扱う全ての形から導く。`SourceTreeTrace` は各ルールが観測した宣言出現、順序付き候補判断、原始 body/author イベントを記録する型で、結果の source receipt や semantic evidence は保持しない。証拠の個体を区別するのは計算可能な trace の側の値と対応関係。既存の汎用 resolver に未充足の `Protocol.Local` を与えるだけでは終わらない。integration の `GeneralDeclarativeWitnessClassifyVariance357.dictionary_sound` も `SourceChecked`、`Coverage`、`Declared` を別に要求し、`Rule` は旧 ordinary と限定 unary join の場合分けなので S01/S13 の固定 API ではない。
 
 ### S02 · 一部 — `selected_source_inversion`
 
@@ -55,7 +55,7 @@ theorem selected_source_inversion {s : State} {q : Request} {key : Nat} {kids : 
       sel.row.id = key ∧ sel.row ∈ visible s q ∧ sel.orderedRows = visible s q ∧ SelectionFrom event sel
 ```
 
-既存: `State365.visible_exact` と `Tape367.live_readback` はフィルタの所属と既にある tape の選択候補を復元するが、全形の独立判断の反転で同じ出現と元順序を得るところは未証明。C357 の別前提 `SourceChecked` は ID 列の `Nodup` を含むが、これを固定文へ持ち込まず、actual declaration table の原始導出で必要な一意性を示す。
+既存: `State365.visible_exact` と `Tape367.live_readback` はフィルタの所属と既にある tape の選択候補を復元するが、全形の独立判断の反転で同じ出現と元順序を得るところは未証明。`visible` は現在台帳を role で filter するだけなので、台帳が [呼出し側の実可視集合](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L70-L75) を表すことも示す。全 where 子で同じ根の可視範囲を使い、重複 import は同じ宣言、別ファイルの別宣言は異なる出現として扱う。グローバル coherence や孤児規則は要求しない。C357 の別前提 `SourceChecked` は ID 列の `Nodup` を含むが、これを固定文へ持ち込まず、actual declaration table の原始導出で必要な一意性を示す。
 
 ### S03 · 一部 — `selected_mixed_k2_priority`
 
@@ -109,7 +109,7 @@ theorem selected_ordinary_literal_receipt (sel : SelectedSource s q key kids)
     ∃ r : OrdinaryReceipt s q sel.row kids, ExactSelectedReceipt sel capture r
 ```
 
-既存: `SourceBodyProduction371.ordinary_fixed_inputs_produce_body`, `DirectDeclaredTarget371.direct_output_target_uses_declaring_equation`, `RetainedEvent372.retained_body_facts_at_same_current` は実コンパイラ・割当・保持を結ぶ限定定理。任意の選択からその同じ allocator、実 where、固定出力、保持等式、子の宣言を回収する部分は未証明。
+既存: `SourceBodyProduction371.ordinary_fixed_inputs_produce_body`, `DirectDeclaredTarget371.direct_output_target_uses_declaring_equation`, `RetainedEvent372.retained_body_facts_at_same_current` は実コンパイラ・割当・保持を結ぶ限定定理。任意の選択からその同じ allocator、実 where、固定出力、保持等式、子の宣言を回収する部分は未証明。固定出力 target が同じでも local allocator が違えば子の実番号が変わる（C371）。source clause の literal 順序、割当消費数と開始番号、fallback/default を authored 側と突き合わせる。
 
 ### S07 · 一部 — `selected_typed_actual_owner_and_retention`
 
@@ -125,7 +125,7 @@ theorem selected_typed_actual_owner_and_retention (sel : SelectedSource s q key 
 
 既存: `PreparedOwnBody376.same_prepared_author_in_finished_and_typed_body`, `CurrentRelease376.checked_install_opens_iff_granted`, `JoinBody368.current_typed_write_exact` は実 prepared・現在同じ write の配列・独立 grant を結ぶが、一般の選択からその writer occurrence/role/declaration/version/sourceOrdinal/outputOrdinal/output name/fixed target/source equation と同じ現在盤面を回収できていない。C376 の `one_authored_preparation_keeps_ordered_and_typed_meaning` の追加観測 `observes` は一般の `Fits s m` からの射影がまだ無い。その仮定を固定文に追加せず、S07 の保持と S09 の解釈を接続して初めて使う。C360 の新規 install が `fresh` を要することと、仕様が需要の合流で同じ出力名を共有できることも別。既存 target/同じ作者の再利用を新規 install の証拠で済ませず、合流の各要求の元記録と実 retained row が揃うかを示す。合流を拒否する条件は足さない。
 
-`ExactIndependentReleaseUse` は **実際に出力を支持として読んだ箇所**の独立 grant だけを求める。全ての書き込みに release 済みを要求したり、下流の fit・同名/同値・install 成功から grant を作ったりしない。`ExactSelectedReceipt` は、選択の where が返す literal `kids = children q demands`、全子の実宣言、同じ捕捉からの固定出力、ordinal と target の逐一一致を含む。S06/07 の `SourceBodyCase` は S02 で反転した実 body 規則のどちらかであり、対応できない入力を排除する条件ではない。
+`ExactIndependentReleaseUse` は **実際に出力を支持として読んだ箇所**の独立 grant だけを求める。全ての書き込みに release 済みを要求したり、下流の fit・同名/同値・install 成功から grant を作ったりしない。`ExactSelectedReceipt` は、選択の where が返す literal `kids = children q demands`、全子の実宣言、同じ捕捉からの固定出力、ordinal と target の逐一一致を含む。S06/07 の `SourceBodyCase` は S02 で反転した実 body 規則のどちらかであり、対応できない入力を排除する条件ではない。型付きの**入力**から通常の等式だけを出す body は普通の書込み側に入れられる（C379 の where 部品）。全ての**出力**は実際の枝が選んだ表現のまま、mixed なら元の順序のまま一列で保持する。
 
 ### S08 · 一部 — `ordinary_or_typed_node_assembly`
 
@@ -185,7 +185,7 @@ structure LoweringPair (s : State) : Prop where
 theorem lower_selected_general (lower : ProvidesGeneralNode s) : LoweringPair s
 ```
 
-順序木と forest の相互帰納を束ねた一補題なので 1 件。既存: `Lowering365.lower_tree` / `lower_forest` は普通 `SourceTree`・`FixedReceipt` に対して完全。一般 node を順序木に積み、ルートの記録を先頭へ、兄弟を元順で連結する版は未証明。S01 の source trace を子ごとに反転する際には、順序付きの relation とその添字を同時に消去する。`CommonRoleOutermostResolver.Combine.selected` の逆転は `results = ds.map Result.selected` を返し、`All₂` によって子リストの本数・順序が自動的に保たれる。元からある有限の導出に対する帰納であり、実行器の停止性や `Acc` を求めない。
+順序木と forest の相互帰納を束ねた一補題なので 1 件。既存: `Lowering365.lower_tree` / `lower_forest` は普通 `SourceTree`・`FixedReceipt` に対して完全。一般 node を順序木に積み、ルートの記録を先頭へ、兄弟を元順で連結する版は未証明。S01 の source trace を子ごとに反転する際には、順序付きの relation とその添字を同時に消去する。`CommonRoleOutermostResolver.Combine.selected` の逆転は `results = ds.map Result.selected` を返し、`All₂` によって子リストの本数・順序が自動的に保たれる。元からある有限の導出に対する帰納であり、実行器の停止性や `Acc` を求めない。S11 で検査する分岐は (i) 非選択 leaf は `Summarizes` の constructor 不一致で消去、(ii) 選択 node は `Combine.selected` の反転と S10、(iii) forest の nil/cons は `All₂` の反転を trace の nil/cons と同時に行い、`writtenHead ++ writtenTail` をそのまま返す。
 
 ### S12 · 一部 — `general_tree_sound`
 
