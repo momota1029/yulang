@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessNativeThreeModel362
+#print axioms Yulang.GeneralDeclarativeWitnessNativeThreeModel362.exact_snapshot
+#print axioms Yulang.GeneralDeclarativeWitnessNativeThreeModel362.model_transfer
+#print axioms Yulang.GeneralDeclarativeWitnessNativeThreeModel362.fits_after
+#print axioms Yulang.GeneralDeclarativeWitnessNativeThreeModel362.every_fit_retains_source_window

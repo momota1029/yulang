@@ -1,0 +1,41 @@
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; exit 0 with exact checked in-memory source and pinned import closure.
+'Yulang.GeneralDeclarativeWitnessNativeThreeModel362.exact_snapshot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeThreeModel362.model_transfer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeThreeModel362.fits_after' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeThreeModel362.every_fit_retains_source_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNativeRelease362.fixture_has_three_live_releases' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNativeRelease362.exact_current_values' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNativeRelease362.independent_grants_not_recovered_by_equal_shape' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNativeRelease362.source_code_in_every_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeOrder362.actual_directed_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeOrder362.holds_yields_typed_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeOrder362.release_and_order_in_every_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInvariantCut362.inherited_context_demands_reverse_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInvariantCut362.proper_record_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInvariantCut362.same_model_contrasts_directions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
