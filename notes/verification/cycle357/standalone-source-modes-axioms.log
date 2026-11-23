@@ -1,0 +1,50 @@
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.valid_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.uses_sources' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.modes_from_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.none_if_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.some_if_nullary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.lookup_authored' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.actual_box_covariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.actual_arrow_param_contravariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.real_nullary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.no_dense_filler' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.reject_unowned_formal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.reject_wrong_declared_kind' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.true_nullary_call' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.absent_call_does_not_lower' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVariancePositions357.parameters_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVariancePositions357.authored_modes_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessConstructorModes357.check_has_no_fallback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessConstructorModes357.declared_mode_from_bodies' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
