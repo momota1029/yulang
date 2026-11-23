@@ -3,8 +3,8 @@
 cycle: 379
 status: running
 started: 2026-11-23T22:30:43.430Z
-updated: 2026-11-23T22:47:43.178Z
-elapsed_min: 16
-activity: C379 A-D strict audited; selected nonpoint parent and exact where-to-child final read added
-last_local_commit: 213e4e8111500dcab681fe1189c98890dab11796
+updated: 2026-11-23T22:50:10.800Z
+elapsed_min: 19
+activity: C379 exact scoped candidate call trace adds actual second-source receipt precondition
+last_local_commit: 654001519b2cb48858c6beb99ad593cc9470012f
 resume_hint: Exact demand-root native early dispatch
