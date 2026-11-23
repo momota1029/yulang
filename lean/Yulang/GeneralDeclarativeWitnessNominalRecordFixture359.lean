@@ -135,7 +135,7 @@ theorem checked_in_actual_source_model (negative : Bool) (m : Assignment) (fit :
     | some a =>
       have exactRows : a.run.rows = exactAtoms := by simpa [compared] using proven
       refine ⟨e,a,rfl,exactRows,?_⟩
-      apply ((GeneralDeclarativeWitnessFullIntervals357.compiled_full_exact table m false a.first.endpoint a.last.endpoint).mp ?_).2.2 
+      apply ((GeneralDeclarativeWitnessFullIntervals357.compiled_full_exact table m false a.first.endpoint a.last.endpoint).mp ?_).2.2
       exact ⟨a.run.rows,a.run.exact,fun atom member => generated_checks_follow_from_authored_base m fit atom (exactRows ▸ member)⟩
 
 end Yulang.GeneralDeclarativeWitnessNominalRecordFixture359
