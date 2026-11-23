@@ -3,8 +3,8 @@
 cycle: 376
 status: running
 started: 2026-11-23T19:34:09.067Z
-updated: 2026-11-23T19:52:12.204Z
-elapsed_min: 18
-activity: C376 A/B/C immutable strict proof stages, including same Prepared author; executor disconnected after compiling optional EarlyPorts before audit
-last_local_commit: a4838377e8b65eb8cf271d6584d119b57af8582e
+updated: 2026-11-23T20:01:10.447Z
+elapsed_min: 27
+activity: C376 fixed proof stages and full changed path audit; official provider still offline; native EarlyPorts unpublished
+last_local_commit: 3b3096f92a9e046d6dadf37602d9e4e5de1f5cb4
 resume_hint: Tie native Prepared to the same literal retained body
