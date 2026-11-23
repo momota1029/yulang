@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 370
+cycle: 371
 status: completed
-started: 2026-11-23T13:39:57.615Z
-updated: 2026-11-23T14:14:02.098Z
-elapsed_min: 34
-activity: C370 local K2 rank/cut and exact native authority proof cut; executor unavailable, no unchecked Lean
-report: notes/handoff/dots-cycle-370.md
+started: 2026-11-23T14:37:13.286Z
+updated: 2026-11-23T15:14:06.082Z
+elapsed_min: 36
+activity: C371 exact ordinary source body/placement argument; provider unavailable; no unchecked Lean
+report: notes/handoff/dots-cycle-371.md
