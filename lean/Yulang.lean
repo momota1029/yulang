@@ -7903,3 +7903,4 @@ import Yulang.GeneralDeclarativeI65JoinBody368
 import Yulang.GeneralDeclarativeI65UnionReceipts368
 import Yulang.GeneralDeclarativeI65MixedReceiptTree368
 import Yulang.GeneralDeclarativeI65NormalizedPrefix368
+import Yulang.GeneralDeclarativeI65ReturnRankCore370

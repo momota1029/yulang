@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 373
+cycle: 374
 status: completed
-started: 2026-11-23T16:31:39.967Z
-updated: 2026-11-23T17:12:56.536Z
-elapsed_min: 41
-activity: C373 coherent-ledger same-state row identity argument; no unchecked Lean
-report: notes/handoff/dots-cycle-373.md
+started: 2026-11-23T17:31:54.786Z
+updated: 2026-11-23T18:16:28.550Z
+elapsed_min: 44
+activity: C374 authored visible ordinal argument and strict audited local return-rank recovery
+report: notes/handoff/dots-cycle-374.md
