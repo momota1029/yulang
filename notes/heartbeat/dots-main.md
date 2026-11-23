@@ -1,8 +1,7 @@
 # dots-main heartbeat
 
-cycle: 365
-status: completed
-started: 2026-11-23T08:36:16.377Z
-updated: 2026-11-23T09:10:57.187Z
-activity: I-65 C365 checked and handed off; (1) remains open
-report: notes/handoff/dots-cycle-365.md
+cycle: 366
+status: running
+started: 2026-11-23T09:32:44.853Z
+updated: 2026-11-23T09:33:18.282Z
+activity: I-65 source-frontier proof; fixed theorem statements retained
