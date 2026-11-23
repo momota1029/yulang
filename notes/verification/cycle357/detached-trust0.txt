@@ -1,0 +1,36 @@
+PASS independent audit lean/Audit/Cycle357Boundary.lean
+PASS independent audit lean/Audit/Cycle357Coverage.lean
+PASS independent audit lean/Audit/Cycle357Declarative.lean
+PASS independent audit lean/Audit/Cycle357FullInterval.lean
+PASS independent audit lean/Audit/Cycle357Local.lean
+PASS independent audit lean/Audit/Cycle357Report.lean
+PASS independent audit lean/Audit/Cycle357Special.lean
+PASS independent audit lean/Audit/Cycle357Variance.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessChildProjectionCut357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessClassifyVariance357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessConstructorModes357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessCoverageFixture357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessDeclaredState357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessFullIntervals357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessGeneratedEndpoints357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessInheritedFullFixture357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessInheritedModeFixture357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessInheritedModeModel357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessJoinedCheck357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessJoinedFixture357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessModeCoverage357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessModeDeclaration357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessOrdinarySpecialCase357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPointModes357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessPolarityFixture357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessReifiedViews357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessRootDeclared357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessSparseIntervals357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessSparseVariance357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessUnusedScope357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessVarianceEndToEnd357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessVarianceFixtures357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessVarianceModel357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessVariancePositions357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessVarianceReport357.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessVarianceReportFixture357.lean
