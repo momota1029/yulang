@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessOrientedNativeRange364
+#print axioms Yulang.GeneralDeclarativeWitnessOrientedNativeRange364.payload_step
+#print axioms Yulang.GeneralDeclarativeWitnessOrientedNativeRange364.oriented_whole_payload_in_every_fit

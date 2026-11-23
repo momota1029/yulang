@@ -1,0 +1,2 @@
+import Yulang.GeneralDeclarativeWitnessRigidMismatch364
+#print axioms Yulang.GeneralDeclarativeWitnessRigidMismatch364.mismatched_code_cannot_be_typed_at_either_origin
