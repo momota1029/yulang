@@ -1,9 +1,10 @@
 # dots-main heartbeat
 
-cycle: 367
-status: completed
-started: 2026-11-23T10:31:00Z
-updated: 2026-11-23T11:14:08.434Z
-elapsed_min: 43
-activity: C367 final handoff; I-65 step 1 open, steps 2/3 not started
-report: notes/handoff/dots-cycle-367.md
+cycle: 368
+status: running
+started: 2026-11-23T11:37:00.292Z
+updated: 2026-11-23T11:37:00.292Z
+elapsed_min: 0
+activity: fresh I-65 authority verified; source-coherence and candidate K2 proof cuts
+last_local_commit: fb9124d967dbdcd5416e707e7941a816f3954514
+resume_hint: notes/design/dots-cycle-367-i65-next-source-rule.md
