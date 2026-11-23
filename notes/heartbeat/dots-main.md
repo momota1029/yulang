@@ -3,8 +3,8 @@
 cycle: 377
 status: running
 started: 2026-11-23T20:34:32.534Z
-updated: 2026-11-23T20:39:00.972Z
-elapsed_min: 4
-activity: C377 EarlyPorts audited and exact; full native closure disconnected, separating source-index core from physical adapter
-last_local_commit: 5721bdad8d30a5eed67a0e86789a13bd26f08df7
+updated: 2026-11-23T20:48:18.439Z
+elapsed_min: 13
+activity: C377 exact one-rail projection pinned; source/release split saved, NativePrefix closure incomplete after provider loss
+last_local_commit: 884bf9214aaed9ce507aee695c488e69dc486031
 resume_hint: Exact one-sided native endpoint before candidate K2
