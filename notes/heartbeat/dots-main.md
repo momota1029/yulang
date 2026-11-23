@@ -1,11 +1,12 @@
 # dots-main heartbeat
 
 cycle: 361
-status: running
+status: completed
 started: 2026-11-23T04:30:04.220Z
-updated: 2026-11-23T05:16:28.629Z
-elapsed_min: 46.41
-activity: completed strict exact-source verification against the fixed published tree
+updated: 2026-11-23T05:21:28.253Z
+elapsed_min: 51.40
+activity: exact aligned source dictionaries and typed release/capture cut verified
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: Read exact manifest and 80 named audits; no full build. Running isolated exact dependency closures in parallel with branch verification, then fixed handoff.
+report: notes/handoff/dots-cycle-361.md
+resume_hint: I64 next distinct typed endpoint production and inherited contextual modes; S1 1 partial/S2 1 partial/C 1 deferred. I57 frozen blobs untouched by metadata only.
