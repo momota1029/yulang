@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessCompoundCandidate364
+#print axioms Yulang.GeneralDeclarativeWitnessCompoundCandidate364.head_proved_from_both_ends
+#print axioms Yulang.GeneralDeclarativeWitnessCompoundCandidate364.no_laundering_missing_rigid_match

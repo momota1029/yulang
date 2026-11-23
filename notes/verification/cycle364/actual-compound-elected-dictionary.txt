@@ -1,0 +1,45 @@
+Lean 4.35.0 strict stdin, exit 0
+'Yulang.GeneralDeclarativeWitnessOriginalEndpointProjection364.exact_endpoint_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginalEndpointProjection364.actual_projection_uses_two_authored_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompoundCandidate364.head_proved_from_both_ends' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompoundCandidate364.no_laundering_missing_rigid_match' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualCompoundElection364.actual_visible_source_controls' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualCompoundElection364.unique_is_not_just_well_formed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessElectedPayload364.independent_center_read_after_election' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessElectedPayload364.actual_elected_payload_is_oriented_without_guessing_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualNominalLeaf364.actual_elected_compound_has_literal_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.local_nominal_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.nominal_tree_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.same_model_selected_nominal_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.model_fits_actual_payload_copies' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.actual_normal_state_has_scoped_payload_copies' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.actual_elected_nominal_dictionary_in_all_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

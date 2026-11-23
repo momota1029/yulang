@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessNominalDictionary364
+#print axioms Yulang.GeneralDeclarativeWitnessNominalDictionary364.local_nominal_sound
+#print axioms Yulang.GeneralDeclarativeWitnessNominalDictionary364.nominal_tree_selected
+#print axioms Yulang.GeneralDeclarativeWitnessNominalDictionary364.same_model_selected_nominal_dictionary
