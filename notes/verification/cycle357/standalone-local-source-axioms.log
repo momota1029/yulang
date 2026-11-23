@@ -1,0 +1,54 @@
+'Yulang.GeneralDeclarativeWitnessModeDeclaration357.pattern_scope' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeDeclaration357.scoped_decl' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeDeclaration357.declaration_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeDeclaration357.source_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedCheck357.unary_exact' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessJoinedCheck357.find_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedCheck357.replay_rule' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.actual_positive_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.actual_positive_nonempty_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.actual_compiler_outputs_and_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.refuses_split_capture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.missing_real_center_not_repaired_by_arm' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.cannot_omit_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.output_target_not_readdressed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.covariance_emits_actual_forward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.contravariance_emits_actual_backward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.covariance_does_not_accept_reversed_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.contravariance_does_not_accept_reversed_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.nullary_cannot_take_one_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.no_nominal_at_absent_key' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
