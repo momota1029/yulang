@@ -1,0 +1,15 @@
+'Yulang.GeneralDeclarativeWitnessActualOpenReceipts359.literal_becomes_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenReceipts359.parent_emits_actual_nonpoint' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenReceipts359.both_literal_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenReceipts359.actual_compiler_rejects_relabeling' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualOpenReceipts359.model_equality_does_not_rewrite_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
