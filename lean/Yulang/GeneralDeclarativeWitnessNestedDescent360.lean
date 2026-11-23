@@ -143,15 +143,39 @@ theorem from_chain_sound {head child} (successful : fromChain head child = true)
       exact visible_chain_stays_smaller (form ▸ actual) valid.1
   · cases successful
 
+theorem first_of_two_stays_smaller (binder : Nat) (other : Pattern) :
+    StableSmaller [.var binder,other] [.var binder] := by
+  intro capture
+  have extra : 0 < (normalize (other.subst capture)).encode.size := by
+    cases (normalize (other.subst capture)).encode <;> simp [Roles.Term.size] <;> omega
+  constructor
+  · simp only [counted,substArgs,Pattern.subst,normalizeArgs,encodeArgs,Roles.argsSize,Nat.add_zero]
+    omega
+  · intro var
+    simp [counted,substArgs,Pattern.subst,normalizeArgs,encodeArgs,Roles.argsOccurrences]
+
+def alongside (head child : List Pattern) : Bool :=
+  match head,child with
+  | [.var binder,_], [.var used] => decide (binder = used)
+  | _,_ => false
+
+theorem alongside_sound {head child} (ok : alongside head child = true) : StableSmaller head child := by
+  unfold alongside at ok
+  split at ok
+  · rename_i binder other used
+    cases of_decide_eq_true ok
+    exact first_of_two_stays_smaller _ other
+  · cases ok
+
 def descent (head child : List Pattern) : Bool :=
   (counts head child && checkSmaller head child) &&
-  (CheckedRoles.checkCondition (lowerArgs (normalizeArgs head)) ⟨0,counted child⟩ && fromChain head child)
+  (CheckedRoles.checkCondition (lowerArgs (normalizeArgs head)) ⟨0,counted child⟩ && (fromChain head child || alongside head child))
 
 theorem descent_witness {head child} (ok : descent head child = true) :
     CountsCovered head child ∧ Smaller head child ∧ ConservativeSmaller head child ∧ StableSmaller head child := by
   obtain ⟨a,b⟩ := splitAnd ok
   exact ⟨splitAnd (splitAnd a).1,(checkSmaller_exact ..).mp (splitAnd a).2,
-    (splitAnd b).1,from_chain_sound (splitAnd b).2⟩
+    (splitAnd b).1,(GeneralDeclarativeWitnessProblem349.splitOr (splitAnd b).2).elim from_chain_sound alongside_sound⟩
 
 def check (s : GeneralSourceMetadataBundle291.SourceBundle) (d : Declaration) : Bool :=
   (GeneralDeclarativeWitnessSignature349.checks s.roles d && ids d) &&
