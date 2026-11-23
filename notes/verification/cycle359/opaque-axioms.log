@@ -1,0 +1,20 @@
+'Yulang.GeneralDeclarativeWitnessOpenSpine359.check_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenSpine359.read_in_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenSpine359.interval_of_open_heads' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.actual_open_checks' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.actual_open_without_tail_equation' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.actual_c338_receipt_in_every_model' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.model_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.reads_both_independent_inline_heads' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.current_without_tail_or_center_shapes' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.equivalent_named_reassociation_not_authored' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.actual_strict_inline_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOpenFixture359.inline_actual_remainder_does_not_follow_from_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
