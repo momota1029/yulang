@@ -40,10 +40,10 @@ inductive Walk (w : World) (project : Nat → Nat → Prop) : Bool → Node → 
 
 def heights (r : Nat → Nat) : Node → Nat
   | .ordinary n => r n
-  | _ => 2
+  | _ => 3
 
 def NativeBounds (w : World) (r : Nat → Nat) : Prop :=
-  ∀ a ∈ w.board.writes,∀ n ∈ uses a.code,r n < 2
+  ∀ a ∈ w.board.writes,∀ n ∈ uses a.code,r n < 3
 
 theorem edges_respect_levels {w : World} {p r strict a b}
     (ordinary : Ranked w.ordinary r) (native : NativeBounds w r)
@@ -75,11 +75,12 @@ theorem no_loop {w : World} {p r} (ordinary : Ranked w.ordinary r) (native : Nat
   intro cycle
   exact Nat.lt_irrefl _ ((decreases cycle).2 rfl)
 
-def levels : List Nat := [0,0,0,0] ++ List.replicate 320 1
+def levels : List Nat := (List.range 324).map fun n =>
+  if n < 4 then 0 else if n = 63 ∨ n = 64 then 1 else 2
 
 def graph (w : World) : Bool :=
   check w.ordinary levels &&
-  w.board.writes.all (fun z => (uses z.code).all (fun n => decide (rank levels n < 2)))
+  w.board.writes.all (fun z => (uses z.code).all (fun n => decide (rank levels n < 3)))
 
 structure Safe (w : World) : Prop where
   ordinary : Ranked w.ordinary (rank levels)

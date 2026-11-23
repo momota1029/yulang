@@ -1,0 +1,2 @@
+import Yulang.GeneralDeclarativeWitnessSelectedNonpointRoot363
+#print axioms Yulang.GeneralDeclarativeWitnessSelectedNonpointRoot363.exact_authored_root

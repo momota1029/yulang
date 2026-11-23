@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessOrderedDictionary363
+#print axioms Yulang.GeneralDeclarativeWitnessOrderedDictionary363.selected_tree_sound
+#print axioms Yulang.GeneralDeclarativeWitnessOrderedDictionary363.selected_children_sound
+#print axioms Yulang.GeneralDeclarativeWitnessOrderedDictionary363.dictionary_sound

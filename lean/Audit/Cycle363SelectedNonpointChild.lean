@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessSelectedNonpointChild363
+#print axioms Yulang.GeneralDeclarativeWitnessSelectedNonpointChild363.actual_selected_replay
+#print axioms Yulang.GeneralDeclarativeWitnessSelectedNonpointChild363.returned_model_has_prior_author_and_child_state

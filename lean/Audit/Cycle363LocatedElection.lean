@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessLocatedElection363
+#print axioms Yulang.GeneralDeclarativeWitnessLocatedElection363.election_not_called_from_compiler
+#print axioms Yulang.GeneralDeclarativeWitnessLocatedElection363.exact_compiler_must_use_chosen_row

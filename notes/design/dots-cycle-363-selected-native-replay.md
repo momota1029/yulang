@@ -1,0 +1,1 @@
+The nested ordinary record ranks now reflect actual source edges 60→63 and 62→64. Each source election precedes body compilation and the child retains the exact physical center 302. The generic ordered fold consumes a locally sound declarative relation; it does not derive arbitrary election.
