@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65ActualCandidateOrder379
+
+#print axioms Yulang.GeneralDeclarativeI65.actual_c361_inspect_follows_entered_child
+#print axioms Yulang.GeneralDeclarativeI65.actual_c361_graph_gate_precedes_both_reads
+#print axioms Yulang.GeneralDeclarativeI65.actual_c361_scans_the_second_only_after_first
+#print axioms Yulang.GeneralDeclarativeI65.first_authored_unary_entry_before_second_candidate
