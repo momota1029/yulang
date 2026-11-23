@@ -1,0 +1,28 @@
+'Yulang.GeneralDeclarativeWitnessSiblingModel358.rhs_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingModel358.covers_equation' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingModel358.atomTrace_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingModel358.covers_atom' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingModel358.actual_siblings_model_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingModel358.same_actual_models' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingFixture358.actual_written_sibling_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingFixture358.actual_two_ordered_children_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingFixture358.cannot_swap_semantically_equal_payload_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingFixture358.cannot_swap_child_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingFixture358.cannot_swap_child_fixed_targets' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingFixture358.both_actual_children_in_one_native_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

@@ -1,0 +1,47 @@
+'Yulang.GeneralDeclarativeWitnessClosedRecordLocal358.same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordFixture358.actual_closed_record_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordFixture358.current_empty_tail_not_enough_without_author' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordFixture358.no_swap_field_and_tail' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordFixture358.physical_where_child_unchanged' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordFixture358.actual_record_output_written' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordModel358.eq_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordModel358.atom_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordModel358.actual_model_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordModel358.fits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordReport358.same_model_pair' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordVerified358.actual_closed_report_verified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordVerified358.text_equivalent_tail_cannot_replace_authorship' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordVerified358.exact_record_payload_and_rest' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClosedRecordVerified358.actual_closed_report_with_real_current_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExactEndpointResidual358.actual_residual_without_center_shape' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExactEndpointResidual358.exact_endpoint_source' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExactEndpointResidual358.no_literal_center' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessExactEndpointResidual358.actual_exact_residual_under_strict_field_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

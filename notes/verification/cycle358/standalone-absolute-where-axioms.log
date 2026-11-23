@@ -1,0 +1,19 @@
+'Yulang.GeneralDeclarativeWitnessActualAddress358.positions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualAddress358.checked_paths' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualAddress358.no_duplicate_path' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualAddress358.unambiguous_address' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingLinks358.independently_checked_edges' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingLinks358.not_replace_binders_because_values_equal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSiblingLinks358.all_actual_where_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

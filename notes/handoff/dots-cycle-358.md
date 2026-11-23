@@ -1,0 +1,30 @@
+# Yulang cycle 358: authored nonpoint selections and exact recursive reports
+
+Started 2026-11-23T01:39:29.279Z; actual assigned turn reached the worker after the nominal 01:30 slot, so completion is bounded by the absolute 02:25 UTC cutoff rather than claiming 50 elapsed minutes. Live integration read `95959fe1cc882700f457cd3ecfe677fd6fbe54da`, unchanged I‑64 inbox `710202fad8db50f70be6ab1b0f03f3909111a556`, standing orders and role/inference specs. Prior completed C357 `e80ccdd1a6d2d61cf707d7a3d9fc4a97b6ebfaad`. Private work branch only.
+
+元の二つの同タグ payload にそれぞれ独立した作者行を置き、実コンパイラが出す非点区間の子を選定した。二つの子の辞書は順序付きで `92[93,94]`。出力は親60、子41・42で、同じ中心10と同じ payload を読む場合でも、子・辞書・出力先の入れ替えは通らない。単一の実在するモデルで、親の where の要求と両方の子の実出力を検証した。
+
+## Checked results
+
+- `WitnessAuthoredProjection358.check_exact` reflects an independent source manifest and the current ordinary constraints separately. With original written same-tag constructor rows and exact current literal bounds, `original_nonpoint_projection` proves at all three actual outer positions that each reads the tag and whole merged payload at the corresponding authored projection name in every current model. Direct raw output/solver atoms cannot substitute for either original source arm. The concrete outer child remains `(63,10,64)`; its payload field projections keep separate named positions `(3,4,5)`.
+- `WitnessProjectionRule358.dictionary_sound` and `WitnessOrderedReport358.report_sound` give scoped recursive soundness for typed joined and authored tag-projection local cases, with actual compiler children in order and their actual fixed writes. For every returned checked finite packet and every model of **the same** current declarative state, the independently specified classification, diagnostic/dictionary and fixed outputs match. Root/children's `Declared` follow from actual source signature/associated-lookup proofs, not an outcome bit. `WitnessActualAddress358.checked_paths` and `unambiguous_address` derive exact absolute preorder and one entry per path.
+- Nonvacuous fixtures: `actual_same_model_report` checks actual `92[93]` and outputs60/41. `both_actual_children_in_one_native_model` checks actual `92[93,94]`, exact role6 `(63,10,64)`→41 and role7 `(61,10,62)`→42, with int and bool original payloads and one whole actual merged payload. `all_actual_where_outputs` links ordinal0 to literal clause81/binder32 and ordinal1 to clause83/binder31, validates both original arms and actual center, and proves both parent where expectations and both fixed child RHSs in that model (indeed every model of this current state). Swapping children, changing actual write targets, rewriting a path or binder, or omitting an author row fails.
+- `WitnessScopedNativeProjection358.check_projection_context` uses C357's full inherited-context result on the actual source-authored ordinary tag descriptions in both directions at the three actual names, with no erasure. This is its ordinary syntactic subcase; it does not claim that this compiler fixture has a hidden declared invariant nominal wrapper.
+- `WitnessTwoSourcedEndpoints358.independently_sourced` proves separately that two written record endpoint heads yield a field interval even with no center equation. `actual_record_window_without_center_read` proves a real strict direction (int to int|bool, not reverse), while preserving exact written tails. This is a projection and nonvacuity result, not selecting that center or proving arbitrary record remainder deletion.
+The actual independently authored **exact closed-record** branch has the checked pair `92[96]`, keeps child `(63,10,64)` and fixed outputs `60,41`, and writes a literal `record7` with the independently sourced exact terminal rather than a width wildcard. Removing the author row while retaining the current tail equation, or swapping field/tail source, fails. Separately, two independently authored exact closed endpoints with a strict nonpoint field window and no literal center equation give C337’s exact deleted remainder `exactEmpty` in every fitting model. This deletion lemma is not a selection rule for withheld centers.
+
+## Limits and next work
+
+S1 one partial group: witnessed supported variants/finite role fragments, independent source metadata and projection, exact reports; arbitrary source producers/candidates and open tail selection are not yet covered. S2 one partial group: actual recursive positive examples and narrow all-model certificate soundness, not a general classifier or comparison to all solver outputs. C one deferred group; no completeness, general refusal, solver termination, Rust or whole-project Lean test. No old C334 bridge or new language policy. No new question note. Normal authorized executor attachment recovered; usage cap unavailable.
+
+Next: [I-64 next proof cut](../design/dots-cycle-358-i64-next-projection.md).
+
+## Verification
+
+- Exact final science pin `54d9444e5207df42a9fefa57515594422be615f8`, verified after detached source-byte checkout. Warning-strict scoped Lean 4.35.0 checked 25 new source modules and 8 stand-alone audit files directly under `--trust=0`. 91 individually reported declarations (0 axiom-free) and 118575 transitive declarations; no axioms beyond propext, Classical.choice and Quot.sound.
+- Combined scoped Lake succeeded (3973 dependency jobs); exact frozen-skip diff gate passed; old barrel byte prefix and precisely 25 additive same-change imports verified. No whole Lean/barrel or Rust claim.
+- Original frozen objects match by metadata, with neither file materialized: `97dd1cfaded3e3abc3fd8caa98a64843d6f7a3d9`, `9fd6842bcc00c5bc5c00a196d9ccb328c6b0c94a`. Evidence commit `d7b335c47ce3f28fc4ebcb5e5c54e3d0577324c6`; logs and exact source-blob manifest: [verification](../verification/cycle358/). Only successful scoped logs are counted; the final detached logs are the evidence for the exact tree.
+
+Pre-handoff paths verified: 59; final handoff adds one report and updates the existing heartbeat.
+
+Completion marked 2026-11-23T02:19:31.817Z at 40.04 minutes from recorded actual start, within this slot's absolute cutoff.
