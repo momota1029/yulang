@@ -1,0 +1,48 @@
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.eq_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.atom_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.data_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.fits_data' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.leaf_classify' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceEndToEnd357.literal_leaf_verified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceEndToEnd357.source_checks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceEndToEnd357.declared_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceEndToEnd357.same_model_regular_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReifiedViews357.exact_at' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReifiedViews357.no_unsourced' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReifiedViews357.models_extend' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReifiedViews357.dictionary_every_ordinary_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReport357.exact_leaf_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.accepted_actual_report' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.wrong_diagnostic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.wrong_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.wrong_requested_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.real_branch_cannot_end_at_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.actual_report_in_real_combined_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
