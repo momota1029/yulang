@@ -1,9 +1,10 @@
 # dots-main heartbeat
 
-cycle: 369
-status: completed
-started: 2026-11-23T12:32:35.795Z
-updated: 2026-11-23T13:14:03.099Z
-elapsed_min: 41
-activity: C369 native pre-comparison proof design and verified handoff; executor unavailable, no unchecked Lean
-report: notes/handoff/dots-cycle-369.md
+cycle: 370
+status: running
+started: 2026-11-23T13:39:57.615Z
+updated: 2026-11-23T13:40:24.001Z
+elapsed_min: 0
+activity: unchanged I-65; recovered five exact native prefix draft modules; executor offline
+last_local_commit: 8f29b7000c70ced5831661d6dc125cc98b41cbd7
+resume_hint: notes/design/dots-cycle-369-native-prefix.md
