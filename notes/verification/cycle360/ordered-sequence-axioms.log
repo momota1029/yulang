@@ -1,0 +1,13 @@
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.compiler_reallocates_after_ordinary_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.one_state_checked_sequence' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.actual_ordered_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.ordered_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSequentialNative360.whole_exact_sequence_is_inhabited' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
