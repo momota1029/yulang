@@ -1,0 +1,143 @@
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true
+Independent strict replay generated from pinned Git artifacts at 8a5c2fab67fd31c6918d5e6f757440975cada274; Lean tree 6af2c2fba2cfb2caa1759d52c141808ad3682775
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.local_nominal_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.nominal_tree_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.same_model_selected_nominal_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualCompoundElection364.actual_visible_source_controls' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualCompoundElection364.unique_is_not_just_well_formed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalNoFallback364.unsupported_authored_alternative_is_not_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessElectedPayload364.independent_center_read_after_election' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessElectedPayload364.actual_elected_payload_is_oriented_without_guessing_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.model_fits_actual_payload_copies' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.actual_normal_state_has_scoped_payload_copies' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.actual_elected_nominal_dictionary_in_all_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualNominalLeaf364.actual_elected_compound_has_literal_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompoundCandidate364.head_proved_from_both_ends' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompoundCandidate364.no_laundering_missing_rigid_match' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRigidMismatch364.mismatched_code_cannot_be_typed_at_either_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrientedNativeRange364.payload_step' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrientedNativeRange364.oriented_whole_payload_in_every_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginalEndpointProjection364.exact_endpoint_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginalEndpointProjection364.actual_projection_uses_two_authored_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealMismatchedRival364.actual_fallback_replays_the_independent_span' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealMismatchedRival364.actual_bare_winner_after_known_rigid_mismatch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalOverlap364.overlap_exists_for_either_declared_direction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalOverlap364.real_compound_rival_affects_parent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalOverlap364.cannot_elect_through_two_exact_hits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+C364 AXIOM-GATE-PASS: 3815 elaborated (including 416 C364-named), 117535 imported non-runtime
+
+Narrow explicit-dependency replay (exit 0):
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.local_nominal_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.nominal_tree_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionary364.same_model_selected_nominal_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualCompoundElection364.actual_visible_source_controls' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualCompoundElection364.unique_is_not_just_well_formed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalNoFallback364.unsupported_authored_alternative_is_not_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessElectedPayload364.independent_center_read_after_election' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessElectedPayload364.actual_elected_payload_is_oriented_without_guessing_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.model_fits_actual_payload_copies' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.actual_normal_state_has_scoped_payload_copies' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalDictionaryModel364.actual_elected_nominal_dictionary_in_all_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualNominalLeaf364.actual_elected_compound_has_literal_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompoundCandidate364.head_proved_from_both_ends' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCompoundCandidate364.no_laundering_missing_rigid_match' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRigidMismatch364.mismatched_code_cannot_be_typed_at_either_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrientedNativeRange364.payload_step' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrientedNativeRange364.oriented_whole_payload_in_every_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginalEndpointProjection364.exact_endpoint_provenance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOriginalEndpointProjection364.actual_projection_uses_two_authored_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealMismatchedRival364.actual_fallback_replays_the_independent_span' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRealMismatchedRival364.actual_bare_winner_after_known_rigid_mismatch' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalOverlap364.overlap_exists_for_either_declared_direction' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalOverlap364.real_compound_rival_affects_parent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalOverlap364.cannot_elect_through_two_exact_hits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
