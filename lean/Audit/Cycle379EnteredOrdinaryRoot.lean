@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65EnteredOrdinaryRoot379
+
+#print axioms Yulang.GeneralDeclarativeI65.entered_ordinary_source_root_is_current
+#print axioms Yulang.GeneralDeclarativeI65.entered_ordinary_root_detects_cycle
+#print axioms Yulang.GeneralDeclarativeI65.entered_ordinary_root_keeps_pending_equations_for_k2
+#print axioms Yulang.GeneralDeclarativeI65.entered_ordinary_nominal_capture_exact_rank

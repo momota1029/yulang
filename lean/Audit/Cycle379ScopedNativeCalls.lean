@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65ScopedNativeCalls379
+
+#print axioms Yulang.GeneralDeclarativeI65.scopedNativeCalls
+#print axioms Yulang.GeneralDeclarativeI65.ScopedNativeCalls.positions
+#print axioms Yulang.GeneralDeclarativeI65.ScopedNativeCalls.finished
+#print axioms Yulang.GeneralDeclarativeI65.only_first_position_on_missing_result
+#print axioms Yulang.GeneralDeclarativeI65.second_position_requires_positive_first
+#print axioms Yulang.GeneralDeclarativeI65.scoped_calls_return_same_scanner_result
+#print axioms Yulang.GeneralDeclarativeI65.callsAfterActualGate

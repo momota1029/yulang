@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 378
+cycle: 379
 status: completed
-started: 2026-11-23T21:34:08.353Z
-updated: 2026-11-23T22:10:19.696Z
-elapsed_min: 36
-activity: C378 strict checked one-sided source core and same-current physical release adapter
-report: notes/handoff/dots-cycle-378.md
+started: 2026-11-23T22:30:43.430Z
+updated: 2026-11-23T23:13:09.750Z
+elapsed_min: 42
+activity: C379 actual native dispatch, ordinary K2 and scoped selected where verified; I66 begins next
+report: notes/handoff/dots-cycle-379.md
