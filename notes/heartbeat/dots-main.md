@@ -3,8 +3,8 @@
 cycle: 379
 status: running
 started: 2026-11-23T22:30:43.430Z
-updated: 2026-11-23T22:31:05.131Z
-elapsed_min: 0
-activity: I-65 step1 unchanged; actual native entered head independent of subsequent body
-last_local_commit: f628ccc011f7b6ccbc133f79e0a4287f59ba1f3a
+updated: 2026-11-23T22:40:58.600Z
+elapsed_min: 10
+activity: C379 exact actual unary dispatch and finite scanner graph/first-second order both strict audited
+last_local_commit: 33cc17af8e910cd820ac35e10e58acb50c9762ba
 resume_hint: Exact demand-root native early dispatch
