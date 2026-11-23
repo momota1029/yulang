@@ -1,0 +1,186 @@
+Verified from the complete immutable GitHub science tree fd8140029c86f9707756394f686df7f581632a35. Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; exact proof bodies and independent standalone query suffixes; kernel exit 0. In-memory topological assembly of 39 exact prerequisites and all 23 new modules. No output files, full Lake, standalone imports of a new .olean, Rust or detached local claim. Out-of-scope paths were not changed; exact GitHub readback passed.
+
+'Yulang.GeneralDeclarativeWitnessThreeNative362.actual_three_authored_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeThreeModel362.exact_snapshot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeThreeModel362.model_transfer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeThreeModel362.fits_after' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeThreeModel362.every_fit_retains_source_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNativeRelease362.fixture_has_three_live_releases' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNativeRelease362.exact_current_values' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNativeRelease362.independent_grants_not_recovered_by_equal_shape' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNativeRelease362.source_code_in_every_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeOrder362.actual_directed_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeOrder362.holds_yields_typed_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeOrder362.release_and_order_in_every_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInvariantCut362.inherited_context_demands_reverse_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInvariantCut362.proper_record_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeInvariantCut362.same_model_contrasts_directions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeWindowWitness362.inhabited_exact_comparison' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeWindowWitness362.actual_source_window_inhabited_and_ordered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeWindowWitness362.same_snapshot_does_not_choose_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedEnvelope362.actual_inherited_envelope_uses_authored_payload_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedEnvelope362.overlaps_at_the_separately_authored_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPort362.actual_child_has_distinct_logical_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPort362.current_child_projection_keeps_all_three_sources' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPortModel362.exact_model_iff' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPortModel362.actual_state_after_emission' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPortModel362.extended_fits' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointPortModel362.actual_nonpoint_child_one_model_family' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointReceiver362.actual_source_receiver_keeps_nonpoint_positions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointReceiver362.fitting_state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointReceiver362.returned_body_retains_prior_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeWindows362.exact_receive_and_controls' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeWindows362.ordered_released_values_in_actual_receiver' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeWindows362.actual_receiver_with_two_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeWindows362.equal_ordinary_slots_do_not_collapse_native_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateEndpointAuthors362.actual_three_independent_authors' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateEndpointAuthors362.independent_author_validity_can_change_alone' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorModel362.actual_ordered_snapshot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorModel362.fits_state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorModel362.every_fit_of_third_author_keeps_original_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorModel362.actual_multi_owner_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorOrder362.separate_actual_modes_emit_expected_directions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorOrder362.all_claims_one_final_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorOrder362.changing_just_lower_authorship_status_preserves_every_fit' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorOrder362.actual_window_from_separate_authored_declarations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.known_same_name' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.ambient_covariant_points' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.ambient_contravariant_points' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.inherited_windows_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.invariant_parent_reduces_to_compatibility' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleaseSeparation362.cannot_read_one_address_as_two_writes' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessReleaseSeparation362.different_actual_codes_require_different_addresses' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessReleaseSeparation362.exact_release_exists_iff' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessReleaseSeparation362.retired_owner_preserves_exactly_other_current_releases' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessModeScope362.unchanged_effective_rows_do_not_authenticate_declared_modes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeScope362.origin_mode_changes_a_real_model_outcome' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeScope362.one_authorized_table_cannot_change_comparison_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeScope362.one_authorized_table_fixes_every_checked_site' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReaderModeAgreement362.consumer_real_source_endorses_inherited_table' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReaderModeAgreement362.one_table_same_rows_in_actual_consumer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReaderModeAgreement362.same_model_matches_every_verified_reader_row' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointRepeat362.actual_two_scopes_share_exact_center_not_alias_addresses' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointModel362.actual_both_returns_keep_source_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointModel362.model_after_both' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointModel362.exact_source_after_two_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedNonpointModel362.two_children_have_exact_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExecutableRelease362.open_from_exact_facts' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExecutableRelease362.exact_release_checker' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessExecutableRelease362.executable_retirement_only_removes_own_release' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerReceiver362.actual_read_of_three_independent_sources' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerReceiver362.preserves_checked_mode_words' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerReceiver362.every_reader_fit_still_reads_each_original_owner' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.actual_multi_owner_reader_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.fits_current' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCrossOwnerModel362.actual_common_fitted_state_from_three_authors' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+C362 AXIOM-GATE-PASS: 2680 elaborated (including 722 C362-named), 117535 imported non-runtime
