@@ -1,0 +1,39 @@
+Lean 4.35.0 strict stdin from exact imported and new sources. Exit 0; independent named query output:
+'Yulang.GeneralDeclarativeWitnessSeparateEndpointAuthors362.actual_three_independent_authors' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateEndpointAuthors362.independent_author_validity_can_change_alone' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorModel362.actual_ordered_snapshot' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorModel362.fits_state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorModel362.every_fit_of_third_author_keeps_original_window' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorModel362.actual_multi_owner_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorOrder362.separate_actual_modes_emit_expected_directions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorOrder362.all_claims_one_final_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorOrder362.changing_just_lower_authorship_status_preserves_every_fit' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSeparateAuthorOrder362.actual_window_from_separate_authored_declarations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.known_same_name' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.ambient_covariant_points' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.ambient_contravariant_points' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.inherited_windows_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnaryVarianceLaws362.invariant_parent_reduces_to_compatibility' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReleaseSeparation362.cannot_read_one_address_as_two_writes' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessReleaseSeparation362.different_actual_codes_require_different_addresses' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessReleaseSeparation362.exact_release_exists_iff' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessReleaseSeparation362.retired_owner_preserves_exactly_other_current_releases' depends on axioms: [propext]
