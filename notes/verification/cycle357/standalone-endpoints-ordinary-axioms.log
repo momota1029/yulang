@@ -1,0 +1,25 @@
+'Yulang.GeneralDeclarativeWitnessGeneratedEndpoints357.genuine_nonpoint' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGeneratedEndpoints357.checked_link' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGeneratedEndpoints357.child_not_point' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessGeneratedEndpoints357.actual_child_one_shared_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.constructors_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.pattern_case' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.term_case' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.declaration_case' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.coverage_case' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

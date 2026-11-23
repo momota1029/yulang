@@ -1,0 +1,323 @@
+'Yulang.GeneralDeclarativeWitnessChildProjectionCut357.compare_is_not_point_capture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessChildProjectionCut357.actual_endpoints_not_literal_nominal_sources' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessChildProjectionCut357.separate_provenance_needed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRootDeclared357.compiled_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRootDeclared357.written_root_declared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRootDeclared357.receipt_has_its_own_declared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRootDeclared357.exact_s2_without_external_declared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.available' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.readUse_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.pattern_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.declaration_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.term_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.every_actual_default' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.all_written_defaults' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.check_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.whole_declaration_and_default' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.primitive_exactly_primitive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.invariant_exactly_invariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.no_missing_default_ctor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.no_untrusted_nullary_fallback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.no_snapshot_kind_drift' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.no_forged_invariant_on_covariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointModes357.position_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointModes357.arguments_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointModes357.same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.joined_values' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.output_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.emitted_declared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.execute_declared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.body_declared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.roleView_span' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.of_ordinary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.local_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.node_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.list_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseIntervals357.independently_licensed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseIntervals357.declared_context_meaning' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseIntervals357.no_absent_site' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeFixture357.inherited_covariance_is_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeFixture357.inherited_contravariance_is_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeFixture357.covariance_outside_does_not_take_open_argument' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeFixture357.nested_invariant_carries_covariance_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeFixture357.nested_invariant_carries_contravariance_context' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeFixture357.cannot_forge_nested_variance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeFixture357.dense_filler_alone_would_pass' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeFixture357.sparse_guard_requires_real_named_constructor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedModeModel357.proved_in_same_lifted_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFullIntervals357.row_args_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFullIntervals357.inspect_context_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFullIntervals357.compiled_full_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessFullIntervals357.in_current_full_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedFullFixture357.exact_inherited_code' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedFullFixture357.reflexive_in_native_type' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedFullFixture357.inhabited_native_interval' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessInheritedFullFixture357.declared_native_nullary_under_nested_contravariance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnusedScope357.really_unused' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnusedScope357.used_syntax_but_no_obligations' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnusedScope357.does_not_offer_missing_under_unused' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessUnusedScope357.wrong_unused_kind_still_fails' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeDeclaration357.pattern_scope' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeDeclaration357.scoped_decl' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeDeclaration357.declaration_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeDeclaration357.source_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedCheck357.unary_exact' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessJoinedCheck357.find_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedCheck357.replay_rule' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.actual_positive_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.actual_positive_nonempty_children' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.actual_compiler_outputs_and_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.refuses_split_capture' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.missing_real_center_not_repaired_by_arm' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.cannot_omit_child' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessJoinedFixture357.output_target_not_readdressed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.covariance_emits_actual_forward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.contravariance_emits_actual_backward' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.covariance_does_not_accept_reversed_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.contravariance_does_not_accept_reversed_receipt' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.nullary_cannot_take_one_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPolarityFixture357.no_nominal_at_absent_key' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.eq_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.atom_holds' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.data_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.fits_data' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceModel357.leaf_classify' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceEndToEnd357.literal_leaf_verified' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceEndToEnd357.source_checks' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceEndToEnd357.declared_root' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceEndToEnd357.same_model_regular_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReifiedViews357.exact_at' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReifiedViews357.no_unsourced' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReifiedViews357.models_extend' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReifiedViews357.dictionary_every_ordinary_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReport357.exact_leaf_certificate' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.accepted_actual_report' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.wrong_diagnostic' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.wrong_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.wrong_requested_output' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.real_branch_cannot_end_at_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceReportFixture357.actual_report_in_real_combined_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGeneratedEndpoints357.genuine_nonpoint' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGeneratedEndpoints357.checked_link' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessGeneratedEndpoints357.child_not_point' does not depend on any axioms
+'Yulang.GeneralDeclarativeWitnessGeneratedEndpoints357.actual_child_one_shared_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.constructors_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.pattern_case' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.term_case' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.declaration_case' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrdinarySpecialCase357.coverage_case' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.valid_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.uses_sources' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.modes_from_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.none_if_absent' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.some_if_nullary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSparseVariance357.lookup_authored' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.actual_box_covariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.actual_arrow_param_contravariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.real_nullary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.no_dense_filler' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.reject_unowned_formal' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.reject_wrong_declared_kind' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.true_nullary_call' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVarianceFixtures357.absent_call_does_not_lower' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVariancePositions357.parameters_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessVariancePositions357.authored_modes_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessConstructorModes357.check_has_no_fallback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessConstructorModes357.declared_mode_from_bodies' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

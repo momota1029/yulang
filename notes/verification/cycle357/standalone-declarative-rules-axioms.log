@@ -1,0 +1,21 @@
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.joined_values' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.output_meaning' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.emitted_declared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.execute_declared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessDeclaredState357.body_declared' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.roleView_span' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.of_ordinary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.local_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.node_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.list_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessClassifyVariance357.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
