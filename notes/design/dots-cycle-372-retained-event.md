@@ -39,6 +39,38 @@ produced rows, but that format must be tied to the event, not found by
 searching for model-equal equations. A visible pair of matching rows
 does not create an event, a parent occurrence, or a release.
 
+## Recover the absolute row from the source clause and output ordinals
+
+`whereRows[j]` is at an emitted-batch index, not at the original
+output's ordinal. The actual `WhereOutputBatch327.whole` nests
+`collect` in declaration clause order, then in each clause's output
+order. On a successful whole batch, every `entry` translated its RHS;
+`entry` returns zero rows exactly for `Direct` (the existing
+`direct_exact` theorem), and returns one ordinary equation otherwise.
+A failed translation, including one for a direct binder, is not a
+zero row. Therefore for a non-direct output ordinal `j` in clause
+ordinal `i`, its actual ordinary index is
+
+```text
+prepared.equations.length
++ sum of non-direct counts in clauses strictly before i
++ non-direct count among the outputs strictly before j in clause i
+```
+
+The proof splits the outer successful `collect` at `i` and the
+inner successful `collect` at `j`, and calculates the sizes of the
+two earlier successful prefixes by list induction. No readback search
+or uniqueness-of-equation-value premise is used. By
+`ClausePlacement327.checked_inputs`, the variable/compound input
+allocation used in the same child is the actual prepared port at
+that checked source clause, not its default. Direct children retain
+their original output-request ordinal and use the producing binder's
+target, but do not claim any new equation index in the where batch.
+By contrast `NormalizeAssoc324.one` emits exactly one row for each
+successful fixed root demand output, so root output ordinal `k`
+needs no skip adjustment. These are serialization/provenance facts;
+they do not change the meaning of the where conjunction.
+
 ## Bridge into existing evidence rather than another receipt premise
 
 From the literal current prefix, `Finished.state.equations ⊆
