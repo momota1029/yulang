@@ -3,9 +3,9 @@
 cycle: 357
 status: running
 started: 2026-11-23T00:30:45.606Z
-updated: 2026-11-23T00:48:54.067Z
-elapsed_min: 18.14
-activity: source-mode Coverage and new declarative same-model fold verified
+updated: 2026-11-23T00:59:21.283Z
+elapsed_min: 28.59
+activity: inhabited new declared report and actual nonpoint producer verified
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: Second checked proof 6bb564026c44457184a95e4fd52dd2466b19fa6d; third independent rule/local+ordered fold checked locally, before independent pin. New Checked avoids old global CountsCovered. Now validating independently parsed actual authored receipt.
+resume_hint: C357 latest verified report deec5d47ec8c4ebbd611fbeca4a631b4ffa99cab; separate all-model links at actual (63,10,64). Next validate ordinary special case and declared nested matching boundary before final.
