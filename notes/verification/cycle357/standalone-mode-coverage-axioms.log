@@ -1,0 +1,42 @@
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.available' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.readUse_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.pattern_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.declaration_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.term_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.every_actual_default' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.all_written_defaults' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeCoverage357.check_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.whole_declaration_and_default' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.primitive_exactly_primitive' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.invariant_exactly_invariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.no_missing_default_ctor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.no_untrusted_nullary_fallback' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.no_snapshot_kind_drift' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessCoverageFixture357.no_forged_invariant_on_covariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointModes357.position_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointModes357.arguments_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessPointModes357.same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
