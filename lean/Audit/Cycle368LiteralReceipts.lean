@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeI65LiteralTypedBody368
+import Yulang.GeneralDeclarativeI65PostselectionTies368
+import Yulang.GeneralDeclarativeI65JoinBody368
+
+#print axioms Yulang.GeneralDeclarativeI65.typed_observation_has_value
+#print axioms Yulang.GeneralDeclarativeI65.typed_body_ordered_same_model
+#print axioms Yulang.GeneralDeclarativeI65.typed_children_have_actual_authoring
+#print axioms Yulang.GeneralDeclarativeI65.typed_written_all_models
+#print axioms Yulang.GeneralDeclarativeI65.build_keeps_selected_equations
+#print axioms Yulang.GeneralDeclarativeI65.actual_run_retains_initial_model
+#print axioms Yulang.GeneralDeclarativeI65.receipt_repeated_centers
+#print axioms Yulang.GeneralDeclarativeI65.firsts_follow_actual_first_find
+#print axioms Yulang.GeneralDeclarativeI65.actual_ports_share_original_uses
+#print axioms Yulang.GeneralDeclarativeI65.typed_at_literal_position
+#print axioms Yulang.GeneralDeclarativeI65.current_typed_write_exact
+#print axioms Yulang.GeneralDeclarativeI65.typed_run_preserves_repeated_centers
+#print axioms Yulang.GeneralDeclarativeI65.chosen_typed_literal_body_sound

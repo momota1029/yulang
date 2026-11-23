@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65NormalizedPrefix368
+
+#print axioms Yulang.GeneralDeclarativeI65.normalized_actual_prefix_k2
+#print axioms Yulang.GeneralDeclarativeI65.normalized_pending_row_changes_k2_without_support
