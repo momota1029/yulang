@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65Comparison365
+#print axioms Yulang.GeneralDeclarativeI65.compare_sound
+#print axioms Yulang.GeneralDeclarativeI65.in_same_model
