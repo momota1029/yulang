@@ -7884,3 +7884,5 @@ import Yulang.GeneralDeclarativeI65ExistingCases365
 import Yulang.GeneralDeclarativeI65TypedOutputs365
 import Yulang.GeneralDeclarativeI65OriginArity365
 import Yulang.GeneralDeclarativeI65WrittenHead365
+import Yulang.GeneralDeclarativeI65Capture366
+import Yulang.GeneralDeclarativeI65Deep366
