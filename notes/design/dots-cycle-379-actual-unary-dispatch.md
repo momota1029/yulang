@@ -22,3 +22,17 @@ rules, or successful-selection premises for the public theorem.
 - Keep exact current release, source normalized pattern, real declared
   read, and actual recursive code separate. A hypothetical EarlyPorts
   entry or successful typed comparison cannot satisfy these premises.
+
+## Independent selected-occurrence to where compiler (existing C363)
+
+In C363 the parent and child are chosen independently of their emitted
+bodies. The native input and finite graph gate are already checked,
+and the chosen capture feeds the real C360 preparation. Since the
+existing root demand has no fixed outputs, its compiler result can be
+reconstructed from that exact preparation and actual where batch,
+not from a later selected dictionary. Verify that the actual child
+keeps those literal where rows (the full `preserves` equation field,
+not merely semantic value equality), and the child request appears at
+its original occurrence path. Retain the same final model. This is
+an independently selected source path in the existing represented
+fixture, not an extension of the scanner or the I-65 statement.
