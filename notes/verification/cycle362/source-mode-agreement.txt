@@ -1,0 +1,22 @@
+Strict Lean 4.35.0 stdin exact source and pinned prerequisites; exit 0.
+'Yulang.GeneralDeclarativeWitnessModeScope362.unchanged_effective_rows_do_not_authenticate_declared_modes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeScope362.origin_mode_changes_a_real_model_outcome' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeScope362.one_authorized_table_cannot_change_comparison_rows' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessModeScope362.one_authorized_table_fixes_every_checked_site' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReaderModeAgreement362.consumer_real_source_endorses_inherited_table' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReaderModeAgreement362.one_table_same_rows_in_actual_consumer' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessReaderModeAgreement362.same_model_matches_every_verified_reader_row' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
