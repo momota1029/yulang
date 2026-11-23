@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65PreparedOwnBody376
+
+#print axioms Yulang.GeneralDeclarativeI65.prepared_owns_literal_finished_body
+#print axioms Yulang.GeneralDeclarativeI65.same_prepared_author_in_finished_and_typed_body
+#print axioms Yulang.GeneralDeclarativeI65.one_authored_preparation_keeps_ordered_and_typed_meaning

@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65CurrentRelease376
+
+#print axioms Yulang.GeneralDeclarativeI65.installed_literal_address
+#print axioms Yulang.GeneralDeclarativeI65.exact_open_iff_independent_grant
+#print axioms Yulang.GeneralDeclarativeI65.checked_install_opens_iff_granted
+#print axioms Yulang.GeneralDeclarativeI65.same_target_different_source_address_not_open
+#print axioms Yulang.GeneralDeclarativeI65.appendOtherWrites
+#print axioms Yulang.GeneralDeclarativeI65.appends_away_preserve_literal_read
+#print axioms Yulang.GeneralDeclarativeI65.appends_keep_active_versions
+#print axioms Yulang.GeneralDeclarativeI65.current_ordinary_and_native_receipts
+#print axioms Yulang.GeneralDeclarativeI65.emitted_row_remains_exactly_openable
