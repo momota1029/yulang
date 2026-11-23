@@ -1,10 +1,9 @@
 # dots-main heartbeat
 
 cycle: 377
-status: running
+status: completed
 started: 2026-11-23T20:34:32.534Z
-updated: 2026-11-23T21:05:29.932Z
-elapsed_min: 30
-activity: C377 immutable EarlyPorts proof and split release/source design checked; no unchecked code; provider offline
-last_local_commit: 9b9d7481ef99aaa60e89e8c8b9f926892eb8f467
-resume_hint: Exact one-sided native endpoint before candidate K2
+updated: 2026-11-23T21:13:50.731Z
+elapsed_min: 39
+activity: C377 exact audited early endpoint positions; native source/release split pending
+report: notes/handoff/dots-cycle-377.md
