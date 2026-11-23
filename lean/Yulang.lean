@@ -7877,3 +7877,4 @@ import Yulang.GeneralDeclarativeI65Comparison365
 import Yulang.GeneralDeclarativeI65State365
 import Yulang.GeneralDeclarativeI65SourceNode365
 import Yulang.GeneralDeclarativeI65SourceTree365
+import Yulang.GeneralDeclarativeI65Lowering365

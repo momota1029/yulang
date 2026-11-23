@@ -1,0 +1,4 @@
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true, exit 0
+'Yulang.GeneralDeclarativeI65.lower_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.lower_forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.classified_source_assembly' depends on axioms: [propext, Classical.choice, Quot.sound]
