@@ -1,10 +1,9 @@
 # dots-main heartbeat
 
 cycle: 379
-status: running
+status: completed
 started: 2026-11-23T22:30:43.430Z
-updated: 2026-11-23T23:08:05.778Z
-elapsed_min: 37
-activity: C379 scientific A-F sealed, live I-66 starts next-cycle lemma skeleton; preparing exact completed report
-last_local_commit: 6721dff8099ed5a0dc8b4ae2091b87a2842e2b27
-resume_hint: Exact demand-root early dispatch
+updated: 2026-11-23T23:13:09.750Z
+elapsed_min: 42
+activity: C379 actual native dispatch, ordinary K2 and scoped selected where verified; I66 begins next
+report: notes/handoff/dots-cycle-379.md
