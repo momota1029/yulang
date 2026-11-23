@@ -1,0 +1,27 @@
+PASS independent audit lean/Audit/Cycle360Forward.lean
+PASS independent audit lean/Audit/Cycle360Install.lean
+PASS independent audit lean/Audit/Cycle360NestedCommit.lean
+PASS independent audit lean/Audit/Cycle360Preparation.lean
+PASS independent audit lean/Audit/Cycle360Receiver.lean
+PASS independent audit lean/Audit/Cycle360Sequence.lean
+PASS independent audit lean/Audit/Cycle360SharedModel.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessBranchFootprint360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessForwardModel360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativeBodyFixture360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativeInstall360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativeModel360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativePipeline360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativePreparation360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativeReceiver360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativeRelease360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativeSnapshot360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNativeValue360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNestedDescent360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNestedInstall360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNestedModels360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessNestedOrdered360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessOrderedChild360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessReceiverModel360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessReleasedForward360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessReleasedObservation360.lean
+PASS source lean/Yulang/GeneralDeclarativeWitnessSequentialNative360.lean
