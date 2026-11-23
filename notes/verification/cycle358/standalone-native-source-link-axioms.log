@@ -1,0 +1,19 @@
+'Yulang.GeneralDeclarativeWitnessSourceChain358.exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSourceChain358.actual_written_edge' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSourceChain358.equal_payload_does_not_change_binder' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSourceChain358.actual_clause_id_not_a_renaming' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSourceChain358.actual_child_position_not_a_renaming' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeProjection358.compiled_ordinary' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeProjection358.exact_component' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeProjection358.check_projection_context' depends on axioms: [propext,
+ Quot.sound]
