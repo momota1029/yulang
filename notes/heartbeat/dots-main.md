@@ -3,9 +3,9 @@
 cycle: 357
 status: running
 started: 2026-11-23T00:30:45.606Z
-updated: 2026-11-23T00:38:57.490Z
-elapsed_min: 8.20
-activity: verified actual source-derived co-/contravariance and sparse declaration uses
+updated: 2026-11-23T00:48:54.067Z
+elapsed_min: 18.14
+activity: source-mode Coverage and new declarative same-model fold verified
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-resume_hint: C357 first proof dcc82ba0ac733dfe190e60f68aa07f1a02cc42df; authorized executor restored, no workaround. Next independently check coverage of whole declarations/defaults and compare true current mode receipts.
+resume_hint: Second checked proof 6bb564026c44457184a95e4fd52dd2466b19fa6d; third independent rule/local+ordered fold checked locally, before independent pin. New Checked avoids old global CountsCovered. Now validating independently parsed actual authored receipt.
