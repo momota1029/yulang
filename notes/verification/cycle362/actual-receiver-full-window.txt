@@ -1,0 +1,20 @@
+Lean 4.35.0 strict stdin, exact C361 closure plus prior here and new source. Exit 0. Independent named axioms:
+'Yulang.GeneralDeclarativeWitnessNonpointReceiver362.actual_source_receiver_keeps_nonpoint_positions' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointReceiver362.fitting_state' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNonpointReceiver362.returned_body_retains_prior_fit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeWindows362.exact_receive_and_controls' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeWindows362.ordered_released_values_in_actual_receiver' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeWindows362.actual_receiver_with_two_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedNativeWindows362.equal_ordinary_slots_do_not_collapse_native_endpoints' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
