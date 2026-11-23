@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 372
+cycle: 373
 status: completed
-started: 2026-11-23T15:35:17.920Z
-updated: 2026-11-23T16:13:56.630Z
-elapsed_min: 38
-activity: C372 literal source ordinals and ordinary same-current retention argument; no unchecked Lean
-report: notes/handoff/dots-cycle-372.md
+started: 2026-11-23T16:31:39.967Z
+updated: 2026-11-23T17:12:56.536Z
+elapsed_min: 41
+activity: C373 coherent-ledger same-state row identity argument; no unchecked Lean
+report: notes/handoff/dots-cycle-373.md
