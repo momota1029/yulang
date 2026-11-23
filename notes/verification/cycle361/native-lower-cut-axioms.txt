@@ -1,0 +1,24 @@
+Exact added source blob 398419da37908eba3f9672eb797ef859a3288459; audit blob 53b3a7b117600a88239b98a6f4b7a5d0d52aaf47.
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; new sources assembled topologically with their external imports and exact audit query suffix; exit 0. No writable .olean or separate import check.
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.bound_keeps' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.alias_keeps' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.no_constructor' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.no_backed_constructor' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.exact_cut' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.actual_cut' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.checked_body_is_not_ordinary_ready' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.actual_rank' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.checked_body_is_not_an_ordinary_K2_rejection' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLowerCut361.ordinary_projection_is_pending_not_selected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
