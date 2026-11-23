@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65ActualUnaryDispatch379
+
+#print axioms Yulang.GeneralDeclarativeI65.dispatchUnary
+#print axioms Yulang.GeneralDeclarativeI65.unary_dispatch_exact
+#print axioms Yulang.GeneralDeclarativeI65.unary_dispatch_recursive_success_iff
+#print axioms Yulang.GeneralDeclarativeI65.failed_child_does_not_erase_unary_dispatch
+#print axioms Yulang.GeneralDeclarativeI65.released_unary_dispatch_has_literal_child
+#print axioms Yulang.GeneralDeclarativeI65.authored_prefix_and_unary_dispatch_agree
+#print axioms Yulang.GeneralDeclarativeI65.exact_c361_leaf_does_not_read_compound
+#print axioms Yulang.GeneralDeclarativeI65.entered_ordinary_child_needs_the_separate_graph
