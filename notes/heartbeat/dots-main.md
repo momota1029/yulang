@@ -3,8 +3,8 @@
 cycle: 372
 status: running
 started: 2026-11-23T15:35:17.920Z
-updated: 2026-11-23T16:02:19.418Z
-elapsed_min: 27
-activity: C372 retained actual ordinary offsets and same-model relay scope verified in pinned source; compiler provider offline
-last_local_commit: 50c6a3c2c161d8cdb2256aad18286b086d119e48
+updated: 2026-11-23T16:10:11.820Z
+elapsed_min: 34
+activity: C372 final gate approaching; proof baseline unchanged and exact source ordinal/retention work pinned; provider offline
+last_local_commit: fcbe108f0561421d46d60e88da4ecf03bb21a124
 resume_hint: notes/design/dots-cycle-372-retained-event.md
