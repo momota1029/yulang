@@ -1,0 +1,2 @@
+import Yulang.GeneralDeclarativeWitnessThreeNative362
+#print axioms Yulang.GeneralDeclarativeWitnessThreeNative362.actual_three_authored_outputs
