@@ -1,0 +1,52 @@
+'Yulang.GeneralDeclarativeWitnessOrderedMeaning358.local_rule' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedMeaning358.local_declared' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedMeaning358.declarative_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedMeaning358.classify' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedMeaning358.declared_tree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedMeaning358.local_fixed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedMeaning358.ledger_exact' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessOrderedReport358.report_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveModel358.eq_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveModel358.atom_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveModel358.actual_model_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveModel358.fits' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveFixture358.actual_nonpoint_selected_recursively' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveFixture358.child_cannot_be_erased' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveFixture358.cannot_reverse_ordered_writes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveFixture358.cannot_replace_fixed_child_target' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveFixture358.cannot_rebase_child_path' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveFixture358.cannot_replace_selected_rule' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveFixture358.no_recursive_replay_without_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessRecursiveFixture358.actual_same_model_report' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
