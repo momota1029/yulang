@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65ReturnRankCore370
+
+#print axioms Yulang.GeneralDeclarativeI65.return_tail_weak
+#print axioms Yulang.GeneralDeclarativeI65.ranked_return_rules_out_cycle
+#print axioms Yulang.GeneralDeclarativeI65.returning_edge_has_cycle
+#print axioms Yulang.GeneralDeclarativeI65.local_return_rank_iff_no_cycle
+#print axioms Yulang.GeneralDeclarativeI65.follows_escape_cut
+#print axioms Yulang.GeneralDeclarativeI65.local_escape_cut_iff_no_cycle
+#print axioms Yulang.GeneralDeclarativeI65.escape_cut_gives_local_return_rank
