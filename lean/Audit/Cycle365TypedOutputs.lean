@@ -1,0 +1,2 @@
+import Yulang.GeneralDeclarativeI65TypedOutputs365
+#print axioms Yulang.GeneralDeclarativeI65.typed_fixed_route_sound

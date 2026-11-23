@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65Reflection365
+#print axioms Yulang.GeneralDeclarativeI65.compare_of_existing_inspection
+#print axioms Yulang.GeneralDeclarativeI65.reflects_existing_compiler

@@ -1,0 +1,11 @@
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true, exit 0
+'Yulang.GeneralDeclarativeI65.context_arguments_of_needs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.compare_of_existing_inspection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.reflects_existing_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.ordinary_head_adapter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.ordinary_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.joined_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.ordinary_and_joined_share_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.typed_fixed_route_sound' depends on axioms: [propext, Quot.sound]

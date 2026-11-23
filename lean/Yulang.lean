@@ -7878,3 +7878,7 @@ import Yulang.GeneralDeclarativeI65State365
 import Yulang.GeneralDeclarativeI65SourceNode365
 import Yulang.GeneralDeclarativeI65SourceTree365
 import Yulang.GeneralDeclarativeI65Lowering365
+import Yulang.GeneralDeclarativeI65Obligations365
+import Yulang.GeneralDeclarativeI65Reflection365
+import Yulang.GeneralDeclarativeI65ExistingCases365
+import Yulang.GeneralDeclarativeI65TypedOutputs365
