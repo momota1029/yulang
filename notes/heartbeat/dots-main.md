@@ -1,10 +1,9 @@
 # dots-main heartbeat
 
 cycle: 368
-status: running
+status: completed
 started: 2026-11-23T11:37:00.292Z
-updated: 2026-11-23T12:04:50.380Z
-elapsed_min: 27
-activity: independently audited typed/ordinary receipt tree and exact normalized ordinary K2 scope; frozen step 1 general producer remains open
-last_local_commit: 2282572a7759ef28aad21eac80a5b547f35df962
-resume_hint: notes/design/dots-cycle-368-i65-authority-and-k2.md
+updated: 2026-11-23T12:14:01.416Z
+elapsed_min: 37
+activity: C368 ten strict Lean source modules, 38 standard-only audits; fixed report verified; I-65 step 1 open
+report: notes/handoff/dots-cycle-368.md
