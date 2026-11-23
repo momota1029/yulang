@@ -1,12 +1,11 @@
 # dots-main heartbeat
 
-cycle: 357
-status: completed
-started: 2026-11-23T00:30:45.606Z
-updated: 2026-11-23T01:21:00.784Z
-elapsed_min: 50.25
-activity: checked I-64 source-derived variance, scoped declarative dictionary, and exact selected report
-workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
+cycle: 358
+status: running
+started: 2026-11-23T01:39:29.279Z
+updated: 2026-11-23T01:39:56.168Z
+elapsed_min: 0.45
+activity: reread I-64; actual nonpoint authored observation and report
+workspace: unavailable
 last_local_commit: none
-report: notes/handoff/dots-cycle-357.md
-resume_hint: I-63 S1 1 partial / S2 1 partial / C 1 deferred; I-64 next: actual source-backed nonpoint head projection and recursive output agreement; no old C334 bridge or completeness.
+resume_hint: Previous C357 completed; ordinary authorized attach in progress. Use genuine same-tag authored constructor arms and actual compiler fixed targets; no old C334 bridge.
