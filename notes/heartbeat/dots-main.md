@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 374
+cycle: 375
 status: completed
-started: 2026-11-23T17:31:54.786Z
-updated: 2026-11-23T18:16:28.550Z
-elapsed_min: 44
-activity: C374 authored visible ordinal argument and strict audited local return-rank recovery
-report: notes/handoff/dots-cycle-374.md
+started: 2026-11-23T18:33:12.294Z
+updated: 2026-11-23T19:12:54.453Z
+elapsed_min: 39
+activity: C375 current installed author and full-address independent release derivation; no unchecked Lean
+report: notes/handoff/dots-cycle-375.md
