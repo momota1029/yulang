@@ -1,0 +1,26 @@
+Exact added source and intended audit blob IDs:
+GeneralDeclarativeWitnessNativeDirectSource361 55a28704de70d815a6b0b49baee054d5b8c334b9 Cycle361NativeDirectSource e57d74a04a0f2615f3b0e2c492e7b101f3544cf6
+GeneralDeclarativeWitnessNativePortTransport361 daf34851e3aab58014927f6db34cdcbb1a55c721 Cycle361NativePortTransport 31c6d4b32217dd71f0f40751fb95665e927ddd26
+
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; unmodified bodies in dependency order, standard external imports, exact audit query suffixes, exit 0. No new .olean or separate import build.
+'Yulang.GeneralDeclarativeWitnessNativeDirectSource361.same_actual_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeDirectSource361.literal_source_not_guessed' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeDirectSource361.actual_compiler_position' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePortTransport361.port_copies_actual_binder' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePortTransport361.every_projected_endpoint_is_the_released_value' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePortTransport361.actual_route_has_checked_origin' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativePortTransport361.same_demand_is_not_authority' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
