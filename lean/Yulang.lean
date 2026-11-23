@@ -7886,3 +7886,10 @@ import Yulang.GeneralDeclarativeI65OriginArity365
 import Yulang.GeneralDeclarativeI65WrittenHead365
 import Yulang.GeneralDeclarativeI65Capture366
 import Yulang.GeneralDeclarativeI65Deep366
+import Yulang.GeneralDeclarativeI65Body367
+import Yulang.GeneralDeclarativeI65Compiler367
+import Yulang.GeneralDeclarativeI65Heads367
+import Yulang.GeneralDeclarativeI65Origins367
+import Yulang.GeneralDeclarativeI65Rivals367
+import Yulang.GeneralDeclarativeI65Selection367
+import Yulang.GeneralDeclarativeI65Tape367
