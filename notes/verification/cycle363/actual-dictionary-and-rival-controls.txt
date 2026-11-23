@@ -1,0 +1,35 @@
+Scoped Lean v4.35.0 --stdin --trust=0 -DwarningAsError=true
+'Yulang.GeneralDeclarativeWitnessSelectedSourceMeaning363.local_source_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSelectedSourceMeaning363.actual_ordered_classification' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessSelectedSourceMeaning363.every_actual_selected_dictionary_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualCrossOwnerDictionary363.checked_exact_body_in_both_variances' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualCrossOwnerDictionary363.actual_dictionary_read_for_each_fitting_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhereAlternatives363.actual_visible_overlap_despite_successful_forced_replay' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWhereAlternatives363.unsupported_alternative_not_erased_to_select_first' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualWhereConflict363.actual_child_ambiguity_propagates' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualWhereConflict363.forced_body_cannot_become_selected_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualWhereConflict363.both_applicable_in_the_same_normal_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualWhereConflict363.real_ambiguity_is_not_a_model_inconsistency' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+C363 AXIOM-GATE-PASS: 3206 elaborated (including 526 C363-named), 117535 imported non-runtime
