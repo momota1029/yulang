@@ -3,8 +3,8 @@
 cycle: 373
 status: running
 started: 2026-11-23T16:31:39.967Z
-updated: 2026-11-23T16:47:14.852Z
-elapsed_min: 15
-activity: C373 same-state rival exclusion checked against C367 and C368 source boundaries; provider offline
-last_local_commit: 7858dbef5c53f37b266858e6322fc746d7152593
+updated: 2026-11-23T16:55:49.789Z
+elapsed_min: 24
+activity: C373 published model-free coherent-ledger cut, no proof stack added; retained draft verification still blocked offline
+last_local_commit: e54908da2e59858329041b3faac19c4069928c9a
 resume_hint: notes/design/dots-cycle-373-visible-frontier-cut.md
