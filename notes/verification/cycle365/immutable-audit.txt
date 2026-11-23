@@ -1,0 +1,118 @@
+Lean 4.35.0 strict source readback at 70bc916503e1ceceafd5d1dc47299fb48e634b33 Lean tree 775dce4fa7a4bfce1286433d98f7dba707082666
+
+'Yulang.GeneralDeclarativeI65.compare_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.in_same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.ordinary_head_adapter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.ordinary_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.joined_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.ordinary_and_joined_share_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.lower_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.lower_forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.classified_source_assembly' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.context_arguments_of_needs' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.two_uses_of_one_written_constructor_agree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.same_written_arity_at_both_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.same_mode_vector_at_both_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.compare_of_existing_inspection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.reflects_existing_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.heads_have_one_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.source_node_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.source_tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.every_fixed_row_comes_from_the_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.visible_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.mode_window_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.body_facts_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.children_are_actual_requests' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.typed_fixed_route_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.cover_at_actual_source_position' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.actual_written_application_use' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.actual_written_arity_reflects_both_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+C365 AXIOM-GATE-PASS: 472 elaborated, 114649 imported non-runtime
+
+
+Explicit closure: lean/Audit/Cycle365Comparison.lean (modules: 1), exit 0
+'Yulang.GeneralDeclarativeI65.compare_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.in_same_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365ExistingCases.lean (modules: 6), exit 0
+'Yulang.GeneralDeclarativeI65.ordinary_head_adapter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.ordinary_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.joined_node' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.ordinary_and_joined_share_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365Lowering.lean (modules: 5), exit 0
+'Yulang.GeneralDeclarativeI65.lower_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.lower_forest' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.classified_source_assembly' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365Obligations.lean (modules: 2), exit 0
+'Yulang.GeneralDeclarativeI65.context_arguments_of_needs' depends on axioms: [propext, Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365OriginArity.lean (modules: 3), exit 0
+'Yulang.GeneralDeclarativeI65.two_uses_of_one_written_constructor_agree' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.same_written_arity_at_both_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.same_mode_vector_at_both_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365Reflection.lean (modules: 3), exit 0
+'Yulang.GeneralDeclarativeI65.compare_of_existing_inspection' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.reflects_existing_compiler' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365SourceNode.lean (modules: 3), exit 0
+'Yulang.GeneralDeclarativeI65.heads_have_one_model' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.source_node_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365SourceTree.lean (modules: 4), exit 0
+'Yulang.GeneralDeclarativeI65.source_tree_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.every_fixed_row_comes_from_the_same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365State.lean (modules: 2), exit 0
+'Yulang.GeneralDeclarativeI65.visible_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.mode_window_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.body_facts_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeI65.children_are_actual_requests' depends on axioms: [propext, Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365TypedOutputs.lean (modules: 5), exit 0
+'Yulang.GeneralDeclarativeI65.typed_fixed_route_sound' depends on axioms: [propext, Quot.sound]
+
+
+Explicit closure: lean/Audit/Cycle365WrittenHead.lean (modules: 4), exit 0
+'Yulang.GeneralDeclarativeI65.cover_at_actual_source_position' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.actual_written_application_use' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.actual_written_arity_reflects_both_origins' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
