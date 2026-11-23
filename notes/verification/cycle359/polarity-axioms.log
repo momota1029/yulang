@@ -1,0 +1,15 @@
+'Yulang.GeneralDeclarativeWitnessNominalPolarity359.actual_bare_variance' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalPolarity359.exact_origin_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalPolarity359.high_is_not_subtype_of_low' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalPolarity359.bare_declared_modes_separate_actual_centers' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalPolarity359.same_current_state_does_not_pick_bare_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
