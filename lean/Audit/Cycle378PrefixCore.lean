@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65NativePrefixCore377
+import Yulang.GeneralDeclarativeI65OrdinaryCrossingRoot378
+
+#print axioms Yulang.GeneralDeclarativeI65.effective_unused_has_no_value_port
+#print axioms Yulang.GeneralDeclarativeI65.native_value_port_at_literal_job
+#print axioms Yulang.GeneralDeclarativeI65.native_row_port_at_literal_job
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_walk_starts_with_inspection
+#print axioms Yulang.GeneralDeclarativeI65.some_ordinary_visit_iff_inspects

@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65NativePrefix369
+
+#print axioms Yulang.GeneralDeclarativeI65.authorized_origin_retains_actual_stamp
+#print axioms Yulang.GeneralDeclarativeI65.current_release_actual_at_origin
+#print axioms Yulang.GeneralDeclarativeI65.same_native_board_slot_retains_write
+#print axioms Yulang.GeneralDeclarativeI65.originalOfWrite
+#print axioms Yulang.GeneralDeclarativeI65.openedOriginalAtCurrent
+#print axioms Yulang.GeneralDeclarativeI65.original_read_alone_needs_release
+#print axioms Yulang.GeneralDeclarativeI65.endpointFromCurrentRelease
+#print axioms Yulang.GeneralDeclarativeI65.original_from_installed_and_retained_author
