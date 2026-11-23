@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65UnionReceipts368
+import Yulang.GeneralDeclarativeI65MixedReceiptTree368
+
+#print axioms Yulang.GeneralDeclarativeI65.trace_of_only_ordinary
+#print axioms Yulang.GeneralDeclarativeI65.source_receipt_in_one_model
+#print axioms Yulang.GeneralDeclarativeI65.emitted_receipt_tree_sound
+#print axioms Yulang.GeneralDeclarativeI65.every_written_receipt_in_one_model

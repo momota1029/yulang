@@ -7900,3 +7900,5 @@ import Yulang.GeneralDeclarativeI65NormalSupport368
 import Yulang.GeneralDeclarativeI65LiteralTypedBody368
 import Yulang.GeneralDeclarativeI65PostselectionTies368
 import Yulang.GeneralDeclarativeI65JoinBody368
+import Yulang.GeneralDeclarativeI65UnionReceipts368
+import Yulang.GeneralDeclarativeI65MixedReceiptTree368
