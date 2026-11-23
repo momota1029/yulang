@@ -1,0 +1,27 @@
+'Yulang.GeneralDeclarativeWitnessNominalSource359.never_without_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalSource359.approved_source_comparison' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalRecordFixture359.actual_author_bundle_covered' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalRecordFixture359.actual_covariant_under_invariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalRecordFixture359.actual_contravariant_under_invariant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalRecordFixture359.rejects_changed_site' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalRecordFixture359.cannot_guess_missing_actual_binding' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalRecordFixture359.common_source_model' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalRecordFixture359.generated_checks_follow_from_authored_base' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNominalRecordFixture359.checked_in_actual_source_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
