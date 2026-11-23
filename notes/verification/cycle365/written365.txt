@@ -1,0 +1,4 @@
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true, exit 0
+'Yulang.GeneralDeclarativeI65.cover_at_actual_source_position' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.actual_written_application_use' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeI65.actual_written_arity_reflects_both_origins' depends on axioms: [propext, Classical.choice, Quot.sound]

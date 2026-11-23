@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65WrittenHead365
+#print axioms Yulang.GeneralDeclarativeI65.cover_at_actual_source_position
+#print axioms Yulang.GeneralDeclarativeI65.actual_written_application_use
+#print axioms Yulang.GeneralDeclarativeI65.actual_written_arity_reflects_both_origins
