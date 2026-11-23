@@ -1,0 +1,52 @@
+'Yulang.GeneralDeclarativeWitnessMixedSiblings356.Child.classified_here' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedSiblings356.Sons.all_classify' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedSiblings356.Child.meaning' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedSiblings356.Sons.same_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedSiblings356.sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.actual_mixed_branches' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.actual_compiler_outputs' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.wrong_ordinary_clausal_binder' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.declared_projection_not_an_ordinal_guess' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.numeric_identity_cannot_promote_ordinary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.whole_registry_is_not_ordinary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.wrong_physical_branch_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.wrong_returned_dictionary_order' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealFixture356.missing_nominal_release' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealModel356.atom_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealModel356.rigid_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealModel356.eq_sound' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealModel356.current_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealModel356.model_fits' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedRealModel356.real_mixed_dictionary_has_one_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

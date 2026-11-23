@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessAddressLinear356
+#print axioms Yulang.GeneralDeclarativeWitnessAddressLinear356.tree_addresses
+#print axioms Yulang.GeneralDeclarativeWitnessAddressLinear356.descendants
+#print axioms Yulang.GeneralDeclarativeWitnessAddressLinear356.unique_report_addresses
+#print axioms Yulang.GeneralDeclarativeWitnessAddressLinear356.one_write_entry_per_compiler_path

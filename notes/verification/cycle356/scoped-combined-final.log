@@ -1,0 +1,4 @@
+Proof pin 00ba488a2137f30bc418c249eeaa893dca3d6d46
+Lean module targets 24 (not the whole build or Rust)
+Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
+Build completed successfully (3938 jobs).

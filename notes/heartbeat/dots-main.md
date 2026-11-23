@@ -1,12 +1,12 @@
 # dots-main heartbeat
 
-cycle: 355
+cycle: 356
 status: completed
-started: 2026-11-22T22:33:37.309Z
-updated: 2026-11-22T23:22:18.395Z
-elapsed_min: 48.68
-activity: checked five actual selected nodes and four exact live releases from authored source; proved distinct ordinary-equal roots do not retarget
+started: 2026-11-22T23:27:56.416Z
+updated: 2026-11-23T00:18:00.952Z
+elapsed_min: 50.08
+activity: checked the actual mixed recursive compiler forest and exact typed/ordinary write ledger
 workspace: /workspace/scratch/1d0b4aaa3394/yulang-c337-recovery
 last_local_commit: none
-report: notes/handoff/dots-cycle-355.md
-resume_hint: I-63 S1 1 partial / S2 1 partial / C 1 deferred; next independently connect typed and ordinary siblings on one actual compiler child list, without treating a typed root as ordinary payload. No former Local/termination.
+report: notes/handoff/dots-cycle-356.md
+resume_hint: I-63 S1 1 partial / S2 1 partial / C 1 deferred; I-64 now: declaration-kind/variance indexed declarative classification and same-model dictionary soundness first; no old C334 bridge. No former Local/termination.
