@@ -1,5 +1,5 @@
 import Yulang.GeneralDeclarativeWitnessAssociatedDescriptor359
-import Yulang.GeneralDeclarativeWitnessCovariantDescent353
+import Yulang.GeneralDeclarativeWitnessNestedDescent360
 import Yulang.GeneralDeclarativeWitnessCompiler350
 
 set_option backward.isDefEq.respectTransparency false
@@ -22,6 +22,9 @@ open GeneralSourceMetadataBundle291 (registry)
 open GeneralSourceMetadataRows291 (interpretation)
 open GeneralNominalCommonBridge (Assignment)
 
+def shape (s : GeneralSourceMetadataBundle291.SourceBundle) (d : Declaration) : Bool :=
+  legal s d || GeneralDeclarativeWitnessNestedDescent360.check s d
+
 structure Layout where
   named : State
   spans : List (Nat × Capture)
@@ -40,7 +43,7 @@ structure Prepared (e : Environment) (frame : FrameKey) (d : Demand) (l : Layout
   identity : impl.id = frame.declaration ∧ impl.role = d.role
   authored : e.source.declarations[frame.sourceOrdinal]? = some impl
   sourceChecked : checkDecl e impl = true
-  shapeChecked : legal e.source impl = true
+  shapeChecked : shape e.source impl = true
   requestChecked : declared e.source d = true
   before : State
   ports : List GeneralDeclarativeClauseBatch327.Port
@@ -63,7 +66,7 @@ def prepare (e : Environment) (f : FrameKey) (d : Demand) (l : Layout) : Option 
   | some impl =>
     if identity : impl.id = f.declaration ∧ impl.role = d.role then
       if sourceOK : checkDecl e impl = true then
-        if legalOK : legal e.source impl = true then
+        if legalOK : shape e.source impl = true then
           if requestOK : declared e.source d = true then
             let ctx := context e d impl l
             match ranPrepare : preparation ctx with
@@ -89,5 +92,16 @@ theorem from_actual_compiler {e f d l} (p : Prepared e f d l) :
 theorem same_model_of_prepared {e f d l} (p : Prepared e f d l) (m : Assignment)
     (fit : Models p.stage m) : Models l.named m ∧ ∀ row ∈ p.whereRows,Holds m row :=
   ⟨restrict ((preserves_iff ..).mp p.retained) m fit,((model_append m).mp fit).2⟩
+
+theorem actual_source_requirement_smaller {e f d l} (p : Prepared e f d l) :
+    ∀ clause ∈ p.impl.requirements,
+      GeneralDeclarationPatterns.StableSmaller p.impl.head clause.arguments := by
+  intro clause actual
+  rcases GeneralDeclarativeWitnessProblem349.splitOr p.shapeChecked with old|new
+  · unfold legal at old
+    have checked := GeneralDeclarativeWitnessProblem349.splitAnd
+      (GeneralDeclarativeWitnessProblem349.splitAnd (GeneralDeclarativeWitnessProblem349.splitAnd old).2).2
+    exact (GeneralDeclarativeWitnessCovariantDescent353.descent_sound (List.all_eq_true.mp checked.2 _ actual)).2
+  · exact GeneralDeclarativeWitnessNestedDescent360.checked_descent new clause actual
 
 end Yulang.GeneralDeclarativeWitnessNativePreparation360
