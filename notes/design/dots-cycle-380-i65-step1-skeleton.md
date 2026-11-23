@@ -18,8 +18,9 @@ theorem dictionary_sound
 
 ```lean
   obtain ⟨t, tree, trace, summary⟩ := classifies_unpacks_actual_source selected  -- S01
-  obtain ⟨written, lowered, literal, replay⟩ := lower_selected_general_tree
-    (selected_frontier_to_general_node (s := s)) t tree trace summary         -- S10, S11
+  obtain ⟨written, lowered, literal, replay⟩ :=
+    (lower_selected_general (selected_frontier_to_general_node (s := s))).tree
+      t tree trace summary                                                 -- S10, S11
   exact general_meaning_to_dictionary literal replay
     (general_tree_sound lowered m fit)                                   -- S12, S13
 ```
@@ -69,7 +70,7 @@ theorem selected_mixed_k2_priority (sel : SelectedSource s q key kids) :
 
 既存: `Selection367.root_recurrence_vetoes_tape`, `NormalizedPrefix368.normalized_actual_prefix_k2`, `ReturnRankCore370.local_return_rank_iff_no_cycle`, C377–379 の後記アンカーは実普通位置・一部 native 入口を扱うが、全ての実訪問と同一候補順の根拠は未証明。候補の衝突/同一性は、選択規則が使う authored identity と照合する。もし規則が一意なキーしか与えないなら、同じキーが同じ出現を指すことを台帳の導出から示す（任意の `State` に新しい全域一意性仮定を足さない）。
 
-**優先順位の監査:** I-59 の root K2 は lower がまだ展開できない場合も先行する。候補内の K2 は独立に支持された lower から本当に調べる必要のある非変数位置に限る。`VisitExactlyNeeded` の両方向（出力された位置が本物か、必要な訪問の取り落としがないか）を確かめる。retained release が 1 つ読めるだけではこの coverage は出ない。無支持なら正の保留理由を保持し、単なる未対応・`none` を不一致とも K2 ともしない。保留で等式を捨てない。調べるべき候補のいずれかで K2 が分かれば、安全な候補が一つでも複数でも先に拒否する。候補リスト順に早抜けして選ばない。候補で見ていない off-trace の循環から選択を否定しない。先行 native 入口に両端完成済みの `ModeWindow` を要求しない。相反する値を一つの論理名で同一視しない。
+**優先順位の監査** ([現 spec の保留](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L182-L213)、[K2 の検査位置](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L498-L500)): I-59 の root K2 は lower がまだ展開できない場合も先行する。候補内の K2 は独立に支持された lower から本当に調べる必要のある非変数位置に限る。`VisitExactlyNeeded` の両方向（出力された位置が本物か、必要な訪問の取り落としがないか）を確かめる。retained release が 1 つ読めるだけではこの coverage は出ない。無支持なら正の保留理由を保持し、単なる未対応・`none` を不一致とも K2 ともしない。保留で等式を捨てない。調べるべき候補のいずれかで K2 が分かれば、安全な候補が一つでも複数でも先に拒否する。候補リスト順に早抜けして選ばない。候補で見ていない off-trace の循環から選択を否定しない。先行 native 入口に両端完成済みの `ModeWindow` を要求しない。相反する値を一つの論理名で同一視しない。
 
 ### S04 · 一部 — `elected_occurrence_has_general_head`
 
@@ -94,7 +95,7 @@ theorem selected_actual_ordered_capture (sel : SelectedSource s q key kids)
 
 既存: `Capture366.selected_centers_sound` と `PostselectionTies368.receipt_repeated_centers` は与えられた正確な捕捉と保持等式の意味を示すが、選択された実出現の全ての端点・残余・順序・中心等式を一つの producer で得ていない。
 
-I-61 に従い、独立端点から可視 field と open/closed 残余を作る場合に中心の行の支持を要求しない。I-58 は選択後に実中心の等式を足す。端点の等値から実中心を同一としない。合流した payload は承認された位置で丸ごと捕捉し、型の同値から分割を復元しない。
+[I-61 の端点規則](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L395) に従い、独立端点から可視 field と open/closed 残余を作る場合に中心の行の支持を要求しない。I-58 は選択後に実中心の等式を足す。端点の等値から実中心を同一としない。合流した payload は承認された位置で丸ごと捕捉し、型の同値から分割を復元しない。
 
 ## 2. 同じ出現の where と実際の書き込み
 
@@ -122,7 +123,7 @@ theorem selected_typed_actual_owner_and_retention (sel : SelectedSource s q key 
       RetainedCurrentWrites s r ∧ ExactIndependentReleaseUse s sel r
 ```
 
-既存: `PreparedOwnBody376.same_prepared_author_in_finished_and_typed_body`, `CurrentRelease376.checked_install_opens_iff_granted`, `JoinBody368.current_typed_write_exact` は実 prepared・現在同じ write の配列・独立 grant を結ぶが、一般の選択からその writer occurrence/role/declaration/version/sourceOrdinal/outputOrdinal/output name/fixed target/source equation と同じ現在盤面を回収できていない。C376 の `one_authored_preparation_keeps_ordered_and_typed_meaning` の追加観測 `observes` は一般の `Fits s m` からの射影がまだ無い。その仮定を固定文に追加せず、S07 の保持と S09 の解釈を接続して初めて使う。
+既存: `PreparedOwnBody376.same_prepared_author_in_finished_and_typed_body`, `CurrentRelease376.checked_install_opens_iff_granted`, `JoinBody368.current_typed_write_exact` は実 prepared・現在同じ write の配列・独立 grant を結ぶが、一般の選択からその writer occurrence/role/declaration/version/sourceOrdinal/outputOrdinal/output name/fixed target/source equation と同じ現在盤面を回収できていない。C376 の `one_authored_preparation_keeps_ordered_and_typed_meaning` の追加観測 `observes` は一般の `Fits s m` からの射影がまだ無い。その仮定を固定文に追加せず、S07 の保持と S09 の解釈を接続して初めて使う。C360 の新規 install が `fresh` を要することと、仕様が需要の合流で同じ出力名を共有できることも別。既存 target/同じ作者の再利用を新規 install の証拠で済ませず、合流の各要求の元記録と実 retained row が揃うかを示す。合流を拒否する条件は足さない。
 
 `ExactIndependentReleaseUse` は **実際に出力を支持として読んだ箇所**の独立 grant だけを求める。全ての書き込みに release 済みを要求したり、下流の fit・同名/同値・install 成功から grant を作ったりしない。`ExactSelectedReceipt` は、選択の where が返す literal `kids = children q demands`、全子の実宣言、同じ捕捉からの固定出力、ordinal と target の逐一一致を含む。S06/07 の `SourceBodyCase` は S02 で反転した実 body 規則のどちらかであり、対応できない入力を排除する条件ではない。
 
@@ -161,7 +162,7 @@ S02 の反転は `SelectedSource` が同じ独立導出の `event` に由来す�
 
 ## 3. 有限順序木の組立と同一モデル
 
-### S11 · 一部 — `lower_selected_general_tree` / forest
+### S11 · 一部 — `lower_selected_general`（tree/forest を返す一補題）
 
 ```lean
 def ProvidesGeneralNode (s : State) : Prop :=
@@ -169,21 +170,22 @@ def ProvidesGeneralNode (s : State) : Prop :=
       (event : SourceLocalTrace s q key kids h),
     ∃ row : Declaration, ∃ n : GeneralNode s q row kids, row.id = key ∧ NodeFrom event n
 
-theorem lower_selected_general_tree (lower : ProvidesGeneralNode s)
-    (t : Tree) (tree : Resolves (LocalSource s) q t)
-    (trace : SourceTreeTrace s q t tree) (summary : Summarizes t (.selected d)) :
-    ∃ written : List OrderedReceipt, ∃ lowered : GeneralTree s q d written,
-      t = dictionaryTree d ∧ LiteralTreeFrom trace lowered
+structure LoweringPair (s : State) : Prop where
+  tree : ∀ {q d} (t : Tree) (derived : Resolves (LocalSource s) q t),
+    ∀ (trace : SourceTreeTrace s q t derived), Summarizes t (.selected d) →
+      ∃ written : List OrderedReceipt, ∃ lowered : GeneralTree s q d written,
+        t = dictionaryTree d ∧ LiteralTreeFrom trace lowered
+  forest : ∀ {qs} (trees : List Tree) (ds : List Dictionary)
+    (derived : All₂ (Resolves (LocalSource s)) qs trees)
+    (trace : SourceForestTrace s qs trees derived),
+    All₂ Summarizes trees (ds.map Result.selected) →
+      ∃ written : List OrderedReceipt, ∃ lowered : GeneralForest s qs ds written,
+        trees = dictionaryForest ds ∧ LiteralForestFrom trace lowered
 
-theorem lower_selected_general_forest (lower : ProvidesGeneralNode s)
-    (trees : List Tree) (ds : List Dictionary)
-    (tree : All₂ (Resolves (LocalSource s)) qs trees)
-    (trace : SourceForestTrace s qs trees tree) (summary : All₂ Summarizes trees (ds.map Result.selected)) :
-    ∃ written : List OrderedReceipt, ∃ lowered : GeneralForest s qs ds written,
-      trees = dictionaryForest ds ∧ LiteralForestFrom trace lowered
+theorem lower_selected_general (lower : ProvidesGeneralNode s) : LoweringPair s
 ```
 
-一つの相互帰納ブロックとして 1 件。既存: `Lowering365.lower_tree` / `lower_forest` は普通 `SourceTree`・`FixedReceipt` に対して完全。一般 node を順序木に積み、ルートの記録を先頭へ、兄弟を元順で連結する版は未証明。S01 の source trace を子ごとに反転する際には、順序付きの relation とその添字を同時に消去する。元からある有限の導出に対する帰納であり、実行器の停止性や `Acc` を求めない。
+順序木と forest の相互帰納を束ねた一補題なので 1 件。既存: `Lowering365.lower_tree` / `lower_forest` は普通 `SourceTree`・`FixedReceipt` に対して完全。一般 node を順序木に積み、ルートの記録を先頭へ、兄弟を元順で連結する版は未証明。S01 の source trace を子ごとに反転する際には、順序付きの relation とその添字を同時に消去する。`CommonRoleOutermostResolver.Combine.selected` の逆転は `results = ds.map Result.selected` を返し、`All₂` によって子リストの本数・順序が自動的に保たれる。元からある有限の導出に対する帰納であり、実行器の停止性や `Acc` を求めない。
 
 ### S12 · 一部 — `general_tree_sound`
 
@@ -216,7 +218,7 @@ theorem visible_exact (s : State) (q : Request) (d : Declaration) :
   d ∈ visible s q ↔ d ∈ (authoredRegistry s.current).declarations ∧ d.role = q.demand.role
 ```
 
-`GeneralDeclarativeI65State365.lean`。S02 のフィルタ、S03 の実順の基礎（所属定理自体は順序定理ではない）。
+[`GeneralDeclarativeI65State365.lean` · `visible_exact`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65State365.lean#L64)。S02 のフィルタ、S03 の実順の基礎（所属定理自体は順序定理ではない）。
 
 ### P02 · 証明済み — `source_receipt_in_one_model`
 
@@ -227,7 +229,7 @@ theorem source_receipt_in_one_model {s : State} {q : Request} {row : Declaration
     ReceiptMeaning receipt m
 ```
 
-`GeneralDeclarativeI65UnionReceipts368.lean`。S08/09。receipt は独立選択から既に得た場合に限る。
+[`GeneralDeclarativeI65UnionReceipts368.lean` · `source_receipt_in_one_model`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65UnionReceipts368.lean#L57)。S08/09。receipt は独立選択から既に得た場合に限る。
 
 ### P03 · 証明済み — `emitted_receipt_tree_sound`
 
@@ -237,7 +239,7 @@ theorem emitted_receipt_tree_sound {s : State} {q : Request} {d : Dictionary}
     (m : Model) (fit : Fits s m) : ReceiptTreeMeaning s m q d written
 ```
 
-`GeneralDeclarativeI65MixedReceiptTree368.lean`。S12 の相互帰納の骨格。ここでの型は S11/12 の一般型と同一とは主張しない。`ModeWindow` や型付きの完了した比較があるから native の早い訪問がある、という逆向きは使わない。
+[`GeneralDeclarativeI65MixedReceiptTree368.lean` · `emitted_receipt_tree_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65MixedReceiptTree368.lean#L53)。S12 の相互帰納の骨格。ここでの型は S11/12 の一般型と同一とは主張しない。`ModeWindow` や型付きの完了した比較があるから native の早い訪問がある、という逆向きは使わない。
 
 ### P04 · 証明済み — `every_written_receipt_in_one_model`
 
@@ -248,25 +250,25 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
     ∀ w ∈ written, WrittenIn m w
 ```
 
-`GeneralDeclarativeI65MixedReceiptTree368.lean`。S13 用の分配定理。ただしリストの順序そのものは membership からでなく構成子で保持する。
+[`GeneralDeclarativeI65MixedReceiptTree368.lean` · `every_written_receipt_in_one_model`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65MixedReceiptTree368.lean#L70)。S13 用の分配定理。ただしリストの順序そのものは membership からでなく構成子で保持する。
 
 ### 既存部品の割当（S 行の再確認先・追加の本数にはしない）
 
 | 行 | integration の実ファイルと引用する定理 |
 |---|---|
-| S01/S11 | `GeneralDeclarativeI65Lowering365.lean`: `lower_tree`, `lower_forest`, `classified_source_assembly`; ordinary scoped conditional のみ |
-| S02 | `GeneralDeclarativeI65Tape367.lean`: `live_readback`, `tape_waiting_origin`, `every_nonlive_unblocked_row_is_a_real_miss`; `GeneralDeclarativeI65Selection367.lean`: `actual_matched_row` |
-| S03 | `GeneralDeclarativeI65NormalSupport368.lean`: `supported_entry_origin`; `GeneralDeclarativeI65NormalizedPrefix368.lean`: `normalized_actual_prefix_k2`, `normalized_pending_row_changes_k2_without_support`; `GeneralDeclarativeI65ReturnRankCore370.lean`: `local_return_rank_iff_no_cycle`; `GeneralDeclarativeI65EarlyPorts369.lean`: `endpoint_port_from_one_original`, `endpoint_port_agrees_with_job`; `GeneralDeclarativeI65NativePrefixCore377.lean`: `native_value_port_at_literal_job`; `GeneralDeclarativeI65OrdinaryCrossingRoot378.lean`: `some_ordinary_visit_iff_inspects`; `GeneralDeclarativeI65EnteredOrdinaryRoot379.lean`: `entered_ordinary_root_keeps_pending_equations_for_k2`; `GeneralDeclarativeI65ScopedNativeCalls379.lean`: `second_position_requires_positive_first` |
-| S04 | `GeneralDeclarativeI65State365.lean`: `mode_window_sound`; `GeneralDeclarativeI65Comparison365.lean`: `in_same_model`; `GeneralDeclarativeI65Heads367.lean`: `source_head_sound`; `GeneralDeclarativeI65RouteTag368.lean`: `distinct_route_excludes_match`; `GeneralDeclarativeI65AuthoredDispatchMode379.lean`: `actual_dispatch_uses_same_authored_value_variance` |
-| S05 | `GeneralDeclarativeI65Capture366.lean`: `value_binding_sound`, `row_binding_sound`, `selected_centers_sound`; `GeneralDeclarativeI65Deep366.lean`: `deep_reads_retain_all_sources`; `GeneralDeclarativeI65Compiler367.lean`: `actual_port_center`; `GeneralDeclarativeI65PostselectionTies368.lean`: `receipt_repeated_centers` |
-| S06 | `GeneralDeclarativeI65SourceBodyProduction371.lean`: `ordinary_fixed_inputs_produce_body`, `fixed_root_targets_do_not_erase_literal_child_allocation`; `GeneralDeclarativeI65DirectDeclaredTarget371.lean`: `direct_output_target_uses_declaring_equation`; `GeneralDeclarativeI65RetainedEvent372.lean`: `retained_body_facts_at_same_current`; `GeneralDeclarativeI65IndependentlySelectedWhere379.lean`: `selected_native_root_keeps_literal_child_occurrence`（独立に選択済み、親の固定出力は空） |
-| S07 | `GeneralDeclarativeI65NativePrefix369.lean`: `current_release_actual_at_origin`, `original_from_installed_and_retained_author`; `GeneralDeclarativeI65CurrentRelease376.lean`: `checked_install_opens_iff_granted`, `same_target_different_source_address_not_open`; `GeneralDeclarativeI65PreparedOwnBody376.lean`: `one_authored_preparation_keeps_ordered_and_typed_meaning`; `GeneralDeclarativeI65JoinBody368.lean`: `current_typed_write_exact` |
-| S08/S09 | `GeneralDeclarativeI65Body367.lean`: `authored_node`, `attached_source_sound`; `GeneralDeclarativeI65UnionReceipts368.lean`: `source_receipt_in_one_model`; `GeneralDeclarativeI65JoinBody368.lean`: `chosen_typed_literal_body_sound` |
-| S12/S13 | `GeneralDeclarativeI65MixedReceiptTree368.lean`: P03/P04; `GeneralDeclarativeI65SourceTree365.lean`: `source_tree_sound`, `every_fixed_row_comes_from_the_same_model` |
+| S01/S11 | `GeneralDeclarativeI65Lowering365.lean`: [`lower_tree`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Lowering365.lean#L20), [`lower_forest`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Lowering365.lean#L38), [`classified_source_assembly`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Lowering365.lean#L60); ordinary scoped conditional のみ |
+| S02 | `GeneralDeclarativeI65Tape367.lean`: [`live_readback`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Tape367.lean#L80), [`tape_waiting_origin`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Tape367.lean#L100), [`every_nonlive_unblocked_row_is_a_real_miss`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Tape367.lean#L119); `GeneralDeclarativeI65Selection367.lean`: [`actual_matched_row`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Selection367.lean#L27) |
+| S03 | `GeneralDeclarativeI65NormalSupport368.lean`: [`supported_entry_origin`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65NormalSupport368.lean#L35); `GeneralDeclarativeI65NormalizedPrefix368.lean`: [`normalized_actual_prefix_k2`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65NormalizedPrefix368.lean#L40), [`normalized_pending_row_changes_k2_without_support`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65NormalizedPrefix368.lean#L46); `GeneralDeclarativeI65ReturnRankCore370.lean`: [`local_return_rank_iff_no_cycle`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65ReturnRankCore370.lean#L54); `GeneralDeclarativeI65EarlyPorts369.lean`: [`endpoint_port_from_one_original`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65EarlyPorts369.lean#L84), [`endpoint_port_agrees_with_job`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65EarlyPorts369.lean#L70); `GeneralDeclarativeI65NativePrefixCore377.lean`: [`native_value_port_at_literal_job`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65NativePrefixCore377.lean#L93); `GeneralDeclarativeI65OrdinaryCrossingRoot378.lean`: [`some_ordinary_visit_iff_inspects`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65OrdinaryCrossingRoot378.lean#L17); `GeneralDeclarativeI65EnteredOrdinaryRoot379.lean`: [`entered_ordinary_root_keeps_pending_equations_for_k2`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65EnteredOrdinaryRoot379.lean#L57); `GeneralDeclarativeI65ScopedNativeCalls379.lean`: [`second_position_requires_positive_first`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65ScopedNativeCalls379.lean#L53) |
+| S04 | `GeneralDeclarativeI65State365.lean`: [`mode_window_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65State365.lean#L98); `GeneralDeclarativeI65Comparison365.lean`: [`in_same_model`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Comparison365.lean#L90); `GeneralDeclarativeI65Heads367.lean`: [`source_head_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Heads367.lean#L76); `GeneralDeclarativeI65RouteTag368.lean`: [`distinct_route_excludes_match`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65RouteTag368.lean#L58); `GeneralDeclarativeI65AuthoredDispatchMode379.lean`: [`actual_dispatch_uses_same_authored_value_variance`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65AuthoredDispatchMode379.lean#L31) |
+| S05 | `GeneralDeclarativeI65Capture366.lean`: [`value_binding_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Capture366.lean#L31), [`row_binding_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Capture366.lean#L38), [`selected_centers_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Capture366.lean#L53); `GeneralDeclarativeI65Deep366.lean`: [`deep_reads_retain_all_sources`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Deep366.lean#L94); `GeneralDeclarativeI65Compiler367.lean`: [`actual_port_center`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Compiler367.lean#L52); `GeneralDeclarativeI65PostselectionTies368.lean`: [`receipt_repeated_centers`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65PostselectionTies368.lean#L59) |
+| S06 | `GeneralDeclarativeI65SourceBodyProduction371.lean`: [`ordinary_fixed_inputs_produce_body`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65SourceBodyProduction371.lean#L24), [`fixed_root_targets_do_not_erase_literal_child_allocation`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65SourceBodyProduction371.lean#L113); `GeneralDeclarativeI65DirectDeclaredTarget371.lean`: [`direct_output_target_uses_declaring_equation`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65DirectDeclaredTarget371.lean#L28); `GeneralDeclarativeI65RetainedEvent372.lean`: [`retained_body_facts_at_same_current`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65RetainedEvent372.lean#L48); `GeneralDeclarativeI65IndependentlySelectedWhere379.lean`: [`selected_native_root_keeps_literal_child_occurrence`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65IndependentlySelectedWhere379.lean#L33)（独立に選択済み、親の固定出力は空） |
+| S07 | `GeneralDeclarativeI65NativePrefix369.lean`: [`current_release_actual_at_origin`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65NativePrefix369.lean#L44), [`original_from_installed_and_retained_author`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65NativePrefix369.lean#L99); `GeneralDeclarativeI65CurrentRelease376.lean`: [`checked_install_opens_iff_granted`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65CurrentRelease376.lean#L60), [`same_target_different_source_address_not_open`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65CurrentRelease376.lean#L68); `GeneralDeclarativeI65PreparedOwnBody376.lean`: [`one_authored_preparation_keeps_ordered_and_typed_meaning`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65PreparedOwnBody376.lean#L47); `GeneralDeclarativeI65JoinBody368.lean`: [`current_typed_write_exact`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65JoinBody368.lean#L41) |
+| S08/S09 | `GeneralDeclarativeI65Body367.lean`: [`authored_node`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Body367.lean#L67), [`attached_source_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Body367.lean#L77); `GeneralDeclarativeI65UnionReceipts368.lean`: [`source_receipt_in_one_model`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65UnionReceipts368.lean#L57); `GeneralDeclarativeI65JoinBody368.lean`: [`chosen_typed_literal_body_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65JoinBody368.lean#L99) |
+| S12/S13 | `GeneralDeclarativeI65MixedReceiptTree368.lean`: P03/P04; `GeneralDeclarativeI65SourceTree365.lean`: [`source_tree_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65SourceTree365.lean#L48), [`every_fixed_row_comes_from_the_same_model`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65SourceTree365.lean#L61) |
 
-| S02/S03 | `GeneralDeclarativeI65Origins367.lean`: `actual_route_iff`, `physical_origin_is_not_logical_equality`; `GeneralDeclarativeI65Rivals367.lean`: `rigid_candidate_excludes_a_source_head`; `GeneralDeclarativeI65AuthoredPrefix368.lean`: `ordinary_prefix_veto_independent_of_choice`; `GeneralDeclarativeI65ActualUnaryDispatch379.lean`: `authored_prefix_and_unary_dispatch_agree`; `GeneralDeclarativeI65ActualCandidateOrder379.lean`: `first_authored_unary_entry_before_second_candidate`（実 unary の継続であり全候補の優先順位ではない） |
-| S04/S05 | `GeneralDeclarativeI65WrittenHead365.lean`: `actual_written_application_use`; `GeneralDeclarativeI65OriginArity365.lean`: `same_mode_vector_at_both_origins`; `GeneralDeclarativeI65Obligations365.lean`: `context_arguments_of_needs`; `GeneralDeclarativeI65Reflection365.lean`: `reflects_existing_compiler`; `GeneralDeclarativeCompoundHeads338.lean`: `record_seen`（既存の独立 source に結ばれた普通側） |
-| S08/S09 | `GeneralDeclarativeI65ExistingCases365.lean`: `ordinary_and_joined_share_model`; `GeneralDeclarativeI65SourceNode365.lean`: `source_node_sound`; `GeneralDeclarativeI65LiteralTypedBody368.lean`: `typed_written_all_models`; `GeneralDeclarativeI65TypedOutputs365.lean`: `typed_fixed_route_sound`; `GeneralDeclarativeWitnessFullIntervals357.lean`: `in_current_full_model`; `CommonRecursiveNominalIntervalContextAdmission.lean`: `compile_in_context_exact` |
+| S02/S03 | `GeneralDeclarativeI65Origins367.lean`: [`actual_route_iff`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Origins367.lean#L21), [`physical_origin_is_not_logical_equality`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Origins367.lean#L54); `GeneralDeclarativeI65Rivals367.lean`: [`rigid_candidate_excludes_a_source_head`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Rivals367.lean#L60); `GeneralDeclarativeI65AuthoredPrefix368.lean`: [`ordinary_prefix_veto_independent_of_choice`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65AuthoredPrefix368.lean#L99); `GeneralDeclarativeI65ActualUnaryDispatch379.lean`: [`authored_prefix_and_unary_dispatch_agree`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65ActualUnaryDispatch379.lean#L90); `GeneralDeclarativeI65ActualCandidateOrder379.lean`: [`first_authored_unary_entry_before_second_candidate`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65ActualCandidateOrder379.lean#L84)（実 unary の継続であり全候補の優先順位ではない） |
+| S04/S05 | `GeneralDeclarativeI65WrittenHead365.lean`: [`actual_written_application_use`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65WrittenHead365.lean#L26); `GeneralDeclarativeI65OriginArity365.lean`: [`same_mode_vector_at_both_origins`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65OriginArity365.lean#L37); `GeneralDeclarativeI65Obligations365.lean`: [`context_arguments_of_needs`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Obligations365.lean#L42); `GeneralDeclarativeI65Reflection365.lean`: [`reflects_existing_compiler`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65Reflection365.lean#L89); `GeneralDeclarativeCompoundHeads338.lean`: [`record_seen`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeCompoundHeads338.lean#L95)（既存の独立 source に結ばれた普通側） |
+| S08/S09 | `GeneralDeclarativeI65ExistingCases365.lean`: [`ordinary_and_joined_share_model`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65ExistingCases365.lean#L48); `GeneralDeclarativeI65SourceNode365.lean`: [`source_node_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65SourceNode365.lean#L90); `GeneralDeclarativeI65LiteralTypedBody368.lean`: [`typed_written_all_models`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65LiteralTypedBody368.lean#L114); `GeneralDeclarativeI65TypedOutputs365.lean`: [`typed_fixed_route_sound`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeI65TypedOutputs365.lean#L20); `GeneralDeclarativeWitnessFullIntervals357.lean`: [`in_current_full_model`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/GeneralDeclarativeWitnessFullIntervals357.lean#L271); `CommonRecursiveNominalIntervalContextAdmission.lean`: [`compile_in_context_exact`](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/lean/Yulang/CommonRecursiveNominalIntervalContextAdmission.lean#L214) |
 
 ## 5. 依存とカウントの監査
 
@@ -283,6 +285,9 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 
 矢印は証明の依存（S10 が S02〜S08 全部を、S11 が S01/S10 を、S12 が S09/S11 を使用）。P01–P04 の見出しは狭い再利用定理。S 行は一回ずつ数え、forest は S11 と同一の相互帰納単位。S01 の `Resolves` は同じ `s` を参照する。途中で子が付け足した等式や native write は、実導出が現在の `s` に保持したという S06/S07 の対応を通す。証拠のないスナップショットの固定化、兄弟の交換、可換な意味を利用した順序消去では補わない。I-60 どおり、その位置を判断するための支持付き読みや原始的な author/発行規則を宣言的導出の材料にできる。S01 の本物の規則を実装する際、S02–S07 の**複合結論**を証明済みフィールドとして詰めない。特に S03 の実検査位置・優先順位は proof of acceptance でなく、その独立導出からの保存/反転の目標。S01/S02 の source event は原始規則で成立したものを指し、成功チェッカや派生 `ReceiptTreeMeaning`を backwards に使わない。S09 以外の source → receipt 側では `Fits`、モデル選定、checker を使わない。新しい行を足す場合はその理由と依存の入れ替えをこの節へ 1 行で記録する。
 
+
+- C380 初版→監査版: S01/S02/S10/S11/S13 に源イベントの明示添字を通した。同じ key 列・同値・`Prop` の証明同一性で別出現を同一視しないため。行数・状態・固定文は変更なし。
+- C380 初版→監査版: S11 は `LoweringPair` を返す一補題に明記した。相互帰納を 2 件と誤読しないため。
 
 ### 最初に行う S01 の確認点
 
