@@ -1,0 +1,44 @@
+Exact added source and intended audit blob IDs:
+GeneralDeclarativeWitnessNativeKinds361 310018f1218358f59c5582315d2739139ce24014 Cycle361NativeKinds b24f2d9ba9a94cc5cd5f31097c0cc005b1fe0c48
+GeneralDeclarativeWitnessMixedDependency361 0b71734e6472b477be9baca76d39c977cf7b10d4 Cycle361MixedDependency 9da59d9714d5ebe7d74e6c4425246ef01bad5cbb
+GeneralDeclarativeWitnessNativeLeafClassify361 eb27220cd634929f02e507f12baccd4b393fb4be Cycle361NativeLeafClassify 73c249ec3a12c784d3d59d0d8c7adb15b1694620
+GeneralDeclarativeWitnessNativeLeafSound361 ca7a01bbc4f7d3ad2de6e69d43eba24cf3372e6f Cycle361NativeLeafSound 3dfec1fa762dddeb3c0f3b9961b615e07ba7a90b
+
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; unmodified bodies in dependency order, standard external imports, exact audit query suffixes, exit 0. No new .olean or separate import build.
+'Yulang.GeneralDeclarativeWitnessNativeKinds361.Ctor.independent_lookup' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeKinds361.actual_nested_declarations_keep_both_modes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeKinds361.no_default_kind_or_arity' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedDependency361.edge_height' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessMixedDependency361.path_height' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedDependency361.no_strict_loop' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedDependency361.board_checked' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedDependency361.actual_graph' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedDependency361.actual_graph_has_no_strict_loop' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.source_visible' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.declarative_leaf' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.actual_compiler_agrees_on_declaration' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLeafSound361.actual_leaf_is_positively_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLeafSound361.dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeLeafSound361.real_scoped_leaf_with_one_fitted_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

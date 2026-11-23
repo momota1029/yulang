@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeWitnessNestedModel361
+
+#print axioms Yulang.GeneralDeclarativeWitnessNestedModel361.actual_compiler_keeps_the_payload_interval
+#print axioms Yulang.GeneralDeclarativeWitnessNestedModel361.model_fits
+#print axioms Yulang.GeneralDeclarativeWitnessNestedModel361.composed_leaf_sound
+#print axioms Yulang.GeneralDeclarativeWitnessNestedModel361.actual_nested_dictionary_in_one_fitted_model

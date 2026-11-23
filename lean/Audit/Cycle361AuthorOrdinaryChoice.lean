@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361
+
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.first_source_exact
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.author_checked
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.directs_alias
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.child_checked
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.alias_read_witness

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessNativeKinds361
+
+#print axioms Yulang.GeneralDeclarativeWitnessNativeKinds361.Ctor.independent_lookup
+#print axioms Yulang.GeneralDeclarativeWitnessNativeKinds361.actual_nested_declarations_keep_both_modes
+#print axioms Yulang.GeneralDeclarativeWitnessNativeKinds361.no_default_kind_or_arity

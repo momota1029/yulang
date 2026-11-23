@@ -1,0 +1,92 @@
+# Verification of the immutable C361 source pin
+
+Source: `6740697d0cb86d8e2490475a247cc3457efab0db`. Every changed path was read back and checked byte-for-byte and by Git blob SHA-1; only expected work branch paths were accepted. The barrel preserves its full 347564-byte initial prefix and exactly 22 same-change append-only imports, in dependency order. Both frozen blobs were verified by metadata only. No detached materialization or whole-project run.
+
+Exact file bodies were read from GitHub into memory. Lean 4.35.0 read their exact ordered contents and all 80 independent standalone audit query suffixes via `lean --stdin --trust=0 -DwarningAsError=true`; exit 0; read-only mount; no writable .olean or separate imports build. Quotations here are from actual output. The standard-only transitive command printed:
+
+```text
+STRICT-AXIOM-GATE-PASS: 1045 locally elaborated declarations, 120349 imported non-runtime declarations
+```
+
+Published independent slice logs give the named axioms. Final branch readback also rechecked the exact source and audit hashes.
+
+- `Yulang.GeneralDeclarativeWitnessSequentialReceiver361.actual_receiver_state`
+- `Yulang.GeneralDeclarativeWitnessSequentialReceiver361.read_in_every_final_model`
+- `Yulang.GeneralDeclarativeWitnessSequentialReceiver361.model_fits`
+- `Yulang.GeneralDeclarativeWitnessSequentialReceiver361.exact_run_is_inhabited`
+- `Yulang.GeneralDeclarativeWitnessSequentialReceiver361.checked_state_links_all_receipts`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.bound_keeps`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.alias_keeps`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.no_constructor`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.no_backed_constructor`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.exact_cut`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.actual_cut`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.checked_body_is_not_ordinary_ready`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.actual_rank`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.checked_body_is_not_an_ordinary_K2_rejection`
+- `Yulang.GeneralDeclarativeWitnessNativeLowerCut361.ordinary_projection_is_pending_not_selected`
+- `Yulang.GeneralDeclarativeWitnessNativeDirectSource361.same_actual_source`
+- `Yulang.GeneralDeclarativeWitnessNativeDirectSource361.literal_source_not_guessed`
+- `Yulang.GeneralDeclarativeWitnessNativeDirectSource361.actual_compiler_position`
+- `Yulang.GeneralDeclarativeWitnessNativePortTransport361.port_copies_actual_binder`
+- `Yulang.GeneralDeclarativeWitnessNativePortTransport361.every_projected_endpoint_is_the_released_value`
+- `Yulang.GeneralDeclarativeWitnessNativePortTransport361.actual_route_has_checked_origin`
+- `Yulang.GeneralDeclarativeWitnessNativePortTransport361.same_demand_is_not_authority`
+- `Yulang.GeneralDeclarativeWitnessNativeKinds361.Ctor.independent_lookup`
+- `Yulang.GeneralDeclarativeWitnessNativeKinds361.actual_nested_declarations_keep_both_modes`
+- `Yulang.GeneralDeclarativeWitnessNativeKinds361.no_default_kind_or_arity`
+- `Yulang.GeneralDeclarativeWitnessMixedDependency361.edge_height`
+- `Yulang.GeneralDeclarativeWitnessMixedDependency361.path_height`
+- `Yulang.GeneralDeclarativeWitnessMixedDependency361.no_strict_loop`
+- `Yulang.GeneralDeclarativeWitnessMixedDependency361.board_checked`
+- `Yulang.GeneralDeclarativeWitnessMixedDependency361.actual_graph`
+- `Yulang.GeneralDeclarativeWitnessMixedDependency361.actual_graph_has_no_strict_loop`
+- `Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.source_visible`
+- `Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.declarative_leaf`
+- `Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.actual_compiler_agrees_on_declaration`
+- `Yulang.GeneralDeclarativeWitnessNativeLeafSound361.actual_leaf_is_positively_checked`
+- `Yulang.GeneralDeclarativeWitnessNativeLeafSound361.dictionary_sound`
+- `Yulang.GeneralDeclarativeWitnessNativeLeafSound361.real_scoped_leaf_with_one_fitted_model`
+- `Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.source_centers`
+- `Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.every_captured_span_has_literal_origin`
+- `Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.independent_match_sound`
+- `Yulang.GeneralDeclarativeWitnessNestedLeaf361.classified`
+- `Yulang.GeneralDeclarativeWitnessNestedFixture361.actual_nested_binder_does_not_use_nominal_address`
+- `Yulang.GeneralDeclarativeWitnessNestedFixture361.matching_port_and_release_do_not_select_other_constructor`
+- `Yulang.GeneralDeclarativeWitnessNestedModel361.actual_compiler_keeps_the_payload_interval`
+- `Yulang.GeneralDeclarativeWitnessNestedModel361.model_fits`
+- `Yulang.GeneralDeclarativeWitnessNestedModel361.composed_leaf_sound`
+- `Yulang.GeneralDeclarativeWitnessNestedModel361.actual_nested_dictionary_in_one_fitted_model`
+- `Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.source_inputs_exact`
+- `Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.only_reads_two_distinct_source_lanes`
+- `Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.compiler_uses_same_selected_clause`
+- `Yulang.GeneralDeclarativeWitnessMixedForwardFixture361.actual_aligned_two_nodes`
+- `Yulang.GeneralDeclarativeWitnessMixedForwardFixture361.previous_preparation_was_not_this_parent_choice`
+- `Yulang.GeneralDeclarativeWitnessMixedForwardSound361.recursive_witness`
+- `Yulang.GeneralDeclarativeWitnessMixedForwardSound361.ordered_dictionary_sound`
+- `Yulang.GeneralDeclarativeWitnessMixedForwardSound361.actual_mixed_pair_has_one_fitting_model`
+- `Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.first_source_exact`
+- `Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.author_checked`
+- `Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.directs_alias`
+- `Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.child_checked`
+- `Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.alias_read_witness`
+- `Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.start`
+- `Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.beforeGrant`
+- `Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.close`
+- `Yulang.GeneralDeclarativeWitnessWholeFixture361.actual_ordinary_before_authority_and_native_after`
+- `Yulang.GeneralDeclarativeWitnessWholeSound361.author_tree`
+- `Yulang.GeneralDeclarativeWitnessWholeSound361.same_model_of_ordered_source`
+- `Yulang.GeneralDeclarativeWitnessWholeSound361.reconstructed_author_and_forwarder_share_one_state`
+- `Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.cannot_be_active`
+- `Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.removing_authority_keeps_actual_reads`
+- `Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.reading_the_value_cannot_recover_current_release`
+- `Yulang.GeneralDeclarativeWitnessNestedReflection361.sourced_mode_unique`
+- `Yulang.GeneralDeclarativeWitnessNestedReflection361.checked_constructor_mode_unique`
+- `Yulang.GeneralDeclarativeWitnessNestedReflection361.read_constructor_returns_same_mode`
+- `Yulang.GeneralDeclarativeWitnessNestedReflection361.read_recovers_source_intervals`
+- `Yulang.GeneralDeclarativeWitnessNestedReflection361.read_has_exact_represented_judgment`
+- `Yulang.GeneralDeclarativeWitnessNestedReflection361.same_lexical_read_cannot_choose_two_capture_lists`
+- `Yulang.GeneralDeclarativeWitnessNestedReflection361.same_center_does_not_recover_source_intervals`
+- `Yulang.GeneralDeclarativeWitnessNativeAmbiguity361.two_supported_candidates_are_ambiguous`
+- `Yulang.GeneralDeclarativeWitnessNativeAmbiguity361.actual_additional_visible_source_overlaps`
+- `Yulang.GeneralDeclarativeWitnessNativeAmbiguity361.actual_conflict_produces_no_scoped_dictionary`

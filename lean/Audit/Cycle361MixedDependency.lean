@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeWitnessMixedDependency361
+
+#print axioms Yulang.GeneralDeclarativeWitnessMixedDependency361.edge_height
+#print axioms Yulang.GeneralDeclarativeWitnessMixedDependency361.path_height
+#print axioms Yulang.GeneralDeclarativeWitnessMixedDependency361.no_strict_loop
+#print axioms Yulang.GeneralDeclarativeWitnessMixedDependency361.board_checked
+#print axioms Yulang.GeneralDeclarativeWitnessMixedDependency361.actual_graph
+#print axioms Yulang.GeneralDeclarativeWitnessMixedDependency361.actual_graph_has_no_strict_loop

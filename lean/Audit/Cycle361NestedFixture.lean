@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessNestedFixture361
+
+#print axioms Yulang.GeneralDeclarativeWitnessNestedFixture361.actual_nested_binder_does_not_use_nominal_address
+#print axioms Yulang.GeneralDeclarativeWitnessNestedFixture361.matching_port_and_release_do_not_select_other_constructor

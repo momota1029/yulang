@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessNativeLeafClassify361
+
+#print axioms Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.source_visible
+#print axioms Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.declarative_leaf
+#print axioms Yulang.GeneralDeclarativeWitnessNativeLeafClassify361.actual_compiler_agrees_on_declaration

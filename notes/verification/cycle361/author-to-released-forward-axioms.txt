@@ -1,0 +1,35 @@
+Exact added source and intended audit blob IDs:
+GeneralDeclarativeWitnessAuthorOrdinaryChoice361 cf1d77c2ed16556101915a0c02ab41723013d065 Cycle361AuthorOrdinaryChoice dc7ce61dc4486b654deffbc3aea05531b8b7f556
+GeneralDeclarativeWitnessAuthorBeforeRelease361 241b68cc6903f7b52857e29143c790d336941829 Cycle361AuthorBeforeRelease 472d46cd1d0c12d5e02269aa9daac2127cac60b6
+GeneralDeclarativeWitnessWholeFixture361 b4269bd9da78a36b479b536ef509fd4a7ddaafd0 Cycle361WholeFixture 1fc4e9f7f2356764431c9195db8764c358b2b8a8
+GeneralDeclarativeWitnessWholeSound361 4937a5c562515def330a19de911eec67796abf10 Cycle361WholeSound 176aa7479aaece4e08b803705e86d3bf6162e825
+
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; unmodified bodies in dependency order, standard external imports, exact audit query suffixes, exit 0. No new .olean or separate import build.
+'Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.first_source_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.author_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.directs_alias' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.child_checked' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthorOrdinaryChoice361.alias_read_witness' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.start' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.beforeGrant' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthorBeforeRelease361.close' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWholeFixture361.actual_ordinary_before_authority_and_native_after' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWholeSound361.author_tree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWholeSound361.same_model_of_ordered_source' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessWholeSound361.reconstructed_author_and_forwarder_share_one_state' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

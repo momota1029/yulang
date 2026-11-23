@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessWholeSound361
+
+#print axioms Yulang.GeneralDeclarativeWitnessWholeSound361.author_tree
+#print axioms Yulang.GeneralDeclarativeWitnessWholeSound361.same_model_of_ordered_source
+#print axioms Yulang.GeneralDeclarativeWitnessWholeSound361.reconstructed_author_and_forwarder_share_one_state

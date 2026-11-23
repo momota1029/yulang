@@ -1,0 +1,22 @@
+C361 exact source tree 6740697d0cb86d8e2490475a247cc3457efab0db
+Lean 4.35.0 strict --stdin exact virtual dependency closures, exit 0 for each listed module; not a writable .olean import run.
+GeneralDeclarativeWitnessSequentialReceiver361 PASS, 0 new declared dependencies and 5 named independent queries
+GeneralDeclarativeWitnessNativeLowerCut361 PASS, 1 new declared dependencies and 10 named independent queries
+GeneralDeclarativeWitnessNativeDirectSource361 PASS, 0 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessNativePortTransport361 PASS, 2 new declared dependencies and 4 named independent queries
+GeneralDeclarativeWitnessNativeKinds361 PASS, 3 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessMixedDependency361 PASS, 5 new declared dependencies and 6 named independent queries
+GeneralDeclarativeWitnessNativeLeafClassify361 PASS, 6 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessNativeLeafSound361 PASS, 7 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessNativeNestedMatch361 PASS, 4 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessNestedLeaf361 PASS, 9 new declared dependencies and 1 named independent queries
+GeneralDeclarativeWitnessNestedFixture361 PASS, 10 new declared dependencies and 2 named independent queries
+GeneralDeclarativeWitnessNestedModel361 PASS, 11 new declared dependencies and 4 named independent queries
+GeneralDeclarativeWitnessMixedForwardChoice361 PASS, 12 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessMixedForwardFixture361 PASS, 13 new declared dependencies and 2 named independent queries
+GeneralDeclarativeWitnessMixedForwardSound361 PASS, 14 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessAuthorOrdinaryChoice361 PASS, 15 new declared dependencies and 5 named independent queries
+GeneralDeclarativeWitnessAuthorBeforeRelease361 PASS, 16 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessWholeFixture361 PASS, 17 new declared dependencies and 1 named independent queries
+GeneralDeclarativeWitnessWholeSound361 PASS, 18 new declared dependencies and 3 named independent queries
+GeneralDeclarativeWitnessAuthorityTruthCut361 PASS, 19 new declared dependencies and 3 named independent queries

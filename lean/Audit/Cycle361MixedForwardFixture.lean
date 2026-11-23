@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeWitnessMixedForwardFixture361
+
+#print axioms Yulang.GeneralDeclarativeWitnessMixedForwardFixture361.actual_aligned_two_nodes
+#print axioms Yulang.GeneralDeclarativeWitnessMixedForwardFixture361.previous_preparation_was_not_this_parent_choice

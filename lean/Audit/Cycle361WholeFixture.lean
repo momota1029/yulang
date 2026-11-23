@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeWitnessWholeFixture361
+
+#print axioms Yulang.GeneralDeclarativeWitnessWholeFixture361.actual_ordinary_before_authority_and_native_after

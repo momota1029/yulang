@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361
+
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.cannot_be_active
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.removing_authority_keeps_actual_reads
+#print axioms Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.reading_the_value_cannot_recover_current_release

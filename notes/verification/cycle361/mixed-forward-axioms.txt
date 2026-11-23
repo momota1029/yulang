@@ -1,0 +1,28 @@
+Exact added source and intended audit blob IDs:
+GeneralDeclarativeWitnessMixedForwardChoice361 8e9c522b8c75324747cff1193201b5c61d15f8ca Cycle361MixedForwardChoice c077ed1d4ec85286802af137270727e0f61aad56
+GeneralDeclarativeWitnessMixedForwardFixture361 9e03589fc52e723f70c7b231c090a469ee073420 Cycle361MixedForwardFixture d108e0abdfd5a7bf9db307800b7aa7fa975bcb09
+GeneralDeclarativeWitnessMixedForwardSound361 792ddc910ef46253f541b65b01869e25ae9bc2ce Cycle361MixedForwardSound abf54c75d00cfa752b52e1d6855be42e57a1344f
+
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; unmodified bodies in dependency order, standard external imports, exact audit query suffixes, exit 0. No new .olean or separate import build.
+'Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.source_inputs_exact' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.only_reads_two_distinct_source_lanes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForwardChoice361.compiler_uses_same_selected_clause' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForwardFixture361.actual_aligned_two_nodes' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForwardFixture361.previous_preparation_was_not_this_parent_choice' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForwardSound361.recursive_witness' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForwardSound361.ordered_dictionary_sound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessMixedForwardSound361.actual_mixed_pair_has_one_fitting_model' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

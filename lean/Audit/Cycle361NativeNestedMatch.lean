@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessNativeNestedMatch361
+
+#print axioms Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.source_centers
+#print axioms Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.every_captured_span_has_literal_origin
+#print axioms Yulang.GeneralDeclarativeWitnessNativeNestedMatch361.independent_match_sound

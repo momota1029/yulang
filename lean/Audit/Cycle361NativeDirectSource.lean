@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeWitnessNativeDirectSource361
+
+#print axioms Yulang.GeneralDeclarativeWitnessNativeDirectSource361.same_actual_source
+#print axioms Yulang.GeneralDeclarativeWitnessNativeDirectSource361.literal_source_not_guessed
+#print axioms Yulang.GeneralDeclarativeWitnessNativeDirectSource361.actual_compiler_position

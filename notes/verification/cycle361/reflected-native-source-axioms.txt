@@ -1,0 +1,41 @@
+Exact added source and intended audit blob IDs:
+GeneralDeclarativeWitnessAuthorityTruthCut361 b668015ba1eb1d5af8a14e07c242bd51cac8d984 Cycle361AuthorityTruthCut 622bc449e193e7b4945a778d765045eab72a1264
+GeneralDeclarativeWitnessNestedReflection361 f8ef7b4174f07fee8800e14586dace0f60ef6c44 Cycle361NestedReflection 46b3ecadf87cb9884465e82fef5354003086cf3d
+GeneralDeclarativeWitnessNativeAmbiguity361 bf21c5c98029893946664e8c30e19b734d29e90b Cycle361NativeAmbiguity 93ddb8e0c61c27c86076e25147bbc44478d6dcd4
+
+Lean 4.35.0 --stdin --trust=0 -DwarningAsError=true; unmodified bodies in dependency order, standard external imports, exact audit query suffixes, exit 0. No new .olean or separate import build.
+'Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.cannot_be_active' depends on axioms: [propext]
+'Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.removing_authority_keeps_actual_reads' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessAuthorityTruthCut361.reading_the_value_cannot_recover_current_release' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedReflection361.sourced_mode_unique' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedReflection361.checked_constructor_mode_unique' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedReflection361.read_constructor_returns_same_mode' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedReflection361.read_recovers_source_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedReflection361.read_has_exact_represented_judgment' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedReflection361.same_lexical_read_cannot_choose_two_capture_lists' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNestedReflection361.same_center_does_not_recover_source_intervals' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeAmbiguity361.two_supported_candidates_are_ambiguous' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeAmbiguity361.actual_additional_visible_source_overlaps' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessNativeAmbiguity361.actual_conflict_produces_no_scoped_dictionary' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
