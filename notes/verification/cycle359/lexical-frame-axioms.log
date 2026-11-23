@@ -1,0 +1,20 @@
+'Yulang.GeneralDeclarativeWitnessScopedBindings359.read_has_literal_frame' depends on axioms: [propext, Quot.sound]
+'Yulang.GeneralDeclarativeWitnessScopedBindings359.every_frame_kept' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualScopes359.spans_from_same_current_compiler' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualScopes359.actual_binder_zero_in_each' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualScopes359.exact_scope_not_same_center' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualScopes359.distinct_frame_without_owner_gets_no_read' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualScopes359.duplicate_frame_not_first_hit' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeWitnessActualScopes359.source_sites_do_not_go_by_binder_name' does not depend on any axioms
