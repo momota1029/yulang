@@ -1,9 +1,10 @@
 # dots-main heartbeat
 
-cycle: 375
-status: completed
-started: 2026-11-23T18:33:12.294Z
-updated: 2026-11-23T19:12:54.453Z
-elapsed_min: 39
-activity: C375 current installed author and full-address independent release derivation; no unchecked Lean
-report: notes/handoff/dots-cycle-375.md
+cycle: 376
+status: running
+started: 2026-11-23T19:34:09.067Z
+updated: 2026-11-23T19:34:28.503Z
+elapsed_min: 0
+activity: I-65 unchanged; C376 strict independent source drafts first
+last_local_commit: 1ab0a1b63c17fad5052f5b6588d731ceaa6eb435
+resume_hint: Test the exact C371/C372 ordinary source drafts
