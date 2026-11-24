@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72CompletedNativeStability404
+#print axioms Yulang.GeneralDeclarativeI65.I72.successful_matched_source_same_before_native404
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_native_rejection_does_not_create_selections404
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_native_priority_dictionary_sound404
+#print axioms Yulang.GeneralDeclarativeI65.I72.genuine_producer_opens_native_child404
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_outer_and_pending_inner_k2404
