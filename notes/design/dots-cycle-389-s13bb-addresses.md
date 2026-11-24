@@ -10,6 +10,8 @@ C388 の `ExactReplayEvents replay events` の lowered 側から、同じ source
 
 `LiteralLocalEvent.receiptAt` は元の request/ordinal/target と原宣言の `Supplies` を保存するが、literal typed 構文および任意長の引数を **その body と capture から評価した** ことは述べていない。下の一般補題で、同じ target に任意の `Pattern` と `Argument Nat` 列を代入した receipt でも、このフィールド結論はそのまま成立することを検証した。これは新しい選択 event を作るものではない。独立 source guard は差し替え後の receipt に移していないので、承認済み言語の反例や選択の非一意性の証明ではない。
 
+`Pattern` は record・variant・join を含み、native `Endpoint` は普通の `TyTerm` と nominal の入れ子を区別する。C365 `authoredValues` は任意長の点列を扱えても、`nativeSyntax` のままの非点区間や exact tagged output と同一ではない。型/行・点/非点の区別を落とす射影を既成の解として採らない。受理形や組合せの新しい禁止を導いたわけではない。
+
 不足する二つの関係を混同しない:
 
 1. **入力の解釈と原 RHS の関係**。同一の原宣言と `Supplies`、元の where/出力 ordinal、用いた actual capture を経て、固定先に記録された ordinary equation 又は declared type/row/vector が本当にその body を表すこと。explicit の宣言 binder と default の role 位置を同一視しない。[C320 `bodyPattern/bodyCapture`](https://github.com/momota1029/yulang/blob/784ece5c5686a56d7959fb6e51bc0a0374b00cb5/lean/Yulang/GeneralDeclarativeOutputs320.lean#L56) と [C324 ordinary `row_iff`](https://github.com/momota1029/yulang/blob/784ece5c5686a56d7959fb6e51bc0a0374b00cb5/lean/Yulang/GeneralDeclarativeNormalizeAssoc324.lean) は普通の行を実際に説明する。[C383 tagged unary](https://github.com/momota1029/yulang/blob/784ece5c5686a56d7959fb6e51bc0a0374b00cb5/lean/Yulang/GeneralDeclarativeI65LogicalNominalOutput383.lean#L18) は原 RHS・実捕捉中心から exact nominal row を与えるが、非点、入れ子、任意の型/行引数を一般に生成しない。
@@ -19,7 +21,7 @@ C388 の `ExactReplayEvents replay events` の lowered 側から、同じ source
 
 ## 厳格検証した Lean 実験
 
-C388 の独立 replay を importし、Lean 4.35.0 `lean --stdin --trust=0 -DwarningAsError=true` exit 0。この段階は下の exact structural kernel と制約フィールドの計算だけで、モジュール登録や S13bb の完了ではない。依存公理は addresses と receipt field lemma が各 `[propext]`、canonical order は `[propext, Quot.sound]`。
+C388 の独立 replay を importし、Lean 4.35.0 `lean --stdin --trust=0 -DwarningAsError=true` exit 0。この段階は下の exact structural kernel と制約フィールドの計算だけで、モジュール登録や S13bb の完了ではない。依存公理は addresses と receipt field lemma が各 `[propext]`、canonical order と四前提の合成型検証は各 `[propext, Quot.sound]`。合成型検証は第二補題を引数に置く明示試験で、concrete な型付き意味を実装しない。
 
 ```lean
 import Yulang.GeneralDeclarativeI65SameEventSemantics388
@@ -88,6 +90,24 @@ theorem exact_replay_ledger_addresses
     AddressedDictionaryEvents s q d events :=
   lower_ledger_exact_request_addresses eventMatch.2
 
+/-- Typecheck the original four-premise assembly with the selected
+second obligation named. This does not instantiate its concrete
+model interpretation or promote receiver shape to semantics. -/
+theorem s13bb_split_composition_typecheck
+    (localMeaning : Model → LiteralEvent s → Prop)
+    (dictionaryMeaning : Model → Request → Dictionary → Prop)
+    (m : Model)
+    {replay : LiteralTreeFrom tree t lowered} {events : LiteralEventTree (s := s)}
+    (assemble : AddressedDictionaryEvents s q d events →
+      orderedLiteralReceipts events = written →
+      LedgerMeaning (localMeaning m) events → dictionaryMeaning m q d)
+    (eventMatch : ExactReplayEvents replay events)
+    (_canonical : ExactOrderedOccurrences (dictionaryTree d) events)
+    (outputs : orderedLiteralReceipts events = written)
+    (semantic : LedgerMeaning (localMeaning m) events) :
+    dictionaryMeaning m q d := by
+  exact assemble (exact_replay_ledger_addresses eventMatch) outputs semantic
+
 end
 /-- The literal receipt indexing rules do not compare original and newly
 supplied declared payloads. This is a rule-field calculation, not a
@@ -115,4 +135,6 @@ end Yulang.GeneralDeclarativeI65
 #print axioms Yulang.GeneralDeclarativeI65.declared_receipt_index_fields_do_not_check_payload
 
 #print axioms Yulang.GeneralDeclarativeI65.addressed_replay_has_canonical_order
+
+#print axioms Yulang.GeneralDeclarativeI65.s13bb_split_composition_typecheck
 ```
