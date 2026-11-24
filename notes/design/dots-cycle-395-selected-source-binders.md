@@ -9,3 +9,9 @@
 - actual typed head ticket を取得できないことは language rejection でない。出力専用の where binder と role default は head binder ではない。既存 where ordinal の結果と有限 selected producer の出力をつなげる場合だけ、独立 read を足す。S13bbbb retention は触らない。
 
 最上段の文・独立な選択/保留規則・literal carrier・checklist を変更せず、S13 を分割しない。
+
+## 最初の実証
+
+C367 の選択済み tape の実 Stored 位置から、順序を保った visible filter を反転して **同じ元 registry ordinal** を復元する。宣言が単に Registry に含まれるという根拠で元位置を選ばない。C366 の DeepRead で実際に生じた native head leaf を、元の head 引数 ordinal とその leaf ordinal で辿る。任意深さ・引数列に対し、実 leaf 名が元の正規化 head の lexical name であり、同じ capture の value/row であることを証明した。unused は source leaf を生まない。recognized leaf の present 判定はこの実 read の存在と同値。
+
+選択済み tape と checked registry から、任意の元 output ordinal の evaluation を C394 に接続した。scope が揃う分岐では parent output の証拠や型付き vector を入力にせず、実 selected binder と元 Supplies から元 RHS を得る。その射影が既存の native wire に載る場合に限って receipt を出し、選択された registry ordinal、request occurrence、関連型 output ordinal、同じ authored Body と元 fixed target を証明した。selected rule 自体を変更しない。C367 はこの独立局所 read の実入力であり、旧 solver authority を I-67 の Classifies に移していない。全選択の completeness、joined/default/where-only、任意 compound の旧 wire は別で、未対応に意味上の拒否を与えない。
