@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72SupportedClassifies404
+#print axioms Yulang.GeneralDeclarativeI65.I72.supported_rules_keep_exact_rows404
+#print axioms Yulang.GeneralDeclarativeI65.I72.preserve_c403_derivation404
+#print axioms Yulang.GeneralDeclarativeI65.I72.preserve_c403_classifies404
+#print axioms Yulang.GeneralDeclarativeI65.I72.actual_classifies_input404
+#print axioms Yulang.GeneralDeclarativeI65.I72.select_with_completed_inputs404
+#print axioms Yulang.GeneralDeclarativeI65.I72.raw_k2_before_completed_inputs404
