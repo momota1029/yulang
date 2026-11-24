@@ -2,6 +2,12 @@
 
 正本: `momota1029/yulang@a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6` (`integration/m1-final`), inbox blob `b99fbb19f8c0c8c05abcd09f4cf3f44cfd4de26e`。下記の既存の証拠はすべてこの integration のファイルから読んだ。比較対象の作業ブランチは `820e4f2bb26aa02e6a1933d141a2b877900c328b`。該当 I-65 ファイルが両方にあることと、任意の状態の結論が証明済みであることは別。
 
+## I-67 での層の訂正（C383）
+
+- 正本は `momota1029/yulang@d24d654817367e7a565b1ee97c1306931332d19d` の `notes/plan/dots-inbox.md`（blob `a87744968aacd0c51cf7f82e263009a914ed48c6`）。宣言側に solver の作者・版・physical write/release・manifest/grant を持たせない。C381/C382 の「消した権限は復元できない」は検査器側で役立つが、S01 の不足項目ではない。
+- 宣言側で出力の支持となる「完了」は **同じ状態における実 producer の有限 `.selected d` 導出**。source の出力位置と、その位置から独立な宣言的規則が導いた等式を区別する。出力 target の等しさだけではその producer の等式にならない。
+- S01–S03 を下記のとおり訂正。固定文・行数・状態ラベルは据え置き。S04 以降の旧 draft に物理作者/版/grant を要求する記述が残る箇所は、I-67 により **step 2/3 に留保**。step 1 の追加前提として読み替えない。S07 等を閉じたとはみなさない。
+
 ## 固定文と最上段
 
 C365 の固定文をそのまま使う。以下は実装済みの Lean ファイルではなく、補題の命題と接続の設計である。
@@ -30,7 +36,7 @@ theorem dictionary_sound
 - 実在する型は `State`, `Request`, `Model`, `Fits`, `children`, `visible`（`GeneralDeclarativeI65State365.lean`）、`Tree`, `Frontier`, `Dictionary`, `Resolves`, `Summarizes`, `All₂`（`CommonRoleOutermostResolver.lean`）。C365 の `State` は `current, modes, origins, routes` を持つ。全称の型の識別子は固定文を変えない。C365 の表現が仕様の全形を本当に表せるかも S01/S04/S07/S09/S13 で確認し、追加の不変条件が必要なら既存の宣言的導出から示す（定理の仮定に追加しない）。`Fits` はモデル解釈であり、候補の選択や release を表さない。
 - 下記の `LocalSource s` は **これから実現する独立な規則**。`Classifies` の固定 API と一緒に S01 で具現化する。旧 `Local` の別名でも、checker の成功判定でもない。読んだ integration の I-65 モジュールでは全称の `Classifies` / `DictionaryEvidence` は見つからなかった。S13 が後者の実 API を具現化する。これらは仮定や無償の別名にしない。
 - `SelectedSource s q key kids` は S02 の中間データ。実 root 構文、選択されたソース宣言の出現、元の順序付き候補判断（成功・不一致・保留の理由）、その規則の body 導出と子リストを持つ。比較の意味、受理証明、`SourceReceipt` はフィールドにしない。
-- `OrdinaryRoot`, `ActualCandidateVisit` はそれぞれ実 root と、独立候補判断で実際に入った検査位置の指標。位置には候補出現、引数番号、親からの検査経路、型/行、元端点の別を保持する。 `CurrentCycle` は実グラフのその位置への非空閉路で、未完了出力の等式も含め、nominal の引数は通るが body は開かない。 `AuthorizedLower` は別の元データによる支持。possible port を visited としない。
+- `OrdinaryRoot`, `ActualCandidateVisit` はそれぞれ実 root と、独立候補判断で実際に入った検査位置の指標。位置には候補出現、引数番号、親からの検査経路、型/行、元端点の別を保持する。 `CurrentCycle` は実グラフのその位置への非空閉路で、未完了出力の等式も含め、nominal の引数は通るが body は開かない。 `DeclarativeLower` は直接の source 制約又は同じ状態で有限に選択された logical producer による支持で、manifest/grant ではない。possible port を visited としない。
 - `GeneralHead`, `GeneralCapture`, `OrdinaryReceipt`, `TypedReceipt`, `GeneralNode`, `GeneralTree`, `GeneralTreeMeaning` は下記の穴を明示する作業名。既存 `SourceHead` と `ReceiptTree` にない形を既存名で潰さない。特に C368 の `Write.typed` の意味は unary 値引数で、任意の宣言モード・引数ベクトルの出力意味とはまだ同じではない。新たな型の扱いは仕様に既にあるものだけ。`NodeFrom event n` と `LiteralTreeFrom trace n` は同じ原始導出から来た記録を比較する関係（単なる key の等式や存在否定のための動作条件ではない）。標準化して等価な他の body の出力に取り替えない。Lean の `Prop` の証明同一性から選択イベントを読み取らない。ソースの候補/作者/配列イベントは明示のデータまたは独立な関係の添字に置く。S01 の `Tree` の key 列だけで同じ body event とみなさず、S02 と S11 が同じ実イベントの添字を運ぶ。出力記録 `OrderedReceipt` は出現付きの literal な順序列で、固定 target と実作者・版・ordinal をすり替えない。出力受け口が複数の要求で共有される場合も、元要求での出力名/ordinal/target を記録してから、承認された需要合流の整合性を別に扱う。
 
 ## 1. 出発点: 独立な導出から、実際に選ばれた一回の出現へ
@@ -44,7 +50,9 @@ theorem classifies_unpacks_actual_source {s : State} {q : Request} {d : Dictiona
       ∃ trace : SourceTreeTrace s q t tree, Summarizes t (.selected d)
 ```
 
-選択分だけの仮定は足さない。候補照合で一意になっただけの状態を最終の `.selected d` にしない。実 where・選択後の等式・固定出力が矛盾した場合の診断は、局所導出と既存要約の境界で保存し、`∀ m, Fits s m → …` が空に成り立つことから受理を逆算しない。独立な有限導出を正規診断に投影する API を実装し、その具体的な導入則が扱う全ての形から導く。`SourceTreeTrace` は各ルールが観測した宣言出現、順序付き候補判断、原始 body/author イベントを記録する型で、結果の source receipt や semantic evidence は保持しない。証拠の個体を区別するのは計算可能な trace の側の値と対応関係。既存の汎用 resolver に未充足の `Protocol.Local` を与えるだけでは終わらない。integration の `GeneralDeclarativeWitnessClassifyVariance357.dictionary_sound` も `SourceChecked`、`Coverage`、`Declared` を別に要求し、`Rule` は旧 ordinary と限定 unary join の場合分けなので S01/S13 の固定 API ではない。
+選択分だけの仮定は足さない。候補照合で一意になっただけの状態を最終の `.selected d` にしない。実 where・選択後の等式・固定出力の診断を保持する。`SourceTreeTrace` には実宣言出現・順序付き候補判断・論理的出力発生の導出を記録し、**読むための producer の選択導出**と **辞書に入る where 子**を別の辺とする。前者を辞書の子に混ぜない。どちらも同じ `s` を参照する。有限導出の子に producer 証拠を置き、各段で循環を使って自分自身を正当化しない。存在するある producer 導出の深さを実行順や一様 bound とは解釈しない。`Fits`、物理作者、版、grant、checker 受理、source receipt の意味のどれも入口に使わない。
+
+C383 の [`FiniteCompletion383`](../../lean/Yulang/GeneralDeclarativeI65FiniteCompletion383.lean) は独立な **正の実局所規則がすでに与えられる場合**について、同じ状態での有限 `.selected` 支持、閉じた循環族の排除、where 側だけの `Resolves/Summarizes` 投影を Lean で検証した。さらに [`CompletionExact383`](../../lean/Yulang/GeneralDeclarativeI65CompletionExact383.lean) で、この正の規則インターフェース上の有限証明と、同じ辞書を返す `.selected` 投影の同値を両方向に示した。これは実規則の供給でも、四種すべての診断でもない。最終 snapshot の候補判定を局所の証人が自分に都合のよい完了集合に絞ることはしない。証拠を増やすと別候補も見える可能性があり、「正の読み根拠の増加」と「一意選択の保存」は別。実 source 規則で、全可視候補と実際に必要な検査を同じ安定状態で判断するところは S01–S03 に残す。
 
 ### S02 · 一部 — `selected_source_inversion`
 
@@ -52,10 +60,11 @@ theorem classifies_unpacks_actual_source {s : State} {q : Request} {d : Dictiona
 theorem selected_source_inversion {s : State} {q : Request} {key : Nat} {kids : List Request}
     (h : LocalSource s q (.selected key kids)) (event : SourceLocalTrace s q key kids h) :
     ∃ sel : SelectedSource s q key kids,
-      sel.row.id = key ∧ sel.row ∈ visible s q ∧ sel.orderedRows = visible s q ∧ SelectionFrom event sel
+      sel.row.id = key ∧ sel.row ∈ visible s q ∧ sel.orderedRows = visible s q ∧
+      LogicalInputSupports s sel ∧ SelectionFrom event sel
 ```
 
-既存: `State365.visible_exact` と `Tape367.live_readback` はフィルタの所属と既にある tape の選択候補を復元するが、全形の独立判断の反転で同じ出現と元順序を得るところは未証明。`visible` は現在台帳を role で filter するだけなので、台帳が [呼出し側の実可視集合](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L70-L75) を表すことも示す。全 where 子で同じ根の可視範囲を使い、重複 import は同じ宣言、別ファイルの別宣言は異なる出現として扱う。グローバル coherence や孤児規則は要求しない。C357 の別前提 `SourceChecked` は ID 列の `Nodup` を含むが、これを固定文へ持ち込まず、actual declaration table の原始導出で必要な一意性を示す。
+既存: `State365.visible_exact` と `Tape367.live_readback` はフィルタの所属と既にある tape の選択候補を復元するが、全形の独立判断の反転で同じ出現・元順序・`LogicalInputSupports`（直接の制約、又は実論理出力位置と同じ状態の有限選択導出を持つ支持）を得るところは未証明。`visible` は現在台帳を role で filter するだけなので、台帳が [呼出し側の実可視集合](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L70-L75) を表すことも示す。全 where 子で同じ根の可視範囲を使い、重複 import は同じ宣言、別ファイルの別宣言は異なる出現として扱う。グローバル coherence や孤児規則は要求しない。[`LogicalOrdinaryOutput383`](../../lean/Yulang/GeneralDeclarativeI65LogicalOrdinaryOutput383.lean) は、**実選択・捕捉を別途保持した** ordinary 出力について、実宣言の等式から元の出力 ordinal を得て、同じ状態の有限の producer 選択と結ぶ。[`LogicalNominalOutput383`](../../lean/Yulang/GeneralDeclarativeI65LogicalNominalOutput383.lean) は同じ境界から、明示された unary covariant tagged 出力に限り、元 ordinal・target・実 binder の中心と同じ適合モデルでの値を結ぶ。任意の typed 出力、既存 `NativeSyntax` への接続、実選択の供給は対象外。 [`OrdinarySupportGraph383`](../../lean/Yulang/GeneralDeclarativeI65OrdinarySupportGraph383.lean) は、普通下界の constructor 行だけでなく明示的な alias の各辺を同じ状態の支持付き読みで正当化することと、支持行だけの ordinary view 上の既存 `Knows` が同値であると証明した。通常の bounds と元グラフを変えず、K2 にはこの view を使わない。混合・native の候補全体の観測は残る。C357 の別前提 `SourceChecked` は ID 列の `Nodup` を含むが、これを固定文へ持ち込まず、actual declaration table の原始導出で必要な一意性を示す。
 
 ### S03 · 一部 — `selected_mixed_k2_priority`
 
@@ -63,14 +72,14 @@ theorem selected_source_inversion {s : State} {q : Request} {key : Nat} {kids : 
 theorem selected_mixed_k2_priority (sel : SelectedSource s q key kids) :
     (∀ v : OrdinaryRoot s q, ¬ CurrentCycle s v.site) ∧
     VisitExactlyNeeded sel ∧
-    (∀ v : ActualCandidateVisit sel, AuthorizedLower s v ∧ ¬ CurrentCycle s v.site) ∧
+    (∀ v : ActualCandidateVisit sel, DeclarativeLower s v ∧ ¬ CurrentCycle s v.site) ∧
     (∀ row ∈ visible s q, ¬ SourcePending sel row) ∧
     (∀ row ∈ visible s q, SourceMatch sel row → SourceOccurrence sel row = sel.occurrence)
 ```
 
 既存: `Selection367.root_recurrence_vetoes_tape`, `NormalizedPrefix368.normalized_actual_prefix_k2`, `ReturnRankCore370.local_return_rank_iff_no_cycle`, C377–379 の後記アンカーは実普通位置・一部 native 入口を扱うが、全ての実訪問と同一候補順の根拠は未証明。候補の衝突/同一性は、選択規則が使う authored identity と照合する。もし規則が一意なキーしか与えないなら、同じキーが同じ出現を指すことを台帳の導出から示す（任意の `State` に新しい全域一意性仮定を足さない）。
 
-**優先順位の監査** ([現 spec の保留](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L182-L213)、[K2 の検査位置](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L498-L500)): I-59 の root K2 は lower がまだ展開できない場合も先行する。候補内の K2 は独立に支持された lower から本当に調べる必要のある非変数位置に限る。`VisitExactlyNeeded` の両方向（出力された位置が本物か、必要な訪問の取り落としがないか）を確かめる。retained release が 1 つ読めるだけではこの coverage は出ない。無支持なら正の保留理由を保持し、単なる未対応・`none` を不一致とも K2 ともしない。保留で等式を捨てない。調べるべき候補のいずれかで K2 が分かれば、安全な候補が一つでも複数でも先に拒否する。候補リスト順に早抜けして選ばない。候補で見ていない off-trace の循環から選択を否定しない。先行 native 入口に両端完成済みの `ModeWindow` を要求しない。相反する値を一つの論理名で同一視しない。
+**優先順位の監査** ([現 spec の保留](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L182-L213)、[K2 の検査位置](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L498-L500)): I-59 の root K2 は lower がまだ展開できない場合も先行する。候補内の K2 は独立に支持された lower から本当に調べる必要のある非変数位置に限る。`VisitExactlyNeeded` の両方向（出力された位置が本物か、必要な訪問の取り落としがないか）を確かめる。出力が等式一覧に在る、又は一つの producer が完了するだけでは全候補の coverage は出ない。C383 [`CompletionRead383`](../../lean/Yulang/GeneralDeclarativeI65CompletionRead383.lean) は循環族だけでは読みが成立しないこと、root cycle が元の普通グラフにあるなら読みの未完了にかかわらず root K2 が優先することを、入口に限って検証した。[`CompletionRootCycle383`](../../lean/Yulang/GeneralDeclarativeI65CompletionRootCycle383.lean) は、循環族からしか支持を得られない実 ordinary 名付き自己参照等式を元グラフから直接読んで root K2 を示し、同じ等式の支持付き read の不成立と両立することを示す。無支持なら正の保留理由を保持し、単なる未対応・`none` を不一致とも K2 ともしない。保留で等式を捨てない。調べるべき候補のいずれかで K2 が分かれば、安全な候補が一つでも複数でも先に拒否する。候補リスト順に早抜けして選ばない。候補で見ていない off-trace の循環から選択を否定しない。先行 native 入口に両端完成済みの `ModeWindow` を要求しない。相反する値を一つの論理名で同一視しない。
 
 ### S04 · 一部 — `elected_occurrence_has_general_head`
 
@@ -283,17 +292,19 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 固定した公開結論の実 interface                              S13
 ```
 
-矢印は証明の依存（S10 が S02〜S08 全部を、S11 が S01/S10 を、S12 が S09/S11 を使用）。P01–P04 の見出しは狭い再利用定理。S 行は一回ずつ数え、forest は S11 と同一の相互帰納単位。S01 の `Resolves` は同じ `s` を参照する。途中で子が付け足した等式や native write は、実導出が現在の `s` に保持したという S06/S07 の対応を通す。証拠のないスナップショットの固定化、兄弟の交換、可換な意味を利用した順序消去では補わない。I-60 どおり、その位置を判断するための支持付き読みや原始的な author/発行規則を宣言的導出の材料にできる。S01 の本物の規則を実装する際、S02–S07 の**複合結論**を証明済みフィールドとして詰めない。特に S03 の実検査位置・優先順位は proof of acceptance でなく、その独立導出からの保存/反転の目標。S01/S02 の source event は原始規則で成立したものを指し、成功チェッカや派生 `ReceiptTreeMeaning`を backwards に使わない。S09 以外の source → receipt 側では `Fits`、モデル選定、checker を使わない。新しい行を足す場合はその理由と依存の入れ替えをこの節へ 1 行で記録する。
+矢印は証明の依存（S10 が S02〜S08 全部を、S11 が S01/S10 を、S12 が S09/S11 を使用）。P01–P04 の見出しは狭い再利用定理。S 行は一回ずつ数え、forest は S11 と同一の相互帰納単位。S01 の `Resolves` は同じ `s` を参照する。途中で子が付け足した等式や native write は、実導出が現在の `s` に保持したという S06/S07 の対応を通す。証拠のないスナップショットの固定化、兄弟の交換、可換な意味を利用した順序消去では補わない。I-60 どおり、その位置を判断するための支持付き読みや宣言的な source/等式生成規則を宣言的導出の材料にできる。S01 の本物の規則を実装する際、S02–S07 の**複合結論**を証明済みフィールドとして詰めない。特に S03 の実検査位置・優先順位は proof of acceptance でなく、その独立導出からの保存/反転の目標。S01/S02 の source event は原始規則で成立したものを指し、成功チェッカや派生 `ReceiptTreeMeaning`を backwards に使わない。S09 以外の source → receipt 側では `Fits`、モデル選定、checker を使わない。新しい行を足す場合はその理由と依存の入れ替えをこの節へ 1 行で記録する。
 
 
 - C380 初版→監査版: S01/S02/S10/S11/S13 に源イベントの明示添字を通した。同じ key 列・同値・`Prop` の証明同一性で別出現を同一視しないため。行数・状態・固定文は変更なし。
 - C380 初版→監査版: S11 は `LoweringPair` を返す一補題に明記した。相互帰納を 2 件と誤読しないため。
 
+- C383/I-67: S01–S03 を同じ状態の有限完了・独立論理出力・無フィルタ K2 に改めた。solver の権限表を宣言側へ逆輸入しないため。状態ラベル・本数・固定文は変更なし。
+
 ### 最初に行う S01 の確認点
 
 1. 正本で監査するのは `Classifies` の限定実装を呼ぶかどうかでなく、`State` と実原始導出から `LocalSource` の入力が揃うか。宣言の順番・実出現・kind/mode の出どころを現台帳から読む。 `Fits` の同じ syntax/値だけでは異なる source route の区別を証明できない（S02/S04）。
 2. 診断木は root/候補検査規則と where 子の要約を別の段に置く。K2 は S03 の root/候補検査であり、子リストやモデルの fold から逆算しない。辞書全体を再帰して既に選択したかを判定する循環を作らない（S01 と S11 の分離）。
-3. 実 carrier の負の監査として既存の `ReleaseErasure368.no_erasure_of_ready_authority`（`GeneralDeclarativeI65ReleaseErasure368.lean`）と `CurrentRelease376.same_target_different_source_address_not_open` を使う。同じ普通状態、同じ target だけを入力とする producer は authority を復元できない。C365 の `State.current` の `Current` には `environment, ordinary, visible` のみがあり、C360 の `Board.active/writes` と `ReleaseAuthority.grants` はそこからの射影として定義されていない。原始 source fact の同じ状態への attachment は調べるが、任意の新規 grant を許す存在量化にはしない。S01 で正当な原始根拠が現在の `State` に足りない場合、それを S01 の表現課題として報告する。閉じないケースを無断で保留や拒否へ寄せない。
+3. I-67: 実 carrier は宣言的な完了を保持する。C381/C382 の release 非消去は検査器の責務で、S01 で求めない。正の完了根拠の有限性と、同じ安定状態での保留・全可視候補の実判断を分けて検査する。途中の一意性や一時的な保留を最終判定に読み替えない。順序によって受理が変わる **仕様上の** 場合が見つかったときは、遅延案を先にして質問ノートに記録する。今回は該当する承認済み source 例は確認していない。
 4. `ReceiptMeaning` が exact local order と typed write を型に持っていても、その後の `WrittenIn` は各要素の意味の投影でしかない。S13 を P04 の集合化だけで閉じず、辞書の木構造に固定した全列を保持する。
 
 次は S01（独立規則と正規診断 API）。その行で全形を確認し、先に他の行を閉じたことにしない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。

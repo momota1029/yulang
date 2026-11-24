@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65LogicalOrdinaryOutput383
+
+#print axioms Yulang.GeneralDeclarativeI65.logical_ordinary_equation_iff_literal_output383
+#print axioms Yulang.GeneralDeclarativeI65.completed_ordinary_source_reaches_literal_read383

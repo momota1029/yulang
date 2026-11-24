@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65OrdinarySupportGraph383
+
+#print axioms Yulang.GeneralDeclarativeI65.finite_supported_row_is_current383
+#print axioms Yulang.GeneralDeclarativeI65.finite_ordinary_row_exact383
+#print axioms Yulang.GeneralDeclarativeI65.finite_ordinary_models_restrict383
+#print axioms Yulang.GeneralDeclarativeI65.logical_alias_matches_supported_ordinary383
+#print axioms Yulang.GeneralDeclarativeI65.logical_knows_matches_supported_ordinary383
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_logical_root_readiness_exact383
+#print axioms Yulang.GeneralDeclarativeI65.original_root_k2_vetoes_logical_ordinary_ready383
