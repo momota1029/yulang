@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65WrittenJoinEvents381
+
+#print axioms Yulang.GeneralDeclarativeI65.written_join_original_visible_order381
+#print axioms Yulang.GeneralDeclarativeI65.demand_projection_preserves_literal_children381
+#print axioms Yulang.GeneralDeclarativeI65.authored_join_events_to_actual_C357_381
+#print axioms Yulang.GeneralDeclarativeI65.scoped_join_classification_uses_actual_C357_381
+#print axioms Yulang.GeneralDeclarativeI65.actual_written_join_scope_unpacks381
