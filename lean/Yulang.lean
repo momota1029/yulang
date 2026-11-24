@@ -7923,3 +7923,4 @@ import Yulang.GeneralDeclarativeI65NativeAuthority381
 import Yulang.GeneralDeclarativeI65SourceEventTrace381
 import Yulang.GeneralDeclarativeI65PinnedNativeRead381
 import Yulang.GeneralDeclarativeI65WrittenJoinEvents381
+import Yulang.GeneralDeclarativeI65WrittenJoinInversion381
