@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65WrittenJoinInversion381
+
+#print axioms Yulang.GeneralDeclarativeI65.written_join_excludes_ordinary_coverage381
+#print axioms Yulang.GeneralDeclarativeI65.invert_actual_C357_at_written_join381

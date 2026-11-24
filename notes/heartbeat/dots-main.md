@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 380
+cycle: 381
 status: completed
-started: 2026-11-23T23:30:43.451Z
-updated: 2026-11-24T00:20:56.437Z
+started: 2026-11-24T00:30:30.278Z
+updated: 2026-11-24T01:20:50.051Z
 elapsed_min: 50
-activity: I-66 fixed proof skeleton verified; 13 unresolved I-65 step 1 lemmas; no new Lean
-report: notes/handoff/dots-cycle-380.md
+activity: S01 restricted actual source trace and exact authority boundary verified; 13 open rows
+report: notes/handoff/dots-cycle-381.md

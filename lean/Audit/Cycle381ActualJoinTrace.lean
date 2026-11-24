@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65ActualJoinTrace381
+
+#print axioms Yulang.GeneralDeclarativeI65.extract_same_C357_join_event381
+#print axioms Yulang.GeneralDeclarativeI65.actual_C357_join_trace_extracts_events381
+#print axioms Yulang.GeneralDeclarativeI65.actual_C357_join_selected_summary_trace381
