@@ -7930,3 +7930,4 @@ import Yulang.GeneralDeclarativeI65CommitAuthority382
 import Yulang.GeneralDeclarativeI65SourceBoundary382
 import Yulang.GeneralDeclarativeI65CarryBoundary382
 import Yulang.GeneralDeclarativeI65LiteralBoundarySources382
+import Yulang.GeneralDeclarativeI65CommitLiteralBoundary382
