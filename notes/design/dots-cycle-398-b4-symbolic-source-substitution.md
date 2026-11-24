@@ -37,3 +37,9 @@ proof draft の回帰条件: [C394 CompoundSourceRhs](https://github.com/momota1
 - **前方だけの名前付き出力。** 元 demand の出力リストに同名の異なる target がある場合も各位置を保持する。型付き論理式を `List.ofFn` に載せ、未対応の位置は `none` のまま保持する。後の要素の ordinal が前へ詰まらない。role 規則が許す需要の統合と、出力 ledger を順序つきで写すことを混ぜない。S13bbba の exact C386 形式を置換するものではない。
 
 確認用 draft は (a) 既存 ordinary literal、(b) C394 表現内の typed symbolic substitution と保持される元位置、(c) C394 の旧導出から同じコードへの保守的 replay およびこの二条件、の順で独立チェックできるよう保存した。今回 source 内容だけを照合し、新規 Lean の strict 実行は未実施。
+
+## 全域性のうち、実 source frame で B4 が示せる部分
+
+B6 の入力を将来 State/Request に入れるなら、元 source の有効な lexical site にだけ全域な型付き表として置く方向。B4 の `Supplies.explicit` は元宣言と実 Body の所属を、`Supplies.default` は元 role の `assoc` を提供するので、どの B6 site を読むかはその証拠から直接確定する。型付け表の coverage/soundness は B6 の義務で、B4 の選択結果や具体 receipt を表に持たせない。今回は state や既存 theorem を変更していない。
+
+slot 読取りの全域性は別で、明示 RHS では [Declaration.Scoped](https://github.com/momota1029/yulang/blob/d195b1cef01ecd96b25d33f35a7c258541daa8f1/lean/Yulang/GeneralDeclarations.lean) により normalized Body の各変数は inputNames または outputNames。C393 の capture table はその両リストを実 frame の names で写すので、使われる名前の lookup が存在する。default は [RoleDecl.defaultsScoped](https://github.com/momota1029/yulang/blob/d195b1cef01ecd96b25d33f35a7c258541daa8f1/lean/Yulang/RolesAssoc.lean) と実選択の role arity が揃えば、同じ元 demand argument position の lookup が存在する。したがって、slot の存在を B6 の「型種」の証拠と混同しなくてよい。B6 が提供した plan の実使用変数にこの性質を構造帰納で運ぶのが B4 側の構成。これはすでに与えられた実 source frame に限る読み取りの議論であり、すべての Classifies がその frame を構成することや mixed literal writer を示すものではない。
