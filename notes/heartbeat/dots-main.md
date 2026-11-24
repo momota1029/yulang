@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 393
-status: completed
-started: 2026-11-24T12:30:27.000Z
-updated: 2026-11-24T13:20:54.819Z
-elapsed_min: 50
-activity: I-69: generated body/where event verified; no general S13bbba closure, no new split.
-report: notes/handoff/dots-cycle-393.md
+cycle: 394
+status: running
+started: 2026-11-24T13:30:25.000Z
+updated: 2026-11-24T13:30:36.177Z
+elapsed_min: 0
+activity: I-69: exact structural source RHS with native operands; no receipt decoding.
+workspace: C394 scoped Lean
+last_local_commit: none
+resume_hint: I-67 Step 1: I-69: original compound RHS and real source producer; no new split.
