@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65PinnedNativeRead381
+
+#print axioms Yulang.GeneralDeclarativeI65.BoundNativeRead381
+#print axioms Yulang.GeneralDeclarativeI65.bound_read_fixes_literal_write381
+#print axioms Yulang.GeneralDeclarativeI65.pinned_origin_exact_release381
+#print axioms Yulang.GeneralDeclarativeI65.native_context_read_iff_its_grant381
+#print axioms Yulang.GeneralDeclarativeI65.unpinned_endpoint_does_not_authorize_actual_context381
