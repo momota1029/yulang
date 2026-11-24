@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65CompletionRead383
+
+#print axioms Yulang.GeneralDeclarativeI65.source_read_output_needs_finite_selection383
+#print axioms Yulang.GeneralDeclarativeI65.circular_only_equation_is_not_a_read383
+#print axioms Yulang.GeneralDeclarativeI65.RootCycle383
+#print axioms Yulang.GeneralDeclarativeI65.root_k2_precedes_unready_input383
+#print axioms Yulang.GeneralDeclarativeI65.no_inspection_without_finite_supported_input383

@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65FiniteCompletion383
+
+#print axioms Yulang.GeneralDeclarativeI65.FiniteCompleted383
+#print axioms Yulang.GeneralDeclarativeI65.finite_forest_completes_members383
+#print axioms Yulang.GeneralDeclarativeI65.no_finite_circular_completion383
+#print axioms Yulang.GeneralDeclarativeI65.closed_family_has_no_completed_member383
+#print axioms Yulang.GeneralDeclarativeI65.selected_proof_projects_literal_where383
