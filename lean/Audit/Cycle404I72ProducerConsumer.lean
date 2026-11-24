@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72ProducerConsumer404
+#print axioms Yulang.GeneralDeclarativeI65.I72.one_actual_c403_producer404
+#print axioms Yulang.GeneralDeclarativeI65.I72.producer_receipt_owns_exact_consumer_lower404
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_B6_head_means_same_consumer_lower404
+#print axioms Yulang.GeneralDeclarativeI65.I72.actual_completed_B6_producer_opens_unary_consumer404
+#print axioms Yulang.GeneralDeclarativeI65.I72.unfinished_output_still_rejects_raw_root404
