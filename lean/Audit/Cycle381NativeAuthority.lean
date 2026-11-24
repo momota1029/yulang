@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65NativeAuthority381
+
+#print axioms Yulang.GeneralDeclarativeI65.retained_physical_origin_of_install381
+#print axioms Yulang.GeneralDeclarativeI65.exact_native_authority_iff381
+#print axioms Yulang.GeneralDeclarativeI65.authorized_from_actual_native_release381
+#print axioms Yulang.GeneralDeclarativeI65.no_erasure_of_native_authority381

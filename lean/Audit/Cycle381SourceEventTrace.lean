@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65SourceEventTrace381
+
+#print axioms Yulang.GeneralDeclarativeI65.ProjectEventRule381
+#print axioms Yulang.GeneralDeclarativeI65.explicit_source_events_project381
+#print axioms Yulang.GeneralDeclarativeI65.source_event_trace_exists381
+#print axioms Yulang.GeneralDeclarativeI65.source_event_forest_exists381
+#print axioms Yulang.GeneralDeclarativeI65.classify_from_explicit_source_events381
+#print axioms Yulang.GeneralDeclarativeI65.event_classification_unpacks381
+#print axioms Yulang.GeneralDeclarativeI65.root_event_no_diagnostic_recovery381
