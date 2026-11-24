@@ -7956,3 +7956,4 @@ import Yulang.GeneralDeclarativeI65CanonicalReplay386
 import Yulang.GeneralDeclarativeI65SameEventSemantics388
 import Yulang.GeneralDeclarativeI65AddressedReplay390
 import Yulang.GeneralDeclarativeI65NativeAssociatedRhs392
+import Yulang.GeneralDeclarativeI65OriginalBodyEvent393
