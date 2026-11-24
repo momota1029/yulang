@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 380
-status: completed
-started: 2026-11-23T23:30:43.451Z
-updated: 2026-11-24T00:20:56.437Z
-elapsed_min: 50
-activity: I-66 fixed proof skeleton verified; 13 unresolved I-65 step 1 lemmas; no new Lean
-report: notes/handoff/dots-cycle-380.md
+cycle: 381
+status: running
+started: 2026-11-24T00:30:30.278Z
+updated: 2026-11-24T00:30:30.278Z
+elapsed_min: 0
+activity: I-66 S01 independent declarative source trace and state authority
+workspace: pending environment readiness check
+last_local_commit: none
+resume_hint: Inspect actual C365/C357 and no-erasure cut. No new grants, receipts, fixture or frozen statement changes.
