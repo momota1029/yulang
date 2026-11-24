@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeI65CompoundSourceRhs394
+
+open Yulang.GeneralDeclarativeI65
+#check compound_source_preserves_syntax394
+#check compound_source_rhs_functional394
+#check compound_emit_is_original_source394
+#check native_rhs_embeds_in_original_compound394
+#check existing_native_output_has_same_wire394
+#print axioms compound_source_preserves_syntax394
+#print axioms compound_source_rhs_functional394
+#print axioms compound_emit_is_original_source394
+#print axioms native_rhs_embeds_in_original_compound394
+#print axioms existing_native_output_has_same_wire394

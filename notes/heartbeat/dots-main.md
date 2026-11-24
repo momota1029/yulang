@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 393
+cycle: 394
 status: completed
-started: 2026-11-24T12:30:27.000Z
-updated: 2026-11-24T13:20:54.819Z
+started: 2026-11-24T13:30:25.000Z
+updated: 2026-11-24T14:20:53.536Z
 elapsed_min: 50
-activity: I-69: generated body/where event verified; no general S13bbba closure, no new split.
-report: notes/handoff/dots-cycle-393.md
+activity: I-69: actual compound source elaboration verified; fixed wire and all-state producer still open.
+report: notes/handoff/dots-cycle-394.md

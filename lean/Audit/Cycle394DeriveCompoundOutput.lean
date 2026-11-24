@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65DeriveCompoundOutput394
+
+open Yulang.GeneralDeclarativeI65
+#check deriveOriginalCompoundOutput394
+#check derive_record_from_independent_native_parts394
+#check derive_join_from_independent_native_parts394
+#print axioms deriveOriginalCompoundOutput394
+#print axioms derive_record_from_independent_native_parts394
+#print axioms derive_join_from_independent_native_parts394
