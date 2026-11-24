@@ -1,0 +1,20 @@
+import Yulang.GeneralDeclarativeI65GuardedWhereCenter400
+
+open Yulang.GeneralDeclarativeI65
+
+#check original_where_entry_origin400
+#print axioms original_where_entry_origin400
+#check literal_where_request_position400
+#print axioms literal_where_request_position400
+#check direct_where_argument_preserves_named_center400
+#print axioms direct_where_argument_preserves_named_center400
+#check guarded_where_compound_uses_original_port_center400
+#print axioms guarded_where_compound_uses_original_port_center400
+#check original_where_requests_are_declared400
+#print axioms original_where_requests_are_declared400
+#check B6_logical_original_where_outputs400
+#print axioms B6_logical_original_where_outputs400
+#check B6_default_replays_actual_where_center400
+#print axioms B6_default_replays_actual_where_center400
+#check guarded_where_center_and_B6_meaning400
+#print axioms guarded_where_center_and_B6_meaning400

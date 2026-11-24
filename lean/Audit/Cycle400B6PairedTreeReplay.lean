@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65B6PairedTreeReplay400
+
+open Yulang.GeneralDeclarativeI65
+
+#check same_guarded_frame_tree_has_B6_receipts400
+#print axioms same_guarded_frame_tree_has_B6_receipts400
+#check guarded_frame_tree_projects_exact_where400
+#print axioms guarded_frame_tree_projects_exact_where400
+#check paired_receipt_tree_has_same_actual_meaning400
+#print axioms paired_receipt_tree_has_same_actual_meaning400
+#check same_selected_source_B6_actual_equations400
+#print axioms same_selected_source_B6_actual_equations400

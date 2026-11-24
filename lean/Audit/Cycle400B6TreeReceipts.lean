@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeI65B6TreeReceipts400
+
+open Yulang.GeneralDeclarativeI65
+
+#check tree_output_preserves_actual_request400
+#print axioms tree_output_preserves_actual_request400
+#check tree_receipt_reads_exact_original_rhs400
+#print axioms tree_receipt_reads_exact_original_rhs400
+#check typed_output_from_B6_without_old_receipt400
+#print axioms typed_output_from_B6_without_old_receipt400
+#check tree_event_original_order400
+#print axioms tree_event_original_order400
+#check exact_preoutput_frame_produces_tree_event400
+#print axioms exact_preoutput_frame_produces_tree_event400
+#print axioms TreeOutput400.originalPlan
