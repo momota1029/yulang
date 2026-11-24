@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeI65PreparedSourceBindings395
+
+open Yulang.GeneralDeclarativeI65
+
+#check actual_port_capture_replaces_endpoints395
+#print axioms actual_port_capture_replaces_endpoints395
+#check prepared_port_has_value_endpoint_rows395
+#print axioms prepared_port_has_value_endpoint_rows395
+#check read_prepared_value_at_literal_port395
+#print axioms read_prepared_value_at_literal_port395
+#check derivePreparedValueOutput395
+#print axioms derivePreparedValueOutput395
+#check actual_preparation_changes_invariant_value_literal395
+#print axioms actual_preparation_changes_invariant_value_literal395
+#check prepared_where_binder_comes_from_real_child395
+#print axioms prepared_where_binder_comes_from_real_child395

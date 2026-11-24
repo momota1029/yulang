@@ -19,3 +19,11 @@ C367 の選択済み tape の実 Stored 位置から、順序を保った visibl
 ## 元 where の binder と有限選択の child 位置
 
 元宣言の Produced rule だけから、指定 binder の literal clause と output equation の両 ordinal、同じ lexical point slot を導く。親の RHS や output receipt は使わない。C383 の **同じ State** の finite where forest から、その同じ child request/occurrence の辞書と実 child 選択導出を index で取り出す。生成済み compound output を同じ child request と output ordinal で読むと、元 lexical slot の同じ target に対応する。ただしこの最後の位置の定理は、与えた任意 child Frame が選ばれた Frame と同一であることまでは示さない。finite forest の local rule からその actual selected Body/Frame と型種の proof を引く source producer が未接続。数値や同じ出力の名前では補わない。retention/fixed model は扱わない。
+
+## 実 preparation の value 端点と where の接続
+
+選択した head の capture と、本体準備後の capture をそのまま同一視できないことを一般に証明した。C324/C350 が作る実 aggregate は元の center をそのまま持つが、保持された名前を避けて **下端と上端を両方新しい名前にする**。一つの span から始めても同じで、center の値を使う point RHS は字面を保つ一方、invariant の interval RHS は旧 endpoint のままでは不一致。モデル同値ではこの literal 不一致を埋めない。
+
+一方、C350 の実 preparation が作った両端のそれぞれ二方向の value 原子は、同じグループの後続操作から保持されて prepared state に残る。それらを ambient State でも独立に読めるとき、**同じ一つの実選択**・元 registry ordinal・元 native head leaf による value-kind の権限と組み合わせ、actual prepared port の lower/center/upper を使う C394 入力を、本体の固定 output を仮定せずに構成した。値の集約原子があるだけで row を value に変えず、各 binder が別の選択を引くことも許さない。準備された Frame の where 順は実 C322 children に一致し、その有限同一 State の where forest から元位置の child 辞書を得る。child の実選択自体がその kinded body output を供給する一般規則はまだ要る。準備の同一 State への包含、及び末尾の raw span 全体の source producer は任意 Classifies から証明していない。
+
+この周は source/head/preparation/where の切断だけ。ordinary .declared の選び直し、compound の flatten、表現不足を未対応言語の拒否にすることはしていない。S13bbba は未完かつ未分割、S13bbbb は変更なし。
