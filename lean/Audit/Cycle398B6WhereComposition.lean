@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65B6WhereComposition398
+
+open Yulang.GeneralDeclarativeI65
+
+#check same_where_child_consumes_logical_output398
+#print axioms same_where_child_consumes_logical_output398
+#check supplied_where_child_produces_consumed_logical_output398
+#print axioms supplied_where_child_produces_consumed_logical_output398
