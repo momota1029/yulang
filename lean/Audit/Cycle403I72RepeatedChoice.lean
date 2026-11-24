@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72RepeatedChoice403
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.first_binding_at_original403
+#print axioms Yulang.GeneralDeclarativeI65.I72.binder_center_batch_exact403
+#print axioms Yulang.GeneralDeclarativeI65.I72.binder_center_batch_model403
+#print axioms Yulang.GeneralDeclarativeI65.I72.selected_repeated_center_read403
+#print axioms Yulang.GeneralDeclarativeI65.I72.selected_repeated_tape_exact403

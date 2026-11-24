@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I72RepeatedInstance403
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.repeated_origin_keeps_exact_candidate403
+#print axioms Yulang.GeneralDeclarativeI65.I72.repeated_readback_no_where403
+#print axioms Yulang.GeneralDeclarativeI65.I72.addressed_sources_give_real_output_rows403
+#print axioms Yulang.GeneralDeclarativeI65.I72.repeated_ambiguity_needs_no_center_ties403
+#print axioms Yulang.GeneralDeclarativeI65.I72.repeated_scope_elects_then_reads_B6403
+#print axioms Yulang.GeneralDeclarativeI65.I72.repeated_selection_mints_same_event_trace403
+#print axioms Yulang.GeneralDeclarativeI65.I72.repeated_variable_dictionary_sound403
