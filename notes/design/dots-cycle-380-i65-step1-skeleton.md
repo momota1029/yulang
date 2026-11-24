@@ -216,10 +216,10 @@ theorem general_meaning_to_dictionary
 
 `lowered : GeneralTree s q d written` は `replay` の暗黙の添字。固定結論の実 API を設け、正確な `d`、全 occurrence、literal な子順と固定出力順、全型/行 carrier の意味を保って包む。独立意味が満たされることを仮定する別名でも、`written` を消して意味を弱める projection でもない。最上段を閉じるため独立の未証明行に数える。
 
-#### S13a · 未証明 — `general_literal_replay_alignment`
+#### S13a · 証明済み（C386 検証済み、integration 未取込） — `general_literal_replay_alignment`
 
 ```lean
-variable {s : State} {q : Request} {d : Dictionary}
+variable [ReplayJudgment] {s : State} {q : Request} {d : Dictionary}
   {written : List OrderedReceipt} {t : Tree}
   {tree : Resolves (LocalSource s) q t}
   {lowered : GeneralTree s q d written}
@@ -236,9 +236,13 @@ theorem general_literal_replay_alignment
     CanonicalDictionaryReplay replay
 ```
 
-`lowered : GeneralTree s q d written`、`tree` と他の添字は上の S13 と同じ。`LiteralEventTree` は選択された各論理出現と同じ source event、元順の where 子、元 ordinal/target を持つ literal receipt 列の木。`ExactReplayEvents` は渡された **その replay** の全 event と枝を同順に一対一対応させる（`Prop` の証明同一性から event データを復元しない）。`ExactOrderedOccurrences` は canonical tree の key **および各子の位置・本数**を一致させる tree/forest の構造対応。`orderedLiteralReceipts` は親の列を先に置き、子の列を元順で連結する。空出力の出現も落とさない。作業名は未実装の一般 carrier の契約であり、既存の限定 `ReceiptTree` に置換しない。この行はモデルや意味を使わない。
+`lowered : GeneralTree s q d written`、`tree` と他の添字は上の S13 と同じ。`LiteralEventTree` は選択された各論理出現と同じ source event、元順の where 子、元 ordinal/target を持つ literal receipt 列の木。`ExactReplayEvents` は渡された **その replay** の全 event と枝を同順に一対一対応させる（`Prop` の証明同一性から event データを復元しない）。`ExactOrderedOccurrences` は canonical tree の key **および各子の位置・本数**を一致させる tree/forest の構造対応。`orderedLiteralReceipts` は親の列を先に置き、子の列を元順で連結する。空出力の出現も落とさない。この行はモデルや意味を使わず、既存の限定 `ReceiptTree` への置換はしない。
 
 S13a の再利用先（いずれもこの行の証明済み扱いではない）: [C349 の `dictionaryTree` と `dictionaryForest`](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeWitnessTree349.lean#L39) で canonical 子順を固定し、[C381 の `SourceEventTrace381`](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeI65SourceEventTrace381.lean#L19) のように実 event は data で持つ。[C368 の `ReceiptTree/Forest`](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeI65MixedReceiptTree368.lean#L24) は親 receipt、次に元順の forest を連結する既存の限定例。証明は渡された replay の tree/forest を同時に反転する。根を `literal` で置き換え、選択 key と子リストの構成子を消去し、forest の nil/cons の同じ位置で再帰する。各 event をそのまま一回記録し、子ごとの列の等式を連結する。読むためだけの producer subproof は where 子に加えない。S11 の lowering や S12 の意味に戻って元 event を作り直さない。
+
+C386 の exact 証明: [`GeneralDeclarativeI65CanonicalReplay386.lean` · `general_literal_replay_alignment`](https://github.com/momota1029/yulang/blob/d9c995bc155d07ac0144b494f0302aaa1f62f7d8/lean/Yulang/GeneralDeclarativeI65CanonicalReplay386.lean) と [実データ carrier](https://github.com/momota1029/yulang/blob/d9c995bc155d07ac0144b494f0302aaa1f62f7d8/lean/Yulang/GeneralDeclarativeI65LiteralReplay386.lean)。`ReplayJudgment` は既存の作業名 `LocalSource` とその独立 event 関係を束ねる一般 interface で、この補題はすべての judgment に対して成立する。元の二つの明示前提から、別のモデル・局所健全性・新たな source 許可を要求しない。S01 の一般の判定規則を実装した意味ではない。
+
+source trace と lowered tree を同じ局所 event で対にする導出から、元 event を一度ずつ取り出す。元 where の clause ordinal と実要求順、元 output ordinal/name/target、全宣言 value/row の引数ベクトルと literal 型構文を残す。両側から独立に ledger を突合して、与えられた canonical tree の key／子束と exact receipt 列を相互帰納で得る。対象は任意の有限の literal tree/forest。Lean 4.35.0 trust 0 / 警告をエラー扱い、Git exact bytes の再構築と独立監査 PASS。定理の依存公理は `propext` と `Quot.sound`。
 
 #### S13b · 未証明 — `aligned_general_meaning_to_dictionary`
 
@@ -351,7 +355,7 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 
 | 順 | 行 | 証明で呼ぶ未解決 S 行 | 前提を組立で供給する行 |
 |---:|---|---|---|
-| 1 | S13a | なし。与えられた replay 自体の構造。 | S11 の literal と replay。S11 の再証明は不要。 |
+| 1 | S13a（済） | なし。与えられた replay 自体の構造。 | S11 の literal と replay。S11 の再証明は不要。 |
 | 2 | S13b | なし。alignment と意味を引数で受ける。 | S13a の alignment、S12 の意味。親 S13 は S13a/S13b を呼ぶ。 |
 | 3 | S01 | なし。独立の source と診断 API 自体を作る。 | なし。 |
 | 4 | S02 | なし。独立導出を反転。 | S01 が供給する event。 |
@@ -375,6 +379,6 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 3. I-67: 実 carrier は宣言的な完了を保持する。C381/C382 の release 非消去は検査器の責務で、S01 で求めない。正の完了根拠の有限性と、同じ安定状態での保留・全可視候補の実判断を分けて検査する。途中の一意性や一時的な保留を最終判定に読み替えない。順序によって受理が変わる **仕様上の** 場合が見つかったときは、遅延案を先にして質問ノートに記録する。今回は該当する承認済み source 例は確認していない。
 4. `ReceiptMeaning` が exact local order と typed write を型に持っていても、その後の `WrittenIn` は各要素の意味の投影でしかない。S13 を P04 の集合化だけで閉じず、辞書の木構造に固定した全列を保持する。
 
-次の周は S13a（canonical replay の実構造と receipt 列）。この一行を対象に、条件付きの弱い版を完成に数えない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
+次の周は S13b（canonical replay と同じ event の意味を辞書証拠にまとめる）。この一行を対象に、条件付きの弱い版を完成に数えない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
 
-**未解決 14 件 = 未証明 4 件（S01・S10・S13a・S13b） + 一部 10 件（S02–S09・S11–S12）。親 S13 と証明済みの再利用 4 件（P01–P04）は除外。**
+**未解決 13 件 = 未証明 3 件（S01・S10・S13b） + 一部 10 件（S02–S09・S11–S12）。親 S13、証明済み S13a、再利用 P01–P04 は除外。**
