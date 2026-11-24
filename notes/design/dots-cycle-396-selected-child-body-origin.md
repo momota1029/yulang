@@ -26,3 +26,9 @@
 4. この由来つき Body の **型付き評価**は、なおその子の実選択と body 環境から構成する必要がある。slot/role の同じ数値や source lookup 成功だけでは型種を与えない。ここまではチェック済み既存補題をつなぐ設計であり、新しい合成の Lean 検証はしていない。
 
 狭い負の確認（言語上の反例ではない）: generic C386 の receiptAt の条件下では、occurrence・ordinal・request・Body を全部据え置き、written だけを固定 target の別の .declared payload へ変えても、構造条件はいずれも保存される。その interface の eventAt を任意に許す場合は、同じ候補選択の guard を付けられる。これは **抽象 interface単独**では exact RHS を保証しないことを示す。実言語の selected rule や GeneralLocalMeaning に誤りがあるとの主張ではない。局所 source producer を具体化する理由であり、別の literal 形式や却下条件を追加する理由ではない。
+
+## 実 where writer を読んで分かった境目
+
+元 Generated OutputBinder の equation RHS は同じ binder の .var、binder 名は元 declaration.outputNames にある。この実ケースでは [C327 entry / alreadyNamed](https://github.com/momota1029/yulang/blob/528bf2c2b570911043633cd2ebf3ba179d9ca7f2/lean/Yulang/GeneralDeclarativeWhereOutputBatch327.lean#L20) が変数を読んだ後、その equation に対して **some []** を返す。つまり親が auto-generated binder に x = x を後から書くのではなく、同じ型名は実子の output 紐づけによる。この挙動はソース上で既に明示されており、順序や拒否を新しく決める余地ではない。
+
+さらに [C350 execute](https://github.com/momota1029/yulang/blob/528bf2c2b570911043633cd2ebf3ba179d9ca7f2/lean/Yulang/GeneralDeclarativeWitnessCompiler350.lean) の成功経路では、準備後に whereBatch と fixedBatch の結果を [appendFacts](https://github.com/momota1029/yulang/blob/528bf2c2b570911043633cd2ebf3ba179d9ca7f2/lean/Yulang/GeneralDeclarativeEntailment320.lean) で連結する。appendFacts は State.equations の末尾に足すだけで State.normal を変えない。したがって、**普通の where/固定出力の書き込みに成功したという事実だけから、C366 が要求する新しい signed value/row atom の所属を作れない**。準備中または現状態に独立の atom が既にある可能性は排除しない。次の source producer は実子の型付き body と元 output から authority を受け取り、独立に存在する normalized constraints と混同しない。新しい Lean 合成テストは未実施。
