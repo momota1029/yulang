@@ -24,7 +24,9 @@ S13bbba の元の all-state 文は閉じていない。scoped rule だけを `Cl
 
 ## where producer の strict 診断
 
-別の repo module/fixture は追加せず、下の三つの一般形を新 module の exact replay に対して Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true` で検証。exit 0。元の source/where 位置と exact emitted target は各 `[propext, Quot.sound]`、actual body slot は `[propext, Classical.choice, Quot.sound]`。子の target は actual child/capture 生成の前提からだけ得る。
+別の repo module/fixture は追加せず、下の四つの一般形を新 module の exact replay に対して Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true` で検証。exit 0。元の source/where 位置と exact emitted target は各 `[propext, Quot.sound]`、actual body slot と source occurrence の出力の一意性は `[propext, Classical.choice, Quot.sound]`。子の target は actual child/capture 生成の前提からだけ得る。
+
+宣言が同名の associated equation を持たない既存の well-formed 条件では、元の ordinal・source 供給元・literal output 全てが同じことも検証した。元 source 出力を受理のための既成の receipt として仮定しない。
 
 ```lean
 import Yulang.GeneralDeclarativeI65NativeAssociatedRhs392
@@ -169,10 +171,34 @@ theorem exact_where_output_supplies_body_capture392
   exact ⟨i,j,entry,eqn,out,atEntry,clauseId,atEqn,eqnId,rhs,atOutput,sourceName,by
     simpa only [writtenBodySlot392,point] using found⟩
 
+/-- In the represented rule, well-formed source identity fixes all
+of the output as well as the vector for a fixed body; another literal
+right-hand side cannot be substituted at the same slot afterward. -/
+theorem same_native_source_occurrence_has_same_output392
+    {s : State} {q : Request} {event : LiteralLocalEvent s q} {ordinal : Nat}
+    {o₁ o₂ : GeneralSourceState.Output} {b₁ b₂ : GeneralDictionaryAssociatedProvenance.Body}
+    {first last : LiteralWriteSyntax}
+    (unique : (event.declaration.associated.map Equation.name).Nodup)
+    (earlier : ModelFreeNativeOutputAt392 event ordinal o₁ b₁ first)
+    (later : ModelFreeNativeOutputAt392 event ordinal o₂ b₂ last) :
+    o₁ = o₂ ∧ b₁ = b₂ ∧ first = last := by
+  have same := Option.some.inj (earlier.ordinalExact.symm.trans later.ordinalExact)
+  cases same
+  let roles := (GeneralDeclarativeWitnessDeclaredState357.authoredRegistry s.current).roles
+  have lookup₁ := (GeneralDictionaryAssociatedProvenance.lookup_exact
+    roles event.declaration unique _ _).mpr earlier.supplier
+  have lookup₂ := (GeneralDictionaryAssociatedProvenance.lookup_exact
+    roles event.declaration unique _ _).mpr later.supplier
+  have body := Option.some.inj (lookup₁.symm.trans lookup₂)
+  cases body
+  exact ⟨rfl,rfl,native_associated_rhs_functional392 earlier.derived later.derived⟩
+
 end Yulang.GeneralDeclarativeI65
 #print axioms Yulang.GeneralDeclarativeI65.original_rhs_name_has_input_or_where_producer392
 
 #print axioms Yulang.GeneralDeclarativeI65.where_binder_has_exact_emitted_target392
 
 #print axioms Yulang.GeneralDeclarativeI65.exact_where_output_supplies_body_capture392
+
+#print axioms Yulang.GeneralDeclarativeI65.same_native_source_occurrence_has_same_output392
 ```
