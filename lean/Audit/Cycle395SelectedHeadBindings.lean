@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeI65SelectedHeadBindings395
+
+open Yulang.GeneralDeclarativeI65
+
+#check native_origin_is_lexical395
+#check ordered_head_ticket395
+#check actual_selected_head_has_registry_ordinal395
+#check readHeadBinding395_present_exact
+#check produceFromActualSelection395
+#check actual_selection_literal_receipt395
+#print axioms native_origin_is_lexical395
+#print axioms ordered_head_ticket395
+#print axioms actual_selected_head_has_registry_ordinal395
+#print axioms readHeadBinding395_present_exact
+#print axioms produceFromActualSelection395
+#print axioms actual_selection_literal_receipt395
