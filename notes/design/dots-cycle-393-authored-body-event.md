@@ -19,14 +19,19 @@ where 出力だけが定義する binder は `Declaration.Produced` から元の
 
 ## 独立の exact Body projection 検証
 
-C323 の `SourceEquation` は元 source body の存在を述べるので、それだけを actual receipt の body の同一性として使わない。下の `nth_generated_receipt_keeps_original_rhs393` は、元 output list の `getElem?` から **その receipt が持つ body、target、literal RHS そのもの**の `BodyWrite393` を得る。ordinary では、元の `receipt.source` を引数とした実 capture と正規化/変換された式を直接得る。別の body へ取り替えない。新しい repo module/fixture は増やさず、Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true`、四つの検証が `[propext, Classical.choice, Quot.sound]`。
+C323 の `SourceEquation` は元 source body の存在を述べるので、それだけを actual receipt の body の同一性として使わない。下の `nth_generated_receipt_keeps_original_rhs393` は、元 output list の `getElem?` から **その receipt が持つ body、target、literal RHS そのもの**の `BodyWrite393` を得る。ordinary では、元の `receipt.source` を引数とした実 capture と正規化/変換された式を直接得る。別の body へ取り替えない。新しい repo module/fixture は増やさず、Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true`、下記六つの検証が `[propext, Classical.choice, Quot.sound]`。
 
 ## compound native に必要な規則を既存 ordinary に読み替えない
 
 `declared_native_compound_not_ordinary_fallback393` は actual `SourceMode.declared` の constructor が record/variant/join の内部にあれば、既存 ordinary `translate` はその compound を翻訳しないと証明する。primitive/invariant flag のない実 declared から既存定義だけで導く。root が record/join なら `BodyWrite393` の typed app/tagged app の branch にも該当しない（`current_rule_lacks_structural_declared_rhs393`）。よって scoped rule を unrestricted `Classifies` にそのまま入れることはできない。これは**中間表現・局所規則の不足**であって、当該プログラムが言語仕様上拒否されるという証明ではない。候補順も変えない。
 
+## 生成した source event を replay の各 node へ届ける
+
+実際に `emittedEvent393` で生成した event proof を、元の `ReplayJudgment.eventAt` の後段に入れる独立な実験を行った。 `BodyReplayJudgment393` は **localRule が定義的に同じ**で、選択や K2 の意味を替えない。限定されたこの witness instance で作られた actual `AddressedDictionaryEvents` の各 node に、same event の source frame と exact nth receipt の body proof を運べる（`addressed_scoped_source_outputs_have_original_bodies393`）。`OriginalLedgerBody393` は元の同じ宣言・capture と actual receipt の source rule を保持する。これは元の全称 S13bbba の代わりではない。未対応の compound を含む**全ての選択**からこの source event proof を生成できることは未証明で、この instance は global `Classifies` に登録しない。
+
 ```lean
 import Yulang.GeneralDeclarativeI65OriginalBodyEvent393
+import Yulang.GeneralDeclarativeI65SameEventSemantics388
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65
@@ -160,6 +165,60 @@ theorem current_rule_lacks_structural_declared_rhs393
     rw [root] at top
     exact top
 
+/-- The scoped actual event derivation, not a different selector. -/
+def BodyGeneratedAt393 {s : State} {q : Request} (event : LiteralLocalEvent s q) : Prop :=
+  ∃ (f : AuthoredBodyFrame393 s q) (each : ∀ i, AuthoredOutput393 f i),
+    event = emittedEvent393 f each
+
+/-- A source proof can carry actual derived body events while its
+local frontier predicate is definitionally unchanged. This separate
+instance is not registered as the global language classifier. -/
+@[instance_reducible]
+def BodyReplayJudgment393 (base : ReplayJudgment) : ReplayJudgment where
+  localRule := base.localRule
+  eventAt proof event := base.eventAt proof event ∧ BodyGeneratedAt393 event
+
+theorem local_frontier_not_redefined393 (base : ReplayJudgment) :
+    (BodyReplayJudgment393 base).localRule = base.localRule := rfl
+
+/-- Independent conclusion over the actual ledger node: obtain a
+source frame and source derivation of the literal receipt at every
+original index. No model, stored output equality or key inference. -/
+def OriginalLedgerBody393 {s : State} (e : LiteralEvent s) : Prop :=
+  ∃ f : AuthoredBodyFrame393 s e.1,
+    e.2.declaration = f.decl ∧ e.2.captures = f.captures ∧
+    ∀ (i : Nat) (r : OrderedReceipt), e.2.receipts[i]? = some r →
+      BodyWrite393 f r.source r.requested.target r.written
+
+private theorem actual_generated_event_has_body393
+    {s : State} {q : Request} {e : LiteralLocalEvent s q}
+    (origin : BodyGeneratedAt393 e) : OriginalLedgerBody393 ⟨q,e⟩ := by
+  obtain ⟨f,each,rfl⟩ := origin
+  exact ⟨f,rfl,rfl,fun _ _ h => nth_generated_receipt_keeps_original_rhs393 f each h⟩
+
+private theorem guard_has_generated_body393 {base : ReplayJudgment}
+    {s : State} {q : Request} {f : CommonRoleOutermostResolver.Frontier Request}
+    {e : LiteralEvent s}
+    (guard : LiteralTraceRule (BodyReplayJudgment393 base) s q f e) :
+    BodyGeneratedAt393 e.2 := by
+  cases guard with
+  | selected _ _ source => exact source.2
+
+theorem addressed_scoped_source_outputs_have_original_bodies393
+    (base : ReplayJudgment) {s : State} {q : Request}
+    {d : CommonRoleOutermostResolver.Dictionary} {events : LiteralEventTree (s := s)}
+    (source : AddressedDictionaryEvents (judgment := BodyReplayJudgment393 base) s q d events) :
+    LedgerMeaning OriginalLedgerBody393 events := by
+  letI : ReplayJudgment := BodyReplayJudgment393 base
+  exact AddressedDictionaryEvents.rec
+    (motive_1 := fun _ _ es _ => LedgerMeaning OriginalLedgerBody393 es)
+    (motive_2 := fun _ _ es _ => LedgerForestMeaning OriginalLedgerBody393 es)
+    (fun _ guard _ later =>
+      ⟨actual_generated_event_has_body393 (guard_has_generated_body393 guard),later⟩)
+    True.intro
+    (fun _ _ now later => ⟨now,later⟩)
+    source
+
 end Yulang.GeneralDeclarativeI65
 
 #print axioms Yulang.GeneralDeclarativeI65.nth_generated_receipt_keeps_original_rhs393
@@ -168,4 +227,7 @@ end Yulang.GeneralDeclarativeI65
 #print axioms Yulang.GeneralDeclarativeI65.declared_native_compound_not_ordinary_fallback393
 
 #print axioms Yulang.GeneralDeclarativeI65.current_rule_lacks_structural_declared_rhs393
+
+#print axioms Yulang.GeneralDeclarativeI65.addressed_scoped_source_outputs_have_original_bodies393
+#print axioms Yulang.GeneralDeclarativeI65.local_frontier_not_redefined393
 ```
