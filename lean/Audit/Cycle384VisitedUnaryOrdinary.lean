@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65VisitedUnaryOrdinary384
+
+#print axioms Yulang.GeneralDeclarativeI65.unary_ordinary_prefix_is_current_visit384
+#print axioms Yulang.GeneralDeclarativeI65.reached_unary_ordinary_cycle_is_pattern_k2384
+#print axioms Yulang.GeneralDeclarativeI65.visible_candidate_unary_k2_site384
