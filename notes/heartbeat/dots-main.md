@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 400
-status: running
+status: completed
 started: 2026-11-24T19:32:07.387Z
-updated: 2026-11-24T20:19:31.661Z
-elapsed_min: 47
-activity: I-71: compiling final handoff from already rechecked immutable source, auditors and notes
-workspace: C400 scoped Lean
-last_local_commit: none
-resume_hint: I-71: B6 typed tree kept directly; B4 exact source/guard/position and same-model meaning; no old vector mapping.
+updated: 2026-11-24T20:22:22.384Z
+elapsed_min: 50
+activity: I-71: completed focused cycle; exact tree payload and same model, S13bbba still open
+report: notes/handoff/dots-cycle-400.md
