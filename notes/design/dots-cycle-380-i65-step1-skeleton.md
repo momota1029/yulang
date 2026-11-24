@@ -205,7 +205,7 @@ theorem general_tree_sound (tree : GeneralTree s q d written)
 
 既存: P03 の `emitted_receipt_tree_sound` は既存の普通/unary typed の混在順序木に対して完全。一般化した各 node に S09 を使う相互帰納版は未証明。親・全子・全固定出力は一つの `s,m,fit` を共有する。出現または fixed target の類似から別の記録を代入しない。
 
-### S13 · 未証明 — `general_meaning_to_dictionary`
+### S13 · 分割（親、件数外） — `general_meaning_to_dictionary`
 
 ```lean
 theorem general_meaning_to_dictionary
@@ -215,6 +215,47 @@ theorem general_meaning_to_dictionary
 ```
 
 `lowered : GeneralTree s q d written` は `replay` の暗黙の添字。固定結論の実 API を設け、正確な `d`、全 occurrence、literal な子順と固定出力順、全型/行 carrier の意味を保って包む。独立意味が満たされることを仮定する別名でも、`written` を消して意味を弱める projection でもない。最上段を閉じるため独立の未証明行に数える。
+
+#### S13a · 未証明 — `general_literal_replay_alignment`
+
+```lean
+variable {s : State} {q : Request} {d : Dictionary}
+  {written : List OrderedReceipt} {t : Tree}
+  {tree : Resolves (LocalSource s) q t}
+  {lowered : GeneralTree s q d written}
+
+structure CanonicalDictionaryReplay
+    (replay : LiteralTreeFrom tree t lowered) : Prop where
+  ledger : ∃ events : LiteralEventTree,
+    ExactReplayEvents replay events ∧
+    ExactOrderedOccurrences (dictionaryTree d) events ∧
+    orderedLiteralReceipts events = written
+
+theorem general_literal_replay_alignment
+    (literal : t = dictionaryTree d) (replay : LiteralTreeFrom tree t lowered) :
+    CanonicalDictionaryReplay replay
+```
+
+`lowered : GeneralTree s q d written`、`tree` と他の添字は上の S13 と同じ。`LiteralEventTree` は選択された各論理出現と同じ source event、元順の where 子、元 ordinal/target を持つ literal receipt 列の木。`ExactReplayEvents` は渡された **その replay** の全 event と枝を同順に一対一対応させる（`Prop` の証明同一性から event データを復元しない）。`ExactOrderedOccurrences` は canonical tree の key **および各子の位置・本数**を一致させる tree/forest の構造対応。`orderedLiteralReceipts` は親の列を先に置き、子の列を元順で連結する。空出力の出現も落とさない。作業名は未実装の一般 carrier の契約であり、既存の限定 `ReceiptTree` に置換しない。この行はモデルや意味を使わない。
+
+#### S13b · 未証明 — `aligned_general_meaning_to_dictionary`
+
+```lean
+theorem aligned_general_meaning_to_dictionary
+    {replay : LiteralTreeFrom tree t lowered}
+    (alignment : CanonicalDictionaryReplay replay)
+    (meaning : GeneralTreeMeaning s m q d written) :
+    DictionaryEvidence s m q d
+```
+
+この行で一般の `DictionaryEvidence` の実 interface を埋める。S13a の canonical ledger と対応して、全 occurrence・局所の型/行の意味・同じモデル・正確な子と固定出力の順を保持する。`meaning` の表示添字 `(s,m,q,d,written)` だけでは別の導出との同一性を仮定できない（出力なしの出現でも exact source event は必要）。一般 carrier の導入／反転でその結合を確かめること自体がこの行の義務で、場当たり的な同一性の仮定や新しい `Fits` は足さない。membership だけへの弱化・証明済みとする別名は禁止。
+
+両行が閉じれば、元の S13 は固定の前提のまま次の形になる（文も最上段も変更なし）。
+
+```lean
+  exact aligned_general_meaning_to_dictionary
+    (general_literal_replay_alignment literal replay) meaning
+```
 
 ## 4. 証明済みの部品と固定アンカー
 
@@ -300,13 +341,36 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 
 - C383/I-67: S01–S03 を同じ状態の有限完了・独立論理出力・無フィルタ K2 に改めた。solver の権限表を宣言側へ逆輸入しないため。状態ラベル・本数・固定文は変更なし。
 
-### 最初に行う S01 の確認点
+### I-68: 一周一補題の作業順
+
+順位は、使う行を先に置く。独立な入口が複数あれば、候補解析より先に構造と証拠の受け口を選ぶ。右列は依存する補題で、証明で使う場合と、組立時に前提を供給する場合を区別する。
+
+| 順 | 行 | 一覧内の依存 |
+|---:|---|---|
+| 1 | S13a | なし。共有 carrier の実定義は必要。S11 を再証明せず、既に渡された replay を反転する。 |
+| 2 | S13b | S13a が canonical alignment を供給。S12 の定理ではなく既に渡された `meaning` を使う。 |
+| 3 | S01 | なし。独立の source と診断 API 自体を作る。 |
+| 4 | S02 | S01 が供給する独立導出の event。 |
+| 5 | S03 | S02 が供給する同じ `SelectedSource`。 |
+| 6 | S04 | S02 の選択出現と S03 の優先 guard。 |
+| 7 | S05 | S02 の source 記録と S04 の一般 head。 |
+| 8 | S06 | S02 の実 ordinary body 分岐、S04 の head、S05 の捕捉。 |
+| 9 | S07 | S02 の実 typed/mixed body 分岐、S04 の head、S05 の捕捉。 |
+| 10 | S08 | S04/S05 と、実分岐に従って S06 または S07 の receipt。 |
+| 11 | S09 | S08 が供給する一般 node。証明は受け取った node の意味の反転。 |
+| 12 | S10 | S02–S08。S09 は使わない。 |
+| 13 | S11 | S01 の source trace、S10 が供給する `ProvidesGeneralNode`。 |
+| 14 | S12 | S09 を各 node に使う。S11 は呼び出し側の tree 供給元で、S12 本体では tree は引数。 |
+
+- C385 / I-68: S13 → S13a・S13b。canonical replay の構造と辞書証拠で保持する同一モデル意味は別の未解決義務だから分けた。親 S13 は件数外で、定理文・最上段はそのまま。S12 は S09 を実際に使うため先頭にしない。この周に他の行の文・状態は変えない。
+
+### 将来の S01 の確認点
 
 1. 正本で監査するのは `Classifies` の限定実装を呼ぶかどうかでなく、`State` と実原始導出から `LocalSource` の入力が揃うか。宣言の順番・実出現・kind/mode の出どころを現台帳から読む。 `Fits` の同じ syntax/値だけでは異なる source route の区別を証明できない（S02/S04）。
 2. 診断木は root/候補検査規則と where 子の要約を別の段に置く。K2 は S03 の root/候補検査であり、子リストやモデルの fold から逆算しない。辞書全体を再帰して既に選択したかを判定する循環を作らない（S01 と S11 の分離）。
 3. I-67: 実 carrier は宣言的な完了を保持する。C381/C382 の release 非消去は検査器の責務で、S01 で求めない。正の完了根拠の有限性と、同じ安定状態での保留・全可視候補の実判断を分けて検査する。途中の一意性や一時的な保留を最終判定に読み替えない。順序によって受理が変わる **仕様上の** 場合が見つかったときは、遅延案を先にして質問ノートに記録する。今回は該当する承認済み source 例は確認していない。
 4. `ReceiptMeaning` が exact local order と typed write を型に持っていても、その後の `WrittenIn` は各要素の意味の投影でしかない。S13 を P04 の集合化だけで閉じず、辞書の木構造に固定した全列を保持する。
 
-次は S01（独立規則と正規診断 API）。その行で全形を確認し、先に他の行を閉じたことにしない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
+次の周は S13a（canonical replay の実構造と receipt 列）。この一行を対象に、条件付きの弱い版を完成に数えない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
 
-**未解決 13 件 = 未証明 3 件（S01・S10・S13） + 一部 10 件（S02–S09・S11–S12）。証明済みの再利用 4 件（P01–P04）は除外。**
+**未解決 14 件 = 未証明 4 件（S01・S10・S13a・S13b） + 一部 10 件（S02–S09・S11–S12）。親 S13 と証明済みの再利用 4 件（P01–P04）は除外。**
