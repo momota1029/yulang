@@ -18,3 +18,9 @@
 ## 残り
 
 B6 input の実装・coverage・型付け健全性、全 Classifies がこの independent source frame を与えること、元混在 `.declared` の既存 write との一致が残る。draft は宣言型を含む C394 の表現範囲で、任意の primitive 混在まで通ると主張しない。lookup/plan/slot が未対応ならこの prototype で証拠が出ないだけで、言語の受理拒否を変えない。S13bbbb の保持/モデル、検査器、停止性、追加 fixture は対象外。
+
+## draft の局所不変条件（厳格検証は復旧待ち）
+
+symbolic plan の根は元 `normalize(bodyPattern)` で索引づける。declared application の計画には [C357 Use](https://github.com/momota1029/yulang/blob/d195b1cef01ecd96b25d33f35a7c258541daa8f1/lean/Yulang/GeneralDeclarativeWitnessConstructorModes357.lean) の実宣言と current table の同じ引数順、actual kind、effective variance を入れる。B4 は数値や slot から型種を推定しない。継承 invariant なら元計画が interval で、実 where の slot が同じ値の point でも **interval を point へ取り替えず**、その子の exact fixed target を lower/upper に置く。default は lexical capture ではなく元 role positional center に戻る。独立の C395 where binder と C393 default slots から、これらの局所等式を点検する draft を保存した。
+
+proof draft の回帰条件: [C394 CompoundSourceRhs](https://github.com/momota1029/yulang/blob/d195b1cef01ecd96b25d33f35a7c258541daa8f1/lean/Yulang/GeneralDeclarativeI65CompoundSourceRhs394.lean) のすでに導出済みの表現部分に限り、同じ actual slots で元コードと**値が同じ** symbolic plan があることを、その元導出の構造帰納で示す。ここで使う旧型付き証拠は旧経路への保守性の検証だけで、B4 が実際に plan を作る方法ではない。B6 側の coverage/well-typedness/actual declaration 型注釈の妥当性は別義務。primitive 混在の型付き入力や C386 mixed vector をここから新設していない。
