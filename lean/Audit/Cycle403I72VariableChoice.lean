@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72VariableChoice403
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.binding_at_original403
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_scan_all_positive403
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_single_selection403
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_no_inspection403
