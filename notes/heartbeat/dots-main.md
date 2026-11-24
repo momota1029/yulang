@@ -3,8 +3,8 @@
 cycle: 395
 status: running
 started: 2026-11-24T14:30:46.557Z
-updated: 2026-11-24T15:13:01.433Z
-elapsed_min: 42
+updated: 2026-11-24T15:19:01.787Z
+elapsed_min: 48
 activity: I-69: prove binding kind from same original head and ordered where supplier.
 workspace: C395 scoped Lean
 last_local_commit: none
