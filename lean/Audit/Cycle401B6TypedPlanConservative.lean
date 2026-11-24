@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65B6TypedPlanConservative401
+
+open Yulang.GeneralDeclarativeI65
+#print axioms original_typed_plan_keeps_reads_and_values401
+#print axioms exact_original_primitive_interpreter401

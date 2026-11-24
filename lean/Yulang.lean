@@ -7977,3 +7977,4 @@ import Yulang.GeneralDeclarativeI65B6TreeActualMeaning400
 import Yulang.GeneralDeclarativeI65B6PairedTreeReplay400
 import Yulang.GeneralDeclarativeI65B6MixedTree401
 import Yulang.GeneralDeclarativeI65B6MixedOutput401
+import Yulang.GeneralDeclarativeI65B6TypedPlanConservative401
