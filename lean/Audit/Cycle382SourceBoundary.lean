@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65SourceBoundary382
+
+#print axioms Yulang.GeneralDeclarativeI65.boundary_ordinary_read_iff382
+#print axioms Yulang.GeneralDeclarativeI65.boundary_native_read_iff382
+#print axioms Yulang.GeneralDeclarativeI65.boundary_primitive_read_iff382
+#print axioms Yulang.GeneralDeclarativeI65.ordered_primitive_boundary_exact382

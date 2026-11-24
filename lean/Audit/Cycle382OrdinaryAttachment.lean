@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65OrdinaryAttachment382
+
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_attach_present_iff382
+#print axioms Yulang.GeneralDeclarativeI65.reattach_same_ordinary_rows382
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_support_requires_actual_origin382
+#print axioms Yulang.GeneralDeclarativeI65.exact_ordinary_attachment_cannot_authenticate_release382

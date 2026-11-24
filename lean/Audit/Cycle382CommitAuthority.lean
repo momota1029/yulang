@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65CommitAuthority382
+
+#print axioms Yulang.GeneralDeclarativeI65.exact_snapshot_commit_source382
+#print axioms Yulang.GeneralDeclarativeI65.committed_source_needs_its_exact_gate382
+#print axioms Yulang.GeneralDeclarativeI65.earlier_source_survives_other_commit382
+#print axioms Yulang.GeneralDeclarativeI65.earlier_exact_gate_survives_other_commit382
