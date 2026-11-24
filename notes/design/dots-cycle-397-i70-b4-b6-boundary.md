@@ -13,3 +13,11 @@
 入力には、名前解決・糖衣除去後の**実出現（元宣言・Clause/Body の元位置と部分構文の位置）**に対応する B6 の型種と型付き構造を持たせる。型付き名称が指すものを確定するための型種情報であって、すでに成功した role 判定・選ばれた impl・完成済みの辞書や出力を渡すのではない。関連型は未解決なら名前付き出力変数/制約のまま。B4 側は実選択の元 Body を explicit/default から選び、入力の型種を対応位置から読み、同じ where 子・元 output ordinal・元 fixed target にその結果を接続する。入力から B4 verdict を予言せず、B4 内に式の型推論を作らない。I-67 の同一 State の有限完了・unfiltered K2 は維持。入力に物理放出、作者、版、journal は持たせない。
 
 **B6 義務（未証明）:** 元の各派生出現に渡す型種・型付き構造がその式の独立な型判断と整合し、元 binder/role 位置、型・行、構造、端点を保つこと。型づけ前に role の選択成功を仮定しない。将来 State/Request にこの入力を加えるなら、C380 S13bbba に「B6 の出現つき型付け入力を読み、B4 は元 role 書き込みとの一致を示す」と理由を 1 行残す。今回は実装・一覧・固定文を変えていない。混在 wire は保留し、S13bbbb、Steps 2/3 は扱わない。
+
+## 境界の確認: 未解決の role を含んだ B6 入力でよい
+
+[§10.8.1 qualified な推論](https://github.com/momota1029/yulang/blob/be3aaeb1d3d27dc31e42a2ee3a5def68db47318e/spec/10-inference-core.md#L275-L283) は、resolved method の role 要求を有限制約として出す時点で具体 impl を探さず、抽象辞書で右辺の型を扱う。したがって B6 から渡すものを「すでに解決した値」にしない。where の関連型参照は §6.3 のとおり名前付き出力の変数/制約のままで、行と値の種別や型付き構造を元出現から読む。出力の型種を渡すことと、その出力にどの impl が値を供給するかは別。B4 結果を必要とする B6 証明を B4 の soundness 前提に戻す循環は作らない。
+
+想定する lookup の鍵は、(1) 選択した実宣言の explicit RHS とその部分構文位置、(2) 実 role の default RHS とその positional 変数、(3) 元 where clause/output の実 binder 位置。数値だけの同一視はしない。型付けデータが供給するのは元構文と kind/型付き構造の整合であり、B4 は実選択後に head/where/default の**本当の slot**への置換を行う。この置換と named output に等式を入れることは B4。value/row を新たに推論する処理は B4 には載せない。状態の拡張を実装するときは、入力が実 source の型付けから得られることを別の B6 義務として明記。未対応の prototype を採用済み受理条件にすり替えない。
+
+この追加は B6 入力と B4 の役割を具体化するだけ。混在 literal vector の保留はそのままで、既存 `.declared` の読み規則を補っていない。
