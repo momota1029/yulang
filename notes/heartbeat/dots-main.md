@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 400
-status: completed
-started: 2026-11-24T19:32:07.387Z
-updated: 2026-11-24T20:22:22.384Z
-elapsed_min: 50
-activity: I-71: completed focused cycle; exact tree payload and same model, S13bbba still open
-report: notes/handoff/dots-cycle-400.md
+cycle: 401
+status: running
+started: 2026-11-24T20:30:20Z
+updated: 2026-11-24T20:30:56.749Z
+elapsed_min: 0
+activity: I-71: trace actual selected candidate data and its B6 typed input source
+workspace: C401 scoped Lean
+last_local_commit: none
+resume_hint: I-71: B6 typed tree kept directly; B4 exact source/guard/position and same-model meaning; no old vector mapping.
