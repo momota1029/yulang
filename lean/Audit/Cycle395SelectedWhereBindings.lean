@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65SelectedWhereBindings395
+
+open Yulang.GeneralDeclarativeI65
+
+#check original_where_produces_lexical_slot395
+#check selectWhereBinderProducer395
+#check same_where_request_ordinal_names_lexical_slot395
+#print axioms original_where_produces_lexical_slot395
+#print axioms selectWhereBinderProducer395
+#print axioms same_where_request_ordinal_names_lexical_slot395

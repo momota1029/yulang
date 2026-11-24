@@ -15,3 +15,7 @@
 C367 の選択済み tape の実 Stored 位置から、順序を保った visible filter を反転して **同じ元 registry ordinal** を復元する。宣言が単に Registry に含まれるという根拠で元位置を選ばない。C366 の DeepRead で実際に生じた native head leaf を、元の head 引数 ordinal とその leaf ordinal で辿る。任意深さ・引数列に対し、実 leaf 名が元の正規化 head の lexical name であり、同じ capture の value/row であることを証明した。unused は source leaf を生まない。recognized leaf の present 判定はこの実 read の存在と同値。
 
 選択済み tape と checked registry から、任意の元 output ordinal の evaluation を C394 に接続した。scope が揃う分岐では parent output の証拠や型付き vector を入力にせず、実 selected binder と元 Supplies から元 RHS を得る。その射影が既存の native wire に載る場合に限って receipt を出し、選択された registry ordinal、request occurrence、関連型 output ordinal、同じ authored Body と元 fixed target を証明した。selected rule 自体を変更しない。C367 はこの独立局所 read の実入力であり、旧 solver authority を I-67 の Classifies に移していない。全選択の completeness、joined/default/where-only、任意 compound の旧 wire は別で、未対応に意味上の拒否を与えない。
+
+## 元 where の binder と有限選択の child 位置
+
+元宣言の Produced rule だけから、指定 binder の literal clause と output equation の両 ordinal、同じ lexical point slot を導く。親の RHS や output receipt は使わない。C383 の **同じ State** の finite where forest から、その同じ child request/occurrence の辞書と実 child 選択導出を index で取り出す。生成済み compound output を同じ child request と output ordinal で読むと、元 lexical slot の同じ target に対応する。ただしこの最後の位置の定理は、与えた任意 child Frame が選ばれた Frame と同一であることまでは示さない。finite forest の local rule からその actual selected Body/Frame と型種の proof を引く source producer が未接続。数値や同じ出力の名前では補わない。retention/fixed model は扱わない。
