@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72FiniteSupport402
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms SupportForest.atOriginal
+#print axioms exact_output_support_cannot_use_root_k2
+#print axioms closed_source_family_cannot_complete

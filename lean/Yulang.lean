@@ -7988,3 +7988,4 @@ import Yulang.GeneralDeclarativeI65ActualJoinTypedTrace402
 import Yulang.GeneralDeclarativeI65I72FixedGoal402
 import Yulang.GeneralDeclarativeI65I72Assembly402
 import Yulang.GeneralDeclarativeI65I72Obligations402
+import Yulang.GeneralDeclarativeI65I72FiniteSupport402
