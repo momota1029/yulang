@@ -7996,3 +7996,4 @@ import Yulang.GeneralDeclarativeI65I72RepeatedInstance403
 import Yulang.GeneralDeclarativeI65I72VariableWhere403
 import Yulang.GeneralDeclarativeI65I72VariableReplay403
 import Yulang.GeneralDeclarativeI65I72TypedTargetRows403
+import Yulang.GeneralDeclarativeI65I72NativePriority403
