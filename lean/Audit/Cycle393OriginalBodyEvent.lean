@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeI65OriginalBodyEvent393
+
+open Yulang.GeneralDeclarativeI65
+#check emittedEvent393
+#check emitted_original_sequence393
+#check generated_original_rhs393
+#check actual_generated_where_and_captures393
+#check generated_where_binder_at_original_output393
+#check generated_where_binder_kinded_rhs393
+#print axioms emittedEvent393
+#print axioms emitted_original_sequence393
+#print axioms generated_original_rhs393
+#print axioms actual_generated_where_and_captures393
+#print axioms generated_where_binder_at_original_output393
+#print axioms generated_where_binder_kinded_rhs393
