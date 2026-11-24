@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72VariableReplay403
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_where_provides_C402_nodes403
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_lowered_ledger_keeps_fixed_targets403
+#print axioms Yulang.GeneralDeclarativeI65.I72.concrete_source_uses_C402_exact_replay403

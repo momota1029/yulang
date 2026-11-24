@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I72TypedTargetRows403
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.fixed_value_code_same_model403
+#print axioms Yulang.GeneralDeclarativeI65.I72.retained_typed_rows_satisfy_fixed_targets403
