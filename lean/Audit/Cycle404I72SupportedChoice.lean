@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72SupportedChoice404
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.recover_original_input404
+#print axioms Yulang.GeneralDeclarativeI65.I72.retained_centers_support_exact_original404
+#print axioms Yulang.GeneralDeclarativeI65.I72.actual_supported_tape404
