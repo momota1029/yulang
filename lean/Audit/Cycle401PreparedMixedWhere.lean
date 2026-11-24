@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65PreparedMixedWhere401
+
+open Yulang.GeneralDeclarativeI65
+#print axioms prepared_source_has_exact_mixed_output401
+#print axioms prepared_mixed_where_slot_reads_original_child401
+#print axioms mixedChildTreeAt401

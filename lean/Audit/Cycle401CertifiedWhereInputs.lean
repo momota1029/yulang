@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65CertifiedWhereInputs401
+
+open Yulang.GeneralDeclarativeI65
+#print axioms exact_where_requests_have_authored_signature401
+#print axioms signed_request_mixed_output_from_original_source401
+#print axioms source_tree_needs_only_root_signature_and_B6_input401
+#print axioms original_named_mixed_output_meaning401
+#print axioms original_named_forest_uses_one_model401
+#print axioms original_guarded_tree_produces_mixed_source_values401

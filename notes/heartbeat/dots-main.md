@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 400
+cycle: 401
 status: completed
-started: 2026-11-24T19:32:07.387Z
-updated: 2026-11-24T20:22:22.384Z
+started: 2026-11-24T20:30:20Z
+updated: 2026-11-24T21:20:35.111Z
 elapsed_min: 50
-activity: I-71: completed focused cycle; exact tree payload and same model, S13bbba still open
-report: notes/handoff/dots-cycle-400.md
+activity: I-71: complete cycle, exact mixed B6 source tree and same-model values; general selection source remains open
+report: notes/handoff/dots-cycle-401.md

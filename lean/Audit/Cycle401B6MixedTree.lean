@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65B6MixedTree401
+
+open Yulang.GeneralDeclarativeI65
+#print axioms mixed_substitution_value_fusion401
+#print axioms actual_slot_substitution_reads_original401
+#print axioms supplied_mixed_tree_substitution_succeeds401
+#print axioms mixed_value_reads_exact_footprint401
+#print axioms mixed_value_total_on_bound_leaves401
+#print axioms exact_mixed_source_and_retained_values401
+#print axioms mixed_primitive_has_exact_authored_mode401

@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65B6MixedLexical401
+
+open Yulang.GeneralDeclarativeI65
+#print axioms mixed_reads_are_exact_original_variables401
+#print axioms instantiateName401_of_some
+#print axioms exact_mixed_names_are_substitutable401
+#print axioms source_and_lexically_instantiated_tree_read_same_model401
+#print axioms original_stored_head_supplies_all_named_mixed_slots401
+#print axioms named_mixed_output_is_fixed_equation401
+#print axioms stored_head_emits_exact_ordered_mixed_values401
