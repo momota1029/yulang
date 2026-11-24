@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65LogicalNominalOutput383
+
+#print axioms Yulang.GeneralDeclarativeI65.tagged_nominal_read_seen_in_same_model383
+#print axioms Yulang.GeneralDeclarativeI65.tagged_output_read_recovers_literal_target383
+#print axioms Yulang.GeneralDeclarativeI65.completed_tagged_unary_body_observes_actual_center383
