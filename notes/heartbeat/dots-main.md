@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 383
-status: completed
-started: 2026-11-24T02:30:58.007Z
-updated: 2026-11-24T03:21:02.538Z
-elapsed_min: 50
-activity: I-67 finite logical completion, scoped exact reads and unfiltered root K2; seven Lean modules independently audited.
-report: notes/handoff/dots-cycle-383.md
+cycle: 384
+status: running
+started: 2026-11-24T03:30:24.719Z
+updated: 2026-11-24T03:30:39.187Z
+elapsed_min: 0
+activity: C384 start: I-67; exact producer dictionary and ordinal, independently visited candidate positions.
+workspace: C384 scoped Lean
+last_local_commit: none
+resume_hint: I-67 step 1 only; same-state finite completion, actual final candidate tape and exact logical producer dictionary.
