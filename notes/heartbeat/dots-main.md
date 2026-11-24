@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 393
-status: running
+status: completed
 started: 2026-11-24T12:30:27.000Z
-updated: 2026-11-24T13:19:01.604Z
-elapsed_min: 48
-activity: I-69: verified scoped source proof retained; preparing final handoff.
-workspace: C393 scoped Lean
-last_local_commit: none
-resume_hint: I-67 Step 1: I-69: selected source kinded exact where and compound associated RHS; no new split.
+updated: 2026-11-24T13:20:54.819Z
+elapsed_min: 50
+activity: I-69: generated body/where event verified; no general S13bbba closure, no new split.
+report: notes/handoff/dots-cycle-393.md
