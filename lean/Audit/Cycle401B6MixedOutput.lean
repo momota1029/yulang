@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65B6MixedOutput401
+
+open Yulang.GeneralDeclarativeI65
+#print axioms mixed_write_is_original_lookup401
+#print axioms mixed_write_same_model_fixed_target401
+#print axioms original_frame_emits_exact_mixed_output401
+#print axioms ordered_mixed_writes_at_actual_origin401
+#print axioms guarded_source_produces_exact_mixed_receipts401
+#print axioms original_mixed_local_meaning401
+#print axioms guarded_receipts_have_same_mixed_meaning401
+#print axioms source_tree_retains_exact_original_mixed_outputs401
