@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 381
-status: running
+status: completed
 started: 2026-11-24T00:30:30.278Z
-updated: 2026-11-24T01:15:50.492Z
-elapsed_min: 45
-activity: Final verification gate: exact sources, I-66 checklist, append-only barrel and frozen IDs rechecked
-workspace: /workspace/scratch/1d0b4aaa3394/yulang-c381-proof
-last_local_commit: none
-resume_hint: Final report and readback only; no broad S01 status change.
+updated: 2026-11-24T01:20:50.051Z
+elapsed_min: 50
+activity: S01 restricted actual source trace and exact authority boundary verified; 13 open rows
+report: notes/handoff/dots-cycle-381.md
