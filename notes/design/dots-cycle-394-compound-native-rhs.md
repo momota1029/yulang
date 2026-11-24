@@ -26,10 +26,14 @@ I-69 の先頭 S13bbba のみ。正本 `9546c99d2ce53db79b1493046f850cb5c818f75d
 
 `compound_where_binder_is_kinded_original_slot394` は、元 `OutputBinder` が指定する **同じ where clause/output equation** から発行される child target と、compound RHS が読む capture を同一 point にする。既存の C393 実 source frame の where/name table を直接使い、**親の既成 C386 receipt や全 output batch を仮定しない**。actual typed argument proof の value/row kind は同じ point に運ぶ。これが全実選択から独立に生成されること、及び compound equation の same literal wire への一般対応はまだ別。
 
-以下は固定 source module の immutable replay input で Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true` PASS。wire projection の二件は `[propext, Quot.sound]`、exact source uniqueness と where kind の二件は `[propext, Classical.choice, Quot.sound]`。新規 fixture/別 module なし。
+以下は固定 source/evaluator module の immutable replay input で Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true` PASS。wire projection の二件は `[propext, Quot.sound]`、他の五件は `[propext, Classical.choice, Quot.sound]`。新規 fixture/別 module なし。
+
+## 新しい導出器が表現範囲の proof を落とさないこと
+
+`readUse` が実 source constructor use の metadata を復元することを独立に反転し、実 typed binding reads が該当 kind の実証拠を返すなら、既存の `CompoundSourceRhs394` の任意の導出（structural/native の任意深さ）から、**同じ code** を新 evaluator が返すと証明した。same original supplier / ordinal の actual output data も復元する。さらに実 C393 producer の native/tagged output をこの evaluator が再現し、旧 C386 wire で literal 値まで同じになることを、actual binders の availability の下で示した。これは表現済み local rule の範囲での完全性であり、一般 `LocalSource` / `Classifies`、任意の primitive を含む mixed compound body、旧 wire への全域は意味しない。
 
 ```lean
-import Yulang.GeneralDeclarativeI65CompoundSourceRhs394
+import Yulang.GeneralDeclarativeI65DeriveCompoundOutput394
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65
@@ -166,6 +170,189 @@ theorem compound_where_binder_is_kinded_original_slot394
   exact ⟨i,j,entry,eqn,out,atEntry,clauseId,eqPos,eqnId,rhs,atOut,rfl,slot,
     compound_used_binder_keeps_actual_kind394 slot used⟩
 
+open GeneralDeclarationPatterns (Pattern)
+open GeneralDeclarativeWitnessConstructorModes357 (readUse)
+open GeneralDeclarativeWitnessSparseIntervals357 (names)
+open CommonRecursiveNominalIntervals (childContext effectiveParameter)
+open GeneralDictionaryAssociatedProvenance (Body lookup lookup_exact)
+open GeneralDeclarativeWitnessConstructorModes357 (Environment SourceMode Use readMode)
+
+
+
+private theorem read_mode_of_actual_source394 {e : Environment} {name mode}
+    (actual : SourceMode e name mode) : readMode e name = some ⟨mode,actual⟩ := by
+  cases actual with
+  | primitive picked graph =>
+    unfold readMode
+    split
+    next ps found => cases graph.symm.trans found
+    next notDeclared =>
+      split
+      next p found =>
+        cases Option.some.inj (picked.symm.trans found)
+        rfl
+      next absent => cases picked.symm.trans absent
+  | invariant picked graph =>
+    have noPrim : GeneralSourceMetadataRows291.primitives e.source.snapshot name = none :=
+      GeneralSourceMetadataRows291.exclusive e.source.snapshot.rows name picked
+    unfold readMode
+    split
+    next ps found => cases graph.symm.trans found
+    next notDeclared =>
+      split
+      next p found => cases noPrim.symm.trans found
+      next absent => simp [picked]
+  | declared graph primitive invariant =>
+    unfold readMode
+    split
+    next ps found =>
+      cases Option.some.inj (graph.symm.trans found)
+      split <;> try rfl
+      all_goals simp_all
+      all_goals grind
+    next absent => cases graph.symm.trans absent
+
+private theorem read_use_recovers_declared_metadata394
+    {e : Environment} {name arity} (actual : Use e name arity) :
+    readUse e name arity = some actual := by
+  cases actual with
+  | mk original live origEq liveEq origName liveName modes len mode good scope exists_ =>
+    unfold readUse
+    split
+    next both =>
+      split
+      next decl current sameDecl sameCurrent =>
+        cases Option.some.inj (origEq.symm.trans sameDecl)
+        cases Option.some.inj (liveEq.symm.trans sameCurrent)
+        simp [read_mode_of_actual_source394 good,origName,liveName,modes,len,scope]
+      next => simp_all
+    next no => exact False.elim (no exists_)
+
+/-- The only extra success condition for represented syntax: the
+actual independent typed binding reads are available. No success
+of evaluation or an output receipt is assumed. -/
+def CompleteSourceBindingReads394 {s : State} {slots : Nat → Option Capture}
+    (read : SourceBindingReads394 s slots) : Prop :=
+  (∀ n c, slots n = some c → TypedBodyCapture392 s c .value →
+    ∃ ticket, read.value n = some ticket) ∧
+  (∀ n c, slots n = some c → TypedBodyCapture392 s c .row →
+    ∃ ticket, read.row n = some ticket)
+
+private theorem value_ticket_of_actual_bind394 {s : State} {slots : Nat → Option Capture}
+    {read : SourceBindingReads394 s slots} (complete : CompleteSourceBindingReads394 read)
+    {n : Nat} {c : Capture} (actual : slots n = some c) (typed : TypedBodyCapture392 s c .value) :
+    read.value n = some ⟨c,actual,typed⟩ := by
+  obtain ⟨ticket,found⟩ := complete.1 n c actual typed
+  obtain ⟨got,lookup,checked⟩ := ticket
+  cases Option.some.inj (lookup.symm.trans actual)
+  exact found
+
+private theorem row_ticket_of_actual_bind394 {s : State} {slots : Nat → Option Capture}
+    {read : SourceBindingReads394 s slots} (complete : CompleteSourceBindingReads394 read)
+    {n : Nat} {c : Capture} (actual : slots n = some c) (typed : TypedBodyCapture392 s c .row) :
+    read.row n = some ⟨c,actual,typed⟩ := by
+  obtain ⟨ticket,found⟩ := complete.2 n c actual typed
+  obtain ⟨got,lookup,checked⟩ := ticket
+  cases Option.some.inj (lookup.symm.trans actual)
+  exact found
+
+/-- The source evaluator finds every independent represented source
+derivation when the real typed binders are available, with the exact
+same structural code. This is not a completeness claim for all
+source programs or all selected events in the existing resolver. -/
+theorem evaluator_complete_on_actual_compound_source394 {s : State} {slots : Nat → Option Capture}
+    {bound : SourceBindingReads394 s slots} (complete : CompleteSourceBindingReads394 bound)
+    {context : Bool} {p : Pattern} {code : SourceRhsCode394}
+    (source : CompoundSourceRhs394 s slots context p code) :
+    emitCompoundSource394 bound context p = some ⟨code,source⟩ := by
+  exact CompoundSourceRhs394.rec
+    (motive_1 := fun c p code proof => emitCompoundSource394 bound c p = some ⟨code,proof⟩)
+    (motive_2 := fun c ps pts args proof => emitCompoundArgs394 bound c ps pts = some ⟨args,proof⟩)
+    (motive_3 := fun c p pt arg proof => emitCompoundArg394 bound c p pt = some ⟨arg,proof⟩)
+    (fun sourceRead typed => by
+      simp [emitCompoundSource394,value_ticket_of_actual_bind394 complete sourceRead typed])
+    (fun _ _ head tail => by simp [emitCompoundSource394,head,tail])
+    (fun _ payload => by simp [emitCompoundSource394,payload])
+    (fun _ _ first last => by simp [emitCompoundSource394,first,last])
+    (fun use mode table _ ih => by
+      simp [emitCompoundSource394,read_use_recovers_declared_metadata394 use,table]
+      split
+      next absent => cases mode.symm.trans absent
+      next params supplied =>
+        cases Option.some.inj (mode.symm.trans supplied)
+        simp [ih])
+    (by simp [emitCompoundArgs394])
+    (fun _ _ head rest => by simp [emitCompoundArgs394,head,rest])
+    (fun {c p binder got} kind mode read typed => by
+      cases p with
+      | mk k v =>
+        cases kind
+        simp [emitCompoundArg394,emitBindingArg394,mode,value_ticket_of_actual_bind394 complete read typed])
+    (fun {c p binder got} kind mode read typed => by
+      cases p with
+      | mk k v =>
+        cases kind
+        simp [emitCompoundArg394,emitBindingArg394,mode,value_ticket_of_actual_bind394 complete read typed])
+    (fun {c p binder got} kind mode read typed => by
+      cases p with
+      | mk k v =>
+        cases kind
+        simp [emitCompoundArg394,emitBindingArg394,mode,row_ticket_of_actual_bind394 complete read typed])
+    (fun {c p binder got} kind mode read typed => by
+      cases p with
+      | mk k v =>
+        cases kind
+        simp [emitCompoundArg394,emitBindingArg394,mode,row_ticket_of_actual_bind394 complete read typed])
+    (fun {c p pat code} kind notVar _ ih => by
+      cases pat with
+      | var n => exact (notVar n rfl).elim
+      | record label head tail => (simp [emitCompoundArg394,kind,ih] <;> rfl)
+      | variant tag payload => (simp [emitCompoundArg394,kind,ih] <;> rfl)
+      | join first last => (simp [emitCompoundArg394,kind,ih] <;> rfl)
+      | app ctor args => (simp [emitCompoundArg394,kind,ih] <;> rfl))
+    source
+
+/-- The real original output supplier and sufficient source bindings
+recover exactly the already independently derivable compound RHS.
+The theorem does not assert that every selected source supplies the
+binding reads or is represented by the C386 literal write carrier. -/
+theorem original_compound_evaluator_recovers_derived_output394
+    {s q} {f : AuthoredBodyFrame393 s q} {i : Fin q.demand.outputs.length}
+    (out : OriginalCompoundOutput394 f i)
+    (unique : (f.decl.associated.map Equation.name).Nodup)
+    (binders : (body : Body) → SourceBindingReads394 s (f.slots body))
+    (complete : CompleteSourceBindingReads394 (binders out.body)) :
+    deriveOriginalCompoundOutput394 f i unique binders = some out := by
+  cases out with
+  | mk body supplied code derived =>
+    have found := (lookup_exact (authoredRegistry s.current).roles f.decl unique _ body).mpr supplied
+    unfold deriveOriginalCompoundOutput394
+    dsimp only
+    split
+    next absent => cases found.symm.trans absent
+    next selected known =>
+      cases Option.some.inj (found.symm.trans known)
+      simp [evaluator_complete_on_actual_compound_source394 complete derived]
+
+/-- Real native outputs of the existing authored producer are
+recovered through the new source elaborator with exactly the same
+wire output, provided the original typed binders can all be read. -/
+theorem actual_old_native_evaluation_preserves_wire394
+    {s q} {f : AuthoredBodyFrame393 s q} {i : Fin q.demand.outputs.length}
+    (old : AuthoredOutput393 f i)
+    (native : ∃ target source arguments, old.write = .declared target source arguments)
+    (unique : (f.decl.associated.map Equation.name).Nodup)
+    (binders : (body : Body) → SourceBindingReads394 s (f.slots body))
+    (complete : CompleteSourceBindingReads394 (binders old.body)) :
+    ∃ out, deriveOriginalCompoundOutput394 f i unique binders = some out ∧
+      out.body = old.body ∧ out.emit.requested = old.receipt.requested ∧
+      projectOldNativeLiteral394 out.emit.requested.target out.emit.rhs = some old.write := by
+  obtain ⟨out,source,target,wire⟩ := existing_native_output_has_same_wire394 old native
+  have read : CompleteSourceBindingReads394 (binders out.body) :=
+    source.symm ▸ complete
+  exact ⟨out,original_compound_evaluator_recovers_derived_output394 out unique binders read,
+    source,target,wire⟩
+
 end Yulang.GeneralDeclarativeI65
 
 #print axioms Yulang.GeneralDeclarativeI65.fixed_compound_source_output_unique394
@@ -173,4 +360,9 @@ end Yulang.GeneralDeclarativeI65
 #print axioms Yulang.GeneralDeclarativeI65.structural_native_subterm_is_not_flat_wire394
 
 #print axioms Yulang.GeneralDeclarativeI65.compound_where_binder_is_kinded_original_slot394
+
+#print axioms Yulang.GeneralDeclarativeI65.evaluator_complete_on_actual_compound_source394
+#print axioms Yulang.GeneralDeclarativeI65.original_compound_evaluator_recovers_derived_output394
+
+#print axioms Yulang.GeneralDeclarativeI65.actual_old_native_evaluation_preserves_wire394
 ```
