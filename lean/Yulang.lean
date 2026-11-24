@@ -7982,3 +7982,4 @@ import Yulang.GeneralDeclarativeI65B6MixedLexical401
 import Yulang.GeneralDeclarativeI65SingleStoredFrame401
 import Yulang.GeneralDeclarativeI65PreparedMixedWhere401
 import Yulang.GeneralDeclarativeI65CertifiedWhereInputs401
+import Yulang.GeneralDeclarativeI65MixedQualification401

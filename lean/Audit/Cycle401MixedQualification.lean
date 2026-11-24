@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65MixedQualification401
+
+open Yulang.GeneralDeclarativeI65
+#print axioms mixed_success_transports_same_tree401
+#print axioms qualified_tree_erases_only_proofs401
+#print axioms exact_name_does_not_supply_bound_ticket401
