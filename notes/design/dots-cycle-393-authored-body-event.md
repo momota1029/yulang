@@ -19,7 +19,11 @@ where 出力だけが定義する binder は `Declaration.Produced` から元の
 
 ## 独立の exact Body projection 検証
 
-C323 の `SourceEquation` は元 source body の存在を述べるので、それだけを actual receipt の body の同一性として使わない。下の `nth_generated_receipt_keeps_original_rhs393` は、元 output list の `getElem?` から **その receipt が持つ body、target、literal RHS そのもの**の `BodyWrite393` を得る。ordinary では、元の `receipt.source` を引数とした実 capture と正規化/変換された式を直接得る。別の body へ取り替えない。新しい repo module/fixture は増やさず、Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true`、両方 `[propext, Classical.choice, Quot.sound]`。
+C323 の `SourceEquation` は元 source body の存在を述べるので、それだけを actual receipt の body の同一性として使わない。下の `nth_generated_receipt_keeps_original_rhs393` は、元 output list の `getElem?` から **その receipt が持つ body、target、literal RHS そのもの**の `BodyWrite393` を得る。ordinary では、元の `receipt.source` を引数とした実 capture と正規化/変換された式を直接得る。別の body へ取り替えない。新しい repo module/fixture は増やさず、Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true`、四つの検証が `[propext, Classical.choice, Quot.sound]`。
+
+## compound native に必要な規則を既存 ordinary に読み替えない
+
+`declared_native_compound_not_ordinary_fallback393` は actual `SourceMode.declared` の constructor が record/variant/join の内部にあれば、既存 ordinary `translate` はその compound を翻訳しないと証明する。primitive/invariant flag のない実 declared から既存定義だけで導く。root が record/join なら `BodyWrite393` の typed app/tagged app の branch にも該当しない（`current_rule_lacks_structural_declared_rhs393`）。よって scoped rule を unrestricted `Classifies` にそのまま入れることはできない。これは**中間表現・局所規則の不足**であって、当該プログラムが言語仕様上拒否されるという証明ではない。候補順も変えない。
 
 ```lean
 import Yulang.GeneralDeclarativeI65OriginalBodyEvent393
@@ -67,8 +71,101 @@ theorem ordinary_generated_receipt_is_exact_body393
   cases source with
   | ordinary supported compiled => exact ⟨supported,_,compiled,rfl⟩
 
+/-- Structural positions in the written normalized source. This
+does not say which source forms are accepted or how they are emitted. -/
+inductive CompoundSubexpression393 (root : GeneralDeclarationPatterns.Pattern) :
+    GeneralDeclarationPatterns.Pattern → Prop where
+  | here : CompoundSubexpression393 root root
+  | recordPayload : CompoundSubexpression393 root payload →
+      CompoundSubexpression393 root (.record label payload tail)
+  | recordTail : CompoundSubexpression393 root tail →
+      CompoundSubexpression393 root (.record label payload tail)
+  | variant : CompoundSubexpression393 root payload →
+      CompoundSubexpression393 root (.variant tag payload)
+  | joinLeft : CompoundSubexpression393 root first →
+      CompoundSubexpression393 root (.join first last)
+  | joinRight : CompoundSubexpression393 root last →
+      CompoundSubexpression393 root (.join first last)
+
+open GeneralDeclarativeWitnessConstructorModes357 (Environment SourceMode)
+open GeneralNominalCenteredHeadMatExpressions (application translateMany)
+
+private theorem translation_none_in_compound393
+    (catalogue : GeneralDeclarationPatterns.Constructors)
+    (interp : GeneralNominalInspection.Interpretation)
+    {sub whole : GeneralDeclarationPatterns.Pattern}
+    (occurs : CompoundSubexpression393 sub whole)
+    (noneAt : translate catalogue interp sub = none) :
+    translate catalogue interp whole = none := by
+  induction occurs with
+  | here => exact noneAt
+  | recordPayload path prior => simp [translate,prior]
+  | recordTail path prior =>
+    simp [translate,prior]
+  | variant path prior => simp [translate,prior]
+  | joinLeft path prior => simp [translate,prior]
+  | joinRight path prior =>
+    simp [translate,prior]
+
+/-- The existing ordinary translator cannot be a fallback for an
+arbitrary mixed declared-native compound; this is not a rejection
+result for the declarative language. -/
+theorem declared_native_compound_not_ordinary_fallback393
+    (catalogue : GeneralDeclarationPatterns.Constructors)
+    {e : Environment} {ctor : Nat} {ps : List CommonDeclaredNominalInspection.Parameter}
+    {args : List GeneralDeclarationPatterns.Pattern} {whole : GeneralDeclarationPatterns.Pattern}
+    (source : SourceMode e ctor (.declared ps))
+    (occurs : CompoundSubexpression393 (.app ctor args) whole) :
+    translate catalogue (interpretation e.source.snapshot) whole = none := by
+  apply translation_none_in_compound393 _ _ occurs
+  cases source with
+  | declared _ noPrimitive noInvariant =>
+    have notOrdinary :
+        ∀ fs, application catalogue (interpretation e.source.snapshot) ctor fs = none := by
+      intro fs
+      simp only [application]
+      cases catalogue ctor with
+      | none => rfl
+      | some d =>
+        simp [GeneralSourceMetadataRows291.interpretation,noPrimitive,noInvariant]
+    simp [translate,notOrdinary]
+
+def StructuralTop393 : GeneralDeclarationPatterns.Pattern → Prop
+  | .record .. | .join .. => True
+  | _ => False
+
+/-- This is a precise coverage limit of BodyWrite393 itself, not a
+language rejection. The scoped producer must not be selected as the
+unrestricted source admission rule. -/
+theorem current_rule_lacks_structural_declared_rhs393
+    {s q} (f : AuthoredBodyFrame393 s q) (body : Yulang.GeneralDictionaryAssociatedProvenance.Body)
+    (target : Nat) (written : LiteralWriteSyntax)
+    {ctor : Nat} {ps : List CommonDeclaredNominalInspection.Parameter}
+    {args : List GeneralDeclarationPatterns.Pattern}
+    (source : SourceMode s.current.environment ctor (.declared ps))
+    (top : StructuralTop393 (normalize (bodyPattern body)))
+    (contains : CompoundSubexpression393 (.app ctor args) (normalize (bodyPattern body))) :
+    ¬ BodyWrite393 f body target written := by
+  intro proof
+  cases proof with
+  | ordinary _ got =>
+    have failed := declared_native_compound_not_ordinary_fallback393
+      (authoredRegistry s.current).constructors source contains
+    rw [failed] at got
+    contradiction
+  | native root _ =>
+    rw [root] at top
+    exact top
+  | tagged root _ =>
+    rw [root] at top
+    exact top
+
 end Yulang.GeneralDeclarativeI65
 
 #print axioms Yulang.GeneralDeclarativeI65.nth_generated_receipt_keeps_original_rhs393
 #print axioms Yulang.GeneralDeclarativeI65.ordinary_generated_receipt_is_exact_body393
+
+#print axioms Yulang.GeneralDeclarativeI65.declared_native_compound_not_ordinary_fallback393
+
+#print axioms Yulang.GeneralDeclarativeI65.current_rule_lacks_structural_declared_rhs393
 ```
