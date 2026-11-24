@@ -16,3 +16,59 @@ where 出力だけが定義する binder は `Declaration.Produced` から元の
 2. 普通の compiler が現に表せる compound はそのまま使用する。native 平行 branch における bare/tagged app は native application が再帰的に入れ子になっても扱うが、record/join の一般 structural subtree 内部にある nonpoint declared parameter の **literal 型付き RHS** まで既存 `.declared target Pattern Arguments` に表す規則は未実装。ordinary に変換したり、これらの shape を拒否にしたりしない。結果の representation を決め打ちして元 spec の意味を変えない。今の不足は採用済み semantics の formal rule/representation にあり、未決の挙動を見つけたわけではない。
 
 従って S13bbba の全称は未完。C393 の module は actual scoped producer のみで、`Classifies` をこの範囲に制限しない。S13bbbb、Step 2・3、旧 Local/C334、fixture、停止性は触らない。
+
+## 独立の exact Body projection 検証
+
+C323 の `SourceEquation` は元 source body の存在を述べるので、それだけを actual receipt の body の同一性として使わない。下の `nth_generated_receipt_keeps_original_rhs393` は、元 output list の `getElem?` から **その receipt が持つ body、target、literal RHS そのもの**の `BodyWrite393` を得る。ordinary では、元の `receipt.source` を引数とした実 capture と正規化/変換された式を直接得る。別の body へ取り替えない。新しい repo module/fixture は増やさず、Lean 4.35.0 `--stdin --trust=0 -DwarningAsError=true`、両方 `[propext, Classical.choice, Quot.sound]`。
+
+```lean
+import Yulang.GeneralDeclarativeI65OriginalBodyEvent393
+
+set_option backward.isDefEq.respectTransparency false
+namespace Yulang.GeneralDeclarativeI65
+open GeneralDeclarativeOutputs320 (bodyPattern bodyCapture)
+open GeneralDeclarativeSubstitution320 (logical)
+open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry)
+open GeneralDeclarationPatterns (normalize)
+open GeneralNominalCenteredHeadMatExpressions (translate)
+open GeneralSourceMetadataRows291 (interpretation)
+
+/-- No second choice of body: the original nth generated receipt has
+the exact original source and literal output derivation. -/
+theorem nth_generated_receipt_keeps_original_rhs393
+    {s q} (f : AuthoredBodyFrame393 s q) (each : ∀ i, AuthoredOutput393 f i)
+    {ordinal : Nat} {receipt : OrderedReceipt}
+    (placed : (emittedEvent393 f each).receipts[ordinal]? = some receipt) :
+    BodyWrite393 f receipt.source receipt.requested.target receipt.written := by
+  have within : ordinal < (emittedEvent393 f each).receipts.length :=
+    (List.getElem?_eq_some_iff.mp placed).1
+  have bounded : ordinal < q.demand.outputs.length := by
+    simpa only [(emittedEvent393 f each).receiptCount] using within
+  let i : Fin q.demand.outputs.length := ⟨ordinal,bounded⟩
+  have same := Option.some.inj ((emitted_original_sequence393 f each i).symm.trans placed)
+  cases same
+  exact (each i).builds
+
+/-- Unlike bare SourceEquation membership, this statement names the
+same explicit/default Body held by the literal ordered receipt. -/
+theorem ordinary_generated_receipt_is_exact_body393
+    {s q} (f : AuthoredBodyFrame393 s q) (each : ∀ i, AuthoredOutput393 f i)
+    {ordinal : Nat} {receipt : OrderedReceipt} {row : GeneralDeclarativeHead320.Equation}
+    (placed : (emittedEvent393 f each).receipts[ordinal]? = some receipt)
+    (ordinary : receipt.written = .ordinary row) :
+    (∀ n ∈ (normalize (bodyPattern receipt.source)).variables,
+      (f.slots receipt.source n).isSome = true) ∧
+    ∃ nf, translate (authoredRegistry s.current).constructors
+        (interpretation s.current.environment.source.snapshot)
+        (normalize (bodyPattern receipt.source)) = some nf ∧
+      row = ⟨receipt.requested.target,logical (bodyCapture q.demand f.names.input receipt.source) .actual nf⟩ := by
+  have source := nth_generated_receipt_keeps_original_rhs393 f each placed
+  rw [ordinary] at source
+  cases source with
+  | ordinary supported compiled => exact ⟨supported,_,compiled,rfl⟩
+
+end Yulang.GeneralDeclarativeI65
+
+#print axioms Yulang.GeneralDeclarativeI65.nth_generated_receipt_keeps_original_rhs393
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_generated_receipt_is_exact_body393
+```
