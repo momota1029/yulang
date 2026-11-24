@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72ActualInversion404
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_choice_inverts_actual_source404
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_choice_instantiates_draft_S02_404
+#print axioms Yulang.GeneralDeclarativeI65.I72.draft_S03_over_unconstrained_visits_is_impossible404
+#print axioms Yulang.GeneralDeclarativeI65.I72.actual_completed_selection_exposes_false_draft_S03_404
