@@ -7928,3 +7928,4 @@ import Yulang.GeneralDeclarativeI65ActualJoinTrace381
 import Yulang.GeneralDeclarativeI65OrdinaryAttachment382
 import Yulang.GeneralDeclarativeI65CommitAuthority382
 import Yulang.GeneralDeclarativeI65SourceBoundary382
+import Yulang.GeneralDeclarativeI65CarryBoundary382
