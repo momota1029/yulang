@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65ActualJoinTypedTrace402
+
+open Yulang.GeneralDeclarativeI65
+#print axioms actual_join_trace_produces_its_original_frames402
+#print axioms frame_tree_at_same_reported_join_dictionary402
+#print axioms actual_join_has_original_signature402
+#print axioms actual_join_trace_supplies_modern_typed_outputs402
+#print axioms selected_C357_root_supplies_exact_join_frame402
+#print axioms actual_C357_scope_to_exact_mixed_sources402

@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I72Assembly402
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms source_trace_projects
+#print axioms classifies_unpacks_source_in_signature
+#print axioms assemble
+#print axioms semantic_node_in_signature
+#print axioms lower_selected_at_exact_trace
+#print axioms general_tree_meaning_from_local
+#print axioms typed_replay_alignment_in_signature
+#print axioms typed_replay_keeps_same_event_meaning
+#print axioms typed_replay_keeps_original_addresses

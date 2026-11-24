@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72Obligations402
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms provide_node_at_same_selected_source
+#print axioms assemble_named
+#print axioms assemble_remaining

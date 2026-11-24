@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72FixedGoal402
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms DictionarySound
+#print axioms root_k2_forces_original_trace_verdict
+#print axioms root_k2_is_rejected_for_every_primitive_system
+#print axioms root_k2_never_selects

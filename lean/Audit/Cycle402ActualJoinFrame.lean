@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65ActualJoinFrame402
+
+open Yulang.GeneralDeclarativeI65
+#print axioms preoutput_prefix_of_real_execute402
+#print axioms actual_join_at_first_visible_ordinal402
+#print axioms source_selected_join_has_preoutput402
+#print axioms actual_join_frame_keeps_exact_where402
+#print axioms actual_join_frame_keeps_both_merged_centers402
+#print axioms same_actual_join_frame_is_determined402

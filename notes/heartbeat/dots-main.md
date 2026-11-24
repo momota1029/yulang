@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 401
+cycle: 402
 status: completed
-started: 2026-11-24T20:30:20Z
-updated: 2026-11-24T21:20:35.111Z
+started: 2026-11-24T21:30:34Z
+updated: 2026-11-24T22:20:45.412Z
 elapsed_min: 50
-activity: I-71: complete cycle, exact mixed B6 source tree and same-model values; general selection source remains open
-report: notes/handoff/dots-cycle-401.md
+activity: I-72: verified typed state, finite source support, same-model evidence and provisional S01–S13 assembly; actual Classifies source production and fixed outputs still open
+report: notes/handoff/dots-cycle-402.md
