@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65SingleStoredFrame401
+
+open Yulang.GeneralDeclarativeI65
+#print axioms candidate_entries_count_exact401
+#print axioms original_stored_entry_is_listed401
+#print axioms single_positive_tape_stored_head_is_unique401
+#print axioms single_positive_source_origin_is_same401
+#print axioms same_tape_same_lexical_source401
+#print axioms same_stored_choice_has_same_mixed_equation401
