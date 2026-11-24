@@ -294,7 +294,7 @@ theorem exact_semantic_ledger_to_dictionary
 
 **分割理由（C389 / I-68）:** replay と canonical shape から実要求・実辞書・子の対応を作ることと、同じ出現の具体的な型付き固定先を辞書意味として読むことは独立。まず、モデルを使わずに実辞書へ住所を付ける。型付き出力は `receiptAt` の source/ordinal/target が合っても、その引数が実 capture の RHS だとは限らない。親の文は変更しない。
 
-###### S13bba · 一部 — `exact_replay_ledger_addresses`
+###### S13bba · 証明済み（C390 検証済み、integration 未取込） — `exact_replay_ledger_addresses`
 
 ```lean
 theorem exact_replay_ledger_addresses
@@ -304,7 +304,7 @@ theorem exact_replay_ledger_addresses
     AddressedDictionaryEvents s q d events
 ```
 
-`AddressedDictionaryEvents` は `GeneralTree` の actual `Request` と `Dictionary.node` を ledger の同じイベントに対応させる。子辞書の各位置を、その同じ event の `kids` と guard から保つ。 `addressed_replay_has_canonical_order` で canonical 順を戻せるため、key-only の診断木も失わない。[C389 strict 検証と exact proof](https://github.com/momota1029/yulang/blob/2edef5d492f40cced77cdddd80d6ec0e224d8459/notes/design/dots-cycle-389-s13bb-addresses.md)。 `--stdin` は通過したが、新規 module と standalone audit への登録は未実施。次の周はこの一件だけを exact に完了する。
+`AddressedDictionaryEvents` は `GeneralTree` の actual `Request` と `Dictionary.node` を ledger の同じイベントに対応させる。子辞書の各位置を、その同じ event の `kids` と guard から保つ。 `addressed_replay_has_canonical_order` で canonical 順を戻せるため、key-only の診断木も失わない。[C389 strict 検証と exact proof](https://github.com/momota1029/yulang/blob/2edef5d492f40cced77cdddd80d6ec0e224d8459/notes/design/dots-cycle-389-s13bb-addresses.md)。 [C390 の exact 定理](https://github.com/momota1029/yulang/blob/698dce6805076109f40f9d60e08cec4c7989a88b/lean/Yulang/GeneralDeclarativeI65AddressedReplay390.lean) と [独立 audit](https://github.com/momota1029/yulang/blob/698dce6805076109f40f9d60e08cec4c7989a88b/lean/Audit/Cycle390AddressedReplay.lean)。Lean 4.35.0 trust 0、警告をエラー扱い。定理の型と canonical 順の補助定理を別ファイルから import して検証した。Git exact bytes 再ビルドと別 audit も PASS。main 補題の公理は `[propext]`、canonical 順は `[propext, Quot.sound]`。別の same-event/同一モデル仮定は追加しない。
 
 ###### S13bbb · 未証明 — `addressed_semantic_ledger_to_dictionary`
 
@@ -436,7 +436,7 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 |---:|---|---|---|
 | 1 | S13a（済） | なし。与えられた replay 自体の構造。 | S11 の literal と replay。S11 の再証明は不要。 |
 | 2a | S13ba（済） | なし。渡された alignment に沿う相互帰納。 | S13a の alignment、S12 の意味。 |
-| 2b-a | S13bba | なし。引数の replay の相互帰納。 | S13ba の exact ledger。親 S13bb は S13bba と S13bbb を呼ぶ。 |
+| 2b-a | S13bba（済） | なし。引数の replay の相互帰納。 | S13ba の exact ledger。親 S13bb は S13bba と S13bbb を呼ぶ。 |
 | 2b-b | S13bbb | なし。実住所と同じ ledger の concrete 局所意味を引数にする。 | S13bba の住所、S12 の局所意味。 |
 | 3 | S01 | なし。独立の source と診断 API 自体を作る。 | なし。 |
 | 4 | S02 | なし。独立導出を反転。 | S01 が供給する event。 |
@@ -460,6 +460,6 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 3. I-67: 実 carrier は宣言的な完了を保持する。C381/C382 の release 非消去は検査器の責務で、S01 で求めない。正の完了根拠の有限性と、同じ安定状態での保留・全可視候補の実判断を分けて検査する。途中の一意性や一時的な保留を最終判定に読み替えない。順序によって受理が変わる **仕様上の** 場合が見つかったときは、遅延案を先にして質問ノートに記録する。今回は該当する承認済み source 例は確認していない。
 4. `ReceiptMeaning` が exact local order と typed write を型に持っていても、その後の `WrittenIn` は各要素の意味の投影でしかない。S13 を P04 の集合化だけで閉じず、辞書の木構造に固定した全列を保持する。
 
-次の周は S13bba（exact replay を実要求・実辞書へ結ぶ）。この一件だけを対象にし、元の S13bb の完了とは数えない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
+次の周は S13bbb（実住所と具体的な同一モデル意味から固定先をもつ辞書証拠を作る）。S13bba の完了を元の S13bb の完了とは数えない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
 
-**未解決 14 件 = 未証明 3 件（S01・S10・S13bbb） + 一部 11 件（S02–S09・S11–S12・S13bba）。親 S13・S13b・S13bb、証明済み S13a・S13ba、再利用 P01–P04 は除外。**
+**未解決 13 件 = 未証明 3 件（S01・S10・S13bbb） + 一部 10 件（S02–S09・S11–S12）。親 S13・S13b・S13bb、証明済み S13a・S13ba・S13bba、再利用 P01–P04 は除外。**
