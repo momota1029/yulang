@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65ExactDependencies384
+
+#print axioms Yulang.GeneralDeclarativeI65.exact_support_at384
+#print axioms Yulang.GeneralDeclarativeI65.erase_exact_selected384
+#print axioms Yulang.GeneralDeclarativeI65.exact_selected_projects_literal_where384
