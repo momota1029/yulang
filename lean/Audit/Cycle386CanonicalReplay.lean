@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65CanonicalReplay386
+
+#check @Yulang.GeneralDeclarativeI65.general_literal_replay_alignment
+#print axioms Yulang.GeneralDeclarativeI65.general_literal_replay_alignment
+#print axioms Yulang.GeneralDeclarativeI65.CanonicalDictionaryReplay
+#print axioms Yulang.GeneralDeclarativeI65.LiteralTreeFrom
