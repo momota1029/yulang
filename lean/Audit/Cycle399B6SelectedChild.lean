@@ -1,0 +1,30 @@
+import Yulang.GeneralDeclarativeI65B6SelectedChild399
+
+open Yulang.GeneralDeclarativeI65
+
+#check addressed_child_event_at399
+#print axioms addressed_child_event_at399
+#check original_where_selected_event399
+#print axioms original_where_selected_event399
+#check same_preoutput_declaration399
+#print axioms same_preoutput_declaration399
+#check same_preoutput_slots399
+#print axioms same_preoutput_slots399
+#check same_preoutput_children399
+#print axioms same_preoutput_children399
+#check exact_frame_ordinal_of_same_selected_id399
+#print axioms exact_frame_ordinal_of_same_selected_id399
+#check ordinal_capture_where_eq_make_same_preoutput399
+#print axioms ordinal_capture_where_eq_make_same_preoutput399
+#check exact_event_output_at399
+#print axioms exact_event_output_at399
+#check event_B6_source_produces_logical_rhs399
+#print axioms event_B6_source_produces_logical_rhs399
+#check B6_frame_replay_has_same_retained_event_meaning399
+#print axioms B6_frame_replay_has_same_retained_event_meaning399
+#check original_where_entry_role399
+#print axioms original_where_entry_role399
+#check selected_where_supplier_exists399
+#print axioms selected_where_supplier_exists399
+#check selected_where_B6_produces_from_actual_event399
+#print axioms selected_where_B6_produces_from_actual_event399
