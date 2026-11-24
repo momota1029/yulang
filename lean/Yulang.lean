@@ -7954,3 +7954,4 @@ import Yulang.GeneralDeclarativeI65ExactSourceEmission384
 import Yulang.GeneralDeclarativeI65LiteralReplay386
 import Yulang.GeneralDeclarativeI65CanonicalReplay386
 import Yulang.GeneralDeclarativeI65SameEventSemantics388
+import Yulang.GeneralDeclarativeI65AddressedReplay390
