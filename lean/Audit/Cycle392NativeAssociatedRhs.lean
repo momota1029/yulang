@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeI65NativeAssociatedRhs392
+
+open Yulang.GeneralDeclarativeI65
+#check native_source_emits_original_receipt392
+#check native_body_rhs_functional392
+#check native_associated_rhs_functional392
+#check native_rhs_wellformed392
+#check original_body_has_literal_position392
+#print axioms native_source_emits_original_receipt392
+#print axioms native_body_rhs_functional392
+#print axioms native_associated_rhs_functional392
+#print axioms native_rhs_wellformed392
+#print axioms original_body_has_literal_position392
