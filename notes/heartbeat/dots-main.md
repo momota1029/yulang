@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 388
-status: running
+status: completed
 started: 2026-11-24T07:30:20.000Z
-updated: 2026-11-24T08:19:01.688Z
-elapsed_min: 48
-activity: S13ba exact result and published evidence retained; preparing final report.
-workspace: C388 scoped Lean
-last_local_commit: none
-resume_hint: I-67 Step 1: S13ba only: exact indexed same-event transport and separate audit.
+updated: 2026-11-24T08:20:43.493Z
+elapsed_min: 50
+activity: I-68: exact S13ba closed with strict standalone Lean and immutable replay; other obligations unchanged.
+report: notes/handoff/dots-cycle-388.md
