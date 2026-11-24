@@ -238,6 +238,8 @@ theorem general_literal_replay_alignment
 
 `lowered : GeneralTree s q d written`、`tree` と他の添字は上の S13 と同じ。`LiteralEventTree` は選択された各論理出現と同じ source event、元順の where 子、元 ordinal/target を持つ literal receipt 列の木。`ExactReplayEvents` は渡された **その replay** の全 event と枝を同順に一対一対応させる（`Prop` の証明同一性から event データを復元しない）。`ExactOrderedOccurrences` は canonical tree の key **および各子の位置・本数**を一致させる tree/forest の構造対応。`orderedLiteralReceipts` は親の列を先に置き、子の列を元順で連結する。空出力の出現も落とさない。作業名は未実装の一般 carrier の契約であり、既存の限定 `ReceiptTree` に置換しない。この行はモデルや意味を使わない。
 
+S13a の再利用先（いずれもこの行の証明済み扱いではない）: [C349 の `dictionaryTree` と `dictionaryForest`](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeWitnessTree349.lean#L39) で canonical 子順を固定し、[C381 の `SourceEventTrace381`](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeI65SourceEventTrace381.lean#L19) のように実 event は data で持つ。[C368 の `ReceiptTree/Forest`](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeI65MixedReceiptTree368.lean#L24) は親 receipt、次に元順の forest を連結する既存の限定例。証明は渡された replay の tree/forest を同時に反転する。根を `literal` で置き換え、選択 key と子リストの構成子を消去し、forest の nil/cons の同じ位置で再帰する。各 event をそのまま一回記録し、子ごとの列の等式を連結する。読むためだけの producer subproof は where 子に加えない。S11 の lowering や S12 の意味に戻って元 event を作り直さない。
+
 #### S13b · 未証明 — `aligned_general_meaning_to_dictionary`
 
 ```lean
@@ -249,6 +251,8 @@ theorem aligned_general_meaning_to_dictionary
 ```
 
 この行で一般の `DictionaryEvidence` の実 interface を埋める。S13a の canonical ledger と対応して、全 occurrence・局所の型/行の意味・同じモデル・正確な子と固定出力の順を保持する。`meaning` の表示添字 `(s,m,q,d,written)` だけでは別の導出との同一性を仮定できない（出力なしの出現でも exact source event は必要）。一般 carrier の導入／反転でその結合を確かめること自体がこの行の義務で、場当たり的な同一性の仮定や新しい `Fits` は足さない。membership だけへの弱化・証明済みとする別名は禁止。
+
+[C381 の projection 非復元](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeI65SourceEventTrace381.lean#L113) は、もし別の二 event が同じ選択節点に許されれば、診断木から特定の元 event を復元できないという条件付き定理。[C368 の各 receipt の意味](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeI65MixedReceiptTree368.lean#L70) は、同じモデルでも membership 投影から順序や event を復元しない。この二点が、S13b を単なる `meaning` の別名や S13a の構造再生だけでは閉じない理由である。これは承認済み source で実行順依存があるという反例ではない。
 
 両行が閉じれば、元の S13 は固定の前提のまま次の形になる（文も最上段も変更なし）。
 
