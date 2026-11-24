@@ -1,0 +1,19 @@
+import Yulang.GeneralDeclarativeI65B6ExactProjections399
+
+open Yulang.GeneralDeclarativeI65
+
+#check B6_read_names_are_original_syntax399
+#print axioms B6_read_names_are_original_syntax399
+#check B6_replay_depends_only_on_exact_projections399
+#print axioms B6_replay_depends_only_on_exact_projections399
+#check frame_event_same_rhs_from_original_reads399
+#print axioms frame_event_same_rhs_from_original_reads399
+#check declared_head_does_not_force_center399
+#print axioms declared_head_does_not_force_center399
+#check exact_point_rhs_sees_recentered_name399
+#print axioms exact_point_rhs_sees_recentered_name399
+#check native_bound_reads_do_not_identify_point_rhs399
+#print axioms native_bound_reads_do_not_identify_point_rhs399
+#check default_positions_from_authored_role_decl399
+#print axioms default_positions_from_authored_role_decl399
+#print axioms deep_read_recenter_only399

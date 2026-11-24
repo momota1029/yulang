@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65B6OrdinarySource398
+
+open Yulang.GeneralDeclarativeI65
+
+#check old_ordinary_payload_agrees_B6398
+#print axioms old_ordinary_payload_agrees_B6398
+#check B6_ordinary_receipt_keeps_target398
+#print axioms B6_ordinary_receipt_keeps_target398
+#check checked_slot_is_exact_body_capture398
+#print axioms checked_slot_is_exact_body_capture398
+#check explicit_B4_slots_total398
+#print axioms explicit_B4_slots_total398

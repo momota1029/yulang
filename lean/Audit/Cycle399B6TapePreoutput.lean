@@ -1,0 +1,24 @@
+import Yulang.GeneralDeclarativeI65B6TapePreoutput399
+
+open Yulang.GeneralDeclarativeI65
+
+#check joined_input_names_exact399
+#print axioms joined_input_names_exact399
+#check joined_original_payload_capture399
+#print axioms joined_original_payload_capture399
+#check exact_origin_preoutput_fields399
+#print axioms exact_origin_preoutput_fields399
+#check ordered_origin_reads_exact_lexical_slot399
+#print axioms ordered_origin_reads_exact_lexical_slot399
+#check joined_origin_reads_actual_merged_payload399
+#print axioms joined_origin_reads_actual_merged_payload399
+#check origin_frame_capture_table_independent_outside399
+#print axioms origin_frame_capture_table_independent_outside399
+#check origin_frame_slots_independent_outside399
+#print axioms origin_frame_slots_independent_outside399
+#check positive_tape_produces_original_frame399
+#print axioms positive_tape_produces_original_frame399
+#check origin_frame_where_independent_outside399
+#print axioms origin_frame_where_independent_outside399
+#check positive_tape_B6_source_output399
+#print axioms positive_tape_B6_source_output399

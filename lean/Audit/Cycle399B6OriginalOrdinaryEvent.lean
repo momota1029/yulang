@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65B6OriginalOrdinaryEvent399
+
+open Yulang.GeneralDeclarativeI65
+
+#check observed_preoutput_demand_head_lengths399
+#print axioms observed_preoutput_demand_head_lengths399
+#check original_frame_slot_coverage399
+#print axioms original_frame_slot_coverage399
+#check ordinary_source_writes_original_literal399
+#print axioms ordinary_source_writes_original_literal399
+#check positive_tape_constructs_ordinary_literal_event399
+#print axioms positive_tape_constructs_ordinary_literal_event399

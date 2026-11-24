@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65B6AddressedLogicalLedger399
+
+open Yulang.GeneralDeclarativeI65
+
+#check logical_event_list_exact_ordinal399
+#print axioms logical_event_list_exact_ordinal399
+#check literal_event_original_supplier399
+#print axioms literal_event_original_supplier399
+#check B6_local_logical_rhs_on_exact_event399
+#print axioms B6_local_logical_rhs_on_exact_event399
+#check addressed_ledger_B6_logical_rhs399
+#print axioms addressed_ledger_B6_logical_rhs399
