@@ -7957,3 +7957,4 @@ import Yulang.GeneralDeclarativeI65SameEventSemantics388
 import Yulang.GeneralDeclarativeI65AddressedReplay390
 import Yulang.GeneralDeclarativeI65NativeAssociatedRhs392
 import Yulang.GeneralDeclarativeI65OriginalBodyEvent393
+import Yulang.GeneralDeclarativeI65CompoundSourceRhs394
