@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeI65B6TreeActualMeaning400
+
+open Yulang.GeneralDeclarativeI65
+
+#check actual_tree_value_after_B6_substitution400
+#print axioms actual_tree_value_after_B6_substitution400
+#check retained_typed_output_same_model400
+#print axioms retained_typed_output_same_model400
+#check actual_B6_plan_value_exists400
+#print axioms actual_B6_plan_value_exists400
+#check retained_typed_output_actual_value400
+#print axioms retained_typed_output_actual_value400
+#check typed_fixed_equation_matches_B6_value400
+#print axioms typed_fixed_equation_matches_B6_value400
+#check same_interval_syntax_can_read_different_centers400
+#print axioms same_interval_syntax_can_read_different_centers400
