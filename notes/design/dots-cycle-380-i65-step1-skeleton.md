@@ -347,24 +347,24 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 
 ### I-68: 一周一補題の作業順
 
-順位は、使う行を先に置く。独立な入口が複数あれば、候補解析より先に構造と証拠の受け口を選ぶ。右列は依存する補題で、証明で使う場合と、組立時に前提を供給する場合を区別する。
+現在の分解が明示的に呼ぶ未解決補題を記録し、順位は証明本体で使う補題を先に置く。独立な入口が複数あれば、構造と証拠の受け口を先に扱う。右端は最上段に組み込むときの前提の供給元であり、その前提を既に引数で受ける証明の呼出し依存とは区別する。共有 carrier の実定義は「補題を呼ばない」としても必要。
 
-| 順 | 行 | 一覧内の依存 |
-|---:|---|---|
-| 1 | S13a | なし。共有 carrier の実定義は必要。S11 を再証明せず、既に渡された replay を反転する。 |
-| 2 | S13b | S13a が canonical alignment を供給。S12 の定理ではなく既に渡された `meaning` を使う。 |
-| 3 | S01 | なし。独立の source と診断 API 自体を作る。 |
-| 4 | S02 | S01 が供給する独立導出の event。 |
-| 5 | S03 | S02 が供給する同じ `SelectedSource`。 |
-| 6 | S04 | S02 の選択出現と S03 の優先 guard。 |
-| 7 | S05 | S02 の source 記録と S04 の一般 head。 |
-| 8 | S06 | S02 の実 ordinary body 分岐、S04 の head、S05 の捕捉。 |
-| 9 | S07 | S02 の実 typed/mixed body 分岐、S04 の head、S05 の捕捉。 |
-| 10 | S08 | S04/S05 と、実分岐に従って S06 または S07 の receipt。 |
-| 11 | S09 | S08 が供給する一般 node。証明は受け取った node の意味の反転。 |
-| 12 | S10 | S02–S08。S09 は使わない。 |
-| 13 | S11 | S01 の source trace、S10 が供給する `ProvidesGeneralNode`。 |
-| 14 | S12 | S09 を各 node に使う。S11 は呼び出し側の tree 供給元で、S12 本体では tree は引数。 |
+| 順 | 行 | 証明で呼ぶ未解決 S 行 | 前提を組立で供給する行 |
+|---:|---|---|---|
+| 1 | S13a | なし。与えられた replay 自体の構造。 | S11 の literal と replay。S11 の再証明は不要。 |
+| 2 | S13b | なし。alignment と意味を引数で受ける。 | S13a の alignment、S12 の意味。親 S13 は S13a/S13b を呼ぶ。 |
+| 3 | S01 | なし。独立の source と診断 API 自体を作る。 | なし。 |
+| 4 | S02 | なし。独立導出を反転。 | S01 が供給する event。 |
+| 5 | S03 | なし。同じ選択導出の priority を反転。 | S02 の `SelectedSource`。 |
+| 6 | S04 | なし。引数の出現と guard を使う。 | S02 の選択出現、S03 の優先 guard。 |
+| 7 | S05 | なし。受け取った head と source 記録を結ぶ。 | S02 の source 記録、S04 の一般 head。 |
+| 8 | S06 | なし。ordinary の実分岐と捕捉を反転。 | S02 の実 ordinary body 分岐、S04 の head、S05 の捕捉。 |
+| 9 | S07 | なし。typed/mixed の実分岐と捕捉を反転。 | S02 の実 typed/mixed body 分岐、S04 の head、S05 の捕捉。 |
+| 10 | S08 | なし。受け取った exact receipt から node。 | S04/S05 と、実分岐に応じて S06 または S07。 |
+| 11 | S09 | なし。渡された一般 node の意味を与える。 | S08 の一般 node。 |
+| 12 | S10 | S02–S08。S09 は使わない。 | S01 の独立導出・event。 |
+| 13 | S11 | なし。自分の tree/forest 相互帰納のみ。 | S01 の source trace、S10 の `ProvidesGeneralNode`。 |
+| 14 | S12 | S09 を各 node に使う。 | S11 が tree を供給。S12 本体では tree は引数。 |
 
 - C385 / I-68: S13 → S13a・S13b。canonical replay の構造と辞書証拠で保持する同一モデル意味は別の未解決義務だから分けた。親 S13 は件数外で、定理文・最上段はそのまま。S12 は S09 を実際に使うため先頭にしない。この周に他の行の文・状態は変えない。
 
