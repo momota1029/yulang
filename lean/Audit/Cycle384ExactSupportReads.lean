@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65ExactSupportReads384
+
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_exact_support_details384
+#print axioms Yulang.GeneralDeclarativeI65.tagged_exact_support_details384
+#print axioms Yulang.GeneralDeclarativeI65.read_exact_ordinary_index384
+#print axioms Yulang.GeneralDeclarativeI65.read_exact_tagged_index384
+#print axioms Yulang.GeneralDeclarativeI65.exact_selected_local_inversion384

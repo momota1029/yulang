@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65RigidAtVisit384
+
+#print axioms Yulang.GeneralDeclarativeI65.nominal_clash_disagrees_with_literal_dispatch384
+#print axioms Yulang.GeneralDeclarativeI65.actual_visit_k2_precedes_positive_clash384
+#print axioms Yulang.GeneralDeclarativeI65.visible_unary_finding_is_sourced384

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65ExactWhereLowering384
+
+#print axioms Yulang.GeneralDeclarativeI65.lower_exact_selected_to_source384
+#print axioms Yulang.GeneralDeclarativeI65.exact_lowering_remains_in_every_model384
+#print axioms Yulang.GeneralDeclarativeI65.exact_need_has_same_model_meaning384

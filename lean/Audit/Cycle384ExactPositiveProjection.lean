@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65ExactPositiveProjection384
+
+#print axioms Yulang.GeneralDeclarativeI65.exact_selected_projects_exact_frontier384
+#print axioms Yulang.GeneralDeclarativeI65.exact_projection_has_selected384
+#print axioms Yulang.GeneralDeclarativeI65.exact_projection_has_where_forest384
+#print axioms Yulang.GeneralDeclarativeI65.exact_selected_iff_its_positive_projection384

@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65ExactSourceEmission384
+
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_source_produces_exact_need384
+#print axioms Yulang.GeneralDeclarativeI65.tagged_source_produces_exact_need384
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_exact_support_requires_original_target384
+#print axioms Yulang.GeneralDeclarativeI65.tagged_exact_support_requires_original_target384

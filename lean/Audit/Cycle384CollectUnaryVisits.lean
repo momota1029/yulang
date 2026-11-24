@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65CollectUnaryVisits384
+
+#print axioms Yulang.GeneralDeclarativeI65.collect_sourced_unary_step384
+#print axioms Yulang.GeneralDeclarativeI65.collect_sourced_unary_trace384
+#print axioms Yulang.GeneralDeclarativeI65.collect_sourced_unary_finding384
+#print axioms Yulang.GeneralDeclarativeI65.sourced_root_with_exact_slots384
+#print axioms Yulang.GeneralDeclarativeI65.reindex_unary_root384
+#print axioms Yulang.GeneralDeclarativeI65.collect_literal_unary_finding384

@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65OpenOrdinaryRead384
+
+#print axioms Yulang.GeneralDeclarativeI65.close_open_ordinary_read384
+#print axioms Yulang.GeneralDeclarativeI65.open_bound_is_current384
+#print axioms Yulang.GeneralDeclarativeI65.closed_open_read_is_current384
+#print axioms Yulang.GeneralDeclarativeI65.close_open_alias384
+#print axioms Yulang.GeneralDeclarativeI65.close_open_observation384
