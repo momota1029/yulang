@@ -30,3 +30,10 @@ proof draft の回帰条件: [C394 CompoundSourceRhs](https://github.com/momota1
 [C393 BodyWrite.ordinary](https://github.com/momota1029/yulang/blob/d195b1cef01ecd96b25d33f35a7c258541daa8f1/lean/Yulang/GeneralDeclarativeI65OriginalBodyEvent393.lean) は、元 normalized Body の既存 ordinary `translate = some nf` と、使われる slot が実際に読めることを要求する。B6 に前者（source と照合した記号的 nf）だけを出してもらえば、B4 は元 lookup で Body を選び、実 lexical/default slot を確認し、`logical (bodyCapture …) .actual nf` を元 target に置く。式の型の推論をしない。元 ordinary writer と同じ `translate` 関数の同一入力なので、両者の nf は Option.some の injectivity で同じ。そのとき source Body、ordinal、target および普通等式の literal 内容が同じ。declared-nominal/structural の未対応混在を ordinary とみなす案ではない。
 
 補助条件は「成功した explicit/positional slot read が旧 C320 bodyCapture と一致」。explicit は生成済み capture table の元名前を読むので、他の binder の数値で代用しない。default は original argument の center があることを確認して初めて使うため、旧 total `positional` の unobserved fallback に行かない。これによって B6 入力での型付け責務移動と既存普通の raw write の保持とを、保留中の混在 .declared から独立に検証する draft を用意した。新規 Lean の確認はまだ行っていない。
+
+## lookup 境界に対する二つの判別条件
+
+- **明示優先の不変性。** [C320/C393 の supplier](https://github.com/momota1029/yulang/blob/d195b1cef01ecd96b25d33f35a7c258541daa8f1/lean/Yulang/GeneralDictionaryAssociatedProvenance.lean#L103-L129) は、型付き計画の有無を見る前に確定する。同じ source frame と output position では、別の B6 atlas を渡しても、成功結果の元 Body、output occurrence・ordinal・target は変わらない。実 explicit があるのにその B6 情報が未提供なら、prototype に証拠は出ないが、role default に戻って別 Body を選ばない。これも selector の新しい拒否ではない。
+- **前方だけの名前付き出力。** 元 demand の出力リストに同名の異なる target がある場合も各位置を保持する。型付き論理式を `List.ofFn` に載せ、未対応の位置は `none` のまま保持する。後の要素の ordinal が前へ詰まらない。role 規則が許す需要の統合と、出力 ledger を順序つきで写すことを混ぜない。S13bbba の exact C386 形式を置換するものではない。
+
+確認用 draft は (a) 既存 ordinary literal、(b) C394 表現内の typed symbolic substitution と保持される元位置、(c) C394 の旧導出から同じコードへの保守的 replay およびこの二条件、の順で独立チェックできるよう保存した。今回 source 内容だけを照合し、新規 Lean の strict 実行は未実施。
