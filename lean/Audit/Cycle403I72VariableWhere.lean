@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72VariableWhere403
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.literal_variable_where_uses_actual_names403
+#print axioms Yulang.GeneralDeclarativeI65.I72.literal_where_child_at403
+#print axioms Yulang.GeneralDeclarativeI65.I72.authored_variable_where_selects403
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_where_dictionary_sound403
