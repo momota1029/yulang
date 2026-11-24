@@ -244,7 +244,9 @@ C386 の exact 証明: [`GeneralDeclarativeI65CanonicalReplay386.lean` · `gener
 
 source trace と lowered tree を同じ局所 event で対にする導出から、元 event を一度ずつ取り出す。元 where の clause ordinal と実要求順、元 output ordinal/name/target、全宣言 value/row の引数ベクトルと literal 型構文を残す。両側から独立に ledger を突合して、与えられた canonical tree の key／子束と exact receipt 列を相互帰納で得る。対象は任意の有限の literal tree/forest。Lean 4.35.0 trust 0 / 警告をエラー扱い、Git exact bytes の再構築と独立監査 PASS。定理の依存公理は `propext` と `Quot.sound`。
 
-#### S13b · 未証明 — `aligned_general_meaning_to_dictionary`
+#### S13b · 分割（親、件数外） — `aligned_general_meaning_to_dictionary`
+
+元の文をそのまま残す。
 
 ```lean
 theorem aligned_general_meaning_to_dictionary
@@ -254,9 +256,49 @@ theorem aligned_general_meaning_to_dictionary
     DictionaryEvidence s m q d
 ```
 
-この行で一般の `DictionaryEvidence` の実 interface を埋める。S13a の canonical ledger と対応して、全 occurrence・局所の型/行の意味・同じモデル・正確な子と固定出力の順を保持する。`meaning` の表示添字 `(s,m,q,d,written)` だけでは別の導出との同一性を仮定できない（出力なしの出現でも exact source event は必要）。一般 carrier の導入／反転でその結合を確かめること自体がこの行の義務で、場当たり的な同一性の仮定や新しい `Fits` は足さない。membership だけへの弱化・証明済みとする別名は禁止。
+**分割理由（C387 / I-68）:** 意味を同一の実 event ledger へ移す相互帰納と、各型付き出力の一般の評価・固定先の保持を辞書証拠として実現する義務は別である。前者は任意の独立局所意味で成立する。後者は `d/q/written` の一致・構文の保持・同じ `Fits` だけでは成立しない。親・最上段の文は変えない。
 
-[C381 の projection 非復元](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeI65SourceEventTrace381.lean#L113) は、もし別の二 event が同じ選択節点に許されれば、診断木から特定の元 event を復元できないという条件付き定理。[C368 の各 receipt の意味](https://github.com/momota1029/yulang/blob/ac5ad01366d274d521c54a75d372d6d0cc1831aa/lean/Yulang/GeneralDeclarativeI65MixedReceiptTree368.lean#L70) は、同じモデルでも membership 投影から順序や event を復元しない。この二点が、S13b を単なる `meaning` の別名や S13a の構造再生だけでは閉じない理由である。これは承認済み source で実行順依存があるという反例ではない。
+##### S13ba · 一部 — `aligned_same_event_semantics`
+
+```lean
+theorem aligned_same_event_semantics
+    {P : LiteralEvent s → Prop}
+    {replay : LiteralTreeFrom tree t lowered}
+    (alignment : CanonicalDictionaryReplay replay)
+    (meaning : TreeMeaningOver P lowered) :
+    ∃ events : LiteralEventTree (s := s),
+      ExactReplayEvents replay events ∧
+      ExactOrderedOccurrences (dictionaryTree d) events ∧
+      orderedLiteralReceipts events = written ∧ LedgerMeaning P events
+```
+
+`TreeMeaningOver P` は具体的な lowered 木を添字に取る tree/forest の fold。 `LedgerMeaning P` は別の ledger 上で各 occurrence の `P` を問う。C386 の exact `LoweredEventLedger` に沿う相互帰納で、両方に現れる同じ event を使用する。空出力の節も消さない。型を含む `--stdin` は厳格検証済みだが、新規モジュール・固定監査への登録と同じ bytes の再実行は未実施。次の周は **S13ba のこの文だけ**を repository 上で検証・完了する。これは一般の型付き意味を実装した扱いではない。
+
+##### S13bb · 未証明 — `exact_semantic_ledger_to_dictionary`
+
+```lean
+theorem exact_semantic_ledger_to_dictionary
+    {replay : LiteralTreeFrom tree t lowered}
+    {events : LiteralEventTree (s := s)}
+    (eventMatch : ExactReplayEvents replay events)
+    (canonical : ExactOrderedOccurrences (dictionaryTree d) events)
+    (outputs : orderedLiteralReceipts events = written)
+    (semantic : LedgerMeaning (GeneralLocalMeaning s m) events) :
+    DictionaryEvidence s m q d
+```
+
+`GeneralLocalMeaning s m` は **具体的** な局所の head/capture および literal body の意味。普通の等式は `Holds m.assignment`。型付き出力は exact source/capture から導いた同じ ordinal/target で、任意長の元の value/row ベクタ、入れ子、非点区間の評価が同じモデルの固定先に成立することを示す。 `GeneralTreeMeaning s m q d written` は S12 が **その lowered** に対して作るこの意味の fold（lowered は既存の実引数で、bare の metavariable にはしない。元の表示なら、その引数を束縛した local notation で展開できることを Lean で確認）。新しい明示前提、 `Fits` の選び直し、または canonical ledger を最初から意味の仮定に置く方法は不可。 `DictionaryEvidence` は canonical tree の全出現と順、exact receipt 列と固定先の実モデル意味を保持する出力 interface。単なる存在／有限 membership や `GeneralTreeMeaning` の別名にはしない。
+
+[C365 の `Model / Fits`](https://github.com/momota1029/yulang/blob/1b5b4c3d1a1c3809e49eaa266dd5d4b18b4eff71/lean/Yulang/GeneralDeclarativeI65State365.lean#L47) と [C357 の `Seen / ModelsCurrent`](https://github.com/momota1029/yulang/blob/1b5b4c3d1a1c3809e49eaa266dd5d4b18b4eff71/lean/Yulang/GeneralDeclarativeWitnessDeclaredState357.lean#L39) は別の観測を解釈する。C386 の `.declared` は `target/Pattern/List (Argument Nat)` を落とさないが、そこから当該 target の retained `AuthoredNominal` 又は exact native origin は作らない。[C368 の `typed_written_all_models`](https://github.com/momota1029/yulang/blob/1b5b4c3d1a1c3809e49eaa266dd5d4b18b4eff71/lean/Yulang/GeneralDeclarativeI65LiteralTypedBody368.lean#L114) は明示された `fixedTyped` を用いる一個の value 点。文脈内の端点比較は既に与えた端点どうしの意味で、元の出力の評価・固定先への保持は与えない。どの観測を使うかや新しい受理条件をここで決めない。
+
+元の S13b は、元の二前提から次の組み立てで得る。
+
+```lean
+  obtain ⟨events, matchEvent, order, rows, sem⟩ :=
+    aligned_same_event_semantics
+      (P := GeneralLocalMeaning s m) alignment meaning
+  exact exact_semantic_ledger_to_dictionary matchEvent order rows sem
+```
 
 両行が閉じれば、元の S13 は固定の前提のまま次の形になる（文も最上段も変更なし）。
 
@@ -356,7 +398,8 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 | 順 | 行 | 証明で呼ぶ未解決 S 行 | 前提を組立で供給する行 |
 |---:|---|---|---|
 | 1 | S13a（済） | なし。与えられた replay 自体の構造。 | S11 の literal と replay。S11 の再証明は不要。 |
-| 2 | S13b | なし。alignment と意味を引数で受ける。 | S13a の alignment、S12 の意味。親 S13 は S13a/S13b を呼ぶ。 |
+| 2a | S13ba | なし。渡された alignment に沿う相互帰納。 | S13a の alignment、S12 の意味。 |
+| 2b | S13bb | なし。意味の付いた canonical ledger を引数で受ける。 | S13ba の ledger。親 S13b は S13ba と S13bb を呼ぶ。 |
 | 3 | S01 | なし。独立の source と診断 API 自体を作る。 | なし。 |
 | 4 | S02 | なし。独立導出を反転。 | S01 が供給する event。 |
 | 5 | S03 | なし。同じ選択導出の priority を反転。 | S02 の `SelectedSource`。 |
@@ -379,6 +422,6 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 3. I-67: 実 carrier は宣言的な完了を保持する。C381/C382 の release 非消去は検査器の責務で、S01 で求めない。正の完了根拠の有限性と、同じ安定状態での保留・全可視候補の実判断を分けて検査する。途中の一意性や一時的な保留を最終判定に読み替えない。順序によって受理が変わる **仕様上の** 場合が見つかったときは、遅延案を先にして質問ノートに記録する。今回は該当する承認済み source 例は確認していない。
 4. `ReceiptMeaning` が exact local order と typed write を型に持っていても、その後の `WrittenIn` は各要素の意味の投影でしかない。S13 を P04 の集合化だけで閉じず、辞書の木構造に固定した全列を保持する。
 
-次の周は S13b（canonical replay と同じ event の意味を辞書証拠にまとめる）。この一行を対象に、条件付きの弱い版を完成に数えない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
+次の周は S13ba（exact ledger に局所の意味を移す）。この一行だけを対象に、元の S13b としては数えない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
 
-**未解決 13 件 = 未証明 3 件（S01・S10・S13b） + 一部 10 件（S02–S09・S11–S12）。親 S13、証明済み S13a、再利用 P01–P04 は除外。**
+**未解決 14 件 = 未証明 3 件（S01・S10・S13bb） + 一部 11 件（S02–S09・S11–S12・S13ba）。親 S13 と S13b、証明済み S13a、再利用 P01–P04 は除外。**

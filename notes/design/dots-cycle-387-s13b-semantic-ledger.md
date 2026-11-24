@@ -16,7 +16,13 @@ C386 の `LoweredEventLedger s lowered events` が持つ exact event で相互�
 
 ## 厳格な Lean 実験（下の bytes）
 
-既存の C386 detach 再構築済み `.olean` および C385 pinned dependency のみを使用。両 C386 入力ソースの Git blobs は `463ad7788cf349e96f30e70c8b7f5cd7dff82a18` と `f4ba39df51a04f157cf980691b33a26ecb3ec862` で実ファイルと照合。Lean 4.35.0 `lean --stdin --trust=0 -DwarningAsError=true` で exit 0。末尾三件の公理はそれぞれ `[propext, Quot.sound]`。新規モジュールとしての登録、別 standalone Audit の import、全体 build と Rust は実行していない。
+既存の C386 detach 再構築済み `.olean` および C385 pinned dependency のみを使用。両 C386 入力ソースの Git blobs は `463ad7788cf349e96f30e70c8b7f5cd7dff82a18` と `f4ba39df51a04f157cf980691b33a26ecb3ec862` で実ファイルと照合。Lean 4.35.0 `lean --stdin --trust=0 -DwarningAsError=true` で exit 0。原実験三件の公理はそれぞれ `[propext, Quot.sound]`。新規モジュールとしての登録、別 standalone Audit の import、全体 build と Rust は実行していない。
+
+## 補足: 元の表示と lowered の実添字
+
+Lean では関数の本体から定理ヘッダの裸の implicit metavariable は埋まらない。同じ `s/m/q/d/written` の別 tree が入りうるから、これは単なる表示上の違いで済ませない。exact `lowered` を持つ箇所に、既存引数を `(lowered := lowered)` と指定すれば通る。元の二つの明示前提のまま、同じ表示なら local notation の右辺で既存の実引数を固定しても通る（下の `MeaningSyntax387` と `parent_application_shape387` はこの試験、具体的意味の実装ではない）。型を共有する別の `lowered` を `assumption` 等で選ばない。S12 の結論でも、入力の木を実添字として渡す。
+
+四件の `#print axioms` がいずれも `[propext, Quot.sound]`。この追加試験も `--stdin` のみ。
 
 ```lean
 import Yulang.GeneralDeclarativeI65CanonicalReplay386
@@ -87,6 +93,27 @@ theorem aligned_same_event_semantics {P : LiteralEvent s → Prop}
   obtain ⟨events, exactEvents, order, receipts⟩ := alignment.ledger
   exact ⟨events, exactEvents, order, receipts, meaning_on_matched_ledger exactEvents.2 meaning⟩
 
+/-- A test of the unchanged parent call shape, not the concrete S13b
+semantics. 'lowered' is an elaboration index, not a premise. -/
+def MeaningShape387 (s : State) (P : LiteralEvent s → Prop) (q : Request) (d : Dictionary) (written : List OrderedReceipt)
+    {lowered : GeneralTree s q d written} : Prop :=
+  TreeMeaningOver P lowered
+
+local notation:arg "MeaningSyntax387 " state:arg predicate:arg request:arg dict:arg receipts:arg =>
+  MeaningShape387 state predicate request dict receipts (lowered := lowered)
+
+theorem parent_application_shape387 {P : LiteralEvent s → Prop}
+    {replay : LiteralTreeFrom tree t lowered}
+    (alignment : CanonicalDictionaryReplay replay)
+    (meaning : MeaningSyntax387 s P q d written) :
+    ∃ events : LiteralEventTree (s := s),
+      ExactReplayEvents replay events ∧
+      ExactOrderedOccurrences (dictionaryTree d) events ∧
+      orderedLiteralReceipts events = written ∧ LedgerMeaning P events := by
+  obtain ⟨events, matchEvent, order, rows, sem⟩ :=
+    aligned_same_event_semantics (P := P) alignment meaning
+  exact ⟨events, matchEvent, order, rows, sem⟩
+
 end
 
 variable {s : State}
@@ -118,4 +145,6 @@ end Yulang.GeneralDeclarativeI65
 #print axioms Yulang.GeneralDeclarativeI65.aligned_same_event_semantics
 #print axioms Yulang.GeneralDeclarativeI65.fits_change_unanchored_native_s13b
 #print axioms Yulang.GeneralDeclarativeI65.fits_change_unanchored_authored_s13b
+
+#print axioms Yulang.GeneralDeclarativeI65.parent_application_shape387
 ```
