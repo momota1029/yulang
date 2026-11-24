@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65CollectAliasNeeds384
+
+#print axioms Yulang.GeneralDeclarativeI65.collect_sourced_alias384
+#print axioms Yulang.GeneralDeclarativeI65.sourced_alias_of_exact_slots384
+#print axioms Yulang.GeneralDeclarativeI65.collect_sourced_observation384
+#print axioms Yulang.GeneralDeclarativeI65.sourced_observation_of_exact_slots384
+#print axioms Yulang.GeneralDeclarativeI65.sourced_observation_iff_collected384

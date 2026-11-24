@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65CollectExactReads384
+
+#print axioms Yulang.GeneralDeclarativeI65.collect_sourced_ordinary_read384
+#print axioms Yulang.GeneralDeclarativeI65.sourced_ordinary_read_of_exact_slots384
+#print axioms Yulang.GeneralDeclarativeI65.needs_embed_left384
+#print axioms Yulang.GeneralDeclarativeI65.needs_embed_right384
+#print axioms Yulang.GeneralDeclarativeI65.reindex_open_ordinary_read384
+#print axioms Yulang.GeneralDeclarativeI65.reindex_open_alias384
+#print axioms Yulang.GeneralDeclarativeI65.reindex_open_observed384
+#print axioms Yulang.GeneralDeclarativeI65.append_exact_supports384
