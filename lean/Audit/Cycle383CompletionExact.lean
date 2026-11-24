@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65CompletionExact383
+
+#print axioms Yulang.GeneralDeclarativeI65.completed_forest_at_literal_requests383
+#print axioms Yulang.GeneralDeclarativeI65.projected_selected_has_finite_proof383
+#print axioms Yulang.GeneralDeclarativeI65.projected_where_forest_has_finite_proof383
+#print axioms Yulang.GeneralDeclarativeI65.finite_selected_iff_projected_classifies383
+#print axioms Yulang.GeneralDeclarativeI65.finite_completion_iff_projected_selected_exists383

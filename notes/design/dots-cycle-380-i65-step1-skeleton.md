@@ -52,7 +52,7 @@ theorem classifies_unpacks_actual_source {s : State} {q : Request} {d : Dictiona
 
 選択分だけの仮定は足さない。候補照合で一意になっただけの状態を最終の `.selected d` にしない。実 where・選択後の等式・固定出力の診断を保持する。`SourceTreeTrace` には実宣言出現・順序付き候補判断・論理的出力発生の導出を記録し、**読むための producer の選択導出**と **辞書に入る where 子**を別の辺とする。前者を辞書の子に混ぜない。どちらも同じ `s` を参照する。有限導出の子に producer 証拠を置き、各段で循環を使って自分自身を正当化しない。存在するある producer 導出の深さを実行順や一様 bound とは解釈しない。`Fits`、物理作者、版、grant、checker 受理、source receipt の意味のどれも入口に使わない。
 
-C383 の [`FiniteCompletion383`](../../lean/Yulang/GeneralDeclarativeI65FiniteCompletion383.lean) は独立な **正の実局所規則がすでに与えられる場合**について、同じ状態での有限 `.selected` 支持、閉じた循環族の排除、where 側だけの `Resolves/Summarizes` 投影を Lean で検証した。これは実規則の供給でも、四種すべての診断でもない。最終 snapshot の候補判定を局所の証人が自分に都合のよい完了集合に絞ることはしない。証拠を増やすと別候補も見える可能性があり、「正の読み根拠の増加」と「一意選択の保存」は別。実 source 規則で、全可視候補と実際に必要な検査を同じ安定状態で判断するところは S01–S03 に残す。
+C383 の [`FiniteCompletion383`](../../lean/Yulang/GeneralDeclarativeI65FiniteCompletion383.lean) は独立な **正の実局所規則がすでに与えられる場合**について、同じ状態での有限 `.selected` 支持、閉じた循環族の排除、where 側だけの `Resolves/Summarizes` 投影を Lean で検証した。さらに [`CompletionExact383`](../../lean/Yulang/GeneralDeclarativeI65CompletionExact383.lean) で、この正の規則インターフェース上の有限証明と、同じ辞書を返す `.selected` 投影の同値を両方向に示した。これは実規則の供給でも、四種すべての診断でもない。最終 snapshot の候補判定を局所の証人が自分に都合のよい完了集合に絞ることはしない。証拠を増やすと別候補も見える可能性があり、「正の読み根拠の増加」と「一意選択の保存」は別。実 source 規則で、全可視候補と実際に必要な検査を同じ安定状態で判断するところは S01–S03 に残す。
 
 ### S02 · 一部 — `selected_source_inversion`
 
@@ -64,7 +64,7 @@ theorem selected_source_inversion {s : State} {q : Request} {key : Nat} {kids : 
       LogicalInputSupports s sel ∧ SelectionFrom event sel
 ```
 
-既存: `State365.visible_exact` と `Tape367.live_readback` はフィルタの所属と既にある tape の選択候補を復元するが、全形の独立判断の反転で同じ出現・元順序・`LogicalInputSupports`（直接の制約、又は実論理出力位置と同じ状態の有限選択導出を持つ支持）を得るところは未証明。`visible` は現在台帳を role で filter するだけなので、台帳が [呼出し側の実可視集合](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L70-L75) を表すことも示す。全 where 子で同じ根の可視範囲を使い、重複 import は同じ宣言、別ファイルの別宣言は異なる出現として扱う。グローバル coherence や孤児規則は要求しない。C357 の別前提 `SourceChecked` は ID 列の `Nodup` を含むが、これを固定文へ持ち込まず、actual declaration table の原始導出で必要な一意性を示す。
+既存: `State365.visible_exact` と `Tape367.live_readback` はフィルタの所属と既にある tape の選択候補を復元するが、全形の独立判断の反転で同じ出現・元順序・`LogicalInputSupports`（直接の制約、又は実論理出力位置と同じ状態の有限選択導出を持つ支持）を得るところは未証明。`visible` は現在台帳を role で filter するだけなので、台帳が [呼出し側の実可視集合](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L70-L75) を表すことも示す。全 where 子で同じ根の可視範囲を使い、重複 import は同じ宣言、別ファイルの別宣言は異なる出現として扱う。グローバル coherence や孤児規則は要求しない。[`LogicalOrdinaryOutput383`](../../lean/Yulang/GeneralDeclarativeI65LogicalOrdinaryOutput383.lean) は、**実選択・捕捉を別途保持した** ordinary 出力について、実宣言の等式から元の出力 ordinal を得て、同じ状態の有限の producer 選択と結ぶ。任意の typed 出力や実選択の供給は対象外。C357 の別前提 `SourceChecked` は ID 列の `Nodup` を含むが、これを固定文へ持ち込まず、actual declaration table の原始導出で必要な一意性を示す。
 
 ### S03 · 一部 — `selected_mixed_k2_priority`
 
@@ -79,7 +79,7 @@ theorem selected_mixed_k2_priority (sel : SelectedSource s q key kids) :
 
 既存: `Selection367.root_recurrence_vetoes_tape`, `NormalizedPrefix368.normalized_actual_prefix_k2`, `ReturnRankCore370.local_return_rank_iff_no_cycle`, C377–379 の後記アンカーは実普通位置・一部 native 入口を扱うが、全ての実訪問と同一候補順の根拠は未証明。候補の衝突/同一性は、選択規則が使う authored identity と照合する。もし規則が一意なキーしか与えないなら、同じキーが同じ出現を指すことを台帳の導出から示す（任意の `State` に新しい全域一意性仮定を足さない）。
 
-**優先順位の監査** ([現 spec の保留](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L182-L213)、[K2 の検査位置](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L498-L500)): I-59 の root K2 は lower がまだ展開できない場合も先行する。候補内の K2 は独立に支持された lower から本当に調べる必要のある非変数位置に限る。`VisitExactlyNeeded` の両方向（出力された位置が本物か、必要な訪問の取り落としがないか）を確かめる。出力が等式一覧に在る、又は一つの producer が完了するだけでは全候補の coverage は出ない。C383 [`CompletionRead383`](../../lean/Yulang/GeneralDeclarativeI65CompletionRead383.lean) は循環族だけでは読みが成立しないこと、root cycle が元の普通グラフにあるなら読みの未完了にかかわらず root K2 が優先することを、入口に限って検証した。無支持なら正の保留理由を保持し、単なる未対応・`none` を不一致とも K2 ともしない。保留で等式を捨てない。調べるべき候補のいずれかで K2 が分かれば、安全な候補が一つでも複数でも先に拒否する。候補リスト順に早抜けして選ばない。候補で見ていない off-trace の循環から選択を否定しない。先行 native 入口に両端完成済みの `ModeWindow` を要求しない。相反する値を一つの論理名で同一視しない。
+**優先順位の監査** ([現 spec の保留](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L182-L213)、[K2 の検査位置](https://github.com/momota1029/yulang/blob/a4bfae3c7ea3baf8212ead8c79db84408fcf5ec6/spec/06-roles.md#L498-L500)): I-59 の root K2 は lower がまだ展開できない場合も先行する。候補内の K2 は独立に支持された lower から本当に調べる必要のある非変数位置に限る。`VisitExactlyNeeded` の両方向（出力された位置が本物か、必要な訪問の取り落としがないか）を確かめる。出力が等式一覧に在る、又は一つの producer が完了するだけでは全候補の coverage は出ない。C383 [`CompletionRead383`](../../lean/Yulang/GeneralDeclarativeI65CompletionRead383.lean) は循環族だけでは読みが成立しないこと、root cycle が元の普通グラフにあるなら読みの未完了にかかわらず root K2 が優先することを、入口に限って検証した。[`CompletionRootCycle383`](../../lean/Yulang/GeneralDeclarativeI65CompletionRootCycle383.lean) は、循環族からしか支持を得られない実 ordinary 名付き自己参照等式を元グラフから直接読んで root K2 を示し、同じ等式の支持付き read の不成立と両立することを示す。無支持なら正の保留理由を保持し、単なる未対応・`none` を不一致とも K2 ともしない。保留で等式を捨てない。調べるべき候補のいずれかで K2 が分かれば、安全な候補が一つでも複数でも先に拒否する。候補リスト順に早抜けして選ばない。候補で見ていない off-trace の循環から選択を否定しない。先行 native 入口に両端完成済みの `ModeWindow` を要求しない。相反する値を一つの論理名で同一視しない。
 
 ### S04 · 一部 — `elected_occurrence_has_general_head`
 

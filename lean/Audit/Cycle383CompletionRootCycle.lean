@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65CompletionRootCycle383
+
+#print axioms Yulang.GeneralDeclarativeI65.ordinary_self_row_yields_root_cycle383
+#print axioms Yulang.GeneralDeclarativeI65.circular_only_self_output_is_still_root_k2383
