@@ -306,7 +306,7 @@ theorem exact_replay_ledger_addresses
 
 `AddressedDictionaryEvents` は `GeneralTree` の actual `Request` と `Dictionary.node` を ledger の同じイベントに対応させる。子辞書の各位置を、その同じ event の `kids` と guard から保つ。 `addressed_replay_has_canonical_order` で canonical 順を戻せるため、key-only の診断木も失わない。[C389 strict 検証と exact proof](https://github.com/momota1029/yulang/blob/2edef5d492f40cced77cdddd80d6ec0e224d8459/notes/design/dots-cycle-389-s13bb-addresses.md)。 [C390 の exact 定理](https://github.com/momota1029/yulang/blob/698dce6805076109f40f9d60e08cec4c7989a88b/lean/Yulang/GeneralDeclarativeI65AddressedReplay390.lean) と [独立 audit](https://github.com/momota1029/yulang/blob/698dce6805076109f40f9d60e08cec4c7989a88b/lean/Audit/Cycle390AddressedReplay.lean)。Lean 4.35.0 trust 0、警告をエラー扱い。定理の型と canonical 順の補助定理を別ファイルから import して検証した。Git exact bytes 再ビルドと別 audit も PASS。main 補題の公理は `[propext]`、canonical 順は `[propext, Quot.sound]`。別の same-event/同一モデル仮定は追加しない。
 
-###### S13bbb · 未証明 — `addressed_semantic_ledger_to_dictionary`
+###### S13bbb · 分割（親、件数外） — `addressed_semantic_ledger_to_dictionary`
 
 ```lean
 theorem addressed_semantic_ledger_to_dictionary
@@ -318,6 +318,42 @@ theorem addressed_semantic_ledger_to_dictionary
 ```
 
 住所証明を model 仮定とせず、意味のある同じ event の本来の ordinal と固定先を使う。普通の行は原 source/capture と `Holds`。型付き行は source/capture から exact declared RHS の arbitrary value/row・点/非点・入れ子の関係を先に示し、同じ状態の元 retained row/origin から同一 model 内の固定先を示す。他の event の projection を足さず、`Fits` だけ、既に結果を仮定した interface、旧 solver/release、または受理連動の選択ルールでは埋めない。局所意味は S12、結果の `DictionaryEvidence` は独立の木の意味を持つ。
+
+
+**分割理由（C391 / I-68）:** 元出現の body/capture から exact literal RHS を得ることと、同じ状態・モデルでその RHS の固定先が本当に保持されることは別である。ordinal が合うことや、同じ kind/variance で比較できることは両方の代わりにならない。これらを二つに分け、親の文を変えない。
+
+**S13bbba · 未証明 — `addressed_meaning_to_exact_source_rhs`**
+
+```lean
+theorem addressed_meaning_to_exact_source_rhs
+    {events : LiteralEventTree (s := s)}
+    (addressed : AddressedDictionaryEvents s q d events)
+    (semantic : LedgerMeaning (GeneralLocalMeaning s m) events) :
+    LedgerMeaning (ExactSourceRhs s) events
+```
+
+`ExactSourceRhs s event` は独立な、モデルに依存しない body→literal payload の関係。元の宣言が出す各 `Supplies` と元の ordinal、実 capture（explicit の binder / default の role position を別に扱う）、literal RHS を個別に対応させる。普通の式は `bodyPattern/bodyCapture` の literal 変換。型付きは arbitrary value/row の点・非点、入れ子を落とさない exact source 由来。既存 tag/unary だけには限らない。ordinary の exact source equations を同じ実位置とつなぐ条件付き部片を [C391 の strict 検証](https://github.com/momota1029/yulang/blob/b4b175e549965d9a8cbcc472deacaa223acecf65/notes/design/dots-cycle-391-s13bbb-rhs-and-model.md) で確認。任意の typed payload を元 body/capture から得る一般 relation と証明はまだない。
+
+**S13bbbb · 一部 — `exact_rhs_to_dictionary_in_same_model`**
+
+```lean
+theorem exact_rhs_to_dictionary_in_same_model
+    {events : LiteralEventTree (s := s)}
+    (addressed : AddressedDictionaryEvents s q d events)
+    (outputs : orderedLiteralReceipts events = written)
+    (semantic : LedgerMeaning (GeneralLocalMeaning s m) events)
+    (sourceRhs : LedgerMeaning (ExactSourceRhs s) events) :
+    DictionaryEvidence s m q d
+```
+
+元同一 event の actual typed/ordinary 出力を、元の ordinal と固定先のまま同じモデルで読む。C391 で exact **local retention が真の場合**は、普通の `Holds`、任意長の authored point ベクタの `Seen`、native retained target の original typed vector と contextual `ContextDerives` を検証した。独立 retained の根拠を `Fits` とアドレスだけから導かない。source RHS からその同じ event の retained state へつなぐ一般 proof と、typed/ordinary 混在の元順を持つ plural dictionary evidence は未証明。条件付き部品のラッパーを一般の実証に数えない。
+
+親 S13bbb の組み立て（元の三前提と結論そのまま）:
+
+```lean
+  exact exact_rhs_to_dictionary_in_same_model addressed outputs semantic
+    (addressed_meaning_to_exact_source_rhs addressed semantic)
+```
 
 元の S13bb の証明本体（その元の四前提と結論はそのまま）:
 
@@ -437,7 +473,8 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 | 1 | S13a（済） | なし。与えられた replay 自体の構造。 | S11 の literal と replay。S11 の再証明は不要。 |
 | 2a | S13ba（済） | なし。渡された alignment に沿う相互帰納。 | S13a の alignment、S12 の意味。 |
 | 2b-a | S13bba（済） | なし。引数の replay の相互帰納。 | S13ba の exact ledger。親 S13bb は S13bba と S13bbb を呼ぶ。 |
-| 2b-b | S13bbb | なし。実住所と同じ ledger の concrete 局所意味を引数にする。 | S13bba の住所、S12 の局所意味。 |
+| 2b-b-a | S13bbba | なし。受け取った実住所と concrete 局所意味から原 RHS。 | S13bba の住所、S12 の局所意味。親 S13bbb は両子を呼ぶ。 |
+| 2b-b-b | S13bbbb | なし。原 RHS と実住所を引数で受ける。 | S13bbba の原 RHS、S13bba の住所、S12 の局所意味。 |
 | 3 | S01 | なし。独立の source と診断 API 自体を作る。 | なし。 |
 | 4 | S02 | なし。独立導出を反転。 | S01 が供給する event。 |
 | 5 | S03 | なし。同じ選択導出の priority を反転。 | S02 の `SelectedSource`。 |
@@ -460,6 +497,6 @@ theorem every_written_receipt_in_one_model {s : State} {m : Model} {q : Request}
 3. I-67: 実 carrier は宣言的な完了を保持する。C381/C382 の release 非消去は検査器の責務で、S01 で求めない。正の完了根拠の有限性と、同じ安定状態での保留・全可視候補の実判断を分けて検査する。途中の一意性や一時的な保留を最終判定に読み替えない。順序によって受理が変わる **仕様上の** 場合が見つかったときは、遅延案を先にして質問ノートに記録する。今回は該当する承認済み source 例は確認していない。
 4. `ReceiptMeaning` が exact local order と typed write を型に持っていても、その後の `WrittenIn` は各要素の意味の投影でしかない。S13 を P04 の集合化だけで閉じず、辞書の木構造に固定した全列を保持する。
 
-次の周は S13bbb（実住所と具体的な同一モデル意味から固定先をもつ辞書証拠を作る）。S13bba の完了を元の S13bb の完了とは数えない。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
+次の周は S13bbba（同じ実出現の元 body/capture から exact source RHS）。この一件だけを対象にする。親 S13bbb は両子が閉じるまで未完。I-65 step 2/3 は未着手。C は後回し。S1/S2 の全体は閉じない。停止性・旧 `Local`・旧 C334 への橋・追加 fixture はこの一覧に含めない。
 
-**未解決 13 件 = 未証明 3 件（S01・S10・S13bbb） + 一部 10 件（S02–S09・S11–S12）。親 S13・S13b・S13bb、証明済み S13a・S13ba・S13bba、再利用 P01–P04 は除外。**
+**未解決 14 件 = 未証明 3 件（S01・S10・S13bbba） + 一部 11 件（S02–S09・S11–S12・S13bbbb）。親 S13・S13b・S13bb・S13bbb、証明済み S13a・S13ba・S13bba、再利用 P01–P04 は除外。**

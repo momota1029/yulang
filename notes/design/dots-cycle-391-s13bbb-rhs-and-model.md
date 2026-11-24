@@ -4,7 +4,7 @@ I-68 の `addressed_semantic_ledger_to_dictionary` 一件のみ。正本 `af48e7
 
 ## 具体的に検証したもの
 
-- **ordinary**: 元 receipt の `Body`、元出現と出力 ordinal、actual capture、元の requested target を保つ。explicit binder は event の capture list に照合し、default は元 demand の実 position を使う。存在しない default pos に fallback を当てない。actual `translate(normalize(bodyPattern receipt.source))` と `logical(bodyCapture ...)` の exact row がある場合、その same row が current state に retained なら、`SourceEquation` と `Holds m.assignment` を同じモデルで得る。 `C323.SourceEquation` は普通の source rule で checker ではない。
+- **ordinary**: 元 receipt の `Body`、元出現と出力 ordinal、actual capture、元の requested target を保つ。explicit binder は event の capture list に照合し、default は元 demand の実 position を使う。存在しない default pos に fallback を当てない。default の captured center の式は既存の `positional_exact` とその actual input の存在から導出し、式を追加仮定にしない。actual `translate(normalize(bodyPattern receipt.source))` と `logical(bodyCapture ...)` の exact row がある場合、その same row が current state に retained なら、`SourceEquation` と `Holds m.assignment` を同じモデルで得る。 `C323.SourceEquation` は普通の source rule で checker ではない。
 - **native output**: 同じ ordinal の literal `.declared` が持つ arbitrary `Argument Nat` vector、同じ literal target にある actual retained C365 `Origin`、実 kind/mode の `DeclaredComparison` から、同じ `m.nativeSyntax` の観測、context well-formedness、`ContextDerives` を得る。点に直さず、任意の型/行引数・長さ・入れ子を保持する conditional projection。**元 body から endpoint が出ること、又は retention が自動で付くことは証明していない**。
 - **authored output**: もう一方の `authoredValues` は `Seen` から実 fixed target で tag/constructor と任意長の ordered evaluated value/row point vector を得る。これは native interval observation とも、同じ target の別の source RHS とも同一視しない。こちらも exact anchor を引数に置く observation theorem。
 
@@ -19,10 +19,11 @@ native 比較の元は [C365 比較](https://github.com/momota1029/yulang/blob/a
 
 ## 厳格検証
 
-Lean 4.35.0 `lean --stdin --trust=0 -DwarningAsError=true` を C390 exact replay の依存で実行し exit 0。ordinary と authored は `[propext, Quot.sound]`、native は既存比較を通じ `[propext, Classical.choice, Quot.sound]`。下の conditional cuts は元の S13bbb の完了ではない。新規 module、別 import 監査、全体 build または Rust を実行した扱いにしない。
+Lean 4.35.0 `lean --stdin --trust=0 -DwarningAsError=true` を C390 exact replay の依存で実行し exit 0。ordinary と authored は `[propext, Quot.sound]`、native は既存比較を通じ `[propext, Classical.choice, Quot.sound]`。default capture は `[propext]`、元の三前提の合成型チェックは `[propext, Quot.sound]`。合成チェックだけには両未証明義務を引数にする。依存は C388/C390 の exact replay。下の conditional cuts は元の S13bbb の完了ではない。新規 module、別 import 監査、全体 build または Rust を実行した扱いにしない。
 
 ```lean
 import Yulang.GeneralDeclarativeI65AddressedReplay390
+import Yulang.GeneralDeclarativeI65SameEventSemantics388
 import Yulang.GeneralDeclarativeAssocRule323
 
 set_option backward.isDefEq.respectTransparency false
@@ -34,7 +35,7 @@ open GeneralDeclarationPatterns (Pattern normalize)
 open GeneralDeclarativeWitnessDeclaredState357 (AuthoredNominal Value authoredRegistry Seen evaluate)
 open GeneralDeclarativeEntailment320 (Holds literal)
 open GeneralDeclarativeAssocRule323 (SourceEquation)
-open GeneralDeclarativeOutputs320 (bodyPattern bodyCapture)
+open GeneralDeclarativeOutputs320 (bodyPattern bodyCapture positional_exact)
 open GeneralDeclarativeSubstitution320 (logical)
 open GeneralNominalCenteredHeadMatExpressions (translate)
 open GeneralSourceMetadataRows291 (interpretation)
@@ -49,8 +50,24 @@ def OriginalBodyCapture {s : State} {q : Request}
   ∀ name ∈ (bodyPattern receipt.source).variables,
     match receipt.source with
     | .explicit _ => event.captures.lookup name = some (capture name)
-    | .default _ _ _ => ∃ argument, q.demand.arguments[name]? = some argument ∧
-        bodyCapture q.demand capture receipt.source name = ⟨argument.center,argument.center,argument.center⟩
+    | .default _ _ _ => ∃ argument, q.demand.arguments[name]? = some argument
+
+/-- The literal default uses the existing role-position convention.
+The actual stored argument supplies the center; the proof does not
+require a solver capture or a new fallback. -/
+theorem original_default_capture_uses_actual_center
+    {s : State} {q : Request} {event : LiteralLocalEvent s q} {receipt : OrderedReceipt}
+    {capture : Nat → Capture} {role name : Nat} {rhs : Roles.Term}
+    (body : receipt.source = .default role name rhs)
+    (binding : OriginalBodyCapture event receipt capture)
+    {position : Nat} (used : position ∈ (bodyPattern receipt.source).variables) :
+    ∃ argument, q.demand.arguments[position]? = some argument ∧
+      bodyCapture q.demand capture receipt.source position =
+        ⟨argument.center,argument.center,argument.center⟩ := by
+  have supported := binding position used
+  rw [body] at supported
+  obtain ⟨argument,atPosition⟩ := supported
+  exact ⟨argument,atPosition,by simpa only [body,bodyCapture] using positional_exact q.demand atPosition⟩
 
 /-- An occurrence-specific ordinary payload equation reads the
 original Body and its actual variables. Capture agreement and
@@ -131,9 +148,31 @@ theorem retained_authored_vector_same_model
   obtain ⟨v,seen,tag,name,arguments⟩ := fit.1.2 payload kept
   exact ⟨occurrence,ordinal,request,v,fixed ▸ seen,tag,name,arguments⟩
 
+/-- Only the composition type is tested: both genuine semantic
+obligations remain required. The original three inputs stay fixed. -/
+theorem s13bbb_split_composition_typecheck
+    [ReplayJudgment] {s : State} {m : Model} {q : Request}
+    {d : CommonRoleOutermostResolver.Dictionary} {events : LiteralEventTree (s := s)}
+    {written : List OrderedReceipt}
+    (localSem : Model → LiteralEvent s → Prop) (source : LiteralEvent s → Prop)
+    (dict : Model → Request → CommonRoleOutermostResolver.Dictionary → Prop)
+    (extractRhs : AddressedDictionaryEvents s q d events →
+      LedgerMeaning (localSem m) events → LedgerMeaning source events)
+    (assemble : AddressedDictionaryEvents s q d events →
+      orderedLiteralReceipts events = written → LedgerMeaning (localSem m) events →
+      LedgerMeaning source events → dict m q d)
+    (addressed : AddressedDictionaryEvents s q d events)
+    (outputs : orderedLiteralReceipts events = written)
+    (semantic : LedgerMeaning (localSem m) events) :
+    dict m q d :=
+  assemble addressed outputs semantic (extractRhs addressed semantic)
+
 end Yulang.GeneralDeclarativeI65
 
 #print axioms Yulang.GeneralDeclarativeI65.retained_exact_ordinary_rhs_same_model
 #print axioms Yulang.GeneralDeclarativeI65.retained_exact_native_rhs_same_model
 #print axioms Yulang.GeneralDeclarativeI65.retained_authored_vector_same_model
+
+#print axioms Yulang.GeneralDeclarativeI65.original_default_capture_uses_actual_center
+#print axioms Yulang.GeneralDeclarativeI65.s13bbb_split_composition_typecheck
 ```
