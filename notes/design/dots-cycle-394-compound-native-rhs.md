@@ -16,6 +16,10 @@ I-69 の先頭 S13bbba のみ。正本 `9546c99d2ce53db79b1493046f850cb5c818f75d
 
 この新しい tree で元の structural RHS を作る規則は追加したが、既存 `.declared target Pattern Arguments` は bare/tagged root の flat typed vector。任意の compound/code を同じ receipt に運ぶ全体の実生成規則と、型付き source の primitive 等の参加、及び **全ての実選択**からこの source frame/typed body proof が出る事実がまだない。C393 の `AuthoredBodyFrame` は実 source 宣言と actual placement を要求するが、C384 key/kids・C386 arbitrary eventAt から勝手にそれを得ない。既存 wire、固定 theorem の文、`LocalSource` の全域、受理条件、再帰/停止性、S13bbbb、Step 2/3 を変更しない。これは spec の意味未決ではなく、論理中間表現から固定 receipt への対応の未実装。S13bbba の全称は未完で、追加分割なし。
 
+## 元 Body から typed code と証拠を直接作る
+
+同じ open obligation の `deriveOriginalCompoundOutput394` は、既に計算した code や per-output body proof を受け取らない。actual authored original binder の `SourceBindingReads394` が名前/型種の evidence を返し、元 output ordinal の名前で actual `Supplies` を取得する。その original explicit/default body の normalized syntax を、`readUse` と declaration table、再帰する record/variant/join/value/row bound に沿って処理し、生成した logical typed tree と `CompoundSourceRhs394` の証拠を同時に返す。構造 node は前後の実 subexpression から作ることも証明した。成功は original output target の model-free source rule に限る。source binding evidence から任意の選択全てへ広げたわけでも、新しい checker/refusal を登録したわけでもない。full tree の旧 wire 対応は変わらず未実装。
+
 ## strict source/where と wire projection の確認
 
 元宣言の associated name が well-formed（重複なし）なら、同じ actual ordinal における compound equation は、元 Body と typed tree の双方が一意。nested native の value argument のどこかに record/join がある場合、元の bare/tagged native projection は **子構造を失わずには動かない**（ここで計算した旧 projection の `none`、言語の拒否ではない）。
