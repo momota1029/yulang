@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65KeyedCircularSupport384
+
+#print axioms Yulang.GeneralDeclarativeI65.exact_where_forest_same_length384
+#print axioms Yulang.GeneralDeclarativeI65.keyed_closed_family_has_no_finite_selected384
