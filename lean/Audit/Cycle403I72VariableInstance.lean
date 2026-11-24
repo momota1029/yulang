@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I72VariableInstance403
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_readback_no_where403
+#print axioms Yulang.GeneralDeclarativeI65.I72.retained_variable_targets_sound403
+#print axioms Yulang.GeneralDeclarativeI65.I72.source_variable_ambiguous403
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_root_k2_precedes_ambiguity403
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_selected_from_actual_readback403
+#print axioms Yulang.GeneralDeclarativeI65.I72.elected_source_reads_original_B6403
+#print axioms Yulang.GeneralDeclarativeI65.I72.selected_without_requested_outputs403
+#print axioms Yulang.GeneralDeclarativeI65.I72.variable_dictionary_sound403

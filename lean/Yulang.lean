@@ -7990,3 +7990,4 @@ import Yulang.GeneralDeclarativeI65I72Assembly402
 import Yulang.GeneralDeclarativeI65I72Obligations402
 import Yulang.GeneralDeclarativeI65I72FiniteSupport402
 import Yulang.GeneralDeclarativeI65I72VariableChoice403
+import Yulang.GeneralDeclarativeI65I72VariableInstance403
