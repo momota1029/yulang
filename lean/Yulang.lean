@@ -7985,3 +7985,4 @@ import Yulang.GeneralDeclarativeI65CertifiedWhereInputs401
 import Yulang.GeneralDeclarativeI65MixedQualification401
 import Yulang.GeneralDeclarativeI65ActualJoinFrame402
 import Yulang.GeneralDeclarativeI65ActualJoinTypedTrace402
+import Yulang.GeneralDeclarativeI65I72FixedGoal402
