@@ -21,6 +21,12 @@ def wholeOriginal (x intSlot y strSlot : Nat) : CommonRecursiveNominalIntervals.
 
 def strRow (strSlot : Nat) : Equation := ⟨strSlot,.primitive (.scalar .str) []⟩
 
+def isSplit415 (root label known : Nat) (e : Equation) : Bool :=
+  match e.right with
+  | .record key (.variable value) (.variable _) =>
+    decide (e.left = root ∧ key = label ∧ value = known)
+  | _ => false
+
 structure ClosedRows (s : I72.State) (q : I72.Request) where
   root : Nat
   x : Nat
@@ -31,6 +37,7 @@ structure ClosedRows (s : I72.State) (q : I72.Request) where
   original : Origin
   actualOriginal : original ∈ s.core.origins
   originalRoot : original.slot = root
+  originalCount : (s.core.origins.filter (fun src => src.slot == root)).length = 1
   source : original.endpoint = wholeOriginal x intSlot y strSlot
   requested : q.demand.arguments = [GeneralDeclarativeWitnessDeclaredState357.point root]
   noOutputs : q.demand.outputs = []
@@ -41,6 +48,8 @@ structure ClosedRows (s : I72.State) (q : I72.Request) where
   string : strRow strSlot ∈ s.core.current.ordinary.equations
   retainedResidual : (⟨residual,residualExpr y strSlot⟩ : Equation) ∈ s.core.current.ordinary.equations
   retainedSplit : OpenTail414.openRow root x intSlot residual ∈ s.core.current.ordinary.equations
+  uniqueSplit : s.core.current.ordinary.equations.filter (isSplit415 root x intSlot) =
+    [OpenTail414.openRow root x intSlot residual]
 
 def ClosedRows.fields {s q} (a : ClosedRows s q) : List (Nat × Nat) :=
   [(a.x,a.intSlot),(a.y,a.strSlot)]
@@ -97,12 +106,14 @@ def readRows415 (p : Problem) (w : RowsWire) : Option (ClosedRows p.state p.root
             rows[w.intRow]? = some (OpenTail414.intRow intSlot) ∧
             rows[w.strRow]? = some (strRow strSlot) ∧
             rows[w.residualRow]? = some ⟨residual.left,residualExpr y strSlot⟩ ∧
-            rows[w.splitRow]? = some (OpenTail414.openRow o.slot x intSlot residual.left) then
+            rows[w.splitRow]? = some (OpenTail414.openRow o.slot x intSlot residual.left) ∧
+            rows.filter (isSplit415 o.slot x intSlot) = [OpenTail414.openRow o.slot x intSlot residual.left] then
           match args : p.root.demand.arguments with
           | [arg] =>
             if caps : arg.lower = o.slot ∧ arg.center = o.slot ∧ arg.upper = o.slot ∧
                 p.root.demand.outputs = [] then
-              if distinct : x ≠ y ∧ ([o.slot,intSlot,strSlot,residual.left] : List Nat).Nodup then
+              if distinct : x ≠ y ∧ ([o.slot,intSlot,strSlot,residual.left] : List Nat).Nodup ∧
+                  (s.origins.filter (fun src => src.slot == o.slot)).length = 1 then
                 have pointEq : arg = GeneralDeclarativeWitnessDeclaredState357.point o.slot := by
                   cases arg
                   simp only [GeneralDeclarativeWitnessDeclaredState357.point]
@@ -110,10 +121,10 @@ def readRows415 (p : Problem) (w : RowsWire) : Option (ClosedRows p.state p.root
                   · exact caps.1
                   · exact caps.2.1
                   · exact caps.2.2.1
-                some ⟨o.slot,x,intSlot,y,strSlot,residual.left,o,List.mem_of_getElem? seen,rfl,term,
-                  args.trans (congrArg (fun a => [a]) pointEq),caps.2.2.2,distinct.1,distinct.2,
+                some ⟨o.slot,x,intSlot,y,strSlot,residual.left,o,List.mem_of_getElem? seen,rfl,distinct.2.2,term,
+                  args.trans (congrArg (fun a => [a]) pointEq),caps.2.2.2,distinct.1,distinct.2.1,
                   List.mem_of_getElem? eqs.1,List.mem_of_getElem? eqs.2.1,List.mem_of_getElem? eqs.2.2.1,
-                  List.mem_of_getElem? eqs.2.2.2.1,List.mem_of_getElem? eqs.2.2.2.2⟩
+                  List.mem_of_getElem? eqs.2.2.2.1,List.mem_of_getElem? eqs.2.2.2.2.1,eqs.2.2.2.2.2⟩
               else none
             else none
           | _ => none

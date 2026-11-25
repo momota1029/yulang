@@ -18,6 +18,7 @@ structure ExactCandidate (s : I72.State) (q : I72.Request) where
   decl : Declaration
   ordinal : Nat
   authored : (authoredRegistry s.core.current).declarations[ordinal]? = some decl
+  declarationIds : ((authoredRegistry s.core.current).declarations.map Declaration.id).Nodup
   visibleOne : visible s.core q = [decl]
   role : ∃ r ∈ s.core.current.environment.source.roles.rows, r.role = q.demand.role
   rolesValid : GeneralSourceMetadataRoles291.Valid s.core.current.environment.source.roles

@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeI65I74ClosedResidualFidelity415
+
+open Yulang.GeneralDeclarativeI65.I72.ClosedResidual415
+#print axioms selected_trace_is_dictionary_sound415
+#print axioms existing_exact_report_lifts415
+#print axioms closed_R7_trace_model_meaning415
+#print axioms complete_residual_has_exact_selected_report415
+#print axioms previous_entry_unchanged415
+#print axioms checked_closed_rows_reflect_original415
+#print axioms check_sound
+#print axioms removed_field_not_in_original_residual415
+#print axioms exact_same_model_residual_value415
+#print axioms original_coordinate_is_independent_of_wire415
+#print axioms actual_captured_tail_is_original_residual415
