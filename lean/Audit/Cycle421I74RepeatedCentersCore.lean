@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74RepeatedCentersPost421
+
+open Yulang.GeneralDeclarativeI65.I72.RepeatedCenters421
+#print axioms exact_range_bounds421
+#print axioms no_raw_cycle_on_either_original_root421
+#print axioms actual_distinct_centers_generate_only_one_ordered_tie421
+#print axioms eq_row421
+#print axioms distinct_scalars_in_same_tick_cannot_be_subtypes421
+#print axioms original_center_type_in_same_model421
+#print axioms actual_conflict_makes_selected_batch_unsatisfiable421
+#print axioms tied_selected_head_uses_the_actual_first_capture421
+#print axioms acceptedEvent_has_no_where421
