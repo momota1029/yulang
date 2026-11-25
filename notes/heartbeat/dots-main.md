@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 414
-status: completed
-started: 2026-11-25T09:31:30.219Z
-updated: 2026-11-25T10:21:35.051Z
-elapsed_min: 50
-activity: I-74 C06 / X4 first half complete; authored unknown tail pending; 16 scoped rows remain
-report: notes/handoff/dots-cycle-414.md
+cycle: 415
+status: running
+started: 2026-11-25T10:34:53.300Z
+updated: 2026-11-25T11:21:08.611Z
+elapsed_min: 46
+activity: I-74 C07 verified; time-cap interim (not normal 50-minute completion); canonical checked artifacts verified, worker released; 15 scoped rows remain
+report: notes/handoff/dots-cycle-415.md
