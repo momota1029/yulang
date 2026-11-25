@@ -15,3 +15,9 @@ Git の exact bytes、凍結 2 blob ID、元 barrel 全文への追加 import �
 ## I-75 live order, read at 18:56 UTC
 
 Integration `b2fe5a3d9324aa1ef2964c95f7445884ee4dd66e`, Inbox blob `42ed184178357af37ba86de355218d720cb36746`. I-75 authorizes corresponding additive source and semantic constructors, keeping the existing literal branch and outer statements. All existing evidence including C422’s legacy inversion and C423’s old-entry test concerns the pre-I-75 head. The retained projection work published before I-75 remains valid on its exact pin. C14 is still open; no new checker is deployed in this checkpoint.
+
+## Final published Lean tree verification
+
+The final audited code at `7e882f6e1ca10e57dbc9a120941a5e1f82621ed9`, Lean tree `6c9271038132d871565a7f85fbda7bcfcb33b233`, was replayed in exact-byte independent C423-only, C422+C423, and C409–C423 retained scoped contexts. Lean 4.35.0 `--trust=0 -DwarningAsError=true`; appended exact imports and standalone audits passed. Only standard reported axioms (`propext`, `Classical.choice`, `Quot.sound`). The 42 prior positive/negative cases and 13 public R13 combinations replayed successfully on the unchanged prior entry; not regression through an R14 that does not exist. Full repository builds and Rust were not run. Frozen files were checked by Git object ID only.
+
+The effective candidate includes the 18 changed Lean paths (9 sources, 8 standalone audits including semantic fixture checks, import barrel with complete old bytes plus 9 imports). The isolated Heads367 constructor test and speculative new public receipt representation are **not part of the published Lean tree**. This distinction holds even when individual scratch tests pass.
