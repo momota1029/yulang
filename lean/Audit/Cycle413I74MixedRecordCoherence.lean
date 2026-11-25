@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74MixedRecordCoherence413
+open Yulang.GeneralDeclarativeI65.I72.MixedRecord413
+#print axioms open_field_is_not_a_parent_alias413
+#print axioms same_visible_list_has_same_opening_ordinal413
+#print axioms same_argument_point_forces_exact_same_site413
+#print axioms fixed_input_and_fitting_model_force_same_location413
+#print axioms same_input_two_checked_witnesses_cannot_reassign_location413

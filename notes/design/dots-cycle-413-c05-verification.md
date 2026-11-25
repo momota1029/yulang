@@ -6,7 +6,7 @@
 2. `scanAll413` は実可視リストを最後まで検査する。実 role、全 candidate の合法な宣言、実 row/demand、ID の相異、R4 root priority を照合。nested の ordinal は計算し、証人が候補を与えない。元 origin/row と raw path だけの certificate で `check`。旧 `RecordK2412.check` はそのまま。別の/未対応候補を捨てて拒否を通すことはない。
 3. `check_sound` は同じ State と同じ exact `rejected/rejected/[]`、全 fitting model の証拠。新 branch の元 trace は `SourceTrace.other`、選択・曖昧さ・親 raw K2・実 where rejection tree にすり替えられないことを証明。旧・新 branch は排他で checked report は一意。
 
-実 X11 で両順が true。実 binding-only 二つの曖昧さ候補があっても true。元 nested ordinal は `[binding,nested]` では 1、`[nested,binding]` では 0、候補 ID はともに 57。二つの氏名変数と元役割は別々に定義された一致候補（同じ declaration ID の複製ではない）。どちらの元順・二 binding match の実例にも同じ規則の fitting model と元報告 evidence が存在。binding-only・nested 単独・未対応の三候補・ID 複製・非循環・未到達 site は false、親に実帰路がある別入力では旧 raw branch のみ通る。実行 `[true,true,true,false,false,false,false,true]`。false は言語の拒否ではない。
+実 X11 で両順が true。実 binding-only 二つの曖昧さ候補があっても true。元 nested ordinal は `[binding,nested]` では 1、`[nested,binding]` では 0、候補 ID はともに 57。二つの別の束縛変数と元役割は別々に定義された一致候補（同じ declaration ID の複製ではない）。どちらの元順・二 binding match の実例にも同じ規則の fitting model と元報告 evidence が存在。binding-only・nested 単独・未対応の三候補・ID 複製・非循環・未到達 site は false、親に実帰路がある別入力では旧 raw branch のみ通る。実行 `[true,true,true,false,false,false,false,true]`。false は言語の拒否ではない。
 
 ### 順序・二つの実一致・再生の保存
 
@@ -21,3 +21,7 @@
 ### 同じ head が二つ一致しても循環しない対照
 
 独立 `Cycle413I74MixedRecordFiniteControl.lean` では同じ二宣言・同じ外側 point の有限 record に、両方の真正な `SourceHead` 一致と実 fitting model がある。実 scan の前段で全 tape を取得できるが、実内部 site には cycle がないため、**どの report とどの witness でも** 新 `mixedHead` branch は false。元 graph には展開済みの nested row もある。検査未対応を言語の拒否や曖昧さの決着に読み替えない。実行 `[true,false]` は「全 tape を読める／K2 は通らない」を表す。
+
+### 同じ snapshot で診断位置を取り違えない
+
+`same_visible_list_has_same_opening_ordinal413` は、ある元 ordinal を一方で nested と読むなら、他方がそこを binding-only と読むことは構文的に不可能と証明する。同じ fitting State では元 point の native syntax により root・label・site も一致し、実行 witness を変えても `locate` の結果は同じ。`open_field_is_not_a_parent_alias413` はこの実 site が親の alias でもないことを示す（もし同じなら元 root が循環）。候補順を変えた **別** snapshot では元 ordinal を変えて記録するが、上の対照どおり候補実体と診断は同じ。
