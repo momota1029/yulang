@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 426
-status: running
+status: completed
 started: 2026-11-25T21:30:34.994Z
-updated: 2026-11-25T22:15:47.953Z
-elapsed_min: 45
-activity: R14 exact staged and old C423/C404 audits passed. Original C419 point Pick remains verified through previous branch and does not enter the endpoint branch. Finishing release gate.
-workspace: C426 exact Git readback
-last_local_commit: none
-resume_hint: I-75 conserve the legacy named frame; projection is not a named capture.
+updated: 2026-11-25T22:20:40.471Z
+elapsed_min: 50
+activity: R14 C14 verified: dictionary sound, executable projected write, exact check and old regressions; worker released.
+report: notes/handoff/dots-cycle-426.md
