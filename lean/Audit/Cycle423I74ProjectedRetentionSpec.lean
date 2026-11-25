@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ProjectedRetentionChannel423
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionRead423
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1600
@@ -595,6 +595,56 @@ theorem required_B6_target_is_retained_in_an_actual_unequal_channel_fit423 :
   rw [center,label] at literalEq
   exact GeneralDeclarativeRecordSplit330.no_literal 20 _ _ literalEq
 
+def sharedInput : PrepareWire := ⟨rootWire,.shared retainedWire⟩
+def transportInput : PrepareWire := ⟨transportWire,.directed retainedWire⟩
+def pathInput : PrepareWire := ⟨rootPathWire,.located pathWire⟩
+def splitInput : PrepareWire := ⟨transportWire,.requiredChannel splitWire⟩
+def absentB6 : Problem := ⟨⟨concrete.state.core,⟨fun _ _ _ _ => none⟩⟩,concrete.root⟩
+
+theorem actual_prepare_pipeline_on_four_fixed_target_shapes423 :
+    (readRetainedPickWrite423 concrete sharedInput).isSome = true ∧
+    (readRetainedPickWrite423 transportProblem transportInput).isSome = true ∧
+    (readRetainedPickWrite423 pathProblem pathInput).isSome = true ∧
+    (readRetainedPickWrite423 splitProblem splitInput).isSome = true ∧
+    (readRetainedPickWrite423 absentB6 sharedInput).isSome = false ∧
+    (readRetainedPickWrite423 pathProblem ⟨rootPathWire,.directed retainedWire⟩).isSome = false := by
+  constructor
+  · decide +kernel
+  · constructor
+    · decide +kernel
+    · constructor
+      · decide +kernel
+      · constructor
+        · decide +kernel
+        · constructor <;> decide +kernel
+
+def preparedSplit : PreparedWrite splitProblem :=
+  (readRetainedPickWrite423 splitProblem splitInput).get (by decide +kernel)
+
+theorem actual_prepare_entry_preserves_literal_target_coordinate_and_semantic_value423 :
+    preparedSplit.retained.rowAt = (2,11) ∧
+    ∃ evidence : RecordEndpoints422.ProjectedRecordChannels preparedSplit.original splitModel,
+      preparedSplit.typed.actualRightValue splitModel =
+        some ([61,423],1,0,12,evidence.required) ∧
+      Equivalent (splitModel.assignment 12).1 evidence.required ∧
+      ¬ Equivalent evidence.required evidence.optional := by
+  constructor
+  · decide +kernel
+  · have m := original_split_model_fits_with_exact_required_target_constraints423
+    obtain ⟨each,value,eq⟩ :=
+      prepared_write_preserves_full_projected_capture_and_actual_value423 preparedSplit splitModel m
+    have ordinal : preparedSplit.original.ordinal = 1 := by decide +kernel
+    rw [ordinal] at value
+    refine ⟨each,value,eq,?_⟩
+    intro same
+    obtain ⟨field,tail,whole⟩ :=
+      (RecordEndpoints422.projected_certificate_reassembles_exact_record_iff_its_channels_agree422
+        preparedSplit.original splitModel m.1.1 each).mpr same
+    have center : preparedSplit.original.arg.center = 1 := by decide +kernel
+    have label : preparedSplit.original.low.label = 20 := by decide +kernel
+    rw [center,label] at whole
+    exact GeneralDeclarativeRecordSplit330.no_literal 20 _ _ whole
+
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 
 open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
@@ -622,3 +672,6 @@ open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 #print axioms channel_reader_checks_literal_split_constraints_and_target423
 #print axioms original_split_model_fits_with_exact_required_target_constraints423
 #print axioms required_B6_target_is_retained_in_an_actual_unequal_channel_fit423
+
+#print axioms actual_prepare_pipeline_on_four_fixed_target_shapes423
+#print axioms actual_prepare_entry_preserves_literal_target_coordinate_and_semantic_value423

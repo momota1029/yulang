@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionRead423
+
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms exact_literal_target_row_of_prepared_write423
+#print axioms prepared_write_keeps_original_occurrence_ordinal_and_target423
+#print axioms read_retained_Pick_write_sound423
+#print axioms prepared_write_preserves_full_projected_capture_and_actual_value423
