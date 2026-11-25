@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72GroundedRawOrder405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms unfilter_keeps_original_order405
+#print axioms native_visits_do_not_reorder_visible_declarations405
+#print axioms native_address_cannot_switch_raw_row_at_same_ordinal405

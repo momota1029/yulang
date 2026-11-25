@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72GroundedBodyAssembly405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms draft_ledger_already_has_the_original_B6_RHS405
+#print axioms exact_rhs_in_C402_provisional_signature405
+#print axioms C402_completed_assembly_from_grounded_visits405
+#print axioms C402_completed_scope_dictionary_sound_via_grounded_priorities405
