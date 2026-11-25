@@ -17,3 +17,7 @@
 - ここで閉じた「record head」は tail 束縛を持たず、正本の `{}` に対応する `.emptyRecord` で終わる literal syntax を指す。幅の部分型付けを狭めたり、列挙しなかった field がないことを要求したりはしない。元の有限 graph decoder を使うには、この例の outer row をその形で読める必要がある。
 - 同じ X10 の形で、元の origin と outer row は両方 1 番、親は名前 5、実 `box` field の site 8 が二つの異なる record 行 `8→11→8` で循環する別入力を検査。実の証人だけ true。別 origin/row・一辺の未閉路・元 point と raw row が別の payload を指す・違う field label・変数捕捉だけ・fallback role の対照は false（言語上の拒否とは区別）。`[true,false,false,false,false,false,false,false]`。元の二節点周期を展開する同じ fitting model と evidence も示した。
 - `only_binding_record_field_does_not_visit_inner_site412` は根の record 書式に変数 field しかないと、その field の内部を訪れないことを任意 View で証明。`original_outer_record_is_seen_and_holds_in_same_model412` は同じ fitting model に最初の記録 literal endpoint と実 raw row の意味の両方を保持する。
+
+### 既存報告を変えずに実診断位置を読む
+
+追加の pure `RecordK2412.locate` は fixed Result を変えない補助読取りで、実 X10 witness と exact report が通る場合に限り位置を取り出す。本来の occurrence `[71]`、宣言 ID 218、元引数 ordinal 0、実 field label 20、親 slot 0、実 site 1 を確認。where 風の結果では `none`。一般の反映定理は結果に記載した site が判定した実 `Visit` の site であり、親の非循環を保存することを示す。親の occurrence に架空の子 ordinal を足していない。
