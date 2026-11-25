@@ -1,6 +1,8 @@
 # C409: I-74 完全性の一覧
 
-**この周に閉じた C の行: C01 / X12 の名前付き再帰型（`dictionary_sound_R1`, `Named409.check_sound`）。** work/dots-main で三条件を検証。 仕様に対する被覆の一覧であって I-65 健全性の残りではない。I-74（integration `455069b0b629199c8c0fa63aa4b2ccaaafd9391b`）は I-65 (1)–(3) の完了を確認した。基準は integration の `Checker408.check` と `R₀`。現在の true は空出力の singleton nullary 選択、または根 K2 の厳密な報告だけ。以下を表現する証人はなく false。検査器の false は言語の拒否ではない。R₀ に宣言的な部分規則があっても、それだけで行を閉じない。
+**この周に閉じた C の行: C01 / X12 の名前付き再帰型（`dictionary_sound_R1`, `Named409.check_sound`）。** work/dots-main で三条件を検証。
+
+仕様に対する被覆の一覧であって I-65 健全性の残りではない。I-74（integration `455069b0b629199c8c0fa63aa4b2ccaaafd9391b`）は I-65 (1)–(3) の完了を確認した。基準は integration の `Checker408.check` と `R₀`。統合済みの比較元 `Checker408.check` の true は空出力の singleton nullary 選択、または根 K2 の厳密な報告だけ。下記は比較元に証人がない形。この周の追加分岐が C01 を扱う。検査器の false は言語の拒否ではない。R₀ に宣言的な部分規則があっても、それだけで行を閉じない。
 
 具体的な仕様例のある形を上段から扱う。X 番号は [適合例一覧](../handoff/2026-11-08-m1-spec-examples-conformance.md#一覧) と [Lean の既存例](../../lean/SpecExamples.lean)。C01 は表の仕様例で完了。C02–C22 は未対応。
 
@@ -29,7 +31,7 @@
 | C21 | 多引数／row parameter の宣言モードを正本で確認して本来の位置で照合 | 6.2 `impl Add (ref _ int)`・[4.6](../../spec/04-types.md) `ref 'e 'a`。X21 の rank-2 自体は B3 |
 | C22 | row-valued nominal 引数を持つ関連型 RHS の固定行を平坦化せずに検査 | 6.1/6.3 の関連型右辺・4.6 の row 引数。両者を組み合わせた既存の直接例は未確認なので最後 |
 
-**残り 21 行（C02–C22）。** 宣言検査の X2/X3/X5/X7 と、X13–X20 の型算術・分散自体、X21–X25 の B4 外の結論は、需要の `Problem` とは別。実例の要求を作れない段階では例が通ったと数えない。次は C02 / X8（`Len (list 'a)` に対して再帰 payload を展開しない選択）。
+**この初版で追う残りは 21 行（C02–C22）。** 仕様の全構文を網羅したとの主張ではない。 宣言検査の X2/X3/X5/X7 と、X13–X20 の型算術・分散自体、X21–X25 の B4 外の結論は、需要の `Problem` とは別。実例の要求を作れない段階では例が通ったと数えない。次は C02 / X8（`Len (list 'a)` に対して再帰 payload を展開しない選択）。
 
 [C407 の初期 8 分類](dots-cycle-407-i73-coverage-list.md) は順に C10、C15、C16、C18、C20–21、C06–09/C14、C22、C17 に展開した。C380 の横断的な残りを加算しない: S01–03→C01–10/C17–18（同じ実導出・全候補・K2）、S04–05→C01–08/C13–14/C20–21（head・捕捉）、S06–09/S13bbba/S13bbbb→C11–12/C15–16/C19/C22（元本文・固定先・実保持）、S10–12/S13 の親→各行の元順の木・一つのモデル・exact report。S13a/S13ba/S13bba は二重計上しない。S07 の物理 release/grant は、それを読む証人の照合だけ（I-67）。
 
