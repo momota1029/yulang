@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 410
-status: completed
-started: 2026-11-25T05:30:15.000Z
-updated: 2026-11-25T06:20:20.085Z
-elapsed_min: 50
-activity: I-74 C02 exact cyclic-model list proof completed; 20 scoped rows remain
-report: notes/handoff/dots-cycle-410.md
+cycle: 411
+status: running
+started: 2026-11-25T06:33:24.000Z
+updated: 2026-11-25T06:33:42.092Z
+elapsed_min: 0
+activity: I-74 C03/X9: actual where demand and child raw K2
+workspace: C411 scoped Lean
+last_local_commit: none
+resume_hint: I-74: spec-first coverage map and verified original source boundaries.
