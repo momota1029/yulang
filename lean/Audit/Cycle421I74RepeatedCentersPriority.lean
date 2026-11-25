@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74RepeatedCentersPriority421
+
+open Yulang.GeneralDeclarativeI65.I72.RepeatedCenters421
+#print axioms original_R0_selection_cannot_bypass_post_conflict421
