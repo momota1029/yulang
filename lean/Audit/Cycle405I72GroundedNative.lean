@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I72GroundedNative405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms derive_native_entry_address405
+#print axioms native_entry_uses_exact_complete_rhs_and_position405
+#print axioms k2_replay_rejects_without_model405
+#print axioms k2_replay_visits_are_justified405
+#print axioms k2_replay_cannot_relabel_as_selected405
+#print axioms original_completed_support_then_pending_inner_k2405

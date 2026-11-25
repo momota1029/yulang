@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72GroundedDependencies405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms every_entered_selected_proof_keeps_grounded_priority405
+#print axioms actual_output_support_uses_grounded_producer405
+#print axioms actual_selected_event_and_literal_producer_both_grounded405
