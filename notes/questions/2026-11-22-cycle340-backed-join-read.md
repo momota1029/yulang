@@ -7,3 +7,7 @@
 Yulang の模式例（Rust 実行は未確認）: `impl R (:{tick 'a, tick 'b})` に対し、入力の両端が `:{tick int} | :{tick bool}`。正規化したタグの payload は `int | bool`。両 binder がその一つの実際の捕捉を指す。出力を `'b` とした場合、literal target はこの全 payload の型を持つ。片方を `int`、他方を `bool` と別々に捕捉しない。
 
 Lean の `GeneralDeclarativeTaggedLegacyCut340.exact_difference` では、同じ充足可能な source state・同じ支持元で旧 `Local` は pending、支持付きの新しい正規化読みは selected、既存の body compiler が出力 6 へ実際の捕捉を書き、同じモデルが辞書 `.node 97 []` を満たす。旧 readiness には元の join 行しかなく、中心にも正規化されたタグ行にも独立な支持はない。これは宣言判断の対応の差で、raw 実装や Rust の判定差を確認したものではない。`TaggedWithheld340` では片枝の根拠が未完了の関連出力だけの場合に exact read が得られないことも別に確かめた。
+
+## 回答（2026-11-22、監督役）
+
+言語の意味の判断ではないので監督役が決めた（I-62）。意味は spec 6.3（2026-11-07 の同じタグの合流の規則）で確定しており、支持付きの正規化読みで選ぶ証人つき分類が正しい。旧 `Local` はそれに合わせない。旧 `Local` との対応は目標から外し、比較は証人つき分類と実 solver の二つだけにする。
