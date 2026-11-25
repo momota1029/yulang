@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74RecordEndpointsRuleBoundary422
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsRelative422
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1200
@@ -210,6 +210,85 @@ theorem residual_masks_hide_the_actual_captured_label_without_pointing_tail422 :
     project 21 false [] r₀ = some lowField ∧ project 21 false [] r₁ = some highField := by
   exact ⟨rfl,rfl,rfl,rfl⟩
 
+theorem both_examples_allow_a_separate_named_projection_without_touching_output422 (side : Bool) :
+    ∃ next : GeneralNominalCommonBridge.Assignment,
+      Models (GeneralDeclarativeRecordNames330.expose concrete.state.core.current.ordinary
+        read.arg.center read.low.label read.protected) next ∧
+      project read.low.label false [] ((model side).assignment read.arg.center).1 =
+        some (next read.fieldNames.center).1 ∧
+      GeneralDeclarativeWhere319.InInterval ((model side).assignment 3).1 ((model side).assignment 4).1
+        (next read.fieldNames.center).1 ∧
+      next 12 = (model side).assignment 12 := by
+  have names := actual_literal_binders_and_endpoint_names_are_not_swapped422
+  have fieldLabel : read.low.label = 20 := by decide +kernel
+  have agreement : GeneralDeclarativeRecordNames330.Agreement read.low.label
+      ((model side).assignment read.arg.center).1 := by
+    rw [fieldLabel,names.2.1]
+    cases side
+    · exact ⟨lowField,lowField,direct 20 false lowField lowTail,direct 20 true lowField lowTail,
+        eqv_refl _⟩
+    · exact ⟨highField,highField,direct 20 false highField highTail,direct 20 true highField highTail,
+        eqv_refl _⟩
+  obtain ⟨next,models,field,lo,hi,span,_,output⟩ :=
+    relative_extension_keeps_real_field_triple_and_fixed_addresses422 read (model side)
+      (both_distinct_real_centers_fit_the_same_original_source422 side).1.1 agreement
+  refine ⟨next,models,field,?_,?_⟩
+  · rw [lo,hi, names.2.2.2.1,names.2.2.2.2.1] at span
+    exact span
+  · exact output ⟨3,12⟩ (by decide +kernel)
+
+/-- The required/optional channel countermodel now inhabits the *same*
+actual authored Pick, not an unrelated hypothetical carrier type. -/
+def splitModel : I72.Model :=
+  {model false with assignment := fun n =>
+    ((if n = 0 then GeneralDeclarativeRecordSplit330.lo 20
+      else if n = 1 then GeneralDeclarativeRecordSplit330.hidden 20
+      else if n = 2 then GeneralDeclarativeRecordSplit330.hi 20
+      else if n = 3 then .bottom
+      else if n = 4 then .top
+      else .exactEmpty),Common.rowEmpty)}
+
+theorem split_channel_model_fits_the_identical_authored_request422 :
+    Fits concrete.state splitModel := by
+  refine ⟨⟨⟨⟨?_,?_⟩,?_⟩,?_⟩,?_⟩
+  · intro _ none; cases none
+  · intro pair kept
+    change pair ∈ [(0,1),(1,2)] at kept
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at kept
+    rcases kept with rfl|rfl
+    · exact (GeneralDeclarativeRecordSplit330.interval 20).1
+    · exact (GeneralDeclarativeRecordSplit330.interval 20).2
+  · intro e kept
+    change e ∈ [lowRow,highRow] at kept
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at kept
+    rcases kept with rfl|rfl <;> exact ⟨subtype_refl _,subtype_refl _⟩
+  · intro _ none; cases none
+  · intro o owned
+    change o ∈ [⟨0,[44],openTerm 20 3 5⟩,⟨2,[55],openTerm 20 4 6⟩] at owned
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at owned
+    rcases owned with rfl|rfl <;> rfl
+
+theorem same_source_does_not_force_projection_channels_to_agree422 :
+    ¬ GeneralDeclarativeRecordNames330.Agreement read.low.label
+      (splitModel.assignment read.arg.center).1 := by
+  have label : read.low.label = 20 := by decide +kernel
+  rw [label,actual_literal_binders_and_endpoint_names_are_not_swapped422.2.1]
+  intro ⟨f,o,req,opt,agreement⟩
+  have span := GeneralDeclarativeRecordSplit330.interval 20
+  obtain ⟨field,tail,recombined⟩ :=
+    (GeneralDeclarativeRecordReconstruct330.exact span.1 span.2 req opt).mpr agreement
+  exact GeneralDeclarativeRecordSplit330.no_literal 20 field tail recombined
+
+theorem stating_only_fresh_names_does_not_solve_uniform_model_transport422 :
+    ¬ (∃ next : GeneralNominalCommonBridge.Assignment,
+      Models (GeneralDeclarativeRecordNames330.expose concrete.state.core.current.ordinary
+        read.arg.center read.low.label read.protected) next ∧
+      (∀ n ∈ GeneralDeclarativeOpaqueNames328.kept concrete.state.core.current.ordinary
+        read.arg.center read.protected, next n = splitModel.assignment n)) := by
+  intro lifted
+  exact same_source_does_not_force_projection_channels_to_agree422
+    ((fresh_record_model_extension_exactly_when_channels_agree422 read splitModel).mp lifted).2
+
 end Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422.SpecRecord
 
 open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
@@ -230,3 +309,9 @@ open SpecRecord
 #print axioms no_existing_name_can_denote_this_real_field_in_all_fits422
 
 #print axioms residual_masks_hide_the_actual_captured_label_without_pointing_tail422
+
+#print axioms both_examples_allow_a_separate_named_projection_without_touching_output422
+
+#print axioms split_channel_model_fits_the_identical_authored_request422
+#print axioms same_source_does_not_force_projection_channels_to_agree422
+#print axioms stating_only_fresh_names_does_not_solve_uniform_model_transport422

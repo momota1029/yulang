@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsRelative422
+
+open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
+#print axioms fresh_record_model_extension_exactly_when_channels_agree422
+#print axioms relative_extension_keeps_real_field_triple_and_fixed_addresses422
