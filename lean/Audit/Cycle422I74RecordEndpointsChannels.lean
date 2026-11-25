@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsChannels422
+
+open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
+#print axioms same_model_endpoints_support_both_projected_channels422
+#print axioms projected_certificate_reassembles_exact_record_iff_its_channels_agree422

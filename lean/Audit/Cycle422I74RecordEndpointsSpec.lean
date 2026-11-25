@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74RecordEndpointsRelative422
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsChannels422
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1200
@@ -289,6 +289,18 @@ theorem stating_only_fresh_names_does_not_solve_uniform_model_transport422 :
   exact same_source_does_not_force_projection_channels_to_agree422
     ((fresh_record_model_extension_exactly_when_channels_agree422 read splitModel).mp lifted).2
 
+/-- Positive substitute for unjustified reassembly: both projected
+intervals exist in the actual model that forbids a literal peel. -/
+theorem both_channels_exist_in_the_fitting_model_that_forbids_reassembly422 :
+    ∃ evidence : ProjectedRecordChannels read splitModel,
+      ¬ Equivalent evidence.required evidence.optional := by
+  obtain ⟨evidence⟩ := same_model_endpoints_support_both_projected_channels422 read splitModel
+    split_channel_model_fits_the_identical_authored_request422.1.1
+  refine ⟨evidence,?_⟩
+  intro same
+  exact same_source_does_not_force_projection_channels_to_agree422
+    ⟨evidence.required,evidence.optional,evidence.atRequired,evidence.atOptional,same⟩
+
 end Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422.SpecRecord
 
 open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
@@ -315,3 +327,5 @@ open SpecRecord
 #print axioms split_channel_model_fits_the_identical_authored_request422
 #print axioms same_source_does_not_force_projection_channels_to_agree422
 #print axioms stating_only_fresh_names_does_not_solve_uniform_model_transport422
+
+#print axioms both_channels_exist_in_the_fitting_model_that_forbids_reassembly422
