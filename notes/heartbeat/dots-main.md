@@ -3,9 +3,9 @@
 cycle: 426
 status: running
 started: 2026-11-25T21:30:34.994Z
-updated: 2026-11-25T21:41:30.038Z
-elapsed_min: 10
-activity: Exact C14 acyclic same-source leaf and required-only output retention, including independently checked scoped report. Canonical migration remains open.
-workspace: C426 scoped Lean
+updated: 2026-11-25T21:49:38.342Z
+elapsed_min: 19
+activity: Exact projected leaf calculus published; scoped replay has rebuilt C402 with additive head/dictionary evidence and guarded legacy named-frame adapter. Starting downstream closure regression.
+workspace: C426 exact Git readback
 last_local_commit: none
-resume_hint: Reuse the same original authored endpoints and B6 body; never fabricate legacy named slots.
+resume_hint: I-75 conserve the legacy named frame; projection is not a named capture.
