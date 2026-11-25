@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsProjectionNames422
+
+open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
+#print axioms fresh_projection_names_exist_without_required_optional_agreement422
