@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74RepeatedCentersPost421
+import Yulang.GeneralDeclarativeI65I74RepeatedCentersEntry421
 
 open Yulang.GeneralDeclarativeI65.I72.RepeatedCenters421
 #print axioms exact_range_bounds421
@@ -10,3 +10,10 @@ open Yulang.GeneralDeclarativeI65.I72.RepeatedCenters421
 #print axioms actual_conflict_makes_selected_batch_unsatisfiable421
 #print axioms tied_selected_head_uses_the_actual_first_capture421
 #print axioms acceptedEvent_has_no_where421
+#print axioms selected_repeated_local_sound421
+#print axioms dictionary_sound_R13
+#print axioms existing_exact_report_lifts421
+#print axioms output_is_real_post_selection_report421
+#print axioms accepted_report_has_exact_pre_then_post_evidence421
+#print axioms previous_entry_unchanged421
+#print axioms check_sound
