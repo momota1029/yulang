@@ -11,3 +11,7 @@
 ## 20 分時点の再生
 
 Git の exact bytes、凍結 2 blob ID、元 barrel 全文への追加 import を照合。Lean 4.35.0、`lake env lean --trust=0 -DwarningAsError=true`。C423差分と C422–423 結合差分の独立再生は PASS。C409–423 の最広スコープと旧 55 対照はこの公開時点では続行中。実装の新規公理、sorry、全体ビルド、Rust 実行、停止性や NoFalseRejection は主張しない。
+
+## I-75 live order, read at 18:56 UTC
+
+Integration `b2fe5a3d9324aa1ef2964c95f7445884ee4dd66e`, Inbox blob `42ed184178357af37ba86de355218d720cb36746`. I-75 authorizes corresponding additive source and semantic constructors, keeping the existing literal branch and outer statements. All existing evidence including C422’s legacy inversion and C423’s old-entry test concerns the pre-I-75 head. The retained projection work published before I-75 remains valid on its exact pin. C14 is still open; no new checker is deployed in this checkpoint.
