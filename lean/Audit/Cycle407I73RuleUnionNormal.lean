@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I73RuleUnionNormal407
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.repeated_local_already_in_where407
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_elected_already_two_entry_forms407
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_other_already_two_entry_forms407
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_exactly_two_entry_forms407
+#print axioms Yulang.GeneralDeclarativeI65.I72.two_entry_checker_targets_same_classifies407
