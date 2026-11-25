@@ -88,7 +88,25 @@ if [ "$nobuild" != "--no-build" ]; then
 fi
 
 removed=$(git diff --numstat "$base"..HEAD -- lean | awk '$1!="-" && $2>0 {print $3" (-"$2")"}')
-if [ -z "$removed" ]; then echo "ok: no removed lines in lean/ since $base"; else echo "FAIL: removed lines:"; echo "$removed"; fail=1; fi
+# VERIFY_REVIEWED_REMOVALS: space-separated lean/ paths whose removed lines the
+# supervisor read and the owner approved for one run. Frozen files never qualify.
+if [ -n "$removed" ] && [ -n "${VERIFY_REVIEWED_REMOVALS:-}" ]; then
+  unreviewed=""
+  while IFS= read -r line; do
+    path=${line% (-*}
+    case " $VERIFY_REVIEWED_REMOVALS " in
+      *" $path "*)
+        case "$path" in
+          lean/Audit.lean|lean/README.md|lean/Yulang.lean|lean/lakefile.*|lean/lake-manifest.json|lean/lean-toolchain)
+            unreviewed="$unreviewed$line"$'\n' ;;
+          *) echo "REVIEW: removed lines approved by owner: $line" ;;
+        esac ;;
+      *) unreviewed="$unreviewed$line"$'\n' ;;
+    esac
+  done <<< "$removed"
+  removed=$(printf '%s' "$unreviewed" | sed '/^$/d')
+fi
+if [ -z "$removed" ]; then echo "ok: no unreviewed removed lines in lean/ since $base"; else echo "FAIL: removed lines:"; echo "$removed"; fail=1; fi
 
 added=$(git diff "$base"..HEAD -- lean | grep '^+' | grep -v '^+++')
 forbidden=$(echo "$added" | grep -nE '(^|[^A-Za-z_])(sorry|sorryAx|admit)([^A-Za-z_]|$)|native_decide|ofReduceBool|skipKernelTC|implemented_by|@\[extern|addDecl|^\+\s*(@\[[^]]*\]\s*)*((private|protected|noncomputable|unsafe|partial)\s+)*axiom\b' | head -8)
