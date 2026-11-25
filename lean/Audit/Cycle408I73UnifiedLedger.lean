@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I73UnifiedLedger408
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.canonical_dictionary_writes_equal_report_trace408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.accepted_selected_reports_the_same_literal_ledger408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.literal_output_wire_keeps_original_body_target_and_indices408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.accepted_report_fixes_one_trace_before_every_model408
