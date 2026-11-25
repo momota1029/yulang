@@ -1,4 +1,3 @@
-import Yulang.GeneralDeclarativeI65I75ProjectedReceipt425
 import Yulang.GeneralDeclarativeI65I75EndpointHeadReadback423
 import Yulang.GeneralDeclarativeI65I74ProjectedRetentionCoherence423
 
@@ -745,73 +744,4 @@ theorem actual_split_source_prepares_new_endpoint_head_and_fixed_target423 :
   exact ⟨head,v,value,kept⟩
 
 #print axioms actual_split_source_prepares_new_endpoint_head_and_fixed_target423
-end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
-
-
-set_option backward.isDefEq.respectTransparency false
-set_option maxRecDepth 1800
-
-namespace Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
-open GeneralDeclarativeI65
-open CommonNominalFullCarrier (Equivalent Ty)
-
-def actualKey425 : ProjectedReceiptKey425 :=
-  ⟨[61,423],1,57,92,0,3,12,⟨8,13,20,0,1,2,3,4,5,6,[44],[55]⟩⟩
-
-theorem actual_split_state_reads_original_full_receipt425 :
-    readProjectedReceipt425 splitProblem splitInput actualKey425 = some preparedSplit := by
-  apply read_projected_receipt_is_exact425.mpr
-  refine ⟨(Option.some_get _).symm,?_⟩
-  decide +kernel
-
-/-- Only same-source readback, not new source rejection. -/
-theorem projected_receipt_rejects_wrong_positions_and_witnesses425 :
-    (readProjectedReceipt425 splitProblem splitInput {actualKey425 with occurrence := [61,424]}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput {actualKey425 with declarationOrdinal := 0}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput {actualKey425 with declarationId := 58}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput {actualKey425 with associatedEquationId := 91}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput {actualKey425 with outputOrdinal := 1}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput {actualKey425 with outputName := 13}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput {actualKey425 with fixedTarget := 11}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput
-      {actualKey425 with site := {actualKey425.site with fieldBinder := 13}}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput
-      {actualKey425 with site := {actualKey425.site with label := 21}}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput
-      {actualKey425 with site := {actualKey425.site with center := 11}}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput
-      {actualKey425 with site := {actualKey425.site with tailUpper := 5}}).isNone = true ∧
-    (readProjectedReceipt425 splitProblem splitInput
-      {actualKey425 with site := {actualKey425.site with lowerIssuer := [55]}}).isNone = true :=  by
-  repeat (first | apply And.intro | decide +kernel)
-
-theorem missing_original_B6_cannot_be_replaced_by_matching_projection_key425 :
-    (readProjectedReceipt425 absentB6 sharedInput actualKey425).isNone = true := by decide +kernel
-
-theorem projected_equation_keeps_original_B6_with_an_actual_split_model425 :
-    ∃ v : Ty,
-      actualKey425.valueAt splitModel = some v ∧
-      preparedSplit.typed.actualRightValue splitModel = some ([61,423],1,0,12,v) ∧
-      Equivalent (splitModel.assignment 12).1 v ∧ Equivalent (splitModel.assignment 11).1 v := by
-  obtain ⟨_,v,seen,rhs,target,retained⟩ :=
-    read_projected_receipt_keeps_real_original_equation425
-      actual_split_state_reads_original_full_receipt425 splitModel
-      original_split_model_fits_with_exact_required_target_constraints423
-  have pos : preparedSplit.retained.rowAt = (2,11) := by decide +kernel
-  rw [pos] at retained
-  exact ⟨v,seen,rhs,target,retained⟩
-
-/-- Different positions can justify the value without becoming its lexical address. -/
-theorem two_original_row_proofs_use_one_projected_key425 :
-    projectedKey425 firstReceipt = actualKey425 ∧ projectedKey425 otherReceipt = actualKey425 ∧
-    firstReceipt.retained.rowAt = (4,11) ∧ otherReceipt.retained.rowAt = (5,7) := by
-  repeat (first | apply And.intro | decide +kernel)
-
-
-#print axioms actual_split_state_reads_original_full_receipt425
-#print axioms projected_receipt_rejects_wrong_positions_and_witnesses425
-#print axioms missing_original_B6_cannot_be_replaced_by_matching_projection_key425
-#print axioms projected_equation_keeps_original_B6_with_an_actual_split_model425
-#print axioms two_original_row_proofs_use_one_projected_key425
-
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec

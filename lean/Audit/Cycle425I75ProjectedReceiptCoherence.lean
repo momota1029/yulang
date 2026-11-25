@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I75ProjectedReceiptCoherence425
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms one_exact_receipt_replays_one_original_B6_term425
+#print axioms same_receipt_key_preserves_source_and_model_write425
+#print axioms root_K2_blocks_projected_receipt_in_same_problem425
