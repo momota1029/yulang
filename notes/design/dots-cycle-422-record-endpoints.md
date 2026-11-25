@@ -21,3 +21,11 @@
 - Target equation を支える head が直ちに必要とするのは各モデルでの実 projection と mask。第三のモデルでは record 再構築が不可能なのにこの証拠は成立する。別の適合割当てにこれらの値を新しい未使用座標で表現できるが、元の State には行を作らず、元の割当てのその座標に既に値が入るとも仮定しない。
 - `readProjectedOutput422` は同じ宣言の lookup と本物の B6 atlas から元の `type out = 'a` の木を読む。`ProjectedOutput.actualRightValue` は元の出現・宣言番号・出力番号・固定先を保ち、同じモデルの実 field をその木の値側に使う。旧 B6 の一般 tree evaluator を再利用する。`int`、`int | bool`、`top` の各モデルで確認。擬似の型つき本体や model の座標を読んだことにはしない。
 - 残る接続は、(i) C14 のこの元 source projection を受ける head 証拠、(ii) 元の B6 と固定先の保持関係（値を計算することとは別）、(iii) 固定している公開結果・根 K2・健全性を変えない検査器の接続。今周は、これらをすでにある旧 `SourceHead` に偽装しない。
+
+### 既存の結論を変えずに続けるための区別
+
+- C402 の `DictionaryEvidence.node` は、`Classifies` とは独立にも `Event.head : SourceHead` を引数に取る。したがって「新しい分類器で同じラベルを返す」だけでは元の非点例に対する旧辞書証拠は成立しない。旧 `HeadMeaning` の literal 同値そのものが第三の適合モデルで不成立。この点は実行子の不足とは別である。
+- 将来の候補を段階で分けるなら、`Read p` → 同じ `m` の required/optional/残余 `ProjectedRecordChannels` → `ProjectedOutput.actualRightValue m` → **同じ固定先で保持された型の等式** → 元順の報告値。今回までで実装したのは両端点読取りから元の出現の RHS 値側まで。最後の二つを仮定した証明を完成とは数えない。
+- 旧の `HeadMeaning` で中心行なしの構成ができるなら、実中心の全体型は下端と同値、field 端点・mask residual 端点もそれぞれ意味上等しくなる。これは “違う番号なら非点” という誤読とは別。新しい設計では同じ番号や同じ head の綴りからそうした同値を推論しない。
+- 元の実中心が二つのモデルで意味上同じなら、原 B6 評価で返る field と残余の同値まで transport できる。field の意味はモデルの実中心から、語彙束縛と出力の座標は actual source/B6 atlas から取り、どちらも相手の証拠を代用しない。
+- この範囲の `Read` では、原宣言の唯一の明示 associated equation と実要求の名前から lookup の `.explicit` が必ず一致する。`readProjectedOutput422` が値側を返す条件は、同じ元の B6 atlas 位置に型つき plan があることとちょうど同じ。実出力型の一致や中心 literal record をここで再検査して、端点からの選択を妨げない（scratch で strict 確認）。
