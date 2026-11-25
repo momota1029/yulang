@@ -57,50 +57,83 @@ theorem equation_rival_read_must_use_a_direct_whole_or_payload_row418
   cases observation with
   | whole eq => exact .inl eq
   | structural read => exact .inr (structural_rival_read_uses_the_same_payload_row418 read)
+def RawRivalReceipt {s q} (r : PlainRows s q) : Prop :=
+  (⟨r.root,rivalCode418 r.tag⟩ : Equation) ∈ s.core.current.ordinary.equations ∨
+    (⟨r.payload,strNull⟩ : Equation) ∈ s.core.current.ordinary.equations
+
+theorem rival_center_requires_actual_raw_receipt418 {s q} (r : PlainRows s q)
+    {capture : Nat → Capture}
+    (candidate : Center s.core.current.ordinary capture (point r.root) (rivalCode418 r.tag)) :
+    RawRivalReceipt r := by
+  cases candidate with
+  | direct fact => exact equation_rival_read_must_use_a_direct_whole_or_payload_row418 fact
+  | endpoints _ _ lower _ => exact equation_rival_read_must_use_a_direct_whole_or_payload_row418 lower
+
 theorem no_rival_center_in_a_checked_scan418 {s q} (a : Winner s q)
     {capture : Nat → Capture}
     (candidate : Center s.core.current.ordinary capture (point a.rows.root) (rivalCode418 a.rows.tag)) :
     False := by
-  cases candidate with
-  | direct fact =>
-    rcases equation_rival_read_must_use_a_direct_whole_or_payload_row418 fact with whole|leaf
-    · exact a.noConflictingRawRival.whole whole
-    · exact a.noConflictingRawRival.leaf leaf
-  | endpoints _ _ lower _ =>
-    rcases equation_rival_read_must_use_a_direct_whole_or_payload_row418 lower with whole|leaf
-    · exact a.noConflictingRawRival.whole whole
-    · exact a.noConflictingRawRival.leaf leaf
+  rcases rival_center_requires_actual_raw_receipt418 a.rows candidate with whole|leaf
+  · exact a.noConflictingRawRival.whole whole
+  · exact a.noConflictingRawRival.leaf leaf
 
-/-- Every possible original source-head constructor is ruled out in
-the checked snapshot, without quantifying over or supplying a model.
-The final check gates add a negative raw-receipt consistency cut, not
-an inference from failed matching or from absence of source typing. -/
+/-- In this literal fragment, every possible source-head constructor
+reduces to exactly one of two real row receipts. This purely syntactic
+equivalence is independent of the positive source/binder decision. -/
+theorem source_head_for_rigid_rival_iff_its_raw_receipt418
+    {s q} {r : PlainRows s q} (a : Rival r) :
+    Nonempty (SourceHead s.core q a.candidate.decl) ↔ RawRivalReceipt r := by
+  constructor
+  · rintro ⟨head⟩
+    cases head with
+    | joined inferred =>
+      have literal := (List.cons.inj (inferred.head.symm.trans a.literal)).1
+      have impossible := inferred.normalized
+      rw [literal] at impossible
+      change Pattern.variant r.tag (.app a.strName []) =
+        Pattern.variant inferred.tag (.join _ _) at impossible
+      cases (Pattern.variant.inj impossible).2
+    | ordered capture arguments =>
+      have supplied : All₂ (DeepHead s.core capture) [point r.root]
+          [rivalHead418 r.tag a.strName] := by
+        simpa only [r.requested,a.literal] using arguments
+      cases supplied with
+      | cons one _ =>
+        cases one with
+        | declared alleged _ =>
+          have wrong := alleged.syntaxHead
+          change Pattern.variant r.tag (.app a.strName []) = .app _ _ at wrong
+          cases wrong
+        | ordinary observed =>
+          obtain ⟨_,code,translated,center⟩ := observed
+          rw [literal_rival_translation418 a] at translated
+          cases Option.some.inj translated
+          exact rival_center_requires_actual_raw_receipt418 r center
+  · intro receipt
+    refine ⟨.ordered (fun _ => emptyCapture403) ?_⟩
+    rw [r.requested,a.literal]
+    refine .cons (.ordinary ⟨⟨.refl _, .refl _⟩,rivalCode418 r.tag,literal_rival_translation418 a,.direct ?_⟩)
+      .nil
+    rcases receipt with whole|leaf
+    · exact .whole whole
+    · exact .structural (.variant r.rootRow (.primitive (n := 0)
+        (fun i => Fin.elim0 i) (fun i => Fin.elim0 i) leaf (fun i => Fin.elim0 i)))
+
+/-- The final check rejects a contradictory raw receipt. On a fitting
+state with this real original int and declared str mismatch, the two
+checked absences follow logically, not from a semantic refusal rule. -/
+theorem verified_int_and_str_mismatch_never_loses_a_fitting_state_to_raw_receipt_guard418
+    {s q} {r : PlainRows s q} (a : RigidMismatch r) (m : I72.Model) (fit : Fits s m) :
+    NoRawRival r := by
+  have cannot := actual_rival_has_no_source_head_in_any_fitting_model418 a m fit
+  exact ⟨fun whole => cannot ((source_head_for_rigid_rival_iff_its_raw_receipt418 a.rival).mpr (.inl whole)),
+    fun leaf => cannot ((source_head_for_rigid_rival_iff_its_raw_receipt418 a.rival).mpr (.inr leaf))⟩
+
 theorem actual_checked_rival_has_no_source_head_without_a_model418 {s q} (a : Winner s q) :
     ¬ Nonempty (SourceHead s.core q a.mismatch.rival.candidate.decl) := by
-  rintro ⟨head⟩
-  cases head with
-  | joined inferred =>
-    have literal := (List.cons.inj (inferred.head.symm.trans a.mismatch.rival.literal)).1
-    have impossible := inferred.normalized
-    rw [literal] at impossible
-    change Pattern.variant a.rows.tag (.app a.mismatch.rival.strName []) =
-      Pattern.variant inferred.tag (.join _ _) at impossible
-    cases (Pattern.variant.inj impossible).2
-  | ordered capture arguments =>
-    have supplied : All₂ (DeepHead s.core capture) [point a.rows.root]
-        [rivalHead418 a.rows.tag a.mismatch.rival.strName] := by
-      simpa only [a.rows.requested,a.mismatch.rival.literal] using arguments
-    cases supplied with
-    | cons one _ =>
-      cases one with
-      | declared alleged _ =>
-        have wrong := alleged.syntaxHead
-        change Pattern.variant a.rows.tag (.app a.mismatch.rival.strName []) = .app _ _ at wrong
-        cases wrong
-      | ordinary observed =>
-        obtain ⟨_,code,translated,center⟩ := observed
-        rw [literal_rival_translation418 a.mismatch.rival] at translated
-        cases Option.some.inj translated
-        exact no_rival_center_in_a_checked_scan418 a center
+  intro apparent
+  rcases (source_head_for_rigid_rival_iff_its_raw_receipt418 a.mismatch.rival).mp apparent with whole|leaf
+  · exact a.noConflictingRawRival.whole whole
+  · exact a.noConflictingRawRival.leaf leaf
 
 end Yulang.GeneralDeclarativeI65.I72.RigidRival418

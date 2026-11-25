@@ -6,3 +6,11 @@
 - 勝つ宣言の二つの binder は、同じ実 payload 全体を捕捉します。負ける宣言は、単なる read 失敗でなく、同じ実 payload の既知 int と、その実宣言のコンパイル済みの str が違うことに基づきます。任意の fitting model で variant 全体がその str head の部分型でないことを証明。
 - 整合チェックは別です。誤った生の全体 str 行や生の payload str 行を証人として供給しても選択できません。固定 source derivation の三系統（ordered 内の direct/endpoint と declared、joined）を反転し、このチェック範囲で負ける側の `SourceHead` はモデルを仮定せず存在しないことを証明。
 - 生の K2 は根と rival の実到達 payload で確認し、入らない循環を一律に排除しません。C09 の真の重複と従来の分岐は変更しません。二宣言のどちらの順でも選ぶのは元の plain 宣言、空 where・関連出力です。
+
+追加検証: `source_head_for_rigid_rival_iff_its_raw_receipt418` は、このリテラル
+範囲の負ける head が構文上作れる条件を、元の全体 str 行または同じ実 payload の
+str 行のどちらか、という同値にしています。モデルなしの必要十分条件は
+入力の型の不一致とは別です。一方、元の int と宣言の str が確かなら、
+任意の fitting model でどちらの生 str 行も存在できません。
+したがって生行の整合 guard は、不整合を避ける追加の確認であって、
+型の不一致の理由そのものでも、仕様全体の完全性の証明でもありません。
