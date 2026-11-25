@@ -11,3 +11,8 @@
 ## 追加で確かめた同じ C03 の整合性
 
 `checked_where_child_keeps_same_trace_for_all_models411` は実 parent event と元 where 0 番の raw child を備えた一つの trace をまず選び、モデルを後から全称量化する。 `where_rule_is_a_new_local_family411` は同じ event が旧 R2 local family に属さないことを示す。さらに `checked_X9_tree_is_forced_in_fitting_state411` は、同じ入力に fitting model が存在すれば、その入力の **全 R3 declarative trace** が元の親 ID と単一 raw child rejection の木を持つことを示す。モデルの数値同値ではなく、元の slot に複数の observation があれば fitting native syntax は同一の literal endpoint を見るという整合性だけを使う。他の形・モデルのない矛盾 snapshot までの一意性や NoFalseRejection ではない。checker の入力・意味は変えていない。
+
+## 独立再生の確認
+
+- 完全な Git bytes の C410・C411 を別の出力ディレクトリで strict Lean 4.35.0 再生。12 production modules、8 standalone Audit、追記 import の同時読み込みは全て exit 0。C411 単独の sealed replay（6 production、5 Audit）も exit 0、37 unique audited names は標準 axioms のみ。
+- 別の同一 X9 構造で、元の role・constructor・declaration ID・束縛名・source slot・子 payload・occurrence をすべて変更しても checker は true。書かれた束縛と別の名前、別 role の where、追加 clause、fallback arity のみで著者がいない role、可視候補が二つ、誤った子の argument index は、同じ新 branch で `false`。厳格な追加カーネル試験の結果 `[true,false,false,false,false,false,false]`。これらの false は言語上の拒否を主張しない。
