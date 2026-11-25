@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I72CompletedInput404
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.c403_keeps_both_fixed_backings404
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_input_owns_retained_nominal404
+#print axioms Yulang.GeneralDeclarativeI65.I72.support_at_literal_ordinal_yields_nominal404
+#print axioms Yulang.GeneralDeclarativeI65.I72.wrong_target_is_not_direct_input_support404
+#print axioms Yulang.GeneralDeclarativeI65.I72.exact_support_is_not_pending404
+#print axioms Yulang.GeneralDeclarativeI65.I72.no_finite_selected_producer_no_support404

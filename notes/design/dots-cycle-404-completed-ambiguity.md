@@ -1,0 +1,5 @@
+# C404 — all-ready supported ambiguity and exact unfinished/wrong-target boundary
+
+Spec/06-roles §6.2 and §6.3: multiple visible matching heads are ambiguous; associated output, a shared center, model values and a nominal binding's body do not choose a winner. If every original input in the represented variable-only head class is backed by a direct trusted written head or an actual same-State completed producer, two visible variable candidates give the same ambiguity even when the inputs were not authored leaves. Raw root K2 still wins and no corresponding selected derivation exists. This does not infer a pending outcome from lack of evidence.
+
+The existing positive concrete rules are left intact. We also reflect their actual output dependencies, so if there is no independently authored head and all exact literal-target producers have no selected derivation, no selection can use that input. A successfully selected derivation, not only the C403 seed class, can itself supply a later exact support forest at its actual output index. This remains finite proof composition, with no new runtime scheduler or termination conclusion.

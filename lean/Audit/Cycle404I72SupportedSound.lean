@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72SupportedSound404
+#print axioms Yulang.GeneralDeclarativeI65.I72.supported_origin_is_actual404
+#print axioms Yulang.GeneralDeclarativeI65.I72.supporting_readback_makes_actual_node404
+#print axioms Yulang.GeneralDeclarativeI65.I72.supported_source_provides_C402_nodes404
+#print axioms Yulang.GeneralDeclarativeI65.I72.supported_aligned_ledger_keeps_fixed_targets404
+#print axioms Yulang.GeneralDeclarativeI65.I72.supported_classifies_uses_one_C402_ledger404
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_input_dictionary_sound404
