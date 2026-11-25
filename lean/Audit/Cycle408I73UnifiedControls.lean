@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I73UnifiedControls408
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.bool_raw_protocol_exact408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.bool_nullary_protocol_exact408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.checker_refuses_any_extra_emitted_write408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.exact_accepted_result_is_unique408
