@@ -3,9 +3,9 @@
 cycle: 426
 status: running
 started: 2026-11-25T21:30:34.994Z
-updated: 2026-11-25T21:37:47.995Z
-elapsed_min: 7
-activity: Replaying named-historical head dependencies and checking the separate acyclic exact projected-retention kernel.
-workspace: C426 exact Git readback
+updated: 2026-11-25T21:41:30.038Z
+elapsed_min: 10
+activity: Exact C14 acyclic same-source leaf and required-only output retention, including independently checked scoped report. Canonical migration remains open.
+workspace: C426 scoped Lean
 last_local_commit: none
-resume_hint: I-75 conserve the legacy named frame; projection is not a named capture.
+resume_hint: Reuse the same original authored endpoints and B6 body; never fabricate legacy named slots.
