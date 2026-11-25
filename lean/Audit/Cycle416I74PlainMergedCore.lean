@@ -1,0 +1,17 @@
+import Yulang.GeneralDeclarativeI65I74PlainMergedEntry416
+
+open Yulang.GeneralDeclarativeI65.I72.PlainMerged416
+#print axioms two_literal_plain_arms_normalize_to_one_actual_tag416
+#print axioms a_plain_merged_payload_does_not_enter_either_arm416
+#print axioms two_binders_use_identical_actual_point416
+#print axioms normalization_has_only_the_actual_variant_visit416
+#print axioms PlainRead.sourceHead
+#print axioms actual_plain_event_captures_same_whole_slot416
+#print axioms actual_plain_event_has_no_where416
+#print axioms self_join_is_semantically_idempotent416
+#print axioms idempotent_row_adds_no_model_requirement416
+#print axioms idempotent_row_is_not_a_raw_structural_edge416
+#print axioms actual_integer_payload_is_int_in_every_fit416
+#print axioms dictionary_sound_R8
+#print axioms previous_entry_unchanged416
+#print axioms check_sound
