@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 423
+cycle: 424
 status: completed
-started: 2026-11-25T18:31:17.816Z
-updated: 2026-11-25T19:21:30.063Z
+started: 2026-11-25T19:30:17.269Z
+updated: 2026-11-25T20:20:25.304Z
 elapsed_min: 50
-activity: C423 completed normally; exact C14 endpoint/retention preparatory evidence verified and pinned. R14 and public checker still not added. Writer released.
-report: notes/handoff/dots-cycle-423.md
+activity: C424 completed and released; scoped local head/legacy tests, no public Lean changes, exact dependent replay incomplete, C14 open.
+report: notes/handoff/dots-cycle-424.md
