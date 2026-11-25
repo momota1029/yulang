@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I73RuleUnionInclusions407
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.include_fixed_family_trace_R0
+#print axioms Yulang.GeneralDeclarativeI65.I72.include_fixed_family_classifies_R0
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_selection_uses_independent_original_rule407
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_raw_root_priority407
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_mixed_producer_retains_literal_original_output407

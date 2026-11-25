@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I73RuleUnionPriority407
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_no_local_diagnostic_conflicts_with_selection407
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_exact_completed_child_uses_mixed_support407
