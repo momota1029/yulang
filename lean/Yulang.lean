@@ -8062,3 +8062,4 @@ import Yulang.GeneralDeclarativeI65I74NamedLeaf409
 import Yulang.GeneralDeclarativeI65I74NamedReport409
 import Yulang.GeneralDeclarativeI65I74NamedEntry409
 import Yulang.GeneralDeclarativeI65I74NamedPriority409
+import Yulang.GeneralDeclarativeI65I74NamedCompatibility409

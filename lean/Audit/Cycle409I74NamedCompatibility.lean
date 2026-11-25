@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74NamedCompatibility409
+open Yulang.GeneralDeclarativeI65.I72.Named409
+#print axioms bare_name_wire_exact409
+#print axioms named_and_prior_witnesses_cannot_both_succeed409
+#print axioms checked_results_are_unique409
