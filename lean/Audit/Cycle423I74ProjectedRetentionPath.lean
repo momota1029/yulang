@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionPath423
+
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms checked_path_retains_the_exact_original_B6_value423

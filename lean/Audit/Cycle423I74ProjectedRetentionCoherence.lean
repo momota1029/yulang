@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionCoherence423
+
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms different_prepared_evidence_keeps_the_same_actual_write423
