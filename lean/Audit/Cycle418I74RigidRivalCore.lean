@@ -1,0 +1,18 @@
+import Yulang.GeneralDeclarativeI65I74RigidRivalPriority418
+
+open Yulang.GeneralDeclarativeI65.I72.RigidRival418
+
+#print axioms normalized_rival_is_literal_str418
+#print axioms original_int_point_cannot_fit_str418
+#print axioms rival_visits_exact_root_and_original_payload418
+#print axioms rigid_mismatch_does_not_hide_K2418
+#print axioms actual_candidates_and_no_others418
+#print axioms exact_winner_has_no_where418
+#print axioms selected_rigid_local_sound418
+#print axioms dictionary_sound_R10
+#print axioms existing_exact_report_lifts418
+#print axioms check_sound
+#print axioms previous_entry_unchanged418
+#print axioms old_C09_not_a_second_accepted_diagnosis418
+#print axioms actual_rigid_scan_has_only_the_original_winner418
+#print axioms rigid_report_is_unique_in_its_checked_scope418
