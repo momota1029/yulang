@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryPositive406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms original_prior_proof_is_the_literal_native_dependency406
+#print axioms given_prior_selected_output_opens_completed_native406
+#print axioms build_native_invocation_with_exact_body_and_where406

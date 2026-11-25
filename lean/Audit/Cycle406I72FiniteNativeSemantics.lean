@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I72FiniteNativeSemantics406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms finite_step_uses_only_exact_predecessor_output406
+#print axioms finite_completed_native_source_assembles_exact_ledger406

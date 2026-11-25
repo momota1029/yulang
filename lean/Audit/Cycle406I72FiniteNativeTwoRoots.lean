@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I72FiniteNativeTwoRoots406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms completed_native_root_as_real_producer406
+#print axioms actual_new_native_root_feeds_another_exact_native_root406

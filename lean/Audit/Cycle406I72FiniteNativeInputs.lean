@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72FiniteNativeInputs406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms no_unsafe_step_in_that_native_root406
+#print axioms any_actual_scoped_selection_is_a_finite_base406
+#print axioms finite_native_producer_preserves_the_original_output_address406
+#print axioms chosen_finite_native_output_retains_exact_nominal406
+#print axioms raw_K2_still_precedes_finite_native_rule406

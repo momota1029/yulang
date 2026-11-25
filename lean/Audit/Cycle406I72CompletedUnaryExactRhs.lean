@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryExactRhs406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms named_B6_output_at_same_original_frame_unique406
+#print axioms completed_B6_body_at_same_frame_is_unique406
+#print axioms one_installed_body_suffices_for_exact_replay406
+#print axioms completed_lower_replays_original_B6_occurrence406

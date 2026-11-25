@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryGate406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms literal_input_declares_mode_and_compares406
+#print axioms actual_completed_lower_selects_before_original_center406
+#print axioms completed_root_never_inspects_variable_payload406
+#print axioms completed_selected_endpoints_have_same_model406

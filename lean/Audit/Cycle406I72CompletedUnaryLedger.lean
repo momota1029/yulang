@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryLedger406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms actual_prior_where_keeps_grounded_priority406
+#print axioms actual_prior_support_keeps_grounded_priority406
+#print axioms prior_where_dictionary_uses_one_model406
+#print axioms same_ledger_yields_scoped_evidence406
+#print axioms actual_scoped_trace_assembles_one_ledger406
+#print axioms scoped_dictionary_sound406

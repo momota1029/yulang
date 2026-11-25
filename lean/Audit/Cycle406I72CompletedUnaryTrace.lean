@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryTrace406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms previous_classification_embeds406
+#print axioms completed_invocation_gives_source_verdict406
+#print axioms raw_k2_forces_new_trace_verdict406
+#print axioms new_trace_preserves_raw_root_k2_406
+#print axioms completed_invocation_means_one_state_and_model406

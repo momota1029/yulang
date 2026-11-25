@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I72FiniteNativeK2406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms actual_finite_producer_opens_entered_K2_406
+#print axioms finite_selected_cannot_ignore_entered_K2406
+#print axioms new_finite_entered_K2_has_priority406
+#print axioms raw_root_K2_has_priority_in_finite_extension406
+#print axioms finite_verdict_uses_one_grounded_ledger_for_every_fitting_model406
+#print axioms finite_lower_and_pending_inner_edge_remain_raw_K2_406

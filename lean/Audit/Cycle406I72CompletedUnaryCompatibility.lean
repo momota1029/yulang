@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryCompatibility406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms no_new_preselection_reflects_old_classifies406
+#print axioms prior_exact_writes_unchanged_when_embedded406
+#print axioms authored_and_completed_use_same_root_visit406
+#print axioms same_original_center_has_compatible_native_readback406
+#print axioms original_prior_trace_lift406
+#print axioms old_entered_K2_remains_actual_in_scoped_rules406
+#print axioms entered_old_k2_cannot_be_replaced_by_new_positive406
