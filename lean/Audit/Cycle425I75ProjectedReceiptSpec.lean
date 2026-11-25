@@ -399,3 +399,74 @@ theorem prepared_split_keeps_exact_authored_core_wire425 :
 #print axioms source_still_emits_exact_projected_wire_without_a_retained_target425
 #print axioms prepared_split_keeps_exact_authored_core_wire425
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+
+namespace Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+open GeneralDeclarativeI65
+open CommonNominalFullCarrier (Ty Equivalent subtype_refl)
+open GeneralDeclarativeHead320 (Equation)
+open GeneralDeclarativeRecordChannel330 (project)
+
+open OpenTail414 (openRow)
+def changedUnretainedModel425 : I72.Model :=
+  { splitModel with assignment := fun n =>
+      if n = 12 then (.base .int,Common.rowEmpty) else splitModel.assignment n }
+
+theorem missing_target_has_actual_fitting_model425 :
+    I72.Fits noRetainedTarget425.state changedUnretainedModel425 := by
+  refine ⟨⟨⟨⟨?_,?_⟩,?_⟩,?_⟩,?_⟩
+  · intro atom mem
+    change atom ∈ splitAtoms at mem
+    simp only [splitAtoms,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl
+    · exact subtype_refl _
+    · exact (GeneralDeclarativeRecordSplit330.interval 20).2
+  · intro pair mem
+    change pair ∈ [(0,1),(1,2)] at mem
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl
+    · exact (GeneralDeclarativeRecordSplit330.interval 20).1
+    · exact (GeneralDeclarativeRecordSplit330.interval 20).2
+  · intro e mem
+    change e ∈ [openRow 0 20 3 5,openRow 2 20 4 6] at mem
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl <;> exact ⟨subtype_refl _,subtype_refl _⟩
+  · intro _ none; cases none
+  · intro o mem
+    change o ∈ originalOrigins425 at mem
+    simp only [originalOrigins425,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl <;> rfl
+
+def noRetainedRead425 :=
+  (readCoreBeforeRetention425 noRetainedTarget425 sourceWire425).get (by decide +kernel)
+
+/-- Genuine source reads and emitted coordinates alone cannot support
+the fixed-target theorem. Removing just the retention equation admits
+an actual fitting model with the same source RHS and a wrong target. -/
+theorem same_projected_source_without_retention_has_wrong_target425 :
+    noRetainedRead425.2.valueAt changedUnretainedModel425 = some ([61,423],1,0,12,.top) ∧
+    ¬ Equivalent (changedUnretainedModel425.assignment 12).1 .top := by
+  obtain ⟨_,v,seen,out⟩ :=
+    ProjectedCore425.projected_core_original_B6_uses_actual_required_field425 noRetainedRead425.2
+      changedUnretainedModel425 missing_target_has_actual_fitting_model425
+  have label : noRetainedRead425.2.label = 20 := by decide +kernel
+  have center : noRetainedRead425.2.arg.center = 1 := by decide +kernel
+  rw [label,center] at seen
+  change project 20 false [] (GeneralDeclarativeRecordSplit330.hidden 20) = some v at seen
+  have typ := Option.some.inj (seen.symm.trans (GeneralDeclarativeRecordSplit330.required_top 20))
+  subst v
+  refine ⟨out.trans ?_,fun bad => GeneralNominalTopObservation.top_not_scalar .int bad.2⟩
+  apply congrArg some
+  apply Prod.ext
+  · decide +kernel
+  · apply Prod.ext
+    · decide +kernel
+    · apply Prod.ext
+      · decide +kernel
+      · apply Prod.ext
+        · change (noRetainedTarget425.root.demand.outputs.get noRetainedRead425.1).target = 12
+          decide +kernel
+        · rfl
+
+#print axioms missing_target_has_actual_fitting_model425
+#print axioms same_projected_source_without_retention_has_wrong_target425
+end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
