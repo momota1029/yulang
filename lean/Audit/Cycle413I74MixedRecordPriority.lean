@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74MixedRecordPriority413
+open Yulang.GeneralDeclarativeI65.I72.MixedRecord413
+#print axioms MixedTape.record_head
+#print axioms no_prior_diagnostic_on_mixed_record413
+#print axioms no_prior_election_on_mixed_record413
+#print axioms actual_nested_K2_has_priority_over_every_R5_trace413
+#print axioms prior_checker_remains_disjoint413
+#print axioms checked_results_are_unique413
