@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I72CompletedNativeSourceIndex406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms readExplicitSourceIndex406
+#print axioms exact_source_index_readback406
+#print axioms same_annotated_source_chooses_same_exact_center406
+#print axioms cannot_read_from_unrouted_original_source406
+#print axioms exact_original_index_drives_a_new_native_source406
+#print axioms completed_unary_gate_is_not_an_old_source_head406
+#print axioms actual_completed_native_selection_needs_the_new_head_carrier406
