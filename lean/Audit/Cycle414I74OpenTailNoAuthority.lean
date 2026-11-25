@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74OpenTailNoAuthority414
+
+open Yulang.GeneralDeclarativeI65.I72.OpenTail414
+#print axioms a_selected_target_at_the_open_tail_is_reflexive414
+#print axioms actual_completed_support_to_the_open_tail_is_only_reflexive414
+#print axioms completed_support_does_not_compute_a_fixed_residual414
