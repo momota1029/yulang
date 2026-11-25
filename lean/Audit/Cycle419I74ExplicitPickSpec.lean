@@ -163,6 +163,84 @@ theorem raw_root_beats_even_missing_B6_but_offroute_is_not_a_visit419 :
     checkOpt (build (raw := offRoute)) expected (.explicitPick offRouteWire) = true := by
   decide +kernel
 
+def loopBody419 : CommonNominalSyntax.State Common.Row := .block [.variant 90 (.inl 0)] 0
+def mu90 : Ty := .variant 90 loopBody419
+def offRouteModel : I72.Model :=
+  {model with assignment := fun n =>
+     ((if n = 6 then mu90 else (model.assignment n).1),Common.rowEmpty)}
+
+theorem off_route_cycle_is_an_actual_raw_cycle419 :
+    GeneralDeclarativeK2Alias321.AliasCycle offRoute
+      (GeneralDeclarativeGraphRows321.observed offRoute) 6 := by
+  have present : (⟨6,.variant 90 (.variable 6)⟩ : Equation) ∈ offRoute.equations := by
+    simp [offRoute]
+  refine ⟨6,6,⟨.variant 90 6,GeneralDeclarativeGraphRows321.literal_head present rfl,?_⟩,
+    .refl _,GeneralDeclarativeLowerKnown321.alias_refl _⟩
+  simp [GeneralDeclarativeK2Graph321.Shape.children]
+
+private theorem mu90_folds419 : CommonNominalFullCarrier.Equivalent mu90
+    (CommonNominalFullCarrier.variant 90 mu90) := by
+  have same (k : Nat) : CommonNominalFullCarrier.observeTy k mu90 =
+      CommonNominalFullCarrier.observeTy k (CommonNominalFullCarrier.variant 90 mu90) := by
+    cases k <;> rfl
+  constructor <;> intro k <;> rw [← same k] <;> exact CommonNominalFullDemand.producerLe_refl _
+
+theorem actual_off_route_recursive_state_fits419 {p : Problem}
+    (ready : build (raw := offRoute) = some p) : Fits p.state offRouteModel := by
+  unfold build at ready
+  cases cp : compile bodies with
+  | none => simp [cp] at ready
+  | some program =>
+    cases cm : GeneralSourceMetadataBareBundle291.compile (surface [unrelated,actual] true) with
+    | none => simp [cp,cm] at ready
+    | some bundle =>
+      simp only [cp,cm,Option.pure_def] at ready
+      cases ready
+      refine ⟨⟨⟨⟨?_,?_⟩,?_⟩,?_⟩,?_⟩
+      · intro _ seen; cases seen
+      · intro _ seen; cases seen
+      · intro x found
+        change x ∈ [rootRow,xRow,yRow,tailRow,splitRow,outRow,⟨6,.variant 90 (.variable 6)⟩] at found
+        simp only [List.mem_cons,List.not_mem_nil,or_false] at found
+        rcases found with rfl|rfl|rfl|rfl|rfl|rfl|rfl
+        all_goals first | exact ⟨subtype_refl _,subtype_refl _⟩ | exact mu90_folds419
+      · intro _ seen; cases seen
+      · intro o here
+        obtain rfl := List.mem_singleton.mp here
+        rfl
+
+theorem genuine_recursive_off_route_keeps_actual_pick_dictionary419 :
+    ∃ p, build (raw := offRoute) = some p ∧ Fits p.state offRouteModel ∧
+      GeneralDeclarativeK2Alias321.AliasCycle p.state.core.current.ordinary
+        (GeneralDeclarativeGraphRows321.observed p.state.core.current.ordinary) 6 ∧
+      ReportEvidence p.state offRouteModel p.root expected ∧
+      DictionaryEvidence p.state offRouteModel p.root (.node 57 []) := by
+  have yes := raw_root_beats_even_missing_B6_but_offroute_is_not_a_visit419.2.2
+  cases got : build (raw := offRoute) with
+  | none => simp [checkOpt,got] at yes
+  | some p =>
+    have chk : check p expected (.explicitPick offRouteWire) = true := by simpa [checkOpt,got] using yes
+    have fit := actual_off_route_recursive_state_fits419 got
+    have same : p.state.core.current.ordinary = offRoute := by
+      unfold build at got
+      dsimp only at got
+      repeat' (first | split at got | contradiction)
+      cases Option.some.inj got
+      rfl
+    have report := check_sound p expected _ chk
+    exact ⟨p,rfl,fit,by rw [same]; exact off_route_cycle_is_an_actual_raw_cycle419,
+      report.2 offRouteModel fit,
+      dictionary_sound_R11 _ _ _ (exact_report_is_R11_classification419 report.1) offRouteModel fit⟩
+
+def doubleLocator : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [outRow]}
+
+theorem equation_locators_cannot_change_original_literal_ledger419 :
+    checkOpt (build (raw := doubleLocator)) expected (.explicitPick wire) = true ∧
+    checkOpt (build (raw := doubleLocator)) expected (.explicitPick {wire with outputRow := 6}) = true ∧
+    checkOpt (build (raw := doubleLocator)) (mutate fun w => {w with outputOrdinal := 6})
+      (.explicitPick {wire with outputRow := 6}) = false := by decide +kernel
+
 #eval checkOpt
 #print axioms actual_Pick_from_spec_has_nonempty_original_input_and_output419
 #print axioms original_Pick_nonempty_source_has_fitting_model419
@@ -170,4 +248,8 @@ theorem raw_root_beats_even_missing_B6_but_offroute_is_not_a_visit419 :
 #print axioms check_does_not_invent_typed_child_scope_or_fixed_row419
 #print axioms emitted_literal_ledger_checks_every_coordinate419
 #print axioms raw_root_beats_even_missing_B6_but_offroute_is_not_a_visit419
+#print axioms off_route_cycle_is_an_actual_raw_cycle419
+#print axioms actual_off_route_recursive_state_fits419
+#print axioms genuine_recursive_off_route_keeps_actual_pick_dictionary419
+#print axioms equation_locators_cannot_change_original_literal_ledger419
 end Yulang.GeneralDeclarativeI65.I72.ExplicitPick419.SpecPick
