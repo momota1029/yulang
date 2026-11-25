@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72GroundedPositions405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms variable_scan_position_iff405
+#print axioms variable_positions_keep_source_order405
+#print axioms grounded_argument_has_unique_literal_address405

@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72GroundedLocalReceipt405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms candidate_keeps_original_B6_body405
+#print axioms actual_selection_derives_grounded_local_receipt405
+#print axioms grounded_receipt_reads_literal_where_and_every_output405
