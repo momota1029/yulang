@@ -1,4 +1,5 @@
 import Yulang.GeneralDeclarativeI65I74RigidRivalModelFree418
+import Yulang.GeneralDeclarativeI65I74RigidRivalRestriction418
 
 open Yulang.GeneralDeclarativeI65.I72.RigidRival418
 #print axioms nullary_str_read_uses_literal_row418
@@ -9,3 +10,7 @@ open Yulang.GeneralDeclarativeI65.I72.RigidRival418
 #print axioms rival_center_requires_actual_raw_receipt418
 #print axioms source_head_for_rigid_rival_iff_its_raw_receipt418
 #print axioms verified_int_and_str_mismatch_never_loses_a_fitting_state_to_raw_receipt_guard418
+#print axioms restrictOldTrace418
+#print axioms report_with_only_prior_source_rules_preserves_exact_bytes418
+#print axioms genuinely_new_report_must_use_a_new_local_choice418
+#print axioms actual_C10_selected_report_strictly_extends_prior_classification418
