@@ -3,9 +3,9 @@
 cycle: 407
 status: running
 started: 2026-11-25T02:30:45.000Z
-updated: 2026-11-25T02:39:53.978Z
-elapsed_min: 9
-activity: I-72: finite selected branch with exact original payload and B6/where ordinals checked
+updated: 2026-11-25T02:46:33.201Z
+elapsed_min: 15
+activity: I-73 received: stop scope expansion; build R₀ on exact C402 evidence
 workspace: C407 scoped Lean
 last_local_commit: none
-resume_hint: I-72: derive candidate-specific mismatches from an exact same-State completed lower, preserving order and raw K2.
+resume_hint: I-72: I-73: continue exact checked rule union and independent validation; do not broaden coverage.
