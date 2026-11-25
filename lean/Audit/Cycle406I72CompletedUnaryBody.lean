@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryBody406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms original_completed_native_body_reads_B6406
+#print axioms completed_body_keeps_original_replay_addresses406
+#print axioms completed_body_exact_type_and_fixed_in_one_model406
+#print axioms completed_body_generates_exact_literal_where406
