@@ -1,0 +1,25 @@
+import Yulang.GeneralDeclarativeI65I74X6AmbiguousPriority417
+import Yulang.GeneralDeclarativeI65I74X6AmbiguousLocator417
+
+open Yulang.GeneralDeclarativeI65.I72.X6Ambiguous417
+
+#print axioms PlainHit.originalHead
+#print axioms GroundHit.originalHead
+#print axioms plain_has_both_captures_on_actual_payload417
+#print axioms the_two_candidate_heads_hold_in_the_very_same_model417
+#print axioms variant_profile_tracks_reached_child417
+#print axioms actual_matching_candidates_are_exactly_two417
+#print axioms same_input_has_distinct_authored_ordinals417
+#print axioms ground_actually_inspects_both_original_roots417
+#print axioms plain_root_only417
+#print axioms ground_can_only_report_ambiguity_after_both_K2_checks417
+#print axioms a_cycle_at_the_real_payload_is_ground_K2_even_without_root_K2417
+#print axioms no_election_rule_was_changed417
+#print axioms dictionary_sound_R9
+#print axioms existing_exact_report_lifts417
+#print axioms both_actual_matches_classify_as_ambiguity417
+#print axioms result_includes_actual_replayed_ordinals417
+#print axioms actual_X6_has_only_ambiguity_in_R9_417
+#print axioms every_certified_result_for_actual_X6_is_the_canonical_ambiguity417
+#print axioms previous_entry_unchanged417
+#print axioms check_sound
