@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I75CanonicalEndpointReport426
+
+open Yulang.GeneralDeclarativeI65
+open Yulang.GeneralDeclarativeI65.I72
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+
+#print axioms source_head_sound
+#print axioms original_projected_leaf_has_canonical_head426
+#print axioms original_projected_leaf_with_retention_has_dictionary_evidence426
+#print axioms checked_projected_report_has_canonical_dictionary_evidence426

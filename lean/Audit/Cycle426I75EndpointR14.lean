@@ -1,0 +1,20 @@
+import Yulang.GeneralDeclarativeI65I75ProjectedRule426
+
+open Yulang.GeneralDeclarativeI65
+open Yulang.GeneralDeclarativeI65.I72
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+open Yulang.GeneralDeclarativeI65.I72.EndpointProjection426
+
+#print axioms source_head_sound
+#print axioms original_projected_leaf_has_canonical_head426
+#print axioms original_projected_leaf_with_retention_has_dictionary_evidence426
+#print axioms checked_projected_report_has_canonical_dictionary_evidence426
+#print axioms EndpointProjection426.dictionary_sound_R14
+#print axioms EndpointProjection426.check_sound
+#print axioms R14_named_view_is_exact_R13_426
+#print axioms R13_legacy_verdicts_are_unchanged_in_R14_426
+#print axioms R14_keeps_all_old_nonselection_verdicts426
+#print axioms every_R13_verdict_is_preserved_in_R14_426
+#print axioms R13_checker_behavior_is_identical426
+#print axioms verified_R14_result_classifies_in_same_State426
+#print axioms original_raw_K2_rules_out_any_R14_selection426
