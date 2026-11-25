@@ -1,0 +1,56 @@
+import Yulang.GeneralDeclarativeI65I74RoleDefaultEntry420
+
+set_option backward.isDefEq.respectTransparency false
+namespace Yulang.GeneralDeclarativeI65.I72.RoleDefault420
+open GeneralDeclarativeI65
+open ExplicitPick419 (inputView exactlyOneOutput replayOutput replay_output_uses_the_supplied_equation_ordinal419)
+open GeneralDeclarativeWitnessLiteral349 (eqExpr eq_expr)
+open Checker408 (Problem Result)
+
+/-- An accepted witness supplies the location of the real declaration and
+retained equation. Neither location can set the logical output ordinal. -/
+theorem replay_default_uses_literal_locator420 {p wire a}
+    (found : replayDefault420 p wire = some a) :
+    a.declaration.ordinal = wire.declaration ∧
+      p.state.core.current.ordinary.equations[wire.outputRow]? =
+        some ⟨p.root.demand.outputs[exactlyOneOutput p a.single].target,a.retained.expr⟩ := by
+  simp only [replayDefault420,Option.bind_eq_bind,Option.bind_eq_some_iff,Option.pure_def] at found
+  obtain ⟨r,_,body⟩ := found
+  split at body
+  next safe =>
+    simp only [Option.bind_eq_some_iff] at body
+    obtain ⟨d,decl,body⟩ := body
+    split at body
+    next one =>
+      simp only [Option.bind_eq_some_iff] at body
+      obtain ⟨out,defaulted,term,_,body⟩ := body
+      repeat' (first | split at body | contradiction)
+      cases Option.some.inj body
+      refine ⟨read_declaration_uses_the_supplied_ordinal420 decl,?_⟩
+      change p.state.core.current.ordinary.equations[wire.outputRow]? =
+        some ⟨p.root.demand.outputs[exactlyOneOutput p one].target,out.expr⟩
+      exact replay_output_uses_the_supplied_equation_ordinal419 defaulted
+    next => contradiction
+  next => contradiction
+
+theorem check_has_original_typed_write_at_supplied_locator420 {p : Problem} {r : Result} {w : DefaultWire}
+    (yes : check p r (.roleDefault w) = true) :
+    ∃ a : DefaultPacket p, r = defaultReport a ∧ r.writes = [a.retained.write] ∧
+      a.retained.write.declarationOrdinal = w.declaration ∧ a.retained.write.outputOrdinal = 0 ∧
+      p.state.core.current.ordinary.equations[w.outputRow]? =
+        some ⟨a.retained.write.target.target,a.retained.expr⟩ := by
+  obtain ⟨a,found,rfl⟩ := checked_report_uses_original_default420 yes
+  obtain ⟨declaration,row⟩ := replay_default_uses_literal_locator420 found
+  exact ⟨a,rfl,rfl,declaration,rfl,row⟩
+
+theorem accepted_default_agrees_with_every_literal_row_at_original_target420
+    {p : Problem} {r : Result} {w : DefaultWire} (yes : check p r (.roleDefault w) = true) :
+    ∃ a : DefaultPacket p, r = defaultReport a ∧
+      ∀ row ∈ p.state.core.current.ordinary.equations,
+        row.left = a.retained.write.target.target → row.right = a.retained.expr := by
+  obtain ⟨a,_,matchR⟩ := checked_report_uses_original_default420 yes
+  refine ⟨a,matchR,?_⟩
+  intro row member same
+  exact a.retained.noOtherLiteral row member same
+
+end Yulang.GeneralDeclarativeI65.I72.RoleDefault420
