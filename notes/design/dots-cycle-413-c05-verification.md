@@ -17,3 +17,7 @@
 ### 本当に一致する rival の意味的な対照
 
 `actual_plain_rival_has_a_typed_leaf_payload413` は、各実 binding-only rival の元宣言、元 capture、空 where/outputs を用いて、任意の同じ fitting model で葉の意味証拠を構成する。これは選択を仮定または発生させる規則ではない。`same_X11_with_two_semantic_leaf_rivals_and_no_win413` は実三行の ID 56、58 の両方にこの同一モデルの leaf evidence がある一方、そのどちらの `selected` も R5 にはなく、同じ K2 report evidence があることを一つの定理にした。構文だけ似たダミーの rival、仮の外部 evaluator、言語変更はない。
+
+### 同じ head が二つ一致しても循環しない対照
+
+独立 `Cycle413I74MixedRecordFiniteControl.lean` では同じ二宣言・同じ外側 point の有限 record に、両方の真正な `SourceHead` 一致と実 fitting model がある。実 scan の前段で全 tape を取得できるが、実内部 site には cycle がないため、**どの report とどの witness でも** 新 `mixedHead` branch は false。元 graph には展開済みの nested row もある。検査未対応を言語の拒否や曖昧さの決着に読み替えない。実行 `[true,false]` は「全 tape を読める／K2 は通らない」を表す。
