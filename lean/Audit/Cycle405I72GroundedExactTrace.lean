@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72GroundedExactTrace405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms assemble_at_given_original_trace405
+#print axioms choose_grounded_trace_with_actual_support405
+#print axioms original_producer_remains_the_one_consumed405
