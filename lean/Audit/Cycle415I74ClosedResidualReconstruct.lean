@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ClosedResidualReconstruct415
+
+open Yulang.GeneralDeclarativeI65.I72.ClosedResidual415
+#print axioms split_is_semantically_derived_from_closed_source415
+#print axioms visible_removed_and_retained_projections_agree415
