@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ExplicitPickEntry419
+import Yulang.GeneralDeclarativeI65I74ExplicitPickMeaning419
 
 namespace Yulang.GeneralDeclarativeI65.I72.ExplicitPick419.SpecPick
 open GeneralDeclarativeI65 (B6OccurrenceAtlas401 B6MixedRhs401 MixedRhs401)
@@ -145,10 +145,29 @@ theorem emitted_literal_ledger_checks_every_coordinate419 :
     checkOpt build expected (.explicitPick {wire with declaration := 0}) = false :=
   by decide +kernel
 
+def rootCycle : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [⟨1,.variable 0⟩]}
+def offRoute : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [⟨6,.variant 90 (.variable 6)⟩]}
+def offRouteWire : PickWire :=
+  {wire with rootEscape := ⟨[0,1,2,3,1,3,3],[0,1,1,2]⟩}
+def rawWire : GeneralDeclarativeWitnessCycle350.Wire := ⟨0,⟨0,.same,1⟩,[],.forward 6⟩
+def legacyRoot : Witness :=
+  .previous (.previous (.previous (.previous (.previous (.previous
+    (.previous (.previous (.previous (.previous (.previous (.rawRoot rawWire)))))))))))
+
+theorem raw_root_beats_even_missing_B6_but_offroute_is_not_a_visit419 :
+    checkOpt (build (raw := rootCycle)) = false ∧
+    checkOpt (build (raw := rootCycle) (typed := false))
+      Check408.rawReport legacyRoot = true ∧
+    checkOpt (build (raw := offRoute)) expected (.explicitPick offRouteWire) = true := by
+  decide +kernel
+
 #eval checkOpt
 #print axioms actual_Pick_from_spec_has_nonempty_original_input_and_output419
 #print axioms original_Pick_nonempty_source_has_fitting_model419
 #print axioms genuine_Pick_has_exact_same_model_dictionary_output419
 #print axioms check_does_not_invent_typed_child_scope_or_fixed_row419
 #print axioms emitted_literal_ledger_checks_every_coordinate419
+#print axioms raw_root_beats_even_missing_B6_but_offroute_is_not_a_visit419
 end Yulang.GeneralDeclarativeI65.I72.ExplicitPick419.SpecPick

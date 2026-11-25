@@ -65,6 +65,10 @@ structure RetainedOutput (p : Problem) (f : AuthoredBodyFrame393 p.state.core p.
   code : fixedValueCode403 output.rhs = some expr
   atRow : ⟨p.root.demand.outputs[i].target,expr⟩ ∈ p.state.core.current.ordinary.equations
 
+  rowOrdinal : Nat
+  atIndex : p.state.core.current.ordinary.equations[rowOrdinal]? =
+    some ⟨p.root.demand.outputs[i].target,expr⟩
+
 def RetainedOutput.write {p f i} (out : RetainedOutput p f i) : Write :=
   ⟨p.root.occurrence,f.ordinal,i.val,p.root.demand.outputs[i],out.output.body,
     Check408.encodeRhs out.output.rhs⟩
@@ -99,7 +103,7 @@ def replayOutput (p : Problem) (f : AuthoredBodyFrame393 p.state.core p.root)
                 · exact beq_iff_eq.mp pair.1
                 · exact (eq_expr _ _).mp pair.2
               some ⟨⟨body,(lookup_exact _ _ supplied.identified.2.2.1 _ _).mp found,
-                plan,input,rhs,formed⟩,expr,repr,exactRow ▸ List.mem_of_getElem? row⟩
+                plan,input,rhs,formed⟩,expr,repr,exactRow ▸ List.mem_of_getElem? row,pos,exactRow ▸ row⟩
             else none
 
 theorem replay_output_has_exact_source_and_row419 {p f checked i pos out}
@@ -109,6 +113,17 @@ theorem replay_output_has_exact_source_and_row419 {p f checked i pos out}
       out.write.outputOrdinal = i.val ∧ out.write.target = p.root.demand.outputs[i] ∧
       ⟨p.root.demand.outputs[i].target,out.expr⟩ ∈ p.state.core.current.ordinary.equations :=
   ⟨out.output.originalTyped,rfl,rfl,rfl,rfl,out.atRow⟩
+
+theorem replay_output_uses_the_supplied_equation_ordinal419 {p f checked i pos out}
+    (found : replayOutput p f checked i pos = some out) :
+    p.state.core.current.ordinary.equations[pos]? =
+      some ⟨p.root.demand.outputs[i].target,out.expr⟩ := by
+  have same : out.rowOrdinal = pos := by
+    dsimp only [replayOutput] at found
+    repeat' (first | split at found | contradiction)
+    cases Option.some.inj found
+    rfl
+  simpa only [same] using out.atIndex
 
 def exactlyOneOutput (p : Problem) (h : p.root.demand.outputs.length = 1) :
     Fin p.root.demand.outputs.length := ⟨0,by omega⟩

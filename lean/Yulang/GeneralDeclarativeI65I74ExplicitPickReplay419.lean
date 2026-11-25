@@ -47,6 +47,13 @@ def readDeclaration419 (p : Problem) (r : Rows p) (ordinal : Nat) :
     else none
   | _ => none
 
+theorem read_declaration_uses_the_supplied_ordinal419 {p r pos d}
+    (found : readDeclaration419 p r pos = some d) : d.ordinal = pos := by
+  dsimp only [readDeclaration419] at found
+  repeat' (first | split at found | contradiction)
+  cases Option.some.inj found
+  rfl
+
 structure PickPacket (p : Problem) where
   rows : Rows p
   declaration : PickDeclaration p rows

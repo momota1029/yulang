@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ExplicitPickEntry419
+import Yulang.GeneralDeclarativeI65I74ExplicitPickMeaning419
 
 open Yulang.GeneralDeclarativeI65.I72.ExplicitPick419
 #print axioms PickDeclaration.sourceHead
@@ -13,3 +13,11 @@ open Yulang.GeneralDeclarativeI65.I72.ExplicitPick419
 #print axioms checked_report_uses_original_pick419
 #print axioms previous_entry_unchanged419
 #print axioms check_sound
+#print axioms replay_output_uses_the_supplied_equation_ordinal419
+#print axioms read_declaration_uses_the_supplied_ordinal419
+#print axioms original_literal_body_slot_is_the_actual_field419
+#print axioms typed_ledger_uses_original_binder_and_all_actual_point_names419
+#print axioms retained_output_is_same_field_in_every_fitting_model419
+#print axioms both_real_binders_and_retained_residual_are_preserved419
+#print axioms checked_pattern_cannot_hide_a_reached_cycle419
+#print axioms no_older_selected_rule_can_claim_actual_Pick419
