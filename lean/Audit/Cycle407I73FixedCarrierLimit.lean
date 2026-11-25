@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I73FixedCarrierLimit407
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.no_rule_sum_can_replace_the_fixed_old_source_head407
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_lower_is_C_not_fixed_I73_scope407
