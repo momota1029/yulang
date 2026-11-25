@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74RigidRivalNoHead418
+import Yulang.GeneralDeclarativeI65I74RigidRivalModelFree418
 import Yulang.GeneralDeclarativeI65I74RigidRivalLocator418
 
 namespace Yulang.GeneralDeclarativeI65.I72.RigidRival418.SpecWitness
@@ -224,8 +224,32 @@ theorem both_actual_declaration_orders_and_six_raw_storage_orders418 :
       (fun n => !checkOpt (build [actual,ground] {ordinary with equations := n.1}) report418 (.rigidRival wire)) = true :=
   by decide +kernel
 
+def staleRivalWhole : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [⟨0,rivalCode418 20⟩]}
+def staleRivalPayload : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [⟨1,strNull⟩]}
+def unrelatedStr : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [⟨2,strNull⟩]}
+
+theorem raw_rival_receipts_neither_pick_a_winner_nor_hide_a_real_one418 :
+    List410.checkExactEscape staleRivalWhole 0 wire.rootEscape = true ∧
+    List410.checkExactEscape staleRivalPayload 1 wire.payloadEscape = true ∧
+    checkOpt (build [actual,ground] staleRivalWhole) = false ∧
+    checkOpt (build [actual,ground] staleRivalPayload) = false ∧
+    checkOpt (build [actual,ground] unrelatedStr) = true := by
+  decide +kernel
+
+theorem checked_arbitrary_source_cannot_supply_the_losing_head418
+    {p : Problem} {w : RivalWire} (good : check p report418 (.rigidRival w) = true) :
+    ∃ a : Winner p.state p.root, replayWinner418 p w = some a ∧
+      ¬ Nonempty (SourceHead p.state.core p.root a.mismatch.rival.candidate.decl) := by
+  obtain ⟨a,onWire,_⟩ := checked_plain_merge_reflects_original418 p report418 w good
+  exact ⟨a,onWire,actual_checked_rival_has_no_source_head_without_a_model418 a⟩
+
 #eval [checkOpt,checkOpt (build [ground,actual]) report418 (.rigidRival reverse),
   checkOpt (build [actual,realOverlap]),checkOpt (build [actual,ground] payloadCycle)]
+#print axioms raw_rival_receipts_neither_pick_a_winner_nor_hide_a_real_one418
+#print axioms checked_arbitrary_source_cannot_supply_the_losing_head418
 #print axioms actual_two_candidates_select_only_the_plain_match418
 #print axioms unavailable_wrong_root_and_overlap_are_not_mismatch418
 #print axioms actual_visits_keep_raw_K2_and_off_route_distinct418

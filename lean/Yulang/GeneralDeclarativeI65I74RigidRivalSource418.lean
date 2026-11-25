@@ -9,6 +9,7 @@ open GeneralNominalCenteredHeadMatExpressions (Expr translate translateMany appl
 open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry point)
 open GeneralSourceMetadataRows291 (interpretation)
 open GeneralDeclarativeInspect321 (Visit PatternK2)
+open GeneralDeclarativeHead320 (Equation)
 open GeneralDeclarativeK2Graph321 (View)
 open GeneralDeclarativeGraphRows321 (structural observed literal_head)
 open CommonNominalFullCarrier (Subtype Equivalent)
@@ -17,7 +18,15 @@ open PlainMerged416 (PlainRows)
 open X6Ambiguous417 (Candidate IntegerOrigin PlainHit Visits exact_capture_port417)
 
 def rivalHead418 (tag str : Nat) : Pattern := .variant tag (.app str [])
-def rivalCode418 (tag : Nat) : Expr := .variant tag (.primitive (.scalar .str) [])
+def strNull : Expr := .primitive (.scalar .str) []
+def rivalCode418 (tag : Nat) : Expr := .variant tag strNull
+
+/-- The actual typed mismatch is positive source evidence. This extra
+guard keeps an inconsistent raw rival receipt from witnessing a
+syntactic head in the small checked state. It never enables selection. -/
+structure NoRawRival {s q} (r : PlainRows s q) : Prop where
+  whole : (⟨r.root,rivalCode418 r.tag⟩ : Equation) ∉ s.core.current.ordinary.equations
+  leaf : (⟨r.payload,strNull⟩ : Equation) ∉ s.core.current.ordinary.equations
 
 structure Rival {s q} (rows : PlainRows s q) where
   candidate : Candidate s q
@@ -39,7 +48,7 @@ theorem normalized_rival_is_literal_str418 {s q} {r : PlainRows s q} (a : Rival 
   rw [a.literal]
   have fixed : normalize (rivalHead418 r.tag a.strName) = rivalHead418 r.tag a.strName := rfl
   simp only [List.map_cons,List.map_nil,fixed]
-  simp [rivalHead418,rivalCode418,translate,translateMany,a.kind]
+  simp [rivalHead418,rivalCode418,strNull,translate,translateMany,a.kind]
 
 theorem original_int_point_cannot_fit_str418 {s q} {r : PlainRows s q} (a : RigidMismatch r)
     (m : I72.Model) (fit : Fits s m) :

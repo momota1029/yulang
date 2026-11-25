@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74RigidRivalModelFree418
+
+open Yulang.GeneralDeclarativeI65.I72.RigidRival418
+#print axioms nullary_str_read_uses_literal_row418
+#print axioms structural_rival_read_uses_the_same_payload_row418
+#print axioms equation_rival_read_must_use_a_direct_whole_or_payload_row418
+#print axioms no_rival_center_in_a_checked_scan418
+#print axioms actual_checked_rival_has_no_source_head_without_a_model418

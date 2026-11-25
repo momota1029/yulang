@@ -16,6 +16,7 @@ structure Winner (s : I72.State) (q : I72.Request) where
     visible s.core q = [mismatch.rival.candidate.decl,winner.candidate.decl]
   distinct : winner.candidate.decl.id ≠ mismatch.rival.candidate.decl.id
   inspections : Visits rows
+  noConflictingRawRival : NoRawRival rows
 
 theorem actual_candidates_and_no_others418 {s q} (shape : Winner s q) (d : Declaration) :
     d ∈ visible s.core q ↔

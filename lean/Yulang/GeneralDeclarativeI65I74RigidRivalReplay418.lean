@@ -4,6 +4,7 @@ set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65.I72.RigidRival418
 open GeneralDeclarativeI65
 open GeneralDeclarations (Declaration)
+open GeneralDeclarativeHead320 (Equation)
 open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry)
 open GeneralNominalCenteredHeadMatExpressions (application)
 open GeneralSourceMetadataRows291 (interpretation)
@@ -54,10 +55,13 @@ def replayWinner418 (p : Problem) (w : RivalWire) : Option (Winner p.state p.roo
         checkExactEscape ord rows.root w.rootEscape = true ∧
         checkExactEscape ord rows.payload w.payloadEscape = true ∧
         ord.equations.all (groundVariantAtRoot w.rootEscape rows.root rows.tag rows.payload) = true then
-      some ⟨rows,plain,⟨ground,primitive,gates.1⟩,ordinals.2.2,ordinals.2.1,
-        ⟨fun _ => variant_profile_tracks_reached_child417 rows gates.2.1 gates.2.2.2,
-         exact_escape_refutes_raw_root_K2410 gates.2.1,
-         exact_escape_refutes_raw_root_K2410 gates.2.2.1⟩⟩
+      if noRaw : (⟨rows.root,rivalCode418 rows.tag⟩ : Equation) ∉ ord.equations ∧
+          (⟨rows.payload,strNull⟩ : Equation) ∉ ord.equations then
+        some ⟨rows,plain,⟨ground,primitive,gates.1⟩,ordinals.2.2,ordinals.2.1,
+          ⟨fun _ => variant_profile_tracks_reached_child417 rows gates.2.1 gates.2.2.2,
+           exact_escape_refutes_raw_root_K2410 gates.2.1,
+           exact_escape_refutes_raw_root_K2410 gates.2.2.1⟩,⟨noRaw.1,noRaw.2⟩⟩
+      else none
     else none
   else none
 

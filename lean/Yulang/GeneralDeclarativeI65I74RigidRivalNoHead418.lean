@@ -19,7 +19,7 @@ theorem literal_rival_translation418 {s q} {rows : PlainRows s q} (a : Rival row
     translate (authoredRegistry s.core.current).constructors
       (interpretation s.core.current.environment.source.snapshot) (rivalHead418 rows.tag a.strName) =
     some (rivalCode418 rows.tag) := by
-  simp [rivalHead418,rivalCode418,translate,translateMany,a.kind]
+  simp [rivalHead418,rivalCode418,strNull,translate,translateMany,a.kind]
 
 theorem every_original_observation_at_entry_is_the_same_int_origin418
     {s q} {rows : PlainRows s q} (a : RigidMismatch rows) {o : Origin}
