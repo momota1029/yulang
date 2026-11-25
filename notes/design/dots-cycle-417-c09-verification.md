@@ -46,3 +46,31 @@
 全リポジトリビルド、Rust、solver の NoFalseRejection、停止性は実行・主張していない。
 
 [C の残り 13 行](dots-cycle-417-c-coverage.md)。
+
+## 追加のモデル・有限照合の対照
+
+固定コミットから作った独立作業ツリーで、C417 の Spec/Graph audit を読み込んだ補助検査です。
+本体の scoped build や上記 48 個の個別監査とは別の検査で、Lean tree は変えていません。
+
+- 実 off-path の `2 = :{tick 2}` に `μX.:{tick X}` を割り当てると、同じ X6 State が `Fits`。
+  元 slot 0 は `:{tick int}`、元 slot 1 は `int` のままです。
+  `μX.:{tick X}` と一回展開した型の全ての深さの観測が等しいことを、
+  [C410 の同型の観測証明](../../lean/Audit/Cycle410I74ListSpecX8.lean) と同様に示しました。
+  off-path raw cycle 自体が存在し、同じ fitting model でも C417 の曖昧報告の `ReportEvidence` が成立。
+  循環のない自明なモデルで済ませたのではありません。補助定理の axiom audit は標準のみ。
+- 四つの候補 slot の palette 値を 0、1、2 から独立に取る 81 通りを、根と payload の証人に別々に試しました。
+  rank は実 alias が同じ class になるものを使用。根 gate 数、payload gate 数、最終 report を通す対の数の順で次の結果です。
+  色が式を決めるのではなく、色候補は判定済みの生グラフを検証します。
+
+| 固定状態 | 根 gate | payload gate | 曖昧の証人対 |
+|---|---:|---:|---:|
+| 元の二候補 | 9 | 9 | 81 |
+| 根の実 K2 | 0 | 0 | 0 |
+| 入った payload の実 K2 | 9 | 0 | 0 |
+| 入らない実ループ | 6 | 6 | 36 |
+| 同一 payload への実 alias | 9 | 9 | 81 |
+| alias を介した別 payload | 3 | 9 | 0 |
+| int 生行はあるが元 int 観測なし | 9 | 9 | 0 |
+
+最後の二対照では gate のどちらも通る有限データがあるため、元 payload への読みと元の型つき観測の検査は独立に必要です。
+この表の有限試験から一般の証人生成や完全性は主張しません。
