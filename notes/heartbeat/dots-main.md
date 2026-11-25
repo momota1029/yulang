@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 407
-status: completed
-started: 2026-11-25T02:30:45.000Z
-updated: 2026-11-25T03:20:54.774Z
-elapsed_min: 50
-activity: I-73: fixed DictionarySound R₀, same-state support, exact replay and deferred checker coverage verified
-report: notes/handoff/dots-cycle-407.md
+cycle: 408
+status: running
+started: 2026-11-25T03:34:52.000Z
+updated: 2026-11-25T04:22:11.605Z
+elapsed_min: 47
+activity: I-73: time-cap interim (not normal 50-minute completion); canonical checked artifacts verified, worker released
+report: notes/handoff/dots-cycle-408.md

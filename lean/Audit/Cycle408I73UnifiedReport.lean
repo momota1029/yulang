@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I73UnifiedReport408
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.encodeRhs
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.encodeArg
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.traceWrites
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.empty_diag_forest_has_no_writes408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.trace_writes_keep_tree_transport408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.exact_report_is_R0_classification408
