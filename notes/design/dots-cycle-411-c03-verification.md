@@ -7,3 +7,7 @@
 - `WhereCycle411.check_sound` は exact report `selected parent [.rejected]`（verdict rejected、書込み空）、元規則の exact trace、同じ State の任意 fitting model の `ReportEvidence`。子の拒否を親根の K2 や親の成功に置き換えない。実 `ν = :tag ν` の同じ regular model の fitting proof も独立監査。
 - 実行結果順は X9、本来でない裸の親拒否・親成功・旧 X8 branch、子ループなし、親に実 alias 帰路がある場合の新 branch と旧 raw branch、偽の子 raw wire・origin・選択親 id。`[true,false,false,false,false,false,true,false,false,false]`。親の根に帰る別入力で raw K2 優先を保つ。親の literal 変数捕捉は実 structural visit ではない。
 - 親 escape は C410 の有限十分条件を引き継ぐ。未対応 false は言語の拒否ではない。任意 interval、多候補、where 複数や成功する子、関連型、solver がこの witness を作ること、Rust、パーサ、停止性は含まない。別の C 行を閉じない。
+
+## 追加で確かめた同じ C03 の整合性
+
+`checked_where_child_keeps_same_trace_for_all_models411` は実 parent event と元 where 0 番の raw child を備えた一つの trace をまず選び、モデルを後から全称量化する。 `where_rule_is_a_new_local_family411` は同じ event が旧 R2 local family に属さないことを示す。さらに `checked_X9_tree_is_forced_in_fitting_state411` は、同じ入力に fitting model が存在すれば、その入力の **全 R3 declarative trace** が元の親 ID と単一 raw child rejection の木を持つことを示す。モデルの数値同値ではなく、元の slot に複数の observation があれば fitting native syntax は同一の literal endpoint を見るという整合性だけを使う。他の形・モデルのない矛盾 snapshot までの一意性や NoFalseRejection ではない。checker の入力・意味は変えていない。
