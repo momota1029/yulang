@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryPayload406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms unary_payload_name_read_exact406
+#print axioms readOriginalUnaryPayload406
+#print axioms original_payload_names_the_exact_native_capture406
+#print axioms if_original_path_name_differs_capture_keeps_both_differences406
+#print axioms missing_original_input_prevents_this_readback_only406
