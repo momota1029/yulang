@@ -7,3 +7,9 @@
 3. `check_sound` は同じ State と同じ exact `rejected/rejected/[]`、全 fitting model の証拠。新 branch の元 trace は `SourceTrace.other`、選択・曖昧さ・親 raw K2・実 where rejection tree にすり替えられないことを証明。旧・新 branch は排他で checked report は一意。
 
 実 X11 で両順が true。実 binding-only 二つの曖昧さ候補があっても true。元 nested ordinal は `[binding,nested]` では 1、`[nested,binding]` では 0、候補 ID はともに 57。二つの氏名変数と元役割は別々に定義された一致候補（同じ declaration ID の複製ではない）。どちらの元順・二 binding match の実例にも同じ規則の fitting model と元報告 evidence が存在。binding-only・nested 単独・未対応の三候補・ID 複製・非循環・未到達 site は false、親に実帰路がある別入力では旧 raw branch のみ通る。実行 `[true,true,true,false,false,false,false,true]`。false は言語の拒否ではない。
+
+### 順序・二つの実一致・再生の保存
+
+- `full_scan_shape_independent_of_order413` は、同じ入力観測と constructor/role 表のもとで、全 row リストの任意の permutation に対する scan 独立性を証明する。`mixed_scan_recovers_tape_after_permutation413` は fresh ordinal の型付き tape を再生する。単なる２ケースのテストではない。別に、実 resolved snapshots で [binding, nested] とその逆順、二つの実 binding rivals を含む六通りの順を全部実行した。全 true、元 visible IDs と nested の actual ordinal を保持し、nested ID 57 と field site 1 は変わらない。
+- `three_row_example_has_two_actual_matching_heads_and_K2_413` はその実三行の両 rival が互いに異なる ID の `SourceHead` 一致と証明。未対応の二 nested、他の形、空 scope はこの branch では証人がないだけ。
+- `locate` は固定 Result に触れず元 occurrence・**全候補 ID の元順**・nested ordinal/ID・実 field site を取り出す。`same_tape_and_trace_before_models413` により、実 tape と exact trace はモデルより先に固定。`selected_exact_reports_conservative413` はこの rejected-only 拡張の前後で全 exact selected report・実 where 順・literal writes・同じ output support を保つ。solver completeness や termination ではない。
