@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74OpenTailObservations414
+
+open Yulang.GeneralDeclarativeI65.I72.OpenTail414
+#print axioms model_tail_is_exact414
+#print axioms any_model_tail_fits_original_input414
+#print axioms one_checked_state_has_two_tail_models414
+#print axioms a_filled_tail_is_not_semantically_an_empty_tail414
+#print axioms one_accepted_X4_report_preserves_semantically_distinct_models414

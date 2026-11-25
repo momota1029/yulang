@@ -1,0 +1,23 @@
+import Yulang.GeneralDeclarativeI65I74OpenTailDeclaration414
+import Yulang.GeneralDeclarativeI65I74OpenTailConservative414
+
+open Yulang.GeneralDeclarativeI65.I72.OpenTail414
+#print axioms no_R4_diagnostic_on_open_tail414
+#print axioms no_R4_election_on_open_tail414
+#print axioms no_R5_diagnostic_on_open_tail414
+#print axioms actual_open_tail_waits_in_every_R6_trace414
+#print axioms prior_checker_remains_disjoint414
+#print axioms checked_results_are_unique414
+#print axioms bounds_on_exact_input_are_reflexive414
+#print axioms aliases_on_exact_input_are_reflexive414
+#print axioms no_aliased_row_for_actual_tail414
+#print axioms no_raw_structural_step_in_exact_open_input414
+#print axioms exact_open_input_all_positions_raw_safe414
+#print axioms open_source_links_do_not_close414
+#print axioms literal_tail_child_is_smaller414
+#print axioms actual_candidate_retains_written_tail_child414
+#print axioms independently_translated_open_candidate414
+#print axioms arbitrary_shadow_substitution_is_not_the_X4_rule414
+#print axioms previous_success_trace414
+#print axioms selected_exact_reports_conservative414
+#print axioms selected_classification_conservative414
