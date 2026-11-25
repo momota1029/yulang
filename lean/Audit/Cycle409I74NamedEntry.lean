@@ -1,0 +1,20 @@
+import Yulang.GeneralDeclarativeI65I74NamedPriority409
+
+open Yulang.GeneralDeclarativeI65.I72.Named409
+
+#print axioms NamedHead.endpointWellFormed
+#print axioms named_sole_selected_without_opening409
+#print axioms named_local_evidence409
+#print axioms R1_local_evidence409
+#print axioms dictionary_sound_R1
+#print axioms new_named_leaf_is_not_old_election409
+#print axioms existing_exact_report_lifts409
+#print axioms exact_report_is_R1_classification409
+#print axioms mixed_R1_trace_model_meaning409
+#print axioms replay_named_route_is_original409
+#print axioms named_choice_has_exact_R1_report409
+#print axioms previous_entry_unchanged409
+#print axioms checked_entry_has_exact_original_report409
+#print axioms check_sound
+#print axioms bare_name_has_no_competing_prior_local_diagnostic409
+#print axioms R1_raw_k2_priority409
