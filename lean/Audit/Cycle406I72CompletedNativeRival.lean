@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72CompletedNativeRival406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms a_literal_typed_nominal_cannot_name_different_constructors406
+#print axioms actual_completed_lower_shows_ordered_root_mismatch406
+#print axioms two_actual_visible_rows_need_a_wider_positive_rule406
