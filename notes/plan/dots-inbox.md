@@ -763,3 +763,16 @@ cycle 320〜333 で、(4) の残り 1 本はずっと同じ形だった。「独
 - 以後の数え方: 「閉じた」とは、3 の `def S__` を結論とする `theorem` が integration にあることだけを指す。報告の冒頭の 1 行には、その定理名を書く。設計ノートの文章だけの変更は、一覧の変更として理由を書く。
 - この周は S13bbba の続きより、1〜4 を優先する。4 が通れば、残りの数は Lean の上で確かめられるようになる。
 - 固定した文の意味（全称・前提・結論）は変えない。言語の受理範囲は変えない。停止性・旧 `Local`・旧 C334 への橋・fixture の追加は対象外。
+
+## I-73（2026-11-25）規則の和で I-65 の 1 を閉じ、2・3 へ進む。範囲を広げるのは C に回す（監督役の判断）
+
+- 現状（`97d56e91f` で監督役が確認）: `DictionaryEvidence s m` は `SourcePrimitives` に依存しない意味の証拠として定義されている（C402 `GeneralDeclarativeI65I72FixedGoal402.lean`）。そのうえで、cycle 403〜406 は範囲ごとの具体的な規則 `R` について `DictionarySound R` を示している（`variable_native_priority_dictionary_sound403`、`repeated_variable_dictionary_sound403`、`completed_input_dictionary_sound404`、`finite_completed_choice_dictionary_sound404`、`completed_native_priority_dictionary_sound404`、`dictionary_sound_for_authored_native_unary405`、`scoped_dictionary_sound406` など）。
+- 判断: 結論が `R` に依存しない意味の証拠なので、**`DictionarySound R` はどの `R` についても完全な健全性の定理**である。`R` が spec より狭くても、狭い分は「受理すべきものを落とす」完全性（C）の問題で、健全性は損なわれない（I-65 の要点と同じ）。だから、範囲を一つずつ広げて健全性を示し直す作業は、ここで止める。
+- 次の周でやること:
+  1. **規則の和。** これまでの具体的な規則を一つの `R₀` にまとめる（各局所規則の選言、または規則の列）。各規則の健全性から `DictionarySound R₀` を示す。和で閉じない（ある規則の選択が別の規則の前提を壊す、など）なら、その理由を一文で書く。
+  2. **I-65 の 1 を閉じたとして報告する。** 「`DictionarySound R₀` を integration に置いた」ことを、I-65 の 1 の完了とする。C380 の一覧の残りの行は、`R₀` を spec 全体へ広げる作業として C の一覧に移す（健全性の残りとは数えない）。
+  3. **I-65 の 2 に進む。** `check` の `Classifies` を `Classifies R₀` として、検査器を一つにまとめる。扱えない形は `false`。
+  4. 3 のあと I-65 の 3（`check_sound`）。
+- C の一覧（`R₀` が spec より狭いところ）は、構文の形ごとに 1 行で書いておく。広げる作業は、2・3 が閉じてから、この一覧に沿って進める。広げるときも、`R₀` を大きくした `R₁` について `DictionarySound R₁` を示せばよい。
+- `R₀` に入れる規則は、spec の規則として正しいもの（spec より厳しい・狭いのはよいが、spec にない受理を足さない）に限る。spec にない受理が必要になったら、質問ノートにして止める。
+- 固定した `DictionaryEvidence` の定義と、`dictionary_sound` の全称の形は変えない。停止性・旧 `Local`・旧 C334 への橋は対象外。

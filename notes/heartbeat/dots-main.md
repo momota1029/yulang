@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 406
+cycle: 407
 status: completed
-started: 2026-11-25T01:30:06.109Z
-updated: 2026-11-25T02:20:19.639Z
+started: 2026-11-25T02:30:45.000Z
+updated: 2026-11-25T03:20:54.774Z
 elapsed_min: 50
-activity: I-72: positive completed native lower and original-path capture checked; exact finite links, prior compatibility and raw K2 preserved
-report: notes/handoff/dots-cycle-406.md
+activity: I-73: fixed DictionarySound R₀, same-state support, exact replay and deferred checker coverage verified
+report: notes/handoff/dots-cycle-407.md

@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I72CompletedNativeTape407
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.exact_visible_root407
+#print axioms Yulang.GeneralDeclarativeI65.I72.exact_visible_roots_are_ordered407
+#print axioms Yulang.GeneralDeclarativeI65.I72.exact_visible_roots_are_unique407
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_read_is_literal_and_retained407
+#print axioms Yulang.GeneralDeclarativeI65.I72.completed_visits_at_exact_visible_ordinals407
+#print axioms Yulang.GeneralDeclarativeI65.I72.exact_source_classifies_tag407
+#print axioms Yulang.GeneralDeclarativeI65.I72.ordered_completed_visits_use_only_raw_root407

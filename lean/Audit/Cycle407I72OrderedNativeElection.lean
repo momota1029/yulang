@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72OrderedNativeElection407
+#print axioms Yulang.GeneralDeclarativeI65.I72.actual_native_upper_derives_comparison407
+#print axioms Yulang.GeneralDeclarativeI65.I72.native_live_is_exact_not_first_match407
+#print axioms Yulang.GeneralDeclarativeI65.I72.native_same_tag_really_gets_local_comparison407
+#print axioms Yulang.GeneralDeclarativeI65.I72.exact_single_native_hit_elects407
+#print axioms Yulang.GeneralDeclarativeI65.I72.election_keeps_every_other_actual_mismatch407

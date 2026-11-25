@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I72OrderedNativeClassifies407
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.actual_mixed_tags_construct_native_classifies407
+#print axioms Yulang.GeneralDeclarativeI65.I72.raw_root_K2_still_has_priority407

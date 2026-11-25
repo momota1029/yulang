@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65I72OrderedNativeAssembly407
+#print axioms Yulang.GeneralDeclarativeI65.I72.native_mixed_tag_step_uses_same_model_and_exact_output407
+#print axioms Yulang.GeneralDeclarativeI65.I72.actual_ordered_native_selection_assembles_one_ledger407
