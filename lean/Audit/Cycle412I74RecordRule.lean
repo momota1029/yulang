@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74RecordDeclaration412
+import Yulang.GeneralDeclarativeI65I74RecordReport412
+open Yulang.GeneralDeclarativeI65.I72.RecordK2412
+#print axioms actual_record_field_is_entered412
+#print axioms actual_record_field_K2_on_unfiltered_graph412
+#print axioms dictionary_sound_R4
+#print axioms actual_field_not_emitted_where412
+#print axioms closed_nested_record_stable412
+#print axioms checked_closed_record_descent412
+#print axioms checked_record_header412
+#print axioms existing_exact_report_lifts412
+#print axioms mixed_R4_trace_model_meaning412
