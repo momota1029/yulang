@@ -19,3 +19,5 @@ resolved B4 入力は根 0 の `list(ν)` と、1 で自己に戻る raw `ν = :
 検証用の別の出力先でも、C409 の integration から取った 5 ソース・3 独立 Audit と、C410 の exact Git bytes の 6 ソース・3 独立 Audit を、同じ Lean 4.35.0 strict flag で順に通した（exit 0）。C410 のポートから旧枝の実行・旧辞書が失われていないことを確認した。追加の同じ source の検証では、実選択 event の捕捉が束縛 3 に元の `(1,1,1)` を載せること、また片方向 Bound を用いた regular nominal の入力にも別の fitting model と辞書があることを示した。どちらも他の C 行を閉じたとは数えない。
 
 最終の exact guard は全グラフ非巡回性を要求しないが、任意の raw 根非巡回に対する完全検査ではない。たとえば directed Bound `0 ≤ 1, 2 ≤ 0` と flat `1 = 2` の順位制約が混ざると、実 alias の根に帰らない raw graph にも順位の不必要な等号を強制できる。この離れ方の反例と、flat 側だけ「順位同士」ではなく「色同士」を照合する別の十分条件を独立 Lean で調べた。C410 の公式 dispatch はこの追加調査の方式に置き換えていない。現在の X8 の accepted snapshot とそのモデルは影響を受けない。
+
+片方向 Bound と flat が混ざる境界は、追加で「グラフだけの例」でなく、同じ `Len` の resolved 宣言と regular nominal payload を持つ fitting 例にも具体化した。その例には正しい `ClassifiedAs R2` の選択、同じモデルの辞書がある一方、公開 `.listLeaf` は全 witness（任意の報告）で false。ただし false は拒否診断ではない。flat alias を色で照合する別案の raw-root 健全性と、従来の true の証人を全て保つことも独立に Lean で確認した。今回公開した X8 の範囲はそのまま。全 R2 の完全性や次の C03 の完了には数えない。
