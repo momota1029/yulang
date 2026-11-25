@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I72GroundedPriority405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms variable_scan_visits_exact405
+#print axioms variable_scan_is_total405
+#print axioms grounded_selected_priority405
+#print axioms actual_completed_choice_grounds_visits405
+#print axioms groundedS03_of_actual_variable_scan405
