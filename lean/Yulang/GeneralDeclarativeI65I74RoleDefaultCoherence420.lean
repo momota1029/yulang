@@ -1,4 +1,5 @@
 import Yulang.GeneralDeclarativeI65I74RoleDefaultPriority420
+import Yulang.GeneralDeclarativeI65I74RoleDefaultPlan420
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65.I72.RoleDefault420
@@ -13,7 +14,9 @@ open ExplicitPick419 (eqWrite eq_write419 RetainedOutput eqWire eq_wire419 exact
 theorem checked_defaults_agree_on_the_same_original_ledger420 {p} (a b : DefaultPacket p) :
     a.retained.write = b.retained.write := by
   have decl := (List.cons.inj (a.declaration.theOnlyOne.symm.trans b.declaration.theOnlyOne)).1
-  have rows := actual_sources_agree_on_input_and_residual419 a.rows b.rows
+  have ownedA := (original_default_requires_no_matching_explicit_equation420 a).2
+  have ownedB := (original_default_requires_no_matching_explicit_equation420 b).2
+  have term : a.term = b.term := Option.some.inj (Option.some.inj (ownedA.symm.trans ownedB))
   let table := (authoredRegistry p.state.core.current).declarations.map Declaration.id
   have left : table[a.declaration.ordinal]? = some a.declaration.decl.id := by
     simp [table,a.declaration.authored]
@@ -25,12 +28,14 @@ theorem checked_defaults_agree_on_the_same_original_ledger420 {p} (a b : Default
   simp only [eqWrite,RetainedOutput.write,Bool.and_eq_true,decide_eq_true_eq]
   refine ⟨⟨True.intro,ordinal,True.intro,True.intro,True.intro,?_⟩,?_⟩
   · rw [a.actualBody,b.actualBody]
+    rw [term]
     exact congrArg (fun role => GeneralDictionaryAssociatedProvenance.Body.default role
-      (p.root.demand.outputs[exactlyOneOutput p a.single].name) (.var 0)) (congrArg Declaration.role decl)
+      (p.root.demand.outputs[exactlyOneOutput p a.single].name) b.term) (congrArg Declaration.role decl)
   · change eqWire a.retained.write.typedRhs b.retained.write.typedRhs = true
-    rw [original_typed_default_wire_preserves_all_three_point_names420,
-      original_typed_default_wire_preserves_all_three_point_names420,rows.1]
-    exact (eq_wire419 _ _).mpr rfl
+    apply (eq_wire419 _ _).mpr
+    refine same_original_default_plan_has_same_wire420 a.retained.output b.retained.output ordinal
+      a.actualBody ?_
+    rw [b.actualBody,decl,term]
 
 private theorem empty_where_retains_no_writes420 {s qs ts} (kids : WhereForest R12 s qs ts)
     (empty : qs = []) : ts = [] ∧ forestWrites kids = [] := by

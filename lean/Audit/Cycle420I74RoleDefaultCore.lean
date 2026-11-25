@@ -25,3 +25,7 @@ open Yulang.GeneralDeclarativeI65.I72.RoleDefault420
 #print axioms checked_defaults_agree_on_the_same_original_ledger420
 #print axioms original_default_source_has_only_one_exact_report420
 #print axioms any_successful_witness_uses_exact_original_default420
+#print axioms checked_default_header420
+#print axioms original_position_zero_reifies_the_whole_argument420
+#print axioms same_fitting_model_uses_original_default_rhs420
+#print axioms same_original_default_plan_has_same_wire420

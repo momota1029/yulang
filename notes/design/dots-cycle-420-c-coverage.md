@@ -1,6 +1,6 @@
 # C420: I-74 完全性の一覧
 
-**この周に閉じた C の行: C12（`dictionary_sound_R12`、`RoleDefault420.check_sound`）。** 該当名の明示 RHS がなければ、実 role が宣言した位置 0 の既定値を元の一点引数全体から読み、元の B6 と固定先を照合する。未対応の false は言語の拒否ではない。
+**この周に閉じた C の行: C12（`dictionary_sound_R12`、`RoleDefault420.check_sound`）。** 該当名の明示 RHS がなければ、実 role が宣言した既定値を元の B6 と固定先で照合する。元の一点引数全体を位置 0 で読む場合と、実宣言つきの再帰 nominal `tree` を既定値として返す場合を確認した。未対応の false は言語の拒否ではない。
 
 I-65 健全性の残りではなく、仕様例に対する適用範囲を数える。C01–C11 は [C419 の表](dots-cycle-419-c-coverage.md) を継承。C12 は本一覧時点で work/dots-main の検証。
 
@@ -17,7 +17,7 @@ I-65 健全性の残りではなく、仕様例に対する適用範囲を数え
 | C09 | C08 と ground の同一 tag 候補が同じ出現・実 payload に当たり、選択なし・書き込みなしで曖昧。元 primitive `int` 観測と実到達点 K2 を確認。[完了と検証範囲](dots-cycle-417-c09-verification.md) | 同じ X6 に `impl R (:{tick int})` |
 | C10 | 実一点 `R :{tick int}` の実可視二構造候補。`R :{tick str}` の根拠付き不一致を除き、plain 合流だけを選択。[検証](dots-cycle-418-c10-verification.md) | 6.2 共存規則の具体化。掲載の `Display (list 'a)` と `Display (list int)` 自体は重なる場合がある |
 | C11 | 既知の二 field の一点 record に明示 B6 RHS を同じ出現・宣言順・出力順・固定先で記録し、捕捉した実 field を返す。[検証](dots-cycle-419-c11-verification.md) | 6.5 `impl Pick {x:'a,..'rest}: type out='a` の一点入力・元明示 RHS・where なし・出力一つ。6.2 の `Index str int` の `char` 例そのものではない。 |
-| C12 | 要求した元の出力名に明示 RHS がないときだけ、実 role が宣言した位置 0 の既定値を元の一点引数全体に具体化する。同名の明示式は優先し、別名の明示式は妨げない。[検証](dots-cycle-420-c12-verification.md) | [6.1 の default 規則](../../spec/06-roles.md) と [10.7 RolesAssoc](../../spec/10-inference-core.md) の位置 substitution。`char` の例そのものではない。 |
+| C12 | 要求した元の出力名に明示 RHS がないときだけ、実 role の既定値を元の B6 から具体化する。位置 0 の元の一点引数全体と、実宣言つき再帰 nominal `tree` の固定出力を検証。同名の明示式は優先し、別名の明示式は妨げない。[検証](dots-cycle-420-c12-verification.md) | [6.1 の default 規則](../../spec/06-roles.md) と [10.7 RolesAssoc](../../spec/10-inference-core.md) の位置 substitution。`char` の例そのものではない。 |
 | C13 | 重複 head binder は選択した後にだけ実中心どうしへ等式 | 6.3 `impl R 't 't` |
 | C14 | 根拠付き両端点から record を選択、中心行は未完でも非点の捕捉を保持 | 6.3 `{x:'a,..'rest}`「中心の行に根拠がなくても選ぶ」 |
 | C15 | 構造の where 引数を実構文から作り、元の子順を保持 | 6.3 `where Check {box:'a}`（X10 の原形）、変数だけの X1 とは別。正の where 子を通す例も必要 |

@@ -14,6 +14,30 @@ open Checker408 (Problem)
 open List410 (ExactEscapeWire checkExactEscape exact_escape_refutes_raw_root_K2410)
 open ClosedResidual415 (RowsWire readRows415)
 
+/-- Check the fixed source's explicit declarations by their established
+coverage, and all authored defaults by the native-aware typed table.
+The legacy default reifier is not a gate for genuine declared constructors. -/
+def checkHeader (env : GeneralDeclarativeWitnessConstructorModes357.Environment) : Bool :=
+  GeneralSourceMetadataRoles291.check env.source.roles &&
+    GeneralSourceMetadataDeclarations291.explicitCheck
+      (GeneralSourceMetadataBundle291.registry env.source)
+      (GeneralSourceMetadataRows291.interpretation env.source.snapshot) &&
+    GeneralDeclarativeWitnessHeader349.checkedRegistry env.source &&
+    GeneralDeclarativeWitnessModeCoverage357.check env
+
+theorem checked_default_header420 {env} (ok : checkHeader env = true) :
+    GeneralDeclarations.Checked (GeneralSourceMetadataBundle291.registry env.source) ∧
+      GeneralDeclarativeWitnessModeCoverage357.Coverage env := by
+  obtain ⟨top,modes⟩ := splitAnd ok
+  obtain ⟨other,header⟩ := splitAnd top
+  obtain ⟨roles,explicit⟩ := splitAnd other
+  have checkedRoles := (GeneralSourceMetadataRoles291.check_exact _).mp roles
+  have covered := (GeneralSourceMetadataDeclarations291.explicit_exact _ _).mp explicit
+  obtain ⟨keys,checks⟩ := splitAnd header
+  exact ⟨⟨of_decide_eq_true keys,fun d h =>
+    GeneralDeclarativeWitnessHeader349.decl_checked (covered d h) (List.all_eq_true.mp checks d h)⟩,
+    (GeneralDeclarativeWitnessModeCoverage357.check_exact checkedRoles).mp modes⟩
+
 def readDeclaration420 (p : Problem) (r : Rows p) (ordinal : Nat) :
     Option (DefaultDeclaration p r) := do
   let env := p.state.core.current.environment
@@ -25,16 +49,11 @@ def readDeclaration420 (p : Problem) (r : Rows p) (ordinal : Nat) :
           (GeneralSourceMetadataRoles291.index metadata.roles) with
       | none => none
       | some role =>
-        if header : (GeneralSourceMetadataRoles291.check metadata.roles &&
-            GeneralDeclarativeWitnessProblem349.covered metadata &&
-            GeneralDeclarativeWitnessHeader349.checkedRegistry metadata &&
-            GeneralDeclarativeWitnessModeCoverage357.checkDecl env d) = true then
-          let checked := GeneralDeclarativeWitnessHeader349.registry_checked
-            ((GeneralDeclarativeWitnessProblem349.covered_iff
-              ((GeneralSourceMetadataRoles291.check_exact _).mp (splitAnd (splitAnd (splitAnd header).1).1).1)).mp
-              (splitAnd (splitAnd (splitAnd header).1).1).2)
-            (splitAnd (splitAnd header).1).2
-          let covered := (GeneralDeclarativeWitnessModeCoverage357.declaration_exact _ _).mp (splitAnd header).2
+        if header : checkHeader env = true then
+          let valid := checked_default_header420 header
+          let checked := valid.1
+          have atDecl := List.mem_of_getElem? atOrdinal
+          let covered := valid.2.1 d atDecl
           let authority := GeneralSourceMetadataRoles291.indexed roleFact
           match head : d.head with
           | [.record label (.var field) (.var tail)] =>
@@ -61,8 +80,9 @@ structure DefaultPacket (p : Problem) where
   declaration : DefaultDeclaration p rows
   single : p.root.demand.outputs.length = 1
   retained : RetainedOutput p declaration.frame (exactlyOneOutput p single)
-  actualBody : retained.output.body = .default declaration.decl.role p.root.demand.outputs[exactlyOneOutput p single].name (.var 0)
-  inputCode : retained.expr = .variable rows.root
+  term : Roles.Term
+  actualBody : retained.output.body = .default declaration.decl.role
+    p.root.demand.outputs[exactlyOneOutput p single].name term
   targetDifferent : p.root.demand.outputs[exactlyOneOutput p single].target ∉
     [rows.root,rows.intSlot,rows.strSlot,rows.residual]
   rawSafe : ¬ RootCycle p.state p.root
@@ -88,6 +108,10 @@ structure DefaultWire where
   outputRow : Nat
   rootEscape : ExactEscapeWire
 
+def ownerDefaultTerm : Body → Option Roles.Term
+  | .explicit _ => none
+  | .default _ _ term => some term
+
 def replayDefault420 (p : Problem) (wire : DefaultWire) : Option (DefaultPacket p) := do
   let r ← readRows415 (inputView p) wire.rows
   if safe : checkExactEscape p.state.core.current.ordinary r.root wire.rootEscape = true then
@@ -95,12 +119,11 @@ def replayDefault420 (p : Problem) (wire : DefaultWire) : Option (DefaultPacket 
     if one : p.root.demand.outputs.length = 1 then
       let i := exactlyOneOutput p one
       let read ← replayOutput p d.frame d.checked i wire.outputRow
-      if body : read.output.body = .default d.decl.role p.root.demand.outputs[i].name (.var 0) then
-        if code : eqExpr read.expr (.variable r.root) = true then
-          if target : p.root.demand.outputs[i].target ∉ [r.root,r.intSlot,r.strSlot,r.residual] then
-            pure ⟨r,d,one,read,body,(eq_expr _ _).mp code,target,
-              raw_root_safety_on_original_demand419 r (exact_escape_refutes_raw_root_K2410 safe)⟩
-          else none
+      let term ← ownerDefaultTerm read.output.body
+      if body : read.output.body = .default d.decl.role p.root.demand.outputs[i].name term then
+        if target : p.root.demand.outputs[i].target ∉ [r.root,r.intSlot,r.strSlot,r.residual] then
+          pure ⟨r,d,one,read,term,body,target,
+            raw_root_safety_on_original_demand419 r (exact_escape_refutes_raw_root_K2410 safe)⟩
         else none
       else none
     else none
