@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I75ProjectedWriteWire425
+import Yulang.GeneralDeclarativeI65I75ProjectedCoreReadback425
 
 
 set_option backward.isDefEq.respectTransparency false
@@ -338,4 +338,20 @@ theorem same_written_projected_receipt_with_distinct_retained_rows425 :
 #print axioms offered_projected_binding_and_outer_write_are_both_checked425
 #print axioms exact_projected_write_not_replayed_above_raw_K2425
 #print axioms same_written_projected_receipt_with_distinct_retained_rows425
+end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+
+namespace Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+open CommonNominalFullCarrier (Ty Equivalent)
+
+theorem actual_projected_receipt_supplies_acyclic_core_without_relabeling425 :
+    let o := originalProjectedCoreOutput425 preparedSplit
+    o.ordinal = offeredProjectedWrite425.declarationOrdinal ∧ o.plan = preparedSplit.typed.plan ∧
+    ∃ v : Ty,
+      o.valueAt splitModel = some ([61,423],1,0,12,v) ∧
+      Equivalent (splitModel.assignment 12).1 v :=
+  replayed_Write_yields_acyclic_core_and_fixed_target425
+    real_projected_write_replays_against_original_problem425 splitModel
+    original_split_model_fits_with_exact_required_target_constraints425
+
+#print axioms actual_projected_receipt_supplies_acyclic_core_without_relabeling425
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425

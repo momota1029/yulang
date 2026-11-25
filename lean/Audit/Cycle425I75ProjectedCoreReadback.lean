@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I75ProjectedCoreReadback425
+open Yulang.GeneralDeclarativeI65
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms ProjectedCore425.projected_core_original_B6_uses_actual_required_field425
+#print axioms projected_core_output_preserves_original_B6_evaluation425
+#print axioms replayed_Write_yields_acyclic_core_and_fixed_target425
