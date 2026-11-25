@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I73UnifiedSound408
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.mixed_R0_trace_model_meaning408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.check_sound
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.accepted_selected_dictionary_in_every_model408

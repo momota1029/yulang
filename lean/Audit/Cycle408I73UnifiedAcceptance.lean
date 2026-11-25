@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I73UnifiedAcceptance408
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.matchesNoWrites_exact408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.retained_nullary_trace408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Check408.check_reflects_same_original_report408
