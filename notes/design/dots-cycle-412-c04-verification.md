@@ -7,3 +7,7 @@
 3. `RecordK2412.check_sound` は同じ元 Problem・exact report と全 fitting model の evidence を保持。report の表現 `rejected / rejected / []` は旧 raw root と同じ DTO だが、今回の証拠は `SourceTrace.other`、実 where の selected-parent tree や `.rootK2` ではない。全 R4 trace の同じ形、旧・新 branch の排他、成功報告の一意性を証明。未対応の false は言語拒否ではない。
 
 実例は物理名 0 が親、実 field 在処 1 が `μ`。root alias return を足すと新 branch false、旧 raw root branch true。循環しない入力や未到達 cycle、別 row、別 origin、where child report、親根証人は false。実行ベクトル `[true,false,false,false,false,false,false,false,true]`。同じ正則 record 模型で実 cycle の一段展開と全有限深さでの一致を示し、`Fits` と元報告 evidence を監査した。複数候補・open tail・一般 interval の例は別行。Rust／parser・停止性・NoFalseRejection は対象外。
+
+### 発現の固定
+
+`checked_record_fixes_actual_site_and_trace_before_models412` は、元の candidate・実 field と `SourceTrace.other` を一つ先に固定し、後から同じ State の全 fitting model を量化する。別の使える origin ordinal があっても、同じ point に一つの literal endpoint を読む fitting 入力では、両方の証人は同じ宣言・field label・論理 site を照合する（`same_fitting_input_cannot_change_checked_field412`）。型の値をモデルで等置して別名へ乗り換える証明ではなく、元の endpoint 構文の一致だけを用いる。

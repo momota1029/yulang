@@ -8080,3 +8080,4 @@ import Yulang.GeneralDeclarativeI65I74RecordReport412
 import Yulang.GeneralDeclarativeI65I74RecordDeclaration412
 import Yulang.GeneralDeclarativeI65I74RecordEntry412
 import Yulang.GeneralDeclarativeI65I74RecordPriority412
+import Yulang.GeneralDeclarativeI65I74RecordFidelity412
