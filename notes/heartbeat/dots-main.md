@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 408
+cycle: 409
 status: running
-started: 2026-11-25T03:34:52.000Z
-updated: 2026-11-25T04:22:11.605Z
-elapsed_min: 47
-activity: I-73: time-cap interim (not normal 50-minute completion); canonical checked artifacts verified, worker released
-report: notes/handoff/dots-cycle-408.md
+started: 2026-11-25T04:31:11.000Z
+updated: 2026-11-25T04:31:38.459Z
+elapsed_min: 0
+activity: verify exact I65 integration; prepare source-authored nonempty output coverage
+workspace: C409 scoped Lean
+last_local_commit: none
+resume_hint: I-72: I-73: uniform finite checker and exact R0 report validation.
