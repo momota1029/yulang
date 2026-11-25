@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I75EndpointHeadReadback423
+open Yulang.GeneralDeclarativeI65.EndpointHead423
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms source_endpoints_have_projected_meaning423
+#print axioms checked_preparation_supplies_I75_head_and_actual_target423

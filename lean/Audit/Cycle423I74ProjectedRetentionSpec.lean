@@ -1,3 +1,4 @@
+import Yulang.GeneralDeclarativeI65I75EndpointHeadReadback423
 import Yulang.GeneralDeclarativeI65I74ProjectedRetentionCoherence423
 
 set_option backward.isDefEq.respectTransparency false
@@ -722,3 +723,25 @@ open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 
 #print axioms actual_distinct_rows_and_paths_do_not_change_semantic_write423
 #print axioms simultaneous_original_receipts_have_a_fitting_model423
+
+namespace Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
+open GeneralDeclarativeI65
+open CommonNominalFullCarrier (Equivalent)
+/-- Actual authored source + exact same-model original target, checked
+through the preparatory entry. Not a successful R14 stack. -/
+theorem actual_split_source_prepares_new_endpoint_head_and_fixed_target423 :
+    let h := endpointInputs423 preparedSplit.original
+    EndpointHead423.Meaning h splitModel ∧
+      ∃ v, preparedSplit.typed.actualRightValue splitModel = some ([61,423],1,0,12,v) ∧
+        Equivalent (splitModel.assignment 12).1 v := by
+  have fit := original_split_model_fits_with_exact_required_target_constraints423
+  have replay : readRetainedPickWrite423 splitProblem splitInput = some preparedSplit := by
+    unfold preparedSplit
+    exact (Option.some_get _).symm
+  obtain ⟨_,head,v,value,kept⟩ := checked_preparation_supplies_I75_head_and_actual_target423 replay splitModel fit
+  have ordinal : preparedSplit.original.ordinal = 1 := by decide +kernel
+  rw [ordinal] at value
+  exact ⟨head,v,value,kept⟩
+
+#print axioms actual_split_source_prepares_new_endpoint_head_and_fixed_target423
+end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
