@@ -3,9 +3,9 @@
 cycle: 425
 status: running
 started: 2026-11-25T20:35:09.270Z
-updated: 2026-11-25T20:35:45.791Z
-elapsed_min: 0
-activity: Late activation: starting scope after actual 20:35:09Z, preserve original B6 binder and address; no dummy named capture or changes to existing check.
-workspace: C425 exact Git readback
+updated: 2026-11-25T20:39:27.821Z
+elapsed_min: 4
+activity: Exact C14 projected receipt preparatory module and first auditable raw/source tests. C14 remains open; existing canon unchanged.
+workspace: C425 scoped Lean
 last_local_commit: none
-resume_hint: I-75 conserve the legacy named frame; projection is not a named capture.
+resume_hint: Keep exact symbolic projected receipt separate from retained variable and candidate election.

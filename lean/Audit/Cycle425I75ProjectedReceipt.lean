@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I75ProjectedReceipt425
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms read_projected_receipt_is_exact425
+#print axioms exact_key_checks_original_B6_source425
+#print axioms read_projected_receipt_keeps_real_original_equation425
+#print axioms exact_B6_plan_is_original_projected_binder425
+#print axioms read_projected_receipt_keeps_literal_plan425
+#print axioms verified_projected_receipt_has_same_fit_head_and_final_target425
