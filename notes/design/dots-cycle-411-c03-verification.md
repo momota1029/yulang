@@ -21,3 +21,5 @@
 
 - 同じ実 where 一つの source を、子 `1 → 2 → 1`（異なる constructor tags）の元 graph でも検査した。実際の二辺を渡すと true、閉じない一辺の短絡と別の偽行は false。二節点の正則モデルを構築し、両方の unfold の有限深さ全てでの一致と、この同じ snapshot の fitting/evidence を別 strict Lean 検証で得た。
 - 混合制約を足した別の fitting snapshot では、同じ実子 rejection を `Classifies R3` と `ReportEvidence` が導出するが、公開 `WhereCycle411.check` の全種類の証人が false になる。具体的に元の `Bound 0≤1, 2≤0` と flat equation `1=2` があると、現 alias rank 証人は 0 と 1 を同じ側に強制する。一方、本来の raw graph では、方向 Bound と flat equation を混ぜて 0 を 1 の alias にする規則はなく、親根に raw 帰路はない。子は本当に循環する。拒否報告を証明したのに証人が範囲外になる対照であり、言語変更ではない。C410 の十分条件を引き継いだ制約を含め、C03 を閉じたというのは上の仕様例の三条件である。
+
+- この条件差の再現証明は独立の [Cycle411I74WhereListCertificateBoundary.lean](../../lean/Audit/Cycle411I74WhereListCertificateBoundary.lean) に追加した。raw recurrence `ν ≈ list ν` の型に対する既存 raw ルールの例であり、別に宣言した既知の名付き recursive atom を展開する主張ではない。新しいルール、check の分岐、または C 行はここでは追加しない。
