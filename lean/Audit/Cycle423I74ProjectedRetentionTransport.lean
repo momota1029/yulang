@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionTransport423
+
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms actual_root_is_sandwiched_by_independent_names423
+#print axioms transported_target_agrees_with_actual_field_channels423
+#print axioms original_projected_B6_fixed_target_survives_distinct_logical_names423
+#print axioms same_retained_target_forces_channel_agreement423

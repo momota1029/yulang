@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ProjectedRetentionMeaning423
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionTransport423
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1600
@@ -253,6 +253,162 @@ theorem unchanged_R13_entry_cannot_select_even_with_retained_projection423 (repo
     rw [selected] at exact
     exact False.elim (exact_target_retention_does_not_supply_missing_fixed_head423 _ _ exact)
 
+/-- The same case with three distinct field addresses: the lower
+anchor uses 7, upper uses 10, and literal target equation uses 11. -/
+def transportRows : List Equation :=
+  [openRow 0 20 3 5,openRow 2 20 4 6,openRow 8 20 7 5,openRow 9 20 10 6,⟨12,.variable 11⟩]
+
+def transportOrigins : List Origin :=
+  [⟨0,[44],openTerm 20 3 5⟩,⟨2,[55],openTerm 20 4 6⟩,
+   ⟨8,[63],openTerm 20 7 5⟩,⟨9,[79],openTerm 20 10 6⟩]
+
+def transportArcs (noDown noUp : Bool) : List (Nat × Nat) :=
+  [(0,1),(1,2),(8,1),(1,9)] ++ (if noDown then [] else [(11,7)]) ++ (if noUp then [] else [(10,11)])
+
+def transportProblem (noDown noUp : Bool := false) : Problem :=
+  let core0 := concrete.state.core
+  let core1 := {core0 with current := {core0.current with ordinary :=
+    ⟨⟨[],transportArcs noDown noUp⟩,transportRows⟩}, origins := transportOrigins}
+  let atlas : B6OccurrenceAtlas401 core1 := ⟨fun q decl i body =>
+    if q.occurrence == [61,423] && decl == 1 && i.val == 0 then
+      if h : body = .explicit authoredBody then
+        some (h.symm ▸ (MixedRhs401.binder 8 () : B6MixedRhs401 core1 false
+          (GeneralDeclarationPatterns.normalize (GeneralDeclarativeOutputs320.bodyPattern (.explicit authoredBody)))))
+      else none
+    else none⟩
+  ⟨⟨core1,atlas⟩,concrete.root⟩
+
+def transportWire : RecordEndpoints422.Wire :=
+  ⟨⟨0,0⟩,⟨1,1⟩,1,⟨[0,0,0,1,1,1,1,1,0,0,1,1,1],[0,1]⟩⟩
+
+def transportProbe (p : Problem) : Option Bool := do
+  let r ← readEndpoints422 p transportWire
+  let _ ← readProjectedOutput422 r
+  pure (readTransportedRetention423 r retainedWire).isSome
+
+theorem distinct_names_are_accepted_and_directions_are_checked423 :
+    transportProbe transportProblem = some true ∧
+    transportProbe (transportProblem true false) = some false ∧
+    transportProbe (transportProblem false true) = some false := by
+  constructor
+  · decide +kernel
+  · constructor <;> decide +kernel
+
+def transportRead (noDown noUp : Bool := false) :
+    Read (transportProblem noDown noUp) :=
+  (readEndpoints422 (transportProblem noDown noUp) transportWire).get (by
+    cases noDown <;> cases noUp <;> decide +kernel)
+
+def wiredTransport : TransportedRetained transportRead :=
+  (readTransportedRetention423 transportRead retainedWire).get (by decide +kernel)
+
+theorem actual_target_rhs_does_not_substitute_either_anchor_name423 :
+    wiredTransport.bracket.lower.field = 7 ∧
+    wiredTransport.bracket.upper.field = 10 ∧ wiredTransport.fieldAddress = 11 ∧
+    wiredTransport.rowOrdinal = 4 := by decide +kernel
+
+def changedModel (ty : Ty) : I72.Model :=
+  ⟨fun n => if n = 10 then (actualField,Common.rowEmpty) else if n = 11 ∨ n = 12
+      then (ty,Common.rowEmpty) else (model false).assignment n,
+    fun _ => none,
+    fun n => if n = 0 then some (openTerm 20 3 5) else if n = 2 then some (openTerm 20 4 6)
+      else if n = 8 then some (openTerm 20 7 5) else if n = 9 then some (openTerm 20 10 6) else none⟩
+
+theorem transported_model_fit423 (ty : Ty) (noDown noUp : Bool)
+    (down : noDown = false → Subtype ty actualField)
+    (up : noUp = false → Subtype actualField ty) :
+    I72.Fits (transportProblem noDown noUp).state (changedModel ty) := by
+  refine ⟨⟨⟨⟨?_,?_⟩,?_⟩,?_⟩,?_⟩
+  · intro _ none; cases none
+  · intro pair mem
+    change pair ∈ transportArcs noDown noUp at mem
+    unfold transportArcs at mem
+    rcases List.mem_append.mp mem with prev|upper
+    · rcases List.mem_append.mp prev with base|lower
+      · simp only [List.mem_cons,List.not_mem_nil,or_false] at base
+        rcases base with rfl|rfl|rfl|rfl
+        · exact lower_then_anchor
+        · exact subtype_trans anchorLo_to_anchorHi anchor_then_upper
+        · exact subtype_refl _
+        · exact anchorLo_to_anchorHi
+      · cases noDown
+        · obtain rfl := List.mem_singleton.mp lower
+          exact down rfl
+        · cases lower
+    · cases noUp
+      · obtain rfl := List.mem_singleton.mp upper
+        exact up rfl
+      · cases upper
+  · intro e mem
+    change e ∈ transportRows at mem
+    simp only [transportRows,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl|rfl|rfl|rfl <;> exact ⟨subtype_refl _,subtype_refl _⟩
+  · intro _ none; cases none
+  · intro o mem
+    change o ∈ transportOrigins at mem
+    simp only [transportOrigins,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl|rfl|rfl <;> rfl
+
+def transportTyped (noDown noUp : Bool := false) : ProjectedOutput (transportRead noDown noUp) :=
+  (readProjectedOutput422 (transportRead noDown noUp)).get (by
+    cases noDown <;> cases noUp <;> decide +kernel)
+
+theorem original_typed_value_is_independent_of_the_candidate_target_type423
+    (ty : Ty) (noDown noUp : Bool)
+    (fit : I72.Fits (transportProblem noDown noUp).state (changedModel ty)) :
+    (transportTyped noDown noUp).actualRightValue (changedModel ty) =
+      some ([61,423],1,0,12,actualField) := by
+  let rd := transportRead noDown noUp
+  obtain ⟨evidence⟩ := RecordEndpoints422.same_model_endpoints_support_both_projected_channels422
+    rd (changedModel ty) fit.1.1
+  have actual := RecordEndpoints422.original_B6_binder_yields_required_projection_and_exact_addresses422
+    (transportTyped noDown noUp) (changedModel ty) evidence
+  have atCenter : rd.arg.center = 1 := by cases noDown <;> cases noUp <;> decide +kernel
+  have atLabel : rd.low.label = 20 := by cases noDown <;> cases noUp <;> decide +kernel
+  have atDecl : rd.ordinal = 1 := by cases noDown <;> cases noUp <;> decide +kernel
+  have projected := evidence.atRequired
+  rw [atCenter,atLabel] at projected
+  have field : evidence.required = actualField :=
+    Option.some.inj (projected.symm.trans (direct 20 false actualField loTail))
+  rw [actual,atDecl,field]
+  rfl
+
+/-- Both inequalities really matter. Dropping one allows a strictly
+different fixed-target type even though the *same source and B6 value*
+remain available and the literal output row is present. These are
+counterexamples to adding that reader branch without the guard,
+not language rejection diagnostics. -/
+theorem each_directed_bridge_is_semantically_needed423 :
+    (I72.Fits (transportProblem true false).state (changedModel hiField) ∧
+      (transportTyped true false).actualRightValue (changedModel hiField) =
+        some ([61,423],1,0,12,actualField) ∧
+      ¬ Equivalent ((changedModel hiField).assignment 12).1 actualField) ∧
+    (I72.Fits (transportProblem false true).state (changedModel loField) ∧
+      (transportTyped false true).actualRightValue (changedModel loField) =
+        some ([61,423],1,0,12,actualField) ∧
+      ¬ Equivalent ((changedModel loField).assignment 12).1 actualField) := by
+  have high := transported_model_fit423 hiField true false (fun bad => by cases bad)
+    (fun _ => unionLeft _ _)
+  have low := transported_model_fit423 loField false true (fun _ => unionLeft _ _)
+    (fun bad => by cases bad)
+  exact ⟨⟨high,original_typed_value_is_independent_of_the_candidate_target_type423 _ _ _ high,
+    fun h => high_not_below_mid h.1⟩,
+    ⟨low,original_typed_value_is_independent_of_the_candidate_target_type423 _ _ _ low,
+      fun h => mid_not_below_low h.2⟩⟩
+
+theorem actual_transported_aliases_keep_projected_output423 :
+    I72.Fits transportProblem.state (changedModel actualField) ∧
+    ∃ value : Ty,
+      transportTyped.actualRightValue (changedModel actualField) = some ([61,423],1,0,12,value) ∧
+      Equivalent ((changedModel actualField).assignment 12).1 value := by
+  have fit := transported_model_fit423 actualField false false (fun _ => subtype_refl _)
+    (fun _ => subtype_refl _)
+  obtain ⟨value,got,eq⟩ := original_projected_B6_fixed_target_survives_distinct_logical_names423
+    transportTyped wiredTransport (changedModel actualField) fit
+  have ordinal : transportRead.ordinal = 1 := by decide +kernel
+  rw [ordinal] at got
+  exact ⟨fit,value,got,eq⟩
+
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 
 open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
@@ -265,3 +421,10 @@ open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 #print axioms actual_B6_associated_field_is_retained_in_two_different_models423
 #print axioms exact_target_retention_does_not_supply_missing_fixed_head423
 #print axioms unchanged_R13_entry_cannot_select_even_with_retained_projection423
+
+#print axioms distinct_names_are_accepted_and_directions_are_checked423
+#print axioms actual_target_rhs_does_not_substitute_either_anchor_name423
+#print axioms transported_model_fit423
+#print axioms original_typed_value_is_independent_of_the_candidate_target_type423
+#print axioms each_directed_bridge_is_semantically_needed423
+#print axioms actual_transported_aliases_keep_projected_output423
