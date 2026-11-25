@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 414
-status: completed
-started: 2026-11-25T09:31:30.219Z
-updated: 2026-11-25T10:21:35.051Z
-elapsed_min: 50
-activity: I-74 C06 / X4 first half complete; authored unknown tail pending; 16 scoped rows remain
-report: notes/handoff/dots-cycle-414.md
+cycle: 415
+status: running
+started: 2026-11-25T10:34:53.300Z
+updated: 2026-11-25T10:35:07.969Z
+elapsed_min: 0
+activity: I-74 C07 / X4 second half; exact authored field subtraction and selected where
+workspace: C415 scoped Lean
+last_local_commit: none
+resume_hint: I-74: spec-first coverage map and verified original source boundaries.
