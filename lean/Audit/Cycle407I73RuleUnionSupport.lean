@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I73RuleUnionSupport407
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.R0_original_support_on_one_same_model_ledger407
+#print axioms Yulang.GeneralDeclarativeI65.I72.actual_mixed_native_support_enters_variable_rule407
