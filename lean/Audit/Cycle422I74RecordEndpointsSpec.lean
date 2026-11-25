@@ -371,6 +371,27 @@ theorem actual_split_case_also_evaluates_original_B6_without_literal_reassembly4
   rw [actual,ordinal,exactField]
   rfl
 
+/-- Stronger than failure of one proof constructor: applying the
+existing full ordinary HeadMeaning to this witness is itself false
+in an original fitting model. An added constructor with the old
+semantic conclusion would require a false equivalence. -/
+theorem split_channel_model_rules_out_literal_ordinary_HeadMeaning422
+    (cap : Nat → GeneralDeclarativeWhere319.Capture) :
+    ¬ GeneralDeclarativeDemand320.HeadMeaning
+      (GeneralDeclarativeWitnessDeclaredState357.authoredRegistry concrete.state.core.current).constructors
+      (GeneralSourceMetadataRows291.interpretation concrete.state.core.current.environment.source.snapshot)
+      cap splitModel.assignment read.arg
+      (pickSyntax read.low.label read.fieldBinder read.residualBinder) := by
+  intro exact
+  have center := actual_literal_binders_and_endpoint_names_are_not_swapped422.2.1
+  have key : read.low.label = 20 := by decide +kernel
+  have eq := exact.1
+  rw [center,key] at eq
+  change Equivalent (GeneralDeclarativeRecordSplit330.hidden 20)
+    (record 20 (splitModel.assignment (cap read.fieldBinder).center).1
+      (splitModel.assignment (cap read.residualBinder).center).1) at eq
+  exact GeneralDeclarativeRecordSplit330.no_literal 20 _ _ eq
+
 end Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422.SpecRecord
 
 open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
@@ -405,3 +426,5 @@ open SpecRecord
 #print axioms exact_compiled_record_endpoint_output_is_found422
 #print axioms original_compiler_RHS_tracks_two_real_center_types_at_one_target422
 #print axioms actual_split_case_also_evaluates_original_B6_without_literal_reassembly422
+
+#print axioms split_channel_model_rules_out_literal_ordinary_HeadMeaning422
