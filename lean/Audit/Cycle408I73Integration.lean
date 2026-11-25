@@ -77,3 +77,41 @@ theorem unhandled_tag_returns_false_not_diagnosis408 :
 #print axioms unhandled_tag_returns_false_not_diagnosis408
 
 end Yulang.GeneralDeclarativeI65.I72.Check408.Integration
+
+namespace Yulang.GeneralDeclarativeI65.I72.Check408.Integration
+open GeneralDeclarativeI65.I72.Check408
+open GeneralDeclarativeWitnessCoverageFixture357 (prepare)
+
+/-- This is a fitting model of the exact checked input, not part of
+the witness and not used when the result is accepted. -/
+def model : I72.Model := ⟨fun _ => (.base .int,Common.rowEmpty),fun _ => none,fun _ => none⟩
+
+theorem compiled_leaf_fits_model408 {rows p} (fetched : ordinaryLeaf rows = some p) :
+    I72.Fits p.state model := by
+  unfold ordinaryLeaf at fetched
+  cases h : prepare (original rows) with
+  | none => simp [h] at fetched
+  | some env =>
+    simp only [h,Option.pure_def] at fetched
+    cases fetched
+    refine ⟨⟨⟨⟨PresenceNormalForm.all_nil _ _,?_⟩,?_⟩,?_⟩,?_⟩ <;>
+      intro _ empty <;> cases empty
+
+theorem accepted_nullary_has_dictionary_in_a_real_model408 :
+    ∃ p, ordinaryLeaf [declaration] = some p ∧
+      check p (nullaryReport declaration) .nullary = true ∧ I72.Fits p.state model ∧
+      I72.DictionaryEvidence p.state model p.root (.node declaration.id []) := by
+  have h := actual_source_nullary_integration_passes408
+  unfold leafTest at h
+  cases fetched : ordinaryLeaf [declaration] with
+  | none => simp [fetched] at h
+  | some p =>
+    have accepted : check p (nullaryReport declaration) .nullary = true := by simpa [fetched] using h
+    have fit := compiled_leaf_fits_model408 fetched
+    exact ⟨p,rfl,accepted,fit,accepted_selected_dictionary_in_every_model408 p (nullaryReport _) .nullary
+      accepted _ rfl model fit⟩
+
+#print axioms compiled_leaf_fits_model408
+#print axioms accepted_nullary_has_dictionary_in_a_real_model408
+
+end Yulang.GeneralDeclarativeI65.I72.Check408.Integration
