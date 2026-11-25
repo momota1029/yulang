@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74RecordEndpointsChannels422
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsProjectionNames422
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1200
@@ -301,6 +301,38 @@ theorem both_channels_exist_in_the_fitting_model_that_forbids_reassembly422 :
   exact same_source_does_not_force_projection_channels_to_agree422
     ⟨evidence.required,evidence.optional,evidence.atRequired,evidence.atOptional,same⟩
 
+/-- The actual split-channel source distinguishes a conservative
+two-name projection from fabricating a literal record equation.
+This proof keeps the old State and all original targets, yet produces
+a fresh assignment (not evidence in the original assignment). -/
+theorem same_split_source_admits_fresh_projections_without_a_literal_row422 :
+    ∃ (a : ProjectedRecordChannels read splitModel) (next : I72.Model),
+      Fits concrete.state next ∧
+      next.assignment 1 = splitModel.assignment 1 ∧
+      next.assignment 12 = splitModel.assignment 12 ∧
+      (next.assignment read.fieldNames.center).1 = a.required ∧
+      (next.assignment read.freshTail).1 =
+        CommonNominalFullCarrier.mask [read.low.label] (splitModel.assignment read.arg.center).1 ∧
+      ¬ Equivalent a.required a.optional := by
+  obtain ⟨a,assignment,valid,stable,payload,residue⟩ :=
+    fresh_projection_names_exist_without_required_optional_agreement422 read splitModel
+      split_channel_model_fits_the_identical_authored_request422.1.1
+  let m := {splitModel with assignment := assignment}
+  refine ⟨a,m,⟨⟨valid,?_⟩,?_⟩,?_,?_,payload,residue,?_⟩
+  · intro _ no; cases no
+  · exact split_channel_model_fits_the_identical_authored_request422.2
+  · apply stable
+    rw [← actual_literal_binders_and_endpoint_names_are_not_swapped422.2.1]
+    exact List.mem_append_right _ List.mem_cons_self
+  · apply stable
+    apply List.mem_append_right
+    apply List.mem_cons_of_mem
+    change 12 ∈ [read.low.field,read.high.field,read.low.residual,read.high.residual] ++ [12]
+    exact List.mem_append_right _ List.mem_cons_self
+  · intro same
+    exact same_source_does_not_force_projection_channels_to_agree422
+      ⟨a.required,a.optional,a.atRequired,a.atOptional,same⟩
+
 end Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422.SpecRecord
 
 open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
@@ -329,3 +361,5 @@ open SpecRecord
 #print axioms stating_only_fresh_names_does_not_solve_uniform_model_transport422
 
 #print axioms both_channels_exist_in_the_fitting_model_that_forbids_reassembly422
+
+#print axioms same_split_source_admits_fresh_projections_without_a_literal_row422
