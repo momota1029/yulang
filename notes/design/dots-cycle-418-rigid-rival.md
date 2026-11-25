@@ -1,0 +1,3 @@
+# C418: grounded structural rival, C10
+
+Only I-74 C10. Spec 6.2 permits coexisting nonoverlapping candidates; the two printed Display heads can overlap and will not be treated as disjoint. Verified scope under the same rule: R :{tick int}, actual plain merged binder head versus an actually visible R :{tick str}. Both declaration ordinals and the whole list, original typed integer input at the actual payload, and both actual normalized visit sets. The str rival fails from distinct rigid scalar constructor read, not absence or failed replay. Root and entered payload raw K2 precede classification. Preserve R9 and output checks, add only evidence-backed selected local rule, dictionary and report soundness. No parser or completeness claim.
