@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ExplicitPickMeaning419
+import Yulang.GeneralDeclarativeI65I74ExplicitPickCoherence419
 
 open Yulang.GeneralDeclarativeI65.I72.ExplicitPick419
 #print axioms PickDeclaration.sourceHead
@@ -21,3 +21,8 @@ open Yulang.GeneralDeclarativeI65.I72.ExplicitPick419
 #print axioms both_real_binders_and_retained_residual_are_preserved419
 #print axioms checked_pattern_cannot_hide_a_reached_cycle419
 #print axioms no_older_selected_rule_can_claim_actual_Pick419
+#print axioms no_older_diagnostic_claims_this_actual_Pick419
+#print axioms previous_checker_is_disjoint_for_actual_Pick419
+#print axioms actual_sources_agree_on_input_and_residual419
+#print axioms actual_packets_agree_on_the_literal_ledger419
+#print axioms check_cannot_change_report_at_actual_Pick419
