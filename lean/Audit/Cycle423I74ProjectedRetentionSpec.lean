@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ProjectedRetentionTransport423
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionPath423
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1600
@@ -409,6 +409,93 @@ theorem actual_transported_aliases_keep_projected_output423 :
   rw [ordinal] at got
   exact ⟨fit,value,got,eq⟩
 
+def pathArcs : List (Nat × Nat) := [(0,1),(1,2),(8,14),(1,15),(11,16),(10,17)]
+def pathAtoms : List (PresenceNormalForm.Atom Nat) :=
+  [ .tyLe (.var 14) (.var 1), .tyLe (.var 15) (.var 9),
+    .tyLe (.var 16) (.var 7), .tyLe (.var 17) (.var 11) ]
+
+def pathProblem : Problem :=
+  let core0 := (transportProblem).state.core
+  let body := {core0 with current := {core0.current with ordinary :=
+    ⟨⟨pathAtoms,pathArcs⟩,transportRows⟩}}
+  let atlas : B6OccurrenceAtlas401 body := ⟨fun q decl i equation =>
+    if q.occurrence == [61,423] && decl == 1 && i.val == 0 then
+      if h : equation = .explicit authoredBody then
+        some (h.symm ▸ (MixedRhs401.binder 8 () : B6MixedRhs401 body false
+          (GeneralDeclarationPatterns.normalize (GeneralDeclarativeOutputs320.bodyPattern (.explicit authoredBody)))))
+      else none
+    else none⟩
+  ⟨⟨body,atlas⟩,concrete.root⟩
+
+def rootPathWire : RecordEndpoints422.Wire :=
+  ⟨⟨0,0⟩,⟨1,1⟩,1,⟨[0,0,0,1,1,1,1,1,0,0,1,1,1,0,0,0,1,1],[0,1]⟩⟩
+def pathWire : PathWire :=
+  ⟨retainedWire,[.interval 2,.ordinary 0],[.interval 3,.ordinary 1],
+    [.interval 4,.ordinary 2],[.interval 5,.ordinary 3]⟩
+def pathRead : Read pathProblem :=
+  (readEndpoints422 pathProblem rootPathWire).get (by decide +kernel)
+
+theorem original_rows_are_followed_as_directed_typed_paths423 :
+    (readRetentionPaths423 pathRead pathWire).isSome = true ∧
+    (readTransportedRetention423 pathRead retainedWire).isSome = false ∧
+    (readRetentionPaths423 pathRead {pathWire with resultToLower := [.interval 4,.ordinary 3]}).isSome = false ∧
+    (readRetentionPaths423 pathRead {pathWire with actualToUpper := [.ordinary 1,.interval 3]}).isSome = false ∧
+    (readRetentionPaths423 pathRead {pathWire with lowerToActual := [.interval 2]}).isSome = false := by
+  constructor
+  · decide +kernel
+  · constructor
+    · decide +kernel
+    · constructor
+      · decide +kernel
+      · constructor <;> decide +kernel
+
+def pathValue : ProjectedOutput pathRead := (readProjectedOutput422 pathRead).get (by decide +kernel)
+def pathRetained : TransportedRetained pathRead := (readRetentionPaths423 pathRead pathWire).get (by decide +kernel)
+
+def pathModel : I72.Model :=
+  { changedModel actualField with assignment := fun n =>
+      if n = 14 then (anchorLo,Common.rowEmpty)
+      else if n = 15 then (anchorHi,Common.rowEmpty)
+      else if n = 16 ∨ n = 17 then (actualField,Common.rowEmpty)
+      else (changedModel actualField).assignment n }
+
+theorem path_only_constraints_really_fit_the_original_model423 :
+    I72.Fits pathProblem.state pathModel := by
+  refine ⟨⟨⟨⟨?_,?_⟩,?_⟩,?_⟩,?_⟩
+  · intro e mem
+    change e ∈ pathAtoms at mem
+    simp only [pathAtoms,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl|rfl|rfl <;> exact subtype_refl _
+  · intro pair mem
+    change pair ∈ pathArcs at mem
+    simp only [pathArcs,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl|rfl|rfl|rfl|rfl
+    · exact lower_then_anchor
+    · exact subtype_trans anchorLo_to_anchorHi anchor_then_upper
+    · exact subtype_refl _
+    · exact anchorLo_to_anchorHi
+    · exact subtype_refl _
+    · exact subtype_refl _
+  · intro e mem
+    change e ∈ transportRows at mem
+    simp only [transportRows,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl|rfl|rfl|rfl <;> exact ⟨subtype_refl _,subtype_refl _⟩
+  · intro _ none; cases none
+  · intro o mem
+    change o ∈ transportOrigins at mem
+    simp only [transportOrigins,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl|rfl|rfl <;> rfl
+
+theorem concrete_located_chains_keep_the_actual_projected_write423 :
+    ∃ value : Ty,
+      pathValue.actualRightValue pathModel = some ([61,423],1,0,12,value) ∧
+      Equivalent (pathModel.assignment 12).1 value := by
+  obtain ⟨v,read,same⟩ := original_projected_B6_fixed_target_survives_distinct_logical_names423
+    pathValue pathRetained pathModel path_only_constraints_really_fit_the_original_model423
+  have ordinal : pathRead.ordinal = 1 := by decide +kernel
+  rw [ordinal] at read
+  exact ⟨v,read,same⟩
+
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 
 open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
@@ -428,3 +515,7 @@ open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 #print axioms original_typed_value_is_independent_of_the_candidate_target_type423
 #print axioms each_directed_bridge_is_semantically_needed423
 #print axioms actual_transported_aliases_keep_projected_output423
+
+#print axioms original_rows_are_followed_as_directed_typed_paths423
+#print axioms path_only_constraints_really_fit_the_original_model423
+#print axioms concrete_located_chains_keep_the_actual_projected_write423
