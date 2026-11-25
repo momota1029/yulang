@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I75ProjectedReceiptMeaning425
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms accepted_projected_receipt_names_both_original_endpoint_sources425
+#print axioms accepted_key_is_exact_original_literal_field_use425
+#print axioms accepted_exact_key_denotes_full_projected_capture425
