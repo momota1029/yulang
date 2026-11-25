@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74OpenTailEntry414
+
+open Yulang.GeneralDeclarativeI65.I72.OpenTail414
+#print axioms no_row_for_actual_tail414
+#print axioms dictionary_sound_R6
+#print axioms existing_exact_report_lifts414
+#print axioms open_R6_trace_model_meaning414
+#print axioms exact_open_input_supplies_pending414
+#print axioms previous_entry_unchanged414
+#print axioms checked_open_tail_reflects_original414
+#print axioms checked_entry_has_exact_original_report414
+#print axioms check_sound
