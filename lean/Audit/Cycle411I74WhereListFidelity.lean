@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74WhereListFidelity411
+
+open Yulang.GeneralDeclarativeI65.I72.WhereCycle411
+#print axioms where_rule_is_a_new_local_family411
+#print axioms raw_cycle_forces_the_exact_child_trace411
+#print axioms checked_where_child_keeps_same_trace_for_all_models411
