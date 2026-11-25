@@ -22,4 +22,12 @@ Lean 4.35.0。技術ピンのファイルを独立に再取得し、各 blob を
 
 C421 の公開入口で旧 42 executable controls と C421 の 13 controls をカーネルで再確認。C421 は `true` が 3 件（等式保持で選択、追加矛盾で拒否、旧証人の第 2 引数 root K2）と `false` が 10 件（逆 verdict、整合する未保持、間違った行や宣言番号、由来なし、違う宣言など）。この組合せの実行は差分検証であり、Rust 実行、全仕様の受理、NoFalseRejection、停止性、任意の記号型の矛盾検出、親からの子要求生成のどれも主張しない。
 
+## 追加の対照: 実行 locator と意味の区別
+
+公開 audit `lean/Audit/Cycle421I74RepeatedCentersSpec.lean` の `build`・`probe` だけを使い、展開した補助 harness でも `lake env lean --trust=0 -DwarningAsError=true` で exit 0。Lean tree には補助 harness を追加していない。
+
+- `build mismatch tie cycle` の 8 通りで「新・選択／新・不整合拒否／旧・根 K2」の 24 照合。順序 `mismatch`→`tie`→`cycle`、各 `false,true` として三組の期待値は `000,001,100,001,010,001,000,001`（0/1 は checker の false/true）。旧 K2 証人の閉じる alias 行は `tie = false` では 6、`true` では 7。二番目の引数の構造行 1 と子 6 は不変。古い locator 6 を等式追加後にも流用した 2 対照はいずれも false。K2 の意味は保存し、古いアドレスを勝手に読み替えない。
+- 正の実例で宣言番号 0–4、第一の元入力 origin 0–5、第二の下端行・第一実中心行・第二 payload 行・中心等式行の各 0–8（計 47 件、一軸ずつ）を照合。通る番号はそれぞれ 1,0,1,2,5,6 のみ。この固定実例の対照であり、任意の宣言表における locator の一意性・証人探索の完全性ではない。
+- これらは上記 55 対照と一部重なるため、合計実例数として加算しない。上記 3 範囲の audit 集計にも含めていない。
+
 範囲外は検査器の `false` として区別する。同じ tag の int/bool を使った二引数の元の例、候補一件、where・出力なしの範囲で C13 を閉じる。次は最新指示を読み直してから C14 を検討する。
