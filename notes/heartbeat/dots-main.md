@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 417
-status: running
+status: completed
 started: 2026-11-25T12:30:10.363Z
-updated: 2026-11-25T13:11:13.768Z
-elapsed_min: 41
-activity: C417 proof/verification seal: actual typed source cannot move to a different equal-valued name; fixed R0/R8 and theorem carriers confirmed; no Lean changes
-workspace: C417 scoped Lean
-last_local_commit: none
-resume_hint: I-74: spec-first coverage map and verified original source boundaries.
+updated: 2026-11-25T13:20:13.594Z
+elapsed_min: 50
+activity: I-74 C09 X6 verified complete; two actual source candidates, typed payload and raw K2; 13 scoped rows remain
+report: notes/handoff/dots-cycle-417.md
