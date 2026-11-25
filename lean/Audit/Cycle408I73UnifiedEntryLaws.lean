@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I73UnifiedEntry408
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Checker408.accepted_implies_branch_engine408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Checker408.nullary_checks_actual_declared_role408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Checker408.unseen_role_fallback_is_not_a_checked_nullary408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Checker408.selected_nullary_matches_only_row_of_that_role408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Checker408.check_sound
+#print axioms Yulang.GeneralDeclarativeI65.I72.Checker408.checked_report_is_unique408
+#print axioms Yulang.GeneralDeclarativeI65.I72.Checker408.raw_closed_cycle_uses_the_same_checker408

@@ -15,3 +15,7 @@ R₀ が既に表すが今回 check が受け取らない例: 非空の変数引
 `ReportEvidence` は同じ木で、各選択ノードの head/typed RHS/固定先を同じモデルで示し、成功する子辞書も同じ順で証明する。選択を支えた producer は追加の診断子や出力として重ねない。
 
 この段階はモデル・proof を外からもらう checker ではない。範囲拡大は、2 と 3 の統合確認後に C の項目として扱う。
+
+## 入口の補正: role の fallback を根拠にしない
+
+正本の入口は `GeneralDeclarativeI65.I72.Checker408.check` とその `check_sound`。先に公開した `Check408.check` は共有の内部 checker。C349 の signature は未宣言 role にも fallback arity を与える。元の実 role 行がなくても fallback 0 が nullary の arity として通ることを統合テストで再現した。正本では同じ要求の role に対応する元の metadata 行の存在を確認する。要求・role 行・唯一の可視宣言・報告 ID まで一致を示した。raw root K2 は同じグラフのままで、この metadata guard をかけない。R₀ とは異なる新しい言語上の拒否は足さない。
