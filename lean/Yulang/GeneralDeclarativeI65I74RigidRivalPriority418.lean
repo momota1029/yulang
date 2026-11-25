@@ -183,6 +183,29 @@ theorem actual_rigid_scan_has_only_the_original_winner418 {s q} (a : Winner s q)
         change CommonRoleOutermostResolver.Tree.selected b.winner.candidate.decl.id [] = _
         rw [independent_rival_scans_agree_on_plain_declaration418 b a]
 
+theorem at_a_real_rigid_scan_only_canonical_selected_classifies418
+    {s q} (a : Winner s q) (verdict : CommonRoleOutermostResolver.Result) :
+    I72.Classifies R10 s q verdict ↔
+      verdict = .selected (.node a.winner.candidate.decl.id []) := by
+  constructor
+  · rintro ⟨t,e,⟨trace⟩,summaries⟩
+    have canonical := actual_rigid_scan_has_only_the_original_winner418 a trace
+    rw [canonical] at summaries
+    cases summaries with
+    | selected children combined =>
+      cases children
+      cases combined with
+      | rejected impossible => cases impossible
+      | ambiguous _ impossible => cases impossible
+      | pending _ _ impossible => cases impossible
+      | selected dicts =>
+        simp at dicts
+        cases dicts
+        rfl
+  · rintro rfl
+    exact exact_report_is_R10_classification418
+      (exact_plain_merge_has_selected_report418 (p := ⟨s,q⟩) a)
+
 theorem previous_checker_cannot_claim_another_result_for_rigid_winner418
     (p : Problem) (r : Result) (a : Winner p.state p.root) (w : X6Ambiguous417.Witness) :
     X6Ambiguous417.check p r w = false := by

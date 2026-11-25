@@ -1,7 +1,8 @@
-import Yulang.GeneralDeclarativeI65I74RigidRivalEntry418
+import Yulang.GeneralDeclarativeI65I74RigidRivalNoHead418
+import Yulang.GeneralDeclarativeI65I74RigidRivalLocator418
 
 namespace Yulang.GeneralDeclarativeI65.I72.RigidRival418.SpecWitness
-open GeneralDeclarativeI65 (B6OccurrenceAtlas401 visible)
+open GeneralDeclarativeI65 (B6OccurrenceAtlas401 visible SourceHead)
 open X6Ambiguous417 (integerOriginSyntax)
 open CommonNominalFullCarrier (Subtype)
 open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry point)
@@ -144,22 +145,84 @@ theorem old_C09_actual_overlap_is_still_ambiguous_not_C10_418 :
 theorem actual_sole_winner_has_same_model_dictionary_and_rival_fails418 :
     ∃ p, build [actual,ground] = some p ∧ Fits p.state model ∧
       ∃ a : Winner p.state p.root, replayWinner418 p wire = some a ∧
+        a.winner.candidate.decl = actual ∧ a.mismatch.rival.candidate.decl = ground ∧
         ∀ m, Fits p.state m →
           ReportEvidence p.state m p.root report418 ∧
           DictionaryEvidence p.state m p.root (.node 57 []) ∧
-          ¬ Subtype (m.assignment a.rows.payload).1 (.base .str) := by
+          ¬ Nonempty (SourceHead p.state.core p.root ground) := by
   have good := actual_two_candidates_select_only_the_plain_match418.1
   cases ready : build [actual,ground] with
   | none => simp [checkOpt,ready] at good
   | some p =>
     have yes : check p report418 (.rigidRival wire) = true := by simpa [checkOpt,ready] using good
-    obtain ⟨a,atWire,_⟩ := checked_plain_merge_reflects_original418 p report418 wire yes
-    refine ⟨p,rfl,actual_rigid_source_fits418 _ ready,a,atWire,?_⟩
+    obtain ⟨a,atWire,_,win,loses,_⟩ := check_uses_both_actual_declarations_and_original_rigid_input418 yes
+    rw [build_preserves_authored_table418 ready] at win loses
+    have winExact : some actual = some a.winner.candidate.decl := win
+    have rivalExact : some ground = some a.mismatch.rival.candidate.decl := loses
+    have rhs := (Option.some.inj rivalExact).symm
+    refine ⟨p,rfl,actual_rigid_source_fits418 _ ready,a,atWire,(Option.some.inj winExact).symm,rhs,?_⟩
     intro m fit
     have h := check_sound p report418 (.rigidRival wire) yes
     exact ⟨h.2 m fit,
       dictionary_sound_R10 _ _ _ (exact_report_is_R10_classification418 h.1) m fit,
-      (original_int_point_cannot_fit_str418 a.mismatch m fit).2⟩
+      rhs ▸ actual_rival_has_no_source_head_in_any_fitting_model418 a.mismatch m fit⟩
+
+def modelsAtAdditionalOrigin (p : Problem) : Problem :=
+  let newState := {p.state.core with
+    origins := p.state.core.origins ++ [⟨1,[44,1],.ordinary (.base .str)⟩]}
+  let atlas : B6OccurrenceAtlas401 newState := ⟨fun _ _ _ _ => none⟩
+  ⟨⟨newState,atlas⟩,p.root⟩
+
+def modelsAtWrongInput (p : Problem) : Problem :=
+  let newState := {p.state.core with
+    origins := [⟨0,[44],originX6 20 1⟩,⟨2,[44,0],integerOriginSyntax⟩]}
+  let atlas : B6OccurrenceAtlas401 newState := ⟨fun _ _ _ _ => none⟩
+  ⟨⟨newState,atlas⟩,p.root⟩
+
+theorem original_structural_source_is_not_created_by_raw_equality418 :
+    checkOpt ((build [actual,ground]).map modelsAtAdditionalOrigin) = false ∧
+    checkOpt ((build [actual,ground]).map modelsAtWrongInput) = false ∧
+    checkOpt (build [actual,ground]) {report418 with
+      writes := [⟨[61],0,0,⟨9,9⟩,.default 7 9 (.var 0),.node 0 [] []⟩]} = false := by decide +kernel
+
+def aliasOthers : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [⟨2,.variable 0⟩,variantRow416 2 20 1]}
+def alternate : GeneralDeclarativeHead320.State :=
+  {aliasOthers with equations := aliasOthers.equations ++ [variantRow416 2 20 3]}
+def aliasWire : RivalWire :=
+  {wire with
+    rootEscape := ⟨[0,1,0],[0,1]⟩
+    payloadEscape := ⟨[0,1,0],[2,0]⟩}
+def alternateWire : RivalWire :=
+  {wire with
+    rootEscape := ⟨[0,1,0,1],[0,1]⟩
+    payloadEscape := ⟨[0,1,0,2],[2,0,2]⟩}
+
+theorem raw_alias_never_invents_a_second_mismatch_core418 :
+    checkOpt (build [actual,ground] aliasOthers) report418 (.rigidRival aliasWire) = true ∧
+    List410.checkExactEscape alternate 0 alternateWire.rootEscape = true ∧
+    List410.checkExactEscape alternate 1 alternateWire.payloadEscape = true ∧
+    checkOpt (build [actual,ground] alternate) report418 (.rigidRival alternateWire) = false :=
+  by decide +kernel
+
+def rowOrders : List (List Equation × (Nat × Nat × Nat)) :=
+  [([rootRow,intRow,joinRow],(0,1,2)),([rootRow,joinRow,intRow],(0,2,1)),
+   ([intRow,rootRow,joinRow],(1,0,2)),([intRow,joinRow,rootRow],(2,0,1)),
+   ([joinRow,rootRow,intRow],(1,2,0)),([joinRow,intRow,rootRow],(2,1,0))]
+def relocate (w : RivalWire) (I : Nat × Nat × Nat) : RivalWire :=
+  {w with
+    variantRow := I.1
+    intRow := I.2.1
+    joinRow := I.2.2}
+def checkOrder (ds : List Declaration) (w : RivalWire) (names : List Equation × (Nat × Nat × Nat)) : Bool :=
+  checkOpt (build ds {ordinary with equations := names.1}) report418 (.rigidRival (relocate w names.2))
+
+theorem both_actual_declaration_orders_and_six_raw_storage_orders418 :
+    rowOrders.all (checkOrder [actual,ground] wire) = true ∧
+    rowOrders.all (checkOrder [ground,actual] reverse) = true ∧
+    rowOrders.tail.all
+      (fun n => !checkOpt (build [actual,ground] {ordinary with equations := n.1}) report418 (.rigidRival wire)) = true :=
+  by decide +kernel
 
 #eval [checkOpt,checkOpt (build [ground,actual]) report418 (.rigidRival reverse),
   checkOpt (build [actual,realOverlap]),checkOpt (build [actual,ground] payloadCycle)]
@@ -167,6 +230,9 @@ theorem actual_sole_winner_has_same_model_dictionary_and_rival_fails418 :
 #print axioms unavailable_wrong_root_and_overlap_are_not_mismatch418
 #print axioms actual_visits_keep_raw_K2_and_off_route_distinct418
 #print axioms old_C09_actual_overlap_is_still_ambiguous_not_C10_418
+#print axioms original_structural_source_is_not_created_by_raw_equality418
+#print axioms raw_alias_never_invents_a_second_mismatch_core418
+#print axioms both_actual_declaration_orders_and_six_raw_storage_orders418
 #print axioms actual_sole_winner_has_same_model_dictionary_and_rival_fails418
 
 end Yulang.GeneralDeclarativeI65.I72.RigidRival418.SpecWitness

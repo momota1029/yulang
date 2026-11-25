@@ -1,4 +1,5 @@
-import Yulang.GeneralDeclarativeI65I74RigidRivalPriority418
+import Yulang.GeneralDeclarativeI65I74RigidRivalNoHead418
+import Yulang.GeneralDeclarativeI65I74RigidRivalLocator418
 
 open Yulang.GeneralDeclarativeI65.I72.RigidRival418
 
@@ -16,3 +17,9 @@ open Yulang.GeneralDeclarativeI65.I72.RigidRival418
 #print axioms old_C09_not_a_second_accepted_diagnosis418
 #print axioms actual_rigid_scan_has_only_the_original_winner418
 #print axioms rigid_report_is_unique_in_its_checked_scope418
+#print axioms actual_variant_does_not_satisfy_the_full_rigid_str_head418
+#print axioms actual_rival_has_no_source_head_in_any_fitting_model418
+#print axioms every_original_observation_at_entry_is_the_same_int_origin418
+#print axioms no_other_original_type_is_available_at_that_slot418
+#print axioms check_uses_both_actual_declarations_and_original_rigid_input418
+#print axioms at_a_real_rigid_scan_only_canonical_selected_classifies418
