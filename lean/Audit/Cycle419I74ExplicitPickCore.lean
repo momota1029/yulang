@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeI65I74ExplicitPickEntry419
+
+open Yulang.GeneralDeclarativeI65.I72.ExplicitPick419
+#print axioms PickDeclaration.sourceHead
+#print axioms frame_keeps_original_pick_capture419
+#print axioms pick_binder_fields_do_not_look_inside_the_original_value419
+#print axioms replay_output_has_exact_source_and_row419
+#print axioms pick_uses_exact_retained_typed_row419
+#print axioms selected_pick_local_sound419
+#print axioms dictionary_sound_R11
+#print axioms actual_event_has_only_its_original_output419
+#print axioms existing_exact_report_lifts419
+#print axioms checked_report_uses_original_pick419
+#print axioms previous_entry_unchanged419
+#print axioms check_sound
