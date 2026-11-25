@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72CompletedUnaryNextOutput406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms read_exact_output_of_actual_selected_trace406
+#print axioms exact_scoped_receipt_keeps_its_request_and_ordinal406
+#print axioms even_new_completed_trace_protects_an_original_nominal_output406
+#print axioms scoped_actual_completion_does_not_use_a_pending_trace406
