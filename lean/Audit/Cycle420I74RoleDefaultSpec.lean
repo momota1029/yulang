@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74RoleDefaultLocator420
+import Yulang.GeneralDeclarativeI65I74RoleDefaultCoherence420
 
 namespace Yulang.GeneralDeclarativeI65.I72.RoleDefault420.SpecDefault
 open GeneralDeclarativeI65 (B6OccurrenceAtlas401 B6MixedRhs401 MixedRhs401)
@@ -16,6 +16,7 @@ open ClosedResidual415 (wholeExpr wholeOriginal residualExpr strRow)
 def bodies : Source 0 0 0 := ⟨[],Fin.elim0,Fin.elim0⟩
 def defaultBody : Body := .default 7 3 (.var 0)
 def explicitBody : GeneralDeclarations.Equation := ⟨92,3,.var 8⟩
+def zeroExplicitBody : GeneralDeclarations.Equation := ⟨94,3,.var 0⟩
 def otherBody : GeneralDeclarations.Equation := ⟨93,4,.var 13⟩
 def actual : Declaration := ⟨57,7,[pickSyntax 20 8 13],[],[],[]⟩
 def override : Declaration := {actual with associated := [explicitBody]}
@@ -40,7 +41,7 @@ def explicitOrdinary : GeneralDeclarativeHead320.State :=
 def build (table : List Declaration := [unrelated,actual])
     (raw : GeneralDeclarativeHead320.State := ordinary)
     (ownerDefault : Option Roles.Term := some (.var 0)) (typed : Bool := true)
-    (declIndex : Nat := 1) (request : List Nat := [61]) (target : Nat := 4) : Option Problem := do
+    (declIndex : Nat := 1) (request : List Nat := [61]) (target : Nat := 4) (typedExplicit : Bool := true) : Option Problem := do
   let program ← compile bodies
   let bundle ← GeneralSourceMetadataBareBundle291.compile (surface table ownerDefault)
   let env : Environment := ⟨0,0,0,bodies,program,bundle⟩
@@ -51,9 +52,13 @@ def build (table : List Declaration := [unrelated,actual])
       if h : b = defaultBody then
         some (h.symm ▸ (MixedRhs401.binder 0 () : B6MixedRhs401 state false
           (GeneralDeclarationPatterns.normalize (GeneralDeclarativeOutputs320.bodyPattern defaultBody))))
+      else if h : b = .explicit zeroExplicitBody then
+        if typedExplicit then some (h.symm ▸ (MixedRhs401.binder 0 () : B6MixedRhs401 state false
+          (GeneralDeclarationPatterns.normalize (GeneralDeclarativeOutputs320.bodyPattern
+            (.explicit zeroExplicitBody))))) else none
       else if h : b = .explicit explicitBody then
-        some (h.symm ▸ (MixedRhs401.binder 8 () : B6MixedRhs401 state false
-          (GeneralDeclarationPatterns.normalize (GeneralDeclarativeOutputs320.bodyPattern (.explicit explicitBody)))))
+        if typedExplicit then some (h.symm ▸ (MixedRhs401.binder 8 () : B6MixedRhs401 state false
+          (GeneralDeclarationPatterns.normalize (GeneralDeclarativeOutputs320.bodyPattern (.explicit explicitBody))))) else none
       else none
     else none⟩
   pure ⟨⟨state,atlas⟩,⟨request,⟨7,[⟨0,0,0⟩],[⟨3,target⟩]⟩⟩⟩
@@ -80,6 +85,11 @@ theorem only_explicit_for_the_same_name_suppresses_role_default420 :
       (.previous (.explicitPick overrideWire)) = false ∧
     checkOpt (build [unrelated,otherExplicit]) = true := by decide +kernel
 
+theorem missing_B6_for_actual_explicit_does_not_enable_fallback420 :
+    checkOpt (build [unrelated,override] (typedExplicit := false)) = false ∧
+    checkOpt (build [unrelated,override] explicitOrdinary (typedExplicit := false))
+      overrideExpected (.previous (.explicitPick overrideWire)) = false := by decide +kernel
+
 theorem role_default_cannot_be_guessed_or_retagged420 :
     checkOpt (build (ownerDefault := none)) = false ∧
     checkOpt (build (ownerDefault := some (.var 1))) = false ∧
@@ -90,6 +100,40 @@ theorem role_default_cannot_be_guessed_or_retagged420 :
     checkOpt build expected (.roleDefault {wire with outputRow := 4}) = false ∧
     checkOpt (build (target := 5)) = false ∧
     checkOpt (build (raw := explicitOrdinary)) = false := by decide +kernel
+
+def zeroHead : Declaration := {actual with head := [pickSyntax 20 0 13]}
+def zeroOverride : Declaration := {zeroHead with associated := [zeroExplicitBody]}
+def zeroExplicitReport : Result :=
+  ⟨.selected 57 [],.selected (.node 57 []),
+    [⟨[61],1,0,⟨3,4⟩,.explicit zeroExplicitBody,.node 0 [0,1,1,1] []⟩]⟩
+def mistakenLexicalReport : Result :=
+  {expected with writes := expected.writes.map fun out => {out with typedRhs := .node 0 [0,1,1,1] []}}
+
+theorem same_spelling_zero_is_position_for_default_and_field_for_explicit420 :
+    checkOpt (build [unrelated,zeroHead]) = true ∧
+    checkOpt (build [unrelated,zeroHead]) mistakenLexicalReport = false ∧
+    checkOpt (build [unrelated,zeroOverride] explicitOrdinary) zeroExplicitReport
+      (.previous (.explicitPick overrideWire)) = true ∧
+    checkOpt (build [unrelated,zeroOverride] explicitOrdinary) = false := by decide +kernel
+
+def rootCycle : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [⟨1,.variable 0⟩]}
+def rawWire : GeneralDeclarativeWitnessCycle350.Wire := ⟨0,⟨0,.same,1⟩,[],.forward 6⟩
+def legacyRoot : Witness :=
+  .previous (.previous (.previous (.previous (.previous (.previous
+    (.previous (.previous (.previous (.previous (.previous (.previous (.rawRoot rawWire))))))))))))
+def conflicting : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [explicitRow]}
+def duplicate : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [outRow]}
+
+theorem root_priority_and_original_target_are_orthogonal_to_default420 :
+    checkOpt (build (raw := rootCycle)) = false ∧
+    checkOpt (build (raw := rootCycle) (typed := false)) Check408.rawReport legacyRoot = true ∧
+    checkOpt (build (raw := conflicting)) = false ∧
+    checkOpt (build (raw := duplicate)) expected (.roleDefault wire) = true ∧
+    checkOpt (build (raw := duplicate)) expected (.roleDefault {wire with outputRow := 6}) = true := by
+  decide +kernel
 
 def actualResidualTy : Ty := record 21 (.base .str) .emptyRecord
 def actualInputTy : Ty := record 20 (.base .int) actualResidualTy
@@ -138,7 +182,10 @@ theorem genuine_role_default_has_same_model_dictionary420 :
 
 #print axioms actual_owner_default_selects_and_writes_the_whole_argument420
 #print axioms only_explicit_for_the_same_name_suppresses_role_default420
+#print axioms missing_B6_for_actual_explicit_does_not_enable_fallback420
 #print axioms role_default_cannot_be_guessed_or_retagged420
+#print axioms same_spelling_zero_is_position_for_default_and_field_for_explicit420
+#print axioms root_priority_and_original_target_are_orthogonal_to_default420
 #print axioms default_projection_fixture_has_fitting_model420
 #print axioms genuine_role_default_has_same_model_dictionary420
 end Yulang.GeneralDeclarativeI65.I72.RoleDefault420.SpecDefault

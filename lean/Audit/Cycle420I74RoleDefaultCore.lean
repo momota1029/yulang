@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74RoleDefaultMeaning420
+import Yulang.GeneralDeclarativeI65I74RoleDefaultCoherence420
 
 open Yulang.GeneralDeclarativeI65.I72.RoleDefault420
 #print axioms DefaultDeclaration.sourceHead
@@ -18,3 +18,10 @@ open Yulang.GeneralDeclarativeI65.I72.RoleDefault420
 #print axioms existing_exact_report_lifts420
 #print axioms previous_entry_unchanged420
 #print axioms check_sound
+#print axioms no_older_diagnostic_claims_this_actual_Default420
+#print axioms no_prior_election_claims_the_defaulted_source420
+#print axioms previous_checker_is_disjoint_on_actual_default420
+#print axioms actual_same_name_equation_blocks_default_checker420
+#print axioms checked_defaults_agree_on_the_same_original_ledger420
+#print axioms original_default_source_has_only_one_exact_report420
+#print axioms any_successful_witness_uses_exact_original_default420
