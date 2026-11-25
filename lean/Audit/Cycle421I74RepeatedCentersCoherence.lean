@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74RepeatedCentersCoherence421
+
+open Yulang.GeneralDeclarativeI65.I72.RepeatedCenters421
+#print axioms any_selected_R13_report_uses_the_original_repeated_source421
+#print axioms accepted_selected_checker_report_is_original_repeated_source421
