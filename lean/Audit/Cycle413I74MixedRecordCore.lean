@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeI65I74MixedRecordEntry413
+open Yulang.GeneralDeclarativeI65.I72.MixedRecord413
+#print axioms PlainCandidate.matches
+#print axioms plain_record_candidate_does_not_enter_payload413
+#print axioms actual_nested_candidate_enters413
+#print axioms MixedTape.each_unopened_has_match
+#print axioms matched_rival_is_real413
+#print axioms full_scan_has_actual_K2_413
+#print axioms dictionary_sound_R5
+#print axioms no_clause_header413
+#print axioms existing_exact_report_lifts413
+#print axioms mixed_R5_trace_model_meaning413
+#print axioms mixed_scope_rejects_before_election413
+#print axioms previous_entry_unchanged413
+#print axioms checked_mixed_head_reflects_original413
+#print axioms check_sound
