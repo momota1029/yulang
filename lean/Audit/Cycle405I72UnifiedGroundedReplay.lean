@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72UnifiedGroundedReplay405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms exact_chosen_scan_has_raw_priority405
+#print axioms authored_and_variable_rules_ground_the_same_trace405
+#print axioms all_actual_selected_native_or_variable_nodes_have_priority405
+#print axioms existing_source_rules_assemble_grounded_dictionary405

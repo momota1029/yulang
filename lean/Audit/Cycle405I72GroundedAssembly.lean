@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I72GroundedAssembly405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms provide_node_from_grounded_priority405
+#print axioms assemble_with_grounded_inversion405
+#print axioms priority_at_actual_support405
+#print axioms replay_checks_every_actual_selected_priority405
+#print axioms exact_ledger_evidence405
+#print axioms fixed_targets_from_own_elected_events405
+#print axioms node_from_exact_preoutput_head405
+#print axioms actual_completed_choices_supply_nodes405
+#print axioms completed_choice_same_priority_and_ledger405

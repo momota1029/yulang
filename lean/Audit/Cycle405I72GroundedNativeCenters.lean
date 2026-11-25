@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I72GroundedNativeCenters405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms declared_guard_ignores_centers405
+#print axioms declared_guard_alone_cannot_name_selected_center405
+#print axioms raw_k2_observes_only_demand_lower_names405
+#print axioms k2_replay_ignores_center_spelling405

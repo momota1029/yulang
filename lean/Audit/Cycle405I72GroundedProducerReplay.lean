@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72GroundedProducerReplay405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms supported_classifies_embeds_exactly_in_completed_choice405
+#print axioms actual_producer_runs_grounded_consumer_replay405
