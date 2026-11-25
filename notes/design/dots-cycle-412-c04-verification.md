@@ -11,3 +11,9 @@
 ### 発現の固定
 
 `checked_record_fixes_actual_site_and_trace_before_models412` は、元の candidate・実 field と `SourceTrace.other` を一つ先に固定し、後から同じ State の全 fitting model を量化する。別の使える origin ordinal があっても、同じ point に一つの literal endpoint を読む fitting 入力では、両方の証人は同じ宣言・field label・論理 site を照合する（`same_fitting_input_cannot_change_checked_field412`）。型の値をモデルで等置して別名へ乗り換える証明ではなく、元の endpoint 構文の一致だけを用いる。
+
+### 独立の位置・cycle 対照
+
+- ここで閉じた「record head」は tail 束縛を持たず、正本の `{}` に対応する `.emptyRecord` で終わる literal syntax を指す。幅の部分型付けを狭めたり、列挙しなかった field がないことを要求したりはしない。元の有限 graph decoder を使うには、この例の outer row をその形で読める必要がある。
+- 同じ X10 の形で、元の origin と outer row は両方 1 番、親は名前 5、実 `box` field の site 8 が二つの異なる record 行 `8→11→8` で循環する別入力を検査。実の証人だけ true。別 origin/row・一辺の未閉路・元 point と raw row が別の payload を指す・違う field label・変数捕捉だけ・fallback role の対照は false（言語上の拒否とは区別）。`[true,false,false,false,false,false,false,false]`。元の二節点周期を展開する同じ fitting model と evidence も示した。
+- `only_binding_record_field_does_not_visit_inner_site412` は根の record 書式に変数 field しかないと、その field の内部を訪れないことを任意 View で証明。`original_outer_record_is_seen_and_holds_in_same_model412` は同じ fitting model に最初の記録 literal endpoint と実 raw row の意味の両方を保持する。
