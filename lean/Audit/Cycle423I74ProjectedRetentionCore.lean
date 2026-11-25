@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionMeaning423
+
+open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423
+#print axioms retained_rhs_row_is_at_the_exact_original_target423
+#print axioms actual_root_is_sandwiched_by_retained_field_anchors423
+#print axioms retained_target_observes_both_actual_projection_channels423
+#print axioms original_projected_B6_write_is_retained_at_its_exact_target423
