@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ClosedResidualCoherence415
+
+open Yulang.GeneralDeclarativeI65.I72.ClosedResidual415
+#print axioms exact_candidate_id_has_one_authored_ordinal415
+#print axioms exact_verified_residual_location_coheres415
+#print axioms all_original_replayed_location_coordinates_unique415
