@@ -16,3 +16,8 @@
 
 - 完全な Git bytes の C410・C411 を別の出力ディレクトリで strict Lean 4.35.0 再生。12 production modules、8 standalone Audit、追記 import の同時読み込みは全て exit 0。C411 単独の sealed replay（6 production、5 Audit）も exit 0、37 unique audited names は標準 axioms のみ。
 - 別の同一 X9 構造で、元の role・constructor・declaration ID・束縛名・source slot・子 payload・occurrence をすべて変更しても checker は true。書かれた束縛と別の名前、別 role の where、追加 clause、fallback arity のみで著者がいない role、可視候補が二つ、誤った子の argument index は、同じ新 branch で `false`。厳格な追加カーネル試験の結果 `[true,false,false,false,false,false,false]`。これらの false は言語上の拒否を主張しない。
+
+## 循環の二段対照と witness の限界
+
+- 同じ実 where 一つの source を、子 `1 → 2 → 1`（異なる constructor tags）の元 graph でも検査した。実際の二辺を渡すと true、閉じない一辺の短絡と別の偽行は false。二節点の正則モデルを構築し、両方の unfold の有限深さ全てでの一致と、この同じ snapshot の fitting/evidence を別 strict Lean 検証で得た。
+- 混合制約を足した別の fitting snapshot では、同じ実子 rejection を `Classifies R3` と `ReportEvidence` が導出するが、公開 `WhereCycle411.check` の全種類の証人が false になる。具体的に元の `Bound 0≤1, 2≤0` と flat equation `1=2` があると、現 alias rank 証人は 0 と 1 を同じ側に強制する。一方、本来の raw graph では、方向 Bound と flat equation を混ぜて 0 を 1 の alias にする規則はなく、親根に raw 帰路はない。子は本当に循環する。拒否報告を証明したのに証人が範囲外になる対照であり、言語変更ではない。C410 の十分条件を引き継いだ制約を含め、C03 を閉じたというのは上の仕様例の三条件である。
