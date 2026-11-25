@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72CompletedNativeAgreement406
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms two_retained_unary_nominal_rows_agree_in_a_fitting_model406
+#print axioms two_real_completed_inputs_to_the_same_lower_agree_in_model406
+#print axioms one_original_input_site_keeps_its_payload_name406
