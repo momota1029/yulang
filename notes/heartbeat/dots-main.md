@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 412
-status: running
+status: completed
 started: 2026-11-25T07:30:06.000Z
-updated: 2026-11-25T08:13:11.340Z
-elapsed_min: 43
-activity: I-74 C04: actual field evidence, conservative prior selections, strict exact source verified
-workspace: C412 scoped Lean
-last_local_commit: none
-resume_hint: I-74: spec-first coverage map and verified original source boundaries.
+updated: 2026-11-25T08:20:09.037Z
+elapsed_min: 50
+activity: I-74 C04 / X10 complete; actual record field K2; 18 scoped rows remain
+report: notes/handoff/dots-cycle-412.md
