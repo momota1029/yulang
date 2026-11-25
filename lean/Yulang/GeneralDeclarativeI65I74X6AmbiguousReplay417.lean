@@ -49,7 +49,20 @@ def readPlainHit417 {s q} (rows : PlainRows s q) (ordinal : Nat) : Option (Plain
     else none
   | _ => none
 
-def readGroundHit417 {s q} (rows : PlainRows s q) (ordinal : Nat) : Option (GroundHit rows) := do
+def readIntegerOrigin417 {s q} (rows : PlainRows s q) (ordinal : Nat) :
+    Option (IntegerOrigin rows) :=
+  match authored : s.core.origins[ordinal]? with
+  | none => none
+  | some original =>
+    match typed : original.endpoint with
+    | .ordinary (.base .int) =>
+      if position : original.slot = rows.payload then
+        some ⟨original,List.mem_of_getElem? authored,position,typed⟩
+      else none
+    | _ => none
+
+def readGroundHit417 {s q} (rows : PlainRows s q) (original : IntegerOrigin rows) (ordinal : Nat) :
+    Option (GroundHit rows) := do
   let a ← readCandidate417 s q ordinal
   match literal : a.decl.head with
   | [.variant tag (.app name [])] =>
@@ -58,13 +71,14 @@ def readGroundHit417 {s q} (rows : PlainRows s q) (ordinal : Nat) : Option (Grou
       match exactType : application (authoredRegistry cur).constructors
           (interpretation cur.environment.source.snapshot) name [] with
       | some (.primitive (.scalar .int) []) =>
-        some ⟨a,name,by simpa [groundSyntax,matched] using literal,exactType⟩
+        some ⟨a,name,original,by simpa [groundSyntax,matched] using literal,exactType⟩
       | _ => none
     else none
   | _ => none
 
 structure AmbiguityWire where
   origin : Nat
+  payloadOrigin : Nat
   variantRow : Nat
   intRow : Nat
   joinRow : Nat
@@ -77,8 +91,9 @@ def replayAmbiguity417 (p : Problem) (w : AmbiguityWire) : Option (Ambiguous p.s
   let ord := p.state.core.current.ordinary
   let rows ← PlainMerged416.readRows416 p
     (⟨w.origin,w.variantRow,w.intRow,w.joinRow,w.plainOrdinal,w.rootEscape⟩ : PlainWire)
+  let primitive ← readIntegerOrigin417 rows w.payloadOrigin
   let plain ← readPlainHit417 rows w.plainOrdinal
-  let ground ← readGroundHit417 rows w.groundOrdinal
+  let ground ← readGroundHit417 rows primitive w.groundOrdinal
   let registry := (authoredRegistry p.state.core.current).declarations
   if ordinals : (registry.map Declaration.id).Nodup ∧ plain.candidate.decl.id ≠ ground.candidate.decl.id ∧
       (visible p.state.core p.root = [plain.candidate.decl,ground.candidate.decl] ∨

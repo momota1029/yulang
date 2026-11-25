@@ -44,9 +44,27 @@ structure PlainHit {s q} (rows : PlainRows s q) where
   unlike : first ≠ second
   head : candidate.decl.head = [sourceX6 rows.tag first second]
 
+/-- Independent original syntax at the *actual* payload. A raw
+integer equation alone can belong to an unfinished producer and must
+not make this structural candidate ready (spec 6.3 / I-59 / I-67). -/
+def integerOriginSyntax : CommonRecursiveNominalIntervals.Endpoint Nat := .ordinary (.base .int)
+
+structure IntegerOrigin {s q} (rows : PlainRows s q) where
+  original : Origin
+  member : original ∈ s.core.origins
+  slot : original.slot = rows.payload
+  typed : original.endpoint = integerOriginSyntax
+
+theorem original_integer_typing_in_every_fit417 {s q} {rows : PlainRows s q}
+    (a : IntegerOrigin rows) (m : I72.Model) (fit : Fits s m) :
+    m.nativeSyntax rows.payload = some integerOriginSyntax := by
+  have actual := fit.2 _ a.member
+  rwa [a.slot,a.typed] at actual
+
 structure GroundHit {s q} (rows : PlainRows s q) where
   candidate : Candidate s q
   intName : Nat
+  source : IntegerOrigin rows
   head : candidate.decl.head = [groundSyntax rows.tag intName]
   kind : application (authoredRegistry s.core.current).constructors
     (interpretation s.core.current.environment.source.snapshot) intName [] =

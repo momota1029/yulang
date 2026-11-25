@@ -28,18 +28,19 @@ def joinRow : Equation := idempotentRow 0
 def ordinary : GeneralDeclarativeHead320.State := ⟨⟨[],[]⟩,[rootRow,intRow,joinRow]⟩
 
 def build (ds : List Declaration := [actual])
-    (raw : GeneralDeclarativeHead320.State := ordinary) (declared : Bool := true) :
+    (raw : GeneralDeclarativeHead320.State := ordinary) (declared : Bool := true) (typed : Bool := true) :
     Option Problem := do
   let program ← compile bodies
   let src ← GeneralSourceMetadataBareBundle291.compile (surface ds declared)
   let e : Environment := ⟨0,0,0,bodies,program,src⟩
   let s : GeneralDeclarativeI65.State :=
-    ⟨⟨e,raw,[]⟩,[],[⟨0,[44],originX6 20 1⟩],[]⟩
+    ⟨⟨e,raw,[]⟩,[],[⟨0,[44],originX6 20 1⟩] ++
+      (if typed then [⟨1,[44,0],integerOriginSyntax⟩] else []),[]⟩
   let atlas : B6OccurrenceAtlas401 s := ⟨fun _ _ _ _ => none⟩
   pure ⟨⟨s,atlas⟩,⟨[61],⟨7,[⟨0,0,0⟩],[]⟩⟩⟩
 
 
-def wire : AmbiguityWire := ⟨0,0,1,2,0,1,⟨[0,1],[0,1]⟩,⟨[0,1],[2,0]⟩⟩
+def wire : AmbiguityWire := ⟨0,1,0,1,2,0,1,⟨[0,1],[0,1]⟩,⟨[0,1],[2,0]⟩⟩
 def reverse : AmbiguityWire := {wire with plainOrdinal := 1, groundOrdinal := 0}
 
 def checkOpt (p : Option Problem := build [actual,ground]) (r : Result := report417)
@@ -60,7 +61,8 @@ theorem neither_candidate_is_selected_and_no_receipt_is_fabricated417 :
 
 def model : I72.Model :=
   ⟨fun n => ((if n = 0 then variant 20 (.base .int) else .base .int),Common.rowEmpty),
-    fun _ => none,fun n => if n = 0 then some (originX6 20 1) else none⟩
+    fun _ => none,fun n => if n = 0 then some (originX6 20 1) else
+      if n = 1 then some integerOriginSyntax else none⟩
 
 theorem actual_X6_ambiguity_source_fits417 {p : Problem} (ds : List Declaration) (ready : build ds = some p) : Fits p.state model := by
   unfold build at ready
@@ -84,8 +86,9 @@ theorem actual_X6_ambiguity_source_fits417 {p : Problem} (ds : List Declaration)
         · exact PlainMerged416.idempotent_row_adds_no_model_requirement416 0 model
       · intro _ no; cases no
       · intro x found
-        obtain rfl := List.mem_singleton.mp found
-        rfl
+        change x ∈ [⟨0,[44],originX6 20 1⟩,⟨1,[44,0],integerOriginSyntax⟩] at found
+        simp only [List.mem_cons,List.not_mem_nil,or_false] at found
+        rcases found with rfl|rfl <;> rfl
 
 
 theorem build_preserves_authored_table417 {ds : List Declaration} {p : Problem}
@@ -204,7 +207,7 @@ theorem only_the_original_two_visible_hits_count417 :
   by decide +kernel
 
 def wrongLocator (w : AmbiguityWire) : List AmbiguityWire :=
-  [{w with origin := 1},{w with variantRow := 1},{w with intRow := 0},{w with joinRow := 1},
+  [{w with origin := 1},{w with payloadOrigin := 0},{w with payloadOrigin := 2},{w with variantRow := 1},{w with intRow := 0},{w with joinRow := 1},
    {w with plainOrdinal := w.groundOrdinal},{w with plainOrdinal := 2},{w with groundOrdinal := w.plainOrdinal},
    {w with groundOrdinal := 2},{w with rootEscape := w.payloadEscape},
    {w with payloadEscape := w.rootEscape}]
@@ -213,6 +216,13 @@ theorem wrong_locations_and_forged_gates_are_not_ambiguity417 :
     (wrongLocator wire).all (fun w => !checkOpt (build [actual,ground]) report417 (.x6Ambiguity w)) = true ∧
     (wrongLocator reverse).all
       (fun w => !checkOpt (build [ground,actual]) report417 (.x6Ambiguity w)) = true :=
+  by decide +kernel
+
+theorem raw_int_alone_is_not_original_ground_authority417 :
+    checkOpt (build [actual,ground] ordinary true false) = false ∧
+    checkOpt (build [actual,ground] actualRootLoop true false) Check408.rawReport
+      (.previous (.previous (.previous (.previous (.previous (.previous
+        (.previous (.previous (.previous (.rawRoot actualRootLoopWire)))))))))) = true :=
   by decide +kernel
 
 /-- Witness addresses change when the actual rows change order; neither
@@ -243,6 +253,7 @@ theorem both_source_orders_and_six_honest_row_relocations417 :
 
 #eval [checkOpt,checkOpt (build [ground,actual]) report417 (.x6Ambiguity reverse),
   checkOpt (build [actual,ground]) (Check408.nullaryReport actual)]
+#print axioms raw_int_alone_is_not_original_ground_authority417
 #print axioms both_source_orders_and_six_honest_row_relocations417
 #print axioms build_preserves_authored_table417
 #print axioms known_off_path_recursion_and_alias_to_same_payload_are_allowed417

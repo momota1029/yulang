@@ -11,6 +11,9 @@ C416 と同じ State から読む。単独候補の C416 読取器を二回呼�
 実可視リストがこの異なる二宣言のどちらかの順でちょうど尽きることを確認する。
 plain では元の join 両腕にそれぞれ実 payload を捕捉し、ground では
 宣言表の primitive int と、同じ variant 行の同じ実 payload の int 行と照合する。
+さらに ground は同じ payload の元の `.ordinary (.base .int)` 観測を State の
+元の origin index から明示的に読む。int 行だけでは片付いていない出力かも
+しれず、この候補の根拠にしない（I-59/I-67）。生グラフでの K2 は引き続き元行を無条件に見る。
 二つの `SourceHead` は同じ State/Request で作り、任意の同じ fitting model で成立する。
 
 生グラフの K2 は根と、ground が本当に降りる実 payload で別に除外する。
@@ -20,3 +23,7 @@ proof-only な `Visits` は保管しない。wire の有限色と全元行の検
 
 ここは前記 scope のみ。実 self-join 不在や追加候補、構文の違いを
 `false` にしても、言語の拒否とはしない。Rust/一般の完全性/停止性は対象外。
+
+`successfulTraceWasAlreadyR8` は、任意の成功した R9 導出を、同じ選択 event、元の where 順、
+同じ固定書き込み帳票を持つ R8 の導出に戻す。より小さい完了 producer も、それ自身の
+成功要約と元 receipt を保持して戻す。C09 の追加で新しい成功を作らないことまで示す。

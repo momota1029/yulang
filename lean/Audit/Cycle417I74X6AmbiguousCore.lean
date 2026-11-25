@@ -5,6 +5,7 @@ open Yulang.GeneralDeclarativeI65.I72.X6Ambiguous417
 
 #print axioms PlainHit.originalHead
 #print axioms GroundHit.originalHead
+#print axioms original_integer_typing_in_every_fit417
 #print axioms plain_has_both_captures_on_actual_payload417
 #print axioms the_two_candidate_heads_hold_in_the_very_same_model417
 #print axioms variant_profile_tracks_reached_child417
@@ -19,6 +20,7 @@ open Yulang.GeneralDeclarativeI65.I72.X6Ambiguous417
 #print axioms existing_exact_report_lifts417
 #print axioms both_actual_matches_classify_as_ambiguity417
 #print axioms result_includes_actual_replayed_ordinals417
+#print axioms checked_ground_uses_exact_original_integer_input417
 #print axioms actual_X6_has_only_ambiguity_in_R9_417
 #print axioms every_certified_result_for_actual_X6_is_the_canonical_ambiguity417
 #print axioms previous_entry_unchanged417
