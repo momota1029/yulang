@@ -1,3 +1,4 @@
+import Yulang.GeneralDeclarativeI65I75ActualOutputWire425
 import Yulang.GeneralDeclarativeI65I75ProjectedCoreReadback425
 
 
@@ -354,4 +355,47 @@ theorem actual_projected_receipt_supplies_acyclic_core_without_relabeling425 :
     original_split_model_fits_with_exact_required_target_constraints425
 
 #print axioms actual_projected_receipt_supplies_acyclic_core_without_relabeling425
+end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+
+namespace Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+open GeneralDeclarativeI65
+open CommonNominalFullCarrier (Ty Equivalent)
+
+theorem projected_branch_is_origin_indexed_and_retains_checked_typed_write425 :
+    let o := originalProjectedCoreOutput425 preparedSplit
+    let indexed := OutputBranch425.ActualOutput.projected o
+    splitProblem.state.b6.read splitProblem.root o.ordinal preparedSplit.original.outIndex indexed.body =
+      some indexed.plan ∧
+    ∃ v : Ty, indexed.valueAt splitModel = some ([61,423],1,0,12,v) ∧
+      Equivalent (splitModel.assignment 12).1 v := by
+  let o := originalProjectedCoreOutput425 preparedSplit
+  let indexed := OutputBranch425.ActualOutput.projected o
+  exact ⟨OutputBranch425.original_atlas_body_and_typed_term_in_both_branches425 indexed,
+    actual_projected_receipt_supplies_acyclic_core_without_relabeling425.2.2⟩
+
+#print axioms projected_branch_is_origin_indexed_and_retains_checked_typed_write425
+end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+
+namespace Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+open Checker408 (Problem)
+
+def noRetainedTarget425 : Problem :=
+  (actualBuild425 (splitRows.take 2) splitAtoms).get (by decide +kernel)
+
+theorem source_still_emits_exact_projected_wire_without_a_retained_target425 :
+    (readCoreBeforeRetention425 noRetainedTarget425 sourceWire425).map
+      (fun source => ExplicitPick419.eqWrite offeredProjectedWrite425
+        (encodeActualOutput425 19 (.projected source.2))) = some true ∧
+    (replayProjectedWrite425 noRetainedTarget425 19 splitInput offeredProjectedWrite425).isNone = true := by
+  constructor <;> decide +kernel
+
+theorem prepared_split_keeps_exact_authored_core_wire425 :
+    encodeActualOutput425 19
+      (.projected (originalProjectedCoreOutput425 preparedSplit)) = offeredProjectedWrite425 := by
+  rw [authored_core_and_PreparedWrite_emit_the_same_exact_write425]
+  exact (replay_projected_write_requires_exact_original_write425.mp
+    real_projected_write_replays_against_original_problem425).2.2.symm
+
+#print axioms source_still_emits_exact_projected_wire_without_a_retained_target425
+#print axioms prepared_split_keeps_exact_authored_core_wire425
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425

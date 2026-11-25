@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I75ActualOutputBranch425
+open Yulang.GeneralDeclarativeI65.OutputBranch425
+#print axioms original_atlas_body_and_typed_term_in_both_branches425
+#print axioms named_branch_is_the_exact_legacy_model_write425
+#print axioms projected_branch_uses_only_actual_interval_observation425
