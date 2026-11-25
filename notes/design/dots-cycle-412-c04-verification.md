@@ -21,3 +21,7 @@
 ### 既存報告を変えずに実診断位置を読む
 
 追加の pure `RecordK2412.locate` は fixed Result を変えない補助読取りで、実 X10 witness と exact report が通る場合に限り位置を取り出す。本来の occurrence `[71]`、宣言 ID 218、元引数 ordinal 0、実 field label 20、親 slot 0、実 site 1 を確認。where 風の結果では `none`。一般の反映定理は結果に記載した site が判定した実 `Visit` の site であり、親の非循環を保存することを示す。親の occurrence に架空の子 ordinal を足していない。
+
+### raw cycle の閉じ方を照合する対照
+
+実 field site 8 で構造辺 `8→11` を踏み、元の flat `11=8` で閉じる対照では true。片方向 Bound だけ、別の名への flat、閉路のない短絡は false（`[true,false,false,false]`）。この実同一モデルの報告証拠を再検証し、flat があっても診断 site は実 field の 8 のままで、戻り辺の別名 11 に移らないことも確認した。新しい判定規則は足していない。
