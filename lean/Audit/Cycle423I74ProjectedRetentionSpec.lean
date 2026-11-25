@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ProjectedRetentionPath423
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionChannel423
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1600
@@ -496,6 +496,105 @@ theorem concrete_located_chains_keep_the_actual_projected_write423 :
   rw [ordinal] at read
   exact ⟨v,read,same⟩
 
+/-- Original authored endpoints and the original B6 plan, plus
+separate ordinary *inequalities* pinning only the required result.
+There is no ordinary equation at 1 or new center origin. -/
+def splitRows : List Equation :=
+  [openRow 0 20 3 5,openRow 2 20 4 6,⟨12,.variable 11⟩]
+def splitAtoms : List (PresenceNormalForm.Atom Nat) :=
+  [requiredLower 20 11 1,requiredUpper 20 11 1]
+def splitProblem : Problem :=
+  let base := concrete.state.core
+  let s := {base with current := {base.current with ordinary :=
+    ⟨⟨splitAtoms,[(0,1),(1,2)]⟩,splitRows⟩}, origins := allOrigins.take 2}
+  let atlas : B6OccurrenceAtlas401 s := ⟨fun q decl i body =>
+    if q.occurrence == [61,423] && decl == 1 && i.val == 0 then
+      if h : body = .explicit authoredBody then
+        some (h.symm ▸ (MixedRhs401.binder 8 () : B6MixedRhs401 s false
+          (GeneralDeclarationPatterns.normalize (GeneralDeclarativeOutputs320.bodyPattern (.explicit authoredBody)))))
+      else none
+    else none⟩
+  ⟨⟨s,atlas⟩,concrete.root⟩
+
+def splitWire : ChannelWire := ⟨2,0,1⟩
+def splitRead : Read splitProblem :=
+  (readEndpoints422 splitProblem transportWire).get (by decide +kernel)
+def splitTyped : ProjectedOutput splitRead :=
+  (readProjectedOutput422 splitRead).get (by decide +kernel)
+def splitKept : RequiredOnlyRetained splitRead :=
+  (readRequiredChannelRetention423 splitRead splitWire).get (by decide +kernel)
+
+theorem channel_reader_checks_literal_split_constraints_and_target423 :
+    (readRequiredChannelRetention423 splitRead splitWire).isSome = true ∧
+    (readRequiredChannelRetention423 splitRead {splitWire with lowerOrdinal := 1}).isSome = false ∧
+    (readRequiredChannelRetention423 splitRead {splitWire with upperOrdinal := 0}).isSome = false ∧
+    (readRequiredChannelRetention423 splitRead {splitWire with targetOrdinal := 1}).isSome = false := by
+  constructor
+  · decide +kernel
+  · constructor
+    · decide +kernel
+    · constructor <;> decide +kernel
+
+def splitModel : I72.Model :=
+  ⟨fun n =>
+    ((if n = 0 then GeneralDeclarativeRecordSplit330.lo 20
+      else if n = 1 then GeneralDeclarativeRecordSplit330.hidden 20
+      else if n = 2 then GeneralDeclarativeRecordSplit330.hi 20
+      else if n = 3 then .bottom
+      else if n = 4 ∨ n = 11 ∨ n = 12 then .top
+      else .exactEmpty),Common.rowEmpty),
+    fun _ => none,fun n => if n = 0 then some (openTerm 20 3 5)
+      else if n = 2 then some (openTerm 20 4 6) else none⟩
+
+theorem original_split_model_fits_with_exact_required_target_constraints423 :
+    I72.Fits splitProblem.state splitModel := by
+  refine ⟨⟨⟨⟨?_,?_⟩,?_⟩,?_⟩,?_⟩
+  · intro atom mem
+    change atom ∈ splitAtoms at mem
+    simp only [splitAtoms,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl
+    · exact subtype_refl _
+    · exact (GeneralDeclarativeRecordSplit330.interval 20).2
+  · intro pair mem
+    change pair ∈ [(0,1),(1,2)] at mem
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl
+    · exact (GeneralDeclarativeRecordSplit330.interval 20).1
+    · exact (GeneralDeclarativeRecordSplit330.interval 20).2
+  · intro e mem
+    change e ∈ splitRows at mem
+    simp only [splitRows,List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl|rfl <;> exact ⟨subtype_refl _,subtype_refl _⟩
+  · intro _ none; cases none
+  · intro o mem
+    change o ∈ [⟨0,[44],openTerm 20 3 5⟩,⟨2,[55],openTerm 20 4 6⟩] at mem
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at mem
+    rcases mem with rfl|rfl <;> rfl
+
+theorem required_B6_target_is_retained_in_an_actual_unequal_channel_fit423 :
+    ∃ e : RecordEndpoints422.ProjectedRecordChannels splitRead splitModel,
+      splitTyped.actualRightValue splitModel = some ([61,423],1,0,12,e.required) ∧
+      Equivalent (splitModel.assignment 12).1 e.required ∧
+      ¬ Equivalent e.required e.optional := by
+  have fit := original_split_model_fits_with_exact_required_target_constraints423
+  obtain ⟨e⟩ := RecordEndpoints422.same_model_endpoints_support_both_projected_channels422
+    splitRead splitModel fit.1.1
+  have ast := RecordEndpoints422.original_B6_binder_yields_required_projection_and_exact_addresses422
+    splitTyped splitModel e
+  have stored := retained_target_can_equal_required_projection_without_collapsing_optional423
+    splitKept splitModel fit.1.1 e
+  have ordinal : splitRead.ordinal = 1 := by decide +kernel
+  rw [ordinal] at ast
+  refine ⟨e,ast,stored,?_⟩
+  intro equal
+  obtain ⟨f,t,literalEq⟩ :=
+    (RecordEndpoints422.projected_certificate_reassembles_exact_record_iff_its_channels_agree422
+      splitRead splitModel fit.1.1 e).mpr equal
+  have center : splitRead.arg.center = 1 := by decide +kernel
+  have label : splitRead.low.label = 20 := by decide +kernel
+  rw [center,label] at literalEq
+  exact GeneralDeclarativeRecordSplit330.no_literal 20 _ _ literalEq
+
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 
 open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
@@ -519,3 +618,7 @@ open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 #print axioms original_rows_are_followed_as_directed_typed_paths423
 #print axioms path_only_constraints_really_fit_the_original_model423
 #print axioms concrete_located_chains_keep_the_actual_projected_write423
+
+#print axioms channel_reader_checks_literal_split_constraints_and_target423
+#print axioms original_split_model_fits_with_exact_required_target_constraints423
+#print axioms required_B6_target_is_retained_in_an_actual_unequal_channel_fit423
