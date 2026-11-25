@@ -50,6 +50,8 @@ structure OpenInput (s : I72.State) (q : I72.Request) where
 structure OpenCandidate {s q} (input : OpenInput s q) where
   decl : Declaration
   exactVisible : visible s.core q = [decl]
+  role : ∃ row ∈ s.core.current.environment.source.roles.rows, row.role = q.demand.role
+  roleTable : GeneralSourceMetadataRoles291.Valid s.core.current.environment.source.roles
   intName : Nat
   binder : Nat
   clause : Nat

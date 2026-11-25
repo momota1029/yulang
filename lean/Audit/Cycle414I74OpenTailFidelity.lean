@@ -14,17 +14,17 @@ open CommonNominalFullCarrier (Ty Equivalent record)
 def bodies : Source 0 0 0 := ⟨[],Fin.elim0,Fin.elim0⟩
 def original : Declaration := ⟨57,7,[openHead 20 9 8],[tailRequirement 7 8 66],[],[]⟩
 
-def surface (rows : List Declaration) : InputBundle :=
+def surface (rows : List Declaration) (authored : Bool) : InputBundle :=
   let primitives : List Row := [⟨9,some ⟨[],9⟩,.primitive (.scalar .int)⟩]
-  ⟨⟨.absent,primitives⟩,⟨.absent,primitives⟩,⟨0,[⟨7,1,[]⟩]⟩,rows⟩
+  ⟨⟨.absent,primitives⟩,⟨.absent,primitives⟩,⟨1,if authored then [⟨7,1,[]⟩] else []⟩,rows⟩
 
 def raw : GeneralDeclarativeHead320.State := ⟨⟨[],[]⟩,[openRow 0 20 1 2,intRow 1]⟩
 
 def build (rows : List Declaration := [original]) (ordinary : GeneralDeclarativeHead320.State := raw)
-    (origins : List GeneralDeclarativeI65.Origin := [⟨0,[22],openTerm 20 1 2⟩]) :
+    (origins : List GeneralDeclarativeI65.Origin := [⟨0,[22],openTerm 20 1 2⟩]) (authored : Bool := true) :
     Option Problem := do
   let program ← compile bodies
-  let source ← GeneralSourceMetadataBareBundle291.compile (surface rows)
+  let source ← GeneralSourceMetadataBareBundle291.compile (surface rows authored)
   let environment : Environment := ⟨0,0,0,bodies,program,source⟩
   let s : GeneralDeclarativeI65.State := ⟨⟨environment,ordinary,[]⟩,[],origins,[]⟩
   let atlas : B6OccurrenceAtlas401 s := ⟨fun _ _ _ _ => none⟩
@@ -71,6 +71,12 @@ theorem no_pending_evidence_from_unrepresented_source_authorities414 :
     checkOpt givenExtraTarget = false ∧ checkOpt givenNonpoint = false ∧
     checkOpt (build [wrongChild]) = false ∧ checkOpt (build [wrongField]) = false := by decide +kernel
 
+/-- The fallback arity is one, so the syntax and ordinary input still
+compile. An unevidenced role must not count as the authored X4 role. -/
+theorem fallback_arity_is_not_an_authored_role414 :
+    (build (authored := false)).isSome = true ∧
+    checkOpt (build (authored := false)) = false := by decide +kernel
+
 #eval [coordinates build,coordinates withExtraOrigin,coordinates withExtraOrigin {wire with original := 1}]
 #eval [checkOpt givenBadRoute,checkOpt givenNativeRow,checkOpt givenExtraTarget,checkOpt givenNonpoint,
   checkOpt (build [wrongChild]),checkOpt (build [wrongField])]
@@ -81,5 +87,6 @@ theorem no_pending_evidence_from_unrepresented_source_authorities414 :
 #print axioms no_pending_trace_can_issue_a_where_or_fixed_write414
 #print axioms actual_X4_pending_keeps_input_and_clause_coordinates414
 #print axioms no_pending_evidence_from_unrepresented_source_authorities414
+#print axioms fallback_arity_is_not_an_authored_role414
 
 end Yulang.GeneralDeclarativeI65.I72.OpenTail414.FidelityX4

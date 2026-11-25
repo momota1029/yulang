@@ -74,27 +74,37 @@ def readOpen414 (p : Problem) (w : OpenWire) : Option (VerifiedOpen p) := do
 
 def readCandidate414 {s q} (a : OpenInput s q) : Option (OpenCandidate a) := do
   let cur := s.core.current
-  match visibleRows : visible s.core q with
-  | [d] =>
-    if both : (GeneralDeclarativeWitnessModeCoverage357.checkDecl cur.environment d &&
-        RecordK2412.header412 cur d) = true then
-      if noWrites : d.associated = [] ∧ d.outputBinders = [] then
-        match head : d.head, kids : d.requirements with
-        | [.record label (.app intName []) (.var binder)], [clause] =>
-          if verified : label = a.label ∧ clause = tailRequirement q.demand.role binder clause.id then
-            match real : application (authoredRegistry cur).constructors
-                  (interpretation cur.environment.source.snapshot) intName [] with
-            | some (.primitive (.scalar .int) []) =>
-              some ⟨d,visibleRows,intName,binder,clause.id,by simpa [openHead,verified.1] using head,
-                kids.trans (congrArg (fun c => [c]) verified.2),noWrites.1,noWrites.2,
-                (GeneralDeclarativeWitnessModeCoverage357.declaration_exact _ _).mp (splitAnd both).1,
-                (splitAnd both).2,real⟩
-            | _ => none
+  let roles := cur.environment.source.roles
+  if table : GeneralSourceMetadataRoles291.check roles = true then
+    match picked : GeneralSourceMetadataFiniteLookup291.get q.demand.role
+          (GeneralSourceMetadataRoles291.index roles) with
+    | none => none
+    | some row =>
+      let facts := GeneralSourceMetadataRoles291.indexed picked
+      let declared : ∃ row ∈ roles.rows, row.role = q.demand.role := ⟨row,facts.1,facts.2⟩
+      let valid := (GeneralSourceMetadataRoles291.check_exact roles).mp table
+        match visibleRows : visible s.core q with
+        | [d] =>
+          if both : (GeneralDeclarativeWitnessModeCoverage357.checkDecl cur.environment d &&
+              RecordK2412.header412 cur d) = true then
+            if noWrites : d.associated = [] ∧ d.outputBinders = [] then
+              match head : d.head, kids : d.requirements with
+              | [.record label (.app intName []) (.var binder)], [clause] =>
+                if verified : label = a.label ∧ clause = tailRequirement q.demand.role binder clause.id then
+                  match real : application (authoredRegistry cur).constructors
+                        (interpretation cur.environment.source.snapshot) intName [] with
+                  | some (.primitive (.scalar .int) []) =>
+                    some ⟨d,visibleRows,declared,valid,intName,binder,clause.id,by simpa [openHead,verified.1] using head,
+                      kids.trans (congrArg (fun c => [c]) verified.2),noWrites.1,noWrites.2,
+                      (GeneralDeclarativeWitnessModeCoverage357.declaration_exact _ _).mp (splitAnd both).1,
+                      (splitAnd both).2,real⟩
+                  | _ => none
+                else none
+              | _, _ => none
+            else none
           else none
-        | _, _ => none
-      else none
-    else none
-  | _ => none
+        | _ => none
+  else none
 
 structure OpenVerified (p : Problem) where
   pending : OpenTailPending p.state p.root
