@@ -1,4 +1,5 @@
 import Yulang.GeneralDeclarativeI65MixedQualification401
+import Yulang.GeneralDeclarativeI65I75ProjectedEventSource426
 
 namespace Yulang.GeneralDeclarativeI65
 namespace I72
@@ -110,6 +111,18 @@ structure LocalMeaning {s q} (m : Model) (e : Event s q) : Prop where
   head : HeadModel s.core m q e.frame.decl e.head
   rhs : LocalRhsMeaning m e
 
+/-- Convert the independently authored endpoint head. The exact
+payload comes from the same original B6 leaf, not the named frame. -/
+def canonicalEndpointHead426 {s : State} {q : Request}
+    (e : ProjectedCore425.OriginalProjectedLeaf426 s.core s.b6 q) :
+    SourceHead s.core q e.out.row .endpoint :=
+  .endpointRecord e.head.request e.head.pattern e.head.distinct e.head.endpoints
+
+theorem original_projected_leaf_has_canonical_head426 {s : State} {q : Request}
+    (e : ProjectedCore425.OriginalProjectedLeaf426 s.core s.b6 q) (m : Model) (fit : Fits s m) :
+    HeadModel s.core m q e.out.row (canonicalEndpointHead426 e) :=
+  source_head_sound _ m fit
+
 mutual
 /-- Recursive semantic evidence, not a checker or source classifier. -/
 inductive DictionaryEvidence (s : State) (m : Model) : Request → Dictionary → Prop where
@@ -118,11 +131,32 @@ inductive DictionaryEvidence (s : State) (m : Model) : Request → Dictionary �
       DictionaryEvidenceForest s m event.kids ds →
       DictionaryEvidence s m q (.node event.frame.decl.id ds)
 
+  | endpointLeaf
+      (event : ProjectedCore425.OriginalProjectedLeaf426 s.core s.b6 q) :
+      HeadModel s.core m q event.out.row (canonicalEndpointHead426 event) →
+      (∀ i : Fin q.demand.outputs.length, ∃ v,
+        event.out.valueAt m = some (q.occurrence,event.out.ordinal,i.val,q.demand.outputs[i].target,v) ∧
+        Equivalent (m.assignment q.demand.outputs[i].target).1 v) →
+      DictionaryEvidence s m q event.dictionary
+
 inductive DictionaryEvidenceForest (s : State) (m : Model) : List Request → List Dictionary → Prop where
   | nil : DictionaryEvidenceForest s m [] []
   | cons : DictionaryEvidence s m q d → DictionaryEvidenceForest s m qs ds →
       DictionaryEvidenceForest s m (q::qs) (d::ds)
 end
+
+/-- Produce the added canonical evidence only from the actual
+endpoint head, original typed B6 output and independent retention. -/
+theorem original_projected_leaf_with_retention_has_dictionary_evidence426
+    {s : State} {q : Request}
+    (event : ProjectedCore425.OriginalProjectedLeaf426 s.core s.b6 q)
+    (kept : ProjectedCore425.RequiredRetention426 event.out)
+    (m : Model) (fit : Fits s m) : DictionaryEvidence s m q event.dictionary := by
+  have facts := ProjectedCore425.one_projected_leaf_keeps_output_at_original_target426 event kept m fit
+  refine .endpointLeaf event (.endpointRecord facts.1) ?_
+  intro i
+  obtain ⟨v,_,seen,eq⟩ := facts.2 i
+  exact ⟨v,seen,eq⟩
 
 /-- The fixed quantifiers and implications, relative to the open
 source primitive system. No soundness premise has been added. -/

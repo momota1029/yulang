@@ -1,3 +1,4 @@
+import Yulang.GeneralDeclarativeI65I75EndpointHeadPremises423
 import Yulang.GeneralDeclarativeI65Deep366
 import Yulang.GeneralDeclarativeI65SourceNode365
 
@@ -53,15 +54,28 @@ theorem shallow_head_projection {s : State} {capture : Nat → Capture} {as ps}
     | ordinary h => exact .cons (.ordinary h) later
     | declared h _ => exact .cons (.declared h) later
 
+/-- The historical named-frame judgment stays in its original
+ordered/joined lane. Endpoint projection is the other lane of the
+same head family; it has no total named record capture. -/
+inductive SourceHeadLane where
+  | named
+  | endpoint
+
 /-- Independent source-side head facts, with no generated body or
 selected outcome. The joined case keeps the actual whole-payload rule. -/
-inductive SourceHead (s : State) (q : Request) (row : Declaration) : Type where
+inductive SourceHead (s : State) (q : Request) (row : Declaration) :
+    (lane : SourceHeadLane := .named) → Type where
   | ordered (capture : Nat → Capture) :
       All₂ (DeepHead s capture) q.demand.arguments row.head → SourceHead s q row
   | joined : Joined s.current q.demand row → SourceHead s q row
+  | endpointRecord {arg : Capture} {label fieldBinder residualBinder : Nat} :
+      q.demand.arguments = [arg] →
+      row.head = [.record label (.var fieldBinder) (.var residualBinder)] →
+      fieldBinder ≠ residualBinder →
+      EndpointHead423.Inputs s arg label → SourceHead s q row .endpoint
 
 inductive HeadModel (s : State) (m : Model) (q : Request) (row : Declaration) :
-    SourceHead s q row → Prop where
+    {lane : SourceHeadLane} → SourceHead s q row lane → Prop where
   | ordered {capture h} :
       All₂ (DeepHeadMeaning s m capture) q.demand.arguments row.head →
       HeadModel s m q row (.ordered capture h)
@@ -73,13 +87,23 @@ inductive HeadModel (s : State) (m : Model) (q : Request) (row : Declaration) :
           (.union (m.assignment h.firstValue).1 (m.assignment h.lastValue).1)) →
       HeadModel s m q row (.joined h)
 
-theorem source_head_sound {s : State} {q : Request} {row : Declaration}
-    (source : SourceHead s q row) (m : Model) (fit : Fits s m) :
+  | endpointRecord {arg : Capture} {label fieldBinder residualBinder : Nat}
+      {atts : q.demand.arguments = [arg]}
+      {literal : row.head = [.record label (.var fieldBinder) (.var residualBinder)]}
+      {distinct : fieldBinder ≠ residualBinder}
+      {inputFacts : EndpointHead423.Inputs s arg label} :
+      EndpointHead423.Meaning inputFacts m →
+      HeadModel s m q row (.endpointRecord atts literal distinct inputFacts)
+
+theorem source_head_sound {s : State} {q : Request} {row : Declaration} {lane : SourceHeadLane}
+    (source : SourceHead s q row lane) (m : Model) (fit : Fits s m) :
     HeadModel s m q row source := by
   cases source with
   | ordered capture given => exact .ordered (deep_heads_sound given m fit)
   | joined h =>
     obtain ⟨a,b⟩ := GeneralDeclarativeWitnessDeclaredState357.joined_values h m.assignment m.authoredValues fit.1
     exact .joined a b
+  | endpointRecord _ _ _ inputFacts =>
+    exact .endpointRecord (EndpointHead423.source_endpoints_have_projected_meaning423 inputFacts m fit)
 
 end Yulang.GeneralDeclarativeI65
