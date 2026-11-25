@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsControl422
+
+open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
+#print axioms old_kernel_reads_distinct_root_names_at_semantic_point422

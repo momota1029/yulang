@@ -175,6 +175,41 @@ theorem unchanged_public_entry_cannot_emit_selected_fixture422
     rw [h] at selected
     exact False.elim (actual_spec_pick_source_cannot_be_added_by_primitive_union422 _ _ selected)
 
+open GeneralDeclarativeI65
+open CommonNominalFullCarrier (Subtype Equivalent subtype_trans)
+open GeneralNominalCenteredHeadMatPatternSemantics (eqv_trans)
+open GeneralDeclarativeRecordIntervals330 (projected_below direct present)
+open GeneralDeclarativeRecordChannel330 (project)
+
+/-- Not even a shadow choice of a fixed scalar name could represent the
+actual projection across all original fitting models. The two worlds
+agree on all of the original names except the whole record center. -/
+theorem no_existing_name_can_denote_this_real_field_in_all_fits422 (n : Nat) :
+    ¬ (Equivalent ((model false).assignment n).1 lowField ∧
+      Equivalent ((model true).assignment n).1 highField) := by
+  intro both
+  by_cases center : n = 1
+  · subst n
+    have back : Subtype lowField (CommonNominalFullCarrier.record 20 lowField lowTail) := both.1.2
+    obtain ⟨f,h⟩ := present 20 false back
+    simp [lowField,project] at h
+  · have fixed : ((model false).assignment n).1 = ((model true).assignment n).1 := by
+      unfold model
+      simp [center]
+    rw [fixed] at both
+    have same : Equivalent lowField highField := eqv_trans ⟨both.1.2,both.1.1⟩ both.2
+    exact endpoints_have_unequal_semantic_record_types422
+      (GeneralNominalCenteredHeadMatPatternSemantics.record_congr 20 same
+        (GeneralNominalCenteredHeadMatPatternSemantics.record_congr 21 same
+          (GeneralNominalCenteredHeadMatPatternSemantics.eqv_refl _)))
+
+theorem residual_masks_hide_the_actual_captured_label_without_pointing_tail422 :
+    let r₀ := CommonNominalFullCarrier.mask [20] ((model false).assignment 1).1
+    let r₁ := CommonNominalFullCarrier.mask [20] ((model true).assignment 1).1
+    project 20 false [] r₀ = none ∧ project 20 false [] r₁ = none ∧
+    project 21 false [] r₀ = some lowField ∧ project 21 false [] r₁ = some highField := by
+  exact ⟨rfl,rfl,rfl,rfl⟩
+
 end Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422.SpecRecord
 
 open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
@@ -191,3 +226,7 @@ open SpecRecord
 #print axioms projected_actual_fields_differ_between_fits_of_same_source422
 #print axioms unchanged_public_entry_cannot_emit_selected_fixture422
 
+
+#print axioms no_existing_name_can_denote_this_real_field_in_all_fits422
+
+#print axioms residual_masks_hide_the_actual_captured_label_without_pointing_tail422
