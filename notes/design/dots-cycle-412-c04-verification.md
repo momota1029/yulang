@@ -25,3 +25,7 @@
 ### raw cycle の閉じ方を照合する対照
 
 実 field site 8 で構造辺 `8→11` を踏み、元の flat `11=8` で閉じる対照では true。片方向 Bound だけ、別の名への flat、閉路のない短絡は false（`[true,false,false,false]`）。この実同一モデルの報告証拠を再検証し、flat があっても診断 site は実 field の 8 のままで、戻り辺の別名 11 に移らないことも確認した。新しい判定規則は足していない。
+
+### R3 に対する成功保存
+
+`selected_exact_reports_conservative412` は、同じ元 State・request・exact report で verdict が selected のとき、R4 の分類と R3 の分類が同値であることを示す。`previous_success_trace412` は成功木と各 output support の導出に帰納し、同じ発現の event、同じ where 順、同じ literal writes を保つ。C04 に足した rejected-only の規則が成功辞書・成功出力の由来を作らないことの形式証明で、solver が証人を作るという主張ではない。

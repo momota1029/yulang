@@ -8082,3 +8082,4 @@ import Yulang.GeneralDeclarativeI65I74RecordEntry412
 import Yulang.GeneralDeclarativeI65I74RecordPriority412
 import Yulang.GeneralDeclarativeI65I74RecordFidelity412
 import Yulang.GeneralDeclarativeI65I74RecordLocation412
+import Yulang.GeneralDeclarativeI65I74RecordConservative412
