@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeI65I74WhereListPriority411
+
+open Yulang.GeneralDeclarativeI65.I72.WhereCycle411
+#print axioms selected_where_is_exact_actual_child411
+#print axioms selected_where_child_K2_has_exact_report411
+#print axioms previous_entry_unchanged411
+#print axioms checked_entry_has_exact_original_report411
+#print axioms check_sound
+#print axioms invariant_list_keeps_actual_inspection_priority411
+#print axioms accepted_where_wire_reflects_actual_child411
+#print axioms accepted_where_wire_reaches_literal_occurrence411
+#print axioms where_and_prior_witnesses_cannot_both_succeed411
+#print axioms checked_results_are_unique411

@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74WhereListCoherence411
+
+open Yulang.GeneralDeclarativeI65.I72.WhereCycle411
+#print axioms any_where_event_retains_its_exact_child411
+#print axioms fitting_snapshot_has_exactly_same_where_demand411
+#print axioms no_prior_R2_election_of_actual_where_parent411
+#print axioms any_where_forest_at_its_single_raw_child411
+#print axioms checked_X9_tree_is_forced_in_fitting_state411
+#print axioms checked_X9_has_no_competing_declarative_verdict_in_fitting_state411

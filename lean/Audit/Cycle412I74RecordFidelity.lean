@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74RecordFidelity412
+open Yulang.GeneralDeclarativeI65.I72.RecordK2412
+#print axioms fitting_record_reads_have_same_exact_field412
+#print axioms checked_record_fixes_actual_site_and_trace_before_models412
+#print axioms same_fitting_input_cannot_change_checked_field412

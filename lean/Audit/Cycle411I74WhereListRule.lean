@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74WhereListEntry411
+
+open Yulang.GeneralDeclarativeI65.I72.WhereCycle411
+#print axioms literal_binder_has_no_structural_payload_visit411
+#print axioms invariant_list_selected_without_visit411
+#print axioms where_list_local_evidence411
+#print axioms dictionary_sound_R3
+#print axioms existing_exact_report_lifts411
+#print axioms mixed_R3_trace_model_meaning411

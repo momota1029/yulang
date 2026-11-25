@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeI65I74RecordPriority412
+open Yulang.GeneralDeclarativeI65.I72.RecordK2412
+#print axioms cycle_at_sound412
+#print axioms nested_pattern_uses_original_empty412
+#print axioms field_rejection_has_exact_report412
+#print axioms previous_entry_unchanged412
+#print axioms checked_field_reflects_actual_original_rejection412
+#print axioms checked_field_has_exact_original_report412
+#print axioms check_sound
+#print axioms actual_entered_site_is_not_even_a_root_alias412
+#print axioms checked_field_retains_exact_head_origin_and_raw_site412
+#print axioms no_prior_candidate_diagnostic_for_X10_412
+#print axioms no_prior_election_for_X10_412
+#print axioms every_X10_trace_is_record_head_rejection412
+#print axioms field_and_previous_cannot_both_check412
+#print axioms checked_results_are_unique412
