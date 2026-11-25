@@ -1,0 +1,36 @@
+import Yulang.GeneralDeclarativeI65I74ListPriority410
+
+open Yulang.GeneralDeclarativeI65.I72.List410
+
+#print axioms escape_rows_checked410
+#print axioms EscapeRows.sameAlias
+#print axioms EscapeRows.escapes
+#print axioms EscapeRows.follows
+#print axioms checked_escape_refutes_exact_raw_root_K2410
+#print axioms InvariantListHead.payloadBound
+#print axioms InvariantListHead.endpointWellFormed
+#print axioms invariant_list_selected_without_visit410
+#print axioms literal_binder_has_no_structural_payload_visit410
+#print axioms list_local_evidence410
+#print axioms R2_local_evidence410
+#print axioms dictionary_sound_R2
+#print axioms existing_exact_report_lifts410
+#print axioms exact_report_is_R2_classification410
+#print axioms mixed_R2_trace_model_meaning410
+#print axioms replay_list_possesses_actual_point410
+#print axioms list_choice_has_exact_R2_report410
+#print axioms previous_entry_unchanged410
+#print axioms checked_entry_has_exact_original_report410
+#print axioms check_sound
+#print axioms invariant_list_keeps_actual_inspection_priority410
+#print axioms list_rule_is_a_new_local_family410
+#print axioms R2_raw_K2_priority410
+#print axioms list_wire_exact410
+#print axioms list_and_prior_witnesses_cannot_both_succeed410
+#print axioms checked_results_are_unique410
+#print axioms aliasRanks_eq_on_original_alias410
+#print axioms exact_escape_preserves_alias_side410
+#print axioms exact_escape_tracks_original_edge410
+#print axioms exact_escape_refutes_raw_root_K2410
+#print axioms list_choice_captures_exact_report410
+#print axioms checked_report_retains_actual_payload410
