@@ -789,3 +789,15 @@ cycle 320〜333 で、(4) の残り 1 本はずっと同じ形だった。「独
 - 規則を足すときは、spec より厳しい・狭いのはよいが、spec にない受理は足さない。spec にない受理が要る、または spec が決めていない形に当たったら、質問ノートにして止めること（遅延の案を先に）。
 - solver（実際の推論器）が、受理するプログラムについて `check` を通る証人を必ず作ること（NoFalseRejection 側）は、この一覧の範囲がある程度広がってから扱う。停止性は引き続き紙の証明に回す。
 - 固定した `DictionaryEvidence`・`dictionary_sound`・`check_sound` の文は変えない。
+
+## I-75（2026-11-26）C14: 端点からの選択の意味を、射影の証拠として足す（監督役の判断）
+
+- cycle 422 の結果（`primitives_only_cannot_add_genuine_nonpoint_record_selection422`、`fresh_record_model_extension_exactly_when_channels_agree422`）を受けて決める。中心の record 行がなく、上下の端点が一致しない場合、固定した `SourceHead` からはどの `R` でも選択が作れない。また、旧 `HeadMeaning` の「中心が literal な record と同値」は、同じ要求の適合モデルの中に偽になるものがある。
+- これは I-69 の (b) に当たる。結論の証拠（`DictionaryEvidence` の head の意味）が、spec より強いことを要求している。spec 6.5（2026-11-22、ユーザーの決定「2: 端点から選ぶ」）は、中心の行に根拠がなくても、根拠のある端点から照合・捕捉できるなら選ぶ、と定めている。端点から選んだときに spec が保証するのは、**捕捉した field が元の field 端点の区間に入り、残りが元の残余の区間に入ること**であって、中心が literal な record に等しいことではない。
+- 判断:
+  1. `DictionaryEvidence` の head の意味に、**端点射影の構成子を足す**。中身は、cycle 422 の `same_model_endpoints_support_both_projected_channels422` が示した形（実中心の required/optional の field 射影がそれぞれ元の field 端点に挟まれ、mask residual が元の残余区間に挟まれる）を、同じ適合モデルで述べるもの。literal な record の構成子はそのまま残す。
+  2. `Classifies` の `SourceHead` にも、対応する**端点からの head 証拠**の構成子を足す。根拠は二つの元の record 端点の読み（cycle 422 の独立な検査）だけで、中心の行を作ったり推測したりしない。
+  3. 構成子を足すだけなので、`dictionary_sound` と `check_sound` の文（全称・前提・結論の形）は変わらない。既存の `R0`〜`R13` の証明は、古い構成子を作っているのでそのまま通るはず。通らなければ、その理由を書くこと。
+  4. そのうえで C14 を閉じる（`R14`、`check` の分岐、`check_sound`）。元の B6 本体の右辺の射影（cycle 422 の `original_B6_binder_yields_required_projection_and_exact_addresses422`）を、同じ binder の固定出力につなぐ。
+- 固定先にその値がすでに保持されていることを別に示す必要があるなら、それも C14 の一部として扱う。
+- 言語の受理範囲は変えない（spec 6.5 の決定どおり）。端点からの選択で spec が決めていない場合に当たったら、質問ノートにして止める。
