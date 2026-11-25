@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74MixedRecordReplayOrder413
+open Yulang.GeneralDeclarativeI65.I72.MixedRecord413
+#print axioms exact_full_replay_guard413
+#print axioms fold_row_flags_from_same_reads413
+#print axioms check_is_order_independent_for_same_source_reads413

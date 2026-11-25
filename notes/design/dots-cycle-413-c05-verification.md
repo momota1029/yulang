@@ -25,3 +25,7 @@
 ### 同じ snapshot で診断位置を取り違えない
 
 `same_visible_list_has_same_opening_ordinal413` は、ある元 ordinal を一方で nested と読むなら、他方がそこを binding-only と読むことは構文的に不可能と証明する。同じ fitting State では元 point の native syntax により root・label・site も一致し、実行 witness を変えても `locate` の結果は同じ。`open_field_is_not_a_parent_alias413` はこの実 site が親の alias でもないことを示す（もし同じなら元 root が循環）。候補順を変えた **別** snapshot では元 ordinal を変えて記録するが、上の対照どおり候補実体と診断は同じ。
+
+### 検査器全体の順序保存
+
+`exact_full_replay_guard413` は実 root read 後の成功が、全候補数、実 ID の Nodup、全行の scan flag、同一 raw cycle の検証の積に正確に等しいと示す。`check_is_order_independent_for_same_source_reads413` は異なる元 snapshot 間でも、元 full visible list の permutation・各同じ declaration の実 metadata 読みの一致・実 field の raw cycle check 一致のもとで、任意の同じ Result の checker が順序交換に不変と証明する。証人の ordinal や別の実 graph を同一と仮定しない。先の六通りの実験はこの範囲の resolved 実例。検査規則は増やしていない。
