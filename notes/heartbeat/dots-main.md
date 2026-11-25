@@ -3,9 +3,9 @@
 cycle: 424
 status: running
 started: 2026-11-25T19:30:17.269Z
-updated: 2026-11-25T19:30:35.577Z
-elapsed_min: 0
-activity: C424 running. Fresh I-75 and prior handoff verified; audit additive canonical endpoint migration and preserve prior accepted branches.
+updated: 2026-11-25T19:38:02.218Z
+elapsed_min: 7
+activity: Local I-75 constructor, retained B6 and legacy R13 guard checked; exact downstream replay incomplete, no code publication. Document verified boundary and next adapter.
 workspace: C424 exact Git readback
 last_local_commit: none
-resume_hint: I-75 endpoint head, exact retained B6 and legacy migration boundary.
+resume_hint: I-75 conserve the legacy named frame; projection is not a named capture.
