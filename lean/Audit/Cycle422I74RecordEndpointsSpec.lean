@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74RecordEndpointsProjectionNames422
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsProjectedOutput422
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1200
@@ -333,6 +333,44 @@ theorem same_split_source_admits_fresh_projections_without_a_literal_row422 :
     exact same_source_does_not_force_projection_channels_to_agree422
       ⟨a.required,a.optional,a.atRequired,a.atOptional,same⟩
 
+theorem exact_compiled_record_endpoint_output_is_found422 :
+    (readProjectedOutput422 read).isSome = true := by decide +kernel
+
+def projectedOutput : ProjectedOutput read :=
+  (readProjectedOutput422 read).get (by decide +kernel)
+
+theorem original_compiler_RHS_tracks_two_real_center_types_at_one_target422 (high : Bool) :
+    projectedOutput.actualRightValue (model high) =
+      some ([61,422],1,0,12,if high then highField else lowField) := by
+  obtain ⟨w⟩ := same_model_endpoints_support_both_projected_channels422 read (model high)
+    (both_distinct_real_centers_fit_the_same_original_source422 high).1.1
+  have actual := original_B6_binder_yields_required_projection_and_exact_addresses422 projectedOutput (model high) w
+  have center := actual_literal_binders_and_endpoint_names_are_not_swapped422.2.1
+  have label : read.low.label = 20 := by decide +kernel
+  have projected := w.atRequired
+  rw [label,center] at projected
+  have exactField : w.required = if high then highField else lowField := by
+    cases high
+    · exact Option.some.inj (projected.symm.trans projected_actual_fields_differ_between_fits_of_same_source422.1)
+    · exact Option.some.inj (projected.symm.trans projected_actual_fields_differ_between_fits_of_same_source422.2)
+  have ordinal : read.ordinal = 1 := by decide +kernel
+  rw [actual,ordinal,exactField]
+  rfl
+
+theorem actual_split_case_also_evaluates_original_B6_without_literal_reassembly422 :
+    projectedOutput.actualRightValue splitModel = some ([61,422],1,0,12,.top) := by
+  obtain ⟨w,neq⟩ := both_channels_exist_in_the_fitting_model_that_forbids_reassembly422
+  have actual := original_B6_binder_yields_required_projection_and_exact_addresses422 projectedOutput splitModel w
+  have center := actual_literal_binders_and_endpoint_names_are_not_swapped422.2.1
+  have label : read.low.label = 20 := by decide +kernel
+  have projected := w.atRequired
+  rw [label,center] at projected
+  have exactField : w.required = .top :=
+    Option.some.inj (projected.symm.trans (GeneralDeclarativeRecordSplit330.required_top 20))
+  have ordinal : read.ordinal = 1 := by decide +kernel
+  rw [actual,ordinal,exactField]
+  rfl
+
 end Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422.SpecRecord
 
 open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
@@ -363,3 +401,7 @@ open SpecRecord
 #print axioms both_channels_exist_in_the_fitting_model_that_forbids_reassembly422
 
 #print axioms same_split_source_admits_fresh_projections_without_a_literal_row422
+
+#print axioms exact_compiled_record_endpoint_output_is_found422
+#print axioms original_compiler_RHS_tracks_two_real_center_types_at_one_target422
+#print axioms actual_split_case_also_evaluates_original_B6_without_literal_reassembly422

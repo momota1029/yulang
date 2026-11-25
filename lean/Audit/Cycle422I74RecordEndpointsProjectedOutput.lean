@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74RecordEndpointsProjectedOutput422
+
+open Yulang.GeneralDeclarativeI65.I72.RecordEndpoints422
+#print axioms original_B6_binder_yields_required_projection_and_exact_addresses422
