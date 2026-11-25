@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 425
-status: completed
-started: 2026-11-25T20:35:09.270Z
-updated: 2026-11-25T21:22:20.454Z
-elapsed_min: 47
-activity: C425 time-cap final after late activation; normal 50-minute gate not reached. Verified work pinned and C14 open with 9 rows. Writer released.
-report: notes/handoff/dots-cycle-425.md
+cycle: 426
+status: running
+started: 2026-11-25T21:30:34.994Z
+updated: 2026-11-25T21:30:58.526Z
+elapsed_min: 0
+activity: Rechecking I-75 integration and exact canonical projection dependencies; sole writer.
+workspace: C426 exact Git readback
+last_local_commit: none
+resume_hint: I-75 conserve the legacy named frame; projection is not a named capture.
