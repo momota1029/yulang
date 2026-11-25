@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 422
-status: running
+status: completed
 started: 2026-11-25T17:30:22.816Z
-updated: 2026-11-25T18:15:43.319Z
-elapsed_min: 45
-activity: C422 exact verified C14 boundary and old scope intact; pre-gate current integration and I-74 read back; no additional rule changes.
-workspace: C422 scoped Lean
-last_local_commit: none
-resume_hint: I-74: spec-first coverage map and verified original source boundaries.
+updated: 2026-11-25T18:20:26.972Z
+elapsed_min: 50
+activity: C422 completed normally; C14 remains open with exact fixed evidence obstruction, model-local projection and B6 RHS proved. No R14, no language rejection. Writer released.
+report: notes/handoff/dots-cycle-422.md
