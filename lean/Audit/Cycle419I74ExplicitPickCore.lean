@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ExplicitPickCoherence419
+import Yulang.GeneralDeclarativeI65I74ExplicitPickLocator419
 
 open Yulang.GeneralDeclarativeI65.I72.ExplicitPick419
 #print axioms PickDeclaration.sourceHead
@@ -26,3 +26,5 @@ open Yulang.GeneralDeclarativeI65.I72.ExplicitPick419
 #print axioms actual_sources_agree_on_input_and_residual419
 #print axioms actual_packets_agree_on_the_literal_ledger419
 #print axioms check_cannot_change_report_at_actual_Pick419
+#print axioms replay_pick_uses_literal_locator419
+#print axioms check_has_original_typed_write_at_supplied_locator419
