@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74ClosedResidualRule415
+
+open Yulang.GeneralDeclarativeI65.I72.ClosedResidual415
+#print axioms closed_source_subtraction_exact415
+#print axioms residual_source_shape_retains_only_the_other_field415
+#print axioms retained_concrete_residual_decreases415
+#print axioms ClosedParent.head
+#print axioms ClosedChild.head
+#print axioms parent_emits_actual_residual_child415
+#print axioms residual_leaf_has_no_child415
+#print axioms selected_residual_local_sound415
+#print axioms dictionary_sound_R7
