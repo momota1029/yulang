@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 407
-status: completed
-started: 2026-11-25T02:30:45.000Z
-updated: 2026-11-25T03:20:54.774Z
-elapsed_min: 50
-activity: I-73: fixed DictionarySound R₀, same-state support, exact replay and deferred checker coverage verified
-report: notes/handoff/dots-cycle-407.md
+cycle: 408
+status: running
+started: 2026-11-25T03:34:52.000Z
+updated: 2026-11-25T03:35:14.153Z
+elapsed_min: 0
+activity: I-73: exact R₀ theorem on integration; unify same-problem raw root and real variable leaf checks
+workspace: C408 scoped Lean
+last_local_commit: none
+resume_hint: I-72: I-73: uniform finite checker and exact R0 report validation.
