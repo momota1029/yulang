@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 410
-status: running
+status: completed
 started: 2026-11-25T05:30:15.000Z
-updated: 2026-11-25T06:11:18.225Z
-elapsed_min: 41
-activity: Verified genuine X8 capture and fitting model; checked the separate mixed-alias witness boundary
-workspace: C410 scoped Lean
-last_local_commit: none
-resume_hint: I-74: spec-first coverage map and verified original source boundaries.
+updated: 2026-11-25T06:20:20.085Z
+elapsed_min: 50
+activity: I-74 C02 exact cyclic-model list proof completed; 20 scoped rows remain
+report: notes/handoff/dots-cycle-410.md
