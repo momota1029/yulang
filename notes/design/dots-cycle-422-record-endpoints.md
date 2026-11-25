@@ -15,3 +15,9 @@
 - 別 State への相対延長: required/optional の投影が同値のときに限り、既存名と元結果先を変えずに新規名の literal record 行を別の普通 State に加えられる。二つの具体モデルでは field 三つ組 `(3,newCenter,4)`、元の結果先 `12` 不変。一方、同じ authored source・B6 binder を持つ第三の適合割当てに required/optional が異なる有限反例があり、別 State へのその延長すら全モデルには通用しない。条件を隠して元の State での健全性を主張しない。
 
 次の証拠設計の候補は、端点の根拠を持つ head の意味に「同じモデルでの projection と mask を保つ」形を用意し、型付き output 側がその元 binder を読むことを示すことです。新しい名が既に State にあるとか、投影から常に literal record を組み直せるとは仮定しません。固定された宣言・入口を変更する作業は今周には含めていません。新しい Yulang 言語仕様の選択は必要ありません。
+
+## 次の接続点：literal ではなく実投影を B6 に渡す
+
+- Target equation を支える head が直ちに必要とするのは各モデルでの実 projection と mask。第三のモデルでは record 再構築が不可能なのにこの証拠は成立する。別の適合割当てにこれらの値を新しい未使用座標で表現できるが、元の State には行を作らず、元の割当てのその座標に既に値が入るとも仮定しない。
+- `readProjectedOutput422` は同じ宣言の lookup と本物の B6 atlas から元の `type out = 'a` の木を読む。`ProjectedOutput.actualRightValue` は元の出現・宣言番号・出力番号・固定先を保ち、同じモデルの実 field をその木の値側に使う。旧 B6 の一般 tree evaluator を再利用する。`int`、`int | bool`、`top` の各モデルで確認。擬似の型つき本体や model の座標を読んだことにはしない。
+- 残る接続は、(i) C14 のこの元 source projection を受ける head 証拠、(ii) 元の B6 と固定先の保持関係（値を計算することとは別）、(iii) 固定している公開結果・根 K2・健全性を変えない検査器の接続。今周は、これらをすでにある旧 `SourceHead` に偽装しない。
