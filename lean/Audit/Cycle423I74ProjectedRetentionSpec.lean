@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I74ProjectedRetentionRead423
+import Yulang.GeneralDeclarativeI65I74ProjectedRetentionCoherence423
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 1600
@@ -645,6 +645,50 @@ theorem actual_prepare_entry_preserves_literal_target_coordinate_and_semantic_va
     rw [center,label] at whole
     exact GeneralDeclarativeRecordSplit330.no_literal 20 _ _ whole
 
+/-- Two physically different retained rows of the same demanded
+target, and two different verification routes, on one actual State. -/
+def secondRow : Equation := ⟨12,.variable 7⟩
+def twoRows : Problem :=
+  let base := transportProblem.state.core
+  let s := {base with current := {base.current with ordinary :=
+    {base.current.ordinary with equations := transportRows ++ [secondRow]}}}
+  let atlas : B6OccurrenceAtlas401 s := ⟨fun q decl i body =>
+    if q.occurrence == [61,423] && decl == 1 && i.val == 0 then
+      if h : body = .explicit authoredBody then
+        some (h.symm ▸ (MixedRhs401.binder 8 () : B6MixedRhs401 s false
+          (GeneralDeclarationPatterns.normalize (GeneralDeclarativeOutputs320.bodyPattern (.explicit authoredBody)))))
+      else none
+    else none⟩
+  ⟨⟨s,atlas⟩,concrete.root⟩
+
+def alternativeInput : PrepareWire :=
+  ⟨transportWire,.located ⟨{retainedWire with targetRow := 5},[.interval 2],[.interval 3],[],
+    [.interval 5,.interval 4]⟩⟩
+
+def firstReceipt : PreparedWrite twoRows :=
+  (readRetainedPickWrite423 twoRows transportInput).get (by decide +kernel)
+def otherReceipt : PreparedWrite twoRows :=
+  (readRetainedPickWrite423 twoRows alternativeInput).get (by decide +kernel)
+
+theorem actual_distinct_rows_and_paths_do_not_change_semantic_write423 :
+    firstReceipt.retained.rowAt = (4,11) ∧ otherReceipt.retained.rowAt = (5,7) ∧
+    (∀ m : I72.Model, I72.Fits twoRows.state m →
+      firstReceipt.typed.actualRightValue m = otherReceipt.typed.actualRightValue m) := by
+  exact ⟨by decide +kernel,by decide +kernel,
+    fun m fit => different_prepared_evidence_keeps_the_same_actual_write423 firstReceipt otherReceipt m fit⟩
+
+theorem simultaneous_original_receipts_have_a_fitting_model423 :
+    I72.Fits twoRows.state (changedModel actualField) := by
+  have original := transported_model_fit423 actualField false false (fun _ => subtype_refl _)
+    (fun _ => subtype_refl _)
+  refine ⟨⟨⟨original.1.1.1,?_⟩,original.1.2⟩,original.2⟩
+  intro row atRow
+  change row ∈ transportRows ++ [secondRow] at atRow
+  rcases List.mem_append.mp atRow with prior|extra
+  · exact original.1.1.2 _ prior
+  · obtain rfl := List.mem_singleton.mp extra
+    exact ⟨subtype_refl _,subtype_refl _⟩
+
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 
 open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
@@ -675,3 +719,6 @@ open Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec
 
 #print axioms actual_prepare_pipeline_on_four_fixed_target_shapes423
 #print axioms actual_prepare_entry_preserves_literal_target_coordinate_and_semantic_value423
+
+#print axioms actual_distinct_rows_and_paths_do_not_change_semantic_write423
+#print axioms simultaneous_original_receipts_have_a_fitting_model423
