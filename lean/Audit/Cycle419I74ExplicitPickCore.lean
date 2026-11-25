@@ -28,3 +28,5 @@ open Yulang.GeneralDeclarativeI65.I72.ExplicitPick419
 #print axioms check_cannot_change_report_at_actual_Pick419
 #print axioms replay_pick_uses_literal_locator419
 #print axioms check_has_original_typed_write_at_supplied_locator419
+#print axioms exact_target_rows_at_original_value419
+#print axioms accepted_pick_agrees_with_every_literal_row_at_original_target419

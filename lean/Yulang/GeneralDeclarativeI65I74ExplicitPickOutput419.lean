@@ -56,6 +56,17 @@ theorem eq_write419 (a b : Write) : eqWrite a b = true ↔ a = b := by
       simp only [eqWrite, Bool.and_eq_true, decide_eq_true_eq, eq_wire419, Write.mk.injEq,
         GeneralSourceState.Output.mk.injEq, and_assoc]
 
+/-- This narrow success branch cannot stand in for diagnostics of conflicting
+literal outputs. Repeated locators of the same written equation are harmless. -/
+def exactTargetRows (rows : List Equation) (target : Nat) (rhs : Expr) : Bool :=
+  rows.all fun row => (row.left != target) || eqExpr row.right rhs
+
+theorem exact_target_rows_at_original_value419 {rows target rhs}
+    (checked : exactTargetRows rows target rhs = true) {row : Equation}
+    (found : row ∈ rows) (same : row.left = target) : row.right = rhs := by
+  have accepted := List.all_eq_true.mp checked row found
+  simpa only [same,bne_self_eq_false,Bool.false_or,eq_expr] using accepted
+
 /-- A checked equation ordinal carries original typed syntax and membership
 in the same state. The ordinary expression is only a retention witness. -/
 structure RetainedOutput (p : Problem) (f : AuthoredBodyFrame393 p.state.core p.root)
@@ -68,6 +79,8 @@ structure RetainedOutput (p : Problem) (f : AuthoredBodyFrame393 p.state.core p.
   rowOrdinal : Nat
   atIndex : p.state.core.current.ordinary.equations[rowOrdinal]? =
     some ⟨p.root.demand.outputs[i].target,expr⟩
+  noOtherLiteral : ∀ row ∈ p.state.core.current.ordinary.equations,
+    row.left = p.root.demand.outputs[i].target → row.right = expr
 
 def RetainedOutput.write {p f i} (out : RetainedOutput p f i) : Write :=
   ⟨p.root.occurrence,f.ordinal,i.val,p.root.demand.outputs[i],out.output.body,
@@ -102,8 +115,12 @@ def replayOutput (p : Problem) (f : AuthoredBodyFrame393 p.state.core p.root)
                 congr
                 · exact beq_iff_eq.mp pair.1
                 · exact (eq_expr _ _).mp pair.2
-              some ⟨⟨body,(lookup_exact _ _ supplied.identified.2.2.1 _ _).mp found,
-                plan,input,rhs,formed⟩,expr,repr,exactRow ▸ List.mem_of_getElem? row,pos,exactRow ▸ row⟩
+              if only : exactTargetRows p.state.core.current.ordinary.equations
+                  p.root.demand.outputs[i].target expr = true then
+                some ⟨⟨body,(lookup_exact _ _ supplied.identified.2.2.1 _ _).mp found,
+                  plan,input,rhs,formed⟩,expr,repr,exactRow ▸ List.mem_of_getElem? row,pos,exactRow ▸ row,
+                  fun _ present target => exact_target_rows_at_original_value419 only present target⟩
+              else none
             else none
 
 theorem replay_output_has_exact_source_and_row419 {p f checked i pos out}

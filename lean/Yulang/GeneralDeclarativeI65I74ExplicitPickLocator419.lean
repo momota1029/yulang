@@ -43,4 +43,14 @@ theorem check_has_original_typed_write_at_supplied_locator419 {p : Problem} {r :
   obtain ⟨declaration,row⟩ := replay_pick_uses_literal_locator419 found
   exact ⟨a,rfl,rfl,declaration,rfl,row⟩
 
+theorem accepted_pick_agrees_with_every_literal_row_at_original_target419
+    {p : Problem} {r : Result} {w : PickWire} (yes : check p r (.explicitPick w) = true) :
+    ∃ a : PickPacket p, r = pickReport a ∧
+      ∀ row ∈ p.state.core.current.ordinary.equations,
+        row.left = a.retained.write.target.target → row.right = .variable a.rows.intSlot := by
+  obtain ⟨a,_,matchR⟩ := checked_report_uses_original_pick419 yes
+  refine ⟨a,matchR,?_⟩
+  intro row member same
+  exact (a.retained.noOtherLiteral row member same).trans a.fieldCode
+
 end Yulang.GeneralDeclarativeI65.I72.ExplicitPick419

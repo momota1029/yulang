@@ -232,6 +232,12 @@ theorem genuine_recursive_off_route_keeps_actual_pick_dictionary419 :
       report.2 offRouteModel fit,
       dictionary_sound_R11 _ _ _ (exact_report_is_R11_classification419 report.1) offRouteModel fit⟩
 
+def otherAtOriginalTarget : GeneralDeclarativeHead320.State :=
+  {ordinary with equations := ordinary.equations ++ [strRow 4]}
+
+theorem positive_pick_check_does_not_claim_a_conflicting_literal_output419 :
+    checkOpt (build (raw := otherAtOriginalTarget)) = false := by decide +kernel
+
 def doubleLocator : GeneralDeclarativeHead320.State :=
   {ordinary with equations := ordinary.equations ++ [outRow]}
 
@@ -251,5 +257,6 @@ theorem equation_locators_cannot_change_original_literal_ledger419 :
 #print axioms off_route_cycle_is_an_actual_raw_cycle419
 #print axioms actual_off_route_recursive_state_fits419
 #print axioms genuine_recursive_off_route_keeps_actual_pick_dictionary419
+#print axioms positive_pick_check_does_not_claim_a_conflicting_literal_output419
 #print axioms equation_locators_cannot_change_original_literal_ledger419
 end Yulang.GeneralDeclarativeI65.I72.ExplicitPick419.SpecPick
