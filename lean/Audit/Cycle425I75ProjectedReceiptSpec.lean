@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I75ProjectedReceiptCoherence425
+import Yulang.GeneralDeclarativeI65I75ProjectedReceiptMeaning425
 
 
 set_option backward.isDefEq.respectTransparency false
@@ -34,13 +34,14 @@ def splitRows : List Equation :=
 def splitAtoms : List (PresenceNormalForm.Atom Nat) :=
   [requiredLower 20 11 1,requiredUpper 20 11 1]
 
-def actualBuild425 (rows : List Equation) (atoms : List (PresenceNormalForm.Atom Nat)) :
+def actualBuild425 (rows : List Equation) (atoms : List (PresenceNormalForm.Atom Nat))
+    (sources : List Origin := originalOrigins425) :
     Option Problem := do
   let program ← compile fixtureBodies425
   let bundle ← GeneralSourceMetadataBareBundle291.compile fixtureSource425
   let env : Environment := ⟨0,0,0,fixtureBodies425,program,bundle⟩
   let s : GeneralDeclarativeI65.State :=
-    ⟨⟨env,⟨⟨atoms,[(0,1),(1,2)]⟩,rows⟩,[]⟩,[],originalOrigins425,[]⟩
+    ⟨⟨env,⟨⟨atoms,[(0,1),(1,2)]⟩,rows⟩,[]⟩,[],sources,[]⟩
   let atlas : B6OccurrenceAtlas401 s := ⟨fun q decl i body =>
     if q.occurrence == [61,423] && decl == 1 && i.val == 0 then
       if h : body = .explicit authoredBody then
@@ -255,4 +256,34 @@ theorem off_root_payload_loop_does_not_fake_projected_receipt_K2425 :
 #print axioms both_actual_split_receipts_replay_the_same_body_and_model_value425
 #print axioms actual_raw_K2_precedes_an_unchanged_projected_receipt425
 #print axioms off_root_payload_loop_does_not_fake_projected_receipt_K2425
+end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+
+namespace Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+open CommonNominalFullCarrier (Ty Equivalent record)
+open Checker408 (Problem)
+open GeneralDeclarativeI65
+
+def missingFirstAuthoredOrigin425 : Problem :=
+  (actualBuild425 splitRows splitAtoms (originalOrigins425.drop 1)).get (by decide +kernel)
+def missingSecondAuthoredOrigin425 : Problem :=
+  (actualBuild425 splitRows splitAtoms (originalOrigins425.take 1)).get (by decide +kernel)
+
+theorem exact_key_does_not_replace_either_authored_endpoint425 :
+    (readProjectedReceipt425 missingFirstAuthoredOrigin425 splitInput actualKey425).isSome = false ∧
+    (readProjectedReceipt425 missingSecondAuthoredOrigin425 splitInput actualKey425).isSome = false := by
+  constructor <;> decide +kernel
+
+theorem real_split_receipt_has_captured_meaning_without_literal_record425 :
+    actualKey425.OriginalSites splitProblem.state.core ∧ actualKey425.Meaning splitModel ∧
+      ¬ (∃ f t : Ty, Equivalent (splitModel.assignment actualKey425.site.center).1
+        (record actualKey425.site.label f t)) := by
+  refine ⟨accepted_projected_receipt_names_both_original_endpoint_sources425
+    actual_split_state_reads_original_full_receipt425,
+    (accepted_exact_key_denotes_full_projected_capture425 actual_split_state_reads_original_full_receipt425
+      splitModel original_split_model_fits_with_exact_required_target_constraints425).1,?_⟩
+  rintro ⟨f,t,wrong⟩
+  exact GeneralDeclarativeRecordSplit330.no_literal 20 f t wrong
+
+#print axioms exact_key_does_not_replace_either_authored_endpoint425
+#print axioms real_split_receipt_has_captured_meaning_without_literal_record425
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
