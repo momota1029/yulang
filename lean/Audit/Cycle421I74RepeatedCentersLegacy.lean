@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74RepeatedCentersLegacy421
+
+open Yulang.GeneralDeclarativeI65.I72.RepeatedCenters421
+#print axioms existing_R12_selection_cannot_bypass_post_conflict421
+#print axioms incompatible_request_selects_no_R13_dictionary421
