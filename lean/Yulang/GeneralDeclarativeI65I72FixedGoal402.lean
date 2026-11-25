@@ -50,7 +50,14 @@ argument, and finite dependencies are constructed below. A language
 instance must supply actual whole visible-candidate tests, precise
 authorized visits and priorities, and independent source choice.
 This boundary is not a finished definition of all source rules. -/
-structure SourcePrimitives where
+/- The additional lane adds an independently evidenced endpoint
+leaf. The old lane still classifies exactly by the historical named
+SourceTrace; its producer inversion is unchanged. -/
+inductive PrimitiveLane426 where
+  | named
+  | withEndpoint
+
+structure SourcePrimitives (lane : PrimitiveLane426 := .named) where
   elected : (s : State) → (q : Request) → Event s q → List (OutputNeed s) → Prop
   other : (s : State) → Request → OtherVerdict → List (OutputNeed s) → Prop
 
@@ -92,9 +99,44 @@ end
 
 /-- Structural classifier relative to explicitly open primitive source
 rules. The concrete Yulang instance is still to be supplied. -/
-def Classifies (R : SourcePrimitives) (s : State) (q : Request) (result : Result) : Prop :=
+def LegacyClassifies426 (R : SourcePrimitives) (s : State) (q : Request) (result : Result) : Prop :=
   ∃ t : Tree, ∃ event : Option (Event s q),
     Nonempty (SourceTrace R s q t event) ∧ Summarizes t result
+
+/-- Independent positive projected source. An offered report and
+checking success are not premises. Target retention is separate
+ordinary structural evidence at the same actual B6 output. -/
+def EndpointClassifies426 (s : State) (q : Request) (r : Result) : Prop :=
+  ∃ e : ProjectedCore425.OriginalProjectedLeaf426 s.core s.b6 q,
+    Nonempty (ProjectedCore425.RequiredRetention426 e.out) ∧ r = .selected e.dictionary
+
+def SourcePrimitives.named426 {lane} (R : SourcePrimitives lane) : SourcePrimitives :=
+  match lane,R with
+  | .named,old => old
+  | .withEndpoint,extended => ⟨extended.elected,extended.other⟩
+
+def Classifies {lane} (R : SourcePrimitives lane) (s : State) (q : Request)
+    (result : Result) : Prop :=
+  match lane with
+  | .named => LegacyClassifies426 R.named426 s q result
+  | .withEndpoint => LegacyClassifies426 R.named426 s q result ∨ EndpointClassifies426 s q result
+
+theorem legacy_classification_included426 {lane} {R : SourcePrimitives lane} {s q result}
+    (old : LegacyClassifies426 R.named426 s q result) : Classifies R s q result := by
+  cases lane
+  · exact old
+  · exact .inl old
+
+theorem endpoint_classification_included426 {R : SourcePrimitives .withEndpoint} {s q result}
+    (evidence : EndpointClassifies426 s q result) : Classifies R s q result :=
+  .inr evidence
+
+theorem classification_has_exact_lane_rule426 {lane} {R : SourcePrimitives lane} {s q result}
+    (h : Classifies R s q result) :
+    LegacyClassifies426 R.named426 s q result ∨ EndpointClassifies426 s q result := by
+  cases lane
+  · exact .inl h
+  · exact h
 
 /-- Meaning of the original literal RHS alone. This layer does not
 equate its value to the assigned fixed target. -/
@@ -160,7 +202,7 @@ theorem original_projected_leaf_with_retention_has_dictionary_evidence426
 
 /-- The fixed quantifiers and implications, relative to the open
 source primitive system. No soundness premise has been added. -/
-def DictionarySound (R : SourcePrimitives) : Prop :=
+def DictionarySound {lane} (R : SourcePrimitives lane) : Prop :=
   ∀ s q d, Classifies R s q (.selected d) → ∀ m, Fits s m → DictionaryEvidence s m q d
 
 theorem root_k2_forces_original_trace_verdict {R s q t e}
@@ -172,15 +214,19 @@ theorem root_k2_forces_original_trace_verdict {R s q t e}
   | selected _ safe _ _ _ => exact (safe cycle).elim
 
 
-theorem root_k2_is_rejected_for_every_primitive_system {R s q} (cycle : RootCycle s q) :
+theorem root_k2_is_rejected_for_every_primitive_system {lane} {R : SourcePrimitives lane} {s q} (cycle : RootCycle s q) :
     Classifies R s q .rejected :=
-  ⟨.rejected,none,⟨.rootK2 cycle⟩,.rejected⟩
+  legacy_classification_included426 ⟨.rejected,none,⟨.rootK2 cycle⟩,.rejected⟩
 
-theorem root_k2_never_selects {R s q d} (cycle : RootCycle s q) :
+theorem root_k2_never_selects {lane} {R : SourcePrimitives lane} {s q d} (cycle : RootCycle s q) :
     ¬ Classifies R s q (.selected d) := by
-  rintro ⟨t,_,⟨trace⟩,summary⟩
-  rw [root_k2_forces_original_trace_verdict cycle trace] at summary
-  cases summary
+  intro claim
+  rcases classification_has_exact_lane_rule426 claim with ordinary|projected
+  · obtain ⟨t,_,⟨trace⟩,summary⟩ := ordinary
+    rw [root_k2_forces_original_trace_verdict cycle trace] at summary
+    cases summary
+  · obtain ⟨picked,_,_⟩ := projected
+    exact picked.rootSafe cycle
 
 end I72
 end Yulang.GeneralDeclarativeI65
