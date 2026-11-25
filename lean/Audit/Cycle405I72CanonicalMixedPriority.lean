@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I72CanonicalMixedPriority405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms canonical_actual_mixed_visit_order405
+#print axioms actual_mixed_S03_is_exact405
