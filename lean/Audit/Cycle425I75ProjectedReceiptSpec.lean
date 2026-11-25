@@ -1,4 +1,4 @@
-import Yulang.GeneralDeclarativeI65I75ProjectedReceiptMeaning425
+import Yulang.GeneralDeclarativeI65I75ProjectedWriteWire425
 
 
 set_option backward.isDefEq.respectTransparency false
@@ -286,4 +286,56 @@ theorem real_split_receipt_has_captured_meaning_without_literal_record425 :
 
 #print axioms exact_key_does_not_replace_either_authored_endpoint425
 #print axioms real_split_receipt_has_captured_meaning_without_literal_record425
+end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+
+namespace Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
+open Check408 (Write)
+open CommonNominalFullCarrier (Ty)
+
+/-- 19 is a fixture parameter, not a public allocation. -/
+def offeredProjectedWrite425 : Write :=
+  ⟨[61,423],1,0,⟨3,12⟩,.explicit authoredBody,encodeProjectedKey425 19 actualKey425⟩
+
+theorem real_projected_write_replays_against_original_problem425 :
+    replayProjectedWrite425 splitProblem 19 splitInput offeredProjectedWrite425 = some preparedSplit := by
+  apply replay_projected_write_requires_exact_original_write425.mpr
+  exact ⟨by decide,(Option.some_get _).symm,
+    (ExplicitPick419.eq_write419 _ _).mp (by decide +kernel)⟩
+
+def substitutedOrdinaryAlias425 : ProjectedReceiptKey425 :=
+  { actualKey425 with site := { actualKey425.site with center := 11 } }
+
+theorem offered_projected_binding_and_outer_write_are_both_checked425 :
+    (replayProjectedWrite425 splitProblem 19 splitInput
+      {offeredProjectedWrite425 with occurrence := [61,424]}).isNone = true ∧
+    (replayProjectedWrite425 splitProblem 19 splitInput
+      {offeredProjectedWrite425 with outputOrdinal := 1}).isNone = true ∧
+    (replayProjectedWrite425 splitProblem 19 splitInput
+      {offeredProjectedWrite425 with target := ⟨3,11⟩}).isNone = true ∧
+    (replayProjectedWrite425 splitProblem 19 splitInput
+      {offeredProjectedWrite425 with body := .explicit ⟨92,3,.var 13⟩}).isNone = true ∧
+    (replayProjectedWrite425 splitProblem 19 splitInput
+      {offeredProjectedWrite425 with typedRhs := encodeProjectedKey425 19 substitutedOrdinaryAlias425}).isNone = true ∧
+    (replayProjectedWrite425 splitProblem 0 splitInput
+      {offeredProjectedWrite425 with typedRhs := encodeProjectedKey425 0 actualKey425}).isNone = true := by
+  repeat (first | apply And.intro | decide +kernel)
+
+theorem exact_projected_write_not_replayed_above_raw_K2425 :
+    (replayProjectedWrite425 cyclicReceiptRoot425 19 splitInput offeredProjectedWrite425).isNone = true ∧
+    (replayProjectedWrite425 cyclicButOnlyPayload425 19 splitInput offeredProjectedWrite425).isSome = true := by
+  constructor <;> decide +kernel
+
+theorem same_written_projected_receipt_with_distinct_retained_rows425 :
+    encodeProjectedWrite425 19 firstReceipt = encodeProjectedWrite425 19 otherReceipt := by
+  apply same_key_has_same_full_projected_wire425
+    (key := actualKey425) (left := transportInput) (right := alternativeInput)
+  · exact read_projected_receipt_is_exact425.mpr
+      ⟨(Option.some_get _).symm,two_original_row_proofs_use_one_projected_key425.1⟩
+  · exact read_projected_receipt_is_exact425.mpr
+      ⟨(Option.some_get _).symm,two_original_row_proofs_use_one_projected_key425.2.1⟩
+
+#print axioms real_projected_write_replays_against_original_problem425
+#print axioms offered_projected_binding_and_outer_write_are_both_checked425
+#print axioms exact_projected_write_not_replayed_above_raw_K2425
+#print axioms same_written_projected_receipt_with_distinct_retained_rows425
 end Yulang.GeneralDeclarativeI65.I72.ProjectedRetention423.Spec425
