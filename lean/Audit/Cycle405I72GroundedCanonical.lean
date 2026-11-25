@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I72GroundedCanonical405
+
+open Yulang.GeneralDeclarativeI65.I72
+#print axioms actual_variable_scan_is_canonical405
+#print axioms no_selection_proof_can_append_an_unvisited_site405
+#print axioms inserted_marker_is_not_grounded405
