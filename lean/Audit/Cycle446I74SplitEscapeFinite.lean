@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74SplitEscapeFinite446
+open Yulang.GeneralDeclarativeI65.I72.SplitEscape446
+#print axioms bound_support_from_actual_rows446
+#print axioms write_name_inside446
+#print axioms reachable_not_root_alias446
+#print axioms desired_side_respects_alias446
+#print axioms desired_side_moves_forward446
+#print axioms finite_wire_exact_side_on_support446
+#print axioms finite_wire_ready446
+#print axioms raw_safe_iff_finite_split_witness446
