@@ -11,3 +11,7 @@
 | `lean/Audit/Cycle431I74StructuralWhereLegacyEndpoint.lean` | `c34420ff93107320bb4c4ee99e3c1330e6ad4dac` |
 
 Lean 4.35.0, `--trust=0 -DwarningAsError=true`。両 production module を Git blob から復元して再ビルド。各 Audit は別々の新規 cwd で、production-only LEAN_PATH、Audit olean ゼロ。新 Audit 2本・旧回帰4本 exit 0、標準公理43表示。旧回帰は C426 R14 endpoint、C427 原構造 readback / raw visits、C428 integrated legacy。新2 Audit は `Yulang.*` のみを import。全体ビルドや Rust は未実行。
+
+追加対照: 独立 scratch の `git mktree --missing` と `git diff-tree --no-renames -r --name-status` が正確に A4/M1（追加 source 2、追加 Audit 2、barrel 追記）を返し、期待 root / Lean tree とも一致。凍結ファイルの内容取得なし。
+
+同じ exact R15 実装を使い、既存 C426 の `cyclicReceiptRoot425` と `knownRawR13Wire426` から、新入口の `.previous (.previous knownRawR13Wire426)` が元の root K2 報告を通し、同じ実要求で `Classifies R15 … .rejected` となることも別の clean cwd で検査した。これは2件の追加ローカル対照（両方 exit 0・標準公理のみ、未登録）。新規の C15 branch が `false` を返す未対応入力が、そのまま診断の生成を意味しないこととは別。
