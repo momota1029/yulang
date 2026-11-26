@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74MixedFixedTypedRead442
+
+open Yulang.GeneralDeclarativeI65.I72.MixedFixed442
+#print axioms readRefPlan442
+#print axioms replayedOriginalRef442
+#print axioms original_ref_encoded_output_nonflattened442
+#print axioms original_named_output_unique442
+#print axioms original_replayed_ref_equates_same_event_output442
+#print axioms original_replayed_ref_is_the_fixed_target_slice442
+#print axioms exact_ref_output_uses_original_head_centers442

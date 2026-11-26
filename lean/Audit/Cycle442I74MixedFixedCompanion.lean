@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74MixedFixedCompanion442
+
+open Yulang.GeneralDeclarativeI65.I72.MixedFixed442
+#print axioms two_kind_ref_equivalent_iff442
+#print axioms existing_mixed_descriptor_point_exact442
+#print axioms existing_companion_has_independent_typed_fixed_equality442
+#print axioms existing_companion_and_original_Fits_are_separate442
