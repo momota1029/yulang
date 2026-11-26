@@ -1,9 +1,9 @@
 import Yulang.GeneralDeclarativeI65I75ProjectedRule426
-import «Cycle428I74StructuralWhereBodyReplay»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereReplayAuditSupport430
 
 set_option maxRecDepth 3000
 namespace Yulang.GeneralDeclarativeI65.I72.StructuralWhereIntegratedLegacy428
-open StructuralWhere428 StructuralWhereMixedSibling428 StructuralWhereBodyReplay428
+open StructuralWhere428 StructuralWhereMixedFixture430 StructuralWhereBodyReplay428
 
 def actualSibling : Checker408.Problem := ⟨mixedProblem.state,reconstructed.second.actual.child⟩
 def report : Checker408.Result := Check408.nullaryReport reconstructed.namedDecl

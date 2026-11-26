@@ -1,9 +1,9 @@
 import Yulang.GeneralDeclarativeI65I74StructuralWhereBodyReplay428
-import «Cycle428I74StructuralWhereMixedSibling»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereMixedAuditSupport430
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65.StructuralWhere428
-open I72.StructuralWhereMixedSibling428
+open I72.StructuralWhereMixedFixture430
 open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry)
 
 private def candidate428 : AuthoredCandidate mixedProblem.state.core mixedProblem.root frame.decl :=

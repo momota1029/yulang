@@ -1,6 +1,6 @@
 import Yulang.GeneralDeclarativeI65Tape367
 import Yulang.GeneralDeclarativeI65I74StructuralWhereBodyReplay428
-import «Cycle427I74StructuralWhereSameRole»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereForestAuditSupport430
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65.StructuralWhere428
@@ -30,16 +30,16 @@ theorem ordinary_singleton_record_is_not_a_PendingCandidate367_428
   exact written_record_at_no_app428 recordHead (waiting.source.trans (congrArg some written))
 
 theorem generic_tape_does_not_represent_actual_C427_ordinary_rival428 :
-    ¬ Nonempty (CandidateTape I72.StructuralWhereSameRole427.fixture.state.core
-      I72.StructuralWhereSameRole427.fixture.root
-      (visible I72.StructuralWhereSameRole427.fixture.state.core I72.StructuralWhereSameRole427.fixture.root)) := by
-  open I72.StructuralWhereSameRole427 in
+    ¬ Nonempty (CandidateTape I72.StructuralWhereAuditFixture429.fixture.state.core
+      I72.StructuralWhereAuditFixture429.fixture.root
+      (visible I72.StructuralWhereAuditFixture429.fixture.state.core I72.StructuralWhereAuditFixture429.fixture.root)) := by
+  open I72.StructuralWhereAuditFixture429 in
   let s := fixture.state.core
-  open I72.StructuralWhereSameRole427 in
+  open I72.StructuralWhereAuditFixture429 in
   let q := fixture.root
   change ¬ Nonempty (CandidateTape s q (visible s q))
   rintro ⟨tape⟩
-  open I72.StructuralWhereSameRole427 in
+  open I72.StructuralWhereAuditFixture429 in
   have whole : visible s q = [compoundParent,scalarBase] := by decide +kernel
   have quiet : tape.waits = false := by
     cases h : tape.waits with
@@ -52,18 +52,18 @@ theorem generic_tape_does_not_represent_actual_C427_ordinary_rival428 :
       rcases member with rfl|rfl
       · exact ordinary_singleton_record_is_not_a_PendingCandidate367_428 rfl waiting
       · exact ordinary_singleton_record_is_not_a_PendingCandidate367_428 rfl waiting
-  open I72.StructuralWhereSameRole427 in
+  open I72.StructuralWhereAuditFixture429 in
   have located : scalarBase ∈ visible s q := by
     rw [whole]
     exact List.mem_cons_of_mem _ List.mem_cons_self
-  open I72.StructuralWhereSameRole427 in
+  open I72.StructuralWhereAuditFixture429 in
   have live : scalarBase ∈ tape.live := by
     by_cases already : scalarBase ∈ tape.live
     · exact already
     · exact False.elim (ordinary_singleton_record_is_not_a_RigidCandidateMiss367_428 rfl
         (every_nonlive_unblocked_row_is_a_real_miss quiet located already))
   obtain ⟨head,_⟩ := live_readback tape _ live
-  open I72.StructuralWhereSameRole427 in
+  open I72.StructuralWhereAuditFixture429 in
   exact (StructuralWhere427.model_excludes_source_head_with_actual_opposite_payload427
     parentRival.found model same_role_original_snapshot_fits427) ⟨head.head⟩
 

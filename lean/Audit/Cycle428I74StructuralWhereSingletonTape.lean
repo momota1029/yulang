@@ -1,10 +1,10 @@
 import Yulang.GeneralDeclarativeI65I74StructuralWhereBodyReplay428
-import «Cycle428I74StructuralWhereMixedSibling»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereMixedAuditSupport430
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65.StructuralWhere428
 open GeneralDeclarations (Declaration)
-open I72.StructuralWhereMixedSibling428
+open I72.StructuralWhereMixedFixture430
 
 private def oneVisibleTape428 {s q d} (candidate : AuthoredCandidate s q d)
     (only : visible s q = [d]) : CandidateTape s q (visible s q) :=

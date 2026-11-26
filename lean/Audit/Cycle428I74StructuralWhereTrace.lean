@@ -1,11 +1,11 @@
 import Yulang.GeneralDeclarativeI65I74StructuralWhereFold428
-import «Cycle427I74StructuralWhereForest»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereForestAuditSupport430
 
 set_option maxRecDepth 3200
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65.I72.StructuralWhereTrace428
 open GeneralDeclarativeI65 StructuralWhere427 StructuralWhere428
-open StructuralWhereForest427
+open StructuralWhereForestFixture430
 open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry)
 open GeneralDeclarations (DeclarationChecked)
 open CommonRoleOutermostResolver (Dictionary Summarizes Tree)

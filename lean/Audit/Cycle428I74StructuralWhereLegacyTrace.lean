@@ -1,9 +1,9 @@
 import Yulang.GeneralDeclarativeI65I74StructuralWhereEmbed428
-import «Cycle428I74StructuralWhereMixedSibling»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereMixedAuditSupport430
 
 set_option backward.isDefEq.respectTransparency false
 namespace Yulang.GeneralDeclarativeI65.I72.StructuralWhereLegacyTrace428
-open GeneralDeclarativeI65 StructuralWhere427 StructuralWhere428 StructuralWhereMixedSibling428
+open GeneralDeclarativeI65 StructuralWhere427 StructuralWhere428 StructuralWhereMixedFixture430
 open CommonRoleOutermostResolver (Summarizes Tree)
 
 private theorem legacyMap : NamedRuleMap428 RepeatedCenters421.R13 mixedRules :=
