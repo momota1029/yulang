@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 441
-status: completed
-started: 2026-11-26T12:30:54.707Z
-updated: 2026-11-26T13:21:07.906Z
-elapsed_min: 50
-activity: C21 actual R21/check/check_sound and strict exact focused replay; 50m normal gate; sole writer released.
-report: notes/handoff/dots-cycle-441.md
+cycle: 442
+status: running
+started: 2026-11-26T13:30:55.980Z
+updated: 2026-11-26T13:31:12.056Z
+elapsed_min: 0
+activity: I74 C22 only; C441 completed and adopted; inspect original typed RHS and fixed output.
+workspace: C442 exact source verification
+last_local_commit: none
+resume_hint: C22 mixed row-valued associated RHS and exact target retention.
