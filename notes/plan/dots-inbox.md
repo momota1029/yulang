@@ -879,3 +879,10 @@ cycle 444 の `FullState` / `FitsFull` / `fits_iff_fitsFull_liftState` と C442 
 - `R_full` の全体はまだ書かない。この周の局所規則は、後で `R_full` の一つの節として入れられる形にしておくこと。
 - 既存の `I72.State` / `Fits` / 規則 / checker / 固定声明は変えない。前の周のファイルから行を消さない（I-78）。
 - 閉じる条件は I-81 の 6 のとおり。三つが揃わなければ、G00 は未完と報告すること。
+
+## I-83（2026-11-27）G00 を受け入れる。次は G01 から、一周一行
+
+- cycle 447 の G00（`selected_wire_iff_exact_local_report447`、`check_full_sound447`、`independent_selected_report_has_finite_witness447`）を確認した。integration に入った（`dots-447`、verify-lean PASS。`#eval` 2 件は実行試験で、証明に使っていないことを監督役が読んだ）。G の残りは 21 行（G01–G21）。
+- 次からは G 一覧を G01 から順に、一周一行で進めること。各行は `check_full447` を土台にして分岐を足し、前の witness の Bool が全入力で変わらないことを毎回示すこと（入口を分岐ごとに別々に作らない）。
+- 各行の完全性の側は、G00 と同じ形でよい: 独立した局所の選択から、その正確な報告を通す有限の witness を作る定理。健全性（`check_full_sound`）と同じ周に揃わなければ、その行は未完と報告する。
+- 前の checker の保守的すぎる検査（cycle 445 の rank 証人、cycle 446 の全体ヘッダー）のような穴がまた見つかったら、言語の拒否と区別して報告し、局所の検査に置き換える方針でよい。前の入口は残す。
