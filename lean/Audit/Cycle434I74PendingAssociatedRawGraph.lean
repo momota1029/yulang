@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74PendingAssociatedRawGraph434
+
+open Yulang.GeneralDeclarativeI65.I72.PendingAssociated434
+#print axioms exact_episode_alias_only_refl434
+#print axioms exact_episode_unfiltered_edges434
+#print axioms exact_episode_unfiltered_edges_iff434
+#print axioms exact_literal_episode_has_no_raw_K2_at_any_site434
+#print axioms exact_accepted_episode_contains_no_unfiltered_K2_434

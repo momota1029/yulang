@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PendingAssociatedParentEquality434
+
+open Yulang.GeneralDeclarativeI65.I72.PendingAssociated434
+#print axioms pending_parent_keeps_original_where_equation_in_every_model434
+#print axioms checked_pending_preserves_equation_without_completion434

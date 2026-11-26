@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PendingAssociatedAuthoredReopen434
+
+open Yulang.GeneralDeclarativeI65.I72.PendingAssociated434
+#print axioms independent_source_reopens_literal_head_without_releasing434
+#print axioms independent_source_never_reuses_old_unfinished_pending_entry434
