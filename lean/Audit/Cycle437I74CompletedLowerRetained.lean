@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74CompletedLowerRetained437
+
+open Yulang.GeneralDeclarativeI65.CompletedLower437
+
+#print axioms Payload.Means
+#print axioms retained_literal_typed_output_means_same_lower437
+#print axioms lower_retention_uses_original_B6_value437
