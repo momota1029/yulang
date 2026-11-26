@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74OpaqueEntry448
+
+open Yulang.GeneralDeclarativeI65.I72.Opaque448
+
+#print axioms opaque_report_in_existing_R13
+#print axioms independent_resolved_choice_sound448
+#print axioms all_previous_Bool_unchanged448
+#print axioms accepted_opaque_has_exact_choice448
+#print axioms independent_choice_has_exact_check448
+#print axioms check_full_sound448
+#print axioms opaque_report_iff_independent_choice448
+#print axioms local_opaque_declines_nonsingleton448

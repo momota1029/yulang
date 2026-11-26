@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74OpaqueRead448
+
+open Yulang.GeneralDeclarativeI65.I72.Opaque448
+
+#print axioms original_role_is_read448
+#print axioms read_opaque_exact448
+#print axioms independent_opaque_has_wire448
