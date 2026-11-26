@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 449
-status: completed
-started: 2026-11-26T20:28:33.455Z
-updated: 2026-11-26T21:18:38.415Z
-elapsed_min: 50
-activity: 通常終了・解放。G02 の実 list-binder frame と位置ごとの証人を検証。G03 以降未着手。
-report: notes/handoff/dots-cycle-449.md
+cycle: 450
+status: running
+started: 2026-11-26T21:34:30.929Z
+updated: 2026-11-26T21:34:43.245Z
+elapsed_min: 0
+activity: G03 の原 where 節位置と実 child K2 の証明を開始。
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: I-83 G03 literal where child position, endpoints, and original report.
