@@ -79,6 +79,8 @@ import Yulang.GeneralDeclarativeI65I74StructuralWhereForestAuditSupport430
 | `lean/Yulang/GeneralDeclarativeI65I74StructuralWhereTrace428.lean` | `736e093c655976e58402356c740fbd80cc64043a` |
 | `lean/Yulang/GeneralDeclarativeI65I74StructuralWhereVisit427.lean` | `806026c066f7797de6d6ef6e039ae26e72c24090` |
 
-実測結果（exact staged bytes を本番へ送り、同じ tree を readback）: production 24 exit 0、独立 Audit 16 exit 0、うち I-77 対象7 exit 0。axiom 表示93件すべて標準のみ。
+## 監査数の対象
 
-Audit の import: `Yulang.*` 以外 0 件
+新規・変更された C427–430 の16 Audit の明示 import に対する件数。統合史全体の件数ではない。固定基準の Audit 2,005 件のうちローカルに存在し Git blob ID まで一致した1,630件を、追加の読み取り専用対照として調べると、明示 `import Lean` 281件と `import Yulang` 3件が既存だった（この部分集合に Audit→Audit は検出されなかった）。したがって I-76/77 の厳密な prefix 判定を既存全体へ無条件に適用したとは報告しない。新規／変更された Audit は厳密に選び、監督役の歴史的 peer-Audit 検査は分ける。
+
+原版7件は同じ clean cache で全て予想どおり exit 1 (`unknown module prefix`)、修復版7件は exit 0。C428の旧依存順回帰との照合で公理表示43件の宣言名・各公理集合も一致。24 import を一緒に読み込む focused test exit 0。
