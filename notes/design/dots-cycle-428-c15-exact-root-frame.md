@@ -1,0 +1,5 @@
+# C428: the necessary singleton tape gives the actual original root frame
+
+The actual singleton positive original parent doesn't just admit a tape: the existing `selected_head_original_origin395` and `preoutputFrameOfOrigin399` on it recover the same authored registry row and the same exact lexical capture already observed by the C427 positive reader. The audited frame's declaration ordinal is the actual unfiltered source ordinal, not a guessed declaration ID from the report. Construction adds no model premise. `actual_singleton_tape_reaches_same_registry_row_and_lexical_capture428` tests this on the real original C428 structural parent.
+
+The pre-output frame still uses the independently given and verified original compound `Placement`; the lemma does not construct a canonical runtime allocator or export a production checker root. In C429, validate the original retained body positions, source header and full actual raw candidate visits before installing any local rule; then attach the real where forest. This is the positive route for the singleton alternative, not an extension of the generic tape to the separately audited C427 ordinary rival.
