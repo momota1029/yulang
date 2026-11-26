@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74ListFrameWireOrder449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449.Frame
+
+#print axioms actual_readsite_index_is_original449
+#print axioms actual_read_frame_has_exact_origin_order449
+#print axioms nth_table_proof_is_for_this_original_site449
+#print axioms actual_choice_checks_real_origins_and_exact_sites449
+#print axioms accepted_frame_wire_indexes_actual_source_and_visited_cut449

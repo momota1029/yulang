@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74ListFrameHead449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449.Frame
+
+#print axioms frame_lookup_preserves_original_capture449
+#print axioms AuthoredFrame.visits
+#print axioms written_list_reads_real_binder449
+#print axioms frame_head_reads_are_actual449
+#print axioms distinct_authored_bindings_have_exact_list_heads449

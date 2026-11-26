@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ListFrameRule449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449.Frame
+
+#print axioms original_picked_frame_is_chosen_source449
+#print axioms same_frame_binders_reach_original_event449
+#print axioms exact_framed_selection_assembly449

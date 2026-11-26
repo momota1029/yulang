@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74ListFrameEntry449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449.Frame
+
+#print axioms all_previous_frame_witnesses_unchanged449
+#print axioms all_C448_witnesses_unchanged449
+#print axioms actual_checked_frame_reads_exact_source449
+#print axioms independent_selected_frame_reifies_exact_report449
+#print axioms exact_frame_wire_iff_independent_report449
+#print axioms any_actual_inspected_root_cycle_declines_frame449
+#print axioms check_full_sound449

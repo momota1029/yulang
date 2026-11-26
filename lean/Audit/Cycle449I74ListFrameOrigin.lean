@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ListFrameOrigin449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449.Frame
+
+#print axioms read_exact_site_data449
+#print axioms independent_frame_has_exact_origin_indices449
