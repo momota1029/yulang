@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74OpaqueRosterRead448
+
+open Yulang.GeneralDeclarativeI65.I72.Opaque448.Roster
+
+#print axioms read_bare_row_exact448
+#print axioms read_bare_roster_exact448
+#print axioms one_physical_iff_existing_source448
+#print axioms read_bare_point_exact448
+#print axioms independent_bare_point_has_finite_wire448
