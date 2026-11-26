@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74OpaqueWholeRule448
+
+open Yulang.GeneralDeclarativeI65.I72.Opaque448.Roster
+
+#print axioms whole_choice_has_exact_replay448
+#print axioms whole_choice_is_only_settled_actual_match448
+#print axioms whole_event_has_no_kids448
+#print axioms whole_event_fixed_targets448
+#print axioms whole_event_node448
+#print axioms whole_choice_assembly448
