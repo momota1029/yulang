@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 440
-status: completed
-started: 2026-11-26T11:30:16.000Z
-updated: 2026-11-26T12:20:28.394Z
-elapsed_min: 50
-activity: C20 actual R20/check/check_sound and strict exact focused replay; 50m normal gate; sole writer released.
-report: notes/handoff/dots-cycle-440.md
+cycle: 441
+status: running
+started: 2026-11-26T12:30:54.707Z
+updated: 2026-11-26T12:31:00.570Z
+elapsed_min: 0
+activity: C21 only: actual declared ref row/value positions and fixed literal-pattern boundary.
+workspace: C441 exact source verification
+last_local_commit: none
+resume_hint: C21 ordered row/value reference constructor and literal int boundary.
