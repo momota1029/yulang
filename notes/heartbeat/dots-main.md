@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 442
-status: completed
-started: 2026-11-26T13:30:55.980Z
-updated: 2026-11-26T14:21:01.501Z
-elapsed_min: 50
-activity: C22 stays open: exact mixed RHS and one-model dictionary, all-Fits retention absent. Sole writer released.
-report: notes/handoff/dots-cycle-442.md
+cycle: 443
+status: running
+started: 2026-11-26T14:31:15.605Z
+updated: 2026-11-26T14:31:23.308Z
+elapsed_min: 0
+activity: Read full scope and draft fixed NoFalseRejection and exact generalization ledger.
+workspace: C443 exact source verification
+last_local_commit: none
+resume_hint: I80 NoFalseRejection design only.
