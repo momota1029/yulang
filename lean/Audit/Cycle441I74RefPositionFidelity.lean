@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74RefPositionFidelity441
+
+open Yulang.GeneralDeclarativeI65.I72.RefPositions441
+
+#print axioms same_visible_ref_occurrence441
+#print axioms same_fitting_ref_names441
+#print axioms two_verified_ref_wires_preserve_each_original_channel441
+#print axioms typed_ref_cannot_be_flattened_to_legacy_value_arguments441
+#print axioms legacy_raw_encoder_has_no_mixed_row_value_image441
