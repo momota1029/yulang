@@ -346,3 +346,82 @@ end Yulang.C439MergedAudit
 Classical.choice,
  Quot.sound]
 ```
+
+## Semantic symmetry, and exact separation of raw K2
+
+The scoped checker represents the specified original clause order. The language's contradiction, however, is **not** an artifact of which direction the implementation emits the equality. The pre-existing merge operation's satisfiability is symmetric in its two sites (not the syntax or order of its atom list), and for the accepted case both orders are impossible. Finally an accepted conflict report proves raw-root safety not only at the actual P, but at the literal original children and merged representative as well: these R demands have no unnamed input to inspect. The raw K2 case remains in the old branch. Both exact standalone snippets passed with the same strict stdin command; no extra production/Audit code was published.
+
+```lean
+import Yulang.GeneralDeclarativeI65I74MergedOutputEquation439
+
+namespace Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+open GeneralDeclarativeI65
+open GeneralNominalDemandMerging (Site outputAtoms output_atoms_exact)
+
+theorem compiler_merge_satisfiability_does_not_depend_on_pair_orientation439
+    {roles : Roles.RoleDecls} (a b : Site roles) (m : GeneralNominalCommonBridge.Assignment) :
+    PresenceNormalForm.All CommonNominalFullCarrier.model m (outputAtoms a b) ↔
+    PresenceNormalForm.All CommonNominalFullCarrier.model m (outputAtoms b a) := by
+  rw [output_atoms_exact,output_atoms_exact]
+  constructor
+  · intro relate y right x left same
+    have back := relate x left y right same.symm
+    exact ⟨back.2,back.1⟩
+  · intro relate x left y right same
+    have back := relate y right x left same.symm
+    exact ⟨back.2,back.1⟩
+
+theorem actual_conflict_impossible_even_under_swapped_equation_orientation439
+    {s q} (a : Original439 s q) (m : I72.Model) (fit : Fits s m) :
+    ¬ PresenceNormalForm.All CommonNominalFullCarrier.model m.assignment
+      (outputAtoms (projectNullarySite439 a false) (projectNullarySite439 a true)) := by
+  intro reverse
+  have forward := (compiler_merge_satisfiability_does_not_depend_on_pair_orientation439 _ _ _).mpr reverse
+  exact (producer_rows_give_separate_meanings_and_merge_conflicts439 a m fit).conflict
+    ((actual_output_merge_atoms_mean_same_named_equation439 a m).mp forward)
+
+#print axioms compiler_merge_satisfiability_does_not_depend_on_pair_orientation439
+#print axioms actual_conflict_impossible_even_under_swapped_equation_orientation439
+end Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+```
+```text
+'Yulang.GeneralDeclarativeI65.I72.MergedOutput439.compiler_merge_satisfiability_does_not_depend_on_pair_orientation439' depends on axioms: [propext,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.I72.MergedOutput439.actual_conflict_impossible_even_under_swapped_equation_orientation439' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+```
+
+```lean
+import Yulang.GeneralDeclarativeI65I74MergedOutputEquation439
+
+namespace Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+open GeneralDeclarativeI65
+open Checker408 (Problem Result)
+
+private theorem no_unnamed_argument_has_no_raw_root439 {s : I72.State} {q : Request}
+    (empty : q.demand.arguments = []) : ¬ RootCycle s q := by
+  rintro ⟨name,occurs,_⟩
+  rw [empty] at occurs
+  cases occurs
+
+theorem accepted_conflict_is_at_the_nullary_group_not_a_K2_site439
+    (p : Problem) (r : Result) (w : Wire439) (ok : check p r (.mergedOutput w) = true) :
+    ∃ a : Original439 p.state p.root,
+      r = a.report ∧ ¬ RootCycle p.state p.root ∧ ¬ RootCycle p.state a.representative ∧
+      ∀ q ∈ frameWhereKids400 a.frame, ¬ RootCycle p.state q := by
+  obtain ⟨a,_,same⟩ := checked_merged_replay_matches_exact_tree439 ok
+  refine ⟨a,same,a.safe,no_unnamed_argument_has_no_raw_root439 rfl,?_⟩
+  intro q member
+  rw [a.exactKids] at member
+  simp only [List.mem_cons,List.not_mem_nil,or_false] at member
+  rcases member with rfl | rfl <;> exact no_unnamed_argument_has_no_raw_root439 rfl
+
+#print axioms accepted_conflict_is_at_the_nullary_group_not_a_K2_site439
+end Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+```
+```text
+'Yulang.GeneralDeclarativeI65.I72.MergedOutput439.accepted_conflict_is_at_the_nullary_group_not_a_K2_site439' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+```
