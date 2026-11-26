@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74MixedFixedRead442
+
+open Yulang.GeneralDeclarativeI65.I72.MixedFixed442
+#print axioms inputOnly_visible
+#print axioms inputOnly_original_K2
+#print axioms originalTapedChoice
+#print axioms restored_input_is_exact442
+#print axioms read_named_output_keeps_original_address_and_body442
+#print axioms replay_uses_exact_selected_original_input442

@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74MixedFixedSource442
+
+open Yulang.GeneralDeclarativeI65.I72.MixedFixed442
+#print axioms ref_tree_instantiates_exact_slots442
+#print axioms actual_ref_value_reads_own_typed_centers442
+#print axioms ref_tree_has_no_legacy_code442
+#print axioms original_output_keeps_occurrence_and_order442
+#print axioms original_output_receipt_reads_a_mixed_rhs442
+#print axioms original_output_fixed_iff_same_target_equals_mixed_value442
+#print axioms original_output_has_no_value_only_fixed_code442
