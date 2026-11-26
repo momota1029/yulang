@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74NestedInvariantEntry440
+
+open Yulang.GeneralDeclarativeI65.I72.NestedInvariant440
+
+#print axioms dictionary_sound_R20
+#print axioms all_previous_R19_Bool_unchanged440
+#print axioms checked_nested_returns_original_report440
+#print axioms check_sound
+#print axioms verified_R20_result_classifies_in_same_State440
+#print axioms checked_nested_retains_raw_priority440
+#print axioms no_new_nested_selection_over_original_raw_root440
