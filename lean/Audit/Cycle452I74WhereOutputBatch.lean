@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereOutputBatch452
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.OutputPhase452
+
+#print axioms all_actual_pairs_are_in_verified_emission_batch452
+#print axioms actual_complete_pair_batch_only_checks_real_same_input_and_writes_nothing452
+#print axioms checked_batch_internal_report_is_exactly_for_its_same_phase452

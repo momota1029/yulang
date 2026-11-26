@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74WhereOutputPairRead452
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.OutputPhase452
+
+#print axioms sites_at_same_exact_ordinal_are_unique452
+#print axioms actual_source_site_replay_is_exact452
+#print axioms mark_is_read_at_its_own_source_ordinal452
+#print axioms any_replayed_site_uses_the_marked_request452
+#print axioms actual_pairs_at_exact_original_ordinals_have_finite_read452
