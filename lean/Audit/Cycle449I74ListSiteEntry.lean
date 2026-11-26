@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74ListSiteEntry449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449
+
+#print axioms list_exact_report_is_in_existing_R13
+#print axioms independent_list_report_sound449
+#print axioms previous_witness_Bool_unchanged449
+#print axioms accepted_list_report_reads_exact_declaration449
+#print axioms independent_list_reifies_its_exact_report449
+#print axioms list_wire_iff_actual_local_selection449
+#print axioms original_root_cycle_declines_all_list_wires449
+#print axioms check_full_sound449

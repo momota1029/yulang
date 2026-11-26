@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74ListInspections449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449
+
+#print axioms list_frame_sites_are_ordered_original_roots449
+#print axioms one_authored_list_has_exact_visit449
+#print axioms literal_binder_does_not_inspect_payload449
+#print axioms accepted_table_has_exact_count449
+#print axioms table_only_validates_actual_safe_sites449
+#print axioms exact_per_site_finite_witnesses449
+#print axioms inspection_safety_is_original_root_safety449
