@@ -779,3 +779,136 @@ theorem actual_comparable_literal_problem_still_has_no_fixed_named_selection441
 #print axioms actual_comparable_literal_problem_still_has_no_fixed_named_selection441
 end Yulang.GeneralDeclarativeI65.I72.RefPositions441.LiteralVisibilityQA
 ```
+
+## 補足（cycle 441）— literal の次の足場と projection の正確な制限
+
+- 元の concrete literal Problem で isolated Int leaf の実 compiler は成功、mixed outer application の legacy compiler は none。実評価は `some (true,true)`。また任意の nullary nominal tag と scalar Int は型 carrier 値として両方向とも比較不能。scalar を nominal `intKey[]` として偽装して `DeepRead` を通すのは正しい修復ではない。
+- 遅延する案: 今回の scoped R21 をそのまま使い、literal 証拠の挿入は正式な後続作業へ。必要なら実 `Use env intKey 0` の primitive kind と上下の実 ordinary Int を本人の元 syntax から照合する別 leaf evidence の設計を、旧 closed assumptions を変えずに検討できる。任意の named local rule の変更だけでは足りない。これは型の受理を決め直さない。
+- B3 の `f` を公開 nominal header にない finite pool slot に置くだけの符号化は、既存 source compiler の formal coverage で落ちることも証明。private universal binder を extra nominal parameter に変えてよいとは言っていない。今回の executable variance check は公開引数への projection だけ。
+- declared/snapshot の実 kind 順を交換した二つの actual 正しい大きさの Problem（旧 snapshot だけが相違、もしくは両方が相違）では、body graph と current table が正しい順でも `readUse` は none、scoped check は false。誤った metadata を table で救済しない。
+
+再現: 次の literal / stale metadata namespace は C441 EndToEnd の末尾に付加。他の二つは import を持つ単独 source。同じ production-only Lean 4.35.0 strict `--trust=0 -DwarningAsError=true`、全 exit 0。公開 47 の数には含めない。
+
+### Literal compiler path isolation
+```lean
+namespace Yulang.GeneralDeclarativeI65.I72.RefPositions441.LiteralIsolationQA
+open GeneralDeclarativeI65
+open Yulang.GeneralDeclarativeI65.I72.RefPositions441.ScopedExample
+open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry)
+open GeneralNominalCenteredHeadMatExpressions (Expr translate)
+open GeneralSourceMetadataRows291 (interpretation)
+
+def observedLayers : Option (Bool × Bool) :=
+  literalProblem.map fun p =>
+    let old := translate (authoredRegistry p.state.core.current).constructors
+      (interpretation p.state.core.current.environment.source.snapshot)
+    let leaf := match old (.app 20 []) with
+      | some (.primitive (.scalar .int) []) => true
+      | _ => false
+    (leaf,(old (.app 9 [.var 6,.app 20 []])).isNone)
+
+theorem actual_original_int_leaf_available_but_mixed_outer_blocked441 :
+    observedLayers = some (true,true) := by decide +kernel
+
+#eval observedLayers
+#print axioms actual_original_int_leaf_available_but_mixed_outer_blocked441
+end Yulang.GeneralDeclarativeI65.I72.RefPositions441.LiteralIsolationQA
+```
+
+### No fake scalar as a nullary nominal
+```lean
+import Yulang.GeneralDeclarativeI65I74RefPositionBoundary441
+
+namespace Yulang.GeneralDeclarativeI65.I72.RefPositions441.NoFakeIntQA
+open CommonNominalFullCarrier (Subtype nominal)
+open CommonNominalFullDemand (Environment producerLe_iff_probe)
+
+theorem actual_scalar_Int_is_not_a_nullary_nominal_tag441 (tag : Nat) :
+    ¬ Subtype (nominal tag []) (.base .int) ∧
+    ¬ Subtype (.base .int) (nominal tag []) := by
+  let env : Environment Common.Row := ⟨fun _ => .bottom,fun _ => []⟩
+  constructor
+  · intro h
+    exact (producerLe_iff_probe _ _).mp (h 0) 0 env (.base .int) rfl
+  · intro h
+    exact (producerLe_iff_probe _ _).mp (h 0) 0 env (.nominalHead tag 0) ⟨rfl,rfl⟩
+
+#print axioms actual_scalar_Int_is_not_a_nullary_nominal_tag441
+end Yulang.GeneralDeclarativeI65.I72.RefPositions441.NoFakeIntQA
+```
+
+### Free-pool bound on the separate rank-2 problem
+```lean
+import Yulang.GeneralDeclarativeI65I74RefPositionBoundary441
+
+namespace Yulang.GeneralDeclarativeI65.I72.RefPositions441.ScopeBoundaryQA
+open GeneralDeclarativeWitnessSparseVariance357 (Source Header compile valid wellFormed valid_iff)
+
+/-- The current finite source pool covers only header formals. It does
+not silently use an extra pool row as a field-local forall binder. -/
+theorem unlisted_pool_name_is_not_a_private_binder441
+    {nodes types rows : Nat} {s : Source nodes types rows} {p : Fin (types+rows)}
+    (absent : p ∉ s.headers.flatMap (List.map Prod.snd ∘ Header.written)) :
+    compile s = none := by
+  cases h : valid s
+  · simp [compile,h]
+  · have scope := (valid_iff s).mp h
+    exact (absent (scope.2.2.1 p)).elim
+
+/-- This is a failed encoding, not a new model of the rank-2 language.
+The two visible formals are written; the extra f occurs only in run. -/
+def impossibleFreePoolEncoding : Source 3 1 2 :=
+  ⟨[⟨9,[(.row,1),(.value,0)]⟩],
+    fun i => match i.val with
+    | 0 => .arrow (.inl 1) .empty (.inl 2) (.join (.var 0) (.var 1))
+    | 1 => .arrow (.inr 0) .empty (.inr 0) (.var 1)
+    | _ => .base .unit,
+    fun _ => 0⟩
+
+theorem actual_extra_pool_find_does_not_implement_field_rank_two441 :
+    compile impossibleFreePoolEncoding = none :=
+  unlisted_pool_name_is_not_a_private_binder441 (p := 2) (by decide +kernel)
+
+#print axioms unlisted_pool_name_is_not_a_private_binder441
+#print axioms actual_extra_pool_find_does_not_implement_field_rank_two441
+end Yulang.GeneralDeclarativeI65.I72.RefPositions441.ScopeBoundaryQA
+```
+
+### Real stale ordered metadata
+```lean
+namespace Yulang.GeneralDeclarativeI65.I72.RefPositions441.StaleMetadataQA
+open GeneralDeclarativeI65
+open GeneralDeclarativeI65.I72.RefPositions441.ScopedExample
+open GeneralDeclarativeWitnessConstructorModes357 (Environment readUse)
+open GeneralDeclarativeWitnessSparseVariance357 (compile)
+open GeneralSourceMetadataRows291 (Row)
+open GeneralSourceMetadataBareBundle291 (InputBundle)
+open Checker408 (Problem)
+
+def staleRows : List Row := [⟨9,some ⟨[.type,.row],9⟩,.unclassified⟩,
+  ⟨20,some ⟨[],20⟩,.primitive (.scalar .int)⟩]
+
+def altered (alsoDeclared : Bool) : InputBundle :=
+  let real := surface [actual]
+  ⟨(if alsoDeclared then ⟨.absent,staleRows⟩ else real.declared),
+    ⟨.absent,staleRows⟩,real.roles,real.declarations⟩
+
+def wrongSnapshot (declared : Bool) : Option Problem := do
+  let actualGraph ← compile authoredRunProjection
+  let book ← GeneralSourceMetadataBareBundle291.compile (altered declared)
+  let env : Environment := ⟨3,1,1,authoredRunProjection,actualGraph,book⟩
+  let s : GeneralDeclarativeI65.State := ⟨⟨env,ordinary,[]⟩,registry,[witnessOrigin],[]⟩
+  let atlas : B6OccurrenceAtlas401 s := ⟨fun _ _ _ _ => none⟩
+  pure ⟨⟨s,atlas⟩,⟨[71],roleDemand⟩⟩
+
+theorem actual_graph_cannot_rescue_swapped_authored_or_snapshot_positions441
+    (alsoDeclared : Bool) :
+    (wrongSnapshot alsoDeclared).isSome = true ∧
+    ((wrongSnapshot alsoDeclared).map fun p =>
+      (readUse p.state.core.current.environment 9 2).isNone).getD false = true ∧
+    test (wrongSnapshot alsoDeclared) = false := by
+  cases alsoDeclared <;> decide +kernel
+
+#print axioms actual_graph_cannot_rescue_swapped_authored_or_snapshot_positions441
+end Yulang.GeneralDeclarativeI65.I72.RefPositions441.StaleMetadataQA
+```
