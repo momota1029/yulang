@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74SelectedEntry447
+
+open Yulang.GeneralDeclarativeI65.I72.RetainedSplit446.SelectedReplay447
+
+#print axioms all_published_Bool_unchanged
+#print axioms check_full_sound447
+#print axioms exact_source_read_reifies_split_safe_witness446
+#print axioms original_selected_site_is_raw_safe446
+#print axioms canonical_local_has_split_witness446
+#print axioms independent_selected_report_has_finite_witness447

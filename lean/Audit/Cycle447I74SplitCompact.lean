@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74SplitCompact447
+
+open Yulang.GeneralDeclarativeI65.I72.SplitEscape446.SplitCompact447
+
+#print axioms compact_side_exact447
+#print axioms compact_ready447
+#print axioms compact_exact_raw_witness447
+#print axioms raw_safe_iff_small_witness447
