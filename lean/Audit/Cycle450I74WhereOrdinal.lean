@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74WhereOrdinal450
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450
+#print axioms Ordinal_from_actual_plan450
+#print axioms raw_rejection_iff_actual_child_cycle450
+#print axioms accepted_where_keeps_each_actual_child_position450
+#print axioms each_accepted_successful_sibling_has_dictionary450

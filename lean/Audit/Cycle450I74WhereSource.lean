@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereSource450
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450
+#print axioms actual_child_at_original_clause450
+#print axioms picked_parent_is_original450
+#print axioms literal_parent_reconstructs_all_original_children450
+#print axioms parent_where_local_evidence450
+#print axioms dictionary_sound_parent_where450

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74WhereLegacy450
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450
+#print axioms migrated_original_singleton_child_is_literal_legacy450
+#print axioms original_C411_same_role_child_is_covered_by_promoted_C450

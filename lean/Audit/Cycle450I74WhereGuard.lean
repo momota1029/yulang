@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74WhereGuard450
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.NoSiblingMerge
+#print axioms supplied_original_child_roles_preclude_sibling_merge450
+#print axioms differently_roled_sites_cannot_merge450
+#print axioms previous_is_identical450
+#print axioms actual_guard_is_exact_visible_source450
+#print axioms exact_guarded_original_report_has_data450
+#print axioms check_full_sound450
+#print axioms guarded_entry_declines_true_parent_K2450
