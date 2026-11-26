@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 428
-status: running
+status: completed
 started: 2026-11-25T23:30:00.006Z
-updated: 2026-11-26T00:13:21.552Z
-elapsed_min: 43
-activity: C428 standalone actual original positive tape resolves the same registry ordinal and lexical root capture, placement explicitly independent; no canonical change.
-workspace: C428 exact source verification
-last_local_commit: none
-resume_hint: C15 actual named selected event and ordered WhereForest rooted in original source; no canonical installation unless exact C426 adopted.
+updated: 2026-11-26T00:20:05.966Z
+elapsed_min: 50
+activity: C15 original ordered where proof and isolated replay verified; I-76 audit chain limitations recorded, no R15 coverage change; worker released
+report: notes/handoff/dots-cycle-428.md
