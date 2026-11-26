@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeI65I74RefPositionBoundary441
+
+open Yulang.GeneralDeclarativeI65.I72.RefPositions441.Boundary
+
+#print axioms source_positions_forward
+#print axioms wrong_position_has_no_comparison
+#print axioms no_deep_literal_ordinary
+#print axioms no_deep_rigid_int_value
+#print axioms centered_compiler_cannot_translate_row_value_app
+#print axioms row_value_deep_replay_cannot_consume_rigid_int
+#print axioms fixed_ordered_head_for_rigid_ref_has_no_current_constructor
+#print axioms fixed_named_source_head_replay_gap
+#print axioms both_typed_positions_inherited
+#print axioms forward_row_is_not_reverse
+#print axioms every_accepted_source_use_has_original_formal_positions441
+#print axioms typed_ref_forward_context_distinguishes_signed_rows441
