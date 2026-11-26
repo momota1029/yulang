@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 442
-status: running
+status: completed
 started: 2026-11-26T13:30:55.980Z
-updated: 2026-11-26T14:10:59.834Z
-elapsed_min: 40
-activity: Strict typed QA: fresh model extension succeeds; existing Int constraint excludes mixed fixed output; keep C22 open.
-workspace: C442 exact source verification
-last_local_commit: none
-resume_hint: C22 mixed row-valued associated RHS and exact target retention.
+updated: 2026-11-26T14:21:01.501Z
+elapsed_min: 50
+activity: C22 stays open: exact mixed RHS and one-model dictionary, all-Fits retention absent. Sole writer released.
+report: notes/handoff/dots-cycle-442.md
