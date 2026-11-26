@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 437
+cycle: 438
 status: completed
-started: 2026-11-26T08:33:48.401Z
-updated: 2026-11-26T09:23:52.410Z
+started: 2026-11-26T09:30:32.000Z
+updated: 2026-11-26T10:20:42.932Z
 elapsed_min: 50
-activity: C18 only: actual Seed→scoped Observe, literal retention and raw K2 strict checks; canonical R18 outstanding; ≥50m elapsed, sole writer released.
-report: notes/handoff/dots-cycle-437.md
+activity: C18 scoped R18/check/check_sound verified; exact published tree and 28 standalone axiom checks; >=50m actual, sole writer released.
+report: notes/handoff/dots-cycle-438.md

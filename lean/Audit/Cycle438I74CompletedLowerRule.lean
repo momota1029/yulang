@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74CompletedLowerRule438
+
+open Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+#print axioms completed_head_has_literal_original_meaning438
+#print axioms completed_selected_evidence438
+#print axioms dictionary_sound_of_prior438
+#print axioms raw_root_K2_has_priority438
