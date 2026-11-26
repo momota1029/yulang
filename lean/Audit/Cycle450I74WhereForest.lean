@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereForest450
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450
+#print axioms every_actual_child_has_ordered_wire450
+#print axioms all_original_children_have_ordered_wires450
+#print axioms read_order_cannot_truncate_or_invent450
+#print axioms OrderedPlan.forestSound
+#print axioms where_summary_keeps_every_child450

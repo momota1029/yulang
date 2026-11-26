@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereCycleWire450
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450
+#print axioms bound_wire_from_actual_derivation450
+#print axioms alias_wire_from_actual_derivation450
+#print axioms structural_wire_from_actual_row450
+#print axioms path_wire_from_actual_derivation450
+#print axioms raw_child_cycle_has_finite_original_wire450

@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74WhereEntry450
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450
+#print axioms exact_where_trace_model_meaning450
+#print axioms all_scoped_traces_have_no_writes450
+#print axioms independent_original_rejection_has_real_trace450
+#print axioms all_previous_witnesses_unchanged450
+#print axioms only_true_original_ordered_reports_are_accepted450
+#print axioms original_ordered_rejection_reifies_same_report450
+#print axioms exact_original_where_report_iff_finite_only_data450
+#print axioms actual_parent_K2_cannot_be_relabelled_as_child450
+#print axioms check_full_sound450

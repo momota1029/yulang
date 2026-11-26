@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereParent450
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450
+#print axioms literalClause_exact
+#print axioms literal_written_binder_is_a_chain
+#print axioms parent_header_exact450
+#print axioms independent_list_frame_replays_exactly450
+#print axioms actual_single_declaration_list_frame_is_settled450
