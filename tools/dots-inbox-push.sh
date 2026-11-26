@@ -29,4 +29,6 @@ bash "$R/tools/verify-lean.sh" "$W" "$base" --no-build; r=$?; echo "verify-lean(
 git merge-base --is-ancestor "$base" HEAD || exit 6
 git push -q origin HEAD:integration/m1-final; r=$?; echo "push exit $r"
 [ $r -eq 0 ] && echo "PUSHED $label"
+# The worktree builds yu-syntax (about 1.2 GB of target/); drop it once pushed.
+if [ $r -eq 0 ]; then cd "$R" && git worktree remove --force "$W"; fi
 exit $r
