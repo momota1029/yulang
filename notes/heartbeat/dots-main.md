@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 445
-status: completed
-started: 2026-11-26T16:33:46.822Z
-updated: 2026-11-26T17:23:54.058Z
-elapsed_min: 50
-activity: G00: writer と局所健全性・実 checker は検証済み。独立 header/escape 条件なしの証人構成は未完。正確な報告/心拍を公開し単独作業者解放。
-report: notes/handoff/dots-cycle-445.md
+cycle: 446
+status: running
+started: 2026-11-26T17:35:15.917Z
+updated: 2026-11-26T17:35:26.821Z
+elapsed_min: 0
+activity: I-82、C445 の正本採用を確認。元 raw グラフの証人を調べ、既存の判定と構文意味は変更しない。
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: I-82 G00 independent raw witness; old checker unchanged.
