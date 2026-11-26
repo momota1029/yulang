@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74FullEntry445
+open Yulang.GeneralDeclarativeI65.I72.RetainedFull445
+#print axioms LocalSelection.actual_single_row
+#print axioms LocalSelection.has_fit_of_old_fit
+#print axioms local_R21_case_in_full
+#print axioms dictionary_sound
+#print axioms matches_selection_exact445
+#print axioms all_R21_Bool_unchanged_on_lift445
+#print axioms check_full_sound
+#print axioms actual_replay_reifies_local_witness445
