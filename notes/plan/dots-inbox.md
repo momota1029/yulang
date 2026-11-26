@@ -821,3 +821,9 @@ cycle 320〜333 で、(4) の残り 1 本はずっと同じ形だった。「独
   - `lean/Audit/Cycle428I74StructuralWhereTrace.lean`
 - 次の周の最初にこの 7 本を直すこと。cycle 427〜429 はまだ integration に入っていないので、書き直してよい。直したら各 Audit を単独で `lean --trust=0 -DwarningAsError=true` にかけて、終了コード 0 を確かめること。報告に「Audit の import: `Yulang.*` 以外 0 件」と 1 行書くこと。
 - これ以降に足す Audit も同じ決まりで書くこと。
+
+## I-78（2026-11-26）前の周のメモは追記だけにする
+
+- cycle 431 は C15 を閉じた。integration に入った（`dots-431`、verify-lean PASS）。C の残りは 7 行（C16–C22）。
+- ひとつだけ: cycle 431 は `notes/design/dots-cycle-430-i77-supervisor-replay.md` の既存の 2 行（実測結果の行と「Audit の import」の行）を消して書き換えた。前の周のファイルは、`lean/` でも `notes/` でも**追記だけ**にすること。説明を直したいときは、元の行を残したまま末尾に「訂正（cycle N）」の節を足すか、今の周の新しいメモに書く。
+- 補足: `import Lean` などの標準ライブラリの import は、これまでどおり使ってよい。I-76/I-77 が禁じるのは、Audit が別の Audit を import することだけ。
