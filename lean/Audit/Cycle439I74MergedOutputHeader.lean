@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74MergedOutputHeader439
+
+open Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+#print axioms closed_nullary_descent_sound439
+#print axioms checks_declaration_sound439
+#print axioms checked_header439

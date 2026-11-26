@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74MergedOutputEntry439
+
+open Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+#print axioms dictionary_sound_R19
+#print axioms every_previous_R18_Bool_is_unchanged439
+#print axioms checked_merged_replay_matches_exact_tree439
+#print axioms check_sound
+#print axioms verified_R19_result_classifies_in_same_State439
+#print axioms original_raw_root_K2_distinct_from_merged_rejection439
+#print axioms actual_visible_rival_prevents_new_conflict_report439
