@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74CompletedLowerSameModel438
+
+open Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+#print axioms actual_producer_and_consumer_share_one_model438
+#print axioms checked_completed_has_original_same_model_dictionary438

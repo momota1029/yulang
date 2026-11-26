@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74CompletedLowerPorts438
+open Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+#print axioms readSingleton438
+#print axioms readSeedBasis438
+#print axioms readTypedUnary438
+#print axioms readGate438
+#print axioms checked_gate_cannot_use_wrong_target438
+#print axioms checked_gate_uses_independent_authored_upper438

@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74CompletedLowerEntry438
+
+open Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+#print axioms replaySeed438
+#print axioms replay438
+#print axioms replay_completed_keeps_exact_original_addresses438
+#print axioms dictionary_sound_R18
+#print axioms previous_R17_entry_is_unchanged438
+#print axioms checked_completed_reads_exact_report438
+#print axioms check_sound
+#print axioms verified_R18_result_classifies_in_same_State438
+#print axioms real_raw_K2_refuses_completed_witness438
