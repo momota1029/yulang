@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74RetainedLocalHeader446
+open Yulang.GeneralDeclarativeI65.I72.RetainedSplit446.LocalHeader
+#print axioms actual_entry_test_exact446
+#print axioms local_outputs_are_exact446
+#print axioms clause_signature_exact446
+#print axioms local_signature_exact446
+#print axioms identifiers_exact446
+#print axioms produced_exact446
+#print axioms lexical_only_exact446
+#print axioms named_scopes_exact446
+#print axioms selected_header_exact446
