@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74RefPositionEntry441
+
+open Yulang.GeneralDeclarativeI65.I72.RefPositions441
+
+#print axioms dictionary_sound_R21
+#print axioms all_previous_R20_Bool_unchanged441
+#print axioms checked_ref_returns_original_report441
+#print axioms check_sound
+#print axioms verified_R21_result_classifies_in_same_State441
+#print axioms checked_ref_retains_raw_priority441
+#print axioms no_new_ref_selection_over_original_raw_root441
+#print axioms original_raw_root_is_first_in_R21441
