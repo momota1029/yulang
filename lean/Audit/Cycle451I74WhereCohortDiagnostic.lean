@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74WhereCohortDiagnostic451
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451
+#print axioms original_status_has_exact_wire451
+#print axioms every_original_status_has_exact_replay451
+#print axioms every_original_request_has_a_raw_status451
+#print axioms status_position_is_actual_child451
+#print axioms actual_diagnostic_preparation_has_finite_exact_data451
+#print axioms equal_label_is_same_raw_diagnostic_at_each_original_location451

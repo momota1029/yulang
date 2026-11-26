@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereCohortPoints451
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451
+#print axioms original_clause_capture_is_in_exact_roster451
+#print axioms actual_point_center_unique451
+#print axioms known_original_clause_has_actual_payload451
+#print axioms source_replayed_points_are_total451
+#print axioms indexed_point_from_ordered_actual_requests451

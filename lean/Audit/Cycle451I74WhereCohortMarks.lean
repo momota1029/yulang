@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74WhereCohortMarks451
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451
+#print axioms every_actual_clause_has_a_preserved_location_mark451
+#print axioms only_marks_of_selected_class451
+#print axioms validated_class_location_list_keeps_source_order451
+#print axioms independent_selected_original_profiles_have_finite_wire451
