@@ -94,3 +94,5 @@ Forest, Readback, Visits の元からあった `#print axioms` 8 + 6 + 5 個、�
 - 修復前の exact Forest / Readback / Visits は、同じ production-only cache・同じ fresh cwd で3件とも exit 1。Lean の診断は順に `unknown module prefix 'Cycle427I74StructuralWhereReadback'` / `…SameRole` / `…Readback`。修復版は一切 peer Audit olean を足さず exit 0 に変わった。
 - 投影の14本の import を同じ一つの focused 検査ファイルから読んでも exit 0。全体 barrel のビルドとは区別する。
 - C428 の既存16ファイル（7 production・9 Audit）の Git blob を変えず、修復版に対する後方互換性を別の scratch cache で再確認した。C428 9 Audit は **歴史的な peer 依存を明示的に許す互換性試験だけ**で exit 0。これは I-76 の適合・統合の主張ではない。C428 の単独監査7件は依然修復が要る。
+
+追加照合: Git の空のローカル scratch object DB でも、基準・投影の各 tree を `git mktree --missing` で独立再構成し、`git diff-tree --no-renames -r --name-status` が正確に A 21 / M 1 を返すことを確認（先の ID と一致、ref 更新なし）。既存の R14 公開入口の exact Audit（`97e8939b08715c7738cc88251d39fd29add67df6`）も同じ隔離評価器で exit 0、公理10件。
