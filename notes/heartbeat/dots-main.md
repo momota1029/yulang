@@ -3,9 +3,9 @@
 cycle: 429
 status: running
 started: 2026-11-26T00:30:57.000Z
-updated: 2026-11-26T00:37:12.607Z
-elapsed_min: 6
-activity: I-76 exact C427 projection, production-only verifier and import controls published
+updated: 2026-11-26T00:39:51.965Z
+elapsed_min: 8
+activity: I-76 reproduced all 3 historical failures, 7 fixes standalone; C428 historical compatibility separate, unintegrated
 workspace: C429 exact source verification
 last_local_commit: none
-resume_hint: C15 actual named selected event and ordered WhereForest rooted in original source; no canonical installation unless exact C426 adopted.
+resume_hint: I-76 verification: import C427 production-only closure and run each Audit singly; use the C427-only manifest, not the cumulative C428 history. No public R15.

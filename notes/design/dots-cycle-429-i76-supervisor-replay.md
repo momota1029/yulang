@@ -77,3 +77,20 @@ def main (files : List String) : IO UInt32 := do
 ```
 
 上記を別ディレクトリの一時ファイルとして `lean --trust=0 -DwarningAsError=true --run CheckAuditHeader.lean <audits...>` で試した。修復済み C427 の全7件は通過。旧 C427 の3件、C428の7件、裸・quoted・`Audit.*`・明示 `Init`・quoted `«Yulang.fake»` は拒否。正しい引用付き `Yulang` と、コメント内の偽 import を含む正しい入力は通過した。リポジトリの supervisor tool 自体は変更していない。
+
+## Exact Git tree の独立照合
+
+基準の root・lean・Audit・Yulang の Git tree object ID を、取得した mode/name/blob ID から一つずつ再計算し一致を確認。表の21 path は基準にいずれも存在しない。上の投影（22 path 全体）を同じ方法で計算した期待値：
+
+- root tree: `20fa37d2305da048331b7275190e6b836a987ffb`
+- lean tree: `a45ba5ec2327014fc9d2f0d383cda8ec2c26236f`
+- lean/Audit tree: `72b4c6b19134fb1b94c6bf0de04ac74c3bea6e06`
+- lean/Yulang tree: `564703bd0cc05278f88c996be260466e35f1fd94`
+
+Forest, Readback, Visits の元からあった `#print axioms` 8 + 6 + 5 個、および監査の試験・証明本体（共有入力の宣言部・import を除く）は元 blob と同一。元の4件の Audit はファイルごと不変更。C428 はこの投影から除外し、work branch ではその全ファイルを保持している。
+
+## 再現した負の対照と互換性
+
+- 修復前の exact Forest / Readback / Visits は、同じ production-only cache・同じ fresh cwd で3件とも exit 1。Lean の診断は順に `unknown module prefix 'Cycle427I74StructuralWhereReadback'` / `…SameRole` / `…Readback`。修復版は一切 peer Audit olean を足さず exit 0 に変わった。
+- 投影の14本の import を同じ一つの focused 検査ファイルから読んでも exit 0。全体 barrel のビルドとは区別する。
+- C428 の既存16ファイル（7 production・9 Audit）の Git blob を変えず、修復版に対する後方互換性を別の scratch cache で再確認した。C428 9 Audit は **歴史的な peer 依存を明示的に許す互換性試験だけ**で exit 0。これは I-76 の適合・統合の主張ではない。C428 の単独監査7件は依然修復が要る。
