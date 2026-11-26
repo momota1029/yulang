@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74RetainedPlacement445
+open Yulang.GeneralDeclarativeI65.I72.RetainedFull445.PlacementQA
+#print axioms canonical_placement_keeps_same_original_report445
+#print axioms chosen_report_witness_without_placement_premise445

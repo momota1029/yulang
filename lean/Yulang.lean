@@ -8297,3 +8297,4 @@ import Yulang.GeneralDeclarativeI65I74RetainedFresh445
 import Yulang.GeneralDeclarativeI65I74FullEntry445
 import Yulang.GeneralDeclarativeI65I74WriterReplay445
 import Yulang.GeneralDeclarativeI65I74RetainedInputReplay445
+import Yulang.GeneralDeclarativeI65I74RetainedPlacement445
