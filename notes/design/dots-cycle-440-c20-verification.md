@@ -434,3 +434,191 @@ theorem actual_1024_rows_with_only_four_atoms440 :
 #print axioms actual_1024_rows_with_only_four_atoms440
 end C440ConcreteCompilerQA
 ```
+
+## 補足（cycle 440）: body からの分散と従来入口の実行確認
+
+1. variant/body の明示分類を付けず、外側まで body から derive。nil 代替・実 payload・再帰 nominal tail を持つ list の body が invariant を算出。共変/反変の内側宣言も実 body から算出し、すべての source metadata classification は `.unclassified`。これを同じ実入口に読ませて三種類とも true。legacy metadata の flag だけが出た結論ではない。関数型 source simplifier を実装したという意味ではない。
+2. [C439 の元の actual Audit](../../lean/Audit/Cycle439I74MergedOutputEndToEnd.lean) を同じ新入口の `.previous` から実行し、元の併合子の報告が true、元の raw root K2 が true、cycle のない入力の raw 証明書が false も確認。独立な元の適合モデルで C439 の report evidence が同じ新 R20 から得られる。
+3. 明示 crossing の atom だけを落とした concrete Problem にも元の適合モデルがある。すべての fit で元の 2→3・3→4 から 2→4 を得る比較は正しいが、現在の証明書再生分岐は false。この未対応の証明を言語診断にしない。
+
+再現手順: (1) は C440 EndToEnd single source の末尾に下記を連結。(2) は C439 EndToEnd の先頭に `import Yulang.GeneralDeclarativeI65I74NestedInvariantEntry440`、末尾に下記の対応する namespace を連結。(3) は C440 EndToEnd の先頭に `import Yulang.GeneralDeclarativeI65I74NestedInvariantDepth440`、末尾に下記 namespace を連結。三本いずれも個別の production-only Lean 4.35.0 `--trust=0 -DwarningAsError=true`、exit 0。これら 9 QA audit 行は公開 45 件には加えない。
+ 
+### (1) body-derived current modes
+```lean
+namespace Yulang.GeneralDeclarativeI65.I72.NestedInvariant440.DerivedTableQA
+open GeneralDeclarativeI65
+open Yulang.GeneralDeclarativeI65.I72.NestedInvariant440.ScopedExample
+open GeneralDeclarativeWitnessSparseVariance357 (Source compile lookup)
+open GeneralDeclarativeWitnessConstructorModes357 (Environment readUse)
+open GeneralDeclarativeWitnessSparseIntervals357 (names)
+open GeneralSourceMetadataBareBundle291 (InputBundle)
+open GeneralSourceMetadataRows291 (Row)
+open Checker408 (Problem)
+
+set_option maxRecDepth 15000
+set_option maxHeartbeats 10000000
+
+/-- The source includes a nil alternative, a live element and a
+    recursive nominal tail at index 1. No invariant classification
+    is supplied in its published metadata rows below. -/
+def authoredBodies : Source 5 3 0 :=
+  ⟨[⟨9,[(.value,0)]⟩,⟨20,[(.value,1)]⟩,⟨42,[(.value,2)]⟩,⟨90,[]⟩],
+    fun i => match i.val with
+      | 0 => .union .emptyRecord (.pair (.inr 0) (.inl 1))
+      | 1 => .nominal 9 [.inl (.inr 0)]
+      | 2 => .parameter 1
+      | 3 => .arrow (.inr 2) .empty (.inl 4) .empty
+      | _ => .base .int,
+    fun p => match p.val with | 0 => 0 | 1 => 2 | _ => 3⟩
+
+def surface (l : Lane) : InputBundle :=
+  let rows : List Row := [⟨9,some ⟨[.type],9⟩,.unclassified⟩,
+    ⟨20,some ⟨[.type],20⟩,.unclassified⟩,⟨42,some ⟨[.type],42⟩,.unclassified⟩,
+    ⟨90,some ⟨[],90⟩,.unclassified⟩]
+  ⟨⟨.absent,rows⟩,⟨.absent,rows⟩,⟨0,[⟨7,1,[]⟩]⟩,[actual l]⟩
+
+def fromBody (l : Lane) : Option Problem := do
+  let compiled ← compile authoredBodies
+  let book ← GeneralSourceMetadataBareBundle291.compile (surface l)
+  let env : Environment := ⟨5,3,0,authoredBodies,compiled,book⟩
+  let s : GeneralDeclarativeI65.State := ⟨⟨env,ordinary l,[]⟩,table,endpoints l,[]⟩
+  let b6 : B6OccurrenceAtlas401 s := ⟨fun _ _ _ _ => none⟩
+  pure ⟨⟨s,b6⟩,⟨[71],roleDemand⟩⟩
+
+theorem recursive_and_directional_modes_come_from_actual_body440 :
+    ((compile authoredBodies).bind fun proof => lookup proof 9) = some [inv] ∧
+    ((compile authoredBodies).bind fun proof => lookup proof 20) = some [⟨.value,.covariant⟩] ∧
+    ((compile authoredBodies).bind fun proof => lookup proof 42) = some [⟨.value,.contravariant⟩] := by
+  decide +kernel
+
+theorem actual_public_R20_accepts_source_derived_outer_mode440 (l : Lane) :
+    test l (fromBody l) = true := by
+  cases l <;> decide +kernel
+
+#print axioms recursive_and_directional_modes_come_from_actual_body440
+#print axioms actual_public_R20_accepts_source_derived_outer_mode440
+end Yulang.GeneralDeclarativeI65.I72.NestedInvariant440.DerivedTableQA
+```
+
+### (2) prior C439 actual entry through the R20 wrapper
+```lean
+namespace Yulang.C440OldBranchQA
+open GeneralDeclarativeI65.I72
+open C439MergedAudit
+
+theorem real_C439_report_still_checks_at_R20440 :
+    NestedInvariant440.check problem expected (.previous (.mergedOutput witness)) = true := by
+  exact real_public_check_rejects_only_at_the_merged_child439
+
+theorem raw_root_follows_existing_cycle_at_R20440 :
+    NestedInvariant440.check actualRawCycle Check408.rawReport (.previous oldRawRoot) = true ∧
+    NestedInvariant440.check problem Check408.rawReport (.previous oldRawRoot) = false := by
+  decide +kernel
+
+theorem prior_report_has_original_C439_meaning_under_R20440 :
+    NestedInvariant440.R20 problem.state problem.root expected.verdict ∧
+    NestedInvariant440.ReportEvidence problem.state originalModel problem.root expected := by
+  have out := NestedInvariant440.verified_R20_result_classifies_in_same_State440
+    problem expected _ real_C439_report_still_checks_at_R20440
+  exact ⟨out.1,out.2 originalModel original_separate_output_cells_have_a_real_model439⟩
+
+#print axioms real_C439_report_still_checks_at_R20440
+#print axioms raw_root_follows_existing_cycle_at_R20440
+#print axioms prior_report_has_original_C439_meaning_under_R20440
+end Yulang.C440OldBranchQA
+```
+
+### (3) logical entailment versus scoped literal replay
+```lean
+namespace Yulang.GeneralDeclarativeI65.I72.NestedInvariant440.EntailedMissingQA
+open GeneralDeclarativeI65
+open Yulang.GeneralDeclarativeI65.I72.NestedInvariant440.ScopedExample
+open CommonNominalFullCarrier (Subtype subtype_trans)
+open GeneralDeclarativeWitnessFullIntervals357 (ContextDerives)
+open CommonDeclaredNominalInspection (Parameter)
+open Checker408 (Problem)
+
+def finiteSlice : Option Problem := build .listBox (missingCross .listBox)
+
+theorem genuine_no_literal_cross440 {p : Problem} (h : finiteSlice = some p) :
+    p.state.core.current.ordinary = missingCross .listBox ∧ p.state.core.modes = table := by
+  unfold finiteSlice build at h
+  cases graph : GeneralDeclarativeWitnessSparseVariance357.compile GeneralDeclarativeWitnessVarianceFixtures357.source with
+  | none => simp [graph] at h
+  | some semi =>
+    cases source : GeneralSourceMetadataBareBundle291.compile (surface .listBox [actual .listBox]) with
+    | none => simp [graph,source] at h
+    | some book =>
+      simp only [graph,source,Option.pure_def] at h
+      cases h
+      exact ⟨rfl,rfl⟩
+
+theorem absent_atom_still_follows_in_every_source_fit440 {p : Problem} (h : finiteSlice = some p) :
+    check p (report .listBox) (.nested wire) = false ∧
+      atomAt 2 4 ∉ p.state.core.current.ordinary.normal.ordinary ∧
+      ∀ m, I72.Fits p.state m →
+        ContextDerives p.state.core.modes m.assignment false
+          (nestedEndpoint 9 20 2 4) (nestedEndpoint 9 20 2 4) := by
+  have ⟨source,mode⟩ := genuine_no_literal_cross440 h
+  have miss := wrong_modes_missing_explicit_cross_bad_origin_and_report_fail440.2.1
+  change test .listBox finiteSlice = false at miss
+  have noDirect : atomAt 2 4 ∉ p.state.core.current.ordinary.normal.ordinary := by
+    rw [source]
+    decide +kernel
+  refine ⟨by simpa [test,h] using miss,noDirect,?_⟩
+  intro m fit
+  have hLo : Subtype (m.assignment 2).1 (m.assignment 3).1 :=
+    fit.1.1.1.1 (atomAt 2 3) (by rw [source]; decide +kernel)
+  have hHi : Subtype (m.assignment 3).1 (m.assignment 4).1 :=
+    fit.1.1.1.1 (atomAt 3 4) (by rw [source]; decide +kernel)
+  have compare := subtype_trans hLo hHi
+  let param : Parameter := ⟨.value,.covariant⟩
+  have used : validInner param := .inr (.inl rfl)
+  have outMode : p.state.core.modes[9]? = some [inv] := mode.symm ▸ rfl
+  have inMode : p.state.core.modes[20]? = some [param] := mode.symm ▸ rfl
+  have empty : UnaryUsedModes p.state.core.modes [] := by intro _ impossible; cases impossible
+  exact ((arbitrary_used_nominal_prefix_semantic_four_crossings440 empty outMode inMode used
+    2 4 2 4 m.assignment).mpr ⟨compare,compare,compare,compare⟩).2.2
+
+#print axioms genuine_no_literal_cross440
+#print axioms absent_atom_still_follows_in_every_source_fit440
+
+theorem no_direct_atom_input_has_a_real_model440 {p : Problem} (h : finiteSlice = some p) :
+    I72.Fits p.state (model .listBox true) := by
+  unfold finiteSlice build at h
+  cases graph : GeneralDeclarativeWitnessSparseVariance357.compile GeneralDeclarativeWitnessVarianceFixtures357.source with
+  | none => simp [graph] at h
+  | some sem =>
+    cases authored : GeneralSourceMetadataBareBundle291.compile (surface .listBox [actual .listBox]) with
+    | none => simp [graph,authored] at h
+    | some source =>
+      simp only [graph,authored,Option.pure_def] at h
+      cases h
+      have t := fitted_nonpoint440 .listBox true (by
+        simp only [build,graph,authored,Option.pure_def,bind,Option.bind] <;> rfl)
+      refine ⟨⟨⟨⟨?_,fun _ bad => False.elim (List.not_mem_nil bad)⟩,t.1.1.2⟩,t.1.2⟩,t.2⟩
+      intro a present
+      change a ∈ [atomAt 2 2,atomAt 4 4,atomAt 2 3,atomAt 3 4] at present
+      apply t.1.1.1.1 a
+      change a ∈ atoms
+      simp only [List.mem_cons,List.not_mem_nil,or_false] at present
+      rcases present with rfl|rfl|rfl|rfl <;> decide +kernel
+
+theorem actual_unread_certificate_is_not_inconsistent_input440 :
+    ∃ p, finiteSlice = some p ∧ I72.Fits p.state (model .listBox true) ∧
+      check p (report .listBox) (.nested wire) = false ∧
+      ContextDerives p.state.core.modes (model .listBox true).assignment false
+        (nestedEndpoint 9 20 2 4) (nestedEndpoint 9 20 2 4) := by
+  have someProof : finiteSlice.isSome = true := by decide +kernel
+  cases found : finiteSlice with
+  | none => simp [found] at someProof
+  | some p =>
+    have fit := no_direct_atom_input_has_a_real_model440 found
+    have entailed := absent_atom_still_follows_in_every_source_fit440 found
+    exact ⟨p,rfl,fit,entailed.1,entailed.2.2 _ fit⟩
+
+#print axioms no_direct_atom_input_has_a_real_model440
+#print axioms actual_unread_certificate_is_not_inconsistent_input440
+
+end Yulang.GeneralDeclarativeI65.I72.NestedInvariant440.EntailedMissingQA
+```
