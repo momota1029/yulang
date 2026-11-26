@@ -912,3 +912,144 @@ theorem actual_graph_cannot_rescue_swapped_authored_or_snapshot_positions441
 #print axioms actual_graph_cannot_rescue_swapped_authored_or_snapshot_positions441
 end Yulang.GeneralDeclarativeI65.I72.RefPositions441.StaleMetadataQA
 ```
+
+## 補足 2（cycle 441）: 本物の rigid nominal value は既存 carrier で読むことができる
+
+比較のため、scalar Int の代わりに、別個に実宣言された zero-arity nominal `Token` を value の第二位置に書いた `ref _ Token` を構成した。kind は同じ `[row,type]`。元の named `SourceHead` が、この場合は元の `Endpoint.nominal Token []`、source-derived layout と元の row binder に対して構成できた。これは **ordinary scalar の literal だけの穴** を明確にする対照であり、generic rigid value が一律に不可能とは言わない。Token を Int の偽の代替にはしていない。この一例にも R21 新分岐や新たな選択規則を付け足していない。
+
+再現: 次の最初の `import` を Git の C441 EndToEnd source の前に置き、残りを単一 source の末尾に連結。公式 Lean 4.35.0 `--trust=0 -DwarningAsError=true`、production-only path、独立に物理 source 再実行、exit 0、追加 3 audit も標準公理のみ。この三つを公開 47 件には加えない。
+
+```lean
+import Yulang.GeneralDeclarativeI65I74RefPositionBoundary441
+
+namespace Yulang.GeneralDeclarativeI65.I72.RefPositions441.TrueNominalQA
+open GeneralDeclarativeI65
+open GeneralDeclarativeWhere319 (Capture)
+open GeneralDeclarativeWitnessConstructorModes357 (Use)
+open GeneralDeclarativeWitnessSparseIntervals357 (names)
+open CommonRecursiveNominalIntervals (Endpoint Bounds)
+open Core.PresenceGeneration (RowTerm)
+
+ /-- A *genuine* declared typed nullary nominal position is already
+ representable. This rule cannot be used for a scalar ordinary endpoint,
+ and does not choose the outer role or lower a source parser. -/
+def actual_declared_nullary_native_value_is_not_blocked441
+    {s : GeneralDeclarativeI65.State} {capture : Nat → Capture}
+    {ref token rowBinder : Nat} {r : RowTerm Nat}
+    (outer : Use s.current.environment ref 2)
+    (outerMode : names outer.mode 2 = some layout)
+    (outerAt : s.modes[ref]? = some layout)
+    (inner : Use s.current.environment token 0)
+    (innerMode : names inner.mode 0 = some [])
+    (innerAt : s.modes[token]? = some [])
+    (rowRead : RowBind s (capture rowBinder) r r) :
+    DeepRead s capture false (.app ref [.var rowBinder,.app token []])
+      (.nominal ref [.inr (.point r),.inl (.point (.nominal token []))])
+      (.nominal ref [.inr (.point r),.inl (.point (.nominal token []))])
+      [.row rowBinder r r] := by
+  let pt : Bounds (Endpoint Nat) := .point (.nominal token [])
+  have leaf : DeepRead s capture true (.app token []) (.nominal token []) (.nominal token []) [] :=
+    .nominal inner innerMode innerAt .nil
+  have right : DeepArgument s capture true valueInv (.app token []) (.inl pt) (.inl pt)
+      ([] ++ []) := .invariantValue (a := pt) (b := pt) leaf leaf
+  have first : DeepArgument s capture false rowCov (.var rowBinder) (.inr (.point r))
+      (.inr (.point r)) [.row rowBinder r r] := .covariantRow rowRead
+  have two : DeepArguments s capture false layout [.var rowBinder,.app token []]
+      [.inr (.point r),.inl pt] [.inr (.point r),.inl pt]
+      ([.row rowBinder r r] ++ (([] ++ []) ++ [])) :=
+    .cons first (.cons right .nil)
+  exact .nominal outer outerMode outerAt two
+
+#print axioms actual_declared_nullary_native_value_is_not_blocked441
+end Yulang.GeneralDeclarativeI65.I72.RefPositions441.TrueNominalQA
+
+namespace Yulang.GeneralDeclarativeI65.I72.RefPositions441.NativeSampleQA
+open GeneralDeclarativeI65
+open Yulang.GeneralDeclarativeI65.I72.RefPositions441.ScopedExample
+open Yulang.GeneralDeclarativeI65.I72.RefPositions441.TrueNominalQA
+open GeneralDeclarativeWitnessSparseVariance357 (Source compile)
+open GeneralDeclarativeWitnessConstructorModes357 (Environment readUse Use)
+open GeneralDeclarativeWitnessSparseIntervals357 (names)
+open GeneralDeclarativeWhere319 (Capture)
+open GeneralDeclarativeWitnessDeclaredState357 (point)
+open GeneralSourceMetadataBareBundle291 (InputBundle)
+open GeneralSourceMetadataRows291 (Row)
+open GeneralDeclarations (Declaration)
+open CommonRecursiveNominalIntervals (Endpoint)
+
+def nativeBodies : Source 3 1 1 :=
+  {authoredRunProjection with headers := authoredRunProjection.headers ++ [⟨13,[]⟩]}
+def nativeCandidate : Declaration := {actual with head := [.app 9 [.var 6,.app 13 []]]}
+def genuineSurface : InputBundle :=
+  let rows : List Row := [⟨9,some ⟨[.row,.type],9⟩,.unclassified⟩,
+    ⟨13,some ⟨[],13⟩,.unclassified⟩]
+  ⟨⟨.absent,rows⟩,⟨.absent,rows⟩,⟨0,[⟨7,1,[]⟩]⟩,[nativeCandidate]⟩
+def graphReady := (compile nativeBodies).get (by decide +kernel)
+def registryReady := (GeneralSourceMetadataBareBundle291.compile genuineSurface).get (by decide +kernel)
+def nativeEnv : Environment := ⟨3,1,1,nativeBodies,graphReady,registryReady⟩
+
+def authoredNative : Endpoint Nat := .nominal 9 [rowArg 1,.inl (.point (.nominal 13 []))]
+def nativeCore : GeneralDeclarativeI65.State :=
+  ⟨⟨nativeEnv,ordinary,[]⟩,registry ++ List.replicate 4 [],[⟨0,[71],authoredNative⟩],[]⟩
+
+def bothSourceUse : Use nativeEnv 9 2 := (readUse nativeEnv 9 2).get (by decide +kernel)
+def closedSourceUse : Use nativeEnv 13 0 := (readUse nativeEnv 13 0).get (by decide +kernel)
+def captures : Nat → Capture := fun _ => point 1
+
+def actual_native_source_has_old_DeepRead441 :
+    DeepRead nativeCore captures false (.app 9 [.var 6,.app 13 []]) authoredNative authoredNative
+      [.row 6 (.var 1) (.var 1)] :=
+  actual_declared_nullary_native_value_is_not_blocked441 bothSourceUse (by decide +kernel) rfl
+    closedSourceUse (by decide +kernel) rfl
+    ⟨List.mem_cons_self,List.mem_cons_self,List.mem_cons_self,List.mem_cons_self⟩
+
+#print axioms actual_native_source_has_old_DeepRead441
+
+open CommonRecursiveNominalIntervals (ContextWellFormed)
+open GeneralDeclarativeWitnessSparseIntervals357 (visited visitedList)
+open GeneralDeclarativeI65 (DeclaredComparison Compare)
+
+theorem actual_native_shape_is_wellFormed441 :
+    ContextWellFormed nativeCore.modes false authoredNative :=
+  .nominal rfl (.cons (.rowPoint false .covariant (.var 1))
+    (.cons (.valuePoint (.nominal rfl (.nil true))) (.nil false)))
+
+def genuineCompare : DeclaredComparison nativeEnv ordinary nativeCore.modes false authoredNative authoredNative where
+  actualSource := by
+    intro site tested
+    simp [authoredNative,rowArg,visited.eq_def,visitedList.eq_def] at tested
+    have casesOf : site = (9,2) ∨ site = (13,0) := by
+      simpa [or_assoc,or_comm,or_left_comm] using tested
+    rcases casesOf with first|second
+    · cases first
+      exact ⟨bothSourceUse,layout,by decide +kernel,rfl⟩
+    · cases second
+      exact ⟨closedSourceUse,[],by decide +kernel,rfl⟩
+  left := actual_native_shape_is_wellFormed441
+  right := actual_native_shape_is_wellFormed441
+  compared := by
+    let leaf : Compare ordinary nativeCore.modes true (.nominal 13 []) (.nominal 13 []) :=
+      .nominal rfl .nil
+    exact .nominal rfl (.cons (.covariantRow (by exact List.mem_cons_self)) (.cons
+      (.invariantValue leaf leaf leaf leaf) .nil))
+
+def nativeRequest : GeneralDeclarativeI65.Request := ⟨[71],roleDemand⟩
+def selectedWindow :
+    ModeWindow nativeCore (⟨0,0,0⟩ : Capture) (.app 9 [.var 6,.app 13 []]) :=
+  let o : Origin := ⟨0,[71],authoredNative⟩
+  ⟨o,o,.direct,.direct,List.mem_cons_self,List.mem_cons_self,9,[.var 6,.app 13 []],rfl,
+    _,_,rfl,rfl,genuineCompare⟩
+
+/-- Here the actual original fixed named SourceHead is available: the
+rigid value syntax and the actual declared native type agree, in contrast
+to scalar Int. This is not a newly dispatched role selection. -/
+def real_genuine_nullary_nominal_has_a_fixed_source_head441 :
+    SourceHead nativeCore nativeRequest nativeCandidate :=
+  .ordered captures (.cons
+    (.declared (found := [.row 6 (.var 1) (.var 1)])
+      selectedWindow actual_native_source_has_old_DeepRead441) .nil)
+
+#print axioms real_genuine_nullary_nominal_has_a_fixed_source_head441
+
+end Yulang.GeneralDeclarativeI65.I72.RefPositions441.NativeSampleQA
+```
