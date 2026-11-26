@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74OpaqueCallSite448
+
+open Yulang.GeneralDeclarativeI65.I72.Opaque448.Whole
+
+#print axioms exact_call_site_choice_iff_whole_wire448
+#print axioms exact_call_site_choice_in_same_model448
+#print axioms adding_hidden_rows_preserves_exact_call_site_reports448
+#print axioms fitting_visible_overlap_declines_every_new_wire448
+#print axioms original_root_K2_declines_every_new_wire448

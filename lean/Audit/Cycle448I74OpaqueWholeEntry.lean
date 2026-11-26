@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74OpaqueWholeEntry448
+
+open Yulang.GeneralDeclarativeI65.I72.Opaque448.Whole
+
+#print axioms all_earlier_witnesses_unchanged448
+#print axioms all_C447_witnesses_unchanged448
+#print axioms accepted_whole_wire_is_exact_choice448
+#print axioms independent_whole_choice_reifies_exact_report448
+#print axioms whole_wire_iff_exact_independent_report448
+#print axioms check_full_sound448

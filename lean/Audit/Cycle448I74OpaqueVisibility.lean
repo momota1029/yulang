@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74OpaqueVisibility448
+
+open Yulang.GeneralDeclarativeI65.I72.Opaque448.VisibleInput
+
+#print axioms scoped_visibility_exact448
+#print axioms same_owner_and_identity_use_existing_file_gate448
+#print axioms project_exact_order448
+#print axioms hidden_append_keeps_actual_source448
+#print axioms source_projection_reads_entire_original_role_list448
+#print axioms hidden_source_addition_keeps_same_full_problem448
+#print axioms scope_not_recoverable_from_erased_call448
