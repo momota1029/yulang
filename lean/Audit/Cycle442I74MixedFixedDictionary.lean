@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74MixedFixedDictionary442
+
+open Yulang.GeneralDeclarativeI65.I72.MixedFixed442
+#print axioms actual_replay_frame_keeps_its_own_head442
+#print axioms actual_mixed_replay_with_retention_is_original_dictionary442
+#print axioms actual_mixed_replay_with_existing_typed_companion_is_dictionary442
