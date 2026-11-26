@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74RetainedFresh445
+open Yulang.GeneralDeclarativeI65.I72.RetainedFull445
+#print axioms fits_respects_old_model_dependencies445
+#print axioms fresh_original_fits_extend_at_same_target445
+#print axioms every_old_read_is_covered445
+#print axioms check_fresh_exact445
+#print axioms matched_fresh_singleton_has_fit_if_old_fits445
