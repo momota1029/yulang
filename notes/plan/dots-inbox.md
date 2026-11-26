@@ -867,3 +867,15 @@ cycle 443 の `dots-cycle-443-no-false-rejection-design.md` を読んだ。全�
 5. 既存の `I72.State` / `Fits` / 証拠 / 規則 / checker / 固定声明は変えない。前の周のファイルから行を消さない（I-78）。
 6. G 一覧の各行を閉じる条件（(i) 独立な規則と保存・反映、(ii) data-only の checker、(iii) 同じ State の正確な報告と健全性の保存、witness の具体化）は、設計ノートのとおりでよい。一周一行、閉じられなければ未完のまま報告すること。
 7. `R_full` を spec §6 から書く途中で、spec が決めていない点に当たったら、質問ノートに書いて止まること（遅延案を先頭に）。監督役がユーザーに聞く。
+
+## I-82（2026-11-27）G00 を閉じる: 保持等式の writer、FullState 上の局所規則、`check_full` の最初の形
+
+cycle 444 の `FullState` / `FitsFull` / `fits_iff_fitsFull_liftState` と C442 の正負の対照を確認した。integration に入った（`dots-444`）。土台として受け入れる。次の周で G00 を閉じる。成果物は次の 3 つ。
+
+1. **writer（宣言側）**: 選択された実 Event から、その出力 plan どおりに保持等式を足す `retainSelected : FullState → (選択の証拠) → FullState`。保持行は Event の元の出現・宣言番号・出力番号・本文・固定先から作り、値やモデルを入力に取らない。`FitsFull (retainSelected s e) m ↔ FitsFull s m ∧ (e の固定先の等式が m で成り立つ)` を示す。既出の制約は上書きしない（連言のまま）。
+2. **局所規則と健全性**: G00 の局所規則（C442 の形: where なし・可視候補一つ・行を含む関連出力一つ）を `FullState` 上で定義し、`dictionary_sound` を I-65 と同じ外形で、ただし `Fits` の代わりに `FitsFull` で示す。旧規則 R21 からの持ち上げは `liftState` 経由で、旧の分類がそのまま成り立つことを示す（`local_Rn_case_in_full` の最初の一件）。
+3. **`check_full` の最初の形**: `check_full : FullProblem → Result → Witness → Bool` を、(a) 旧 witness は `liftState` で持ち上げた入力に対して旧 `check` と同じ Bool（全入力で）、(b) G00 の新しい分岐、の和として定義。`check_full_sound` を I-65 と同じ外形（`FitsFull` の全モデル）で示す。C442 の実 fixture で、保持等式を持つ正例が true、別 slot の代用・既出 Int との連言・保持なしが false になる対照を付ける。
+
+- `R_full` の全体はまだ書かない。この周の局所規則は、後で `R_full` の一つの節として入れられる形にしておくこと。
+- 既存の `I72.State` / `Fits` / 規則 / checker / 固定声明は変えない。前の周のファイルから行を消さない（I-78）。
+- 閉じる条件は I-81 の 6 のとおり。三つが揃わなければ、G00 は未完と報告すること。

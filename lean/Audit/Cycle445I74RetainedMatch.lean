@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74RetainedMatch445
+open Yulang.GeneralDeclarativeI65.I72.RetainedFull445
+#print axioms exact_shape_is_read445
+#print axioms shaped_rhs_exact_value445
+#print axioms stored_selection_means_iff_exact_targets445
+#print axioms stored_selection_fixed_targets445
+#print axioms read_stored_selection445
+#print axioms stored_selection_matches445

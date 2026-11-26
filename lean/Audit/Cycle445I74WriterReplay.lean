@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WriterReplay445
+open Yulang.GeneralDeclarativeI65.I72.RetainedFull445
+#print axioms writerStored445
+#print axioms selectedIntoEmptyBecomesLocal445
+#print axioms no_stored_row_is_no_new_selection445
+#print axioms no_exact_target_is_no_new_selection445
+#print axioms old_target_read_forbids_new_selection445
