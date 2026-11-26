@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74RetainedInputReplay445
+open Yulang.GeneralDeclarativeI65.I72.RetainedFull445
+#print axioms read_use_reconstructs_exact_placement445
+#print axioms read_output_reconstructs_actual_typed_body445
+#print axioms replay_original_input_from_finite_facts445
+#print axioms replay_selected_frame_from_finite_facts445
+#print axioms own_original_ref_reconstructs_checked_output445
+#print axioms readOwn_reconstructs_actual_source_output445
+#print axioms ready_source_exact_readSource445
+#print axioms ready_header_check445
+#print axioms ready_escape_check445
+#print axioms canonical_ready_supplies_witness445
