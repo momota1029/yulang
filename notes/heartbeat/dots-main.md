@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 428
-status: completed
-started: 2026-11-25T23:30:00.006Z
-updated: 2026-11-26T00:20:05.966Z
-elapsed_min: 50
-activity: C15 original ordered where proof and isolated replay verified; I-76 audit chain limitations recorded, no R15 coverage change; worker released
-report: notes/handoff/dots-cycle-428.md
+cycle: 429
+status: running
+started: 2026-11-26T00:30:57.000Z
+updated: 2026-11-26T00:31:25.829Z
+elapsed_min: 0
+activity: I-76 C427 Audit isolation; verify exact standalone production-only paths
+workspace: C429 exact source verification
+last_local_commit: none
+resume_hint: C15 actual named selected event and ordered WhereForest rooted in original source; no canonical installation unless exact C426 adopted.
