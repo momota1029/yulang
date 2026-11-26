@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 446
-status: running
+status: completed
 started: 2026-11-26T17:35:15.917Z
-updated: 2026-11-26T18:15:21.371Z
-elapsed_min: 40
-activity: 検証済み公開ソースを固定。全体ヘッダーが残る G00、旧経路不変、四つの入口回帰の終了報告を準備。
-workspace: /workspace/scratch/1d0b4aaa3394
-last_local_commit: none
-resume_hint: I-82 G00 independent raw witness; old checker unchanged.
+updated: 2026-11-26T18:25:26.519Z
+elapsed_min: 50
+activity: 通常終了・解放。raw K2 有限証人と同じ report の正しさを確認。G00 は公開ヘッダー条件が残る。
+report: notes/handoff/dots-cycle-446.md
