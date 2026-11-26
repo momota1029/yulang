@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 439
+cycle: 440
 status: completed
-started: 2026-11-26T10:30:18.000Z
-updated: 2026-11-26T11:20:29.289Z
+started: 2026-11-26T11:30:16.000Z
+updated: 2026-11-26T12:20:28.394Z
 elapsed_min: 50
-activity: C19 R19/check/check_sound and exact mergeAtoms; independent strict replay and normal actual >=50m; sole writer released.
-report: notes/handoff/dots-cycle-439.md
+activity: C20 actual R20/check/check_sound and strict exact focused replay; 50m normal gate; sole writer released.
+report: notes/handoff/dots-cycle-440.md

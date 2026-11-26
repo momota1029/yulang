@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74NestedInvariantRead440
+
+open Yulang.GeneralDeclarativeI65.I72.NestedInvariant440
+
+#print axioms raw_cover_reflects_every_actual_visit440
+#print axioms rawBounds_exact
+#print axioms replay440

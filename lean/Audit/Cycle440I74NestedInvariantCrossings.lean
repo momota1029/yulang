@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74NestedInvariantCrossings440
+
+open Yulang.GeneralDeclarativeI65.I72.NestedInvariant440
+
+#print axioms inner_inspect_exact440
+#print axioms wrapped_inspect_exact440
+#print axioms wellformed_inherited_inner440
+#print axioms declared_two_original_windows_compile_to_exact_four_families440
+#print axioms no_nested_int_float_comparison_in_same_full_assignment440

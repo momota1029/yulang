@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74NestedInvariantDepth440
+
+open Yulang.GeneralDeclarativeI65.I72.NestedInvariant440
+
+#print axioms arbitrary_declared_unary_prefix_preserves_inherited_admission440
+#print axioms compile_in_context_through_arbitrary_used_nominal_prefix440
+#print axioms every_depth_has_same_four_distinct_crossing_conditions440
+#print axioms actual_emitted_row_count440
+#print axioms arbitrary_used_nominal_prefix_semantic_four_crossings440

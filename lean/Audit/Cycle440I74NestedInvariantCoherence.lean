@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74NestedInvariantCoherence440
+
+open Yulang.GeneralDeclarativeI65.I72.NestedInvariant440
+
+#print axioms original_nested_same_visible_selection440
+#print axioms original_nested_same_fitting_bounds440
+#print axioms original_nested_fitting_center_values_agree440
+#print axioms two_accepted_nested_wires_agree440
