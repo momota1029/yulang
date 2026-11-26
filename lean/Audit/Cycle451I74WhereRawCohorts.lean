@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74WhereRawCohorts451
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451
+#print axioms check_side_sep_exact450
+#print axioms cooked_raw_alias_complement_has_precise_finite_witness450
+#print axioms exact_raw_pair_true450
+#print axioms exact_raw_pair_false450
+#print axioms key_reflects_raw_pair450
+#print axioms finite_whole_raw_class_table450

@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereCohortRead451
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451
+#print axioms attached_labels_preserve_entire_original_order451
+#print axioms actually_selected_parent_has_exact_finite_cohort_wire451
+#print axioms source_has_finite_exact_raw_cohort451
+#print axioms OriginalCohort.indexed
+#print axioms equal_label_links_actual_child_roots451
