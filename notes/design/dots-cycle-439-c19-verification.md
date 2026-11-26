@@ -256,3 +256,93 @@ end Yulang.C439MergedAudit
 Classical.choice,
  Quot.sound]
 ```
+
+## Semantic controls for exact source parameters and equalities
+
+The following independent strict checks are reproducible from the same published production objects. They add no proof premises, public audits, or accepted shape. First check the standalone source below; it proves the original nullary compiler demands are unchanged if we choose arbitrary fallback capture and compound-argument table. Those parameters are genuinely unused for closed literal output equations and no unnamed inputs.
+
+```lean
+import Yulang.GeneralDeclarativeI65I74MergedOutputEquation439
+namespace Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+open GeneralDeclarativeI65
+open GeneralDeclarativeWhere319 (Capture)
+
+theorem closed_where_demands_ignore_the_fallback_capture439 {s q} (a : Original439 s q)
+    (unused : Nat → Capture) (compound : GeneralDeclarations.Clause → Nat → Capture) :
+    frameWhereKids400 {a.frame with input := unused, placement := {a.frame.placement with compound := compound}} = frameWhereKids400 a.frame := by
+  simp [frameWhereKids400,AuthoredBodyFrame393.clauses,AuthoredBodyFrame393.whereFor,
+    a.originalClauses,GeneralDeclarativeSourceEmission322.demand,GeneralDeclarativeSourceEmission322.inputs,
+    GeneralDeclarativeSourceEmission322.useOutput,GeneralDeclarationDemands.outputTarget,
+    a.firstArgs,a.lastArgs,a.firstOutput,a.lastOutput,a.firstRhs,a.lastRhs,
+    GeneralDeclarationPatterns.normalize,GeneralDeclarationPatterns.normalizeArgs]
+
+#print axioms closed_where_demands_ignore_the_fallback_capture439
+end Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+```
+```text
+'Yulang.GeneralDeclarativeI65.I72.MergedOutput439.closed_where_demands_ignore_the_fallback_capture439' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+```
+
+The next suffix uses the exact EndToEnd Audit, with its Entry import replaced in the input stream by the published Equation module (which imports it). It verifies the actual two atoms are the two directions between the two original cells 1 and 2. The last suffix uses the exact unmodified EndToEnd Audit import set and verifies that with actually distinct authored associated names, the two literal source demands still exist but the established merger emits no equality. Those controls are not substitutes for the original branch's pre-merge fitting model or all-model negative proof.
+
+```lean
+namespace Yulang.C439MergedAudit
+open GeneralDeclarativeI65.I72.MergedOutput439
+open GeneralNominalDemandMerging (outputAtoms)
+open PresenceNormalForm (Atom)
+
+theorem actual_pinned_conflict_emits_both_directions_at_original_cells439 :
+    outputAtoms (projectNullarySite439 original true) (projectNullarySite439 original false) =
+      [Atom.tyLe (.var 1) (.var 2),Atom.tyLe (.var 2) (.var 1)] := by
+  rw [emitted_merge_equations_are_exact439]
+  decide +kernel
+
+#print axioms actual_pinned_conflict_emits_both_directions_at_original_cells439
+end Yulang.C439MergedAudit
+```
+```text
+Classical.choice,
+ Quot.sound]
+```
+
+```lean
+namespace Yulang.C439MergedAudit
+open GeneralDeclarativeI65
+open GeneralDeclarativeI65.I72
+open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry point)
+open GeneralNominalDemandMerging (Site outputAtoms)
+
+def namesControlFrame : AuthoredBodyFrame393 withRenamed.state.core request :=
+  frameAtSource395 (row := renamedParent) (by decide +kernel) 0 (by decide +kernel)
+    ⟨fun _ _ => point 0,fun c _ => if c.id = 42 then 1 else 2⟩ (fun _ => point 0)
+
+abbrev namesControlRoles := (authoredRegistry withRenamed.state.core.current).roles
+
+def leftDifferent : Site namesControlRoles :=
+  ⟨⟨42,⟨1,fun _ => (0,0),[⟨0,1⟩], by
+    intro output position
+    obtain rfl := List.mem_singleton.mp position
+    exact ⟨none,rfl⟩⟩⟩,[],rfl⟩
+
+def rightDifferent : Site namesControlRoles :=
+  ⟨⟨44,⟨1,fun _ => (0,0),[⟨1,2⟩], by
+    intro output position
+    obtain rfl := List.mem_singleton.mp position
+    exact ⟨none,rfl⟩⟩⟩,[],rfl⟩
+
+theorem distinct_authored_named_outputs_emit_no_equality439 :
+    frameWhereKids400 namesControlFrame =
+      [⟨[7,0],⟨1,[],leftDifferent.occurrence.demand.outputs⟩⟩,
+       ⟨[7,1],⟨1,[],rightDifferent.occurrence.demand.outputs⟩⟩] ∧
+    outputAtoms leftDifferent rightDifferent = [] :=
+  ⟨rfl,by decide +kernel⟩
+
+#print axioms distinct_authored_named_outputs_emit_no_equality439
+end Yulang.C439MergedAudit
+```
+```text
+Classical.choice,
+ Quot.sound]
+```
