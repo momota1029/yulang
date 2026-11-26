@@ -1,0 +1,12 @@
+# C439: exact connection to the existing merged-demand equations
+
+This supplements the verified scoped C19 entry already published at `544c3635816a8e21e46311d88b3758e5add91814`. It changes none of that entry, any existing source, or the public witness. The two actual ordered child requests determine the two projections to the existing `GeneralNominalDemandMerging` operation. The parent declaration's checked signature and the original written child clause establish zero role arity and attached output name. The old site's numeric display identity in these projections is the original clause ID; it is not a claim about historical physical allocation or the execution journal. The merge operation reads just the actual role/inputs and output names/cells.
+
+`sites_project_exact_ordered_requests439` keeps both original occurrence locations and the canonical representative concatenation. `emitted_nullary_sites_have_same_inputs439` uses the actual zero-input pair. `emitted_merge_equations_are_exact439` computes the existing `outputAtoms` on those projected requests: exactly the ordinary equality atoms of the first fixed target and the last fixed target. The all-model equivalence to the new head's same-named equation is `actual_output_merge_atoms_mean_same_named_equation439`; `accepted_merged_report_rules_out_old_operation_atoms439` means every fitting model fails those actual emitted equality atoms when the new public checker accepts the report. This is not a run or proof about old solver termination, and neither assumes original model emptiness nor emits a new scope case.
+
+```text
+97e9d81ee853c96bfbfcbae0d29c9d95e9e07265  lean/Yulang/GeneralDeclarativeI65I74MergedOutputEquation439.lean
+45ad3f506ee6b623644b83f19b84abdaad963f45  lean/Audit/Cycle439I74MergedOutputEquation.lean
+```
+
+Independent official Lean 4.35.0 `--trust=0 -DwarningAsError=true` compiled the module via `-o` and separately checked its Audit file from a clean working directory with a production-only dependency cache; exit 0 for both, 5 standard-only axiom rows. Total new public source: 5 production modules / 6 Audit files and 33 standard-only axiom results. Prior exact I74 entry and tests unchanged. The independently rechecked **initial C439 public** import slice was 4,076/4,076 exact authoritative source blobs from already-built production provenance, not a fresh complete rebuild. The earlier 4,075 number refers to the pre-header-extension dependency roots, not that published slice.

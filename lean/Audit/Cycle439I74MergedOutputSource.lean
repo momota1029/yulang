@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74MergedOutputSource439
+
+open Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+#print axioms report_summarizes_merged_rejection439
+#print axioms same_unnamed_inputs_on_original_children439
+#print axioms literal_forest_cannot_shorten_to_merged_child439
+#print axioms producer_rows_give_separate_meanings_and_merge_conflicts439
+#print axioms no_fitting_extension_equalizes_the_named_output439
+#print axioms source_codes_and_compiler_rows439

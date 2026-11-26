@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74MergedOutputEquation439
+
+open Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+#print axioms sites_project_exact_ordered_requests439
+#print axioms emitted_nullary_sites_have_same_inputs439
+#print axioms emitted_merge_equations_are_exact439
+#print axioms actual_output_merge_atoms_mean_same_named_equation439
+#print axioms accepted_merged_report_rules_out_old_operation_atoms439
