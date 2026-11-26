@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 434
-status: running
+status: completed
 started: 2026-11-26T05:34:21.000Z
-updated: 2026-11-26T06:19:02.372Z
-elapsed_min: 44
-activity: C17 source, fixed-goal and unchanged prior public entry verified; latest I-78 unchanged at preflight; final exact report forthcoming at normal elapsed gate.
-workspace: C434 exact source verification
-last_local_commit: none
-resume_hint: C17 original unfinished associated producer and pending, retaining raw K2 priority.
+updated: 2026-11-26T06:24:24.775Z
+elapsed_min: 50
+activity: C17 R17 literal R pending closed on work; detached replay PASS; normal 50 min elapsed; sole worker released.
+report: notes/handoff/dots-cycle-434.md
