@@ -801,3 +801,10 @@ cycle 320〜333 で、(4) の残り 1 本はずっと同じ形だった。「独
   4. そのうえで C14 を閉じる（`R14`、`check` の分岐、`check_sound`）。元の B6 本体の右辺の射影（cycle 422 の `original_B6_binder_yields_required_projection_and_exact_addresses422`）を、同じ binder の固定出力につなぐ。
 - 固定先にその値がすでに保持されていることを別に示す必要があるなら、それも C14 の一部として扱う。
 - 言語の受理範囲は変えない（spec 6.5 の決定どおり）。端点からの選択で spec が決めていない場合に当たったら、質問ノートにして止める。
+
+## I-76（2026-11-26）独立 Audit は他の Audit を import しない（cycle 427 が統合で落ちた）
+
+- cycle 427（`0e2b724e9`）は統合の検査で失敗した。`lean/Audit/Cycle427I74StructuralWhereForest.lean`・`…Readback.lean`・`…Visits.lean` が、別の Audit ファイルを `import «Cycle427I74StructuralWhereReadback»` / `import «Cycle427I74StructuralWhereSameRole»` の形で読んでいる。監督役の検査は各 Audit を単独で `lean` にかけるので、`unknown module prefix` で止まる。cycle 427 はまだ integration に入っていない。
+- 決まり: **`lean/Audit/` のファイルは、`Yulang.*` のモジュールだけを import する。** 別の Audit ファイルを、どの書き方（`Audit.X`、`«X»`、裸の名前）でも import しない。共有したい補題や定義は `lean/Yulang/` の新しいモジュールに置き、`lean/Yulang.lean` の末尾に import を足す。
+- 次の周でやること: 上の 3 ファイルを、`Yulang.*` だけを import する形に直す（必要な共有部分は新しい `lean/Yulang/…427….lean` か次の周のモジュールへ）。cycle 427 の Lean はまだ integration にないので、これらの Audit を書き直してよい。直したら、各 Audit を単独で `lean --trust=0 -DwarningAsError=true` にかけて、終了コード 0 を確かめること。
+- 監督役は、この形の import も検出するように検査を広げる。
