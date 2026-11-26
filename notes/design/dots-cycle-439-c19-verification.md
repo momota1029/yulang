@@ -484,3 +484,42 @@ end Yulang.GeneralDeclarativeI65.I72.MergedOutput439
  Classical.choice,
  Quot.sound]
 ```
+
+## No hidden successful parent output
+
+Using the actual existing compiler's `fixed_targets` theorem, the independent source certificate itself (not just the executable guard) proves the parent has no requested associated writes. After an accepted report there are exactly the two original emitted requests, and no report writes. This independently explains why the scoped report may keep one merged diagnostic without hiding a root output or a distinct source child. Optional strict standalone stdin, not an extra checked production file.
+
+```lean
+import Yulang.GeneralDeclarativeI65I74MergedOutputEquation439
+
+namespace Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+open GeneralDeclarativeI65
+open Checker408 (Problem Result)
+
+theorem source_certificate_has_no_hidden_parent_outputs439 {s q}
+    (a : Original439 s q) : q.demand.outputs = [] := by
+  have fixed := GeneralDeclarativeWitnessCompiler350.fixed_targets a.executed
+  rw [a.compilerNoFixed,a.compilerRequest] at fixed
+  simpa using fixed.symm
+
+theorem successful_check_exposes_two_source_requests_but_no_hidden_root_writes439
+    (p : Problem) (r : Result) (w : Wire439)
+    (ok : check p r (.mergedOutput w) = true) :
+    ∃ a : Original439 p.state p.root,
+      p.root.demand.outputs = [] ∧ r.writes = [] ∧ (frameWhereKids400 a.frame).length = 2 := by
+  obtain ⟨a,_,report⟩ := checked_merged_replay_matches_exact_tree439 ok
+  exact ⟨a,source_certificate_has_no_hidden_parent_outputs439 a,
+    congrArg (fun r : Result => r.writes) report,congrArg List.length a.exactKids⟩
+
+#print axioms source_certificate_has_no_hidden_parent_outputs439
+#print axioms successful_check_exposes_two_source_requests_but_no_hidden_root_writes439
+end Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+```
+```text
+'Yulang.GeneralDeclarativeI65.I72.MergedOutput439.source_certificate_has_no_hidden_parent_outputs439' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.I72.MergedOutput439.successful_check_exposes_two_source_requests_but_no_hidden_root_writes439' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+```
