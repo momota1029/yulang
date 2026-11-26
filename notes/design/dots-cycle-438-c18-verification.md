@@ -269,3 +269,69 @@ counterfactual real fixture exit 0
  Quot.sound]
 
 ```
+
+## Extra runtime and scope readback
+
+The exact EndToEnd input stream can also evaluate the public Bool directly (the addition is **not** in the Audit source; no production metaprogramming). A fourth and fifth result on the reconstructed raw-cycle State distinguish the new and previous branches:
+
+```lean
+open Yulang.C438CompletedEntryAudit
+open Yulang.GeneralDeclarativeI65.I72 Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+#eval [check problem desired (.completedLower wire),
+  check problem desired (.completedLower {wire with seedRetainedRow := 1}),
+  check problem desired (.completedLower {wire with centerOrigin := 3}),
+  check certifiedRawProblem desired (.completedLower wire),
+  check certifiedRawProblem Check408.rawReport originalRawWitness]
+```
+
+Output under the same Lean 4.35 strict stdin command: `[true, false, false, false, true]`, exit 0.
+
+One more independent strict stdin control checks, for every accepted new report, that no where requests or actual output can be hidden by the empty report (the exact `WhereForest` is empty) and that the seed frame reads the selected book declaration and original B6 plan at its own ordinal, not a coincident body:
+
+```lean
+import Yulang.GeneralDeclarativeI65I74CompletedLowerEntry438
+import Yulang.GeneralDeclarativeI65I74CompletedLowerSameModel438
+
+set_option backward.isDefEq.respectTransparency false
+namespace Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+open GeneralDeclarativeI65
+open Checker408 (Problem Result)
+open GeneralDeclarativeWitnessDeclaredState357 (authoredRegistry)
+
+private theorem where_forest_empty_tree_has_no_requests438
+    {s : I72.State} {requests}
+    (f : WhereForest PriorSource406 s requests []) :
+    requests = [] := by
+  cases f
+  rfl
+
+theorem exact_completed_report_has_no_hidden_children_or_writes438
+    (p : Problem) (r : Result) (w : Wire438)
+    (yes : check p r (.completedLower w) = true) :
+    ∃ a : Replay438 p.state p.root w,
+      r = a.selected.report ∧ a.selected.invocation.kids = [] ∧ p.root.demand.outputs = [] ∧ r.writes = [] := by
+  obtain ⟨a,_,same⟩ := checked_completed_reads_exact_report438 yes
+  exact ⟨a,same,where_forest_empty_tree_has_no_requests438 a.selected.invocation.children,
+    a.noOutputs,congrArg (fun r : Result => r.writes) same⟩
+
+theorem exact_seed_frame_reads_selected_visible_declaration_and_literal_B6438
+    {s q ordinal} (a : SeedReplay438 s q ordinal) :
+    (authoredRegistry s.core.current).declarations[a.basis.frame.ordinal]? = some a.row ∧
+    s.b6.read q a.basis.frame.ordinal a.read.i (a.outputs a.read.i).body =
+      some (a.outputs a.read.i).plan ∧
+    a.read.kept.payload.rowOrdinal = ordinal :=
+  ⟨a.basis.inRegistry,(a.outputs a.read.i).originalTyped,a.exactRow⟩
+
+#print axioms exact_completed_report_has_no_hidden_children_or_writes438
+#print axioms exact_seed_frame_reads_selected_visible_declaration_and_literal_B6438
+end Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+```
+
+```text
+'Yulang.GeneralDeclarativeI65.I72.CompletedEntry438.exact_completed_report_has_no_hidden_children_or_writes438' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.GeneralDeclarativeI65.I72.CompletedEntry438.exact_seed_frame_reads_selected_visible_declaration_and_literal_B6438' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+```
