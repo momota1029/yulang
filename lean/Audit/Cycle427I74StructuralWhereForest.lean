@@ -1,11 +1,11 @@
 import Yulang.GeneralDeclarativeI65I74StructuralWhereForest427
-import «Cycle427I74StructuralWhereReadback»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereAuditSupport429
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 3000
 namespace Yulang.GeneralDeclarativeI65.I72.StructuralWhereForest427
 open GeneralDeclarativeI65
-open StructuralWhere427 StructuralWhereSameRole427 StructuralWhereReadback427
+open StructuralWhere427 StructuralWhereAuditFixture429 StructuralWhereReadback427
 open GeneralDeclarativeWitnessDeclaredState357 (point)
 open GeneralDeclarations (Clause Declaration)
 open GeneralDeclarativeEmissionForest322 (Placement)

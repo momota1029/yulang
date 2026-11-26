@@ -1,25 +1,13 @@
 import Yulang.GeneralDeclarativeI65I74StructuralWherePairRead427
-import «Cycle427I74StructuralWhereSameRole»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereAuditSupport429
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 2400
 namespace Yulang.GeneralDeclarativeI65.I72.StructuralWhereReadback427
 open GeneralDeclarativeI65
 open StructuralWhere427
-open StructuralWhereSameRole427
+open StructuralWhereAuditFixture429
 open GeneralDeclarativeWitnessDeclaredState357 (point)
-
-def emptyEscape : List410.ExactEscapeWire := ⟨[0,1,2,3,4],[2,2,0,2,2]⟩
-def rootHeadWire : PositiveHeadWire427 :=
-  ⟨0,0,2,parentEscape,nestedEscape,emptyEscape,.nested 1 2 scalarEscape emptyEscape⟩
-def leafHeadWire : PositiveHeadWire427 :=
-  ⟨1,5,2,childEscape,scalarEscape,emptyEscape,.scalar 3⟩
-def positiveWire : PositivePairWire427 :=
-  ⟨rootHeadWire,4,leafHeadWire,blockedBase,blockedCompound⟩
-theorem positiveWire_some :
-    (readOriginalPositivePair427 fixture.state.core fixture.root positiveWire).isSome = true := by decide +kernel
-def rebuilt : ReadPositivePair427 fixture.state.core fixture.root :=
-  (readOriginalPositivePair427 fixture.state.core fixture.root positiveWire).get positiveWire_some
 
 theorem executable_original_where_rebuilds_exact_child_and_center427 :
     rebuilt.frame.decl.id = 218 ∧ rebuilt.childFrame.decl.id = 219 ∧

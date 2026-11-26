@@ -1,11 +1,11 @@
 import Yulang.GeneralDeclarativeI65I74StructuralWhereVisit427
-import «Cycle427I74StructuralWhereReadback»
+import Yulang.GeneralDeclarativeI65I74StructuralWhereAuditSupport429
 
 set_option backward.isDefEq.respectTransparency false
 set_option maxRecDepth 3000
 namespace Yulang.GeneralDeclarativeI65.I72.StructuralWhereVisits427
 open GeneralDeclarativeI65
-open StructuralWhere427 StructuralWhereSameRole427 StructuralWhereReadback427
+open StructuralWhere427 StructuralWhereAuditFixture429 StructuralWhereReadback427
 open GeneralDeclarativeInspect321 (PatternK2 Visit)
 open GeneralDeclarativeGraphRows321 (observed structural)
 open GeneralDeclarativeK2Alias321 (AliasCycle)
