@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74StructuralWhereReceiptRefinement433
+
+open Yulang.GeneralDeclarativeI65.I72.WhereAssociated432
+
+#print axioms checked_associated_report_replays_actual_data433
+#print axioms checked_associated_report_keeps_ordered_source_trace433
+#print axioms checked_associated_report_uses_child_in_same_model433
+#print axioms previous_R15_entry_is_identical432
+#print axioms check_sound
+#print axioms checked_associated_report_evaluates_exact_parent_rhs433
+#print axioms checked_associated_report_preserves_both_raw_roots433
