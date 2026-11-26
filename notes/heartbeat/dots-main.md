@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 426
-status: completed
-started: 2026-11-25T21:30:34.994Z
-updated: 2026-11-25T22:20:40.471Z
-elapsed_min: 50
-activity: R14 C14 verified: dictionary sound, executable projected write, exact check and old regressions; worker released.
-report: notes/handoff/dots-cycle-426.md
+cycle: 430
+status: running
+started: 2026-11-26T01:31:03.000Z
+updated: 2026-11-26T01:35:58.083Z
+elapsed_min: 4
+activity: Exact 41-path combined supervisor projection published; 16 isolated audits exit 0
+workspace: C430 exact source verification
+last_local_commit: none
+resume_hint: I-76 verification: import C427 production-only closure and run each Audit singly; use the C427-only manifest, not the cumulative C428 history. No public R15.
