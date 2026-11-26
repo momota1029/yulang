@@ -425,3 +425,62 @@ end Yulang.GeneralDeclarativeI65.I72.MergedOutput439
  Classical.choice,
  Quot.sound]
 ```
+
+## Explicit feasible family, not an assumption about all inputs
+
+The verified exact P/R fixture gives a pre-merge model; the universal diagnostic theorem is conditional on any fitting model of the original State. For the closed three-row profile, the following general cut constructs the fitting model itself. Empty ordinary-normal constraints/authored nominal rows plus exact source-origin types are explicit in this cut; we do not assert such a model exists for every raw input to the public checker. The semantic contradiction caused by those two actual merge atoms remains a separate theorem. The following exact standalone stdin proof passed with the same strict flags.
+
+```lean
+import Yulang.GeneralDeclarativeI65I74MergedOutputEquation439
+
+namespace Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+open GeneralDeclarativeI65
+open GeneralDeclarativeHead320 (Equation environment)
+open CommonNominalFullCarrier (Equivalent subtype_refl variant)
+
+def feasibleUnmergedModel439 {s q} (a : Original439 s q) : I72.Model :=
+  ⟨fun n => ((if n = a.rightCell then variant 0 (.base .int) else .base .int),Common.rowEmpty),
+    fun _ => none,
+    fun n => if n = a.rootCell then some (.ordinary (.base .int)) else none⟩
+
+/-- No hidden existential premise is used for the closed fixture
+profile. The data make the model explicit before imposing any
+merge equality. This is not a claim about arbitrary raw states
+admitted by a scoped diagnostic witness. -/
+theorem original_closed_rows_profile_has_model439 {s q} (a : Original439 s q)
+    (normalTypes : s.core.current.ordinary.normal.ordinary = [])
+    (normalRows : s.core.current.ordinary.normal.intervals = [])
+    (retained : s.core.current.ordinary.equations =
+      [⟨a.rootCell,intCode⟩,⟨a.leftCell,intCode⟩,⟨a.rightCell,tickCode⟩])
+    (visibleOnlyOrigins : s.core.current.visible = [])
+    (sources : ∀ o ∈ s.core.origins, o.slot = a.rootCell ∧ o.endpoint = .ordinary (.base .int)) :
+    Fits s (feasibleUnmergedModel439 a) := by
+  refine ⟨⟨⟨⟨?_,?_⟩,?_⟩,?_⟩,?_⟩
+  · intro x member; rw [normalTypes] at member; cases member
+  · intro x member; rw [normalRows] at member; cases member
+  · intro row selected
+    rw [retained] at selected
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at selected
+    rcases selected with rfl|rfl|rfl
+    · change Equivalent (if a.rootCell = a.rightCell then variant 0 (.base .int) else .base .int) (.base .int)
+      rw [ite_eq_right a.rootRightDistinct]
+      exact ⟨subtype_refl _,subtype_refl _⟩
+    · change Equivalent (if a.leftCell = a.rightCell then variant 0 (.base .int) else .base .int) (.base .int)
+      rw [ite_eq_right a.distinctCells]
+      exact ⟨subtype_refl _,subtype_refl _⟩
+    · change Equivalent (if a.rightCell = a.rightCell then variant 0 (.base .int) else .base .int) (variant 0 (.base .int))
+      rw [ite_eq_left rfl]
+      exact ⟨subtype_refl _,subtype_refl _⟩
+  · intro x member; rw [visibleOnlyOrigins] at member; cases member
+  · intro o member
+    obtain ⟨slot,ty⟩ := sources o member
+    simp [feasibleUnmergedModel439,slot,ty]
+
+#print axioms original_closed_rows_profile_has_model439
+end Yulang.GeneralDeclarativeI65.I72.MergedOutput439
+```
+```text
+'Yulang.GeneralDeclarativeI65.I72.MergedOutput439.original_closed_rows_profile_has_model439' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+```
