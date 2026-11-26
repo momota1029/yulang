@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74SplitBoundRank446
+open Yulang.GeneralDeclarativeI65.I72.SplitEscape446
+#print axioms mask_lt_two_power446
+#print axioms mask_mono446
+#print axioms mask_eq_at_each_name446
+#print axioms nontrivial_bound_inside_support446
+#print axioms bound_grade_monotone446
+#print axioms equal_active_grades_are_exact_SCC446
+#print axioms active_grade_bounded446

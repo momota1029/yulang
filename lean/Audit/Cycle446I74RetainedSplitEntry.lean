@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74RetainedSplitEntry446
+open Yulang.GeneralDeclarativeI65.I72.RetainedSplit446
+#print axioms all_C445_Bool_unchanged446
+#print axioms all_R21_Bool_unchanged446
+#print axioms check_full_sound446
+#print axioms exact_source_read_reifies_split_safe_witness446
+#print axioms original_selected_site_is_raw_safe446
+#print axioms canonical_local_has_split_witness446
+#print axioms independent_local_and_header_have_exact_witness446
