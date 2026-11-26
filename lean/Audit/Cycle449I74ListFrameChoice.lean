@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ListFrameChoice449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449.Frame
+
+#print axioms independent_list_frame_replays_exactly449
+#print axioms actual_single_declaration_list_frame_is_settled449

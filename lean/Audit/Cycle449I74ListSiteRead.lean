@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ListSiteRead449
+
+open Yulang.GeneralDeclarativeI65.I72.ListSites449
+
+#print axioms checked_list_footprint_is_actual449
+#print axioms read_derived_list_exact449
+#print axioms independent_list_has_exact_per_site_wire449
