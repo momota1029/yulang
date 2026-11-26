@@ -335,3 +335,111 @@ end Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
  Classical.choice,
  Quot.sound]
 ```
+
+## Original declaration address vs identical retained rows
+
+Two modest extra controls, again only in the stdin stream of the original EndToEnd Audit. The original typed plan moved to declaration ordinal 1 is present at that address and absent at original declaration ordinal 0; the public check is false even though raw rows and source book stay the same. Conversely, adding another literally identical retained row for the same actual typed output lets either exact address pass with the same result; it is the wrongly encoded decoy row that still fails. Neither control says the physical row of an original declared output is globally unique. The actual source declaration/output occurrence is never moved.
+
+```lean
+namespace Yulang.C438CompletedEntryAudit
+open GeneralDeclarativeI65
+open GeneralDeclarativeI65.I72
+open GeneralDeclarativeI65.I72.CompletedEntry438
+open Checker408 (Problem)
+open GeneralDeclarationPatterns (normalize)
+open GeneralDeclarativeOutputs320 (bodyPattern)
+
+def swappedDeclarationAtlas : B6OccurrenceAtlas401 core :=
+  ⟨fun q d i b => atlas.read q (if d = 1 then 0 else 1) i b⟩
+
+def wrongDeclarationProblem : Problem := ⟨⟨core,swappedDeclarationAtlas⟩,query⟩
+
+theorem same_typed_B6_at_wrong_decl_is_not_original438 :
+    swappedDeclarationAtlas.read seedRequest 1 seedIndex originalBody = some originalPlan ∧
+    swappedDeclarationAtlas.read seedRequest 0 seedIndex originalBody = none ∧
+    check wrongDeclarationProblem desired (.completedLower wire) = false := by
+  refine ⟨rfl,rfl,?_⟩
+  decide +kernel
+
+def duplicateRaw : GeneralDeclarativeHead320.State :=
+  {raw with equations := raw.equations ++ [output0]}
+
+def duplicatedCore : GeneralDeclarativeI65.State :=
+  { core with current := { core.current with ordinary := duplicateRaw } }
+
+def duplicatePlan : B6MixedRhs401 duplicatedCore false (normalize (bodyPattern originalBody)) :=
+  .declaredApp (params := [coValue]) 20 mode (by decide +kernel) (by decide +kernel)
+    (.cons (.valuePoint 8 rfl (by decide +kernel) ()) .nil)
+
+def duplicatedAtlas : B6OccurrenceAtlas401 duplicatedCore :=
+  ⟨fun q d i b =>
+    match q.demand.arguments, q.demand.outputs with
+    | [a],[o] =>
+      if q.occurrence = [101] ∧ q.demand.role = 11 ∧ a.lower = 10 ∧ a.center = 10 ∧ a.upper = 10 ∧
+          o.name = 6 ∧ o.target = 40 ∧ d = 0 ∧ i.val = 0 then
+        if source : b = originalBody then some (source.symm ▸ duplicatePlan) else none
+      else none
+    | _,_ => none⟩
+
+def duplicatedReceiptProblem : Problem := ⟨⟨duplicatedCore,duplicatedAtlas⟩,query⟩
+
+theorem literal_duplicate_row_can_be_read_without_changing_report438 :
+    check duplicatedReceiptProblem desired (.completedLower wire) = true ∧
+    check duplicatedReceiptProblem desired (.completedLower { wire with seedRetainedRow := 2 }) = true ∧
+    check duplicatedReceiptProblem desired (.completedLower { wire with seedRetainedRow := 1 }) = false := by
+  decide +kernel
+
+#print axioms same_typed_B6_at_wrong_decl_is_not_original438
+#print axioms literal_duplicate_row_can_be_read_without_changing_report438
+end Yulang.C438CompletedEntryAudit
+```
+
+```text
+'Yulang.C438CompletedEntryAudit.same_typed_B6_at_wrong_decl_is_not_original438' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'Yulang.C438CompletedEntryAudit.literal_duplicate_row_can_be_read_without_changing_report438' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+
+```
+
+## The same lower name in one fitting model
+
+If two independently derived new selections for the same original demand use different literal producer receipts, their values are equivalent in any one fitting model: both receipts interpret that request's same original lower target. This is after selection, and does **not** replace any source, choose one receipt from semantics, or imply identical names. The following isolated strict stdin run passed using the exact published production import only.
+
+```lean
+import Yulang.GeneralDeclarativeI65I74CompletedLowerEntry438
+
+namespace Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+open GeneralDeclarativeI65
+open Checker408 (Problem Result)
+open CommonNominalFullCarrier (Ty Equivalent subtype_trans)
+
+/-- An equality of meanings after both separately justified
+selections, not permission to use the other source's ordinal or
+infer a second selected event. Distinct payload names are allowed. -/
+theorem public_two_literal_completions_agree_in_one_model438
+    {s q} (a b : Selected18 s q) (m : I72.Model) (fit : Fits s m) :
+    ∃ lo hi : Ty,
+      let outA := a.invocation.chosen.producer.event.outputs a.invocation.chosen.need.ordinal
+      let outB := b.invocation.chosen.producer.event.outputs b.invocation.chosen.need.ordinal
+      outA.receipt.actualEquation m = some (a.invocation.chosen.gate.arg.lower,lo) ∧
+      outB.receipt.actualEquation m = some (b.invocation.chosen.gate.arg.lower,hi) ∧
+      Equivalent lo hi := by
+  obtain ⟨lo,_,_,first,leftValue⟩ := completed_head_has_literal_original_meaning438 a.head m fit
+  obtain ⟨hi,_,_,second,rightValue⟩ := completed_head_has_literal_original_meaning438 b.head m fit
+  have same := congrArg GeneralDeclarativeWhere319.Capture.lower
+    (List.cons.inj (a.invocation.chosen.gate.exactArg.symm.trans b.invocation.chosen.gate.exactArg)).1
+  rw [← same] at rightValue
+  exact ⟨lo,hi,first,second,subtype_trans leftValue.2 rightValue.1,subtype_trans rightValue.2 leftValue.1⟩
+
+#print axioms public_two_literal_completions_agree_in_one_model438
+end Yulang.GeneralDeclarativeI65.I72.CompletedEntry438
+```
+
+```text
+'Yulang.GeneralDeclarativeI65.I72.CompletedEntry438.public_two_literal_completions_agree_in_one_model438' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+```
