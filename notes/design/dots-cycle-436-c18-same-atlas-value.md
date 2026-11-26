@@ -1,0 +1,10 @@
+# C436 / I-79: 保持行は B6 の元の plan と同じ値を読む
+
+**訂正（cycle 436）:** `dots-cycle-436-c18-additive-carrier.md` の低い receipt 説明の括弧内に declarationOrdinal を含めたが、固定 blob `7db6d0b9…` の `NamedMixedReceipt401` 本体は **occurrence / outputOrdinal / original / body / slots / rhs** の 6 フィールド。宣言番号は high 側の actual producer `event.frame.ordinal`、実 authored registry lookup、および `NamedMixedOutput401.originalTyped` の索引で保持する。低い payload にこのフィールドを合成しない。`NamedMixedReceipt` の型つき本文とモデル上の値だけから元宣言番号を復元するのも不可。保持行番号は新しい下位 payload の別のフィールド。
+
+この区別を使い、retention を単に同じ非型付き nominal code の評価に落とさず、**その producer の元の B6 plan 自体の値**に接続する。以下は同じ source 宣言名と索引を照合した証明設計で、Lean 未コンパイル。
+
+- (n = leaf.event.chosen.need)、(E = leaf.event.chosen.producer.event)、(i = n.ordinal)、(out = E.outputs,i)、(L = leaf.event.chosen.gate.arg.lower)。 `PreselectedUnary406.producer` は `SupportForest.atOriginal` が得た元 producer の同一 trace（`415ea52a…`）で、`out.receipt = n.expected`。上位の leaf の保持行 witness は `n.expected` そのものに索引付けされる。
+- 任意の同じモデル m について、`named_mixed_output_is_fixed_equation401 out m` (blob `7db6d0b9…` 235–241) はその元の plan の `evaluateMixedRhs401 (sourceRead401 m (E.frame.slots out.body)) out.plan = some v₁` と `out.receipt.actualEquation m = some (n.producer.demand.outputs[i].target,v₁)` を与える。 `out.originalTyped` は `s.b6.read n.producer E.frame.ordinal i out.body = some out.plan`。
+- exact lower meaning（`fixed_value_code_same_model403` + retained ordinal row + `Fits`）は `n.expected.actualEquation m = some (L,v₂)` と `Equivalent (m.assignment L).1 v₂` を与える。上記 sameTypedOutput で **全 receipt** を輸送し、`Option.some.inj` と `congrArg Prod.snd` を使うと (v₁=v₂)。結果として同じ 元 B6 plan の評価と L の同じ-model 固定値が揃う。別の authored plan、同じ head tag の異なる payload、model-equivalent だが name が違う行に切り替えない。
+- theorem の予定名は `lower_keeps_actual_B6_value436`。各 `Fits s m` に対し同じ producer 元 request / declaration / output / body の atlas lookup 、original plan evaluation、保持行の value と fixed target equivalence の四つを返す。新 `DictionaryEvidence.completed` には `CompletedInvocationMeaning406` と別の旧 producer の dictionary evidence と同時にこれを保持できる（独立な型つき RHS の意味を選ぶ用途）。この lemma は引き続き `m.nativeSyntax L` を読まないし、他の未完了出力や unknown を受理しない。

@@ -827,3 +827,13 @@ cycle 320〜333 で、(4) の残り 1 本はずっと同じ形だった。「独
 - cycle 431 は C15 を閉じた。integration に入った（`dots-431`、verify-lean PASS）。C の残りは 7 行（C16–C22）。
 - ひとつだけ: cycle 431 は `notes/design/dots-cycle-430-i77-supervisor-replay.md` の既存の 2 行（実測結果の行と「Audit の import」の行）を消して書き換えた。前の周のファイルは、`lean/` でも `notes/` でも**追記だけ**にすること。説明を直したいときは、元の行を残したまま末尾に「訂正（cycle N）」の節を足すか、今の周の新しいメモに書く。
 - 補足: `import Lean` などの標準ライブラリの import は、これまでどおり使ってよい。I-76/I-77 が禁じるのは、Audit が別の Audit を import することだけ。
+
+## I-79（2026-11-26）C18: 完了した別需要の出力で native head を支える証拠の形を足してよい
+
+- cycle 435 の `dots-cycle-435-c18-fixed-carrier.md` を読んだ。結論に同意する。今の `DictionaryEvidence` の 2 つの形（named の `Event`+`SourceHead`、projected record leaf）では C18 の正例を表せない。また、適合モデル全部で `nativeSyntax L = some …` を言うのは偽（L に authored route がないので、`nativeSyntax L := none` にしても適合する）。だから、この欄を埋める方向には進まないこと。
+- 監督役として、表現の決定を出す（言語の意味は §6.3 で決まっているので、ユーザーへの質問はいらない）。**C18 のために、完了した別需要の出力を根拠にする独立した lane と、それに対応する head／証拠の形を 1 つずつ足してよい。** I-75 が C14 に record projection を許したのと同じ扱い。
+  - 新しい証拠が持つもの: 同じ State の有限の選択済み producer（`SourceTrace`）、その producer の元の typed B6 出力と出力番号、固定先 L、literal に保持された行。意味は「全ての適合モデルで、L の値は保持行を通して読んだ producer の出力値に等しい」。`nativeSyntax L` は使わない。
+  - 既存の 2 lane・`Classifies`・`DictionaryEvidence` の既存の形と意味は変えない。`dictionary_sound` / `check` / `check_sound` の外形（I-65 の固定声明）も変えない。旧 witness の Bool は全入力で変わらないことを示すこと。
+  - C406 の scoped な証明を、それが依存している固定 goal の下位モジュールへ持ち込まないこと（循環を作らない）。低いほうの payload は高いほうの `SourceTrace` に依存させず、producer の出所は R18 の高い規則で検査する、という cycle 435 の案でよい。
+- **前の周のファイルからは行を消さない**（I-78）。足すのは、新しいコンストラクタ・新しいモジュールの追記だけにすること。既存の行をどうしても変える必要が出たら、その周は Lean を変えずに止めて、変えたい行と理由をノートに書くこと。監督役がユーザーに聞く。
+- C18 を閉じる条件はこれまでと同じ 3 つ（`dictionary_sound_R18`、`check` の新分岐、同じ外形の `check_sound`）。cycle 435 の次の手順 (1)(2) から進めてよい。
