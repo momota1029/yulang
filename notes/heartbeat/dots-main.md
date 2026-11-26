@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 448
-status: running
+status: completed
 started: 2026-11-26T19:30:54.092Z
-updated: 2026-11-26T20:10:57.736Z
-elapsed_min: 40
-activity: 物理的 source 複数の範囲外と生 K2 の別対照を確認。公開 Lean を固定、終了報告準備。
-workspace: /workspace/scratch/1d0b4aaa3394
-last_local_commit: none
-resume_hint: I-83 G01 whole-visible opaque nominal; old checker unchanged.
+updated: 2026-11-26T20:21:00.227Z
+elapsed_min: 50
+activity: 通常終了・解放。G01 の実解決済み全 bare 候補の範囲を閉じた。G02 以降未着手。
+report: notes/handoff/dots-cycle-448.md
