@@ -8334,3 +8334,5 @@ import Yulang.GeneralDeclarativeI65I74WhereSource450
 import Yulang.GeneralDeclarativeI65I74WhereForest450
 import Yulang.GeneralDeclarativeI65I74WhereEntry450
 import Yulang.GeneralDeclarativeI65I74WhereOrdinal450
+import Yulang.GeneralDeclarativeI65I74WhereGuard450
+import Yulang.GeneralDeclarativeI65I74WhereLegacy450
