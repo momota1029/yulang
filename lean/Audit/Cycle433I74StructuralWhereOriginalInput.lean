@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74StructuralWhereOriginalInput433
+open Yulang.GeneralDeclarativeI65.I72.WhereAssociated432
+#print axioms literal_checked_where_use_reads_actual_parent_capture433
+#print axioms original_wrap_child_uses_the_true_parent_capture433
+#print axioms original_two_child_inputs_do_not_use_the_shared_output433
