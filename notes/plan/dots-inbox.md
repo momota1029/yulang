@@ -808,3 +808,16 @@ cycle 320〜333 で、(4) の残り 1 本はずっと同じ形だった。「独
 - 決まり: **`lean/Audit/` のファイルは、`Yulang.*` のモジュールだけを import する。** 別の Audit ファイルを、どの書き方（`Audit.X`、`«X»`、裸の名前）でも import しない。共有したい補題や定義は `lean/Yulang/` の新しいモジュールに置き、`lean/Yulang.lean` の末尾に import を足す。
 - 次の周でやること: 上の 3 ファイルを、`Yulang.*` だけを import する形に直す（必要な共有部分は新しい `lean/Yulang/…427….lean` か次の周のモジュールへ）。cycle 427 の Lean はまだ integration にないので、これらの Audit を書き直してよい。直したら、各 Audit を単独で `lean --trust=0 -DwarningAsError=true` にかけて、終了コード 0 を確かめること。
 - 監督役は、この形の import も検出するように検査を広げる。
+
+## I-77（2026-11-26）I-76 の残り: cycle 428 の Audit 7 本も直す
+
+- cycle 429 で cycle 427 の 3 本は直った。ありがとう。ただ、cycle 428 で足した次の 7 本が、まだ別の Audit を import している。I-76 の決まり（`lean/Audit/` は `Yulang.*` だけを import する）は、この 7 本にも当てはまる。
+  - `lean/Audit/Cycle428I74StructuralWhereBodyReplay.lean`
+  - `lean/Audit/Cycle428I74StructuralWhereIntegratedLegacy.lean`
+  - `lean/Audit/Cycle428I74StructuralWhereLegacyTrace.lean`
+  - `lean/Audit/Cycle428I74StructuralWhereRootFrame.lean`
+  - `lean/Audit/Cycle428I74StructuralWhereSingletonTape.lean`
+  - `lean/Audit/Cycle428I74StructuralWhereTapeBoundary.lean`
+  - `lean/Audit/Cycle428I74StructuralWhereTrace.lean`
+- 次の周の最初にこの 7 本を直すこと。cycle 427〜429 はまだ integration に入っていないので、書き直してよい。直したら各 Audit を単独で `lean --trust=0 -DwarningAsError=true` にかけて、終了コード 0 を確かめること。報告に「Audit の import: `Yulang.*` 以外 0 件」と 1 行書くこと。
+- これ以降に足す Audit も同じ決まりで書くこと。
