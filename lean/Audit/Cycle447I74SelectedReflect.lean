@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74SelectedReflect447
+
+open Yulang.GeneralDeclarativeI65.I72.RetainedSplit446.SelectedReplay447
+
+#print axioms replay_local_input_from_facts
+#print axioms replay_local_event_from_facts
+#print axioms ready_local_exact_read

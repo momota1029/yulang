@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74SelectedWireIndex447
+
+open Yulang.GeneralDeclarativeI65.I72.RetainedSplit446.SelectedReplay447
+
+#print axioms successful_input_exact_origin447
+#print axioms successful_event_exact_origin447
+#print axioms successful_source_exact_origin447
+#print axioms accepted_wire_checks_exact_origin_and_report447

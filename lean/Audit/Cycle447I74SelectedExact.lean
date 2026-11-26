@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74SelectedExact447
+
+open Yulang.GeneralDeclarativeI65.I72.RetainedSplit446.SelectedReplay447
+
+#print axioms all_C446_Bool_unchanged447
+#print axioms all_R21_Bool_unchanged447
+#print axioms accepted_wire_reflects_same_local_source447
+#print axioms selected_wire_iff_exact_local_report447
+#print axioms writer_result_has_exact_selected_witness447
+#print axioms empty_store_rejects_every_selected_wire447
+#print axioms wrong_fixed_slot_rejects_every_selected_wire447
+#print axioms loaded_old_slot_rejects_every_selected_wire447
