@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 452
-status: running
+status: completed
 started: 2026-11-26T23:30:00.006Z
-updated: 2026-11-27T00:15:04.589Z
-elapsed_min: 45
-activity: I-84 と正本を再確認、検証済み科学を固定。累積入口の次手順を明確にして報告待ち。
-workspace: /workspace/scratch/1d0b4aaa3394
-last_local_commit: none
-resume_hint: I-83 G03 literal where child position, endpoints, and original report.
+updated: 2026-11-27T00:20:06.020Z
+elapsed_min: 50
+activity: 通常終了・解放。空出力発行の同じ raw phase で内部 K2 と全元位置を保持。正規併合報告は未接続、G03 未完・残り19行。
+report: notes/handoff/dots-cycle-452.md
