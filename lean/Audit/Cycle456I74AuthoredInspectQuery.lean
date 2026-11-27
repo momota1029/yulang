@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74AuthoredInspectQuery456
+
+open Yulang.GeneralDeclarativeI65.I72.AuthoredInspectQuery456
+#print axioms compile_apply_exact
+#print axioms compile_query_exact
+#print axioms compile_queries_exact
+#print axioms compile_query_preserves_legacy
+#print axioms compile_queries_preserve_legacy

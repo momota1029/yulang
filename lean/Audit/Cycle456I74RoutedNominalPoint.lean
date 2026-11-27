@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeI65I74RoutedNominalPoint456
+
+open Yulang.GeneralDeclarativeI65.I72.RoutedNominalPoint456
+
+#print axioms exact_readMode_of_independent_declared456
+#print axioms actual_declared_use_is_readable456
+#print axioms check_marker_exact
+#print axioms actual_covariant_nominal_has_finite_origin_wire456
+#print axioms finite_original_wire_iff_actual_covariant_nominal456
+#print axioms nominalOps
+#print axioms selected_point_uses_the_original_coordinate_in_both_contexts456
+#print axioms original_point_comparison_is_exact456
+#print axioms original_point_compares_in_the_same_model456
+#print axioms literal_covariant_point_child_is_only_original_ordinal456
