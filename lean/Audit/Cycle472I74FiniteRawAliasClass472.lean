@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74FiniteRawAliasClass472
+
+open Yulang.GeneralDeclarativeI65.I72.ObservationRawAlias471
+#print axioms raw_no_alias_iff_finite_side_cut
+#print axioms exact_isolation_needs_no_inactive_payload_names
+#print axioms checked_class_is_exact_for_every_name
+#print axioms complete_finite_old_alias_class_exists
+#print axioms literal_class_checks_actual_links_and_rejects_omitted_member
