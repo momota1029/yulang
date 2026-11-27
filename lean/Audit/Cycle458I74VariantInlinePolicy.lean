@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74VariantInlinePolicy458
+open Yulang.GeneralDeclarativeI65.I72.VariantInlinePolicy458
+#print axioms variant_at_exact458
+#print axioms exact_policy_ticket458
+#print axioms lift_erase458
+#print axioms lift_erase_cycle458
+#print axioms inline_meaning_keeps_the_same_raw_child_and_two_native_reads458

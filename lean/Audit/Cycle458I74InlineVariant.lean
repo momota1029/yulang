@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74InlineVariant458
+open Yulang.GeneralDeclarativeI65.I72.InlineVariant458
+#print axioms scoped_sound458
+#print axioms tail_sound458
+#print axioms scoped_complete458
+#print axioms tail_complete458
+#print axioms linked_inline_variant_has_finite_native_origin_witness458
+#print axioms original_paired_inline_variant_receipt_is_exact_in_every_fit458
+#print axioms inline_not_a_named_pointer458
