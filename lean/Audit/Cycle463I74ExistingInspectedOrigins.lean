@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74ExistingInspectedOrigins463
+
+open Yulang.GeneralDeclarativeI65.I72.WrittenPattern460.PhysicalOrigin
+#print axioms distinct_normalized_join_single_tag_keeps_residual
+#print axioms inspected_normalized_tag_has_literal_origin
+#print axioms compiled_trail_has_no_residual_join_at_start
+#print axioms followed_compiled_step_has_original_origin
+#print axioms existing_compiled_trail_has_finite_literal_origin
+#print axioms existing_scoped_raw_route_has_finite_literal_origin

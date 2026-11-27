@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PreparedLocatedReport463
+open Yulang.GeneralDeclarativeI65.I72.PreparedDeclarations463
+#print axioms removing_literal_receipts_does_not_change_the_original_route
+#print axioms same_read_returns_every_literal_position_of_its_same_original_input
+#print axioms exact_located_report_iff_same_original_finite_wire
