@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74LiteralVisitCoordinates473
+
+open Yulang.GeneralDeclarativeI65.I72.LiteralVisits473
+#print axioms exact_original_ast_of_finite_literal_path
+#print axioms exact_compiler_code_at_nonempty_end_of_finite_original_literal_path
+#print axioms nonempty_literal_path_ends_at_a_nonvariable_compiler_query
+#print axioms exact_raw_lexical_path_after_finite_correspondence
+#print axioms finite_literal_visit_readback_is_independent

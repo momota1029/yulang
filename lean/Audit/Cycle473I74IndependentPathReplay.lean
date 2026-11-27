@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74IndependentPathReplay473
+
+open Yulang.GeneralDeclarativeI65.I72.LiteralVisits473
+#print axioms independent_path_has_finite_replay_at_its_exact_terminal

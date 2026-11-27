@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74IndependentPathReflection473
+
+open Yulang.GeneralDeclarativeI65.I72.LiteralVisits473
+#print axioms read_checkpoint_guards
+#print axioms actual_read_reflects_the_independent_path_and_all_prefix_guards
+#print axioms independent_path_iff_exact_finite_replay
