@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74WrittenPathMeasure460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms all_terms_have_at_least_their_root
+#print axioms chosen_field_is_proper_source_descendant
+#print axioms one_written_step_strictly_descends
+#print axioms every_written_walk_consumes_original_nodes
+#print axioms exact_graph_aligned_path_consumes_only_original_nodes
+#print axioms depth_is_structural_not_a_bound_on_the_raw_graph
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

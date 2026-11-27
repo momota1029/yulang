@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74PrecompiledField460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms descend_actual_compiler_alignment
+#print axioms compiled_trace_has_structural_joint_trace
+#print axioms precompiled_field_iff_exact_finite_path
+#print axioms compiled_field_keeps_same_fit
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
