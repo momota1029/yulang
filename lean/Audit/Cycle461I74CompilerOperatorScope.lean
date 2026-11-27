@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74CompilerOperatorScope461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms earlier_nominal_compiled_and_raw_modes_share_original_term
+#print axioms actual_compiled_primitive_has_exact_primitive_arity
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
