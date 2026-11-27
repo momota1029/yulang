@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ProjectionCutExact464
+
+namespace Yulang.GeneralDeclarativeK2Graph321.AddAtOneSource
+#print axioms checking_a_supplied_projection_cut_is_exact_extended_split
+#print axioms physical_new_row_root_cycle_exactly_old_or_old_return_from_child
+#print axioms original_projection_cut_has_finite_wire_exactly_when_safe
+end Yulang.GeneralDeclarativeK2Graph321.AddAtOneSource

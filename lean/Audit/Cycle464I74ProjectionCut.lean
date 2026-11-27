@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ProjectionCut464
+
+namespace Yulang.GeneralDeclarativeK2Graph321.AddAtOneSource
+#print axioms finite_cut_implies_no_invented_or_lost_alias_cycle
+end Yulang.GeneralDeclarativeK2Graph321.AddAtOneSource

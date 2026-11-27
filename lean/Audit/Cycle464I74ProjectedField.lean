@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ProjectedField464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms same_authored_roster_and_original_head_arguments
+#print axioms exact_projected_field_iff_finite_checked_wire
+#print axioms literal_post_visit_keeps_an_old_cycle_and_the_exact_issued_native_site
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464
