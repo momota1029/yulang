@@ -1,0 +1,7 @@
+# C476: exact source-path and selected capture footprint
+    
+Authority at opening is adopted C475 `7c1fe9af12df2164971f36caea8769a19aed485f`. I-92–I-94; no existing raw row, name, State, checker or spec is rewritten.
+
+A successful marked C332 run is invariant on any supplied direct source view preserving the literal first stamp at each actually opened name. Removing every other offered coordinate leaves the exact old capture and an independent old typing derivation; it does not edit the original raw state or change any input model. The clipped offered view still validates both actual ordinal tables. Given an actual old authenticated field and a marked root, the same prechecked head, exact field token and old capture replay. A bare binder may open no name and does not justify that field-root replay; the actual fixture demonstrates the distinction.
+
+In one real fitted prechecked declaration, fields 30 and 31 have two independently verified literal authored receipts and lead to the same old named row. The entire marked capture list is the same for the fixed request input, regardless of which field receipt is examined, and cannot recover both exact field/path choices. Both are legal supplied field receipts; the crossed label and literal AST path controls fail. This does not assert distinct K2 signs or a language acceptance decision. Clip tests use output-free real prechecked inputs with an existing extra authored row; no active source author emitter is inferred.
