@@ -1,0 +1,13 @@
+import Yulang.GeneralDeclarativeI65I74InputCoordinates475
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms first_uses_two_actual_coordinates
+#print axioms first_erases_to_unchanged_old_result
+#print axioms projected_erases
+#print axioms unErased_row_really_exists
+#print axioms erases_to_same_direct
+#print axioms checks_actual_ordinal
+#print axioms toOldSources
+#print axioms exact_before_capture
+#print axioms same_old_index_all_fields
