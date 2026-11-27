@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74RecordWrittenTree455
+open Yulang.GeneralDeclarativeI65.I72.RecordTree455
+#print axioms checkTail_exact
+#print axioms checkTree_exact
+#print axioms normalization_keeps_the_closed_tail
+#print axioms normalize_subst_exact_for_written_trees
+#print axioms counted_authored_tree_subst_is_term_subst
+#print axioms written_tree_paterson_stable_under_all_captures455
