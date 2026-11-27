@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ProjectedReadyHeader459
+open Yulang.GeneralDeclarativeI65.I72.ProjectedReadyHeader459
+#print axioms actual_original_projected_header_replays459
+#print axioms exact_projected_header_supplies_original_ready459
