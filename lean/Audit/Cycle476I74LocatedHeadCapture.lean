@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74LocatedHeadCapture476
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms located_at_head_erases_to_same_legacy_trace476
+#print axioms located_at_head_erases_to_same_legacy_capture476
+#print axioms located_capture_uses_one_actual_typing_walk_in_every_fit476
