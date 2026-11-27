@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74RecordRoutedOrigin455
+open Yulang.GeneralDeclarativeI65.I72.RecordTrail455
+#print axioms original_route_iff_data455
+#print axioms routed_open_iff_finite_same_origin_wire455
+#print axioms routed_read_keeps_original_physical_owner_and_source_in_each_fit455
+#print axioms independent_routed_trail_observes_same_model455

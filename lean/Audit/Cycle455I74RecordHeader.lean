@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74RecordHeader455
+open Yulang.GeneralDeclarativeI65.I72.RecordTrail455
+#print axioms local_author_bits_exact455
+#print axioms all_declaration_checks_on_literal_chain455
+#print axioms header_translates_the_actual_normalized_head455
+#print axioms check_empty_reads_actual_primitive455
+#print axioms independent_actual_header_replays455

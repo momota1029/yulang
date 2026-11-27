@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74RecordTreeHeader455
+open Yulang.GeneralDeclarativeI65.I72.RoutedRecord455
+#print axioms admitted_source_trees_retain_their_true_authored_declaration455
+#print axioms independently_authored_record_tree_header_replays455

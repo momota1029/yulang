@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74RecordPaterson455
+
+namespace Yulang.GeneralDeclarativeI65.I72.RecordPaterson455
+#print axioms subst_term_counts455
+#print axioms subst_args_counts455
+#print axioms substituted_occurrences_preserve_order455
+#print axioms substituted_size_strict455
+#print axioms stable_from_counted_substitution455
+end Yulang.GeneralDeclarativeI65.I72.RecordPaterson455
