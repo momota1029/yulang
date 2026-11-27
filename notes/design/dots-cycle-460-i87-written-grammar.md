@@ -1,0 +1,5 @@
+# C460 / I-87: 元の解決済み pattern、許可、実経路を分離する
+
+- §4.1–4.6, §6.2–6.3 と現 `GeneralDeclarationPatterns.Pattern`。解決済み構文を型変数、名前付き適用と順序つき引数列、record の label/payload/tail、variant の tag/payload、join の二枝として有限の相互帰納型で保持する。primitive と tuple/pair は解決済み名前の適用を分類して得る（裸の Nat を予約しない）。型注釈や lexer の名前綴り、元の匿名印を復元するものではない。自由な構成子・開いた tail・同 tag の別 payload と join は損失なし。head 引数列と元 where の順序付き引数列は同じ grammar を使い、候補や clause ID を構文の同値で置換しない。
+- 判断を三つに分ける。構文読取は全 carrier 上で全域かつ両方向に可逆。G04 の scope は path の選択された一歩だけに課す。record では有限の閉 tail と左優先の検索だけ（他 payload は読まない）。開いた tail は G06/G07。variant は元 tag が一致したときだけ payload。適用の primitive pair は実 catalogue で同定し選択 ordinal だけ。nominal は宣言 mode/point の証拠を別に読み、単項 covariant point のみ（G20/G21 は延期）。変数は降りない。join は生の edge を与えない。既存の元構文→正規化 query の証明を介す必要があり、元 join の任意枝を選ばない。未訪問 union/変数などは損失なく残し、下位 scope 検査を要求しない。
+- 構造読取と独立判断の保存・反映は局所 path について、任意の元 grammar 項・住所列・到着項という量化。carrier の輸送、alias/issuer/point mode と native 元 position、実 raw observation、各 prefix の K2 不在と terminal raw K2 は別の義務。最終目標は同一 FullProblem でこれらを合成した独立な実訪問から exact report の有限 witness を作り、すべての同じ FitsFull に対する意味を示すこと。構文 path の成功はそのまま実 graph path や solver の判定ではない。本周では grammar と局所構造定義を先に固定。既存入口・Bool は変更しない。
