@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PreparationBoundReplay467
+
+open Yulang.GeneralDeclarativeI65.I72.PreparationBoundReplay467
+#print axioms every_actual_bound_has_finite_literal_source_wire
+#print axioms finite_literal_bound_wire_is_equivalent_to_independent_bound
