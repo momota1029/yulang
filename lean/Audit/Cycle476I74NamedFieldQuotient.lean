@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74NamedFieldQuotient476
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms exact_named_cell_test476
+#print axioms exact_named_quotient_receipt_replays476
+#print axioms exact_named_quotient_pin_and_both_bits476
