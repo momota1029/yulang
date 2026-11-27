@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ScopedSourceReport460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms grammar_scoped_source_receipt_iff_anchored_compiled_field
+#print axioms any_actual_scoped_source_report_has_an_exact_finite_wire
+#print axioms any_scoped_source_receipt_is_the_same_field_in_every_fit
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
