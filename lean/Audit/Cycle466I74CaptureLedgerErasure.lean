@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74CaptureLedgerErasure466
+namespace Yulang.C466WrittenBinderCoordinates
+#print axioms both_same_state_snapshots_have_the_same_compiled_ordinary_capture_data
+#print axioms ordinary_capture_receipt_is_invariant_under_native_ledger_differences
+end Yulang.C466WrittenBinderCoordinates

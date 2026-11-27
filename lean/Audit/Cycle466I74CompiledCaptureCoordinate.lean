@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74CompiledCaptureCoordinate466
+namespace Yulang.C466WrittenBinderCoordinates
+#print axioms original_normalized_capture_path_and_raw_allocated_row_share_one_old_compiler_read
+end Yulang.C466WrittenBinderCoordinates

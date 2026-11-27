@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ReadOldCaptureReceipt466
+namespace Yulang.C466WrittenBinderCoordinates
+#print axioms exact_old_capture_execution_has_data_only_receipt
+#print axioms a_receipt_really_names_the_original_capture_and_the_appended_ordinary_row
+end Yulang.C466WrittenBinderCoordinates

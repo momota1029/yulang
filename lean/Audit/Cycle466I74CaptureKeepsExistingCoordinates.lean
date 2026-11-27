@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74CaptureKeepsExistingCoordinates466
+namespace Yulang.C466WrittenBinderCoordinates
+#print axioms an_actual_legacy_allocation_respects_every_explicit_kept_name
+#print axioms an_actual_ready_capture_avoids_all_supplied_placement_addresses
+end Yulang.C466WrittenBinderCoordinates

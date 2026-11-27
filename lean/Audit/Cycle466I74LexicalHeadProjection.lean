@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74LexicalHeadProjection466
+namespace Yulang.C466LexicalHeadProjection
+#print axioms projects_the_same_value_in_each_model
+#print axioms actual_emitted_capture_slots_project_the_same_original_typed_head_value
+end Yulang.C466LexicalHeadProjection

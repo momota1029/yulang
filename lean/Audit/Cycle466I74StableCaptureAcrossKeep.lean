@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74StableCaptureAcrossKeep466
+namespace Yulang.C466WrittenBinderCoordinates
+#print axioms keeping_slots_does_not_choose_a_different_original_capture
+#print axioms two_actual_ready_allocation_runs_sharing_only_keep_are_same_literal_capture
+end Yulang.C466WrittenBinderCoordinates
