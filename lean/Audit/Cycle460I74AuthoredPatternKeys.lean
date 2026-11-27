@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74AuthoredPatternKeys460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms declared_covariance_iff_actual_use
+#print axioms query_point_key_uses_actual_declaration
+#print axioms query_point_key_exact
+#print axioms query_empty_key_exact
+#print axioms query_pair_key_has_actual_pair
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
