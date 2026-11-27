@@ -258,7 +258,7 @@ open GeneralDeclarativeHead320 (Equation)
 open WrittenPattern460.PhysicalOrigin (Pose)
 
 /-- A separately supplied protocol for ordinary source evidence. Raw rows
-still include pending equations; this gate must not admit them as a source.
+still include pending equations; this gate must not accept them as a source.
 The protocol is an external input, not a compiler-event producer. -/
 structure SourceGate (p : FullProblem) where
   completed : Nat → Prop
