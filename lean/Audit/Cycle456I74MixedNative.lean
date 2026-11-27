@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74MixedNative456
+
+open Yulang.GeneralDeclarativeI65.I72.RecordTrail455.MixedNative456
+#print axioms extra_exact
+#print axioms real_extra_original_iff_finite_ordinal455
+#print axioms named_variant_or_pair_opener_keeps_original_issuer_and_model455
+#print axioms extraOpenOps
