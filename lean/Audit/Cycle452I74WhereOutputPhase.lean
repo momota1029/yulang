@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74WhereOutputPhase452
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.OutputPhase452
+
+#print axioms source_site_has_no_child_output_specification452
+#print axioms original_mark_has_exact_actual_source_site452
+#print axioms exact_class_sites_are_same_input_with_empty_output_rows452
+#print axioms actual_group_members_form_source_pair452
+#print axioms each_emission_pair_is_authorized_and_writes_nothing452
+#print axioms output_equation_substep_exactly_preserves_raw_input452

@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74WhereInternalK2452
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.InternalK2452
+
+#print axioms cyclic_groups_keep_unique_keys452
+#print axioms marked_bit_exact_current_root452
+#print axioms one_checked_entry_means_K2_at_every_original452
+#print axioms actual_cycle_has_exactly_one_internal_diagnostic452
+#print axioms emission_phase_preserves_each_actual_K2_and_its_internal_entry452
+#print axioms independent_scoped_internal_report_has_finite_replay452
