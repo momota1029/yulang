@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74ExactRouteFactorization461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms erase_added_placement_is_same_raw_certificate
+#print axioms added_placement_reconstructs_entire_unit_wire
+#print axioms erase_lift_preserves_old_ticket_data
+#print axioms same_earlier_header_key_and_entire_raw_wire_roundtrip
+#print axioms same_eligible_ticket_and_entire_unit_wire_roundtrip
+#print axioms selected_coordinates_iff_independent_walk
+#print axioms interleaved_read_factors_through_the_identical_raw_run
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461

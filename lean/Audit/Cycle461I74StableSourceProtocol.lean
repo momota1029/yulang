@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74StableSourceProtocol461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms finite_source_shell_plus_genuine_stability_exact
+#print axioms finite_stable_shell_and_compiled_path_give_the_exact_same_report
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
