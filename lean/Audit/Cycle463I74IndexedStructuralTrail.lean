@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74IndexedStructuralTrail463
+open Yulang.GeneralDeclarativeI65.I72.PhysicalVisit463
+#print axioms read_same_wire_preserves_every_selected_physical_index
+#print axioms exact_indexed_structural_route_has_same_order_finite_wire
+#print axioms erase_indices_preserves_an_identical_authorized_trail

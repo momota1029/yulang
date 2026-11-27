@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74PreparedIndexedField463
+open Yulang.GeneralDeclarativeI65.I72.PreparedDeclarations463
+#print axioms checked_source_and_actual_indexed_report_iff_finite_witness
+#print axioms actual_prepared_physical_route_is_same_original_and_same_fit
