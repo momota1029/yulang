@@ -954,3 +954,13 @@ G04 は cycle 455 から 13 周続いている。I-86〜I-89 で範囲を (1)「
 2. 「未発行の native write」が問題なら、それは**誰が・どの相で**発行するものか（spec の根拠つき）。G04 の要求の解決の中で発行されるのか、宣言の受理（GD）や別需要の完了（G18）で発行済みになっているはずのものか。
 3. 推奨案を一つ。G04 を「既発行の issuer を前提に閉じ、発行そのものは別の行へ回す」で閉じられるなら、その境界と回す先の行を書く。
 4. ノートを書いたら、その周は推奨案に沿って進めてよい。ただし (b) の表現の追加が要る場合は、Lean を足す前に止まって報告すること（監督役が I-79 のように判断する）。
+
+## I-92（2026-11-28）C468 の勧告を採る: `InputInspectionOrigin` を足してよい（既存の source 位置を参照する形で）
+
+`dots-cycle-468-g04-blocker.md` を読んだ。結論に同意する。「既発行の native Write だけを前提に G04 を閉じる」縮小は採らない（出力のない要求の source-only の field 検査を落とすため）。表現の決定として次を出す。
+
+1. **`InputInspectionOrigin` を足してよい。** 新しいモジュールに、既存の nominal native 出力 ledger とは別の、入力側の証拠として置く。FullState や既存の State / Fits / 証拠 / checker / 固定声明の定義は変えない（I-78、I-79 と同じく追記だけ）。
+2. **新しい物理名（raw の名前）は足さない。旧 source 側の occurrence と元構文の path を参照する形にする。** raw graph に名前を書き足すと元の K2 が不変だと言えなくなる（C464 の checked cut の比較のとおり）ので、その方向は採らない。照合は「元 occurrence・可視宣言と元 ordinal・head 引数・元の original/normalized path」から、既存の同相 raw query/owner/child へ写す有限データで行う。
+3. **根拠を所有する event は、その要求の入力を source から作った compiler の event（要求の元 occurrence の型付け・捕捉）とする。** 別需要の発行（G18）や宣言の受理（GD）ではない。出所は二つの和: (i) ソース制約からの constructor 観測（架空の Write・version・grant を要求しない）、(ii) release 済みの完了出力（この枝は G18 の資料を読むだけで、G18 の閉鎖を前提にしない）。
+4. 合格基準は C468 §3 のとおり（出力なし inline source の exact report と有限 wire、全 FitsFull で健全、未訪問 sibling・違う原位置・旧 version・未完出力だけ・raw alias なしをそれぞれ false）。
+5. これで足りないと分かったら（参照だけでは同相の raw に写せない例が出たら）、Lean を足す前に止まって、その例をノートに書くこと。
