@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74BeforeCaptureEvent475
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms first_is_exact
+#print axioms exact_before_capture_replays
+#print axioms finite_original_before_capture_iff
+#print axioms literal_frame_and_input_rows_before_any_capture

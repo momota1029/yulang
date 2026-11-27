@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74BeforeCaptureRun475
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms exact_old_capture_output_after_erasing_checked_stamp
+#print axioms exact_pinned_capture_uses_authored_not_output_only_support
+#print axioms one_before_capture_supports_one_walk_in_every_same_fit

@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74BeforeCaptureField475
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms forwarded_old_read_uses_the_very_same_prechecked_head_and_row
+#print axioms supplied_before_capture_replays_exact_original_field
