@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74CompiledOpeningScope460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms declared_mode_cannot_choose_legacy_application
+#print axioms exact_declared_unary_application_at_original_key
+#print axioms authored_operator_functional
+#print axioms compiled_scope_reflects_exact_selected_step
+#print axioms written_step_has_exact_compiled_scope_at_address
+#print axioms compiled_scope_iff_independent_written_step
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

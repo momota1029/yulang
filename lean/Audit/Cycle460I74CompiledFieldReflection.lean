@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74CompiledFieldReflection460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms closed_written_spine_compiles_closed
+#print axioms closed_compiled_spine_has_closed_original
+#print axioms compiled_record_spine_exact
+#print axioms authored_first_visible_field_recovered
+#print axioms existing_field_address_reflects_original_closed_step
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
