@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74InlinePair458
+open Yulang.GeneralDeclarativeI65.I72.InlinePair458
+#print axioms exact_native_selected_pair_port458
+#print axioms old_raw_pair_arity_two_and_index_exact458
+#print axioms actual_selected_inline_pair_has_finite_origin_wire458
+#print axioms selected_original_payload_has_exact_same_model_native_receipt458

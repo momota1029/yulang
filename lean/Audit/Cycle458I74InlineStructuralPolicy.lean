@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74InlineStructuralPolicy458
+open Yulang.GeneralDeclarativeI65.I72.InlineStructuralPolicy458
+#print axioms record_at_iff_finite_ticket458
+#print axioms reflected_use_is_exact_old_or_actual_new_parent458
+#print axioms lift_erase458
+#print axioms lift_erase_cycle458
