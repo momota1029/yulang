@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74FiniteAuthorStability462
+
+open Yulang.GeneralDeclarativeI65.I72.CapturedSubpattern462
+#print axioms check_finite_author_stability_iff_independent_fragment
+#print axioms eligible_same_field_iff_finite_author_and_unchanged_structural_witness
+#print axioms no_positive_and_negative_at_same_original_source

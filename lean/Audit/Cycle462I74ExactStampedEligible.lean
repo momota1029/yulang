@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ExactStampedEligible462
+
+open Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms stamped_source_iff_exact_finite_structural_read
+#print axioms stamped_scope_has_exact_source_route_and_same_model_evidence

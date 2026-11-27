@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74InstalledProtocolSum462
+
+open Yulang.GeneralDeclarativeI65.I72.InstalledProtocolSum462
+#print axioms fromProjected
+#print axioms exact_pick_header_iff_independent_author
+#print axioms same_program_for_each_chosen_author

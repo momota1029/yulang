@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74CapturedStabilityCertificate462
+
+open Yulang.GeneralDeclarativeI65.I72.CapturedNormalForm462
+#print axioms reflection_of_original_args
+#print axioms reify_independent_original_args
+#print axioms exact_structure_read_original_tree
+#print axioms finite_projected_stability_check_exact
+#print axioms projection_transfers_original_all_captures

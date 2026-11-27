@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74FiniteCaptureBoundary462
+
+open Yulang.GeneralDeclarativeI65.I72.FiniteCaptureBoundary462
+#print axioms finite_capture_reifies_both_actual_original_sides
+#print axioms no_all_captures_stability_iff_finite_bad_capture
+#print axioms stability_is_exactly_universal_over_finite_tables
+#print axioms actual_shell_readiness_failure_iff_finite_bad_capture

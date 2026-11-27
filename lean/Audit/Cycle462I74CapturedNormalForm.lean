@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74CapturedNormalForm462
+
+open Yulang.GeneralDeclarativeI65.I72.CapturedNormalForm462
+#print axioms same_captured_normal_form
+#print axioms same_captured_normal_args
+#print axioms same_original_captured_counts

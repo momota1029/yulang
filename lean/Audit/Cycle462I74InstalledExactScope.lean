@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74InstalledExactScope462
+
+open Yulang.GeneralDeclarativeI65.I72.InstalledProtocolSum462
+#print axioms exact_installed_scope_iff_finite_witness
+#print axioms exact_installed_scope_preserves_authenticated_field_in_every_same_fit

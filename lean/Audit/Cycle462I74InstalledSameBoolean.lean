@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74InstalledSameBoolean462
+
+open Yulang.GeneralDeclarativeI65.I72.InstalledProtocolSum462
+#print axioms check_same_field_means_same_report
+#print axioms same_plain_field_bool
+#print axioms same_projected_field_bool
+#print axioms same_homogeneous_field_bool
+#print axioms existing_canonical_bool_is_factored_on_every_original_input
+#print axioms same_existing_classification_and_every_same_fit
