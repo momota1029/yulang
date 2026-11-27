@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PinnedNestedTypedK2474
+
+open Yulang.GeneralDeclarativeI65.I72.LiteralVisits473
+#print axioms actual_nested_k2_has_its_own_checked_walk_returning_to_an_equal_type_in_every_fit
+#print axioms actual_nested_safe_report_excludes_return_in_its_own_checked_class
