@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 474
-status: completed
-started: 2026-11-27T21:26:37.712Z
-updated: 2026-11-27T22:16:43.282Z
-elapsed_min: 50
-activity: 型付き有限商・同じ相の入力座標を対象検証、G04と入力発行器は未完
-report: notes/handoff/dots-cycle-474.md
+cycle: 475
+status: running
+started: 2026-11-27T22:26:10.953Z
+updated: 2026-11-27T22:26:43.922Z
+elapsed_min: 0
+activity: 元の入力の物理位置・著者位置を保持した C332 の検証と同一相の生成路を調査
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: I-93: raw を変更せず、型の商の循環と到達を区別。局所証明段階、次回 inbox を再読。
