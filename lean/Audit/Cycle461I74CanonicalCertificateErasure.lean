@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74CanonicalCertificateErasure461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms erasure_keeps_exact_raw_run_and_used_stamp
+#print axioms actual_structural_true_stamp_replays_same_prior_certificate
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461

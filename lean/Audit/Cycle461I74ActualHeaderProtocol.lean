@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74ActualHeaderProtocol461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms genuine_start_replays_at_its_own_header_ticket
+#print axioms genuine_independent_start_iff_finite_header_ticket
+#print axioms alreadyReady
+#print axioms alreadyHomogeneous
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
