@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74ProjectionBatchInput464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms exact_ordinary_snapshot_iff
+#print axioms checked_batch_has_exact_independent_supplied_prefix_evidence
+#print axioms exact_supplied_phase_iff_finite_prefix_proof_data
+#print axioms checked_batch_compares_to_the_exact_actual_suffix
+#print axioms actual_supplied_batch_preserves_all_ordinary_models
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464

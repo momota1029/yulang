@@ -1,0 +1,35 @@
+# dots-main cycle 464: 実際に供給された native 投影の検証境界 (G04 / I-88)
+
+- 開始 2026-11-27T11:30:05.099Z、通常終了 2026-11-27T12:20:06.746Z UTC。C463 は開始時に監督統合 `9febf427ae6015ebd41c94f146bd2071f14e2eda` に採用済み（Lean tree `f46b939c052876ad999d19e79629335009aec9c6`、35 個の追加ファイルと集約の追記を照合）。今回の検証結果は work 側のみ。最終確認の監督参照: `9febf427ae6015ebd41c94f146bd2071f14e2eda`。受け入れ I-88 のまま。G04 は未完、GD は別。**24 行中、残り 20 行。**
+- 公開 science `dff00758fd89a56738e6a5c4e465bdd5a3fb4a64`、Lean tree `05407bd89f307a66a79d32eccb7bc48b76d7b955`。旧 checker / solver / parser / graph/phase 実装 / spec を変更していない。新しい resolver report/witness 分岐もない。外部供給済み immutable 入力対の補助 reader と数学的検証だけ。
+
+## 確認した主張
+
+1. **raw の保全と値の保全を区別**。任意の旧 ordinary snapshot と、すでに別途供給された新 snapshot について、一行版は exact normal、旧 equation の完全な順序・内容、実際の末尾 ordinal、非 alias shape、旧の構文的 `Derives` を検査。追加元が旧 raw で安全、新しい子から旧 alias class 全体へ旧構造的な戻りがないことと有限 cut が同値。追加元以外のすべての site も含めた raw K2 保存と、任意の ordinary モデルの同一代入での双方向保存をそれぞれ示した。単に全モデルで等式が成立しても raw K2 の保存にはならない。新しい名を採番／発行していない。
+2. **有限の任意個数は実 prefix で検証**。すべての suffix 行が shape に対応し、追加元が最終 snapshot で K2-safe、各新行は最初の ordinary snapshot で `Derives`、という独立条件と、exact supplied phase の有限 verify が同値。存在性が置換順序に依存しない cut の場合も、実データの ordinal／証明順序を同一視しない。prefix ごとの順序、元行と新行の exact ordinal、および任意の各 slot の raw Alias・K2 と全 ordinary Models を保つ。旧構文的 `Derives` も同値。個々に旧グラフだけで成功する cut を連結してよいとは言わない。
+3. **既存の field visitor への真正な接続**。同じ actual registry/request と外部準備済み表を供給した対では、元 declaration・head argument を変えず、既存の `readHeadField` の同一 receipt を読む。選んだ hop が実際に新 suffix 行か旧の同じ ordinal かを区別。第0 hop は元の中心、後続は直前に選んだ子が論理入力位置であることを示し、物理 owner・issuer route・nativeSyntax を結ぶ。旧 origin/route が同じとは、別に表の一致を示した場合だけ。compiler 環境・mode が同じなら構造帰納で元 pattern/項列の同じコンパイルを取得。保存済み authored views/native origins/typed retention の条件を別に与えた場合、任意の同じ `FitsFull` モデルを両向きに移せる。診断端の raw K2 は既に旧 snapshot にあるが、つまり元 snapshot でも同じ field 辺があった、とは言わない。
+4. **元行だけから有限証明データを構成する限定された計画**。既存の parent/payload の実 ordinal と有限な構造文脈を照合すれば、選んだ項を既にある名前に差し替える proof code を決定的に構成。owner と文脈を固定した全候補を実順序で列挙（同じ内容の別 ordinal も残す）。独立な exact original plan と実 prefix cut から供給された全 snapshot/field receipt の有限のデータ証拠を得、逆も示した。文脈は式の等式の証明だけであり、nominal body、join、tail や兄弟への raw 訪問を認めるものではない。
+
+## 主要補題と対象（全て実際の引数・前提付き）
+
+| モジュール名（`GeneralDeclarativeI65I74…464`） | 主要補題と主張 |
+| --- | --- |
+| ProjectionPath / ProjectionAliasClass | `exact_path_normal_form_for_one_new_source`、`some_new_shape_path_through_alias_class_has_one_exact_new_edge`：一つの非 alias 行を加えた仮定で、任意の新旧 path は旧 path 又は旧 source alias class での一つの本当に新しい辺を通る形に分解。 `one_nonalias_raw_row_does_not_change_k2_under_original_class_no_return`：全ての新しい子が旧 alias class に戻らなければ任意の slot の K2 は同値。 |
+| ProjectionCut / ProjectionCutExact | `finite_cut_implies_no_invented_or_lost_alias_cycle`、`original_projection_cut_has_finite_wire_exactly_when_safe`：形が読める任意の提案に対し、実 cut の存在を旧 root safe ＋全ての子・同 alias class の点への旧 return 非存在に正確に対応させる。 |
+| ProjectionDerivation / NamedProjection | `exact_finite_data_eq_check_iff_independent_Derives453`、`independent_one_row_projection_iff_finite_data`：任意の等式／入力対・元 site、実構文 (非単なる意味論) と有限 verify の双方向。 `exact_projection_keeps_models_in_both_directions`、`exact_projection_retains_old_raw_ordinals_and_the_actual_new_slot`、`exact_projection_keeps_all_raw_k2_sites`：成功する一行における別々の帰結。|
+| IssuedProjection / ProjectedField / ProjectionFullFits | `selected_index_keeps_the_exact_issued_owner_in_the_same_fit`、`exact_projected_field_iff_finite_checked_wire`、`literal_post_visit_keeps_an_old_cycle_and_the_exact_issued_native_site`、`exact_projection_transfers_full_fits_under_same_stored_frame`：実 visit の選択 ordinal/issuer、有限化、同じモデルの native 読み（後状態での fit）、及び別に保存済み frame を与えた二状態の全 FitsFull。 |
+| OrderedProjectionCut / OrderedProjectionSafeSet / OrderedProjectionDerivation | `literal_row_order_and_ordinary_constraints_are_exact`、`whole_named_batch_safety_iff_every_touched_final_root_is_safe`、`complete_derived_batch_uses_initial_actual_derivability_and_final_safe_touched_roots`：任意の有限行列について per-prefix での実 cut と最終状態の touched-source 安全性、元 derivability と exact finite replay。 `checked_derived_batch_preserves_all_exact_ordinary_models_and_raw_cycles`：任意の model と site に両向き保存。 |
+| ProjectionOriginalRoutes / ProjectionBatchInput / ProjectionBatchField / ProjectionSingleBatch | `post_visit_uses_the_very_same_original_issuer_route_under_explicit_route_frame`、`exact_supplied_phase_iff_finite_prefix_proof_data`、`exact_batch_field_iff_a_single_data_only_verification`、`all_selected_batch_hops_keep_exact_ordinal_and_original_issuer`：実 phase と入力の exact suffix、任意の選ばれた hop の actual old/suffix 区別、frame が一致する場合の同一元 route。 `same_wire_single_row_is_exact_specialization_of_batch_guard`：任意の同一 wire で一行版 Bool は batch 特殊化。 |
+| ProjectionCompilerFrame / ProjectionBatchSound / IndexedLogicalSource | `same_compiled_written_tree_in_both_supplied_inputs`、`checked_batch_source_and_models_are_the_same_but_raw_visit_is_post`、`indexed_logical_site_is_the_previous_selected_child`：同じ環境/modes の全 Pattern、開始枠と実構造 path、保存済み views・native・typed row の意味が一致する際の全 FitsFull と旧端 K2。 |
+| ExactSourceProposal / EnumerateLiteralProposals / LiteralSuppliedProjection / LiteralProjectionField | `source_proposal_emits_its_exact_finite_ordinary_proof`、`enumeration_preserves_all_passed_old_ordinals_in_order`、`exact_original_row_plans_have_finite_supplied_phase_certificate`、`exact_literal_and_structural_receipt_has_finite_wire`：任意の該当する元 row/文脈／順序対、独立な source/構造的 predicate と各有限 verify の双方向。 |
+
+## 実対照と残り
+
+- 実 inline から供給済み一行、供給済み二段 4→6→5、および後半 hop の物理 owner 11（旧 alias + 真正な issuer [402] の route）を測った。実例では真正 Ready と同じ具体 fitting assignment を独立に示し、成功時に exact field/ordinals を照合した（reader 自体はモデルを要求しない）。issuer を消す、別 issuer [403]、元/後 ordinal の差替え、行や証明の逆順・短縮、誤 cut で decline。発行記録を全て消した対は raw phase/原文 Ready と同じ具体 model があっても、全 field wire が none。ordinary モデルが全て同じで実 Derives が成立する別例でも、子から元への raw return があれば root K2 が変わり全投影 wire を拒む。これは言語の拒否ではない。
+- 未証明の本体: (1) 実 compiler の相で許可される inline/bound の全必要座標・issuer を生成する真正な producer と同相入力連結、(2) 全 candidate matching と曖昧性前の K2 を既存規則へ接続、(3) 現在の visitor が開かない残余 join。GD、G05、一般 NFR、開いた tail（G06/G07）、一般 mode/非 point/多引数（G20/G21）には手をつけていない。spec/diagnostic policy を決める新規質問なし。
+- 補助（非公開検証、公開件数には含まない）：相互 Bound の両方向を持つ relocated owner と片方向だけの対で真正な route が変わる。実在する混合 kind の retained row も ordinary と別の条件で移せる。本当に未使用の value slot を使う場合、同じ全代入保存ではなく未使用 1 座標を変更する存在的拡張が可能な例と、同じ意味で伸ばせても raw K2 が変わる対がある。採番、相の決定、graph 更新、issuer 付与の設計として採用していない。
+
+## 検証・公開
+
+- Lean 4.35.0、focused physical exact immutable Git copies; production 23、standalone Audit 28。コマンド：`LEAN_PATH=… lean --trust=0 -DwarningAsError=true -o … Yulang/…lean` と独立 `LEAN_PATH=… lean --trust=0 -DwarningAsError=true Audit/…lean`。worker の独立 read-only `lean --trust=0 -DwarningAsError=true --stdin` replay も全 Audit 28 PASS。公理 104 照合（100 標準集合の部分のみ、4 公理なし、sorry/native_decide/新公理なし）。実 `#guard_msgs` 4 群と `#guard` 11。すべての Audit import は Yulang.*。全体 Lake/Rust/`tools/verify-lean.sh`/Yulang2 実機はこの worker では実行していない。
+- 新規 Lean 51、集約は正確に末尾 23 import だけ、設計 3、心拍、報告の **57 paths**。旧 production 7,863・旧 Audit 2,300、その他 frozen Lean 索引まで blob 一致。書込みは `work/dots-main` の expected-parent かつ force=false のみ。+10/+20/+30/+40 は実時刻の心拍。権限変更・未反映の書込はなし。使用量上限は不明。

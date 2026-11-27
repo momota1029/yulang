@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74NamedProjection464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms checks_single_ordered_extension_exactly
+#print axioms independent_one_row_projection_iff_finite_data
+#print axioms exact_projection_keeps_models_in_both_directions
+#print axioms exact_projection_retains_old_raw_ordinals_and_the_actual_new_slot
+#print axioms exact_projection_keeps_all_raw_k2_sites
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464

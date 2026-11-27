@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ProjectionDerivation464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464.Derivation
+#print axioms every_independent_finite_Derives_has_data_wire453
+#print axioms exact_finite_data_eq_check_iff_independent_Derives453
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464.Derivation

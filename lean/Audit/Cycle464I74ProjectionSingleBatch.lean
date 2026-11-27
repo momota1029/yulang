@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ProjectionSingleBatch464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms same_wire_single_row_is_exact_specialization_of_batch_guard
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464

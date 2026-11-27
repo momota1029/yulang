@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74LiteralProjectionField464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms exact_literal_and_structural_receipt_has_finite_wire
+#print axioms literal_field_success_uses_exact_existing_structural_reader_and_supported_ordinary_batch
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464

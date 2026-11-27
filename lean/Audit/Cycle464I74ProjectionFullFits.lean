@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ProjectionFullFits464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms unchanged_empty_retention_frame
+#print axioms exact_projection_transfers_full_fits_under_same_stored_frame
+#print axioms after_read_in_original_fitting_model_under_explicit_stored_frame
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74IndexedLogicalSource464
+namespace Yulang.GeneralDeclarativeI65.I72.PhysicalVisit463.IssuedProjection464
+#print axioms indexed_logical_site_is_the_previous_selected_child
+#print axioms every_successful_field_receipt_uses_the_very_same_previous_logical_site
+end Yulang.GeneralDeclarativeI65.I72.PhysicalVisit463.IssuedProjection464
