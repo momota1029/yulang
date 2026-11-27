@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74NativeProducerNodeCheck465
+namespace Yulang.GeneralDeclarativeI65.I72.NativeProducer465
+#print axioms checked_compiler_node_recovers_exact_endpoint
+end Yulang.GeneralDeclarativeI65.I72.NativeProducer465
