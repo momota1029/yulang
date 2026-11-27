@@ -15,3 +15,9 @@ C473 の公開 Lean tree `c6402e35b0f6b6392296fd5bdba6c4207cc0bdeb` を authorit
 `yulang3` の確認点 `68295bef1ff86060b33e6deebffe69c22ce64dfc`: `Cargo.toml` の Rust ワークスペースは parser/recovery と xtask。 `crates/yu-syntax/src/full_parse.rs` の `ParsedFile` と `SourceNodeKey` は parse revision と immutable CST node identity を持つが、I65 の型付き要求・raw 行・author ordinal のペアは出力しない。この checkout で新しい compiler 入力 producer は確認できない。Lean 側では C473 が示した C332 の capture 投影の情報欠落は残る。C353/354/356 の旧型付き source plan は固定 variant/unary companion 又は選択後の出力を扱い、当該 same-phase input manifest にはそのまま写せない。既存の読取り・解釈だけを証明し、producer を作ったことにしない。
 
 署名表の順序が異なる場合も、元の子を変えず共通の構成子表へ単射で番号を付け直してから、有限対応だけを検査する。実例では元の二表を逆順にし、数字だけを比較すると失敗、共通の構成子を比較すると成立、元の source 報告は不変であることを確認。
+
+### Exact supplied input lineage and duplicate physical source
+
+The exact C472 input reader identifies its literal supplied token, physical old equation row, original author row, and request occurrence. The C473 nested reader retains this exact gate. In the actual fitted duplicate-row control, distinct physical/author ordinals both check at the same prepared declaration and return the same C332 capture. There is therefore no single decoder of the capture return which recovers those positions for every accepted input. The provenance data must cross the input compiler-phase boundary as data; neither the later all-model quotient proof nor a matching old output proof creates it.
+
+The older C438 completed-lower proof has an actual selected producer, a retained B6 row and an exact output ordinal, and shares the consumer model. That is a distinct completed-output branch, not a before-selection emission of an authored input. Parsing locators alone also are not typed occurrence/physical-old-row/author-row identities. None of these findings changes current source or raw rules.
