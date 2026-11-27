@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PreparedDeclarations463
+open Yulang.GeneralDeclarativeI65.I72.PreparedDeclarations463
+#print axioms table_contains_returns_exact_readiness
+#print axioms prepared_table_retains_only_exact_declaration_order
+#print axioms missPrepared

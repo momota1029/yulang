@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PreparedTableTransport463
+open Yulang.GeneralDeclarativeI65.I72.PreparedDeclarations463
+#print axioms no_rechecking_for_the_same_actual_authored_registry
+#print axioms exact_registry_reindexing_preserves_stored_declaration_order
+#print axioms reindexing_to_exact_original_registry_keeps_the_whole_table

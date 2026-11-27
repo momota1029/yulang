@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65I74LiteralIndexedFit463
+open Yulang.GeneralDeclarativeI65.I72.PhysicalVisit463
+#print axioms coincide_hop_by_hop_in_the_same_raw_row_and_original

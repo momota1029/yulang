@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PreparedOriginalStart463
+open Yulang.GeneralDeclarativeI65.I72.PreparedDeclarations463
+#print axioms request_only_exact
+#print axioms checking_request_preserves_entire_original_anchor
+#print axioms prepared_source_iff_exact_finite_original_address

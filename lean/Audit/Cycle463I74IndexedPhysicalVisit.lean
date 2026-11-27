@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74IndexedPhysicalVisit463
+open Yulang.GeneralDeclarativeI65.I72.PhysicalVisit463
+#print axioms projection_to_old_raw_hop
+#print axioms every_old_raw_hop_has_an_actual_row_ordinal
+#print axioms raw_witness_reads_its_identical_physical_row
+#print axioms an_exact_physical_row_reifies_at_the_same_index

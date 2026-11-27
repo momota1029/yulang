@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74IndexedNativeEvidence463
+open Yulang.GeneralDeclarativeI65.I72.PhysicalVisit463
+#print axioms existing_authorized_opening_preserves_the_very_same_raw_row
+#print axioms all_same_fits_preserve_native_proof_on_each_identical_physical_row
