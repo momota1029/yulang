@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74FiniteCtorFixedPoint474
+
+open Yulang.G04FiniteConstructorSemantics473
+#print axioms all_satisfying_assignments_have_the_same_regular_constructor_value

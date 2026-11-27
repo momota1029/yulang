@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74TypedConeReadback474
+
+open Yulang.G04FiniteConstructorSemantics473
+open Yulang.GeneralDeclarativeI65.I72.ObservationAlternatives473
+#print axioms exact_closed_observation_supplies_a_typed_shell_at_each_actual_site
+#print axioms successful_quotient_observation_has_one_semantic_regular_value_in_every_old_model
