@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ProviderDisjoint462
+
+open Yulang.GeneralDeclarativeI65.I72.InstalledProtocolSum462
+#print axioms successful_same_problem_has_only_one_existing_provider
+#print axioms same_original_problem_keeps_actual_header_and_provider

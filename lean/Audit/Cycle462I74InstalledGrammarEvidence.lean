@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74InstalledGrammarEvidence462
+
+open Yulang.GeneralDeclarativeI65.I72.InstalledProtocolSum462
+#print axioms ready457_normalized_original_head_preserves_closed_coverage
+#print axioms binary_prune_retains_exact_source_modes
+#print axioms earlier_binary_projected_author_normal_form_keeps_closure
+#print axioms all_existing_provider_results_have_original_grammar

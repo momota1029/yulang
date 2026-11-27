@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74OriginalReportProjection462
+
+open Yulang.GeneralDeclarativeI65.I72.InstalledProtocolSum462
+#print axioms plain_original_report_projection
+#print axioms projected_original_report_projection
+#print axioms homogeneous_original_report_projection
