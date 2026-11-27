@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ProjectionBatchSound464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms batch_preserves_all_full_fits_with_independent_stored_frame
+#print axioms checked_batch_source_and_models_are_the_same_but_raw_visit_is_post
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464

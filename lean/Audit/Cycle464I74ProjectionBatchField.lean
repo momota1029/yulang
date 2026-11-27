@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ProjectionBatchField464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms exact_batch_field_iff_a_single_data_only_verification
+#print axioms all_selected_batch_hops_keep_exact_ordinal_and_original_issuer
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464
