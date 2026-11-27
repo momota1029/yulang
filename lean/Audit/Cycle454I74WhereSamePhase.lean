@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74WhereSamePhase454
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.SamePhase454
+
+#print axioms exact_same_phase_report_iff_finite_wire454
+#print axioms actual_parent_event_meaning_at_every_fit454
+#print axioms all_previous_witness_Bools_unchanged454
+#print axioms check_full_sound454
+#print axioms independent_same_phase_report_has_cumulative_witness454

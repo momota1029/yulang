@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74WhereSamePhaseLabels454
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.SamePhase454
+
+#print axioms same_parent_reports_are_independent_of_all_wire_label_choices454
+#print axioms accepted_raw_diagnostic_never_duplicates_a_projected_group454
