@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ClosedInlineField458
+open Yulang.GeneralDeclarativeI65.I72.ClosedInlineField458
+#print axioms authoredFields_reflects458
+#print axioms chosen_original_field_hides_its_later_shadow458
+#print axioms whole_closed_spine_preserves_visible_labels458
+#print axioms same_authorised_visible_inline_field_iff_finite_wire458
+#print axioms chosen_visible_field_is_the_same_native_receipt_in_every_fit458

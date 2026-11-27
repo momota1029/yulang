@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74InlineNominalPoint458
+open Yulang.GeneralDeclarativeI65.I72.InlineNominalPoint458
+#print axioms read_marker_exact458
+#print axioms read_raw_exact458
+#print axioms only_actual_covariant_unary_declared_mode458
+#print axioms inline_point_exact_receipt_is_finite458
+#print axioms same_original_inline_point_compiles_exact_self_atoms458
+#print axioms inline_point_keeps_original_same_fit_and_declared_context458
