@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74InductiveTagProjection459
+open Yulang.GeneralDeclarativeI65.I72.InductiveTagProjection459
+#print axioms exactly_written_duplicate_test459
+#print axioms actual_inductive_projection_iff_computed459
+#print axioms actual_inductive_args_projection_iff_computed459
+#print axioms no_instantiation_selected_by_inductive_projection459
