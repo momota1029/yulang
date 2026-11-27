@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 473
-status: completed
-started: 2026-11-27T20:30:04.633Z
-updated: 2026-11-27T21:20:08.143Z
-elapsed_min: 50
-activity: 元の構造経路・最小観測・C332 の位置境界を照合。G04 は未完で次回 inbox を再読。
-report: notes/handoff/dots-cycle-473.md
+cycle: 474
+status: running
+started: 2026-11-27T21:26:37.712Z
+updated: 2026-11-27T21:27:00.335Z
+elapsed_min: 0
+activity: C473 採用と I-93/I-94 を確認。元の終端・最小商の同相型意味を検証。
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: I-93: raw を変更せず、型の商の循環と到達を区別。局所証明段階、次回 inbox を再読。
