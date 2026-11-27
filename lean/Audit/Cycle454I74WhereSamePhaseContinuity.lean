@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereSamePhaseContinuity454
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.SamePhase454
+
+#print axioms cyclic_group_nonempty_iff_has_actual_cyclic_child454
+#print axioms inherited_grouped_positive_replays_same_original_wire454
+#print axioms exact_grouped_raw_report_never_substitutes_parent_K2454
