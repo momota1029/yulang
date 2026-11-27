@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ExactForwardingReplay467
+
+open Yulang.GeneralDeclarativeI65.I72.ExactForwardingReplay467
+#print axioms independent_direct_source_position_replays
+#print axioms independent_exact_forwarded_port_replays
