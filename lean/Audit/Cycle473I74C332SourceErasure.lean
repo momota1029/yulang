@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74C332SourceErasure473
+
+open Yulang.GeneralDeclarativeI65.I72.ObservationSyntax471
+#print axioms exact_current_source_read_erases_to_its_really_called_capture_computation
+#print axioms original_capture_execution_cannot_distinguish_erased_physical_author_positions
