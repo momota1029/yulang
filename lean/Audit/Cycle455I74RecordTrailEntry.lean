@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74RecordTrailEntry455
+open Yulang.GeneralDeclarativeI65.I72.RecordTrail455
+#print axioms replay_carries_only_original_data_tokens455
+#print axioms actual_finite_field_derivation_replays455
+#print axioms actual_exact_field_report_iff_finite_wire455
+#print axioms field_rejection_does_not_substitute_root455
+#print axioms field_diagnosis_is_a_real_unselected_original_trace455
+#print axioms no_field_rule_selects_or_emits_a_where_child455
+#print axioms exact_field_report_is_sound_in_every_same_fit455
+#print axioms all_previous_Bools_unchanged455
+#print axioms check_full_sound455
+#print axioms independent_field_derivation_has_exact_cumulative_data455

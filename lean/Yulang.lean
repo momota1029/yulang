@@ -8359,3 +8359,4 @@ import Yulang.GeneralDeclarativeI65I74RecordTraversal455
 import Yulang.GeneralDeclarativeI65I74RecordSpine455
 import Yulang.GeneralDeclarativeI65I74RecordHeader455
 import Yulang.GeneralDeclarativeI65I74RecordOrigin455
+import Yulang.GeneralDeclarativeI65I74RecordTrailEntry455
