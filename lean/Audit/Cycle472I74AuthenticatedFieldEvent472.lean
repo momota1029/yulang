@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74AuthenticatedFieldEvent472
+
+open Yulang.GeneralDeclarativeI65.I72.ObservationSyntax471
+#print axioms monotone_ordinary_input_trace472
+#print axioms same_phase_input_event_reads_the_full_source_only_view472
+#print axioms exact_same_source_event_is_meant_by_every_original_fit472
+#print axioms both_signs_have_exact_finite_wires_at_one_actual_source_event472

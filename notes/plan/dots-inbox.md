@@ -974,3 +974,9 @@ G04 は cycle 455 から 13 周続いている。I-86〜I-89 で範囲を (1)「
 - この対応は有限データとして witness に入れ、checker が data-only に検査する。全 Model の値の等しさから逆に読むことはしない（それは健全性の側の帰結で、checker の入力ではない）。
 - K2 でない側（調べる位置が循環に乗らない）も同じ最小のグラフで判定するので、対応関係が無いことの証拠ではなく、既存の per-site 安全証拠（C449/C446 の split witness）を最小化した点に対して使う形になるはず。設計がそれで閉じない場合は、その例を書いて止まること。
 - 旧 Yulang2 や既存 audit の例をこの決定で読み替えて「済」としないこと。言語の受理範囲は、等しい型どうしで一致する方向にだけ動く（K2 の拒否が、一段展開した入力にも及ぶ）。
+
+## I-94（2026-11-28）cycle 471 が統合の検査で落ちた: doc コメントの単語 `admit`
+
+- cycle 471（`4cc273205`）は、監督役の `tools/verify-lean.sh` の「禁止された構成」の検査で失敗した。原因は `lean/Yulang/GeneralDeclarativeI65I74LiteralFold471.lean` 261 行の doc コメント `this gate must not admit them as a source.` の単語 `admit`。検査は追加行の中の `sorry` / `admit` を、コメントの中でも拒否する（公理の検査自体は通っていて、証明に問題はない）。
+- cycle 471 はまだ integration に入っていないので、この行を書き換えてよい（例: `must not accept them as a source`）。次の周の最初に直すこと。
+- これ以降、Lean のファイルではコメントや doc の中でも `sorry` / `admit` / `native_decide` / `axiom` などの禁止語を単語として書かないこと。監督役は 471 と次の周をまとめて統合する。

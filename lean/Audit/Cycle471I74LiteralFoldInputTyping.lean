@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74LiteralFoldInputTyping471
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.LiteralFold471.original_input_row_is_in_source_only_restriction
+#print axioms Yulang.GeneralDeclarativeI65.I72.LiteralFold471.same_input_typing_cannot_read_pending_output_support

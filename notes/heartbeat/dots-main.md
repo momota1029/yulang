@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 470
+cycle: 472
 status: completed
-started: 2026-11-27T17:30:13.943Z
-updated: 2026-11-27T18:20:20.003Z
-elapsed_min: 50
-activity: 通常終了・解放。I-93 回帰と狭い未公開対照、G04 実接続未完、raw/Lean 不変。
-report: notes/handoff/dots-cycle-470.md
+started: 2026-11-27T19:30:19.644Z
+updated: 2026-11-27T20:21:23.815Z
+elapsed_min: 51
+activity: I-94 修正、同相の元 field の循環／安全を検証。G04 未完、次回 inbox 再読。
+report: notes/handoff/dots-cycle-472.md
