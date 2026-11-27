@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74MarkedRootOrigin475
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms expose_from_a_known_first
+#print axioms actual_marked_nonbinder_run_starts_at_its_exact_first_source_row
+#print axioms the_first_mark_is_the_same_old_authenticated_field_owner

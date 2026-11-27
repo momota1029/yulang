@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74MarkedBeforeCapture475
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms legacy_code_matches_exact
+#print axioms no_legacy_code_match_returns_no_capture
+#print axioms erasure_at_the_exact_prechecked_head_returns_the_existing_option
+#print axioms a_marked_name_exposure_keeps_both_exact_original_rows
+#print axioms every_marked_capture_retains_the_legacy_typing_in_all_original_fits
