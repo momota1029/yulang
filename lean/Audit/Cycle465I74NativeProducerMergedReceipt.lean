@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74NativeProducerMergedReceipt465
+namespace Yulang.GeneralDeclarativeI65.I72.NativeProducer465
+#print axioms exact_single_candidate_phase_field_has_finite_wire
+#print axioms phase_owner_and_report_share_actual_original_row_in_every_fitting_model
+end Yulang.GeneralDeclarativeI65.I72.NativeProducer465

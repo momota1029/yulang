@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74NativeProducerSameHop465
+namespace Yulang.GeneralDeclarativeI65.I72.NativeProducer465
+#print axioms any_origin_at_a_single_physical_slot_is_the_same_occurrence
+#print axioms every_supplied_phase_hop_is_exactly_the_literal_physical_owner
+#print axioms phase_owner_reader_keeps_the_exact_existing_field_report
+end Yulang.GeneralDeclarativeI65.I72.NativeProducer465

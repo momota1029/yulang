@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74NativeProducerNoField465
+namespace Yulang.GeneralDeclarativeI65.I72.NativeProducer465.InlineBoundary
+#print axioms no_existing_field_hop_uses_only_origins_in_native360_image
+#print axioms no_prechecked_field_receipt_on_a_sole_native360_origin_list
+end Yulang.GeneralDeclarativeI65.I72.NativeProducer465.InlineBoundary
