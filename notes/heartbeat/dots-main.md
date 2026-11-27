@@ -1,11 +1,9 @@
 # dots-main heartbeat
 
 cycle: 473
-status: running
+status: completed
 started: 2026-11-27T20:30:04.633Z
-updated: 2026-11-27T21:10:08.127Z
-elapsed_min: 40
-activity: 凍結 Lean・元構文位置・通常検証を照合。G04 は未完のまま。
-workspace: /workspace/scratch/1d0b4aaa3394
-last_local_commit: none
-resume_hint: I-93: raw を変更せず、型の商の循環と到達を区別。局所証明段階、次回 inbox を再読。
+updated: 2026-11-27T21:20:08.143Z
+elapsed_min: 50
+activity: 元の構造経路・最小観測・C332 の位置境界を照合。G04 は未完で次回 inbox を再読。
+report: notes/handoff/dots-cycle-473.md
