@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74SameOldWireEligible461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms exact_raw_cycle_read_keeps_true_stamp_and_original_cycle_wire
+#print axioms coordinate_walk_last_original_cell
+#print axioms installed_field_reader_preserves_actual_header_and_raw_wire
+#print axioms any_installed_homogeneous_success_replays_with_the_same_wire_data
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461

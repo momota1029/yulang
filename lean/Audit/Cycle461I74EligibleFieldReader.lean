@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74EligibleFieldReader461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms exact_eligible_scope_iff_independent_finite_route
+#print axioms eligible_field_is_not_raw_parent_root
+#print axioms exact_eligible_scope_has_same_fit_original_evidence
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461

@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74ExactCanonicalEligible461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms legacy_scope_matches_its_exact_prior_raw_derivation
+#print axioms legacy_scoped_case_is_read_by_uniform_eligible_reader
+#print axioms legacy_scoped_case_passes_exact_existing_cumulative_check
+#print axioms legacy_scoped_case_keeps_exact_same_canonical_evidence
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461

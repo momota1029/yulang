@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74AuthoredNormalScope461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms auxiliary_projection_retains_real_constructor_coverage
+#print axioms covered_hidden_row_preserves_existing_spine
+#print axioms normalized_covered_written_source
+#print axioms existing_homogeneous_header_normal_form_stays_closed_and_authored
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461

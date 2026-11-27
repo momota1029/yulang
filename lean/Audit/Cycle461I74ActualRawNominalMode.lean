@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ActualRawNominalMode461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms old_closed_record_native_cannot_supply_nominal_shape
+#print axioms actual_earlier_nominal_raw_hop_reads_the_same_declared_unary_operator
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461

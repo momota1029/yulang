@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74EligibleFieldStart461
+
+namespace Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
+#print axioms fromReady
+#print axioms fromHomogeneous
+#print axioms exact_system_source_index_and_original_clause
+#print axioms source_readiness_and_role_are_of_exact_original_visible_slot
+end Yulang.GeneralDeclarativeI65.I72.EligibleFieldStart461
