@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74NativeProducerClosedBoundary465
+namespace Yulang.GeneralDeclarativeI65.I72.NativeProducer465
+#print axioms compiler_owned_field_needs_an_origin_outside_the_native360_image
+end Yulang.GeneralDeclarativeI65.I72.NativeProducer465

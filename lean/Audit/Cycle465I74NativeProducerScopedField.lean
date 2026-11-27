@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74NativeProducerScopedField465
+namespace Yulang.GeneralDeclarativeI65.I72.NativeProducer465
+#print axioms actual_existing_compiler_and_field_have_finite_same_phase_witness
+#print axioms a_compiled_owner_for_the_exact_report_is_genuinely_released_and_located
+end Yulang.GeneralDeclarativeI65.I72.NativeProducer465

@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74NativeProducerGrammar465
+namespace Yulang.GeneralDeclarativeI65.I72.NativeProducer465
+#print axioms every_emitted_node_has_its_literal_compiler_grammar
+#print axioms literal_compiler_grammar_is_exactly_the_image
+#print axioms compiler_node_is_injective
+#print axioms concrete_nonvariable_ordinary_source_is_never_native360_emission
+#print axioms exact_ordinary_record_owner_is_not_an_emitted_native360_node
+end Yulang.GeneralDeclarativeI65.I72.NativeProducer465

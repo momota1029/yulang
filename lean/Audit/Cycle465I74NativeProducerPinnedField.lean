@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74NativeProducerPinnedField465
+namespace Yulang.GeneralDeclarativeI65.I72.NativeProducer465.PinnedTicket
+#print axioms same_existing_report_checked_at_exact_ordinal
+#print axioms pinned_report_keeps_the_issued_origin_and_cycle_in_every_fit
+end Yulang.GeneralDeclarativeI65.I72.NativeProducer465.PinnedTicket
