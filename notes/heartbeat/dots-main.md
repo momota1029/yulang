@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 454
-status: completed
-started: 2026-11-27T01:30:00.001Z
-updated: 2026-11-27T02:20:05.198Z
-elapsed_min: 50
-activity: 通常終了・解放。I-85 の same-phase G03 を厳密検証して閉じる。G03b は開いたまま、残り19行。
-report: notes/handoff/dots-cycle-454.md
+cycle: 455
+status: running
+started: 2026-11-27T02:30:00.002Z
+updated: 2026-11-27T02:30:03.224Z
+elapsed_min: 0
+activity: I-85 と G03 正本採用を確認。G04 の書かれた record prefix と最後に到達する実 K2 を読む。
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: I-83/I-85 G04 深い実 record field の prefix と raw K2。G03b は先取りしない。
