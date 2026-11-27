@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74FiniteCheckedObservation473
+
+open Yulang.GeneralDeclarativeI65.I72.LiteralVisits473
+#print axioms checked_alternatives_exact_for_fixed_input_and_both_signs
+#print axioms independent_checkpoint_reifies_the_exact_site_and_sign
+#print axioms accepted_observation_yields_all_input_guards
+#print axioms fixed_observation_result_has_exact_finite_witness_iff
