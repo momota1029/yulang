@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74LiteralSuppliedProjection464
+namespace Yulang.GeneralDeclarativeI65.I72.NamedProjection464
+#print axioms accepted_literal_phase_has_exact_ordinary_batch_and_original_plans
+#print axioms exact_original_row_plans_have_finite_supplied_phase_certificate
+end Yulang.GeneralDeclarativeI65.I72.NamedProjection464
