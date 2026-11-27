@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74AuthenticCapturedStability462
+
+open Yulang.GeneralDeclarativeI65.I72.CapturedNormalForm462
+#print axioms actual_source_stability_cert_is_independently_reflected
+#print axioms stable_projection_keeps_all_actual_original_source_fields
+#print axioms finite_positive_source_protocol_joins_only_actual_scoped_field_uses
