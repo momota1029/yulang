@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74PreparationAddress467
+
+open Yulang.GeneralDeclarativeI65.I72.PreparationAddress467
+#print axioms compile_none_at_unrequested_ordinal
+#print axioms prepared_without_outputs_cannot_produce_native_value
+#print axioms compilation_returns_exact_requested_associated_output_address
+#print axioms exact_compiled_address_at_prepared_source_and_model

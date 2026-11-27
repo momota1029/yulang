@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74CheckedPreparationObservations467
+
+open Yulang.GeneralDeclarativeI65.I72.CheckedPreparationObservations467
+#print axioms same_phase_retention_wire_checks_both_original_footprints
+#print axioms checked_original_query_preserves_raw_cycles_and_known_constructors

@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74InstallPhaseIdentity467
+
+open Yulang.GeneralDeclarativeI65.I72.InstallPhaseIdentity467
+#print axioms exact_installed_origin_checks_the_actual_returned_ordinary
+#print axioms every_data_wire_declines_a_different_actual_compiler_phase
+#print axioms real_release_of_current_board_uses_no_fresh_scope_in_a_true_fit

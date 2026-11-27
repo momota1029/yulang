@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74CheckedPreparedRetraction467
+
+open Yulang.GeneralDeclarativeI65.I72.CheckedPreparedRetraction467
+#print axioms bounded_atom_pair_is_exact
+#print axioms explicit_variable_row_pair_is_exact
+#print axioms exact_finite_preparation_retraction_check
+#print axioms certified_prepare_maps_raw_k2_at_the_same_original_query
+#print axioms finite_retraction_certificate_supplies_exact_generators

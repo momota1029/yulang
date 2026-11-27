@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ReceivedPhaseReplay467
+
+open Yulang.GeneralDeclarativeI65.I72.ReceivedPhaseReplay467
+#print axioms independent_exact_receiver_execution_replays
+#print axioms one_existing_forwarded_receiver_iff_finite_data
+#print axioms same_fitting_receiver_reads_old_physical_code_not_fresh_assignment
