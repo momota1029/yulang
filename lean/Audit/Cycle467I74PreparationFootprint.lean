@@ -1,0 +1,14 @@
+import Yulang.GeneralDeclarativeI65I74PreparationFootprint467
+
+open Yulang.GeneralDeclarativeI65.I72.PreparationFootprint467
+#print axioms descends_from_pinned_owner
+#print axioms path_from_pinned_owner_transports
+#print axioms raw_cycles_at_original_footprint_depend_only_on_restricted_alias
+#print axioms raw_cycles_with_same_existing_rows_and_restricted_alias
+#print axioms OrdinaryRetraction.alias_back
+#print axioms OrdinaryRetraction.alias_forward
+#print axioms OrdinaryRetraction.raw_cycle_same_rows_on_unchanged_footprint
+#print axioms ordinary_retraction_of_collapsing_appended_atoms
+#print axioms observed_footprint_covers_every_actual_ordinary_shape
+#print axioms observed_footprint_is_least
+#print axioms actual_original_cycle_same_if_finite_pinned_names_fixed

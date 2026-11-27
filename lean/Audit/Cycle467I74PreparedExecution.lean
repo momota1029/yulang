@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PreparedExecution467
+
+open Yulang.GeneralDeclarativeI65.I72.PreparedExecution467
+#print axioms native_preparation_replays_exact_independent_record
+#print axioms independent_prepared_record_unique_if_same_actual_inputs
