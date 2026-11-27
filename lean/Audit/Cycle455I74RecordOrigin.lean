@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74RecordOrigin455
+open Yulang.GeneralDeclarativeI65.I72.RecordTrail455
+#print axioms source_opener_iff_finite_original_index455
+#print axioms actual_original_opener_has_same_model_native_read455
+#print axioms independently_authored_trail_has_exact_source_reads_in_same_model455

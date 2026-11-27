@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74RecordSpine455
+open Yulang.GeneralDeclarativeI65.I72.RecordTrail455
+#print axioms read_spine_sound455
+#print axioms exact_spine_replays455
+#print axioms actual_closed_chain_where_prefix_strict455
+#print axioms actual_closed_chain_translates_without_depth_bound455
