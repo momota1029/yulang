@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74MixedTraversal456
+
+open Yulang.GeneralDeclarativeI65.I72.RecordTraversal455.MixedQA
+
+#print axioms read_owned_sound
+#print axioms read_owned_complete
+#print axioms mixed_trail_in_canonical_visit
+#print axioms checked_mixed_trail_is_actual
+#print axioms actual_mixed_trail_has_finite_wire
+#print axioms mixed_cycle_has_actual_finite_wire

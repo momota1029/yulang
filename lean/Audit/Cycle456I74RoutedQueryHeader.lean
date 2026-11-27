@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74RoutedQueryHeader456
+
+open Yulang.GeneralDeclarativeI65.I72.RoutedQueryHeader456
+open Yulang.GeneralDeclarativeI65.I72.RoutedNominalPoint456
+
+#print axioms exact_same_written_header_replays456
+#print axioms legacy_application_cannot_read_original_declared_mode456
+#print axioms legacy_translation_cannot_read_the_same_declared_application456
+#print axioms legacy_translation_stops_at_an_authored_declared_record_field456

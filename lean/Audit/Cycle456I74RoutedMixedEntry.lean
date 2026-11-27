@@ -1,0 +1,15 @@
+import Yulang.GeneralDeclarativeI65I74RoutedMixedEntry456
+
+open Yulang.GeneralDeclarativeI65.I72.RoutedMixed456
+
+#print axioms ending_field_nonempty456
+#print axioms independent_routed_field_derivation_replays456
+#print axioms actual_routed_field_report_iff_finite_wire456
+#print axioms mixed_nonempty_trail_has_safe_root456
+#print axioms routed_field_diagnosis_is_precise_source_trace456
+#print axioms no_routed_field_rule_selects_or_emits_where456
+#print axioms routed_mixed_trail_is_same_model456
+#print axioms routed_field_report_is_sound_in_every_same_fit456
+#print axioms all_previous_canonical_Bools_unchanged456
+#print axioms check_full_sound456
+#print axioms independent_routed_field_derivation_has_cumulative_witness456
