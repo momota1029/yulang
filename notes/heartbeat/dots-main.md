@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 456
-status: completed
-started: 2026-11-27T03:35:19.000Z
-updated: 2026-11-27T04:25:24.599Z
-elapsed_min: 50
-activity: 通常終了・解放。G04 の実 variant/pair/単項 nominal の混在経路を検証。全域は未完、残り19行。
-report: notes/handoff/dots-cycle-456.md
+cycle: 457
+status: running
+started: 2026-11-27T04:31:40.000Z
+updated: 2026-11-27T04:31:55.876Z
+elapsed_min: 0
+activity: G04 のみ。旧保守ガードの代わりに既存 DeclarationReady が支える元 nonfirst where を検証。
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: I-83/I-85 G04 深い実 record field の prefix と raw K2。G03b は先取りしない。
