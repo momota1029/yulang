@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74JointWrittenTrail460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms joint_has_actual_raw_trace
+#print axioms joint_has_exact_written_path
+#print axioms joint_aligns_exactly_at_start
+#print axioms read_joint_sound
+#print axioms joint_wire_complete
+#print axioms joint_finite_iff
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74GrammarBoundaries460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms open_tail_mark_is_exact
+#print axioms open_written_tail_has_no_g04_field_step
+#print axioms actual_argument_count_is_original_arity
+#print axioms app_mark_reads_only_original_arity
+#print axioms declared_mode_delegation_uses_actual_authored_layout
+#print axioms residual_join_cannot_be_a_current_raw_visit_root
+#print axioms bound_variable_cannot_be_a_current_raw_visit_root
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

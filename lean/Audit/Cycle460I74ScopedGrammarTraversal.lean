@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74ScopedGrammarTraversal460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms written_choice_is_unique
+#print axioms exact_scope_reifies_full_trace_by_descent
+#print axioms full_trace_reflects_exact_compiled_scope
+#print axioms any_finite_scoped_field_has_exactly_its_structural_wire
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

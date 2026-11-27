@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74OriginalReportAnchor460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms every_independent_anchor_replays
+#print axioms address_from_original_declaration_is_exact
+#print axioms anchor_original_where_input_is_same_declared_site
+#print axioms anchor_compiles_the_normalized_original
+#print axioms attained_exact_report_iff_finite_anchored_read
+#print axioms read_result_cannot_replace_original_occurrence
+#print axioms addressed_field_holds_in_every_same_fit
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74CompiledApplicationReflection460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms primitive_application_exact_signature
+#print axioms legacy_pair_emits_real_original_pair_key
+#print axioms actual_authored_pair_is_written_pair
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

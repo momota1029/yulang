@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74JointWrittenField460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms read_joint_field_exact
+#print axioms exact_joint_field_is_an_existing_raw_visit
+#print axioms exact_joint_field_has_same_fit_evidence
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

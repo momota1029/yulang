@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74CompiledTrailDecomposition460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms compiled_trace_is_root_authored
+#print axioms independently_aligned_lexical_and_raw_trails_compose
+#print axioms authored_trail_normal_form
+#print axioms no_payload_can_stand_in_for_a_selected_field
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460

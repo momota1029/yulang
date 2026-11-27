@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74CompiledChild460
+
+namespace Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
+#print axioms authored_application_keeps_ordered_args
+#print axioms actual_first_field_compiles_to_observed_child
+#print axioms selected_zero_query_of_same_authored_application
+#print axioms selected_one_query_of_same_authored_application
+#print axioms same_authored_compilation_at_selected_child
+end Yulang.GeneralDeclarativeI65.I72.WrittenPattern460
