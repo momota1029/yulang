@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74AttachedInputField472
+
+open Yulang.GeneralDeclarativeI65.I72.ObservationSyntax471
+#print axioms attached_author_wire_checks_both_literal_ordinals472
+#print axioms output_only_never_becomes_source_even_when_released472

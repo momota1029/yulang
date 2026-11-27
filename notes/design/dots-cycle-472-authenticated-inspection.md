@@ -1,0 +1,9 @@
+# C472: authenticate the field before reading its K2 bit
+
+I-94 authorized one C471 comment substitution only. The reverse substitution gives the complete old file byte-for-byte. C471 previously passed focused Lean and the declaration checks but had not passed the supervisor lexical integration gate. The full added Lean delta is checked against the actual authority, including the unintegrated and corrected C471 files.
+
+The source evidence for a visited field is independent of K2. Read the one current prechecked point head; pin its unfiltered declaration ordinal, written payload path, actual normalized child code, selected physical row ordinal and backed source tokens. The old deterministic C332 source-typing computation runs on that authorized input. Its exact rooted walk lifts to the full original source-only restriction and has the same meaning under every original FitsFull. No output emitter, new raw name, new row, or old checker change is involved.
+
+The existing ordinary provenance manifest and executable attachment now give a concrete adapter rather than requiring a fixture-specific source validator. The authored-table ordinal and raw ordinal are independently checked. An output-only row does not become source when released; this source-only adapter is not the completed-output release branch. The manifest remains independently supplied; the attachment checks presence, not the actual compiler producing the manifest or its authority.
+
+On real written fitting tests, the inline field unfolding the recursive type has K2; a nonvariable selected field with a different head that reaches the same named cycle is actually safe in its checked minimal cone. Invalid correspondence, request path, pending-only and released-only substitution are not evidence of safety. The general statement reifies either sign given an actual source event and coherent resolved reachable view; not every compiler can yet emit these inputs. G04 remains open.
