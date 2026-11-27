@@ -1,0 +1,12 @@
+import Yulang.GeneralDeclarativeI65I74WhereGroupedEntry453
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.GroupedEntry453
+
+#print axioms matches_reflects_exact_origins453
+#print axioms whole_roster_check_reflects_sufficient_scope453
+#print axioms certified_class_iff_same_inputs_at_both_actual_sites453
+#print axioms scoped_grouped_sound_at_every_fit453
+#print axioms exact_scoped_grouped_report_iff_finite_wire453
+#print axioms all_previous_witness_Bools_unchanged453
+#print axioms check_full_sound453
+#print axioms scoped_independent_exact_grouped_has_cumulative_witness453

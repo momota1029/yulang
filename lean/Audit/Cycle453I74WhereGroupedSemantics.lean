@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74WhereGroupedSource453
+
+open Yulang.GeneralDeclarativeI65.I72.WhereSites450.OriginalCohorts451.GroupedEntry453
+
+#print axioms every_reported_group_has_all_its_actual_ordered_origins453
+#print axioms exact_child_cycle_is_in_report_after_actual_output_emission453
+#print axioms accepted_grouped_has_original_positional_trace_and_no_writes453
