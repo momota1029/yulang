@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 467
-status: completed
-started: 2026-11-27T14:33:47.102Z
-updated: 2026-11-27T15:23:54.322Z
-elapsed_min: 50
-activity: 通常終了・解放。実旧準備・既発行 address の転送と exact 相照合。新規 native issuer 発行は未接続、G04 未完、残り20行。
-report: notes/handoff/dots-cycle-467.md
+cycle: 468
+status: running
+started: 2026-11-27T15:30:54.918Z
+updated: 2026-11-27T15:31:05.367Z
+elapsed_min: 0
+activity: I-91 の設計一本。G04 issuer の責任相と表現の境界を確認。
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: I-89: 真正な compiler 相の元位置／issuer と実 raw 座標の接続だけを検証する。
