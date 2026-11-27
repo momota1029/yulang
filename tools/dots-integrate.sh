@@ -46,7 +46,14 @@ if ! git merge-base --is-ancestor "$base" HEAD; then
     git merge --abort; echo "$label rc=6 (merge with integration $base conflicts)"; exit 6
   fi
 fi
-bash "$R/tools/verify-lean.sh" "$V" "$base"; rc=$?
+# Run the build and audits inside a memory-limited user scope when systemd is
+# available, so the page cache they fill is reclaimed inside the scope instead of
+# growing WSL's memory (which Windows does not get back).
+wrap=()
+if systemd-run --user --scope --quiet true >/dev/null 2>&1; then
+  wrap=(systemd-run --user --scope --quiet -p MemoryHigh=10G -p MemoryMax=16G)
+fi
+"${wrap[@]}" bash "$R/tools/verify-lean.sh" "$V" "$base"; rc=$?
 echo "$label rc=$rc"
 [ $rc -eq 0 ] || exit 5
 git push -q origin HEAD:integration/m1-final || { echo "push failed"; exit 7; }
