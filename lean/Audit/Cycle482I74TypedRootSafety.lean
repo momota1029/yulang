@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74TypedRootSafety482
+open Yulang.GeneralDeclarativeI65.I72.TypedRootSafety482
+#print axioms allRootCheckSound
+#print axioms allRootCheckComplete
+#print axioms actualRequestRootCoverage

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74TypedRootPinnedCard482
+open Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank
+#print axioms actual_root_pinned_read_iff
+#print axioms successful_root_pin_preserves_exact_ordinary_origins_and_same_fit
