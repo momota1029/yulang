@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ExactIndependentReleasedEvent484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Producer479.original_completed_input_retains_its_independent_active_origin
+#print axioms Yulang.GeneralDeclarativeI65.I72.Producer479.scoped_completed_interior_agrees_with_its_independent_released_event
