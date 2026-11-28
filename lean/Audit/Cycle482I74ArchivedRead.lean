@@ -1,0 +1,10 @@
+import Yulang.GeneralDeclarativeI65I74ArchivedRead482
+
+namespace Yulang.GeneralDeclarativeI65.I72.ArchiveValidation482
+#print axioms checkOccurrences_exact
+#print axioms readArchivedTyping
+#print axioms qualified_recorded_source_has_its_own_finite_archive_checker
+#print axioms the_archived_root_reference_is_one_of_the_literally_recovered_pairs
+#print axioms verified_archived_typing_has_same_meaning_in_every_original_fit
+
+end Yulang.GeneralDeclarativeI65.I72.ArchiveValidation482

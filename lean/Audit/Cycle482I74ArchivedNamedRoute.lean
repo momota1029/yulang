@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65I74ArchivedNamedRoute482
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.ArchiveValidation482.archived_named_route_keeps_the_old_terminal_and_exact_prior_capture

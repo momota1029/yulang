@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74TypedCompletedFocus482
+open Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank
+#print axioms completed_focus_reads_same_ordinary_row_and_exact_active_native_release
+#print axioms same_completed_typed_input_and_signed_report_hold_in_every_original_fit
