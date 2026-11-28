@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74SignedInteriorPath483
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.paired_path_retains_the_independent_source_typing_at_each_read_origin
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.signed_interior_is_at_the_exact_ambient_path_with_source_side_unchanged

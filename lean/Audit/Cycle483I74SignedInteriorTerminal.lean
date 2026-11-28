@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74SignedInteriorTerminal483
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.equal_finite_selection_replays_the_exact_ambient_terminal
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.signed_interior_terminal_is_the_same_physical_site_and_same_quotient_sign
