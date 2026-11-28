@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74MixedLiteralHop477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms mixed_arrival_is_exact_edge_and_source_is_safe477
+#print axioms checked_mixed_hop_keeps_compiled_and_original_paths477
+#print axioms checked_named_origin_selection_computes_existing_exact_stamp477
+#print axioms mixed_origin_selection_reflects_both_literal_cases477
+#print axioms mixed_arrival_replays_its_checked_bit477
+#print axioms mixedPointFromChosenNamed477

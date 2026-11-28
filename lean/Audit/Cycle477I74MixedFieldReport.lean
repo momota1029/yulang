@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74MixedFieldReport477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms mixed_field_report_keeps_same_input_and_finishes_at_the_actual_quotient477
+#print axioms mixed_field_report_preserves_full_safe_path_after_its_original_root477
