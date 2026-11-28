@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74GeometryCounterpartTrail484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Counterpart484.one_independently_selected_trail_reifies_its_equal_observation_geometry
+#print axioms Yulang.GeneralDeclarativeI65.I72.Counterpart484.one_trail_and_equal_complete_cone_reify_an_exact_finite_geometry_wire

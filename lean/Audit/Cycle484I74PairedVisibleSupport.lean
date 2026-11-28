@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65I74PairedVisibleSupport484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.paired_visible_path_retains_original_completed_support_and_same_models

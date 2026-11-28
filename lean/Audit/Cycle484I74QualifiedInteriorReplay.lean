@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65I74QualifiedInteriorReplay484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.qualified_components_reify_the_same_independent_scoped_event

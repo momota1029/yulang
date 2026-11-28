@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74CompletedInterior484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.completed_interior_keeps_original_release_and_scoped_report
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.completed_interior_preserves_every_original_model_and_never_retags_an_inner_owner
