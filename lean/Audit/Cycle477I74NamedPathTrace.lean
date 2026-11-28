@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74NamedPathTrace477
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms finite_named_path_receipt_replays_exactly477
+#print axioms finite_named_path_reader_is_exact477
+#print axioms finite_named_path_points_are_all_safe_before_terminal477
+#print axioms finite_named_path_retains_original_written_and_compiled_addresses477
