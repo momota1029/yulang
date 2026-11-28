@@ -1,0 +1,34 @@
+import Yulang.GeneralDeclarativeI65I74FlatRoundtrip481
+
+open Yulang.GeneralDeclarativeI65.I72.Flat481
+
+#print axioms legacy_report_roundtrip481
+#print axioms retained_wire_roundtrip481
+#print axioms selected_wire_roundtrip481
+#print axioms opaque_wire_roundtrip481
+#print axioms whole_wire_roundtrip481
+#print axioms listSite_wire_roundtrip481
+#print axioms listFrame_wire_roundtrip481
+#print axioms guardedWhere_wire_roundtrip481
+#print axioms grouped_report_roundtrip481
+#print axioms grouped_wire_roundtrip481
+#print axioms rawGrouped_report_roundtrip481
+#print axioms rawGrouped_wire_roundtrip481
+#print axioms fieldRecord_report_roundtrip481
+#print axioms fieldRecord_wire_roundtrip481
+#print axioms fieldMixed_report_roundtrip481
+#print axioms fieldMixed_wire_roundtrip481
+#print axioms fieldNominal_report_roundtrip481
+#print axioms fieldNominal_wire_roundtrip481
+#print axioms fieldReadyRecord_report_roundtrip481
+#print axioms fieldReadyRecord_wire_roundtrip481
+#print axioms fieldReadyMixed_report_roundtrip481
+#print axioms fieldReadyMixed_wire_roundtrip481
+#print axioms fieldVariant_report_roundtrip481
+#print axioms fieldVariant_wire_roundtrip481
+#print axioms fieldStructural_report_roundtrip481
+#print axioms fieldStructural_wire_roundtrip481
+#print axioms fieldProjected_report_roundtrip481
+#print axioms fieldProjected_wire_roundtrip481
+#print axioms fieldHomogeneous_report_roundtrip481
+#print axioms fieldHomogeneous_wire_roundtrip481

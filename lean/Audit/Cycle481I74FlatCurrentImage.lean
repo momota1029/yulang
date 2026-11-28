@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74FlatCurrentImage481
+open Yulang.GeneralDeclarativeI65.I72.Flat481
+#print axioms current_report_right_inverse481
+#print axioms current_wire_right_inverse481
+#print axioms flat_data_and_current_entry_are_exactly_equivalent481
+#print axioms current_report_image_is_exact481
+#print axioms flat_current_report_codec_injective481
+#print axioms flat_current_wire_codec_injective481
