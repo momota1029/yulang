@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74G04PreviouslyRecorded480
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms a_recorded_pre_erasure_source_order_has_a_faithful_finite_replay480
+#print axioms a_bound_released_fact_has_faithful_replay_without_issuing_it480

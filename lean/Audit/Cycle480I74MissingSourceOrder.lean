@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74MissingSourceOrder480
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+#print axioms a_source_without_recorded_order_still_has_a_faithful_finite_wire480

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74EventwiseG04Producer480
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms g04_producer_iff_eventwise_exists480

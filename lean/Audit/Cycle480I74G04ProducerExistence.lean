@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74G04ProducerExistence480
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms every_qualified_event_has_a_faithful_finite_wire480
+#print axioms g04_producer_proved_scoped480
