@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74LocatedUniquePaths477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms exact_path_once_in_every_structural_capture477
+#print axioms exact_argument_paths_once477
+#print axioms exact_field_paths_once477

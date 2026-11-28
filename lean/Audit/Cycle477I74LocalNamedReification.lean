@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74LocalNamedReification477
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms local_named_step_has_a_finite_witness_at_the_very_same_site477
+#print axioms existing_exact_hop_recovers_independent_coverage_and_site_sign477
+#print axioms exactly_the_local_independent_rule_has_a_finite_hop477

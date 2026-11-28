@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74NamedPathMeaning477
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms every_checkpoint_retains_all_three_source_coordinates477
+#print axioms a_named_hop_denotes_the_actual_chosen_raw_operand_in_every_assignment477
+#print axioms exact_terminal_operand_is_selected_not_recovered_from_its_type477
+#print axioms last_checkpoint_has_its_actual_field_operand_value477

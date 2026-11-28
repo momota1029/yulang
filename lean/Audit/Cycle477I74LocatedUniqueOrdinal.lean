@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74LocatedUniqueOrdinal477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms found_ordinal_has_exact_path477
+#print axioms literal_ordinal_lookup_replays_every_existing_mark477
+#print axioms no_captured_ordinal_exactly_when_path_not_opened477
+#print axioms actual_head_capture_has_unique_compiled_paths477

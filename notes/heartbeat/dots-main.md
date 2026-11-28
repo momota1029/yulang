@@ -3,9 +3,9 @@
 cycle: 477
 status: running
 started: 2026-11-28T00:32:39.160Z
-updated: 2026-11-28T00:42:42.548Z
-elapsed_min: 10
-activity: 元の field から有限 named 経路を再生し、各既存 edge と全 proper prefix・終点符号を確認
+updated: 2026-11-28T00:53:12.523Z
+elapsed_min: 20
+activity: I-95 を確認。元 operand、ordinal の一意な補完、独立な正負の有限 replay を対象検証
 workspace: /workspace/scratch/1d0b4aaa3394
 last_local_commit: none
-resume_hint: I-93: raw を変更せず、型の商の循環と到達を区別。局所証明段階、次回 inbox を再読。
+resume_hint: I-95: G04 の期限は C479。I-92 の実入力 event 接続が残る。次回 inbox を再読。
