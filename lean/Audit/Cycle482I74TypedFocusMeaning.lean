@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74TypedFocusMeaning482
+open Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank
+#print axioms scoped_selected_arrival_means_the_exact_typed_raw_child
+#print axioms scoped_selected_arrival_uses_same_original_fits_and_compiled_child
+#print axioms every_actual_focused_site_has_typed_meaning_in_same_fits

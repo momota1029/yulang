@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74ExactScopedReport482
+open Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank
+#print axioms query_step_matches_exactly
+#print axioms query_path_matches_exactly
+#print axioms signed_report_matches_exactly
+#print axioms exact_checked_read_cannot_substitute_observation_or_source
+#print axioms checked_named_terminal_has_the_literal_scoped_receipt482
+#print axioms checked_completed_report_has_the_literal_scoped_receipt482
