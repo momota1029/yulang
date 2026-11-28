@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65I74IndependentFieldNamedCut484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.independently_typed_literal_field_yields_its_authored_named_cut_without_relabeling_geometry

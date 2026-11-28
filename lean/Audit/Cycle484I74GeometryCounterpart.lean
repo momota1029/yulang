@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74GeometryCounterpart484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.Counterpart484.same_selected_literal_step_exists_in_a_resolved_equal_presentation
+#print axioms Yulang.GeneralDeclarativeI65.I72.Counterpart484.equal_presentations_reify_one_already_selected_original_geometric_hop
