@@ -1,0 +1,25 @@
+import Yulang.GeneralDeclarativeI65I74FlatSound481
+
+open Yulang.GeneralDeclarativeI65.I72.Flat481
+
+#print axioms eachLegacyLeafSound481
+#print axioms directLegacyFlatSound481
+#print axioms check_full_flat_sound481
+#print axioms retained_sound_from_flat481
+#print axioms selected_sound_from_flat481
+#print axioms opaque_sound_from_flat481
+#print axioms whole_sound_from_flat481
+#print axioms listSite_sound_from_flat481
+#print axioms listFrame_sound_from_flat481
+#print axioms guardedWhere_sound_from_flat481
+#print axioms grouped_sound_from_flat481
+#print axioms rawGrouped_sound_from_flat481
+#print axioms fieldRecord_sound_from_flat481
+#print axioms fieldMixed_sound_from_flat481
+#print axioms fieldNominal_sound_from_flat481
+#print axioms fieldReadyRecord_sound_from_flat481
+#print axioms fieldReadyMixed_sound_from_flat481
+#print axioms fieldVariant_sound_from_flat481
+#print axioms fieldStructural_sound_from_flat481
+#print axioms fieldProjected_sound_from_flat481
+#print axioms fieldHomogeneous_sound_from_flat481
