@@ -96,6 +96,17 @@ if [ -n "$removed" ] && [ -n "${VERIFY_REVIEWED_REMOVALS:-}" ]; then
     path=${line% (-*}
     case " $VERIFY_REVIEWED_REMOVALS " in
       *" $path "*)
+        # lean/Yulang.lean qualifies only when every removed line is the import of
+        # a lean/Yulang/*.lean file deleted in the same diff (proof compression, I-97).
+        if [ "$path" = lean/Yulang.lean ]; then
+          deleted=$(git diff --name-only --diff-filter=D "$base"..HEAD -- 'lean/Yulang/*.lean' | sed 's#^lean/##; s#\.lean$##; s#/#.#g')
+          bad=$(git diff -U0 "$base"..HEAD -- lean/Yulang.lean | grep '^-' | grep -v '^---' | sed 's/^-//' | while IFS= read -r l; do
+                  m=$(printf '%s' "$l" | sed -n 's/^import[[:space:]]\+\([A-Za-z0-9_.]*\)[[:space:]]*$/\1/p')
+                  if [ -z "$m" ] || ! printf '%s\n' "$deleted" | grep -qxF "$m"; then echo "$l"; fi
+                done)
+          if [ -z "$bad" ]; then echo "REVIEW: removed import lines of deleted modules approved by owner: $line"; continue; fi
+          echo "FAIL-detail: lean/Yulang.lean lost lines that are not imports of deleted modules:"; echo "$bad"
+        fi
         case "$path" in
           lean/Audit.lean|lean/README.md|lean/Yulang.lean|lean/lakefile.*|lean/lake-manifest.json|lean/lean-toolchain)
             unreviewed="$unreviewed$line"$'\n' ;;
