@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 477
-status: completed
-started: 2026-11-28T00:32:39.160Z
-updated: 2026-11-28T01:22:44.225Z
-elapsed_min: 50
-activity: 元 field の有限 mixed 経路と正負を対象検証、I-95 期限を記録。実 compiler の発行は未完
-report: notes/handoff/dots-cycle-477.md
+cycle: 478
+status: running
+started: 2026-11-28T01:26:21.105Z
+updated: 2026-11-28T01:26:53.057Z
+elapsed_min: 0
+activity: I-95: 同じ compiler 相の入力 event と元 source 位置・authored row の対応を精査
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: I-95: G04 の期限は C479。I-92 の実入力 event 接続が残る。次回 inbox を再読。
