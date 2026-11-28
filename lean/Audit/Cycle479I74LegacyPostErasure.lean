@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74LegacyPostErasure479
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms exact_old_source_view_agreement_controls_every_legacy_emission479

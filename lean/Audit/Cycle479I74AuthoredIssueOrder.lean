@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74AuthoredIssueOrder479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms an_issued_authored_trace_reads_the_exact_order_and_physical_root479
+#print axioms retained_pre_erasure_source_order_does_not_allow_an_empty_phase_trace479

@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74G04ProducerMeaning479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms named_producer_retains_the_independent_same_state_meaning479
+#print axioms an_exact_emission_has_the_same_literal_report_on_its_actual_branch479
