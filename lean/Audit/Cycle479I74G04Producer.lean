@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74G04Producer479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#check G04Producer
+#print axioms G04Producer
+#print axioms named_producer_premise_supplies_an_issued_exact_report479

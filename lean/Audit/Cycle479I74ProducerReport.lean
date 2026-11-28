@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ProducerReport479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms materialize_independent_geometry_without_issuing_a_source479

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ProducerSpec479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms declarative_trail_reads_existing_edges_and_returns_at_the_terminal479

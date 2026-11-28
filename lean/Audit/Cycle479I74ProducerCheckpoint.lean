@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ProducerCheckpoint479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms independent_source_visits_reify_exact_checkpoints479
+#print axioms every_independent_input_has_exact_same_phase_graph_data479
+#print axioms independent_input_has_one_walk_in_every_original_full_fit479
