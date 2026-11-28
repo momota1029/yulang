@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74LocatedCaptureErasure476
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms located_prefix_erases
+#print axioms located_capture_erases_all_options476
+#print axioms located_arguments_erase_all_options476
+#print axioms located_fields_erase_all_options476

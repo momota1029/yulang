@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74NamedCaptureSelection476
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms exact_given_named_selection_replays476
+#print axioms named_selection_exists_exactly_when_finite_reader_succeeds476
+#print axioms checked_field_and_mark_retain_distinct_exact_source_positions476

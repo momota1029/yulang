@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74NamedFieldWitness476
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms independently_given_actual_exposure_yields_a_finite_field_wire476
+#print axioms actual_named_field_and_safe_outer_reify_exact_finite_report476

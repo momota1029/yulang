@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74FixedNamedSourceChoice476
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms original_fixed_field_replays_in_same_input476
+#print axioms fixed_named_join_is_exact_same_literal_field_receipt476
+#print axioms wrong_original_label_or_path_cannot_use_a_fixed_receipt476
