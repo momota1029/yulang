@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74G05CanonicalOutputBoundary487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms accepted_g05_report_observations_are_prescribed_by_the_canonical_generator487
+#print axioms same_inputs_cannot_accept_two_different_observed_serializations_on_the_same_row487

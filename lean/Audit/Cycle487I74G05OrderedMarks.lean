@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74G05OrderedMarks487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms g05_ordered_rows_keep_the_entire_signed_candidate_roster487

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74G05SignedMarks487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms stored_g05_signed_bits_cover_the_same_independent_recursive_candidates487

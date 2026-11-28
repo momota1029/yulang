@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74G05LocalTokenReification487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms exact_locally_available_marks_reify_one_finite_ordered_local_receipt_list487

@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74G05TaggedEntry487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms g05_report_data_equality_reconstructs_every_report_field487
+#print axioms g05_new_tag_preserves_every_old_bool_and_rejects_crossed_tags487
+#print axioms new_tag_check_succeeds_iff_it_replays_the_same_full_report_data487

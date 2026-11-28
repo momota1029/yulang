@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74G05ReportRepresentationBoundary487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms independent_g05_exactness_currently_does_not_fix_observation_multiplicity487
+#print axioms canonical_g05_tag_refuses_a_nonempty_doubled_serialization_for_every_witness487

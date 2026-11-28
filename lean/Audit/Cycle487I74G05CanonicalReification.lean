@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74G05CanonicalReification487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms a_signed_tape_and_exact_canonical_local_reports_supply_finite_checked_tokens487
+#print axioms g05_canonical_exact_report_reifies_under_the_named_visit_and_local_protocols487
