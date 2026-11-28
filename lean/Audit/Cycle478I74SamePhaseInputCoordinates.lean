@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74SamePhaseInputCoordinates478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms same_phase_coordinates_replay_the_actual_old_source_and_report478
+#print axioms compact_same_phase_success_has_the_exact_input_and_its_independent_replay478

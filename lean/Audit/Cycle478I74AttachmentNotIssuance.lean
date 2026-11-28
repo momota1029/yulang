@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74AttachmentNotIssuance478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms existing_raw_membership_allows_both_supplied_provenance_tables478
+#print axioms no_state_and_row_only_bit_recovers_both_backing_labels478

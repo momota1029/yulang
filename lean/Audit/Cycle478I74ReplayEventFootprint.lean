@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74ReplayEventFootprint478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms zip_exact_actions_with_original_checkpoints478
+#print axioms one_original_pose_and_checkpoints_recreate_the_entire_old_plan478
+#print axioms exact_old_report_replays_with_only_the_original_event_coordinates478

@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 477
+cycle: 478
 status: completed
-started: 2026-11-28T00:32:39.160Z
-updated: 2026-11-28T01:22:44.225Z
+started: 2026-11-28T01:26:21.105Z
+updated: 2026-11-28T02:16:26.377Z
 elapsed_min: 50
-activity: 元 field の有限 mixed 経路と正負を対象検証、I-95 期限を記録。実 compiler の発行は未完
-report: notes/handoff/dots-cycle-477.md
+activity: 同相入力座標の有限再生・三条件の局所検証。実 compiler の発行は未証明。I-95 期限 C479 へ
+report: notes/handoff/dots-cycle-478.md

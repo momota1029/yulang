@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74EventFootprintSound478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms referenced_event_can_be_checked_against_one_original_fitting_state478

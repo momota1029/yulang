@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ReplayEventFootprintExact478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms accepted_pose_plan_has_exact_action_trail_and_exact_checkpoint_count478
+#print axioms compact_footprint_checks_only_the_exact_full_original_pose478

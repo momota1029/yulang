@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74SingletonInput478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms a_real_singleton_head_has_literal_visible_ordinal_zero478
+#print axioms exact_accepted_input_needs_neither_frame_nor_visible_ordinal_as_data478

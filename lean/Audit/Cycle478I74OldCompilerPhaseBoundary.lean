@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74OldCompilerPhaseBoundary478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms actual_old_compiler_job_is_a_post_input_ordinal_not_a_same_phase_read478
+#print axioms same_exact_old_compiler_job_after_phase_still_needs_an_authored_position478
+#print axioms exact_old_compiler_job_never_changes_its_before_phase_to_after478

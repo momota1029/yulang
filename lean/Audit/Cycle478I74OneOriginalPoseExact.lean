@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74OneOriginalPoseExact478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms written_action_has_exactly_one_segment_per_checked_action478
+#print axioms restored_action_list_is_exact_when_every_address_recovered478
+#print axioms recovering_one_full_pose_cannot_change_any_requested_action_or_original_site478

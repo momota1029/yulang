@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74NativeOutputDemandBoundary478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms genuine_native_write_has_a_literal_requested_output478
+#print axioms native_write_cannot_be_issued_by_this_output_free_input_event478
+#print axioms any_successful_native_owner_of_an_output_free_consumer_is_not_its_requested_output478

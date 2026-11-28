@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74SourceIndexPair478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms two_exact_old_coordinates_recover_only_the_literal_equation478
+#print axioms ordered_old_stamp_recovery_has_independent_exact_replay478
+#print axioms erasing_duplicate_row_payload_fields_loses_no_old_ordered_read478
+#print axioms recovery_never_reorders_original_pairs478

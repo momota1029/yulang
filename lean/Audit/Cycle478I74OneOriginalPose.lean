@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74OneOriginalPose478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms restore_relative_coordinates_keeps_exact_supplied_step_wires478
+#print axioms one_pinned_original_pose_replays_exact_same_mixed_reader_result478

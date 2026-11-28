@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74CompactSamePhaseSound478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms checked_compact_input_keeps_exact_original_occurrence_and_ordinal478
+#print axioms compact_same_phase_sound_against_the_same_raw_graph_and_fitting_states478
