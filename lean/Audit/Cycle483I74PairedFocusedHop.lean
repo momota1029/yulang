@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74PairedFocusedHop483
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.paired_exact_pose_selects_the_same_subpattern
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.paired_focused_hop_keeps_exact_pose_geometry_and_authored_meaning

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74OrdinalPath483
+
+#print axioms Yulang.QuotientObservation471.OrdinalPath483.exact_full_ordinal_path_lifts_at_the_same_each_child_position
+#print axioms Yulang.QuotientObservation471.OrdinalPath483.corresponding_chosen_ordinal_nodes_agree_in_every_return_predicate
