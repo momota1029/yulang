@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74CoveredCandidateReification485
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms independently_typed_planned_local_routes_have_same_guarded_tape_packet485
+#print axioms all_independently_planned_visible_candidates_have_one_finite_priority_tape485

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74PlannedPreElection485
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms two_visible_slots_cannot_claim_one_original_registry_ordinal485
+#print axioms finite_local_tape_result_preserves_the_original_authorized_signed_footprint485
