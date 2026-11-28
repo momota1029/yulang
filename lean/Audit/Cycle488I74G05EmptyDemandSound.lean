@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74G05EmptyDemandSound488
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms no_argument_report_success_preserves_the_empty_original_scope_and_independent_classifications488

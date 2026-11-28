@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74G05SemanticTransport488
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms exact_g05_acceptance_can_transport_between_protocol_encodings_of_the_same_source488

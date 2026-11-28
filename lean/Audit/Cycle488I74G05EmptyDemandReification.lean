@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74G05EmptyDemandReification488
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms every_independent_zero_argument_report_reifies_without_an_arity_assumption488
