@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ExactScopedInterior483
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.exact_scoped_interior_check_replays_the_same_rooted_read
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.exact_scoped_interior_reports_the_original_signed_site_with_no_extra_authority

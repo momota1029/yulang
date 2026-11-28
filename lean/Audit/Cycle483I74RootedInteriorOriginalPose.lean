@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74RootedInteriorOriginalPose483
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.original_ast_location_replays_the_exact_full_geom_trail
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.rooted_report_fields_point_to_real_original_declaration_and_ast
