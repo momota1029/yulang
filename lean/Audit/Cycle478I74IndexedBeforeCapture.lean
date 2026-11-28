@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74IndexedBeforeCapture478
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms recovering_from_exact_input_indices_keeps_frame_and_actual_capture478
+#print axioms recovered_wire_has_exactly_the_supplied_old_index_packet478
+#print axioms old_before_capture_exists_exactly_from_the_same_indexed_input478

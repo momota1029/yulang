@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ReadOriginalAction478
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms every_real_original_action_consumes_a_nonempty_pose478
+#print axioms authentic_original_action_is_read_without_supplied_label478

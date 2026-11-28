@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ReadOriginalActionPath478
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms literal_full_pose_reads_all_old_actions_and_segments478
+#print axioms one_literal_word_cannot_choose_two_different_actual_action_sequences478
