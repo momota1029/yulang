@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74BoundedCandidateGeometry486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms every_enumerated_geometry_is_the_original_independent_guarded_trail486
+#print axioms original_syntax_budget_covers_every_independent_guarded_old_geometry486

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74OriginalNodeBudget486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms every_existing_finite_visit_stops_within_the_original_written_budget486
