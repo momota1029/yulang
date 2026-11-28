@@ -1,9 +1,11 @@
 # dots-main heartbeat
 
-cycle: 488
-status: completed
-started: 2026-11-28T11:33:22.168Z
-updated: 2026-11-28T12:23:22.171Z
-elapsed_min: 50
-activity: G05 の独立な証拠に基づく健全性と任意表記・全 arity の有限 witness、既合格の保存を確認。削除 0。
-report: notes/handoff/dots-cycle-488.md
+cycle: 489
+status: running
+started: 2026-11-28T12:29:01.494Z
+updated: 2026-11-28T12:29:01.496Z
+elapsed_min: 0
+activity: I-100 と C488 完了を読了。G05 の実訪問と独立な候補順の境界を監査中。
+workspace: /workspace/scratch/1d0b4aaa3394
+last_local_commit: none
+resume_hint: 最新版 I-100 を確認し、G05 の候補順・実訪問の拒否根拠について独立な検証を続ける。
