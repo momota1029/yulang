@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ExactSelectedCardChild484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.checked_argument_card_restricts_to_the_exact_independently_typed_child
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.checked_field_card_restricts_to_the_first_exact_written_label

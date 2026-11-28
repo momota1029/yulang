@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ConstructorChildRead484
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.read_variant_card_has_a_selected_literal_payload
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.read_primitive_card_has_the_exact_requested_child
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.read_nominal_point_card_has_the_exact_requested_child
