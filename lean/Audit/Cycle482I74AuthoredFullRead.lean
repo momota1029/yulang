@@ -1,0 +1,11 @@
+import Yulang.GeneralDeclarativeI65I74AuthoredFullRead482
+open Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank
+#print axioms readSpine_sound
+#print axioms every_old_authored_closed_name_spine_has_exact_data
+#print axioms readClosed_sound
+#print axioms every_old_authored_closed_spine_has_exact_data
+#print axioms runReadCard_sound
+#print axioms full_c331_authored_read_has_finite_card
+#print axioms authored_read_card_iff
+#print axioms recorded_root_is_a_real_ordinal_read
+#print axioms nonbinder_read_on_a_name_exposes_a_root_ordinal
