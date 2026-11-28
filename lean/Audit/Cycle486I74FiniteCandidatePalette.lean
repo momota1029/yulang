@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74FiniteCandidatePalette486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms every_original_finite_position_table_has_a_complete_optional_checked_palette486

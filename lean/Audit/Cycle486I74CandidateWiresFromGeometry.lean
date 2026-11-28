@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74CandidateWiresFromGeometry486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms direct_geometry_wire_computes_and_checks_the_same_original_signed_trail486

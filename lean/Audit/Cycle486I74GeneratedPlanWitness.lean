@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74GeneratedPlanWitness486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms a_generated_exact_proper_visit_has_an_authorized_candidate_packet486
+#print axioms the_generated_plan_has_independent_original_data_for_every_candidate_visit486
