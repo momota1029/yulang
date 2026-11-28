@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74PermitBeforeOriginalHop487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms early_original_prefix_gate_and_late_hop_filter_return_identical_ordered_entries487

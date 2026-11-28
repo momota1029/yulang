@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74IndependentScopedArgumentCoverage487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms generated_ordered_arguments_cover_every_and_only_independent_scoped_original_argument487

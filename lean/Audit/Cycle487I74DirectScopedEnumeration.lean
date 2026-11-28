@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74DirectScopedEnumeration487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms moving_prefix_checks_before_each_hop_preserves_the_exact_scoped_result487

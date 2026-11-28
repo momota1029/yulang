@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74AutomaticScopedElection487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms automatic_scoped_election_has_the_checked_exact_roots_and_tape487
+#print axioms independently_guarded_demand_and_prefix_authority_compile_checkable_automatic_tape487

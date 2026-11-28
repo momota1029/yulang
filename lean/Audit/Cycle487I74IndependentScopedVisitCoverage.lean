@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74IndependentScopedVisitCoverage487
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms finite_prefix_check_is_iff_the_independent_ordered_permissions487
+#print axioms successful_scoped_footprint_covers_exactly_independent_prefix_authorized_old_visits487
