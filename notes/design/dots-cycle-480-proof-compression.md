@@ -6,7 +6,7 @@
 
 `g04_producer_iff_eventwise_exists480` で、関数をひとつ存在させる `G04Producer` と、元の typed event・正確な prior phase ごとに忠実な有限 wire が存在する命題は古典的に同値。以前残った一文: **元の source 順序が保存されていない authored event で、同じ選択済み物理 root を最初に読む有限の raw/author 列を構成し、その列で独立な旧 `Read` と全く同じ報告が成り立つこと。** C480 では、実 root の既存 raw ordinal と実 authored ordinal を先頭に置き、残りの authored facts の既存 ordinal を写し、`GeneralDeclarativeInlineFootprint331.trace` の有限 footprint で `Read` を輸送することでこのケースも証明した。既記録 source 順は変更せず、released 枝には前から根拠のある exact completion 対応が要る。したがって **event-wise 存在と `G04Producer` 自体はこの範囲で証明済み**。この証明は実 compiler の生成関数や消去した履歴の逆算ではない。
 
-別に、I-83 の既存累積入口は新しい I-93 型商報告をまだ処理しない。C459 の最新 `.fieldK2` は `RoutedReadyMixed457.ReportAtField` を受け、旧 `FieldDerivation` は raw `AliasCycle` と terminal-true の `Trail` を要求する。C479 の `SamePhaseInputObservation478` は元 `Pose`、選ばれた既存場所、最小型商の正負を持つ別の report で、旧 report へ data-only に押し込める既存枝は確認できない。C479/C480 のデータ読取と局所経路の反映、独立な source 根拠つき同じ `FitsFull` の検証は得たが、**現在の累積 `check_full` に対して、新しい枝の exact report・根拠反映を既存外形の `check_full_sound` と同時に結ぶ仕事**は残る。残っていることを実 compiler の不存在とは取り違えない。単独の幾何 adapter の成功を source の発行証明にしない。今回 G04 全行や全 NoFalseRejection を決着済みとは数えない。
+別に、I-83 の既存累積入口は新しい I-93 型商報告をまだ処理しない。C459 の最新 `.fieldK2` は `RoutedReadyMixed457.ReportAtField` を受け、旧 `FieldDerivation` は raw `AliasCycle` と terminal-true の `Trail` を要求する。C479 の `SamePhaseInputObservation478` は元 `Pose`、選ばれた既存場所、最小型商の正負を持つ別の report で、旧 report へ data-only に押し込める既存枝は確認できない。例えば `Audit/Cycle476I74NamedQuotientActual.lean` の `selected_unrolled_sources_have_no_raw_cycle_but_exact_quotient_k2476` は raw の戻りがない実場所で型商の K2=true を示す。C479/C480 のデータ読取と局所経路の反映、独立な source 根拠つき同じ `FitsFull` の検証は得たが、**現在の累積 `check_full` に対して、新しい枝の exact report・根拠反映を既存外形の `check_full_sound` と同時に結ぶ仕事**は残る。残っていることを実 compiler の不存在とは取り違えない。単独の幾何 adapter の成功を source の発行証明にしない。今回 G04 全行や全 NoFalseRejection を決着済みとは数えない。
 
 ## 1. 一つの入口と正確な置き換え表
 
@@ -18,11 +18,11 @@
 
 | 旧入口（外から内へ） | 平坦タグ・現在の leaf | 合流で落とさないもの |
 |---|---|---|
-| `HomogeneousClosedEntry459.check_full_homogeneous459` → `ProjectedClosedEntry459.check_full_projected459` → `RoutedInlineStructural458.check_full_structural458` | `field(.homogeneous / .projected / .plain)`、C462 `checkSameField` + `factorExisting` | exact `emptyKey` と cursor、同じ signed field/stamp。不一致タグでの false を含む。 |
+| `HomogeneousClosedEntry459.check_full_homogeneous459` → `ProjectedClosedEntry459.check_full_projected459` → `RoutedInlineStructural458.check_full_structural458` | `field(.homogeneous / .projected / .plain)`、C462 `checkSameField` + `factorExisting` | exact `emptyKey` と cursor、同じ旧 raw K2 の field/stamp（正の true の枝）。タグ不整合や検査失敗が返す false も保存し、I-93 の安全報告とは混ぜない。 |
 | `RoutedInlineVariant458.check_full458` → `RoutedReadyMixed457.check_full_ready_mixed457` → `RoutedReadyRecord457.check_full457` | `field(.inlineVariant / .readyMixed / .readyRecord)`、それぞれ現行 `checkField p.old` | 旧 `FieldWire` の型が異なる。準備、author 元位置、実 route を混ぜない。 |
-| `RoutedNominalMixed456.check_full_nominal456` → `RoutedMixed456.check_full456` → `RoutedRecord455.check_full455` | `field(.nominalMixed / .mixed / .routedRecord)`、各 `checkField p.old` | C455 `RecordTrailEntry455` は比較対象でありこの直接鎖にない。残存利用を調べるまで候補削除も不可。I-93 post-C469 の report を旧 raw K2 で代用しない。 |
+| `RoutedNominalMixed456.check_full_nominal456` → `RoutedMixed456.check_full456` → `RoutedRecord455.check_full455` | `field(.nominalMixed / .mixed / .routedRecord)`、各 `checkField p.old` | C455 `RecordTrailEntry455` はこの直接鎖にないが、`RoutedRecordEntry455`・barrel・`Cycle455I74RecordTrail{Actual,Entry}` が import するため置き換え前に削除不可。I-93 post-C469 の report を旧 raw K2 で代用しない。 |
 | C454 `SamePhase454.check_full454` → C453 `GroupedEntry453.check_full453` | `whereRawGrouped`, `whereGrouped`、`SamePhase454.check` / `checkGrouped453` | 元の異なる report 二種。raw Alias 類・原順位・旧完全ガードを保存。I-84 の表示代表未定、G03b の相遷移とは別。 |
-| `WhereSites450.NoSiblingMerge.check_full450` → `ListSites449.Frame.check_full449` → `ListSites449.check_full449` | `whereRoot`, `listFrame`, `listSite`、各 `read…` と現行 `matchesNoWrites` | 元 `Result`、raw 子の K2 と親の誤代入防止、exact list の各実調査位置。 |
+| `WhereSites450.NoSiblingMerge.check_full450` → `ListSites449.Frame.check_full449` → `ListSites449.check_full449` | `whereRoot`, `listFrame`, `listSite`、各 `read…` と現行 `matchesNoWrites`、where は `noSiblingMerge p && WhereSites450.check_full450 p r (.whereRoot w)` | 元 `Result`、raw 子の K2 と親の誤代入防止、exact list の各実調査位置。 |
 | `Opaque448.Whole.check_full448` → `Opaque448.check_full448` | `wholeBare`, `opaqueName`、現行 `readWholeChoice` / `readOpaque` と report 照合 | 解決済みアクセス・ロードの元 roster。nominal 本体を追加調査しない。 |
 | C447 `SelectedReplay447.check_full447` → C446 `RetainedSplit446.check_full446` | `localSplitOutput`、`legacy446`。元の `readLocalSource`, `matchesSelection`, `matchesAssociatedReport432` と C446 を使う | 旧 B6 RHS、output ordinal・固定先・kind・同じ retained state。C446 は入口境界として温存。 |
 | C479/C480 の `TypedInput` / `IssueIsFaithful` | **まだ平坦化対象にしない**。将来の一つの field 観測枝候補 | I-92 の二入力根拠、I-93 型商、実旧 root と選択済み prefix。既存枝との同 Bool と同外形健全性を証明する前に公開枝にしない。 |
@@ -34,9 +34,9 @@
 | 元の狭い領域 | 使う一般化（局所前提は維持） | 残す回帰／削除を許す条件の候補 |
 |---|---|---|
 | C22 の一点 where 無し 1 mixed-ref 出力の保持、および C442/445/446 のその狭い中継 | G00 `selected_wire_iff_exact_local_report447`, `independent_selected_report_has_finite_witness447`, `check_full_sound447` | 旧 exact B6/固定 target、異なる target と異なる型の対照、`Cycle447I74SelectedEntrySpec`。C11/C12 の明示・既定、C14 の非点や一般 release を吸収済みとはしない。他の経路が C446 に依存する限り legacy446 は残る。 |
-| C01 の名付き nullary bare nominal、C448 の narrow opaqueName | G01 `exact_call_site_choice_iff_whole_wire448`, `Opaque448.Whole.check_full_sound448` | `Cycle409I74NamedSpecX12`、`Cycle448I74OpaqueWholeSpec` の元 X12 と roster 誤差／未知の負対照。狭い fixture を一般入口経由で再現し旧 input 全体同値を得た候補だけ。 |
-| C02 の単一点 invariant list-binder、C449 の単 site | G02 `exact_frame_wire_iff_independent_report449`, `ListSites449.Frame.check_full_sound449` | `Cycle410I74ListSpecX8`、`Cycle449I74ListFrameSpec` の別の root / 未訪問位置 / 位置順の対照。bare nominal と list 根の識別、非点・任意構造は同値性なしで消さない。 |
-| C03 の単一 where 子を通る根 K2、450–453 の sibling なし／一群の狭い枝 | G03 I-85 同相 C454 `exact_same_phase_report_iff_finite_wire454`, `check_full_sound454` | `Cycle411I74WhereListSpecX9` と `Cycle454I74WhereSamePhaseActual` の親／実子、raw 別群、元順、欠落・重複負。C453 の whole-roster scope と C454 が違う場合はアダプタ保持。G03b、where 出力、診断表示決定は代替しない。 |
+| C01 の名付き nullary bare nominal、C448 の narrow opaqueName | G01 `exact_call_site_choice_iff_whole_wire448`, `Opaque448.Whole.check_full_sound448` | `Cycle409I74NamedSpecX12`、`Cycle448I74OpaqueWholeSpec` の元 X12 と roster 誤差／未知の負対照。`NamedPriority409` と `OpaqueRead448` も旧 Named を参照。狭い fixture を一般入口経由で再現し旧 input 全体同値を得た候補だけ。 |
+| C02 の単一点 invariant list-binder、C449 の単 site | G02 `exact_frame_wire_iff_independent_report449`, `ListSites449.Frame.check_full_sound449` | `Cycle410I74ListSpecX8`、`Cycle449I74ListFrameSpec` の別の root / 未訪問位置 / 位置順の対照。`ListPriority410`・`ListInspections449`・`WhereListRule411` の依存を先に移す。bare nominal と list 根の識別、非点・任意構造は同値性なしで消さない。 |
+| C03 の単一 where 子を通る根 K2、450–453 の sibling なし／一群の狭い枝 | G03 I-85 同相 C454 `exact_same_phase_report_iff_finite_wire454`, `check_full_sound454` | `Cycle411I74WhereListSpecX9` と `Cycle454I74WhereSamePhaseActual` の親／実子、raw 別群、元順、欠落・重複負。C453 の whole-roster scope と C454 が違う場合はアダプタ保持。`WhereLegacy450`・`WhereListPriority411` の旧依存も先に移す。G03b、where 出力、診断表示決定は代替しない。 |
 
 ## 3. 固定声明と検証計画
 
