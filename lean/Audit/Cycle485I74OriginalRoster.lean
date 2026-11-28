@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74OriginalRoster485
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms roster_cell_reads_exactly_its_two_original_slots485
+#print axioms no_visible_slot_is_lost_in_the_exact_roster485

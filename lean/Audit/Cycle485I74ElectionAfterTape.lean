@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ElectionAfterTape485
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms true_in_a_complete_tape_preempts_every_possible_election485
+#print axioms selection_can_only_follow_a_complete_independently_all_safe_tape485
+#print axioms an_unverified_tape_never_reaches_the_election_callback485

@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74LegacyRosterPriority485
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms every_nonopening_candidate_of_the_actual_old_mixed_roster_is_a_safe_binding485
+#print axioms old_actual_opening_reaches_K2_at_its_independent_authored_ordinal485

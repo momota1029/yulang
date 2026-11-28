@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74CandidateSignedPath485
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms reported_candidate_positive_owns_the_exact_original_ordinal_and_site485
+#print axioms independently_guarded_candidate_path_has_a_finite_wire_at_its_same_roster_slot485

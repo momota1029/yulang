@@ -1,0 +1,7 @@
+import Yulang.GeneralDeclarativeI65I74PreElectionTape485
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms positive_ordinal_is_a_real_positive_local_tape_slot485
+#print axioms every_real_positive_is_kept_before_any_election485
+#print axioms safe_before_election_means_every_exact_slot_has_negative_result485
+#print axioms ordered_pre_election_gate_is_exact_on_the_whole_independent_tape485
