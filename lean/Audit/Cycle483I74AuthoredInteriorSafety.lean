@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74AuthoredInteriorSafety483
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.finite_paired_source_prefixes_are_safe_at_exact_selected_nodes
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.every_nonterminal_original_author_site_in_the_rooted_suffix_is_safe

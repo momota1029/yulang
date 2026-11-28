@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65I74AuthoredInterior483
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.SourceExposure481.ClosedBank.checked_interior_compares_a_literal_child_without_transferring_source_authority

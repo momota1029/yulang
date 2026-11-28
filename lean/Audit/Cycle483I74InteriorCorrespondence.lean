@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74InteriorCorrespondence483
+
+#print axioms Yulang.GeneralDeclarativeI65.I72.InteriorCorrespondence483.paired_selected_children_have_equal_regular_observations
+#print axioms Yulang.GeneralDeclarativeI65.I72.InteriorCorrespondence483.every_paired_actual_position_keeps_its_own_return_status
