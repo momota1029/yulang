@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ReadComputedRosterCompleteness486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms independently_scoped_all_canonical_head_coordinates_produce_a_rechecked_whole_tape486

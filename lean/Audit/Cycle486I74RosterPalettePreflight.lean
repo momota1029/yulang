@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74RosterPalettePreflight486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms accepted_palette_covered_tape_has_every_original_candidate_argument_ready486

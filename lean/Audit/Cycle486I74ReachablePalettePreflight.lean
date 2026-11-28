@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ReachablePalettePreflight486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms no_unavailable_guarded_route_is_lost_under_a_successful_original_palette_preflight486
+#print axioms original_required_palette_preflight_gives_complete_exact_old_search486

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74AutomaticPaletteEntry486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms scoped_original_roster_finitely_replays_without_any_caller_candidate_packets_or_palette486

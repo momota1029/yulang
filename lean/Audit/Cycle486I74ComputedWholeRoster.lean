@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ComputedWholeRoster486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms computed_pre_election_reads_only_the_original_rooted_whole_roster486

@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74ExactComputedCandidateReplay486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms the_exact_computed_wire_replays_on_the_same_original_candidate_slot486

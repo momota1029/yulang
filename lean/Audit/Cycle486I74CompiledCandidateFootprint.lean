@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74CompiledCandidateFootprint486
+
+open Yulang.GeneralDeclarativeI65.I72.CandidateTape485
+#print axioms computed_candidate_footprint_replays_all_its_original_authorized_sites486
