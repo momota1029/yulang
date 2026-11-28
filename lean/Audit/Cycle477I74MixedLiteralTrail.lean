@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74MixedLiteralTrail477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms verified_mixed_trail_replays_to_same_exact_finish477
+#print axioms mixed_trail_keeps_both_paths_and_terminal_is_exact477
+#print axioms mixed_trail_contains_actual_edges_and_only_safe_proper_prefixes477

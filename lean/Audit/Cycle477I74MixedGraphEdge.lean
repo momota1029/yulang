@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74MixedGraphEdge477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms checked_step_operand_is_actual_edge_at_either_place477
+#print axioms positional_pin_forces_the_same_actual_edge477
+#print axioms actual_inline_term_has_one_original_row_and_path477
+#print axioms incoming_inline_term_is_exact_selected_operand477

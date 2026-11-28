@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74NamedPathHop477
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms named_checkpoint_carries_exact_written_raw_and_author_occurrences477
+#print axioms named_checkpoint_selected_operand_is_real477
+#print axioms named_path_hop_has_exact_replay477
+#print axioms named_path_hop_has_real_edge_and_safe_source477

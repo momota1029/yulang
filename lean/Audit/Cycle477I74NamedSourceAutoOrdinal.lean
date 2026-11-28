@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74NamedSourceAutoOrdinal477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms exact_source_selection_needs_no_supplied_ordinal477
+#print axioms exact_named_quotient_needs_no_supplied_ordinal477
+#print axioms absent_source_path_still_yields_no_quotient477

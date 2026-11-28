@@ -1,0 +1,4 @@
+import Yulang.GeneralDeclarativeI65I74NamedHopAutoOrdinal477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms ordinal_lookup_preserves_exact_checked_hop477
+#print axioms absent_exact_deep_mark_still_prevents_hop477

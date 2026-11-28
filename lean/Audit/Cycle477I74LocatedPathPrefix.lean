@@ -1,0 +1,8 @@
+import Yulang.GeneralDeclarativeI65I74LocatedPathPrefix477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms every_located_mark_extends_the_exact_starting_prefix476
+#print axioms located_argument_mark_is_strictly_below_start476
+#print axioms located_field_mark_is_strictly_below_start476
+#print axioms located_capture_before_any_prefix476
+#print axioms located_arguments_before_any_prefix476
+#print axioms located_fields_before_any_prefix476

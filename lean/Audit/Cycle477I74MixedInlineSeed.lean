@@ -1,0 +1,3 @@
+import Yulang.GeneralDeclarativeI65I74MixedInlineSeed477
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+#print axioms inline_seed_is_exact_old_source_and_original_graph_edge477

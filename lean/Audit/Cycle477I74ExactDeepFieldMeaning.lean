@@ -1,0 +1,6 @@
+import Yulang.GeneralDeclarativeI65I74ExactDeepFieldMeaning477
+
+open Yulang.GeneralDeclarativeI65.I72.InputCoordinates475
+
+#print axioms original_argument_has_a_nonempty_real_walk_to_the_exact_deep_field477
+#print axioms a_positive_deep_field_cycle_returns_to_the_actual_last_operand477
