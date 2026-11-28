@@ -1,9 +1,9 @@
 # dots-main heartbeat
 
-cycle: 478
+cycle: 479
 status: completed
-started: 2026-11-28T01:26:21.105Z
-updated: 2026-11-28T02:16:26.377Z
+started: 2026-11-28T02:28:20.000Z
+updated: 2026-11-28T03:18:25.400Z
 elapsed_min: 50
-activity: 同相入力座標の有限再生・三条件の局所検証。実 compiler の発行は未証明。I-95 期限 C479 へ
-report: notes/handoff/dots-cycle-478.md
+activity: I-95: G04 は未完。未証明の G04Producer : Prop を明示。次周 C480 は短縮設計から（削除なし）。
+report: notes/handoff/dots-cycle-479.md

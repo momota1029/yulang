@@ -1,0 +1,9 @@
+import Yulang.GeneralDeclarativeI65I74ProducerTrail479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms siteAt_replays479
+#print axioms exact_hop_has_a_unique_replay479
+#print axioms reified_hop_keeps_the_same_old_place479
+#print axioms finite_trail_wire_replays_exact_selected_path479
+#print axioms finite_trail_wire_reflects_exact_selected_path479

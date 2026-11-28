@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74BoundReleaseProducer479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+
+#print axioms exact_output_association_and_current_release_replay479

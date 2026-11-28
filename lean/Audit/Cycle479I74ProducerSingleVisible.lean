@@ -1,0 +1,5 @@
+import Yulang.GeneralDeclarativeI65I74ProducerSingleVisible479
+
+open Yulang.GeneralDeclarativeI65.I72.Producer479
+#print axioms exact_single_visibility_forces_the_old_filtered_index_zero479
+#print axioms single_input_reifies_a_route_even_without_any_producer479
