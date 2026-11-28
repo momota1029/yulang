@@ -1,0 +1,16 @@
+import Yulang.GeneralDeclarativeI65I74FlatOuterCodec481
+
+open Yulang.GeneralDeclarativeI65.I72.Flat481
+
+#print axioms different_flat_tiers_return_false481
+#print axioms grouped_same_Bool481
+#print axioms rawGrouped_same_Bool481
+#print axioms fieldRecord_same_Bool481
+#print axioms fieldMixed_same_Bool481
+#print axioms fieldNominal_same_Bool481
+#print axioms fieldReadyRecord_same_Bool481
+#print axioms fieldReadyMixed_same_Bool481
+#print axioms fieldVariant_same_Bool481
+#print axioms fieldStructural_same_Bool481
+#print axioms fieldProjected_same_Bool481
+#print axioms fieldHomogeneous_same_Bool481

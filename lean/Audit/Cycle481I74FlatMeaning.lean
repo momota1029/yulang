@@ -1,0 +1,33 @@
+import Yulang.GeneralDeclarativeI65I74FlatMeaning481
+
+open Yulang.GeneralDeclarativeI65.I72.Flat481
+
+#print axioms retained_legacy_meaning_unchanged481
+#print axioms selected_legacy_meaning_unchanged481
+#print axioms opaque_legacy_meaning_unchanged481
+#print axioms whole_legacy_meaning_unchanged481
+#print axioms listSite_legacy_meaning_unchanged481
+#print axioms listFrame_legacy_meaning_unchanged481
+#print axioms guardedWhere_legacy_meaning_unchanged481
+#print axioms grouped_classification_reflects481
+#print axioms grouped_evidence_reflects481
+#print axioms rawGrouped_classification_reflects481
+#print axioms rawGrouped_evidence_reflects481
+#print axioms fieldRecord_classification_reflects481
+#print axioms fieldRecord_evidence_reflects481
+#print axioms fieldMixed_classification_reflects481
+#print axioms fieldMixed_evidence_reflects481
+#print axioms fieldNominal_classification_reflects481
+#print axioms fieldNominal_evidence_reflects481
+#print axioms fieldReadyRecord_classification_reflects481
+#print axioms fieldReadyRecord_evidence_reflects481
+#print axioms fieldReadyMixed_classification_reflects481
+#print axioms fieldReadyMixed_evidence_reflects481
+#print axioms fieldVariant_classification_reflects481
+#print axioms fieldVariant_evidence_reflects481
+#print axioms fieldStructural_classification_reflects481
+#print axioms fieldStructural_evidence_reflects481
+#print axioms fieldProjected_classification_reflects481
+#print axioms fieldProjected_evidence_reflects481
+#print axioms fieldHomogeneous_classification_reflects481
+#print axioms fieldHomogeneous_evidence_reflects481
