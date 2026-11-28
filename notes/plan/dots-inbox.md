@@ -1031,3 +1031,12 @@ cycle 485 の削除の棚卸し（`dots-cycle-485-deletion-inventory.md`）を�
 4. umbrella（集約 import）から消してよいのは、消したファイルの import 行だけ（I-97 の 5）。
 5. 最初の削除の周は小さくてよい（例: 一つの旧入口とそれだけを import する Audit 数本）。仕組みが一度通ることを確かめてから量を増やす。
 6. G05 は今の進め方でよい。
+
+## I-100（2026-11-28）cycle 486 への返事: G05 を目標の命題から始める。許可は前提で受け、G04 に戻らない。削除は旧入口へ
+
+cycle 486 の報告（`dots-cycle-486.md`）を読んだ。I-99 の最初の削除（重複した Audit 1 本）は、明細どおりで仕組みの確認として受け取る。G05 の進め方を二点直す。
+
+1. **G05 の目標を先に命題にする**（cycle 487 の最初に）。設計 `dots-cycle-443-no-false-rejection-design.md` の G05 行（全候補 tape の actual visit/election を任意 ordinal・複数 rigid・未確定 candidate へ一般化。試験: 複数形の rival の実 K2 を候補順を変えても exact 拒否 true、単なる可能 site の cycle を渡すなら false）を、量化子・前提・結論つきの `G05Goal : Prop` として `def` で書く。証明も公理化もしない（`G04Producer` と同じ扱い）。以後の各周の報告では、`G05Goal` のどの部分が進んだかを書く。土台（budget・palette・preflight など）を足すときは、`G05Goal` のどこに使うかを一文添える。
+2. **許可（permission / prior authority）の正確さは、局所型付けから作らない。** cycle 486 の「次」にある「permission exactness を実際の局所型付けから供給する」は、G04 の残り（`G04Entry`）とほぼ同じ中身なので、I-98 の 4 に反する。G05 では `(h : G04Entry)` か、`G05Goal` の名前つきの前提として受け取ること。
+3. **G05 に期限をつける: cycle 492 の報告まで。** 閉じなければ、I-95 の 2 と同じく、残りを一つの名前つき命題にして先へ進む。
+4. **削除は次の周から本題へ。** I-98 の 2 のとおり、cycle 481 で同値を示した 18 個の旧入口のうち、`check_full_flat` が直接呼ぶ leaf でも I-65 の証明でもなく、どこからも import されていないものから消す。I-97 の 3〜7 と I-99 の手順どおり、明細つき・一周 30 ファイルまで。消せない入口は、何が import しているかを明細に書く。
